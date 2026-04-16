@@ -78,3 +78,5 @@ DerivedDataCache/*
 .github/
 Content/Marketplace
 Content/Assets
+Docs/Private
+.idea

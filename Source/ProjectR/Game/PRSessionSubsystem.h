@@ -28,9 +28,11 @@ public:
 
 public:
 	// 호스트 개시. 성공 시 리슨 서버로 OpenLevel, 실패 시 OnSessionFailed 발행
+	UFUNCTION(BlueprintCallable)
 	void StartHost(const FPRHostSessionParams& Params);
 
 	// 참가 개시. 주소 파싱 실패/접속 실패 시 OnSessionFailed 발행
+	UFUNCTION(BlueprintCallable)
 	void StartJoin(const FPRJoinSessionParams& Params);
 
 	// 현재 세션 종료 처리. 호스트/게스트 공통 진입점

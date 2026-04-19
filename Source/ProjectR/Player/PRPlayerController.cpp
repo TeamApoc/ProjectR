@@ -68,7 +68,7 @@ void APRPlayerController::ServerSubmitCharacter_Implementation(const FPRCharacte
 	}
 }
 
-// =====  서버 → 클라 통지 ===== 
+// =====  서버 -> 클라 통지 ===== 
 
 void APRPlayerController::ClientCharacterAccepted_Implementation(bool bAccepted, const FString& Detail)
 {

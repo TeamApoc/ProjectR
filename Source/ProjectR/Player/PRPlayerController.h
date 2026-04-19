@@ -4,8 +4,13 @@
 
 #include "CoreMinimal.h"
 #include "GameFramework/PlayerController.h"
+#include "GameplayTagContainer.h"
 #include "ProjectR/Game/PRGameTypes.h"
 #include "PRPlayerController.generated.h"
+
+class UPRInputConfigDataAsset;
+class UPRAbilitySystemComponent;
+struct FInputActionValue;
 
 // 플레이어 입력·UI 소유. Join 시 캐릭터 페이로드를 서버로 전송하고,
 // 인게임 중 발생한 보상 Grant를 연결이 살아있는 동안 즉시 수령하여 GameInstance에 반영한다
@@ -18,6 +23,8 @@ public:
 	/*~ APlayerController Interface ~*/
 	virtual void AcknowledgePossession(APawn* InPawn) override;
 	virtual void BeginPlay() override;
+	virtual void SetupInputComponent() override;
+	virtual void PostProcessInput(const float DeltaTime, const bool bGamePaused) override;
 
 public:
 	// 로컬 클라에서 호출. GameInstance의 LocalCharacter를 서버로 제출
@@ -39,7 +46,20 @@ protected:
 	UFUNCTION(Server, Reliable, WithValidation)
 	void ServerSubmitCharacter(const FPRCharacterSaveData& Payload);
 
-protected:
+	// IA ↔ InputTag 매핑을 담고 있는 InputConfig. 각 IA에 Pressed/Released 콜백을 라우팅
+	UPROPERTY(EditDefaultsOnly, Category = "ProjectR|Input")
+	TObjectPtr<UPRInputConfigDataAsset> InputConfig;
+
+	// IA Pressed 콜백. InputTag를 ASC로 전달
+	void OnAbilityInputPressed(FGameplayTag InputTag);
+
+	// IA Released 콜백
+	void OnAbilityInputReleased(FGameplayTag InputTag);
+
+private:
+	// 폰 -> PlayerState 경로로 ASC 조회
+	UPRAbilitySystemComponent* GetASC() const;
+
 	// 캐릭터 페이로드를 이미 제출했는지 여부. 중복 제출 방지
 	bool bCharacterSubmitted = false;
 };

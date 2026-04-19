@@ -9,6 +9,8 @@
 #include "EnhancedInputComponent.h"
 #include "EnhancedInputSubsystems.h"
 #include "Kismet/KismetMathLibrary.h"
+#include "ProjectR/AbilitySystem/PRAbilitySystemComponent.h"
+#include "ProjectR/Player/PRPlayerState.h"
 
 
 // Sets default values
@@ -47,6 +49,46 @@ APRPlayerCharacter::APRPlayerCharacter()
 
 	// 앉기 기능 활성화
 	GetCharacterMovement()->NavAgentProps.bCanCrouch = true;
+}
+
+// =====  ASC 연동 =====
+
+UPRAbilitySystemComponent* APRPlayerCharacter::GetPRAbilitySystemComponent() const
+{
+	// 플레이어 ASC는 PlayerState에 있음
+	if (const APRPlayerState* PS = GetPlayerState<APRPlayerState>())
+	{
+		return PS->GetPRAbilitySystemComponent();
+	}
+	return nullptr;
+}
+
+void APRPlayerCharacter::PossessedBy(AController* NewController)
+{
+	Super::PossessedBy(NewController);
+
+	// 서버 측 ActorInfo 초기화. Owner = PlayerState, Avatar = this
+	if (APRPlayerState* PS = GetPlayerState<APRPlayerState>())
+	{
+		if (UPRAbilitySystemComponent* ASC = PS->GetPRAbilitySystemComponent())
+		{
+			ASC->InitAbilityActorInfo(PS, this);
+		}
+	}
+}
+
+void APRPlayerCharacter::OnRep_PlayerState()
+{
+	Super::OnRep_PlayerState();
+
+	// 클라이언트 측 ActorInfo 초기화
+	if (APRPlayerState* PS = GetPlayerState<APRPlayerState>())
+	{
+		if (UPRAbilitySystemComponent* ASC = PS->GetPRAbilitySystemComponent())
+		{
+			ASC->InitAbilityActorInfo(PS, this);
+		}
+	}
 }
 
 void APRPlayerCharacter::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const

@@ -208,19 +208,22 @@ struct FPRJoinSessionParams
 	FString Address;
 };
 
-/*~ 게스트 보상 배치 (추후 확장) ~*/
+/*~ 보상 Grant ~*/
 
-// 게스트 이탈 시 호스트가 내려주는 누적 보상 배치. 구체 필드는 보상 시스템 구현 시 확정
+// 즉시 지급 단위. 보상 이벤트 발생 시 서버가 구성하여 오너 클라로 푸시
+// 세션 종료 시 정산하는 배치 경로는 사용하지 않는다 (Logout은 Reliable RPC 도달 보장 X)
 USTRUCT(BlueprintType)
-struct FPRGuestRewardBatch
+struct FPRRewardGrant
 {
 	GENERATED_BODY()
 
-	// 누적 경험치
+	// 획득 경험치
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	int64 Experience = 0;
 
-	// 누적 재화
+	// 획득 재화 (기본 통화)
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	int64 Currency = 0;
+
+	// 아이템 드롭·재료 등은 Inventory 시스템 구현 시 필드 추가
 };

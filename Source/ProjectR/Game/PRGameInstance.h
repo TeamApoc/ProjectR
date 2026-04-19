@@ -43,9 +43,10 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "ProjectR|Save")
 	bool SaveLocalCharacter(FName SlotName);
 
-	// 게스트로 참가 중 호스트가 보내온 보상을 로컬 세이브에 누적
+	// 보상 이벤트 발생 시 서버가 푸시한 Grant를 로컬 캐릭터에 즉시 반영
+	// PlayerController.ClientGrantReward 수신 경로의 종착점
 	UFUNCTION(BlueprintCallable, Category = "ProjectR|Save")
-	void CommitGuestRewards(const FPRGuestRewardBatch& Batch);
+	void ApplyRewardGrant(const FPRRewardGrant& Grant);
 
 	// 현재 로컬 캐릭터 데이터 조회. Join 시 PlayerController가 서버로 제출할 때 사용
 	const FPRCharacterSaveData& GetLocalCharacter() const { return LocalCharacter; }

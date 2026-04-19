@@ -8,7 +8,7 @@
 #include "PRPlayerController.generated.h"
 
 // 플레이어 입력·UI 소유. Join 시 캐릭터 페이로드를 서버로 전송하고,
-// 퇴장 시 호스트가 내려주는 보상 배치를 수령하여 GameInstance에 위임한다
+// 인게임 중 발생한 보상 Grant를 연결이 살아있는 동안 즉시 수령하여 GameInstance에 반영한다
 UCLASS()
 class PROJECTR_API APRPlayerController : public APlayerController
 {
@@ -29,9 +29,10 @@ public:
 	UFUNCTION(Client, Reliable)
 	void ClientCharacterAccepted(bool bAccepted, const FString& Detail);
 
-	// 서버 -> 본인 클라. 퇴장 직전 누적 보상 전달. 수신 즉시 GameInstance에 커밋
+	// 서버 -> 본인 클라. 보상 발생 이벤트 시점에 즉시 호출
+	// 수신 즉시 GameInstance.ApplyRewardGrant로 반영. 세션 종료 정산 경로는 사용하지 않는다
 	UFUNCTION(Client, Reliable)
-	void ClientCommitRewards(const FPRGuestRewardBatch& Batch);
+	void ClientGrantReward(const FPRRewardGrant& Grant);
 
 protected:
 	// 클라이언트 -> 서버. 로컬 캐릭터 페이로드 제출

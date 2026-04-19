@@ -42,13 +42,9 @@ void APRPlayGameMode::PostLogin(APlayerController* NewPlayer)
 
 void APRPlayGameMode::Logout(AController* Exiting)
 {
-	// 게스트 이탈 시 누적 보상을 정산하여 ClientCommitRewards로 전달
-	if (APRPlayerController* Guest = Cast<APRPlayerController>(Exiting))
-	{
-		const FPRGuestRewardBatch Batch = CollectRewardsForGuest(Guest);
-		Guest->ClientCommitRewards(Batch);
-	}
-
+	// 보상은 즉시 지급 원칙이므로 여기서 Reliable RPC를 호출하지 않는다
+	// (연결이 이미 해제 단계이므로 도달이 보장되지 않음)
+	// 필요한 정리 작업(월드 오브젝트 소유권 이관 등)만 수행한다
 	Super::Logout(Exiting);
 }
 
@@ -131,9 +127,13 @@ bool APRPlayGameMode::AcceptGuestCharacter(APRPlayerController* From, const FPRC
 	return false;
 }
 
-FPRGuestRewardBatch APRPlayGameMode::CollectRewardsForGuest(APRPlayerController* Guest) const
+void APRPlayGameMode::GrantRewardTo(APRPlayerController* Target, const FPRRewardGrant& Grant)
 {
-	// 보상 시스템 구현 시 PlayerState의 누적 값을 배치로 변환
-	// 현재는 빈 배치 반환 (스텁)
-	return FPRGuestRewardBatch();
+	if (!IsValid(Target))
+	{
+		return;
+	}
+
+	// 오너 클라에게만 푸시. 수신 측에서 GameInstance에 즉시 반영
+	Target->ClientGrantReward(Grant);
 }

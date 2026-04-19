@@ -33,12 +33,13 @@ public:
 	// 반환값이 false면 호출측(PlayerController)이 ClientCharacterAccepted(false)로 거부 통지
 	bool AcceptGuestCharacter(APRPlayerController* From, const FPRCharacterSaveData& Payload);
 
+	// 보상 발생 이벤트에서 호출. 해당 오너 클라에게 즉시 Grant를 푸시
+	// 같은 프레임 내 중복 지급은 호출자가 합산하여 1회로 보낸다
+	void GrantRewardTo(APRPlayerController* Target, const FPRRewardGrant& Grant);
+
 protected:
 	// 페이로드 검증. 실패 시 OutReason에 사유 기록
 	bool ValidateCharacterPayload(const FPRCharacterSaveData& Payload, FString& OutReason) const;
-
-	// 게스트 이탈 시 누적 보상을 계산. 현재는 스텁(PlayerState 연동은 보상 시스템 구현 시 확장)
-	FPRGuestRewardBatch CollectRewardsForGuest(APRPlayerController* Guest) const;
 
 protected:
 	// 호스트 시작 시 로드된 월드 세이브. InitGame에서 주입되어 GameState에 전달된다

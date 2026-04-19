@@ -82,7 +82,7 @@ void APRPlayerController::ClientCharacterAccepted_Implementation(bool bAccepted,
 	}
 }
 
-void APRPlayerController::ClientCommitRewards_Implementation(const FPRGuestRewardBatch& Batch)
+void APRPlayerController::ClientGrantReward_Implementation(const FPRRewardGrant& Grant)
 {
 	UPRGameInstance* GI = GetGameInstance<UPRGameInstance>();
 	if (!IsValid(GI))
@@ -90,5 +90,5 @@ void APRPlayerController::ClientCommitRewards_Implementation(const FPRGuestRewar
 		return;
 	}
 
-	GI->CommitGuestRewards(Batch);
+	GI->ApplyRewardGrant(Grant);
 }

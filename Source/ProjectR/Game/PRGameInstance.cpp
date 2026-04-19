@@ -64,9 +64,9 @@ bool UPRGameInstance::SaveLocalCharacter(FName SlotName)
 	return false;
 }
 
-void UPRGameInstance::CommitGuestRewards(const FPRGuestRewardBatch& Batch)
+void UPRGameInstance::ApplyRewardGrant(const FPRRewardGrant& Grant)
 {
-	// 경험치·재화 누적. 로컬 세이브 기록은 SaveLocalCharacter 호출 시점에 위임
-	LocalCharacter.Experience += Batch.Experience;
+	// 즉시 지급. 경험치는 로컬 캐릭터에 바로 반영
+	LocalCharacter.Experience += Grant.Experience;
 	// 재화는 인벤토리 시스템 구현 후 반영 (현재는 스텁)
 }

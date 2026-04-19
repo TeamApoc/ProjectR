@@ -25,7 +25,7 @@ public:
 	// 캐릭터 레벨 조회
 	int32 GetCharacterLevel() const { return CharacterLevel; }
 
-	// 스탯 조회 (읽기 전용)
+	// 스탯 조회 (읽기 전용) 
 	const FPRCharacterStats& GetStats() const { return Stats; }
 
 	// 서버 전용. GameMode가 검증 통과한 캐릭터 페이로드를 주입. 복제는 자동

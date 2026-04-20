@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "PRCharacterBase.h"
 #include "Net/UnrealNetwork.h"
+#include "ProjectR/AbilitySystem/Data/PRAbilitySet.h"
 #include "PRPlayerCharacter.generated.h"
 
 class USpringArmComponent;
@@ -25,11 +26,18 @@ public:
 	
 	/** 멀티플레이어 변수 복제 설정 */
 	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
+
+	/*~ APawn Interface ~*/
+	virtual void PossessedBy(AController* NewController) override;
+	virtual void OnRep_PlayerState() override;
+
+	/*~ APRCharacterBase Interface ~*/
+	virtual UPRAbilitySystemComponent* GetPRAbilitySystemComponent() const override;
 	
 	/** 애니메이션 인스턴스에서 사용하는 게터 함수들 */                   
-	bool IsCrouching() const { return false; } 
-	bool IsSprinting() const { return true; } 
-	bool IsAiming() const { return false; }       
+	bool IsCrouching() const { return bIsCrouched; } 
+	bool IsSprinting() const { return bIsSprinting; } 
+	bool IsAiming() const { return bIsAiming; }       
 	
 	// 컨트롤 회전(카메라)과 캐릭터 정면 사이의 Yaw 차이를 반환 (Lean 및 절차적 애니메이션용)
 	float GetDesiredLookDirection() const;            
@@ -47,17 +55,33 @@ protected:
 	void SprintStarted();
 	void SprintEnded();
 
-	UFUNCTION(Server, Reliable)
+	/** 현재 상태(질주, 조준 등)에 맞춰 MaxWalkSpeed를 업데이트한다 (클라이언트 예측용) */
+	void UpdateMaxWalkSpeed();
+
+	UFUNCTION(Server, Reliable, WithValidation)
 	void Server_SetSprinting(bool bNewSprinting);
 
 	void AimStarted();
 	void AimEnded();
 
-	UFUNCTION(Server, Reliable)
+	UFUNCTION(Server, Reliable, WithValidation)
 	void Server_SetAiming(bool bNewAiming);
 
 	void CrouchPressed();
-	
+
+	/** 상호작용 입력을 처리한다 */
+	void InteractPressed();
+
+private:
+    /** 질주 상태가 복제되었을 때 속도를 업데이트한다 */
+    UFUNCTION()
+    void OnRep_IsSprinting();
+
+    /** 조준 상태가 복제되었을 때 속도를 업데이트한다 */
+    UFUNCTION()
+    void OnRep_IsAiming();
+
+public:
 	/** 컴포넌트 */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Camera")
 	TObjectPtr<USpringArmComponent> CameraBoom;
@@ -65,6 +89,7 @@ protected:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Camera")
 	TObjectPtr<UCameraComponent> FollowCamera;
 
+protected:
 	/** Enhanced Input 에셋 (블루프린트에서 할당) */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Input")
 	TObjectPtr<UInputMappingContext> DefaultMappingContext;
@@ -87,6 +112,22 @@ protected:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Input")
 	TObjectPtr<UInputAction> AimAction;
 
+	/** 상호작용 입력 액션 */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "PR|Input")
+	TObjectPtr<UInputAction> InteractAction;
+
+	/** 조준/느린 이동 시 속도 (cm/s) */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "PR|Locomotion")
+	float WalkSpeed = 200.0f;
+
+	/** 기본 조깅 속도 (cm/s) */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "PR|Locomotion")
+	float JogSpeed = 350.0f;
+
+	/** 질주 속도 (cm/s) */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "PR|Locomotion")
+	float SprintSpeed = 600.0f;
+
 private:
 	/** 복제되는 상태 변수 */
 	UPROPERTY(Replicated, VisibleInstanceOnly, BlueprintReadOnly, Category = "Locomotion", meta = (AllowPrivateAccess = "true"))
@@ -94,4 +135,6 @@ private:
 
 	UPROPERTY(Replicated, VisibleInstanceOnly, BlueprintReadOnly, Category = "Locomotion", meta = (AllowPrivateAccess = "true"))
 	bool bIsAiming = false;
+	
+	FPRAbilitySetHandles AbilitySetHandles;
 };

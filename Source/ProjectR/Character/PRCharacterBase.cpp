@@ -1,32 +1,41 @@
-﻿// Fill out your copyright notice in the Description page of Project Settings.
-
+// Copyright ProjectR. All Rights Reserved.
 
 #include "PRCharacterBase.h"
+#include "ProjectR/AbilitySystem/PRAbilitySystemComponent.h"
 
-
-// Sets default values
 APRCharacterBase::APRCharacterBase()
 {
-	// Set this character to call Tick() every frame.  You can turn this off to improve performance if you don't need it.
 	PrimaryActorTick.bCanEverTick = true;
 }
 
-// Called when the game starts or when spawned
+// =====  AActor Interface =====
+
 void APRCharacterBase::BeginPlay()
 {
 	Super::BeginPlay();
-	
 }
 
-// Called every frame
 void APRCharacterBase::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
 }
 
-// Called to bind functionality to input
+// =====  ACharacter Interface =====
+
 void APRCharacterBase::SetupPlayerInputComponent(UInputComponent* PlayerInputComponent)
 {
 	Super::SetupPlayerInputComponent(PlayerInputComponent);
 }
 
+// =====  IAbilitySystemInterface =====
+
+UAbilitySystemComponent* APRCharacterBase::GetAbilitySystemComponent() const
+{
+	return GetPRAbilitySystemComponent();
+}
+
+UPRAbilitySystemComponent* APRCharacterBase::GetPRAbilitySystemComponent() const
+{
+	// 기본 구현은 nullptr. 플레이어는 PlayerState, 적은 자기 컴포넌트에서 override
+	return nullptr;
+}

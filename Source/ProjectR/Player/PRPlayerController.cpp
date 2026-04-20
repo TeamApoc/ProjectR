@@ -3,8 +3,13 @@
 #include "PRPlayerController.h"
 #include "ProjectR/Game/PRGameInstance.h"
 #include "ProjectR/Game/PRPlayGameMode.h"
+#include "ProjectR/AbilitySystem/PRAbilitySystemComponent.h"
+#include "AbilitySystemBlueprintLibrary.h"
+#include "EnhancedInputComponent.h"
+#include "InputAction.h"
+#include "ProjectR/Input/PRInputConfigDataAsset.h"
 
-// =====  APlayerController Interface ===== 
+// =====  APlayerController Interface =====
 
 void APRPlayerController::BeginPlay()
 {
@@ -23,7 +28,77 @@ void APRPlayerController::AcknowledgePossession(APawn* InPawn)
 	Super::AcknowledgePossession(InPawn);
 }
 
-// =====  캐릭터 페이로드 제출 ===== 
+void APRPlayerController::SetupInputComponent()
+{
+	Super::SetupInputComponent();
+
+	UEnhancedInputComponent* EIC = Cast<UEnhancedInputComponent>(InputComponent);
+	if (EIC == nullptr || !IsValid(InputConfig))
+	{
+		return;
+	}
+
+	// IA별로 Started/Completed에 InputTag 포함 콜백을 바인딩
+	for (const FPRInputActionBinding& Binding : InputConfig->AbilityInputBindings)
+	{
+		if (Binding.InputAction == nullptr || !Binding.InputTag.IsValid())
+		{
+			continue;
+		}
+
+		EIC->BindAction(Binding.InputAction, ETriggerEvent::Started, this,
+			&APRPlayerController::OnAbilityInputPressed, Binding.InputTag);
+		EIC->BindAction(Binding.InputAction, ETriggerEvent::Completed, this,
+			&APRPlayerController::OnAbilityInputReleased, Binding.InputTag);
+	}
+}
+
+void APRPlayerController::PostProcessInput(const float DeltaTime, const bool bGamePaused)
+{
+	if (UPRAbilitySystemComponent* ASC = GetASC())
+	{
+		ASC->ProcessAbilityInput(DeltaTime, bGamePaused);
+	}
+	Super::PostProcessInput(DeltaTime, bGamePaused);
+}
+
+// =====  입력 콜백 =====
+
+void APRPlayerController::OnAbilityInputPressed(FGameplayTag InputTag)
+{
+	if (UPRAbilitySystemComponent* ASC = GetASC())
+	{
+		ASC->AbilityInputPressed(InputTag);
+	}
+}
+
+void APRPlayerController::OnAbilityInputReleased(FGameplayTag InputTag)
+{
+	if (UPRAbilitySystemComponent* ASC = GetASC())
+	{
+		ASC->AbilityInputReleased(InputTag);
+	}
+}
+
+UPRAbilitySystemComponent* APRPlayerController::GetASC() const
+{
+	if (CachedASC.IsValid())
+	{
+		return CachedASC.Get();
+	}
+	
+	if (APawn* LocalPawn = GetPawn())
+	{
+		if (UPRAbilitySystemComponent* ASC =  Cast<UPRAbilitySystemComponent>(UAbilitySystemBlueprintLibrary::GetAbilitySystemComponent(LocalPawn)))
+		{
+			CachedASC = ASC;
+			return ASC;
+		}
+	}
+	return nullptr;
+}
+
+// =====  캐릭터 페이로드 제출 =====
 
 void APRPlayerController::SubmitLocalCharacterToServer()
 {
@@ -68,7 +143,7 @@ void APRPlayerController::ServerSubmitCharacter_Implementation(const FPRCharacte
 	}
 }
 
-// =====  서버 -> 클라 통지 ===== 
+// =====  서버 -> 클라 통지 =====
 
 void APRPlayerController::ClientCharacterAccepted_Implementation(bool bAccepted, const FString& Detail)
 {

@@ -73,21 +73,21 @@ enum class EPRWorldObjectState : uint8
 
 /*~ 인벤토리 / 장비 (추후 구현) ~*/
 
-// [확장 예정] 인벤토리 단일 슬롯 엔트리. Inventory 시스템 구현 시 필드 확정
+// [확장 및 이전 예정] 인벤토리 단일 슬롯 엔트리. Inventory 시스템 구현 시 필드 확정
 USTRUCT(BlueprintType)
 struct FPRItemEntry
 {
 	GENERATED_BODY()
 };
 
-// [확장 예정] 세이브/네트워크 전송용 인벤토리 직렬화 DTO. Inventory 시스템 구현 시 필드 확정
+// [확장 및 이전 예정] 세이브/네트워크 전송용 인벤토리 직렬화 DTO. Inventory 시스템 구현 시 필드 확정
 USTRUCT(BlueprintType)
 struct FPRInventorySnapshot
 {
 	GENERATED_BODY()
 };
 
-// [확장 예정] 장착 중인 무기/장비 슬롯 매핑. Equipment 시스템 구현 시 필드 확정
+// [확장 및 이전 예정] 장착 중인 무기/장비 슬롯 매핑. Equipment 시스템 구현 시 필드 확정
 USTRUCT(BlueprintType)
 struct FPREquipmentState
 {
@@ -96,23 +96,11 @@ struct FPREquipmentState
 
 /*~ 캐릭터 스펙 ~*/
 
-// 캐릭터 베이스 스탯. GAS AttributeSet 초기화 값의 원천
+// 캐릭터 스탯 업그레이드 정보.
 USTRUCT(BlueprintType)
-struct FPRCharacterStats
+struct FPRCharacterStatUpgradeInfo
 {
 	GENERATED_BODY()
-
-	// 최대 체력 베이스 값
-	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	float BaseMaxHealth = 100.f;
-
-	// 최대 스태미너 베이스 값
-	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	float BaseMaxStamina = 100.f;
-
-	// 이동 속도 배율 베이스 값(1.0 기준)
-	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	float BaseMovementSpeed = 1.f;
 };
 
 // 게스트가 Join 시 호스트에 전송하는 캐릭터 스펙 번들
@@ -140,7 +128,7 @@ struct FPRCharacterSaveData
 
 	// 스탯 배분 결과. 각 필드는 Level 기반 상한 검증 대상
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	FPRCharacterStats Stats;
+	FPRCharacterStatUpgradeInfo Stats;
 };
 
 /*~ 월드 세이브 ~*/

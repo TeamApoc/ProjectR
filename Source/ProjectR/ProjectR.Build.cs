@@ -16,7 +16,8 @@ public class ProjectR : ModuleRules
 			"EnhancedInput",
 			"GameplayAbilities",
 			"GameplayTags",
-			"GameplayTasks"
+			"GameplayTasks",
+			"DeveloperSettings"
 		});
 
 		PrivateDependencyModuleNames.AddRange(new string[] { "AnimGraphRuntime" });

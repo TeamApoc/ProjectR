@@ -2,8 +2,25 @@
 
 #include "PRPlayerState.h"
 #include "Net/UnrealNetwork.h"
+#include "ProjectR/AbilitySystem/PRAbilitySystemComponent.h"
+#include "ProjectR/AbilitySystem/AttributeSets/PRAttributeSet_Common.h"
+#include "ProjectR/AbilitySystem/AttributeSets/PRAttributeSet_Player.h"
 
-// =====  복제 등록 ===== 
+APRPlayerState::APRPlayerState()
+{
+	AbilitySystemComponent = CreateDefaultSubobject<UPRAbilitySystemComponent>(TEXT("AbilitySystemComponent"));
+	AbilitySystemComponent->SetIsReplicated(true);
+	// 플레이어 ASC는 Mixed 모드: 본인 GE 전체 + 타 플레이어 요약
+	AbilitySystemComponent->SetReplicationMode(EGameplayEffectReplicationMode::Mixed);
+
+	CommonSet = CreateDefaultSubobject<UPRAttributeSet_Common>(TEXT("CommonSet"));
+	PlayerSet = CreateDefaultSubobject<UPRAttributeSet_Player>(TEXT("PlayerSet"));
+
+	// PlayerState는 NetUpdate가 낮음. GAS 예측 응답성 확보를 위해 인상
+	SetNetUpdateFrequency(100.0f);
+}
+
+// =====  복제 등록 =====
 
 void APRPlayerState::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const
 {
@@ -12,10 +29,21 @@ void APRPlayerState::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLi
 	DOREPLIFETIME(APRPlayerState, DisplayName);
 	DOREPLIFETIME(APRPlayerState, CharacterLevel);
 	DOREPLIFETIME(APRPlayerState, Experience);
-	DOREPLIFETIME(APRPlayerState, Stats);
 }
 
-// =====  초기화 ===== 
+void APRPlayerState::BeginPlay()
+{
+	Super::BeginPlay();
+}
+
+// =====  IAbilitySystemInterface =====
+
+UAbilitySystemComponent* APRPlayerState::GetAbilitySystemComponent() const
+{
+	return AbilitySystemComponent;
+}
+
+// =====  초기화 =====
 
 void APRPlayerState::InitializeFromSaveData(const FPRCharacterSaveData& SaveData)
 {
@@ -27,5 +55,5 @@ void APRPlayerState::InitializeFromSaveData(const FPRCharacterSaveData& SaveData
 	DisplayName    = SaveData.DisplayName;
 	CharacterLevel = SaveData.Level;
 	Experience     = SaveData.Experience;
-	Stats          = SaveData.Stats;
+	StatUpgradeInfo          = SaveData.Stats;
 }

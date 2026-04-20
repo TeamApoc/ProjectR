@@ -1,6 +1,7 @@
 # Visual Studio 2015 user specific files
 .vs/
 .vscode/
+.vscode/*
 
 # Compiled Object files
 *.slo
@@ -82,3 +83,5 @@ Content/Assets
 Docs/Private
 .idea
 *.code-workspace
+
+.ignore

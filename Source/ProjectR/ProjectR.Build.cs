@@ -14,10 +14,12 @@ public class ProjectR : ModuleRules
 			"Engine", 
 			"InputCore", 
 			"EnhancedInput",
+			"AIModule",
 			"GameplayAbilities",
 			"GameplayTags",
 			"GameplayTasks",
-			"DeveloperSettings"
+			"DeveloperSettings",
+			"NavigationSystem"
 		});
 
 		PrivateDependencyModuleNames.AddRange(new string[] { "AnimGraphRuntime" });

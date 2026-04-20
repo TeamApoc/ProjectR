@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "PRCharacterBase.h"
 #include "Net/UnrealNetwork.h"
+#include "ProjectR/AbilitySystem/Data/PRAbilitySet.h"
 #include "PRPlayerCharacter.generated.h"
 
 class USpringArmComponent;
@@ -25,6 +26,13 @@ public:
 	
 	/** 멀티플레이어 변수 복제 설정 */
 	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
+
+	/*~ APawn Interface ~*/
+	virtual void PossessedBy(AController* NewController) override;
+	virtual void OnRep_PlayerState() override;
+
+	/*~ APRCharacterBase Interface ~*/
+	virtual UPRAbilitySystemComponent* GetPRAbilitySystemComponent() const override;
 	
 	/** 애니메이션 인스턴스에서 사용하는 게터 함수들 */                   
 	bool IsCrouching() const { return false; } 
@@ -94,4 +102,6 @@ private:
 
 	UPROPERTY(Replicated, VisibleInstanceOnly, BlueprintReadOnly, Category = "Locomotion", meta = (AllowPrivateAccess = "true"))
 	bool bIsAiming = false;
+	
+	FPRAbilitySetHandles AbilitySetHandles;
 };

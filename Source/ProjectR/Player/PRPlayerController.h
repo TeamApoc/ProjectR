@@ -8,6 +8,7 @@
 #include "ProjectR/Game/PRGameTypes.h"
 #include "PRPlayerController.generated.h"
 
+class UAbilitySystemComponent;
 class UPRInputConfigDataAsset;
 class UPRAbilitySystemComponent;
 struct FInputActionValue;
@@ -46,7 +47,7 @@ protected:
 	UFUNCTION(Server, Reliable, WithValidation)
 	void ServerSubmitCharacter(const FPRCharacterSaveData& Payload);
 
-	// IA ↔ InputTag 매핑을 담고 있는 InputConfig. 각 IA에 Pressed/Released 콜백을 라우팅
+	// IA에 대한 InputTag 매핑을 담고 있는 InputConfig. 각 IA에 Pressed/Released 콜백을 라우팅
 	UPROPERTY(EditDefaultsOnly, Category = "ProjectR|Input")
 	TObjectPtr<UPRInputConfigDataAsset> InputConfig;
 
@@ -62,4 +63,6 @@ private:
 
 	// 캐릭터 페이로드를 이미 제출했는지 여부. 중복 제출 방지
 	bool bCharacterSubmitted = false;
+	
+	mutable TWeakObjectPtr<UPRAbilitySystemComponent> CachedASC;
 };

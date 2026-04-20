@@ -7,6 +7,7 @@
 #include "AbilitySystemInterface.h"
 #include "PRCharacterBase.generated.h"
 
+class UPRAbilitySet;
 class UAbilitySystemComponent;
 class UPRAbilitySystemComponent;
 
@@ -30,10 +31,17 @@ public:
 	virtual UAbilitySystemComponent* GetAbilitySystemComponent() const override;
 
 public:
-	// 프로젝트 ASC 타입으로 반환 (파생 클래스에서 편의 사용)
+	// 프로젝트 ASC 타입으로 반환
 	virtual UPRAbilitySystemComponent* GetPRAbilitySystemComponent() const;
 
 protected:
 	/*~ AActor Interface ~*/
 	virtual void BeginPlay() override;
+	
+protected:
+	UPROPERTY(EditAnywhere, Category = "PR Config|Character")
+	FName CharacterID;
+	
+	UPROPERTY(EditAnywhere, Category = "PR Config|Ability")
+	TObjectPtr<UPRAbilitySet> AbilitySet;
 };

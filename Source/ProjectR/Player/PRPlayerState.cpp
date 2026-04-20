@@ -17,7 +17,7 @@ APRPlayerState::APRPlayerState()
 	PlayerSet = CreateDefaultSubobject<UPRAttributeSet_Player>(TEXT("PlayerSet"));
 
 	// PlayerState는 NetUpdate가 낮음. GAS 예측 응답성 확보를 위해 인상
-	NetUpdateFrequency = 100.0f;
+	SetNetUpdateFrequency(100.0f);
 }
 
 // =====  복제 등록 =====
@@ -29,7 +29,6 @@ void APRPlayerState::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLi
 	DOREPLIFETIME(APRPlayerState, DisplayName);
 	DOREPLIFETIME(APRPlayerState, CharacterLevel);
 	DOREPLIFETIME(APRPlayerState, Experience);
-	DOREPLIFETIME(APRPlayerState, Stats);
 }
 
 void APRPlayerState::BeginPlay()
@@ -56,5 +55,5 @@ void APRPlayerState::InitializeFromSaveData(const FPRCharacterSaveData& SaveData
 	DisplayName    = SaveData.DisplayName;
 	CharacterLevel = SaveData.Level;
 	Experience     = SaveData.Experience;
-	Stats          = SaveData.Stats;
+	StatUpgradeInfo          = SaveData.Stats;
 }

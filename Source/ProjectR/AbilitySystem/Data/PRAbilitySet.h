@@ -7,7 +7,6 @@
 #include "GameplayAbilitySpec.h"
 #include "ActiveGameplayEffectHandle.h"
 #include "GameplayTagContainer.h"
-#include "PRGameplayAbility.h"
 #include "PRAbilitySet.generated.h"
 
 class UPRGameplayAbility;
@@ -32,7 +31,7 @@ struct PROJECTR_API FPRAbilityEntry
 	FGameplayTagContainer DynamicTags;
 
 	// AbilityClass 유효성 검사
-	bool IsValid() const { return ::IsValid(AbilityClass); }
+	bool IsValid() const;
 };
 
 // AbilitySet 내 Startup GE 항목
@@ -54,7 +53,7 @@ struct PROJECTR_API FPREffectEntry
 	FGameplayTagContainer DynamicTags;
 
 	// EffectClass 유효성 검사
-	bool IsValid() const { return EffectClass != nullptr; }
+	bool IsValid() const;
 };
 
 // 부여 결과 핸들 묶음. Clear 시 대칭 입력
@@ -93,4 +92,7 @@ public:
 	// 부여 직후 자동 적용할 Startup GE 목록
 	UPROPERTY(EditAnywhere, Category = "AbilitySet")
 	TArray<FPREffectEntry> Effects;
+	
+public:
+	UPRAbilitySet();
 };

@@ -9,8 +9,10 @@
 #include "EnhancedInputComponent.h"
 #include "EnhancedInputSubsystems.h"
 #include "Kismet/KismetMathLibrary.h"
+#include "ProjectR/ProjectR.h"
 #include "ProjectR/AbilitySystem/PRAbilitySystemComponent.h"
 #include "ProjectR/Player/PRPlayerState.h"
+#include "ProjectR/System/PRAssetManager.h"
 
 
 // Sets default values
@@ -73,6 +75,11 @@ void APRPlayerCharacter::PossessedBy(AController* NewController)
 		if (UPRAbilitySystemComponent* ASC = PS->GetPRAbilitySystemComponent())
 		{
 			ASC->InitAbilityActorInfo(PS, this);
+			ASC->InitializeAttributesFromRegistry(
+				UPRAssetManager::Get().GetAbilitySystemRegistry(),
+				EPRCharacterRole::Player,
+				PRRowNames::Player::Default);
+			ASC->GiveAbilitySet(AbilitySet,AbilitySetHandles);
 		}
 	}
 }
@@ -137,6 +144,8 @@ void APRPlayerCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputC
 		EnhancedInputComponent->BindAction(AimAction, ETriggerEvent::Started, this, &APRPlayerCharacter::AimStarted);
 		EnhancedInputComponent->BindAction(AimAction, ETriggerEvent::Completed, this, &APRPlayerCharacter::AimEnded);
 	}
+	
+	// NOTE: PRPlayerController의 SetupInputComponent 에서 Ability Input을 바인딩함
 }
 
 void APRPlayerCharacter::Move(const FInputActionValue& Value)

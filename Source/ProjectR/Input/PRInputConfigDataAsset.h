@@ -35,6 +35,6 @@ public:
 	UPROPERTY(EditAnywhere, Category = "Input")
 	TArray<FPRInputActionBinding> AbilityInputBindings;
 
-	// InputTag → IA 조회
+	// InputTag로 IA 조회
 	const UInputAction* FindInputActionForTag(const FGameplayTag& InputTag) const;
 };

@@ -94,13 +94,6 @@ bool APRPlayGameMode::ValidateCharacterPayload(const FPRCharacterSaveData& Paylo
 		return false;
 	}
 
-	// 스탯 음수 방지
-	if (Payload.Stats.BaseMaxHealth <= 0.f || Payload.Stats.BaseMaxStamina <= 0.f)
-	{
-		OutReason = TEXT("Non-positive base stats");
-		return false;
-	}
-
 	return true;
 }
 

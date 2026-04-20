@@ -5,9 +5,10 @@
 #include "CoreMinimal.h"
 #include "AbilitySystemComponent.h"
 #include "ProjectR/AbilitySystem/PRAbilityTypes.h"
-#include "ProjectR/AbilitySystem/PRAbilitySet.h"
 #include "PRAbilitySystemComponent.generated.h"
 
+struct FPRAbilitySetHandles;
+class UPRAbilitySet;
 class UPRAbilitySystemRegistry;
 
 // 프로젝트 공통 ASC. AbilitySet 부여/해제, 속성 초기화, 입력 라우팅, AI 활성화 헬퍼 제공

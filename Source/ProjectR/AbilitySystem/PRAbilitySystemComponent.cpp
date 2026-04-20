@@ -2,10 +2,11 @@
 
 #include "PRAbilitySystemComponent.h"
 #include "ProjectR/AbilitySystem/PRGameplayAbility.h"
-#include "ProjectR/AbilitySystem/PRAbilitySystemRegistry.h"
 #include "ProjectR/PRGameplayTags.h"
 #include "Engine/DataTable.h"
 #include "GameplayEffect.h"
+#include "Data/PRAbilitySet.h"
+#include "Data/PRAbilitySystemRegistry.h"
 
 // =====  UActorComponent Interface =====
 
@@ -218,6 +219,14 @@ bool UPRAbilitySystemComponent::InitializeAttributesFromRegistry(const UPRAbilit
 		}
 
 		SetNumericAttributeBase(Attr, Value);
+	}
+	
+	// 초기화 GE 적용
+	if (TSubclassOf<UGameplayEffect> InitializeGE = Registry->GetInitializeGESynchronous())
+	{
+		FGameplayEffectContextHandle EffectContextHandle = MakeEffectContext();
+		FGameplayEffectSpecHandle SpecHandle = MakeOutgoingSpec(InitializeGE, 1.0f, EffectContextHandle);
+		ApplyGameplayEffectSpecToSelf(*SpecHandle.Data.Get());
 	}
 
 	return true;

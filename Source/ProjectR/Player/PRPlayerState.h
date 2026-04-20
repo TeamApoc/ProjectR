@@ -12,7 +12,7 @@ class UPRAbilitySystemComponent;
 class UPRAttributeSet_Common;
 class UPRAttributeSet_Player;
 
-// 플레이어별 복제 데이터 소유. Player ASC + AttributeSet의 소유자 (5.2 Mixed 복제 모드)
+// 플레이어별 복제 데이터 소유. Player ASC + AttributeSet의 소유자
 // Inventory/Equipment 컴포넌트는 각 시스템 구현 시 본 클래스에 부착 예정
 UCLASS()
 class PROJECTR_API APRPlayerState : public APlayerState, public IAbilitySystemInterface
@@ -45,14 +45,14 @@ public:
 	// 캐릭터 레벨 조회
 	int32 GetCharacterLevel() const { return CharacterLevel; }
 
-	// 스탯 조회 (읽기 전용)
-	const FPRCharacterStats& GetStats() const { return Stats; }
-
+	// 캐릭터 업그레이드 정보 조회
+	FPRCharacterStatUpgradeInfo GetStatUpgradeInfo() const { return StatUpgradeInfo; }
+	
 	// 서버 전용. GameMode가 검증 통과한 캐릭터 페이로드를 주입. 복제는 자동
 	void InitializeFromSaveData(const FPRCharacterSaveData& SaveData);
 
 protected:
-	// 플레이어 ASC. PlayerState에 부착 (5.2 Mixed)
+	// 플레이어 ASC. PlayerState에 부착
 	UPROPERTY(VisibleAnywhere, Category = "ProjectR|Ability")
 	TObjectPtr<UPRAbilitySystemComponent> AbilitySystemComponent;
 
@@ -76,7 +76,7 @@ protected:
 	UPROPERTY(Replicated)
 	int64 Experience = 0;
 
-	// 베이스 스탯. AttributeSet 초기화 원천
+	// 스탯 업그레이드 정보 
 	UPROPERTY(Replicated)
-	FPRCharacterStats Stats;
+	FPRCharacterStatUpgradeInfo StatUpgradeInfo;
 };

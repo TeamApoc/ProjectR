@@ -2,5 +2,16 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-
+namespace PRRowNames
+{
+	namespace Player
+	{
+		const FName Default = "Default";	
+	}
+	
+	namespace Enemies
+	{
+		const FName Faelin = "Faelin";
+		// TODO: Add Enemy Names
+	}
+}

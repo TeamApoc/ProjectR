@@ -1,7 +1,10 @@
 // Copyright ProjectR. All Rights Reserved.
 
 #include "PRAbilitySystemRegistry.h"
-#include "ProjectR/AbilitySystem/PRStatRows.h"
+
+#include "PRStatRows.h"
+#include "GameplayEffect.h"
+
 
 #if WITH_EDITOR
 #include "Misc/DataValidation.h"
@@ -26,6 +29,15 @@ UDataTable* UPRAbilitySystemRegistry::GetStatTableSynchronous(EPRCharacterRole R
 		{
 			return SoftPtr->LoadSynchronous();
 		}
+	}
+	return nullptr;
+}
+
+TSubclassOf<UGameplayEffect> UPRAbilitySystemRegistry::GetInitializeGESynchronous() const
+{
+	if (!InitializeGE.IsNull())
+	{
+		return InitializeGE.LoadSynchronous();
 	}
 	return nullptr;
 }

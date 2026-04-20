@@ -82,11 +82,17 @@ void APRPlayerController::OnAbilityInputReleased(FGameplayTag InputTag)
 
 UPRAbilitySystemComponent* APRPlayerController::GetASC() const
 {
-	if (APawn* P = GetPawn())
+	if (CachedASC.IsValid())
 	{
-		if (UAbilitySystemComponent* ASC = UAbilitySystemBlueprintLibrary::GetAbilitySystemComponent(P))
+		return CachedASC.Get();
+	}
+	
+	if (APawn* LocalPawn = GetPawn())
+	{
+		if (UPRAbilitySystemComponent* ASC =  Cast<UPRAbilitySystemComponent>(UAbilitySystemBlueprintLibrary::GetAbilitySystemComponent(LocalPawn)))
 		{
-			return Cast<UPRAbilitySystemComponent>(ASC);
+			CachedASC = ASC;
+			return ASC;
 		}
 	}
 	return nullptr;

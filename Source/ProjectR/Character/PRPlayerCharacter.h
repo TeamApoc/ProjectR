@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "PRCharacterBase.h"
 #include "Net/UnrealNetwork.h"
+#include "ProjectR/AbilitySystem/Data/PRAbilitySet.h"
 #include "PRPlayerCharacter.generated.h"
 
 class USpringArmComponent;
@@ -101,4 +102,6 @@ private:
 
 	UPROPERTY(Replicated, VisibleInstanceOnly, BlueprintReadOnly, Category = "Locomotion", meta = (AllowPrivateAccess = "true"))
 	bool bIsAiming = false;
+	
+	FPRAbilitySetHandles AbilitySetHandles;
 };

@@ -26,6 +26,7 @@ void UPRAnimNotify_EnemyMeleeHit::Notify(USkeletalMeshComponent* MeshComp,
 	AActor* OwnerActor = MeshComp->GetOwner();
 	if (!IsValid(OwnerActor) || !OwnerActor->HasAuthority())
 	{
+		// 데미지 판정은 서버의 Ability 인스턴스만 실행한다.
 		return;
 	}
 
@@ -45,6 +46,7 @@ void UPRAnimNotify_EnemyMeleeHit::Notify(USkeletalMeshComponent* MeshComp,
 		const TArray<UGameplayAbility*> AbilityInstances = AbilitySpec.GetAbilityInstances();
 		for (UGameplayAbility* AbilityInstance : AbilityInstances)
 		{
+			// 현재 재생 중인 공격 Ability를 찾아 Notify 프레임에 맞춰 한 번만 타격시킨다.
 			UPRGameplayAbility_EnemyMeleeAttack* MeleeAbility = Cast<UPRGameplayAbility_EnemyMeleeAttack>(AbilityInstance);
 			if (!IsValid(MeleeAbility))
 			{

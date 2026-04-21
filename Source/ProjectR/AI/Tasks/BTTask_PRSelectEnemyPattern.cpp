@@ -35,6 +35,8 @@ EBTNodeResult::Type UBTTask_PRSelectEnemyPattern::ExecuteTask(UBehaviorTreeCompo
 	PatternContext.bHasLOS = BlackboardComponent->GetValueAsBool(HasLOSKey);
 	PatternContext.TacticalMode = static_cast<EPRTacticalMode>(BlackboardComponent->GetValueAsEnum(TacticalModeKey));
 
+	// 현재 상황에 맞는 패턴만 후보로 모은다.
+	// 거리/LOS 조건은 FPRPatternRule::MatchesContext에서 통일해서 검사한다.
 	TArray<const FPRPatternRule*> MatchedRules;
 	float TotalWeight = 0.0f;
 
@@ -55,6 +57,7 @@ EBTNodeResult::Type UBTTask_PRSelectEnemyPattern::ExecuteTask(UBehaviorTreeCompo
 	const float PickValue = FMath::FRandRange(0.0f, TotalWeight);
 	float AccumulatedWeight = 0.0f;
 
+	// 가중치 랜덤 선택이다. 후보 순서와 상관없이 SelectionWeight 비율로 선택된다.
 	for (const FPRPatternRule* PatternRule : MatchedRules)
 	{
 		AccumulatedWeight += PatternRule->SelectionWeight;
@@ -65,6 +68,7 @@ EBTNodeResult::Type UBTTask_PRSelectEnemyPattern::ExecuteTask(UBehaviorTreeCompo
 		}
 	}
 
+	// 부동소수 오차 등으로 루프 안에서 선택되지 못한 경우 마지막 후보를 안전값으로 쓴다.
 	BlackboardComponent->SetValueAsName(SelectedAbilityTagKey, MatchedRules.Last()->AbilityTag.GetTagName());
 	return EBTNodeResult::Succeeded;
 }

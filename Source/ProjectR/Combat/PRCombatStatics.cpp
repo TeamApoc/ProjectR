@@ -28,6 +28,8 @@ bool UPRCombatStatics::IsCoreWeakpointOpen(const AActor* TargetActor)
 bool UPRCombatStatics::ApplyDamageEffect(const FPRDamageContext& DamageContext,
 	TSubclassOf<UGameplayEffect> DamageEffectClass)
 {
+	// 피해 적용은 서버 권한 타겟에서만 수행한다.
+	// 클라이언트에서 같은 계산을 반복하면 체력/그로기 수치가 엇갈릴 수 있다.
 	if (!IsValid(DamageContext.SourceActor)
 		|| !IsValid(DamageContext.TargetActor)
 		|| !DamageContext.HasValidPayload()
@@ -53,6 +55,7 @@ bool UPRCombatStatics::ApplyDamageEffect(const FPRDamageContext& DamageContext,
 	EffectContext.AddInstigator(DamageContext.SourceActor,
 		IsValid(DamageContext.EffectCauser) ? DamageContext.EffectCauser : DamageContext.SourceActor);
 
+	// SourceObject와 HitResult를 Context에 넣어 ExecutionCalculation에서 부위 판정까지 이어가게 한다.
 	if (IsValid(DamageContext.SourceObject))
 	{
 		EffectContext.AddSourceObject(DamageContext.SourceObject);
@@ -72,6 +75,7 @@ bool UPRCombatStatics::ApplyDamageEffect(const FPRDamageContext& DamageContext,
 
 	if (DamageContext.Damage > 0.0f)
 	{
+		// 실제 수치는 SetByCaller로 전달한다. GE 클래스는 공용으로 재사용할 수 있다.
 		SpecHandle.Data->SetSetByCallerMagnitude(PRCombatSetByCaller::Damage, DamageContext.Damage);
 	}
 
@@ -122,6 +126,7 @@ FPRDamageRegionInfo UPRCombatStatics::ResolveDamageRegionInternal(const FHitResu
 	FName WeakpointTag = NAME_None;
 	if (FindTaggedRegion(HitComponent, TEXT("Weakpoint."), WeakpointTag))
 	{
+		// 보스 코어 약점은 별도 태그로 열린 상태일 때만 약점으로 인정한다.
 		const bool bIsCoreWeakpoint = WeakpointTag == TEXT("Weakpoint.Core");
 		if (!bIsCoreWeakpoint
 			|| (IsValid(TargetASC) && TargetASC->HasMatchingGameplayTag(PRGameplayTags::State_Boss_WeakpointOpen_Core)))

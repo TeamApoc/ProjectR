@@ -9,6 +9,8 @@
 class UAbilityTask_PlayMontageAndWait;
 class UAnimMontage;
 
+// State.Groggy 이벤트를 받아 적을 잠시 무력화하는 Ability다.
+// 진행 중인 공격 패턴을 취소하고, 몽타주/시간 조건에 따라 그로기를 종료한다.
 UCLASS(Abstract)
 class PROJECTR_API UPRGameplayAbility_EnemyGroggy : public UPRGameplayAbility_EnemyBase
 {
@@ -38,9 +40,11 @@ protected:
 	void FinishGroggy(bool bWasCancelled);
 
 protected:
+	// 그로기 진입 시 취소할 공격/패턴 Ability 태그 목록이다.
 	UPROPERTY(EditDefaultsOnly, Category = "ProjectR|Combat")
 	FGameplayTagContainer CancelAbilityTags;
 
+	// 그로기 중 재생할 몽타주다.
 	UPROPERTY(EditDefaultsOnly, Category = "ProjectR|Animation")
 	TObjectPtr<UAnimMontage> GroggyMontage;
 
@@ -50,6 +54,7 @@ protected:
 	UPROPERTY(EditDefaultsOnly, Category = "ProjectR|Animation")
 	bool bEndWhenMontageEnds = true;
 
+	// 몽타주가 없거나 몽타주보다 긴 무력화 시간이 필요할 때 사용하는 최소 유지 시간이다.
 	UPROPERTY(EditDefaultsOnly, Category = "ProjectR|Groggy", meta = (ClampMin = "0.0"))
 	float GroggyDuration = 2.0f;
 
@@ -59,5 +64,6 @@ private:
 	UPROPERTY(Transient)
 	TObjectPtr<UAbilityTask_PlayMontageAndWait> ActiveMontageTask;
 
+	// 몽타주 콜백과 타이머가 겹쳐도 종료가 한 번만 처리되도록 한다.
 	bool bGroggyFinished = false;
 };

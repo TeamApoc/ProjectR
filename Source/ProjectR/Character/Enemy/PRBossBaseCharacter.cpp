@@ -7,6 +7,7 @@
 
 APRBossBaseCharacter::APRBossBaseCharacter()
 {
+	// 원본 보스 설계를 기준으로 한 페이즈 진입 체력 비율이다.
 	PhaseThresholdRatios.Add(EPRFaerinPhase::AdvancedRanged, 0.87f);
 	PhaseThresholdRatios.Add(EPRFaerinPhase::SwordJudgment, 0.65f);
 	PhaseThresholdRatios.Add(EPRFaerinPhase::FinalTeleportLoop, 0.25f);
@@ -25,6 +26,7 @@ void APRBossBaseCharacter::PossessedBy(AController* NewController)
 	{
 		if (IsValid(*FoundAbilitySet))
 		{
+			// 기본 Enemy AbilitySet 위에 현재 페이즈 전용 AbilitySet을 추가로 부여한다.
 			AbilitySystemComponent->ClearAbilitySetByHandles(CurrentPhaseHandles);
 			AbilitySystemComponent->GiveAbilitySet(*FoundAbilitySet, CurrentPhaseHandles);
 		}
@@ -45,6 +47,7 @@ void APRBossBaseCharacter::OnHealthRatioChanged(float NewRatio)
 		return;
 	}
 
+	// 페이즈 전환 판단은 서버 체력 비율만 신뢰한다.
 	if (CurrentPhase == EPRFaerinPhase::Opening && NewRatio <= PhaseThresholdRatios.FindRef(EPRFaerinPhase::AdvancedRanged))
 	{
 		BeginPhaseTransition(EPRFaerinPhase::AdvancedRanged);
@@ -69,7 +72,8 @@ void APRBossBaseCharacter::BeginPhaseTransition(EPRFaerinPhase NewPhase)
 	PendingPhase = NewPhase;
 	AbilitySystemComponent->AddLooseGameplayTag(PRGameplayTags::State_PhaseTransitioning);
 
-	// 페이즈 전환 어빌리티가 붙기 전까지는 직접 커밋해서 흐름만 유지한다.
+	// 페이즈 전환 Ability/연출이 붙기 전까지는 즉시 확정한다.
+	// 이후 보스 전환 몽타주가 들어오면 해당 Ability가 CommitPhaseTransition을 호출하게 바꾸면 된다.
 	CommitPhaseTransition(NewPhase);
 }
 
@@ -82,6 +86,7 @@ void APRBossBaseCharacter::CommitPhaseTransition(EPRFaerinPhase NewPhase)
 
 	const EPRFaerinPhase OldPhase = CurrentPhase;
 
+	// 이전 페이즈에서만 쓰던 Ability/GE를 회수하고 새 페이즈 세트를 부여한다.
 	AbilitySystemComponent->ClearAbilitySetByHandles(CurrentPhaseHandles);
 
 	if (TObjectPtr<UPRAbilitySet>* FoundAbilitySet = PhaseAbilitySets.Find(NewPhase))
@@ -101,5 +106,6 @@ void APRBossBaseCharacter::CommitPhaseTransition(EPRFaerinPhase NewPhase)
 
 void APRBossBaseCharacter::OnRep_CurrentPhase(EPRFaerinPhase OldPhase)
 {
+	// 클라이언트는 복제된 페이즈 변화로 연출/UI를 동기화한다.
 	OnPhaseChanged.Broadcast(OldPhase, CurrentPhase);
 }

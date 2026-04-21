@@ -6,6 +6,8 @@
 
 UPRSoldierArmoredPatternDataAsset::UPRSoldierArmoredPatternDataAsset()
 {
+	// 기본 패턴은 근접 3종과 중거리 돌진 1종이다.
+	// 에디터 DataAsset에서 같은 배열을 조정하면 몬스터 튜닝을 코드 수정 없이 할 수 있다.
 	PatternRules.Reset();
 
 	FPRPatternRule HammerSwing01;
@@ -33,6 +35,7 @@ UPRSoldierArmoredPatternDataAsset::UPRSoldierArmoredPatternDataAsset()
 	PatternRules.Add(HammerOverhead);
 
 	FPRPatternRule ChargeThrust;
+	// 돌진은 너무 가까운 거리에서는 쓰지 않도록 MinRange를 둔다.
 	ChargeThrust.AbilityTag = PRGameplayTags::Ability_Enemy_SoldierArmored_ChargeThrust;
 	ChargeThrust.MinRange = 350.0f;
 	ChargeThrust.MaxRange = 850.0f;

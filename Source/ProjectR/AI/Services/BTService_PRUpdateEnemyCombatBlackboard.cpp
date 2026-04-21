@@ -30,6 +30,7 @@ void UBTService_PRUpdateEnemyCombatBlackboard::TickNode(UBehaviorTreeComponent& 
 
 	if (!bHasValidTarget)
 	{
+		// 타겟이 없을 때 이전 거리/돌진 가능 값이 남아 BT 조건을 오염시키지 않도록 초기화한다.
 		BlackboardComponent->SetValueAsFloat(DistanceToTargetKey, 0.0f);
 		BlackboardComponent->SetValueAsBool(ChargePathClearKey, false);
 		return;
@@ -44,6 +45,7 @@ void UBTService_PRUpdateEnemyCombatBlackboard::TickNode(UBehaviorTreeComponent& 
 
 	if (BlackboardComponent->GetValueAsFloat(DesiredMeleeRangeKey) <= 0.0f)
 	{
+		// 에디터에서 Blackboard 기본값을 비워둬도 BT가 최소한의 거리 기준을 갖도록 보정한다.
 		BlackboardComponent->SetValueAsFloat(DesiredMeleeRangeKey, DefaultDesiredMeleeRange);
 	}
 
@@ -70,6 +72,7 @@ void UBTService_PRUpdateEnemyCombatBlackboard::TickNode(UBehaviorTreeComponent& 
 
 	const bool bChargeRange = DistanceToTarget >= BlackboardComponent->GetValueAsFloat(ChargeRangeMinKey)
 		&& DistanceToTarget <= BlackboardComponent->GetValueAsFloat(ChargeRangeMaxKey);
+	// 돌진은 거리 조건을 만족하고, 타겟까지의 직선 경로가 막히지 않았을 때만 허용한다.
 	const bool bChargePathClear = bChargeRange && (!bBlocked || HitResult.GetActor() == CurrentTarget);
 	BlackboardComponent->SetValueAsBool(ChargePathClearKey, bChargePathClear);
 }

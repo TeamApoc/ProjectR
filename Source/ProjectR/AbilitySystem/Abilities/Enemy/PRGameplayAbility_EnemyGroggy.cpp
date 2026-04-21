@@ -19,6 +19,7 @@ UPRGameplayAbility_EnemyGroggy::UPRGameplayAbility_EnemyGroggy()
 	TriggerData.TriggerTag = PRGameplayTags::Event_Ability_GroggyEntered;
 	AbilityTriggers.Add(TriggerData);
 
+	// 그로기에 들어가면 현재 공격/패턴 Ability를 먼저 끊는다.
 	CancelAbilityTags.AddTag(PRGameplayTags::Ability_Enemy_Pattern);
 	CancelAbilityTags.AddTag(PRGameplayTags::Ability_Boss_Faerin_Pattern);
 }
@@ -43,6 +44,7 @@ void UPRGameplayAbility_EnemyGroggy::ActivateAbility(const FGameplayAbilitySpecH
 
 	if (ACharacter* Character = Cast<ACharacter>(GetAvatarActorFromActorInfo()))
 	{
+		// 이동 속도를 즉시 끊어 그로기 몽타주가 이동 입력과 섞이지 않게 한다.
 		Character->GetCharacterMovement()->StopMovementImmediately();
 
 		if (AAIController* AIController = Cast<AAIController>(Character->GetController()))
@@ -54,6 +56,7 @@ void UPRGameplayAbility_EnemyGroggy::ActivateAbility(const FGameplayAbilitySpecH
 	const bool bHasGroggyMontage = IsValid(GroggyMontage);
 	if (bHasGroggyMontage)
 	{
+		// 몽타주가 끝나면 그로기도 끝낼 수 있도록 콜백을 연결한다.
 		ActiveMontageTask = UAbilityTask_PlayMontageAndWait::CreatePlayMontageAndWaitProxy(
 			this,
 			NAME_None,
@@ -75,6 +78,7 @@ void UPRGameplayAbility_EnemyGroggy::ActivateAbility(const FGameplayAbilitySpecH
 		const float MontageDuration = bHasGroggyMontage && bEndWhenMontageEnds
 			? GroggyMontage->GetPlayLength() / FMath::Max(MontagePlayRate, UE_SMALL_NUMBER)
 			: 0.0f;
+		// 최소 그로기 시간과 몽타주 길이 중 더 긴 값을 사용한다.
 		const float FinishDelay = FMath::Max(GroggyDuration, MontageDuration + 0.1f);
 
 		if (FinishDelay > 0.0f)
@@ -106,6 +110,7 @@ void UPRGameplayAbility_EnemyGroggy::EndAbility(const FGameplayAbilitySpecHandle
 
 	if (UAbilitySystemComponent* ASC = GetAbilitySystemComponentFromActorInfo())
 	{
+		// 그로기 Ability가 끝나는 시점에 State.Groggy를 제거해 BT/Ability 차단 상태를 해제한다.
 		ASC->RemoveLooseGameplayTag(PRGameplayTags::State_Groggy);
 	}
 

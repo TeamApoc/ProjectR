@@ -38,6 +38,7 @@ APREnemyBaseCharacter::APREnemyBaseCharacter()
 
 	AbilitySystemComponent = CreateDefaultSubobject<UPRAbilitySystemComponent>(TEXT("AbilitySystemComponent"));
 	AbilitySystemComponent->SetIsReplicated(true);
+	// 적 ASC는 서버 판단이 중심이므로 Minimal 복제로 태그/필수 상태만 공유한다.
 	AbilitySystemComponent->SetReplicationMode(EGameplayEffectReplicationMode::Minimal);
 
 	CommonSet = CreateDefaultSubobject<UPRAttributeSet_Common>(TEXT("CommonSet"));
@@ -48,6 +49,7 @@ APREnemyBaseCharacter::APREnemyBaseCharacter()
 	ArmorCollision = CreateDefaultSubobject<UBoxComponent>(TEXT("ArmorCollision"));
 	ArmorCollision->SetupAttachment(GetMesh());
 	ArmorCollision->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+	// 데미지 계산은 ComponentTag 접두사로 Armor/Weakpoint를 구분한다.
 	ArmorCollision->ComponentTags.Add(TEXT("Armor.Torso"));
 
 	WeakpointCollision = CreateDefaultSubobject<USphereComponent>(TEXT("WeakpointCollision"));
@@ -60,6 +62,7 @@ void APREnemyBaseCharacter::BeginPlay()
 {
 	Super::BeginPlay();
 
+	// 배치된 위치를 복귀 기준점으로 저장한다.
 	HomeLocation = GetActorLocation();
 
 	if (IsValid(CommonSet))
@@ -127,9 +130,11 @@ void APREnemyBaseCharacter::InitializeEnemyAbilitySystem()
 
 	if (UPRAbilitySystemRegistry* Registry = UPRAssetManager::Get().GetAbilitySystemRegistry())
 	{
+		// CharacterID와 Role을 기준으로 DataTable 초기 스탯을 주입한다.
 		AbilitySystemComponent->InitializeAttributesFromRegistry(Registry, GetCharacterRole(), CharacterID);
 	}
 
+	// 재 Possess나 재초기화 상황에서 이전 AbilitySet이 중복 부여되지 않도록 먼저 회수한다.
 	AbilitySystemComponent->ClearAbilitySetByHandles(GrantedAbilitySetHandles);
 
 	if (IsValid(AbilitySet))
@@ -155,6 +160,7 @@ void APREnemyBaseCharacter::BindGameplayTagEvents()
 
 void APREnemyBaseCharacter::HandleDeath(AActor* InstigatorActor)
 {
+	// 사망은 Ability 쪽에서도 처리하지만, 캐릭터 레벨에서도 Brain/Movement를 확실히 멈춘다.
 	GetCharacterMovement()->DisableMovement();
 
 	if (AAIController* AIController = Cast<AAIController>(GetController()))

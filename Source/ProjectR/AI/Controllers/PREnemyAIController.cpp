@@ -36,6 +36,7 @@ void APREnemyAIController::OnPossess(APawn* InPawn)
 {
 	Super::OnPossess(InPawn);
 
+	// 몬스터 Pawn은 IPREnemyInterface를 통해 BT/Perception/Threat 데이터를 제공한다.
 	IPREnemyInterface* EnemyInterface = Cast<IPREnemyInterface>(InPawn);
 	if (EnemyInterface == nullptr)
 	{
@@ -47,6 +48,7 @@ void APREnemyAIController::OnPossess(APawn* InPawn)
 	CachedThreatComponent = EnemyInterface->GetEnemyThreatComponent();
 	if (IsValid(CachedThreatComponent))
 	{
+		// ThreatComponent가 고른 타겟을 Blackboard로 전달해 BT가 같은 대상을 보게 한다.
 		CachedThreatComponent->OnTargetChanged.AddDynamic(this, &APREnemyAIController::HandleThreatTargetChanged);
 	}
 
@@ -86,6 +88,7 @@ void APREnemyAIController::HandleTargetPerceptionUpdated(AActor* Actor, FAIStimu
 
 	if (Stimulus.WasSuccessfullySensed())
 	{
+		// 감지만으로도 최소 위협을 부여해서 전투 타겟 후보에 올린다.
 		CachedThreatComponent->AddThreat(Actor, 1.0f);
 
 		if (IsValid(CachedBlackboardComponent))
@@ -98,6 +101,7 @@ void APREnemyAIController::HandleTargetPerceptionUpdated(AActor* Actor, FAIStimu
 	}
 	else
 	{
+		// 타겟을 잃어도 마지막 위치는 남겨둔다. 추후 수색/복귀 패턴에서 사용할 수 있다.
 		if (IsValid(CachedBlackboardComponent))
 		{
 			CachedBlackboardComponent->SetValueAsVector(LastKnownTargetLocationKey, Stimulus.StimulusLocation);
@@ -117,6 +121,7 @@ void APREnemyAIController::HandleThreatTargetChanged(AActor* OldTarget, AActor* 
 
 	if (IsValid(NewTarget))
 	{
+		// CurrentTarget이 생기면 즉시 Focus를 잡아 회전/시야 처리가 같은 대상을 향하게 한다.
 		CachedBlackboardComponent->SetValueAsVector(TargetLocationKey, NewTarget->GetActorLocation());
 		CachedBlackboardComponent->SetValueAsBool(HasLOSKey, true);
 		SetFocus(NewTarget);
@@ -152,6 +157,7 @@ void APREnemyAIController::ApplyPerceptionConfig(const UPRPerceptionConfig* Conf
 	HearingConfig->HearingRange = HearingRange;
 	HearingConfig->SetMaxAge(StimulusMaxAge);
 
+	// Sense 값은 런타임에 바뀔 수 있으므로 ConfigureSense를 다시 호출해 적용한다.
 	EnemyPerceptionComponent->ConfigureSense(*SightConfig);
 	EnemyPerceptionComponent->ConfigureSense(*HearingConfig);
 	EnemyPerceptionComponent->SetDominantSense(SightConfig->GetSenseImplementation());

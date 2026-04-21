@@ -17,6 +17,7 @@ UPRGameplayAbility_EnemyDeath::UPRGameplayAbility_EnemyDeath()
 	TriggerData.TriggerTag = PRGameplayTags::Event_Ability_Death;
 	AbilityTriggers.Add(TriggerData);
 
+	// 사망에 들어가면 진행 중인 공격/패턴 Ability를 모두 중단한다.
 	CancelAbilityTags.AddTag(PRGameplayTags::Ability_Enemy_Pattern);
 	CancelAbilityTags.AddTag(PRGameplayTags::Ability_Boss_Faerin_Pattern);
 }
@@ -43,6 +44,7 @@ void UPRGameplayAbility_EnemyDeath::ActivateAbility(const FGameplayAbilitySpecHa
 	{
 		if (bDisableMovementOnDeath)
 		{
+			// 사망 후에는 AI/루트모션/외부 이동이 다시 캐릭터를 움직이지 못하게 막는다.
 			Character->GetCharacterMovement()->DisableMovement();
 		}
 		else
@@ -58,6 +60,8 @@ void UPRGameplayAbility_EnemyDeath::ActivateAbility(const FGameplayAbilitySpecHa
 
 	if (IsValid(DeathMontage))
 	{
+		// 기본 정책은 사망 Ability를 끝내지 않는 것이다.
+		// 몽타주는 재생하되 State.Dead와 Ability 상태는 유지해 사망 상태를 고정한다.
 		ActiveMontageTask = UAbilityTask_PlayMontageAndWait::CreatePlayMontageAndWaitProxy(
 			this,
 			NAME_None,

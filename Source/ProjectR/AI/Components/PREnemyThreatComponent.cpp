@@ -10,6 +10,7 @@ UPREnemyThreatComponent::UPREnemyThreatComponent()
 
 void UPREnemyThreatComponent::AddThreat(AActor* Target, float Amount)
 {
+	// 타겟 선택은 서버에서만 결정한다. 클라이언트는 결과를 Blackboard/복제로 따라간다.
 	if (!GetOwner() || !GetOwner()->HasAuthority() || !IsValid(Target) || Amount <= 0.0f)
 	{
 		return;
@@ -21,6 +22,7 @@ void UPREnemyThreatComponent::AddThreat(AActor* Target, float Amount)
 	{
 		if (Entry.Target == Target)
 		{
+			// 이미 추적 중인 대상이면 값만 누적하고 마지막 갱신 시간을 갱신한다.
 			Entry.ThreatValue += Amount;
 			Entry.LastUpdatedTime = CurrentTime;
 			ReevaluateTarget();
@@ -119,6 +121,8 @@ void UPREnemyThreatComponent::ReevaluateTarget()
 		return;
 	}
 
+	// 현재 타겟을 너무 쉽게 바꾸면 몬스터가 산만해지므로,
+	// 위협 차이와 최소 전환 간격을 동시에 만족할 때만 교체한다.
 	const float CurrentTime = GetWorld()->GetTimeSeconds();
 	const bool bCanSwitchByRatio = BestThreat >= (CurrentThreat * SwitchRatio);
 	const bool bCanSwitchByTime = (CurrentTime - LastSwitchTime) >= SwitchCooldown;

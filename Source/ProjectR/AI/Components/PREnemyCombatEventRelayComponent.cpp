@@ -20,11 +20,13 @@ void UPREnemyCombatEventRelayComponent::BeginPlay()
 	AActor* OwnerActor = GetOwner();
 	if (!IsValid(OwnerActor) || !OwnerActor->HasAuthority() || bEventsBound)
 	{
+		// 상태 이벤트는 서버 ASC에서만 발생시킨다.
 		return;
 	}
 
 	if (UAbilitySystemComponent* ASC = UAbilitySystemBlueprintLibrary::GetAbilitySystemComponent(OwnerActor))
 	{
+		// 태그가 붙는 순간을 GameplayEvent로 변환해 AbilityTriggers가 반응하게 한다.
 		ASC->RegisterGameplayTagEvent(PRGameplayTags::State_Groggy, EGameplayTagEventType::NewOrRemoved)
 			.AddUObject(this, &UPREnemyCombatEventRelayComponent::HandleGroggyTagChanged);
 		ASC->RegisterGameplayTagEvent(PRGameplayTags::State_Dead, EGameplayTagEventType::NewOrRemoved)
@@ -33,6 +35,7 @@ void UPREnemyCombatEventRelayComponent::BeginPlay()
 
 	if (APRBossBaseCharacter* BossCharacter = Cast<APRBossBaseCharacter>(OwnerActor))
 	{
+		// 보스 페이즈 변경도 동일한 이벤트 통로를 사용한다.
 		BossCharacter->OnPhaseChanged.AddDynamic(this, &UPREnemyCombatEventRelayComponent::HandleBossPhaseChanged);
 	}
 
@@ -74,5 +77,6 @@ void UPREnemyCombatEventRelayComponent::SendEventToOwner(const FGameplayTag& Eve
 	Payload.Target = OwnerActor;
 	Payload.EventMagnitude = EventMagnitude;
 
+	// AbilityTriggers는 Actor로 전달된 GameplayEvent를 기준으로 발동한다.
 	UAbilitySystemBlueprintLibrary::SendGameplayEventToActor(OwnerActor, EventTag, Payload);
 }

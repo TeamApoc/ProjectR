@@ -8,6 +8,8 @@
 
 class AActor;
 
+// Blackboard에 저장되는 몬스터의 큰 전술 상태다.
+// 세부 패턴 선택은 BT/Ability가 담당하고, 이 값은 AI가 현재 무엇을 하려는지 공유하는 기준으로 쓴다.
 UENUM(BlueprintType)
 enum class EPRTacticalMode : uint8
 {
@@ -19,6 +21,8 @@ enum class EPRTacticalMode : uint8
 	Return		UMETA(DisplayName = "Return")
 };
 
+// Faerin 보스 전용 페이즈 값이다.
+// 페이즈 전환 Ability와 이벤트 릴레이가 같은 기준을 보도록 공용 타입으로 둔다.
 UENUM(BlueprintType)
 enum class EPRFaerinPhase : uint8
 {
@@ -33,19 +37,21 @@ struct PROJECTR_API FPRThreatEntry
 {
 	GENERATED_BODY()
 
-	// Threat 대상 액터다.
+	// 위협을 누적할 대상 액터다.
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "ProjectR|AI")
 	TObjectPtr<AActor> Target = nullptr;
 
-	// 누적 Threat 값이다.
+	// 대상에게 누적된 위협 수치다. 가장 높은 대상이 현재 타겟 후보가 된다.
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "ProjectR|AI")
 	float ThreatValue = 0.0f;
 
-	// 마지막 갱신 시각이다.
+	// 마지막으로 위협이 갱신된 시간이다. 오래된 항목을 잊어버릴 때 사용한다.
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "ProjectR|AI")
 	float LastUpdatedTime = 0.0f;
 };
 
+// 패턴 선택 시점에 필요한 상황값만 모아둔 구조체다.
+// BTTask가 Blackboard와 Pawn 상태를 읽어 채운 뒤 FPRPatternRule과 비교한다.
 USTRUCT(BlueprintType)
 struct PROJECTR_API FPRPatternContext
 {
@@ -55,40 +61,43 @@ struct PROJECTR_API FPRPatternContext
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "ProjectR|AI")
 	float DistanceToTarget = 0.0f;
 
-	// 현재 LOS 확보 여부다.
+	// 타겟을 시야선으로 확인할 수 있는지 여부다.
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "ProjectR|AI")
 	bool bHasLOS = false;
 
-	// 현재 전술 모드다.
+	// 현재 전술 상태다. 지금은 거리/LOS 중심이지만 이후 패턴 조건 확장 지점이다.
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "ProjectR|AI")
 	EPRTacticalMode TacticalMode = EPRTacticalMode::Idle;
 };
 
+// 하나의 몬스터 패턴 후보를 정의한다.
+// 조건에 맞는 후보들만 모은 뒤 SelectionWeight 비율로 최종 Ability를 고른다.
 USTRUCT(BlueprintType)
 struct PROJECTR_API FPRPatternRule
 {
 	GENERATED_BODY()
 
-	// 실행할 어빌리티 식별 태그다.
+	// 실행할 Ability를 찾는 GameplayTag다.
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|AI")
 	FGameplayTag AbilityTag;
 
-	// 패턴 최소 유효 거리다.
+	// 이 패턴이 유효한 최소 거리다.
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|AI", meta = (ClampMin = "0.0"))
 	float MinRange = 0.0f;
 
-	// 패턴 최대 유효 거리다.
+	// 이 패턴이 유효한 최대 거리다.
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|AI", meta = (ClampMin = "0.0"))
 	float MaxRange = 3000.0f;
 
-	// LOS 필요 여부다.
+	// true면 타겟이 시야선 안에 있을 때만 선택된다.
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|AI")
 	bool bRequiresLOS = true;
 
-	// 조건을 통과한 후보 간 선택 가중치다.
+	// 조건을 통과한 후보끼리의 선택 가중치다.
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|AI", meta = (ClampMin = "0.0"))
 	float SelectionWeight = 1.0f;
 
+	// 데이터 에셋에서 잘못된 패턴이 들어왔는지 빠르게 걸러낸다.
 	bool IsValid() const
 	{
 		return AbilityTag.IsValid()
@@ -96,6 +105,7 @@ struct PROJECTR_API FPRPatternRule
 			&& SelectionWeight > 0.0f;
 	}
 
+	// 현재 상황값이 이 패턴의 거리/시야 조건을 만족하는지 확인한다.
 	bool MatchesContext(const FPRPatternContext& Context) const
 	{
 		if (!IsValid())

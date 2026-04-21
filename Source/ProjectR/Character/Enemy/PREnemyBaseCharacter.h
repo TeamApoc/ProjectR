@@ -17,6 +17,7 @@ class UPRAttributeSet_Common;
 class UPRAttributeSet_Enemy;
 class UPRPatternDataAsset;
 class UPRPerceptionConfig;
+class UPREnemyCombatEventRelayComponent;
 class UPREnemyThreatComponent;
 
 UCLASS(Abstract)
@@ -70,6 +71,9 @@ protected:
 
 	UPROPERTY(VisibleAnywhere, Category = "ProjectR|AI")
 	TObjectPtr<UPREnemyThreatComponent> ThreatComponent;
+
+	UPROPERTY(VisibleAnywhere, Category = "ProjectR|AI")
+	TObjectPtr<UPREnemyCombatEventRelayComponent> CombatEventRelayComponent;
 
 	UPROPERTY(EditDefaultsOnly, Category = "ProjectR|AI")
 	TObjectPtr<UBehaviorTree> BehaviorTreeAsset;

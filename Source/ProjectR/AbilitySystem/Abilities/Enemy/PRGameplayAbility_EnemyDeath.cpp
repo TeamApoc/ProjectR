@@ -3,7 +3,9 @@
 #include "PRGameplayAbility_EnemyDeath.h"
 
 #include "AbilitySystemComponent.h"
+#include "Abilities/Tasks/AbilityTask_PlayMontageAndWait.h"
 #include "AIController.h"
+#include "Animation/AnimMontage.h"
 #include "GameFramework/Character.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "ProjectR/PRGameplayTags.h"
@@ -30,6 +32,8 @@ void UPRGameplayAbility_EnemyDeath::ActivateAbility(const FGameplayAbilitySpecHa
 		return;
 	}
 
+	bDeathFinished = false;
+
 	if (UAbilitySystemComponent* ASC = GetAbilitySystemComponentFromActorInfo())
 	{
 		ASC->CancelAbilities(&CancelAbilityTags, nullptr, this);
@@ -37,11 +41,78 @@ void UPRGameplayAbility_EnemyDeath::ActivateAbility(const FGameplayAbilitySpecHa
 
 	if (ACharacter* Character = Cast<ACharacter>(GetAvatarActorFromActorInfo()))
 	{
-		Character->GetCharacterMovement()->DisableMovement();
+		if (bDisableMovementOnDeath)
+		{
+			Character->GetCharacterMovement()->DisableMovement();
+		}
+		else
+		{
+			Character->GetCharacterMovement()->StopMovementImmediately();
+		}
 
 		if (AAIController* AIController = Cast<AAIController>(Character->GetController()))
 		{
 			AIController->StopMovement();
 		}
 	}
+
+	if (IsValid(DeathMontage))
+	{
+		ActiveMontageTask = UAbilityTask_PlayMontageAndWait::CreatePlayMontageAndWaitProxy(
+			this,
+			NAME_None,
+			DeathMontage,
+			FMath::Max(MontagePlayRate, UE_SMALL_NUMBER));
+
+		if (IsValid(ActiveMontageTask))
+		{
+			ActiveMontageTask->OnCompleted.AddDynamic(this, &UPRGameplayAbility_EnemyDeath::HandleDeathMontageCompleted);
+			ActiveMontageTask->OnBlendOut.AddDynamic(this, &UPRGameplayAbility_EnemyDeath::HandleDeathMontageCompleted);
+			ActiveMontageTask->OnInterrupted.AddDynamic(this, &UPRGameplayAbility_EnemyDeath::HandleDeathMontageInterrupted);
+			ActiveMontageTask->OnCancelled.AddDynamic(this, &UPRGameplayAbility_EnemyDeath::HandleDeathMontageInterrupted);
+			ActiveMontageTask->ReadyForActivation();
+		}
+	}
+}
+
+void UPRGameplayAbility_EnemyDeath::EndAbility(const FGameplayAbilitySpecHandle Handle,
+	const FGameplayAbilityActorInfo* ActorInfo,
+	const FGameplayAbilityActivationInfo ActivationInfo,
+	bool bReplicateEndAbility,
+	bool bWasCancelled)
+{
+	if (IsValid(ActiveMontageTask))
+	{
+		ActiveMontageTask->EndTask();
+		ActiveMontageTask = nullptr;
+	}
+
+	Super::EndAbility(Handle, ActorInfo, ActivationInfo, bReplicateEndAbility, bWasCancelled);
+}
+
+void UPRGameplayAbility_EnemyDeath::HandleDeathMontageCompleted()
+{
+	if (bEndAbilityWhenMontageEnds)
+	{
+		FinishDeath(false);
+	}
+}
+
+void UPRGameplayAbility_EnemyDeath::HandleDeathMontageInterrupted()
+{
+	if (bEndAbilityWhenMontageEnds)
+	{
+		FinishDeath(true);
+	}
+}
+
+void UPRGameplayAbility_EnemyDeath::FinishDeath(bool bWasCancelled)
+{
+	if (bDeathFinished)
+	{
+		return;
+	}
+
+	bDeathFinished = true;
+	EndAbility(CurrentSpecHandle, CurrentActorInfo, CurrentActivationInfo, true, bWasCancelled);
 }

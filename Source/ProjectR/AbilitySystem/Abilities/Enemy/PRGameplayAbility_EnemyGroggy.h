@@ -6,6 +6,9 @@
 #include "ProjectR/AbilitySystem/Abilities/Enemy/PRGameplayAbility_EnemyBase.h"
 #include "PRGameplayAbility_EnemyGroggy.generated.h"
 
+class UAbilityTask_PlayMontageAndWait;
+class UAnimMontage;
+
 UCLASS(Abstract)
 class PROJECTR_API UPRGameplayAbility_EnemyGroggy : public UPRGameplayAbility_EnemyBase
 {
@@ -26,6 +29,35 @@ public:
 		bool bWasCancelled) override;
 
 protected:
+	UFUNCTION()
+	void HandleGroggyMontageCompleted();
+
+	UFUNCTION()
+	void HandleGroggyMontageInterrupted();
+
+	void FinishGroggy(bool bWasCancelled);
+
+protected:
 	UPROPERTY(EditDefaultsOnly, Category = "ProjectR|Combat")
 	FGameplayTagContainer CancelAbilityTags;
+
+	UPROPERTY(EditDefaultsOnly, Category = "ProjectR|Animation")
+	TObjectPtr<UAnimMontage> GroggyMontage;
+
+	UPROPERTY(EditDefaultsOnly, Category = "ProjectR|Animation", meta = (ClampMin = "0.0"))
+	float MontagePlayRate = 1.0f;
+
+	UPROPERTY(EditDefaultsOnly, Category = "ProjectR|Animation")
+	bool bEndWhenMontageEnds = true;
+
+	UPROPERTY(EditDefaultsOnly, Category = "ProjectR|Groggy", meta = (ClampMin = "0.0"))
+	float GroggyDuration = 2.0f;
+
+private:
+	FTimerHandle GroggyTimerHandle;
+
+	UPROPERTY(Transient)
+	TObjectPtr<UAbilityTask_PlayMontageAndWait> ActiveMontageTask;
+
+	bool bGroggyFinished = false;
 };

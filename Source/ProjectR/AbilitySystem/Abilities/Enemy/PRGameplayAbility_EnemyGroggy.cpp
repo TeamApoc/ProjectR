@@ -3,7 +3,9 @@
 #include "PRGameplayAbility_EnemyGroggy.h"
 
 #include "AbilitySystemComponent.h"
+#include "Abilities/Tasks/AbilityTask_PlayMontageAndWait.h"
 #include "AIController.h"
+#include "Animation/AnimMontage.h"
 #include "GameFramework/Character.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "ProjectR/PRGameplayTags.h"
@@ -32,6 +34,8 @@ void UPRGameplayAbility_EnemyGroggy::ActivateAbility(const FGameplayAbilitySpecH
 		return;
 	}
 
+	bGroggyFinished = false;
+
 	if (UAbilitySystemComponent* ASC = GetAbilitySystemComponentFromActorInfo())
 	{
 		ASC->CancelAbilities(&CancelAbilityTags, nullptr, this);
@@ -46,6 +50,41 @@ void UPRGameplayAbility_EnemyGroggy::ActivateAbility(const FGameplayAbilitySpecH
 			AIController->StopMovement();
 		}
 	}
+
+	const bool bHasGroggyMontage = IsValid(GroggyMontage);
+	if (bHasGroggyMontage)
+	{
+		ActiveMontageTask = UAbilityTask_PlayMontageAndWait::CreatePlayMontageAndWaitProxy(
+			this,
+			NAME_None,
+			GroggyMontage,
+			FMath::Max(MontagePlayRate, UE_SMALL_NUMBER));
+
+		if (IsValid(ActiveMontageTask))
+		{
+			ActiveMontageTask->OnCompleted.AddDynamic(this, &UPRGameplayAbility_EnemyGroggy::HandleGroggyMontageCompleted);
+			ActiveMontageTask->OnBlendOut.AddDynamic(this, &UPRGameplayAbility_EnemyGroggy::HandleGroggyMontageCompleted);
+			ActiveMontageTask->OnInterrupted.AddDynamic(this, &UPRGameplayAbility_EnemyGroggy::HandleGroggyMontageInterrupted);
+			ActiveMontageTask->OnCancelled.AddDynamic(this, &UPRGameplayAbility_EnemyGroggy::HandleGroggyMontageInterrupted);
+			ActiveMontageTask->ReadyForActivation();
+		}
+	}
+
+	if (UWorld* World = GetWorld())
+	{
+		const float MontageDuration = bHasGroggyMontage && bEndWhenMontageEnds
+			? GroggyMontage->GetPlayLength() / FMath::Max(MontagePlayRate, UE_SMALL_NUMBER)
+			: 0.0f;
+		const float FinishDelay = FMath::Max(GroggyDuration, MontageDuration + 0.1f);
+
+		if (FinishDelay > 0.0f)
+		{
+			World->GetTimerManager().SetTimer(GroggyTimerHandle,
+				FTimerDelegate::CreateUObject(this, &UPRGameplayAbility_EnemyGroggy::FinishGroggy, false),
+				FinishDelay,
+				false);
+		}
+	}
 }
 
 void UPRGameplayAbility_EnemyGroggy::EndAbility(const FGameplayAbilitySpecHandle Handle,
@@ -54,10 +93,45 @@ void UPRGameplayAbility_EnemyGroggy::EndAbility(const FGameplayAbilitySpecHandle
 	bool bReplicateEndAbility,
 	bool bWasCancelled)
 {
+	if (UWorld* World = GetWorld())
+	{
+		World->GetTimerManager().ClearTimer(GroggyTimerHandle);
+	}
+
+	if (IsValid(ActiveMontageTask))
+	{
+		ActiveMontageTask->EndTask();
+		ActiveMontageTask = nullptr;
+	}
+
 	if (UAbilitySystemComponent* ASC = GetAbilitySystemComponentFromActorInfo())
 	{
 		ASC->RemoveLooseGameplayTag(PRGameplayTags::State_Groggy);
 	}
 
 	Super::EndAbility(Handle, ActorInfo, ActivationInfo, bReplicateEndAbility, bWasCancelled);
+}
+
+void UPRGameplayAbility_EnemyGroggy::HandleGroggyMontageCompleted()
+{
+	if (bEndWhenMontageEnds)
+	{
+		FinishGroggy(false);
+	}
+}
+
+void UPRGameplayAbility_EnemyGroggy::HandleGroggyMontageInterrupted()
+{
+	FinishGroggy(true);
+}
+
+void UPRGameplayAbility_EnemyGroggy::FinishGroggy(bool bWasCancelled)
+{
+	if (bGroggyFinished)
+	{
+		return;
+	}
+
+	bGroggyFinished = true;
+	EndAbility(CurrentSpecHandle, CurrentActorInfo, CurrentActivationInfo, true, bWasCancelled);
 }

@@ -1,0 +1,35 @@
+// Copyright ProjectR. All Rights Reserved.
+
+#include "PRGameplayAbility_BossPhaseTransition.h"
+
+#include "ProjectR/Character/Enemy/PRBossBaseCharacter.h"
+#include "ProjectR/PRGameplayTags.h"
+
+UPRGameplayAbility_BossPhaseTransition::UPRGameplayAbility_BossPhaseTransition()
+{
+	// CombatEventRelayComponent가 PhaseTransition 이벤트를 보내면 이 Ability가 자동 실행된다.
+	FAbilityTriggerData TriggerData;
+	TriggerData.TriggerSource = EGameplayAbilityTriggerSource::GameplayEvent;
+	TriggerData.TriggerTag = PRGameplayTags::Event_Ability_PhaseTransition;
+	AbilityTriggers.Add(TriggerData);
+}
+
+void UPRGameplayAbility_BossPhaseTransition::ActivateAbility(const FGameplayAbilitySpecHandle Handle,
+	const FGameplayAbilityActorInfo* ActorInfo,
+	const FGameplayAbilityActivationInfo ActivationInfo,
+	const FGameplayEventData* TriggerEventData)
+{
+	if (!CommitAbility(Handle, ActorInfo, ActivationInfo))
+	{
+		EndAbility(Handle, ActorInfo, ActivationInfo, true, true);
+		return;
+	}
+
+	if (APRBossBaseCharacter* BossCharacter = Cast<APRBossBaseCharacter>(GetAvatarActorFromActorInfo()))
+	{
+		// 현재는 전환 연출 없이 즉시 확정한다. 연출이 붙으면 이 호출을 몽타주 완료 시점으로 옮기면 된다.
+		BossCharacter->CommitPhaseTransition(TargetPhase);
+	}
+
+	EndAbility(Handle, ActorInfo, ActivationInfo, true, false);
+}

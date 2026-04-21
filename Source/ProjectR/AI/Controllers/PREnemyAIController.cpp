@@ -1,0 +1,203 @@
+// Copyright ProjectR. All Rights Reserved.
+
+#include "PREnemyAIController.h"
+
+#include "BehaviorTree/BehaviorTree.h"
+#include "BehaviorTree/BlackboardComponent.h"
+#include "Perception/AIPerceptionComponent.h"
+#include "Perception/AISenseConfig_Hearing.h"
+#include "Perception/AISenseConfig_Sight.h"
+#include "ProjectR/AI/Components/PREnemyThreatComponent.h"
+#include "ProjectR/AI/Data/PRPerceptionConfig.h"
+#include "ProjectR/Character/Enemy/PREnemyInterface.h"
+
+APREnemyAIController::APREnemyAIController()
+{
+	EnemyPerceptionComponent = CreateDefaultSubobject<UAIPerceptionComponent>(TEXT("PerceptionComponent"));
+	SetPerceptionComponent(*EnemyPerceptionComponent);
+
+	SightConfig = CreateDefaultSubobject<UAISenseConfig_Sight>(TEXT("SightConfig"));
+	SightConfig->DetectionByAffiliation.bDetectEnemies = true;
+	SightConfig->DetectionByAffiliation.bDetectFriendlies = true;
+	SightConfig->DetectionByAffiliation.bDetectNeutrals = true;
+
+	HearingConfig = CreateDefaultSubobject<UAISenseConfig_Hearing>(TEXT("HearingConfig"));
+	HearingConfig->DetectionByAffiliation.bDetectEnemies = true;
+	HearingConfig->DetectionByAffiliation.bDetectFriendlies = true;
+	HearingConfig->DetectionByAffiliation.bDetectNeutrals = true;
+
+	EnemyPerceptionComponent->ConfigureSense(*SightConfig);
+	EnemyPerceptionComponent->ConfigureSense(*HearingConfig);
+	EnemyPerceptionComponent->SetDominantSense(SightConfig->GetSenseImplementation());
+	EnemyPerceptionComponent->OnTargetPerceptionUpdated.AddDynamic(this, &APREnemyAIController::HandleTargetPerceptionUpdated);
+}
+
+void APREnemyAIController::OnPossess(APawn* InPawn)
+{
+	Super::OnPossess(InPawn);
+
+	// 몬스터 Pawn은 IPREnemyInterface를 통해 BT/Perception/Threat 데이터를 제공한다.
+	IPREnemyInterface* EnemyInterface = Cast<IPREnemyInterface>(InPawn);
+	if (EnemyInterface == nullptr)
+	{
+		return;
+	}
+
+	ApplyPerceptionConfig(EnemyInterface->GetPerceptionConfig());
+
+	CachedThreatComponent = EnemyInterface->GetEnemyThreatComponent();
+	if (IsValid(CachedThreatComponent))
+	{
+		// ThreatComponent가 고른 타겟을 Blackboard로 전달해 BT가 같은 대상을 보게 한다.
+		CachedThreatComponent->OnTargetChanged.AddDynamic(this, &APREnemyAIController::HandleThreatTargetChanged);
+	}
+
+	CacheBlackboardFromBehaviorTree(EnemyInterface->GetBehaviorTreeAsset());
+
+	if (IsValid(CachedBlackboardComponent))
+	{
+		CachedBlackboardComponent->SetValueAsVector(HomeLocationKey, EnemyInterface->GetHomeLocation());
+		SetBlackboardTacticalMode(EPRTacticalMode::Idle);
+	}
+}
+
+void APREnemyAIController::OnUnPossess()
+{
+	ClearThreatBinding();
+	CachedBlackboardComponent = nullptr;
+
+	Super::OnUnPossess();
+}
+
+void APREnemyAIController::HandleTargetPerceptionUpdated(AActor* Actor, FAIStimulus Stimulus)
+{
+	if (!HasAuthority() || !IsValid(Actor))
+	{
+		return;
+	}
+
+	if (IsValid(CachedBlackboardComponent))
+	{
+		CachedBlackboardComponent->SetValueAsVector(TargetLocationKey, Stimulus.StimulusLocation);
+	}
+
+	if (!IsValid(CachedThreatComponent))
+	{
+		return;
+	}
+
+	if (Stimulus.WasSuccessfullySensed())
+	{
+		// 감지만으로도 최소 위협을 부여해서 전투 타겟 후보에 올린다.
+		CachedThreatComponent->AddThreat(Actor, 1.0f);
+
+		if (IsValid(CachedBlackboardComponent))
+		{
+			CachedBlackboardComponent->SetValueAsVector(LastKnownTargetLocationKey, Stimulus.StimulusLocation);
+			CachedBlackboardComponent->SetValueAsBool(HasLOSKey, true);
+		}
+
+		SetBlackboardTacticalMode(EPRTacticalMode::Alert);
+	}
+	else
+	{
+		// 타겟을 잃어도 마지막 위치는 남겨둔다. 추후 수색/복귀 패턴에서 사용할 수 있다.
+		if (IsValid(CachedBlackboardComponent))
+		{
+			CachedBlackboardComponent->SetValueAsVector(LastKnownTargetLocationKey, Stimulus.StimulusLocation);
+			CachedBlackboardComponent->SetValueAsBool(HasLOSKey, false);
+		}
+	}
+}
+
+void APREnemyAIController::HandleThreatTargetChanged(AActor* OldTarget, AActor* NewTarget)
+{
+	if (!IsValid(CachedBlackboardComponent))
+	{
+		return;
+	}
+
+	CachedBlackboardComponent->SetValueAsObject(CurrentTargetKey, NewTarget);
+
+	if (IsValid(NewTarget))
+	{
+		// CurrentTarget이 생기면 즉시 Focus를 잡아 회전/시야 처리가 같은 대상을 향하게 한다.
+		CachedBlackboardComponent->SetValueAsVector(TargetLocationKey, NewTarget->GetActorLocation());
+		CachedBlackboardComponent->SetValueAsBool(HasLOSKey, true);
+		SetFocus(NewTarget);
+		SetBlackboardTacticalMode(EPRTacticalMode::Chase);
+	}
+	else
+	{
+		CachedBlackboardComponent->ClearValue(CurrentTargetKey);
+		CachedBlackboardComponent->SetValueAsBool(HasLOSKey, false);
+		ClearFocus(EAIFocusPriority::Gameplay);
+		SetBlackboardTacticalMode(EPRTacticalMode::Return);
+	}
+}
+
+void APREnemyAIController::ApplyPerceptionConfig(const UPRPerceptionConfig* Config)
+{
+	if (!IsValid(SightConfig) || !IsValid(HearingConfig) || !IsValid(EnemyPerceptionComponent))
+	{
+		return;
+	}
+
+	const float SightRadius = IsValid(Config) ? Config->SightRadius : 1500.0f;
+	const float LoseSightRadius = IsValid(Config) ? Config->LoseSightRadius : 1800.0f;
+	const float PeripheralVisionAngle = IsValid(Config) ? Config->PeripheralVisionAngle : 90.0f;
+	const float HearingRange = IsValid(Config) ? Config->HearingRange : 800.0f;
+	const float StimulusMaxAge = IsValid(Config) ? Config->StimulusMaxAge : 5.0f;
+
+	SightConfig->SightRadius = SightRadius;
+	SightConfig->LoseSightRadius = LoseSightRadius;
+	SightConfig->PeripheralVisionAngleDegrees = PeripheralVisionAngle;
+	SightConfig->SetMaxAge(StimulusMaxAge);
+
+	HearingConfig->HearingRange = HearingRange;
+	HearingConfig->SetMaxAge(StimulusMaxAge);
+
+	// Sense 값은 런타임에 바뀔 수 있으므로 ConfigureSense를 다시 호출해 적용한다.
+	EnemyPerceptionComponent->ConfigureSense(*SightConfig);
+	EnemyPerceptionComponent->ConfigureSense(*HearingConfig);
+	EnemyPerceptionComponent->SetDominantSense(SightConfig->GetSenseImplementation());
+}
+
+void APREnemyAIController::SetBlackboardTacticalMode(EPRTacticalMode NewMode)
+{
+	if (!IsValid(CachedBlackboardComponent))
+	{
+		return;
+	}
+
+	CachedBlackboardComponent->SetValueAsEnum(TacticalModeKey, static_cast<uint8>(NewMode));
+}
+
+void APREnemyAIController::CacheBlackboardFromBehaviorTree(UBehaviorTree* BehaviorTreeAsset)
+{
+	CachedBlackboardComponent = nullptr;
+
+	if (!IsValid(BehaviorTreeAsset))
+	{
+		return;
+	}
+
+	UBlackboardComponent* BlackboardComponent = nullptr;
+	const bool bBlackboardReady = UseBlackboard(BehaviorTreeAsset->BlackboardAsset, BlackboardComponent);
+	if (!bBlackboardReady || !IsValid(BlackboardComponent))
+	{
+		return;
+	}
+
+	CachedBlackboardComponent = BlackboardComponent;
+	RunBehaviorTree(BehaviorTreeAsset);
+}
+
+void APREnemyAIController::ClearThreatBinding()
+{
+	if (IsValid(CachedThreatComponent))
+	{
+		CachedThreatComponent->OnTargetChanged.RemoveAll(this);
+		CachedThreatComponent = nullptr;
+	}
+}

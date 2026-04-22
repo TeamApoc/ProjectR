@@ -33,6 +33,15 @@ protected:
 	UPROPERTY(BlueprintReadOnly)
 	bool bIsAiming;
 	
+	UPROPERTY(BlueprintReadOnly, Category = "Flags")
+	bool bShouldMove;
+	
+	UPROPERTY(BlueprintReadOnly, Category = "Flags")
+	bool bIsFalling;
+	
+	UPROPERTY(BlueprintReadOnly, Category = "Movement")
+	EPRMovementMode MovementMode;
+	
 	// 전방 기준 방향 각도
 	UPROPERTY(BlueprintReadOnly, Category = "Movement")
 	float F_OrientationAngle;

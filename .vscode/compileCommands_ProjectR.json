@@ -1,5 +1,149 @@
 [
 	{
+		"file": "C:\\Users\\KGA\\Documents\\Unreal Projects\\ProjectR\\Source\\ProjectR\\AbilitySystem\\AttributeSets\\PRAttributeSet_Common.cpp",
+		"arguments": [
+			"C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\VC\\Tools\\MSVC\\14.44.35207\\bin\\Hostx64\\x64\\cl.exe",
+			"@C:\\Users\\KGA\\Documents\\Unreal Projects\\ProjectR\\.vscode\\compileCommands_ProjectR\\ProjectR.1.rsp"
+		],
+		"directory": "C:\\Program Files\\Epic Games\\UE_5.6\\Engine\\Source"
+	},
+	{
+		"file": "C:\\Users\\KGA\\Documents\\Unreal Projects\\ProjectR\\Source\\ProjectR\\AbilitySystem\\AttributeSets\\PRAttributeSet_Common.h",
+		"arguments": [
+			"C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\VC\\Tools\\MSVC\\14.44.35207\\bin\\Hostx64\\x64\\cl.exe",
+			"@C:\\Users\\KGA\\Documents\\Unreal Projects\\ProjectR\\.vscode\\compileCommands_ProjectR\\ProjectR.1.rsp"
+		],
+		"directory": "C:\\Program Files\\Epic Games\\UE_5.6\\Engine\\Source"
+	},
+	{
+		"file": "C:\\Users\\KGA\\Documents\\Unreal Projects\\ProjectR\\Source\\ProjectR\\AbilitySystem\\AttributeSets\\PRAttributeSet_Enemy.cpp",
+		"arguments": [
+			"C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\VC\\Tools\\MSVC\\14.44.35207\\bin\\Hostx64\\x64\\cl.exe",
+			"@C:\\Users\\KGA\\Documents\\Unreal Projects\\ProjectR\\.vscode\\compileCommands_ProjectR\\ProjectR.1.rsp"
+		],
+		"directory": "C:\\Program Files\\Epic Games\\UE_5.6\\Engine\\Source"
+	},
+	{
+		"file": "C:\\Users\\KGA\\Documents\\Unreal Projects\\ProjectR\\Source\\ProjectR\\AbilitySystem\\AttributeSets\\PRAttributeSet_Enemy.h",
+		"arguments": [
+			"C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\VC\\Tools\\MSVC\\14.44.35207\\bin\\Hostx64\\x64\\cl.exe",
+			"@C:\\Users\\KGA\\Documents\\Unreal Projects\\ProjectR\\.vscode\\compileCommands_ProjectR\\ProjectR.1.rsp"
+		],
+		"directory": "C:\\Program Files\\Epic Games\\UE_5.6\\Engine\\Source"
+	},
+	{
+		"file": "C:\\Users\\KGA\\Documents\\Unreal Projects\\ProjectR\\Source\\ProjectR\\AbilitySystem\\AttributeSets\\PRAttributeSet_Player.cpp",
+		"arguments": [
+			"C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\VC\\Tools\\MSVC\\14.44.35207\\bin\\Hostx64\\x64\\cl.exe",
+			"@C:\\Users\\KGA\\Documents\\Unreal Projects\\ProjectR\\.vscode\\compileCommands_ProjectR\\ProjectR.1.rsp"
+		],
+		"directory": "C:\\Program Files\\Epic Games\\UE_5.6\\Engine\\Source"
+	},
+	{
+		"file": "C:\\Users\\KGA\\Documents\\Unreal Projects\\ProjectR\\Source\\ProjectR\\AbilitySystem\\AttributeSets\\PRAttributeSet_Player.h",
+		"arguments": [
+			"C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\VC\\Tools\\MSVC\\14.44.35207\\bin\\Hostx64\\x64\\cl.exe",
+			"@C:\\Users\\KGA\\Documents\\Unreal Projects\\ProjectR\\.vscode\\compileCommands_ProjectR\\ProjectR.1.rsp"
+		],
+		"directory": "C:\\Program Files\\Epic Games\\UE_5.6\\Engine\\Source"
+	},
+	{
+		"file": "C:\\Users\\KGA\\Documents\\Unreal Projects\\ProjectR\\Source\\ProjectR\\AbilitySystem\\Data\\PRAbilitySet.cpp",
+		"arguments": [
+			"C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\VC\\Tools\\MSVC\\14.44.35207\\bin\\Hostx64\\x64\\cl.exe",
+			"@C:\\Users\\KGA\\Documents\\Unreal Projects\\ProjectR\\.vscode\\compileCommands_ProjectR\\ProjectR.1.rsp"
+		],
+		"directory": "C:\\Program Files\\Epic Games\\UE_5.6\\Engine\\Source"
+	},
+	{
+		"file": "C:\\Users\\KGA\\Documents\\Unreal Projects\\ProjectR\\Source\\ProjectR\\AbilitySystem\\Data\\PRAbilitySet.h",
+		"arguments": [
+			"C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\VC\\Tools\\MSVC\\14.44.35207\\bin\\Hostx64\\x64\\cl.exe",
+			"@C:\\Users\\KGA\\Documents\\Unreal Projects\\ProjectR\\.vscode\\compileCommands_ProjectR\\ProjectR.1.rsp"
+		],
+		"directory": "C:\\Program Files\\Epic Games\\UE_5.6\\Engine\\Source"
+	},
+	{
+		"file": "C:\\Users\\KGA\\Documents\\Unreal Projects\\ProjectR\\Source\\ProjectR\\AbilitySystem\\Data\\PRAbilitySystemRegistry.cpp",
+		"arguments": [
+			"C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\VC\\Tools\\MSVC\\14.44.35207\\bin\\Hostx64\\x64\\cl.exe",
+			"@C:\\Users\\KGA\\Documents\\Unreal Projects\\ProjectR\\.vscode\\compileCommands_ProjectR\\ProjectR.1.rsp"
+		],
+		"directory": "C:\\Program Files\\Epic Games\\UE_5.6\\Engine\\Source"
+	},
+	{
+		"file": "C:\\Users\\KGA\\Documents\\Unreal Projects\\ProjectR\\Source\\ProjectR\\AbilitySystem\\Data\\PRAbilitySystemRegistry.h",
+		"arguments": [
+			"C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\VC\\Tools\\MSVC\\14.44.35207\\bin\\Hostx64\\x64\\cl.exe",
+			"@C:\\Users\\KGA\\Documents\\Unreal Projects\\ProjectR\\.vscode\\compileCommands_ProjectR\\ProjectR.1.rsp"
+		],
+		"directory": "C:\\Program Files\\Epic Games\\UE_5.6\\Engine\\Source"
+	},
+	{
+		"file": "C:\\Users\\KGA\\Documents\\Unreal Projects\\ProjectR\\Source\\ProjectR\\AbilitySystem\\Data\\PRStatRows.h",
+		"arguments": [
+			"C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\VC\\Tools\\MSVC\\14.44.35207\\bin\\Hostx64\\x64\\cl.exe",
+			"@C:\\Users\\KGA\\Documents\\Unreal Projects\\ProjectR\\.vscode\\compileCommands_ProjectR\\ProjectR.1.rsp"
+		],
+		"directory": "C:\\Program Files\\Epic Games\\UE_5.6\\Engine\\Source"
+	},
+	{
+		"file": "C:\\Users\\KGA\\Documents\\Unreal Projects\\ProjectR\\Source\\ProjectR\\AbilitySystem\\PRAbilitySystemComponent.cpp",
+		"arguments": [
+			"C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\VC\\Tools\\MSVC\\14.44.35207\\bin\\Hostx64\\x64\\cl.exe",
+			"@C:\\Users\\KGA\\Documents\\Unreal Projects\\ProjectR\\.vscode\\compileCommands_ProjectR\\ProjectR.1.rsp"
+		],
+		"directory": "C:\\Program Files\\Epic Games\\UE_5.6\\Engine\\Source"
+	},
+	{
+		"file": "C:\\Users\\KGA\\Documents\\Unreal Projects\\ProjectR\\Source\\ProjectR\\AbilitySystem\\PRAbilitySystemComponent.h",
+		"arguments": [
+			"C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\VC\\Tools\\MSVC\\14.44.35207\\bin\\Hostx64\\x64\\cl.exe",
+			"@C:\\Users\\KGA\\Documents\\Unreal Projects\\ProjectR\\.vscode\\compileCommands_ProjectR\\ProjectR.1.rsp"
+		],
+		"directory": "C:\\Program Files\\Epic Games\\UE_5.6\\Engine\\Source"
+	},
+	{
+		"file": "C:\\Users\\KGA\\Documents\\Unreal Projects\\ProjectR\\Source\\ProjectR\\AbilitySystem\\PRAbilityTypes.h",
+		"arguments": [
+			"C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\VC\\Tools\\MSVC\\14.44.35207\\bin\\Hostx64\\x64\\cl.exe",
+			"@C:\\Users\\KGA\\Documents\\Unreal Projects\\ProjectR\\.vscode\\compileCommands_ProjectR\\ProjectR.1.rsp"
+		],
+		"directory": "C:\\Program Files\\Epic Games\\UE_5.6\\Engine\\Source"
+	},
+	{
+		"file": "C:\\Users\\KGA\\Documents\\Unreal Projects\\ProjectR\\Source\\ProjectR\\AbilitySystem\\PRGameplayAbility.cpp",
+		"arguments": [
+			"C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\VC\\Tools\\MSVC\\14.44.35207\\bin\\Hostx64\\x64\\cl.exe",
+			"@C:\\Users\\KGA\\Documents\\Unreal Projects\\ProjectR\\.vscode\\compileCommands_ProjectR\\ProjectR.1.rsp"
+		],
+		"directory": "C:\\Program Files\\Epic Games\\UE_5.6\\Engine\\Source"
+	},
+	{
+		"file": "C:\\Users\\KGA\\Documents\\Unreal Projects\\ProjectR\\Source\\ProjectR\\AbilitySystem\\PRGameplayAbility.h",
+		"arguments": [
+			"C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\VC\\Tools\\MSVC\\14.44.35207\\bin\\Hostx64\\x64\\cl.exe",
+			"@C:\\Users\\KGA\\Documents\\Unreal Projects\\ProjectR\\.vscode\\compileCommands_ProjectR\\ProjectR.1.rsp"
+		],
+		"directory": "C:\\Program Files\\Epic Games\\UE_5.6\\Engine\\Source"
+	},
+	{
+		"file": "C:\\Users\\KGA\\Documents\\Unreal Projects\\ProjectR\\Source\\ProjectR\\AbilitySystem\\Player\\PRPlayerDodgeAbility.cpp",
+		"arguments": [
+			"C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\VC\\Tools\\MSVC\\14.44.35207\\bin\\Hostx64\\x64\\cl.exe",
+			"@C:\\Users\\KGA\\Documents\\Unreal Projects\\ProjectR\\.vscode\\compileCommands_ProjectR\\ProjectR.1.rsp"
+		],
+		"directory": "C:\\Program Files\\Epic Games\\UE_5.6\\Engine\\Source"
+	},
+	{
+		"file": "C:\\Users\\KGA\\Documents\\Unreal Projects\\ProjectR\\Source\\ProjectR\\AbilitySystem\\Player\\PRPlayerDodgeAbility.h",
+		"arguments": [
+			"C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\VC\\Tools\\MSVC\\14.44.35207\\bin\\Hostx64\\x64\\cl.exe",
+			"@C:\\Users\\KGA\\Documents\\Unreal Projects\\ProjectR\\.vscode\\compileCommands_ProjectR\\ProjectR.1.rsp"
+		],
+		"directory": "C:\\Program Files\\Epic Games\\UE_5.6\\Engine\\Source"
+	},
+	{
 		"file": "C:\\Users\\KGA\\Documents\\Unreal Projects\\ProjectR\\Source\\ProjectR\\Animation\\PRAnimInstance.cpp",
 		"arguments": [
 			"C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\VC\\Tools\\MSVC\\14.44.35207\\bin\\Hostx64\\x64\\cl.exe",
@@ -72,6 +216,158 @@
 		"directory": "C:\\Program Files\\Epic Games\\UE_5.6\\Engine\\Source"
 	},
 	{
+		"file": "C:\\Users\\KGA\\Documents\\Unreal Projects\\ProjectR\\Source\\ProjectR\\Game\\PRGameInstance.cpp",
+		"arguments": [
+			"C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\VC\\Tools\\MSVC\\14.44.35207\\bin\\Hostx64\\x64\\cl.exe",
+			"@C:\\Users\\KGA\\Documents\\Unreal Projects\\ProjectR\\.vscode\\compileCommands_ProjectR\\ProjectR.1.rsp"
+		],
+		"directory": "C:\\Program Files\\Epic Games\\UE_5.6\\Engine\\Source"
+	},
+	{
+		"file": "C:\\Users\\KGA\\Documents\\Unreal Projects\\ProjectR\\Source\\ProjectR\\Game\\PRGameInstance.h",
+		"arguments": [
+			"C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\VC\\Tools\\MSVC\\14.44.35207\\bin\\Hostx64\\x64\\cl.exe",
+			"@C:\\Users\\KGA\\Documents\\Unreal Projects\\ProjectR\\.vscode\\compileCommands_ProjectR\\ProjectR.1.rsp"
+		],
+		"directory": "C:\\Program Files\\Epic Games\\UE_5.6\\Engine\\Source"
+	},
+	{
+		"file": "C:\\Users\\KGA\\Documents\\Unreal Projects\\ProjectR\\Source\\ProjectR\\Game\\PRGameStateBase.cpp",
+		"arguments": [
+			"C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\VC\\Tools\\MSVC\\14.44.35207\\bin\\Hostx64\\x64\\cl.exe",
+			"@C:\\Users\\KGA\\Documents\\Unreal Projects\\ProjectR\\.vscode\\compileCommands_ProjectR\\ProjectR.1.rsp"
+		],
+		"directory": "C:\\Program Files\\Epic Games\\UE_5.6\\Engine\\Source"
+	},
+	{
+		"file": "C:\\Users\\KGA\\Documents\\Unreal Projects\\ProjectR\\Source\\ProjectR\\Game\\PRGameStateBase.h",
+		"arguments": [
+			"C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\VC\\Tools\\MSVC\\14.44.35207\\bin\\Hostx64\\x64\\cl.exe",
+			"@C:\\Users\\KGA\\Documents\\Unreal Projects\\ProjectR\\.vscode\\compileCommands_ProjectR\\ProjectR.1.rsp"
+		],
+		"directory": "C:\\Program Files\\Epic Games\\UE_5.6\\Engine\\Source"
+	},
+	{
+		"file": "C:\\Users\\KGA\\Documents\\Unreal Projects\\ProjectR\\Source\\ProjectR\\Game\\PRGameTypes.h",
+		"arguments": [
+			"C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\VC\\Tools\\MSVC\\14.44.35207\\bin\\Hostx64\\x64\\cl.exe",
+			"@C:\\Users\\KGA\\Documents\\Unreal Projects\\ProjectR\\.vscode\\compileCommands_ProjectR\\ProjectR.1.rsp"
+		],
+		"directory": "C:\\Program Files\\Epic Games\\UE_5.6\\Engine\\Source"
+	},
+	{
+		"file": "C:\\Users\\KGA\\Documents\\Unreal Projects\\ProjectR\\Source\\ProjectR\\Game\\PRMenuGameMode.cpp",
+		"arguments": [
+			"C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\VC\\Tools\\MSVC\\14.44.35207\\bin\\Hostx64\\x64\\cl.exe",
+			"@C:\\Users\\KGA\\Documents\\Unreal Projects\\ProjectR\\.vscode\\compileCommands_ProjectR\\ProjectR.1.rsp"
+		],
+		"directory": "C:\\Program Files\\Epic Games\\UE_5.6\\Engine\\Source"
+	},
+	{
+		"file": "C:\\Users\\KGA\\Documents\\Unreal Projects\\ProjectR\\Source\\ProjectR\\Game\\PRMenuGameMode.h",
+		"arguments": [
+			"C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\VC\\Tools\\MSVC\\14.44.35207\\bin\\Hostx64\\x64\\cl.exe",
+			"@C:\\Users\\KGA\\Documents\\Unreal Projects\\ProjectR\\.vscode\\compileCommands_ProjectR\\ProjectR.1.rsp"
+		],
+		"directory": "C:\\Program Files\\Epic Games\\UE_5.6\\Engine\\Source"
+	},
+	{
+		"file": "C:\\Users\\KGA\\Documents\\Unreal Projects\\ProjectR\\Source\\ProjectR\\Game\\PRPlayGameMode.cpp",
+		"arguments": [
+			"C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\VC\\Tools\\MSVC\\14.44.35207\\bin\\Hostx64\\x64\\cl.exe",
+			"@C:\\Users\\KGA\\Documents\\Unreal Projects\\ProjectR\\.vscode\\compileCommands_ProjectR\\ProjectR.1.rsp"
+		],
+		"directory": "C:\\Program Files\\Epic Games\\UE_5.6\\Engine\\Source"
+	},
+	{
+		"file": "C:\\Users\\KGA\\Documents\\Unreal Projects\\ProjectR\\Source\\ProjectR\\Game\\PRPlayGameMode.h",
+		"arguments": [
+			"C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\VC\\Tools\\MSVC\\14.44.35207\\bin\\Hostx64\\x64\\cl.exe",
+			"@C:\\Users\\KGA\\Documents\\Unreal Projects\\ProjectR\\.vscode\\compileCommands_ProjectR\\ProjectR.1.rsp"
+		],
+		"directory": "C:\\Program Files\\Epic Games\\UE_5.6\\Engine\\Source"
+	},
+	{
+		"file": "C:\\Users\\KGA\\Documents\\Unreal Projects\\ProjectR\\Source\\ProjectR\\Game\\PRSessionSubsystem.cpp",
+		"arguments": [
+			"C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\VC\\Tools\\MSVC\\14.44.35207\\bin\\Hostx64\\x64\\cl.exe",
+			"@C:\\Users\\KGA\\Documents\\Unreal Projects\\ProjectR\\.vscode\\compileCommands_ProjectR\\ProjectR.1.rsp"
+		],
+		"directory": "C:\\Program Files\\Epic Games\\UE_5.6\\Engine\\Source"
+	},
+	{
+		"file": "C:\\Users\\KGA\\Documents\\Unreal Projects\\ProjectR\\Source\\ProjectR\\Game\\PRSessionSubsystem.h",
+		"arguments": [
+			"C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\VC\\Tools\\MSVC\\14.44.35207\\bin\\Hostx64\\x64\\cl.exe",
+			"@C:\\Users\\KGA\\Documents\\Unreal Projects\\ProjectR\\.vscode\\compileCommands_ProjectR\\ProjectR.1.rsp"
+		],
+		"directory": "C:\\Program Files\\Epic Games\\UE_5.6\\Engine\\Source"
+	},
+	{
+		"file": "C:\\Users\\KGA\\Documents\\Unreal Projects\\ProjectR\\Source\\ProjectR\\Input\\PRInputConfigDataAsset.cpp",
+		"arguments": [
+			"C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\VC\\Tools\\MSVC\\14.44.35207\\bin\\Hostx64\\x64\\cl.exe",
+			"@C:\\Users\\KGA\\Documents\\Unreal Projects\\ProjectR\\.vscode\\compileCommands_ProjectR\\ProjectR.1.rsp"
+		],
+		"directory": "C:\\Program Files\\Epic Games\\UE_5.6\\Engine\\Source"
+	},
+	{
+		"file": "C:\\Users\\KGA\\Documents\\Unreal Projects\\ProjectR\\Source\\ProjectR\\Input\\PRInputConfigDataAsset.h",
+		"arguments": [
+			"C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\VC\\Tools\\MSVC\\14.44.35207\\bin\\Hostx64\\x64\\cl.exe",
+			"@C:\\Users\\KGA\\Documents\\Unreal Projects\\ProjectR\\.vscode\\compileCommands_ProjectR\\ProjectR.1.rsp"
+		],
+		"directory": "C:\\Program Files\\Epic Games\\UE_5.6\\Engine\\Source"
+	},
+	{
+		"file": "C:\\Users\\KGA\\Documents\\Unreal Projects\\ProjectR\\Source\\ProjectR\\PRGameplayTags.cpp",
+		"arguments": [
+			"C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\VC\\Tools\\MSVC\\14.44.35207\\bin\\Hostx64\\x64\\cl.exe",
+			"@C:\\Users\\KGA\\Documents\\Unreal Projects\\ProjectR\\.vscode\\compileCommands_ProjectR\\ProjectR.1.rsp"
+		],
+		"directory": "C:\\Program Files\\Epic Games\\UE_5.6\\Engine\\Source"
+	},
+	{
+		"file": "C:\\Users\\KGA\\Documents\\Unreal Projects\\ProjectR\\Source\\ProjectR\\PRGameplayTags.h",
+		"arguments": [
+			"C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\VC\\Tools\\MSVC\\14.44.35207\\bin\\Hostx64\\x64\\cl.exe",
+			"@C:\\Users\\KGA\\Documents\\Unreal Projects\\ProjectR\\.vscode\\compileCommands_ProjectR\\ProjectR.1.rsp"
+		],
+		"directory": "C:\\Program Files\\Epic Games\\UE_5.6\\Engine\\Source"
+	},
+	{
+		"file": "C:\\Users\\KGA\\Documents\\Unreal Projects\\ProjectR\\Source\\ProjectR\\Player\\PRPlayerController.cpp",
+		"arguments": [
+			"C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\VC\\Tools\\MSVC\\14.44.35207\\bin\\Hostx64\\x64\\cl.exe",
+			"@C:\\Users\\KGA\\Documents\\Unreal Projects\\ProjectR\\.vscode\\compileCommands_ProjectR\\ProjectR.1.rsp"
+		],
+		"directory": "C:\\Program Files\\Epic Games\\UE_5.6\\Engine\\Source"
+	},
+	{
+		"file": "C:\\Users\\KGA\\Documents\\Unreal Projects\\ProjectR\\Source\\ProjectR\\Player\\PRPlayerController.h",
+		"arguments": [
+			"C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\VC\\Tools\\MSVC\\14.44.35207\\bin\\Hostx64\\x64\\cl.exe",
+			"@C:\\Users\\KGA\\Documents\\Unreal Projects\\ProjectR\\.vscode\\compileCommands_ProjectR\\ProjectR.1.rsp"
+		],
+		"directory": "C:\\Program Files\\Epic Games\\UE_5.6\\Engine\\Source"
+	},
+	{
+		"file": "C:\\Users\\KGA\\Documents\\Unreal Projects\\ProjectR\\Source\\ProjectR\\Player\\PRPlayerState.cpp",
+		"arguments": [
+			"C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\VC\\Tools\\MSVC\\14.44.35207\\bin\\Hostx64\\x64\\cl.exe",
+			"@C:\\Users\\KGA\\Documents\\Unreal Projects\\ProjectR\\.vscode\\compileCommands_ProjectR\\ProjectR.1.rsp"
+		],
+		"directory": "C:\\Program Files\\Epic Games\\UE_5.6\\Engine\\Source"
+	},
+	{
+		"file": "C:\\Users\\KGA\\Documents\\Unreal Projects\\ProjectR\\Source\\ProjectR\\Player\\PRPlayerState.h",
+		"arguments": [
+			"C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\VC\\Tools\\MSVC\\14.44.35207\\bin\\Hostx64\\x64\\cl.exe",
+			"@C:\\Users\\KGA\\Documents\\Unreal Projects\\ProjectR\\.vscode\\compileCommands_ProjectR\\ProjectR.1.rsp"
+		],
+		"directory": "C:\\Program Files\\Epic Games\\UE_5.6\\Engine\\Source"
+	},
+	{
 		"file": "C:\\Users\\KGA\\Documents\\Unreal Projects\\ProjectR\\Source\\ProjectR\\ProjectR.Build.cs",
 		"arguments": [
 			"C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\VC\\Tools\\MSVC\\14.44.35207\\bin\\Hostx64\\x64\\cl.exe",
@@ -89,6 +385,38 @@
 	},
 	{
 		"file": "C:\\Users\\KGA\\Documents\\Unreal Projects\\ProjectR\\Source\\ProjectR\\ProjectR.h",
+		"arguments": [
+			"C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\VC\\Tools\\MSVC\\14.44.35207\\bin\\Hostx64\\x64\\cl.exe",
+			"@C:\\Users\\KGA\\Documents\\Unreal Projects\\ProjectR\\.vscode\\compileCommands_ProjectR\\ProjectR.1.rsp"
+		],
+		"directory": "C:\\Program Files\\Epic Games\\UE_5.6\\Engine\\Source"
+	},
+	{
+		"file": "C:\\Users\\KGA\\Documents\\Unreal Projects\\ProjectR\\Source\\ProjectR\\System\\PRAssetManager.cpp",
+		"arguments": [
+			"C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\VC\\Tools\\MSVC\\14.44.35207\\bin\\Hostx64\\x64\\cl.exe",
+			"@C:\\Users\\KGA\\Documents\\Unreal Projects\\ProjectR\\.vscode\\compileCommands_ProjectR\\ProjectR.1.rsp"
+		],
+		"directory": "C:\\Program Files\\Epic Games\\UE_5.6\\Engine\\Source"
+	},
+	{
+		"file": "C:\\Users\\KGA\\Documents\\Unreal Projects\\ProjectR\\Source\\ProjectR\\System\\PRAssetManager.h",
+		"arguments": [
+			"C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\VC\\Tools\\MSVC\\14.44.35207\\bin\\Hostx64\\x64\\cl.exe",
+			"@C:\\Users\\KGA\\Documents\\Unreal Projects\\ProjectR\\.vscode\\compileCommands_ProjectR\\ProjectR.1.rsp"
+		],
+		"directory": "C:\\Program Files\\Epic Games\\UE_5.6\\Engine\\Source"
+	},
+	{
+		"file": "C:\\Users\\KGA\\Documents\\Unreal Projects\\ProjectR\\Source\\ProjectR\\System\\PRDeveloperSettings.cpp",
+		"arguments": [
+			"C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\VC\\Tools\\MSVC\\14.44.35207\\bin\\Hostx64\\x64\\cl.exe",
+			"@C:\\Users\\KGA\\Documents\\Unreal Projects\\ProjectR\\.vscode\\compileCommands_ProjectR\\ProjectR.1.rsp"
+		],
+		"directory": "C:\\Program Files\\Epic Games\\UE_5.6\\Engine\\Source"
+	},
+	{
+		"file": "C:\\Users\\KGA\\Documents\\Unreal Projects\\ProjectR\\Source\\ProjectR\\System\\PRDeveloperSettings.h",
 		"arguments": [
 			"C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\VC\\Tools\\MSVC\\14.44.35207\\bin\\Hostx64\\x64\\cl.exe",
 			"@C:\\Users\\KGA\\Documents\\Unreal Projects\\ProjectR\\.vscode\\compileCommands_ProjectR\\ProjectR.1.rsp"

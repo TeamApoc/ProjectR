@@ -45,6 +45,7 @@ namespace PRGameplayTags
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(State_Groggy); // 그로기 상태.
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(State_StaminaDepleted); // 스태미너 고갈 상태.
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(State_Invulnerable); // 무적 상태.
+	UE_DECLARE_GAMEPLAY_TAG_EXTERN(State_Dodging); // 구르기 동작중
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(State_Channeling); // 캐스팅 또는 채널링 상태.
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(State_PhaseTransitioning); // 보스 페이즈 전환 상태.
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(State_Boss_WeakpointOpen_Core); // 보스 코어 약점 오픈 상태.
@@ -65,6 +66,11 @@ namespace PRGameplayTags
 	// ===== Input.Ability.* — 플레이어 InputTag (AbilitySpec DynamicTags 매칭 키) =====
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Input_Ability_Fire_Primary); // 주무기 발사 입력 태그
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Input_Ability_Dodge); // 구르기 입력 태그
+	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Input_Ability_Interact); // 상호작용 입력 태그
+	
+	// ===== Input.Locomotion.* — 플레이어 InputTag (Ability에 해당하지 않는 Input 키) =====
+	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Input_Locomotion_Walk)
+	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Input_Locomotion_Sprint)
 
 	// ===== Fail.* — CanActivateAbility 실패 사유 =====
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Fail_Cost); // Cost GE가 요구 자원 부족

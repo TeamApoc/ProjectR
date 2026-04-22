@@ -35,6 +35,10 @@ namespace PRGameplayTags
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Input_Ability_Fire_Primary); // 주무기 발사 입력 태그
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Input_Ability_Dodge); // 구르기 입력 태그
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Input_Ability_Interact); // 상호작용 입력 태그
+	
+	// ===== Input.Locomotion.* — 플레이어 InputTag (Ability에 해당하지 않는 Input 키) =====
+	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Input_Locomotion_Walk)
+	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Input_Locomotion_Sprint)
 
 	// ===== Fail.* — CanActivateAbility 실패 사유 =====
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Fail_Cost); // Cost GE가 요구 자원 부족

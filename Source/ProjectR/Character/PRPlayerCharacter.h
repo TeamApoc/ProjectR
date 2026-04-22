@@ -37,7 +37,11 @@ public:
 	/** 애니메이션 인스턴스에서 사용하는 게터 함수들 */                   
 	bool IsCrouching() const { return bIsCrouched; } 
 	bool IsSprinting() const { return bIsSprinting; } 
-	bool IsAiming() const { return bIsAiming; }       
+	bool IsAiming() const { return bIsAiming; }
+	bool IsWalking() const { return bIsWalking; }
+	float GetWalkSpeed() const { return WalkSpeed; }
+	float GetJogSpeed() const { return JogSpeed; }
+	float GetSprintSpeed() const { return SprintSpeed; }
 	
 	// 컨트롤 회전(카메라)과 캐릭터 정면 사이의 Yaw 차이를 반환 (Lean 및 절차적 애니메이션용)
 	float GetDesiredLookDirection() const;            
@@ -52,14 +56,17 @@ protected:
 	void Look(const FInputActionValue& Value);
 
 	/** 상태 변경 함수 (멀티플레이어 대응) */
-	void SprintStarted();
-	void SprintEnded();
+	void SprintPressed();
+	void WalkPressed();
 
 	/** 현재 상태(질주, 조준 등)에 맞춰 MaxWalkSpeed를 업데이트한다 (클라이언트 예측용) */
 	void UpdateMaxWalkSpeed();
 
 	UFUNCTION(Server, Reliable, WithValidation)
 	void Server_SetSprinting(bool bNewSprinting);
+	
+	UFUNCTION(Server, Reliable, WithValidation)
+	void Server_SetWalking(bool bNewWalking);
 
 	void AimStarted();
 	void AimEnded();
@@ -68,10 +75,9 @@ protected:
 	void Server_SetAiming(bool bNewAiming);
 
 	void CrouchPressed();
-
-	/** 상호작용 입력을 처리한다 */
-	void InteractPressed();
-
+	
+	void HandleMovementInputTag(FGameplayTag InputTag, bool bPressed);
+	
 private:
     /** 질주 상태가 복제되었을 때 속도를 업데이트한다 */
     UFUNCTION()
@@ -101,20 +107,16 @@ protected:
 	TObjectPtr<UInputAction> LookAction;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Input")
-	TObjectPtr<UInputAction> DodgeAction;
-
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Input")
 	TObjectPtr<UInputAction> SprintAction;
+	
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Input")
+	TObjectPtr<UInputAction> WalkAction;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Input")
 	TObjectPtr<UInputAction> CrouchAction;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Input")
 	TObjectPtr<UInputAction> AimAction;
-
-	/** 상호작용 입력 액션 */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "PR|Input")
-	TObjectPtr<UInputAction> InteractAction;
 
 	/** 조준/느린 이동 시 속도 (cm/s) */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "PR|Locomotion")
@@ -135,6 +137,9 @@ private:
 
 	UPROPERTY(Replicated, VisibleInstanceOnly, BlueprintReadOnly, Category = "Locomotion", meta = (AllowPrivateAccess = "true"))
 	bool bIsAiming = false;
+	
+	UPROPERTY(Replicated, VisibleInstanceOnly, BlueprintReadOnly, Category = "Locomotion", meta = (AllowPrivateAccess = "true"))
+	bool bIsWalking = false;
 	
 	FPRAbilitySetHandles AbilitySetHandles;
 };

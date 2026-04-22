@@ -25,6 +25,8 @@ APRPlayerCharacter::APRPlayerCharacter()
 	
 	// 멀티플레이어 설정
 	bReplicates = true;
+	
+	// 네트워크 동기화 빈도
 	SetNetUpdateFrequency(100.0f);
 
 	// 카메라 붐 설정 (캐릭터 뒤에 배치)
@@ -111,6 +113,7 @@ void APRPlayerCharacter::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& O
 	// 상태 변수들을 모든 클라이언트에게 복제하도록 등록
 	DOREPLIFETIME(APRPlayerCharacter, bIsSprinting);
 	DOREPLIFETIME(APRPlayerCharacter, bIsAiming);
+	DOREPLIFETIME(APRPlayerCharacter, bIsWalking);
 }
 
 // Called when the game starts or when spawned
@@ -139,18 +142,14 @@ void APRPlayerCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputC
 		EnhancedInputComponent->BindAction(MoveAction, ETriggerEvent::Triggered, this, &APRPlayerCharacter::Move);
 		EnhancedInputComponent->BindAction(LookAction, ETriggerEvent::Triggered, this, &APRPlayerCharacter::Look);
 
-		// 닷지 구현
-		// EnhancedInputComponent->BindAction(DodgeAction, ETriggerEvent::Started, this, &APRPlayerCharacter::DodgePressed);
-
-		EnhancedInputComponent->BindAction(SprintAction, ETriggerEvent::Started, this, &APRPlayerCharacter::SprintStarted);
-		EnhancedInputComponent->BindAction(SprintAction, ETriggerEvent::Completed, this, &APRPlayerCharacter::SprintEnded);
+		EnhancedInputComponent->BindAction(SprintAction, ETriggerEvent::Started, this, &APRPlayerCharacter::SprintPressed);
+		
+		EnhancedInputComponent->BindAction(WalkAction, ETriggerEvent::Started, this, &APRPlayerCharacter::WalkPressed);
 
 		EnhancedInputComponent->BindAction(CrouchAction, ETriggerEvent::Started, this, &APRPlayerCharacter::CrouchPressed);
 
 		EnhancedInputComponent->BindAction(AimAction, ETriggerEvent::Started, this, &APRPlayerCharacter::AimStarted);
 		EnhancedInputComponent->BindAction(AimAction, ETriggerEvent::Completed, this, &APRPlayerCharacter::AimEnded);
-
-		EnhancedInputComponent->BindAction(InteractAction, ETriggerEvent::Started, this, &APRPlayerCharacter::InteractPressed);
 	}
 	
 	// NOTE: PRPlayerController의 SetupInputComponent 에서 Ability Input을 바인딩함
@@ -184,8 +183,47 @@ void APRPlayerCharacter::Look(const FInputActionValue& Value)
 	}
 }
 
+void APRPlayerCharacter::SprintPressed()
+{
+	// 멈춰있을때는 질주 불가
+	if (!bIsSprinting && GetCharacterMovement()->GetCurrentAcceleration().IsNearlyZero())
+	{
+		return;
+	}
+	
+	bIsSprinting = !bIsSprinting;
+	UpdateMaxWalkSpeed();
+	
+	// 호스트가 아닐경우 서버에 보고
+	if (!HasAuthority())
+	{
+		Server_SetSprinting(bIsSprinting);
+	}
+}
+
+void APRPlayerCharacter::WalkPressed()
+{
+	bIsWalking = !bIsWalking;
+	UpdateMaxWalkSpeed();
+	
+	if (!HasAuthority())
+	{
+		Server_SetWalking(bIsWalking);
+	}
+}
+
 void APRPlayerCharacter::UpdateMaxWalkSpeed()
 {
+	// 이동 입력 종료시 sprint 자동 종료
+	if (bIsSprinting && GetCharacterMovement()->GetCurrentAcceleration().IsNearlyZero() || bIsAiming)
+	{
+		bIsSprinting = false;
+		if (GetLocalRole() < ROLE_Authority)
+		{
+			Server_SetSprinting(false);
+		}
+	}
+	
     // 클라이언트 예측과 서버 보정 오차를 줄이기 위해 양측 동시 수행
     float BaseSpeed = JogSpeed;
 
@@ -193,7 +231,7 @@ void APRPlayerCharacter::UpdateMaxWalkSpeed()
     {
         BaseSpeed = SprintSpeed;
     }
-    else if (bIsAiming)
+    else if (bIsAiming || bIsWalking)
     {
         BaseSpeed = WalkSpeed;
     }
@@ -210,31 +248,22 @@ void APRPlayerCharacter::UpdateMaxWalkSpeed()
 	{
 		MoveComp->MaxWalkSpeed = BaseSpeed * CurrentMultiplier;
 	}
+	
+	// 회전 방식 제어
+	const bool bIsStrafeMode = bIsAiming || bIsWalking;
+	
+	if (UCharacterMovementComponent* MoveComp = GetCharacterMovement())
+	{
+		// 조깅/질주일 때는 이동 방향으로 캐릭터를 돌립니다.
+		MoveComp->bOrientRotationToMovement = !bIsStrafeMode;
+	}
+	
+	// 조준/걷기일 때는 캐릭터가 항상 카메라 정면을 바라보게 합니다.
+	bUseControllerRotationYaw = bIsStrafeMode;
 }
 
 /*~ 상태 변경 및 동기화 ~*/
 
-void APRPlayerCharacter::SprintStarted()
-{
-	bIsSprinting = true;
-	UpdateMaxWalkSpeed();
-
-	if (GetLocalRole() < ROLE_Authority)
-	{
-		Server_SetSprinting(true);
-	}
-}
-
-void APRPlayerCharacter::SprintEnded()
-{
-	bIsSprinting = false;
-	UpdateMaxWalkSpeed();
-
-	if (GetLocalRole() < ROLE_Authority)
-	{
-		Server_SetSprinting(false);
-	}
-}
 
 void APRPlayerCharacter::Server_SetSprinting_Implementation(bool bNewSprinting)
 {
@@ -248,12 +277,23 @@ bool APRPlayerCharacter::Server_SetSprinting_Validate(bool bNewSprinting)
     return true;
 }
 
+void APRPlayerCharacter::Server_SetWalking_Implementation(bool bNewWalking)
+{
+	bIsWalking = bNewWalking;
+	UpdateMaxWalkSpeed();
+}
+
+bool APRPlayerCharacter::Server_SetWalking_Validate(bool bNewWalking)
+{
+	return true;
+}
+
 void APRPlayerCharacter::AimStarted()
 {
 	bIsAiming = true;
 	UpdateMaxWalkSpeed();
 
-	if (GetLocalRole() < ROLE_Authority)
+	if (!HasAuthority())
 	{
 		Server_SetAiming(true);
 	}
@@ -264,7 +304,7 @@ void APRPlayerCharacter::AimEnded()
 	bIsAiming = false;
 	UpdateMaxWalkSpeed();
 
-	if (GetLocalRole() < ROLE_Authority)
+	if (!HasAuthority())
 	{
 		Server_SetAiming(false);
 	}
@@ -294,14 +334,18 @@ void APRPlayerCharacter::CrouchPressed()
 	}
 }
 
-void APRPlayerCharacter::InteractPressed()
+void APRPlayerCharacter::HandleMovementInputTag(FGameplayTag InputTag, bool bPressed)
 {
-    // 상호작용 선점 로직은 서버 권위로 처리
-    UPRAbilitySystemComponent* ASC = GetPRAbilitySystemComponent();
-    if (IsValid(ASC))
-    {
-        ASC->AbilityInputPressed(PRGameplayTags::Input_Ability_Interact);
-    }
+	if (InputTag == PRGameplayTags::Input_Locomotion_Sprint && bPressed)
+	{
+		bIsSprinting = !bIsSprinting;
+	}
+	else if (InputTag == PRGameplayTags::Input_Locomotion_Walk && bPressed)
+	{
+		bIsWalking = !bIsWalking;
+	}
+	
+	UpdateMaxWalkSpeed();
 }
 
 void APRPlayerCharacter::OnRep_IsSprinting()
@@ -328,22 +372,3 @@ float APRPlayerCharacter::GetDesiredLookDirection() const
 	}
 	return 0.0f;
 }
-
-/*
-void APRPlayerCharacter::DodgePressed()
-{
-    // ASC에 입력 태그가 활성화되었음을 알림
-    if (UPRAbilitySystemComponent* PRASC = GetPRAbilitySystemComponent())
-    {
-        // 프로젝트의 PRGameplayTags::Input_Ability_Dodge 태그를 사용하여 입력 전달
-        // 보통 ASC에 AbilityInputTagPressed 같은 함수가 구현되어 있어야 합니다.
-        // 만약 없다면 직접 TryActivateAbilitiesByTag 등을 호출할 수도 있습니다.
-
-        FGameplayTagContainer TargetTags;
-        TargetTags.AddTag(PRGameplayTags::Input_Ability_Dodge);
-
-        // 입력 태그와 매칭되는 어빌리티들을 실행 시도
-        PRASC->AbilityInputTagPressed(PRGameplayTags::Input_Ability_Dodge);
-    }
-}
-*/

@@ -21,6 +21,9 @@ void UPRLinkedAnimInstance::NativeUpdateAnimation(float DeltaSeconds)
 		return;
 	}
 	
+	MovementMode = MainAnimInstance->MovementMode;
+	bShouldMove = MainAnimInstance->bShouldMove;
+	bIsFalling = MainAnimInstance->bIsFalling;
 	bIsSprint = MainAnimInstance->bIsSprint;
 	bIsCrouching = MainAnimInstance->bIsCrouching;
 	bIsAiming = MainAnimInstance->bIsAiming;

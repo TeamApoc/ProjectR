@@ -7,6 +7,7 @@
 UENUM(BlueprintType)
 enum class ELandState : uint8
 {
+	None,
 	Normal,
 	Soft,
 	Heavy,
@@ -20,4 +21,14 @@ enum class ECardinalDirection : uint8
 	Right,
 	Backward,
 	Left,
+};
+
+// 캐릭터 이동 모드 (애니메이션 판별용)
+UENUM(BlueprintType)
+enum class EPRMovementMode : uint8
+{
+	Idle,
+	Walking,
+	Jogging,
+	Sprinting
 };

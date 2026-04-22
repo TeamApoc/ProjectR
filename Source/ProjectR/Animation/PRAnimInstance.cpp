@@ -33,6 +33,7 @@ void UPRAnimInstance::NativeUpdateAnimation(float DeltaSeconds)
 	UpdateDirection();
 	UpdateLean();
 	UpdateFlags();
+	UpdateMovementMode();
 	UpdateTurnInPlace();
 	UpdateRootYawOffset();
 	UpdateAim();
@@ -60,6 +61,19 @@ void UPRAnimInstance::UpdateAcceleration()
 void UPRAnimInstance::UpdateDirection()
 {
 	FRotator ActorRotation = PlayerCharacter->GetActorRotation();
+	
+	if (!bIsAiming)
+	{
+		Direction = 0.0f;
+		CardinalDirection = ECardinalDirection::Forward;
+		
+		F_OrientationAngle = 0.0f;
+		R_OrientationAngle = 0.0f;
+		B_OrientationAngle = 0.0f;
+		L_OrientationAngle = 0.0f;
+		return;
+	}
+	
 	Direction =  UKismetAnimationLibrary::CalculateDirection(Velocity2D,ActorRotation);
 	if (Direction >= -70.f && Direction <= 70.f)
 	{
@@ -87,12 +101,41 @@ void UPRAnimInstance::UpdateDirection()
 void UPRAnimInstance::UpdateFlags()
 {
 	bHasAcceleration = !LocalAcceleration2D.IsNearlyZero();
-	bShouldMove = XYSpeed > MoveSpeedThreshold && bHasAcceleration;
+	bShouldMove = (XYSpeed > MoveSpeedThreshold) && bHasAcceleration;
 	bIsFalling = CharacterMovement->IsFalling();
 	bIsCrouching = PlayerCharacter->IsCrouching();
 	bIsSprint = PlayerCharacter->IsSprinting();
 	bIsAiming = PlayerCharacter->IsAiming();
-	LandState = ELandState::Normal; // TODO: Character 상태 적용
+	// LandState = ELandState::Normal; // TODO: Character 상태 적용
+	
+	// Falling 에서 Ground로 전환되는 순간 감지
+	if (bIsFalling)
+	{
+		LandState = ELandState::None;
+	}
+	else if (LandState == ELandState::None)
+	{
+		LandState = ELandState::Normal;
+	}
+}
+
+void UPRAnimInstance::UpdateMovementMode()
+{
+	if (!bShouldMove)
+	{
+		MovementMode = EPRMovementMode::Idle;
+		return;
+	}
+	
+	if (bIsSprint)
+	{
+		MovementMode = EPRMovementMode::Sprinting;
+		return;
+	}
+	
+	// 캐릭터의 실제 값을 가져와 movementmode 판정 (walk 속도와 jog속도의 절반이 넘어가면 애니메이션 교체)
+	const float Threshold = (PlayerCharacter->GetWalkSpeed() + PlayerCharacter->GetJogSpeed()) * 0.5f;
+	MovementMode = (XYSpeed <= Threshold) ? EPRMovementMode::Walking : EPRMovementMode::Jogging;
 }
 
 void UPRAnimInstance::UpdateAim()

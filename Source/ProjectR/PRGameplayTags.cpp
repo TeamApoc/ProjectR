@@ -40,6 +40,10 @@ namespace PRGameplayTags
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Input_Ability_Dodge, "Input.Ability.Dodge", "구르기 입력 태그");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Input_Ability_Interact, "Input.Ability.Interact", "상호작용용 입력 태그");
 
+	// ===== Input.Locomotion.* =====
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Input_Locomotion_Walk, "Input.Locomotion.Walk", "Walk 토글 입력 태그");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Input_Locomotion_Sprint, "Input.Locomotion.Sprint", "Sprint 토글 입력 태그");
+	
 	// ===== Fail.* =====
 
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Fail_Cost, "Fail.Cost", "Cost GE 자원 부족");

@@ -22,6 +22,11 @@ public:
     virtual void ActivateAbility(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilityActivationInfo ActivationInfo, const FGameplayEventData* TriggerEventData) override;
     virtual void EndAbility(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilityActivationInfo ActivationInfo, bool bReplicateEndAbility, bool bWasCancelled) override;
 
+protected:
+    /*~ [서버 전용] 클라이언트로부터 방향데이터를 받는 RPC~*/
+    UFUNCTION(Server, Reliable)
+    void Server_SendDodgeDirection(FVector_NetQuantize Direction);
+    
 private:
     /** 몽타주 종료/취소 시 호출될 콜백 */
     UFUNCTION()
@@ -34,7 +39,10 @@ private:
     /** 무적 프레임 종료 시 호출될 콜백 */
     UFUNCTION()
     void EndIFrame();
-	
+    
+    /** 실제 구르기 로직 집행 (클라/서버 공용) */
+    void ExecuteDodge(FVector Direction);
+    
 protected:
     /** 구르기 애니메이션 몽타주 */
     UPROPERTY(EditDefaultsOnly, Category = "PR|Dodge")
@@ -55,4 +63,8 @@ protected:
 private:
     /** 적용된 무적 효과 핸들 */
     FActiveGameplayEffectHandle InvulnerableEffectHandle;
+    
+    /** 서버가 데이터를 받았는지 확인하기 위한 플래그 */
+    bool bServerReceivedDirection = false;
+    FVector SavedDirection = FVector::ZeroVector;
 };

@@ -26,17 +26,23 @@ private:
 	void UpdateAcceleration();
 	void UpdateDirection();
 	void UpdateFlags();
+	void UpdateMovementMode();
 	void UpdateAim();
 	void UpdateLean();
 	void UpdateTurnInPlace();
 	void UpdateRootYawOffset();
 
 public:
+	/*~ 캐릭터 참조 ~*/
 	UPROPERTY(BlueprintReadOnly)
 	TObjectPtr<APRPlayerCharacter> PlayerCharacter;
 	
 	UPROPERTY(BlueprintReadOnly)
 	TObjectPtr<UCharacterMovementComponent> CharacterMovement;
+	
+	/*~ 이동 상태 (Movement) ~*/
+	UPROPERTY(BlueprintReadOnly, Category = "Movement")
+	EPRMovementMode MovementMode;
 	
 	/*~ Movements ~*/
 	UPROPERTY(BlueprintReadOnly, Category = "Movement")

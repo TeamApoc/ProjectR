@@ -9,7 +9,7 @@ namespace PRSoldierArmoredAbility
 {
 	inline FGameplayTagContainer MakePatternAssetTags(const FGameplayTag& PatternTag)
 	{
-		// Soldier_Armored 공통 패턴 태그와 개별 공격 태그를 함께 넣어 상태 Ability에서 일괄 취소할 수 있게 한다.
+		// 상태 Ability 일괄 취소용 Soldier_Armored 공통/개별 패턴 태그 묶음
 		FGameplayTagContainer AssetTags;
 		AssetTags.AddTag(PRGameplayTags::Ability_Enemy_SoldierArmored_Pattern);
 		AssetTags.AddTag(PatternTag);

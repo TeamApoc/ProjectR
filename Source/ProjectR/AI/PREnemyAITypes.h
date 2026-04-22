@@ -96,9 +96,6 @@ struct PROJECTR_API FPRPatternContext
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "ProjectR|AI")
 	bool bChargePathClear = false;
 
-	// 근접 콤보 패턴이 어느 단계에서 이어질지 판단하는 Blackboard 값이다.
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "ProjectR|AI")
-	int32 ComboIndex = 0;
 };
 
 // 하나의 몬스터 패턴 후보를 정의한다.
@@ -140,14 +137,6 @@ struct PROJECTR_API FPRPatternRule
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|AI", meta = (EditCondition = "bRestrictTacticalModes"))
 	TArray<EPRTacticalMode> AllowedTacticalModes;
 
-	// 이 값이 0 이상이면 Blackboard combo_index가 같은 값일 때만 선택된다.
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|AI")
-	int32 RequiredComboIndex = INDEX_NONE;
-
-	// 이 값이 0 이상이면 패턴 실행 후 Blackboard combo_index를 이 값으로 넘긴다.
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|AI")
-	int32 NextComboIndex = INDEX_NONE;
-
 	// 조건을 통과한 후보끼리의 선택 가중치다.
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|AI", meta = (ClampMin = "0.0"))
 	float SelectionWeight = 1.0f;
@@ -186,11 +175,6 @@ struct PROJECTR_API FPRPatternRule
 		}
 
 		if (bRestrictTacticalModes && !AllowedTacticalModes.Contains(Context.TacticalMode))
-		{
-			return false;
-		}
-
-		if (RequiredComboIndex != INDEX_NONE && Context.ComboIndex != RequiredComboIndex)
 		{
 			return false;
 		}

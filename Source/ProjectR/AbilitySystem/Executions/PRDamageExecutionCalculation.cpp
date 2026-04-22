@@ -7,6 +7,7 @@
 #include "ProjectR/AbilitySystem/AttributeSets/PRAttributeSet_Common.h"
 #include "ProjectR/AbilitySystem/AttributeSets/PRAttributeSet_Enemy.h"
 #include "ProjectR/Character/Enemy/PRBossBaseCharacter.h"
+#include "ProjectR/Combat/PRCombatGameplayTags.h"
 #include "ProjectR/Combat/PRCombatStatics.h"
 #include "ProjectR/Combat/PRCombatTypes.h"
 #include "ProjectR/PRGameplayTags.h"
@@ -63,8 +64,8 @@ void UPRDamageExecutionCalculation::Execute_Implementation(const FGameplayEffect
 
 	const FGameplayEffectSpec& OwningSpec = ExecutionParams.GetOwningSpec();
 
-	float BaseDamage = OwningSpec.GetSetByCallerMagnitude(PRCombatSetByCaller::Damage, false, 0.0f);
-	float BaseGroggyDamage = OwningSpec.GetSetByCallerMagnitude(PRCombatSetByCaller::GroggyDamage, false, 0.0f);
+	float BaseDamage = OwningSpec.GetSetByCallerMagnitude(PRCombatGameplayTags::SetByCaller_Damage, false, 0.0f);
+	float BaseGroggyDamage = OwningSpec.GetSetByCallerMagnitude(PRCombatGameplayTags::SetByCaller_GroggyDamage, false, 0.0f);
 	if (BaseDamage <= 0.0f && BaseGroggyDamage <= 0.0f)
 	{
 		return;

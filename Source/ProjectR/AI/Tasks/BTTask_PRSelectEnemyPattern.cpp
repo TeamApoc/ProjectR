@@ -12,7 +12,7 @@
 
 namespace
 {
-	bool HasBlackboardKey(const UBlackboardComponent* BlackboardComponent, const FName KeyName)
+	bool HasPatternSelectionBlackboardKey(const UBlackboardComponent* BlackboardComponent, const FName KeyName)
 	{
 		return IsValid(BlackboardComponent)
 			&& KeyName != NAME_None
@@ -55,16 +55,16 @@ EBTNodeResult::Type UBTTask_PRSelectEnemyPattern::ExecuteTask(UBehaviorTreeCompo
 
 	FPRPatternContext PatternContext;
 	PatternContext.DistanceToTarget = FVector::Dist(ControlledPawn->GetActorLocation(), CurrentTarget->GetActorLocation());
-	PatternContext.bHasLOS = HasBlackboardKey(BlackboardComponent, HasLOSKey)
+	PatternContext.bHasLOS = HasPatternSelectionBlackboardKey(BlackboardComponent, HasLOSKey)
 		? BlackboardComponent->GetValueAsBool(HasLOSKey)
 		: false;
-	PatternContext.TacticalMode = HasBlackboardKey(BlackboardComponent, TacticalModeKey)
+	PatternContext.TacticalMode = HasPatternSelectionBlackboardKey(BlackboardComponent, TacticalModeKey)
 		? static_cast<EPRTacticalMode>(BlackboardComponent->GetValueAsEnum(TacticalModeKey))
 		: EPRTacticalMode::Idle;
-	PatternContext.bChargePathClear = HasBlackboardKey(BlackboardComponent, ChargePathClearKey)
+	PatternContext.bChargePathClear = HasPatternSelectionBlackboardKey(BlackboardComponent, ChargePathClearKey)
 		? BlackboardComponent->GetValueAsBool(ChargePathClearKey)
 		: false;
-	PatternContext.ComboIndex = HasBlackboardKey(BlackboardComponent, ComboIndexKey)
+	PatternContext.ComboIndex = HasPatternSelectionBlackboardKey(BlackboardComponent, ComboIndexKey)
 		? BlackboardComponent->GetValueAsInt(ComboIndexKey)
 		: 0;
 
@@ -113,11 +113,11 @@ EBTNodeResult::Type UBTTask_PRSelectEnemyPattern::ExecuteTask(UBehaviorTreeCompo
 		if (PickValue <= AccumulatedWeight)
 		{
 			BlackboardComponent->SetValueAsName(SelectedAbilityTagKey, PatternRule->AbilityTag.GetTagName());
-			if (HasBlackboardKey(BlackboardComponent, SelectedNextComboIndexKey))
+			if (HasPatternSelectionBlackboardKey(BlackboardComponent, SelectedNextComboIndexKey))
 			{
 				BlackboardComponent->SetValueAsInt(SelectedNextComboIndexKey, PatternRule->NextComboIndex);
 			}
-			if (bSetTacticalModeOnSelection && HasBlackboardKey(BlackboardComponent, TacticalModeKey))
+			if (bSetTacticalModeOnSelection && HasPatternSelectionBlackboardKey(BlackboardComponent, TacticalModeKey))
 			{
 				BlackboardComponent->SetValueAsEnum(TacticalModeKey, static_cast<uint8>(TacticalModeOnSelection));
 			}
@@ -127,11 +127,11 @@ EBTNodeResult::Type UBTTask_PRSelectEnemyPattern::ExecuteTask(UBehaviorTreeCompo
 
 	// 부동소수 오차 등으로 루프 안에서 선택되지 못한 경우 마지막 후보를 안전값으로 쓴다.
 	BlackboardComponent->SetValueAsName(SelectedAbilityTagKey, MatchedRules.Last()->AbilityTag.GetTagName());
-	if (HasBlackboardKey(BlackboardComponent, SelectedNextComboIndexKey))
+	if (HasPatternSelectionBlackboardKey(BlackboardComponent, SelectedNextComboIndexKey))
 	{
 		BlackboardComponent->SetValueAsInt(SelectedNextComboIndexKey, MatchedRules.Last()->NextComboIndex);
 	}
-	if (bSetTacticalModeOnSelection && HasBlackboardKey(BlackboardComponent, TacticalModeKey))
+	if (bSetTacticalModeOnSelection && HasPatternSelectionBlackboardKey(BlackboardComponent, TacticalModeKey))
 	{
 		BlackboardComponent->SetValueAsEnum(TacticalModeKey, static_cast<uint8>(TacticalModeOnSelection));
 	}

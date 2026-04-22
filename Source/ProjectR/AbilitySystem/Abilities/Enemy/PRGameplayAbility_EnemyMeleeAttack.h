@@ -3,11 +3,13 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Abilities/GameplayAbilityTypes.h"
 #include "ProjectR/AbilitySystem/Abilities/Enemy/PRGameplayAbility_EnemyBase.h"
 #include "PRGameplayAbility_EnemyMeleeAttack.generated.h"
 
 class ACharacter;
 class UAbilityTask_PlayMontageAndWait;
+class UAbilityTask_WaitGameplayEvent;
 class UAnimMontage;
 
 // 적 근접 공격의 공통 Ability다.
@@ -31,12 +33,15 @@ public:
 		bool bReplicateEndAbility,
 		bool bWasCancelled) override;
 
-	// AnimNotify(PR Enemy Melee Hit)가 호출하는 진입점이다.
-	// 서버에서 활성화된 Ability 인스턴스만 실제 타격을 실행한다.
+	// Notify 이벤트를 테스트하거나 BP에서 직접 연결해야 할 때 쓰는 백업 진입점이다.
+	// 기본 흐름은 GameplayEvent를 WaitGameplayEvent로 받는다.
 	UFUNCTION(BlueprintCallable, Category = "ProjectR|Combat")
 	void TriggerMeleeHitFromAnimation();
 
 protected:
+	UFUNCTION()
+	void HandleMeleeHitGameplayEvent(FGameplayEventData Payload);
+
 	UFUNCTION()
 	void HandleAttackMontageCompleted();
 
@@ -132,6 +137,9 @@ private:
 
 	UPROPERTY(Transient)
 	TObjectPtr<UAbilityTask_PlayMontageAndWait> ActiveMontageTask;
+
+	UPROPERTY(Transient)
+	TObjectPtr<UAbilityTask_WaitGameplayEvent> ActiveMeleeHitEventTask;
 
 	// 몽타주 종료/타이머/취소가 겹쳐도 EndAbility가 한 번만 호출되도록 한다.
 	bool bMeleeAttackFinished = false;

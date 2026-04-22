@@ -9,10 +9,12 @@
 #include "ProjectR/AI/PREnemyAITypes.h"
 #include "BTTask_PRActivateEnemyAbility.generated.h"
 
+class UBehaviorTreeComponent;
 class UPRAbilitySystemComponent;
+struct FAbilityEndedData;
 
-// BT에서 선택한 Gameplay Ability를 서버 ASC에 실행 요청하는 Task다.
-// AbilityTag를 직접 지정하거나, Blackboard의 selected_ability_tag 값을 읽어 실행한다.
+// BT에서 선택된 Gameplay Ability를 서버 ASC에 실행 요청하는 Task다.
+// 고정 AbilityTag를 쓰거나 Blackboard의 selected_ability_tag 값을 읽어 실행한다.
 UCLASS()
 class PROJECTR_API UBTTask_PRActivateEnemyAbility : public UBTTaskNode
 {
@@ -22,6 +24,7 @@ public:
 	UBTTask_PRActivateEnemyAbility();
 
 	virtual EBTNodeResult::Type ExecuteTask(UBehaviorTreeComponent& OwnerComp, uint8* NodeMemory) override;
+	virtual EBTNodeResult::Type AbortTask(UBehaviorTreeComponent& OwnerComp, uint8* NodeMemory) override;
 	virtual void TickTask(UBehaviorTreeComponent& OwnerComp, uint8* NodeMemory, float DeltaSeconds) override;
 	virtual FString GetStaticDescription() const override;
 
@@ -63,12 +66,19 @@ protected:
 
 private:
 	void ApplyPostAbilityBlackboardUpdates(UBehaviorTreeComponent& OwnerComp);
+	void BindAbilityEndDelegate(UBehaviorTreeComponent& OwnerComp, UPRAbilitySystemComponent* ASC);
+	void ClearAbilityEndDelegate();
+	void HandleObservedAbilityEnded(const FAbilityEndedData& EndedData);
 
-	// TickTask에서 활성 Ability가 끝났는지 확인하기 위해 캐시한다.
+	// 대기 중인 Ability가 끝났을 때 BT를 바로 깨우기 위해 캐시한다.
 	UPROPERTY()
 	TObjectPtr<UPRAbilitySystemComponent> ActiveAbilitySystemComponent;
 
+	UPROPERTY()
+	TObjectPtr<UBehaviorTreeComponent> ActiveBehaviorTreeComponent;
+
 	FGameplayAbilitySpecHandle ActiveAbilityHandle;
+	FDelegateHandle AbilityEndedDelegateHandle;
 
 	int32 PendingNextComboIndex = INDEX_NONE;
 };

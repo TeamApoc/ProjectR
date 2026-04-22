@@ -7,7 +7,7 @@
 
 namespace
 {
-	bool HasBlackboardKey(const UBlackboardComponent* BlackboardComponent, const FName KeyName)
+	bool HasSetTacticalModeBlackboardKey(const UBlackboardComponent* BlackboardComponent, const FName KeyName)
 	{
 		return IsValid(BlackboardComponent)
 			&& KeyName != NAME_None
@@ -23,14 +23,14 @@ UBTTask_PRSetTacticalMode::UBTTask_PRSetTacticalMode()
 EBTNodeResult::Type UBTTask_PRSetTacticalMode::ExecuteTask(UBehaviorTreeComponent& OwnerComp, uint8* NodeMemory)
 {
 	UBlackboardComponent* BlackboardComponent = OwnerComp.GetBlackboardComponent();
-	if (!IsValid(BlackboardComponent) || !HasBlackboardKey(BlackboardComponent, TacticalModeKey))
+	if (!IsValid(BlackboardComponent) || !HasSetTacticalModeBlackboardKey(BlackboardComponent, TacticalModeKey))
 	{
 		return EBTNodeResult::Failed;
 	}
 
 	BlackboardComponent->SetValueAsEnum(TacticalModeKey, static_cast<uint8>(NewTacticalMode));
 
-	if (bSetComboIndex && HasBlackboardKey(BlackboardComponent, ComboIndexKey))
+	if (bSetComboIndex && HasSetTacticalModeBlackboardKey(BlackboardComponent, ComboIndexKey))
 	{
 		// 수색/복귀처럼 공격 흐름이 끊기는 브랜치에서 콤보를 명시적으로 정리할 때 사용한다.
 		BlackboardComponent->SetValueAsInt(ComboIndexKey, ComboIndexValue);

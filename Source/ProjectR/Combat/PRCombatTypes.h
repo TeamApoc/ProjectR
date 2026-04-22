@@ -90,10 +90,3 @@ struct PROJECTR_API FPRDamageContext
 		return Damage > 0.0f || GroggyDamage > 0.0f;
 	}
 };
-
-namespace PRCombatSetByCaller
-{
-	// GE_Damage가 SetByCaller로 읽는 데이터 키다.
-	static const FName Damage(TEXT("Data.Damage"));
-	static const FName GroggyDamage(TEXT("Data.GroggyDamage"));
-}

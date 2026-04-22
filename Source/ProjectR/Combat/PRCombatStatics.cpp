@@ -7,6 +7,7 @@
 #include "Components/PrimitiveComponent.h"
 #include "GameplayEffect.h"
 #include "ProjectR/AbilitySystem/Effects/PRGameplayEffect_Damage.h"
+#include "ProjectR/Combat/PRCombatGameplayTags.h"
 #include "ProjectR/PRGameplayTags.h"
 
 UAbilitySystemComponent* UPRCombatStatics::FindAbilitySystemComponent(const AActor* Actor)
@@ -76,12 +77,12 @@ bool UPRCombatStatics::ApplyDamageEffect(const FPRDamageContext& DamageContext,
 	if (DamageContext.Damage > 0.0f)
 	{
 		// 실제 수치는 SetByCaller로 전달한다. GE 클래스는 공용으로 재사용할 수 있다.
-		SpecHandle.Data->SetSetByCallerMagnitude(PRCombatSetByCaller::Damage, DamageContext.Damage);
+		SpecHandle.Data->SetSetByCallerMagnitude(PRCombatGameplayTags::SetByCaller_Damage, DamageContext.Damage);
 	}
 
 	if (DamageContext.GroggyDamage > 0.0f)
 	{
-		SpecHandle.Data->SetSetByCallerMagnitude(PRCombatSetByCaller::GroggyDamage, DamageContext.GroggyDamage);
+		SpecHandle.Data->SetSetByCallerMagnitude(PRCombatGameplayTags::SetByCaller_GroggyDamage, DamageContext.GroggyDamage);
 	}
 
 	if (DamageContext.SourceAbilityTag.IsValid())

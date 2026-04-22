@@ -8,7 +8,7 @@
 
 namespace
 {
-	bool HasBlackboardKey(const UBlackboardComponent* BlackboardComponent, const FName KeyName)
+	bool HasEnemyCombatBlackboardKey(const UBlackboardComponent* BlackboardComponent, const FName KeyName)
 	{
 		return IsValid(BlackboardComponent)
 			&& KeyName != NAME_None
@@ -44,7 +44,7 @@ void UBTService_PRUpdateEnemyCombatBlackboard::TickNode(UBehaviorTreeComponent& 
 		// 타겟이 없을 때 이전 거리/돌진 가능 값이 남아 BT 조건을 오염시키지 않도록 초기화한다.
 		BlackboardComponent->SetValueAsFloat(DistanceToTargetKey, 0.0f);
 		BlackboardComponent->SetValueAsBool(ChargePathClearKey, false);
-		if (bResetComboWhenTargetInvalid && HasBlackboardKey(BlackboardComponent, ComboIndexKey))
+		if (bResetComboWhenTargetInvalid && HasEnemyCombatBlackboardKey(BlackboardComponent, ComboIndexKey))
 		{
 			BlackboardComponent->SetValueAsInt(ComboIndexKey, 0);
 		}
@@ -92,8 +92,8 @@ void UBTService_PRUpdateEnemyCombatBlackboard::TickNode(UBehaviorTreeComponent& 
 	BlackboardComponent->SetValueAsBool(ChargePathClearKey, bChargePathClear);
 
 	if (bResetComboWhenOutsideResetDistance
-		&& HasBlackboardKey(BlackboardComponent, ComboIndexKey)
-		&& HasBlackboardKey(BlackboardComponent, ComboResetDistanceKey))
+		&& HasEnemyCombatBlackboardKey(BlackboardComponent, ComboIndexKey)
+		&& HasEnemyCombatBlackboardKey(BlackboardComponent, ComboResetDistanceKey))
 	{
 		const float ComboResetDistance = BlackboardComponent->GetValueAsFloat(ComboResetDistanceKey);
 		if (ComboResetDistance > 0.0f && DistanceToTarget > ComboResetDistance)

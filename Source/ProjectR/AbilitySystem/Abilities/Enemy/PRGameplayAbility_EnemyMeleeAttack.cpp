@@ -4,12 +4,14 @@
 
 #include "AbilitySystemComponent.h"
 #include "Abilities/Tasks/AbilityTask_PlayMontageAndWait.h"
+#include "Abilities/Tasks/AbilityTask_WaitGameplayEvent.h"
 #include "Animation/AnimMontage.h"
 #include "DrawDebugHelpers.h"
 #include "GameFramework/Character.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "ProjectR/AI/Components/PREnemyThreatComponent.h"
 #include "ProjectR/Character/Enemy/PREnemyBaseCharacter.h"
+#include "ProjectR/Combat/PRCombatGameplayTags.h"
 #include "ProjectR/Combat/PRCombatStatics.h"
 #include "ProjectR/PRGameplayTags.h"
 
@@ -69,6 +71,24 @@ void UPRGameplayAbility_EnemyMeleeAttack::ActivateAbility(const FGameplayAbility
 		}
 	}
 
+	if (bUseAnimationNotifyForHit)
+	{
+		// AnimNotify는 Ability를 직접 찾지 않고 GameplayEvent만 보낸다.
+		// 이 Task가 활성 Ability 인스턴스 안에서 이벤트를 받아 실제 서버 판정을 실행한다.
+		ActiveMeleeHitEventTask = UAbilityTask_WaitGameplayEvent::WaitGameplayEvent(
+			this,
+			PRCombatGameplayTags::Event_Ability_EnemyMeleeHit,
+			nullptr,
+			true,
+			true);
+
+		if (IsValid(ActiveMeleeHitEventTask))
+		{
+			ActiveMeleeHitEventTask->EventReceived.AddDynamic(this, &UPRGameplayAbility_EnemyMeleeAttack::HandleMeleeHitGameplayEvent);
+			ActiveMeleeHitEventTask->ReadyForActivation();
+		}
+	}
+
 	const bool bUseTimedHit = !bHasAttackMontage
 		|| !bUseAnimationNotifyForHit
 		|| bAllowTimedHitFallbackWhenMontagePlays;
@@ -113,6 +133,12 @@ void UPRGameplayAbility_EnemyMeleeAttack::EndAbility(const FGameplayAbilitySpecH
 		ActiveMontageTask = nullptr;
 	}
 
+	if (IsValid(ActiveMeleeHitEventTask))
+	{
+		ActiveMeleeHitEventTask->EndTask();
+		ActiveMeleeHitEventTask = nullptr;
+	}
+
 	DamagedActors.Reset();
 
 	Super::EndAbility(Handle, ActorInfo, ActivationInfo, bReplicateEndAbility, bWasCancelled);
@@ -122,6 +148,19 @@ void UPRGameplayAbility_EnemyMeleeAttack::TriggerMeleeHitFromAnimation()
 {
 	AActor* AvatarActor = GetAvatarActorFromActorInfo();
 	if (!IsValid(AvatarActor) || !AvatarActor->HasAuthority())
+	{
+		return;
+	}
+
+	TriggerMeleeHitOnce();
+}
+
+void UPRGameplayAbility_EnemyMeleeAttack::HandleMeleeHitGameplayEvent(FGameplayEventData Payload)
+{
+	AActor* AvatarActor = GetAvatarActorFromActorInfo();
+	if (!IsValid(AvatarActor)
+		|| !AvatarActor->HasAuthority()
+		|| Payload.EventTag != PRCombatGameplayTags::Event_Ability_EnemyMeleeHit)
 	{
 		return;
 	}

@@ -21,6 +21,29 @@ enum class EPRTacticalMode : uint8
 	Return		UMETA(DisplayName = "Return")
 };
 
+// 패턴의 전투 계열이다.
+// BT 브랜치가 "근접", "돌진"처럼 큰 흐름을 먼저 나누고 DataAsset 규칙으로 세부 패턴을 고르게 한다.
+UENUM(BlueprintType)
+enum class EPRPatternCategory : uint8
+{
+	Any			UMETA(DisplayName = "Any"),
+	Melee		UMETA(DisplayName = "Melee"),
+	Sprint		UMETA(DisplayName = "Sprint"),
+	Ranged		UMETA(DisplayName = "Ranged"),
+	Reposition	UMETA(DisplayName = "Reposition"),
+	Special		UMETA(DisplayName = "Special")
+};
+
+// Perception이 타겟을 잃었을 때 Threat/Blackboard를 어디까지 정리할지 정한다.
+// 적 종류마다 수색 집착도가 다를 수 있으므로 AIController 설정값으로 사용한다.
+UENUM(BlueprintType)
+enum class EPRTargetLostPolicy : uint8
+{
+	KeepCurrentTarget	UMETA(DisplayName = "Keep Current Target"),
+	ClearCurrentTarget	UMETA(DisplayName = "Clear Current Target"),
+	RemoveThreatEntry	UMETA(DisplayName = "Remove Threat Entry")
+};
+
 // Faerin 보스 전용 페이즈 값이다.
 // 페이즈 전환 Ability와 이벤트 릴레이가 같은 기준을 보도록 공용 타입으로 둔다.
 UENUM(BlueprintType)
@@ -68,6 +91,14 @@ struct PROJECTR_API FPRPatternContext
 	// 현재 전술 상태다. 지금은 거리/LOS 중심이지만 이후 패턴 조건 확장 지점이다.
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "ProjectR|AI")
 	EPRTacticalMode TacticalMode = EPRTacticalMode::Idle;
+
+	// 돌진 계열 패턴이 실제로 지나갈 수 있는 직선 경로를 확보했는지 여부다.
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "ProjectR|AI")
+	bool bChargePathClear = false;
+
+	// 근접 콤보 패턴이 어느 단계에서 이어질지 판단하는 Blackboard 값이다.
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "ProjectR|AI")
+	int32 ComboIndex = 0;
 };
 
 // 하나의 몬스터 패턴 후보를 정의한다.
@@ -81,6 +112,10 @@ struct PROJECTR_API FPRPatternRule
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|AI")
 	FGameplayTag AbilityTag;
 
+	// BT에서 큰 공격 흐름을 나눌 때 사용하는 패턴 계열이다.
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|AI")
+	EPRPatternCategory PatternCategory = EPRPatternCategory::Any;
+
 	// 이 패턴이 유효한 최소 거리다.
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|AI", meta = (ClampMin = "0.0"))
 	float MinRange = 0.0f;
@@ -92,6 +127,26 @@ struct PROJECTR_API FPRPatternRule
 	// true면 타겟이 시야선 안에 있을 때만 선택된다.
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|AI")
 	bool bRequiresLOS = true;
+
+	// true면 Blackboard의 charge_path_clear가 켜져 있을 때만 선택된다.
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|AI")
+	bool bRequiresChargePathClear = false;
+
+	// true면 AllowedTacticalModes에 들어 있는 전술 상태에서만 선택된다.
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|AI")
+	bool bRestrictTacticalModes = false;
+
+	// 이 패턴을 허용할 전술 상태 목록이다. 비워두면 bRestrictTacticalModes가 false일 때만 의미가 없다.
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|AI", meta = (EditCondition = "bRestrictTacticalModes"))
+	TArray<EPRTacticalMode> AllowedTacticalModes;
+
+	// 이 값이 0 이상이면 Blackboard combo_index가 같은 값일 때만 선택된다.
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|AI")
+	int32 RequiredComboIndex = INDEX_NONE;
+
+	// 이 값이 0 이상이면 패턴 실행 후 Blackboard combo_index를 이 값으로 넘긴다.
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|AI")
+	int32 NextComboIndex = INDEX_NONE;
 
 	// 조건을 통과한 후보끼리의 선택 가중치다.
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|AI", meta = (ClampMin = "0.0"))
@@ -121,6 +176,21 @@ struct PROJECTR_API FPRPatternRule
 		}
 
 		if (bRequiresLOS && !Context.bHasLOS)
+		{
+			return false;
+		}
+
+		if (bRequiresChargePathClear && !Context.bChargePathClear)
+		{
+			return false;
+		}
+
+		if (bRestrictTacticalModes && !AllowedTacticalModes.Contains(Context.TacticalMode))
+		{
+			return false;
+		}
+
+		if (RequiredComboIndex != INDEX_NONE && Context.ComboIndex != RequiredComboIndex)
 		{
 			return false;
 		}

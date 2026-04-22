@@ -4,8 +4,29 @@
 
 #include "AIController.h"
 #include "BehaviorTree/BlackboardComponent.h"
+#include "BehaviorTree/BlackboardData.h"
+#include "GameplayTagContainer.h"
+#include "ProjectR/AbilitySystem/PRAbilitySystemComponent.h"
 #include "ProjectR/AI/Data/PRPatternDataAsset.h"
 #include "ProjectR/Character/Enemy/PREnemyInterface.h"
+
+namespace
+{
+	bool HasBlackboardKey(const UBlackboardComponent* BlackboardComponent, const FName KeyName)
+	{
+		return IsValid(BlackboardComponent)
+			&& KeyName != NAME_None
+			&& BlackboardComponent->GetKeyID(KeyName) != FBlackboard::InvalidKey;
+	}
+
+	bool MatchesCategory(const FPRPatternRule& PatternRule, const EPRPatternCategory CategoryFilter)
+	{
+		// 기존 데이터 호환을 위해 Any는 양쪽 모두에서 와일드카드로 취급한다.
+		return CategoryFilter == EPRPatternCategory::Any
+			|| PatternRule.PatternCategory == EPRPatternCategory::Any
+			|| PatternRule.PatternCategory == CategoryFilter;
+	}
+}
 
 UBTTask_PRSelectEnemyPattern::UBTTask_PRSelectEnemyPattern()
 {
@@ -30,23 +51,51 @@ EBTNodeResult::Type UBTTask_PRSelectEnemyPattern::ExecuteTask(UBehaviorTreeCompo
 		return EBTNodeResult::Failed;
 	}
 
+	UPRAbilitySystemComponent* AbilitySystemComponent = EnemyInterface->GetEnemyAbilitySystemComponent();
+
 	FPRPatternContext PatternContext;
 	PatternContext.DistanceToTarget = FVector::Dist(ControlledPawn->GetActorLocation(), CurrentTarget->GetActorLocation());
-	PatternContext.bHasLOS = BlackboardComponent->GetValueAsBool(HasLOSKey);
-	PatternContext.TacticalMode = static_cast<EPRTacticalMode>(BlackboardComponent->GetValueAsEnum(TacticalModeKey));
+	PatternContext.bHasLOS = HasBlackboardKey(BlackboardComponent, HasLOSKey)
+		? BlackboardComponent->GetValueAsBool(HasLOSKey)
+		: false;
+	PatternContext.TacticalMode = HasBlackboardKey(BlackboardComponent, TacticalModeKey)
+		? static_cast<EPRTacticalMode>(BlackboardComponent->GetValueAsEnum(TacticalModeKey))
+		: EPRTacticalMode::Idle;
+	PatternContext.bChargePathClear = HasBlackboardKey(BlackboardComponent, ChargePathClearKey)
+		? BlackboardComponent->GetValueAsBool(ChargePathClearKey)
+		: false;
+	PatternContext.ComboIndex = HasBlackboardKey(BlackboardComponent, ComboIndexKey)
+		? BlackboardComponent->GetValueAsInt(ComboIndexKey)
+		: 0;
 
 	// 현재 상황에 맞는 패턴만 후보로 모은다.
-	// 거리/LOS 조건은 FPRPatternRule::MatchesContext에서 통일해서 검사한다.
+	// 거리/LOS/돌진 경로/콤보 조건은 FPRPatternRule::MatchesContext에서 통일해서 검사한다.
 	TArray<const FPRPatternRule*> MatchedRules;
 	float TotalWeight = 0.0f;
 
 	for (const FPRPatternRule& PatternRule : PatternDataAsset->PatternRules)
 	{
-		if (PatternRule.MatchesContext(PatternContext))
+		if (!MatchesCategory(PatternRule, PatternCategoryFilter))
 		{
-			MatchedRules.Add(&PatternRule);
-			TotalWeight += PatternRule.SelectionWeight;
+			continue;
 		}
+
+		if (!PatternRule.MatchesContext(PatternContext))
+		{
+			continue;
+		}
+
+		if (bCheckAbilityCanActivate && IsValid(AbilitySystemComponent))
+		{
+			FGameplayTagContainer FailureTags;
+			if (!AbilitySystemComponent->CanActivateAbilityByTag(PatternRule.AbilityTag, FailureTags))
+			{
+				continue;
+			}
+		}
+
+		MatchedRules.Add(&PatternRule);
+		TotalWeight += PatternRule.SelectionWeight;
 	}
 
 	if (MatchedRules.IsEmpty() || TotalWeight <= 0.0f)
@@ -64,18 +113,35 @@ EBTNodeResult::Type UBTTask_PRSelectEnemyPattern::ExecuteTask(UBehaviorTreeCompo
 		if (PickValue <= AccumulatedWeight)
 		{
 			BlackboardComponent->SetValueAsName(SelectedAbilityTagKey, PatternRule->AbilityTag.GetTagName());
+			if (HasBlackboardKey(BlackboardComponent, SelectedNextComboIndexKey))
+			{
+				BlackboardComponent->SetValueAsInt(SelectedNextComboIndexKey, PatternRule->NextComboIndex);
+			}
+			if (bSetTacticalModeOnSelection && HasBlackboardKey(BlackboardComponent, TacticalModeKey))
+			{
+				BlackboardComponent->SetValueAsEnum(TacticalModeKey, static_cast<uint8>(TacticalModeOnSelection));
+			}
 			return EBTNodeResult::Succeeded;
 		}
 	}
 
 	// 부동소수 오차 등으로 루프 안에서 선택되지 못한 경우 마지막 후보를 안전값으로 쓴다.
 	BlackboardComponent->SetValueAsName(SelectedAbilityTagKey, MatchedRules.Last()->AbilityTag.GetTagName());
+	if (HasBlackboardKey(BlackboardComponent, SelectedNextComboIndexKey))
+	{
+		BlackboardComponent->SetValueAsInt(SelectedNextComboIndexKey, MatchedRules.Last()->NextComboIndex);
+	}
+	if (bSetTacticalModeOnSelection && HasBlackboardKey(BlackboardComponent, TacticalModeKey))
+	{
+		BlackboardComponent->SetValueAsEnum(TacticalModeKey, static_cast<uint8>(TacticalModeOnSelection));
+	}
 	return EBTNodeResult::Succeeded;
 }
 
 FString UBTTask_PRSelectEnemyPattern::GetStaticDescription() const
 {
-	return FString::Printf(TEXT("%s\nWrite Key: %s"),
+	return FString::Printf(TEXT("%s\nCategory: %s\nWrite Key: %s"),
 		*Super::GetStaticDescription(),
+		*StaticEnum<EPRPatternCategory>()->GetNameStringByValue(static_cast<int64>(PatternCategoryFilter)),
 		*SelectedAbilityTagKey.ToString());
 }

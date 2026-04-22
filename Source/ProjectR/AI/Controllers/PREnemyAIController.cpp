@@ -107,6 +107,22 @@ void APREnemyAIController::HandleTargetPerceptionUpdated(AActor* Actor, FAIStimu
 			CachedBlackboardComponent->SetValueAsVector(LastKnownTargetLocationKey, Stimulus.StimulusLocation);
 			CachedBlackboardComponent->SetValueAsBool(HasLOSKey, false);
 		}
+
+		switch (TargetLostPolicy)
+		{
+		case EPRTargetLostPolicy::ClearCurrentTarget:
+			CachedThreatComponent->ReleaseCurrentTargetForSearch(Actor);
+			SetBlackboardTacticalMode(EPRTacticalMode::Alert);
+			break;
+		case EPRTargetLostPolicy::RemoveThreatEntry:
+			CachedThreatComponent->OnTargetLost(Actor);
+			SetBlackboardTacticalMode(EPRTacticalMode::Return);
+			break;
+		case EPRTargetLostPolicy::KeepCurrentTarget:
+		default:
+			SetBlackboardTacticalMode(EPRTacticalMode::Alert);
+			break;
+		}
 	}
 }
 

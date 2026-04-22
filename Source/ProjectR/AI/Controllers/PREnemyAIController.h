@@ -80,4 +80,8 @@ protected:
 
 	UPROPERTY(EditDefaultsOnly, Category = "ProjectR|AI|Blackboard")
 	FName TacticalModeKey = TEXT("tactical_mode");
+
+	// 감지 실패 시 현재 타겟을 어떻게 정리할지 정한다.
+	UPROPERTY(EditDefaultsOnly, Category = "ProjectR|AI|Perception")
+	EPRTargetLostPolicy TargetLostPolicy = EPRTargetLostPolicy::ClearCurrentTarget;
 };

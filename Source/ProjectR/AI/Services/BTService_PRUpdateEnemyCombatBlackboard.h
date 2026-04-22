@@ -45,6 +45,12 @@ protected:
 	UPROPERTY(EditAnywhere, Category = "ProjectR|Blackboard")
 	FName ChargePathClearKey = TEXT("charge_path_clear");
 
+	UPROPERTY(EditAnywhere, Category = "ProjectR|Blackboard")
+	FName ComboIndexKey = TEXT("combo_index");
+
+	UPROPERTY(EditAnywhere, Category = "ProjectR|Blackboard")
+	FName ComboResetDistanceKey = TEXT("combo_reset_distance");
+
 	// Blackboard에 값이 없을 때 채워 넣는 기본 근접 유지 거리다.
 	UPROPERTY(EditAnywhere, Category = "ProjectR|SoldierArmored")
 	float DefaultDesiredMeleeRange = 180.0f;
@@ -60,4 +66,12 @@ protected:
 	// 돌진 경로가 막혔는지 확인할 Trace 채널이다.
 	UPROPERTY(EditAnywhere, Category = "ProjectR|SoldierArmored")
 	TEnumAsByte<ECollisionChannel> ChargeTraceChannel = ECC_Visibility;
+
+	// true면 타겟이 사라졌을 때 콤보 단계를 첫 단계로 되돌린다.
+	UPROPERTY(EditAnywhere, Category = "ProjectR|Combat")
+	bool bResetComboWhenTargetInvalid = true;
+
+	// true면 combo_reset_distance 밖으로 벌어진 순간 콤보 단계를 첫 단계로 되돌린다.
+	UPROPERTY(EditAnywhere, Category = "ProjectR|Combat")
+	bool bResetComboWhenOutsideResetDistance = true;
 };

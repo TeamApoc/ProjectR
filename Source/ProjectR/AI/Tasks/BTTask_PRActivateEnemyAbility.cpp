@@ -4,9 +4,20 @@
 
 #include "AIController.h"
 #include "BehaviorTree/BlackboardComponent.h"
+#include "BehaviorTree/BlackboardData.h"
 #include "BehaviorTree/BehaviorTreeComponent.h"
 #include "ProjectR/AbilitySystem/PRAbilitySystemComponent.h"
 #include "ProjectR/Character/Enemy/PREnemyInterface.h"
+
+namespace
+{
+	bool HasBlackboardKey(const UBlackboardComponent* BlackboardComponent, const FName KeyName)
+	{
+		return IsValid(BlackboardComponent)
+			&& KeyName != NAME_None
+			&& BlackboardComponent->GetKeyID(KeyName) != FBlackboard::InvalidKey;
+	}
+}
 
 UBTTask_PRActivateEnemyAbility::UBTTask_PRActivateEnemyAbility()
 {
@@ -19,6 +30,7 @@ EBTNodeResult::Type UBTTask_PRActivateEnemyAbility::ExecuteTask(UBehaviorTreeCom
 {
 	ActiveAbilitySystemComponent = nullptr;
 	ActiveAbilityHandle = FGameplayAbilitySpecHandle();
+	PendingNextComboIndex = INDEX_NONE;
 
 	FGameplayTag ResolvedAbilityTag = AbilityTag;
 	if (!ResolvedAbilityTag.IsValid() && AbilityTagBlackboardKey != NAME_None)
@@ -31,6 +43,17 @@ EBTNodeResult::Type UBTTask_PRActivateEnemyAbility::ExecuteTask(UBehaviorTreeCom
 			if (AbilityTagName != NAME_None)
 			{
 				ResolvedAbilityTag = FGameplayTag::RequestGameplayTag(AbilityTagName, false);
+			}
+		}
+	}
+
+	if (bApplySelectedComboIndex && !AbilityTag.IsValid())
+	{
+		if (UBlackboardComponent* BlackboardComponent = OwnerComp.GetBlackboardComponent())
+		{
+			if (HasBlackboardKey(BlackboardComponent, SelectedNextComboIndexKey))
+			{
+				PendingNextComboIndex = BlackboardComponent->GetValueAsInt(SelectedNextComboIndexKey);
 			}
 		}
 	}
@@ -62,6 +85,7 @@ EBTNodeResult::Type UBTTask_PRActivateEnemyAbility::ExecuteTask(UBehaviorTreeCom
 
 	if (!bWaitUntilAbilityEnds)
 	{
+		ApplyPostAbilityBlackboardUpdates(OwnerComp);
 		return EBTNodeResult::Succeeded;
 	}
 
@@ -69,9 +93,13 @@ EBTNodeResult::Type UBTTask_PRActivateEnemyAbility::ExecuteTask(UBehaviorTreeCom
 
 	// Ability가 즉시 끝나는 경우도 있으므로, 활성 상태를 한 번 확인한 뒤 InProgress 여부를 결정한다.
 	const FGameplayAbilitySpec* ActiveSpec = ASC->FindAbilitySpecFromHandle(ActiveAbilityHandle);
-	return (ActiveSpec != nullptr && ActiveSpec->IsActive())
-		? EBTNodeResult::InProgress
-		: EBTNodeResult::Succeeded;
+	if (ActiveSpec != nullptr && ActiveSpec->IsActive())
+	{
+		return EBTNodeResult::InProgress;
+	}
+
+	ApplyPostAbilityBlackboardUpdates(OwnerComp);
+	return EBTNodeResult::Succeeded;
 }
 
 void UBTTask_PRActivateEnemyAbility::TickTask(UBehaviorTreeComponent& OwnerComp, uint8* NodeMemory, float DeltaSeconds)
@@ -85,15 +113,41 @@ void UBTTask_PRActivateEnemyAbility::TickTask(UBehaviorTreeComponent& OwnerComp,
 	const FGameplayAbilitySpec* ActiveSpec = ActiveAbilitySystemComponent->FindAbilitySpecFromHandle(ActiveAbilityHandle);
 	if (ActiveSpec == nullptr || !ActiveSpec->IsActive())
 	{
+		ApplyPostAbilityBlackboardUpdates(OwnerComp);
 		// Ability가 끝나면 BT Sequence가 다음 노드로 넘어갈 수 있게 성공 처리한다.
 		FinishLatentTask(OwnerComp, EBTNodeResult::Succeeded);
 	}
 }
 
+void UBTTask_PRActivateEnemyAbility::ApplyPostAbilityBlackboardUpdates(UBehaviorTreeComponent& OwnerComp)
+{
+	UBlackboardComponent* BlackboardComponent = OwnerComp.GetBlackboardComponent();
+	if (!IsValid(BlackboardComponent))
+	{
+		return;
+	}
+
+	if (bApplySelectedComboIndex
+		&& PendingNextComboIndex != INDEX_NONE
+		&& HasBlackboardKey(BlackboardComponent, ComboIndexKey))
+	{
+		// Select Task가 DataAsset 규칙에서 읽어온 다음 콤보 단계를 실제 Blackboard 상태로 확정한다.
+		BlackboardComponent->SetValueAsInt(ComboIndexKey, PendingNextComboIndex);
+	}
+
+	if (bSetTacticalModeAfterAbilityEnds && HasBlackboardKey(BlackboardComponent, TacticalModeKey))
+	{
+		BlackboardComponent->SetValueAsEnum(TacticalModeKey, static_cast<uint8>(TacticalModeAfterAbilityEnds));
+	}
+}
+
 FString UBTTask_PRActivateEnemyAbility::GetStaticDescription() const
 {
-	return FString::Printf(TEXT("%s\nAbilityTag: %s\nWait: %s"),
+	return FString::Printf(TEXT("%s\nAbilityTag: %s\nWait: %s\nPost Mode: %s"),
 		*Super::GetStaticDescription(),
 		AbilityTag.IsValid() ? *AbilityTag.ToString() : *FString::Printf(TEXT("BB:%s"), *AbilityTagBlackboardKey.ToString()),
-		bWaitUntilAbilityEnds ? TEXT("true") : TEXT("false"));
+		bWaitUntilAbilityEnds ? TEXT("true") : TEXT("false"),
+		bSetTacticalModeAfterAbilityEnds
+			? *StaticEnum<EPRTacticalMode>()->GetNameStringByValue(static_cast<int64>(TacticalModeAfterAbilityEnds))
+			: TEXT("None"));
 }

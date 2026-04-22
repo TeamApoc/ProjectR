@@ -78,7 +78,7 @@ protected:
 	UPROPERTY(VisibleAnywhere, Category = "ProjectR|AI")
 	TObjectPtr<UPREnemyThreatComponent> ThreatComponent;
 
-	// 상태 태그를 GameplayEvent로 바꿔 Groggy/Death Ability를 트리거한다.
+	// 기존 BP 서브오브젝트 참조 보호용 컴포넌트다. 상태 이벤트는 AttributeSet/BossBase가 직접 발행한다.
 	UPROPERTY(VisibleAnywhere, Category = "ProjectR|AI")
 	TObjectPtr<UPREnemyCombatEventRelayComponent> CombatEventRelayComponent;
 

@@ -2,7 +2,6 @@
 
 #include "PRGameplayAbility_EnemyDeath.h"
 
-#include "AbilitySystemComponent.h"
 #include "Abilities/Tasks/AbilityTask_PlayMontageAndWait.h"
 #include "AIController.h"
 #include "Animation/AnimMontage.h"
@@ -17,9 +16,9 @@ UPRGameplayAbility_EnemyDeath::UPRGameplayAbility_EnemyDeath()
 	TriggerData.TriggerTag = PRGameplayTags::Event_Ability_Death;
 	AbilityTriggers.Add(TriggerData);
 
-	// 사망에 들어가면 진행 중인 공격/패턴 Ability를 모두 중단한다.
-	CancelAbilityTags.AddTag(PRGameplayTags::Ability_Enemy_Pattern);
-	CancelAbilityTags.AddTag(PRGameplayTags::Ability_Boss_Faerin_Pattern);
+	// 사망 Ability 활성화 시 GAS 내장 태그 취소 규약으로 진행 중인 패턴을 중단한다.
+	CancelAbilitiesWithTag.AddTag(PRGameplayTags::Ability_Enemy_Pattern);
+	CancelAbilitiesWithTag.AddTag(PRGameplayTags::Ability_Boss_Faerin_Pattern);
 }
 
 void UPRGameplayAbility_EnemyDeath::ActivateAbility(const FGameplayAbilitySpecHandle Handle,
@@ -34,11 +33,6 @@ void UPRGameplayAbility_EnemyDeath::ActivateAbility(const FGameplayAbilitySpecHa
 	}
 
 	bDeathFinished = false;
-
-	if (UAbilitySystemComponent* ASC = GetAbilitySystemComponentFromActorInfo())
-	{
-		ASC->CancelAbilities(&CancelAbilityTags, nullptr, this);
-	}
 
 	if (ACharacter* Character = Cast<ACharacter>(GetAvatarActorFromActorInfo()))
 	{

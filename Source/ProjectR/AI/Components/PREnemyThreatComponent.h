@@ -28,6 +28,10 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "ProjectR|AI")
 	void InvalidateCurrentTarget();
 
+	// 현재 타겟만 비워 수색/복귀 BT가 동작하게 한다. Threat 기록은 유지한다.
+	UFUNCTION(BlueprintCallable, Category = "ProjectR|AI")
+	void ReleaseCurrentTargetForSearch(AActor* LostTarget);
+
 	// Perception에서 타겟을 잃었다는 신호가 왔을 때 위협 목록을 정리한다.
 	UFUNCTION(BlueprintCallable, Category = "ProjectR|AI")
 	void OnTargetLost(AActor* LostTarget);

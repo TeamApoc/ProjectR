@@ -49,6 +49,30 @@ void UPREnemyThreatComponent::InvalidateCurrentTarget()
 	ReevaluateTarget();
 }
 
+void UPREnemyThreatComponent::ReleaseCurrentTargetForSearch(AActor* LostTarget)
+{
+	if (!GetOwner() || !GetOwner()->HasAuthority() || !IsValid(LostTarget))
+	{
+		return;
+	}
+
+	if (CurrentTarget == LostTarget)
+	{
+		// Threat 기록은 남겨두되 현재 타겟만 비워 마지막 위치 수색 브랜치가 실행되도록 한다.
+		SetCurrentTarget(nullptr);
+	}
+
+	for (FPRThreatEntry& Entry : ThreatList)
+	{
+		if (Entry.Target == LostTarget)
+		{
+			// 재감지되면 AddThreat가 시간을 갱신한다. 재감지되지 않으면 다음 재평가 때 자연스럽게 정리된다.
+			Entry.LastUpdatedTime = GetWorld()->GetTimeSeconds() - ThreatForgetTime;
+			break;
+		}
+	}
+}
+
 void UPREnemyThreatComponent::OnTargetLost(AActor* LostTarget)
 {
 	if (!GetOwner() || !GetOwner()->HasAuthority() || !IsValid(LostTarget))

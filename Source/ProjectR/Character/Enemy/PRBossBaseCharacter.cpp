@@ -2,15 +2,13 @@
 
 #include "PRBossBaseCharacter.h"
 
+#include "AbilitySystemBlueprintLibrary.h"
 #include "ProjectR/AbilitySystem/PRAbilitySystemComponent.h"
 #include "ProjectR/PRGameplayTags.h"
 
 APRBossBaseCharacter::APRBossBaseCharacter()
 {
-	// 원본 보스 설계를 기준으로 한 페이즈 진입 체력 비율이다.
-	PhaseThresholdRatios.Add(EPRFaerinPhase::AdvancedRanged, 0.87f);
-	PhaseThresholdRatios.Add(EPRFaerinPhase::SwordJudgment, 0.65f);
-	PhaseThresholdRatios.Add(EPRFaerinPhase::FinalTeleportLoop, 0.25f);
+	// 페이즈 임계값은 보스 BP/데이터에서 설정한다. C++ 기본값을 두면 몬스터별 튜닝이 하드코딩된다.
 }
 
 void APRBossBaseCharacter::PossessedBy(AController* NewController)
@@ -47,30 +45,61 @@ void APRBossBaseCharacter::OnHealthRatioChanged(float NewRatio)
 		return;
 	}
 
-	// 페이즈 전환 판단은 서버 체력 비율만 신뢰한다.
-	if (CurrentPhase == EPRFaerinPhase::Opening && NewRatio <= PhaseThresholdRatios.FindRef(EPRFaerinPhase::AdvancedRanged))
+	// 페이즈 전환 판단은 서버 체력 비율만 신뢰하고, enum 순서를 진행 순서로 사용한다.
+	EPRFaerinPhase CandidatePhase = CurrentPhase;
+	const uint8 CurrentPhaseIndex = static_cast<uint8>(CurrentPhase);
+	uint8 CandidatePhaseIndex = CurrentPhaseIndex;
+
+	for (const TPair<EPRFaerinPhase, float>& ThresholdPair : PhaseThresholdRatios)
 	{
-		BeginPhaseTransition(EPRFaerinPhase::AdvancedRanged);
+		const EPRFaerinPhase Phase = ThresholdPair.Key;
+		const uint8 PhaseIndex = static_cast<uint8>(Phase);
+		const float ThresholdRatio = ThresholdPair.Value;
+
+		if (PhaseIndex <= CurrentPhaseIndex)
+		{
+			continue;
+		}
+
+		if (NewRatio <= ThresholdRatio && PhaseIndex > CandidatePhaseIndex)
+		{
+			CandidatePhase = Phase;
+			CandidatePhaseIndex = PhaseIndex;
+		}
 	}
-	else if (CurrentPhase == EPRFaerinPhase::AdvancedRanged && NewRatio <= PhaseThresholdRatios.FindRef(EPRFaerinPhase::SwordJudgment))
+
+	if (CandidatePhase != CurrentPhase)
 	{
-		BeginPhaseTransition(EPRFaerinPhase::SwordJudgment);
-	}
-	else if (CurrentPhase == EPRFaerinPhase::SwordJudgment && NewRatio <= PhaseThresholdRatios.FindRef(EPRFaerinPhase::FinalTeleportLoop))
-	{
-		BeginPhaseTransition(EPRFaerinPhase::FinalTeleportLoop);
+		BeginPhaseTransition(CandidatePhase);
 	}
 }
 
 void APRBossBaseCharacter::BeginPhaseTransition(EPRFaerinPhase NewPhase)
 {
-	if (!HasAuthority() || CurrentPhase == NewPhase || PendingPhase == NewPhase || !IsValid(AbilitySystemComponent))
+	if (!HasAuthority()
+		|| CurrentPhase == NewPhase
+		|| PendingPhase == NewPhase
+		|| static_cast<uint8>(NewPhase) <= static_cast<uint8>(CurrentPhase)
+		|| !IsValid(AbilitySystemComponent))
 	{
 		return;
 	}
 
 	PendingPhase = NewPhase;
 	AbilitySystemComponent->AddLooseGameplayTag(PRGameplayTags::State_PhaseTransitioning);
+	AbilitySystemComponent->AddReplicatedLooseGameplayTag(PRGameplayTags::State_PhaseTransitioning);
+
+	FGameplayEventData Payload;
+	Payload.EventTag = PRGameplayTags::Event_Ability_PhaseTransition;
+	Payload.Instigator = this;
+	Payload.Target = this;
+	Payload.EventMagnitude = static_cast<float>(static_cast<uint8>(NewPhase));
+
+	// 페이즈 전환 Ability는 서버가 확정한 목표 페이즈를 GameplayEvent로 받아 시작한다.
+	UAbilitySystemBlueprintLibrary::SendGameplayEventToActor(
+		this,
+		PRGameplayTags::Event_Ability_PhaseTransition,
+		Payload);
 
 	// 페이즈 전환 Ability/연출이 붙기 전까지는 즉시 확정한다.
 	// 이후 보스 전환 몽타주가 들어오면 해당 Ability가 CommitPhaseTransition을 호출하게 바꾸면 된다.
@@ -100,6 +129,7 @@ void APRBossBaseCharacter::CommitPhaseTransition(EPRFaerinPhase NewPhase)
 	CurrentPhase = NewPhase;
 	PendingPhase = NewPhase;
 	AbilitySystemComponent->RemoveLooseGameplayTag(PRGameplayTags::State_PhaseTransitioning);
+	AbilitySystemComponent->RemoveReplicatedLooseGameplayTag(PRGameplayTags::State_PhaseTransitioning);
 
 	OnPhaseChanged.Broadcast(OldPhase, NewPhase);
 }

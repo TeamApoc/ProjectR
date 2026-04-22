@@ -11,7 +11,7 @@ namespace PRRowNames
 	
 	namespace Enemies
 	{
-		const FName Faelin = "Faelin";
+		const FName Faerin = "Faerin";
 		// TODO: Add Enemy Names
 	}
 }

@@ -40,7 +40,7 @@ void UPRGameplayAbility_EnemyMeleeAttack::ActivateAbility(const FGameplayAbility
 
 	if (ACharacter* SourceCharacter = Cast<ACharacter>(AvatarActor))
 	{
-		// 공격이 시작되면 BT 이동이 남긴 속도를 끊고 몽타주/루트모션이 위치를 주도하게 한다.
+		// 공격 시작 시 BT 이동 잔여 속도 제거
 		SourceCharacter->GetCharacterMovement()->StopMovementImmediately();
 	}
 
@@ -54,12 +54,13 @@ void UPRGameplayAbility_EnemyMeleeAttack::ActivateAbility(const FGameplayAbility
 	const bool bHasAttackMontage = IsValid(AttackMontage);
 	if (bHasAttackMontage)
 	{
-		// GAS 몽타주 태스크를 사용하면 Ability 종료 시 몽타주 정리와 네트워크 처리가 함께 따라온다.
+		// Ability 종료와 몽타주 정리/네트워크 처리를 함께 다루는 GAS 몽타주 태스크
 		ActiveMontageTask = UAbilityTask_PlayMontageAndWait::CreatePlayMontageAndWaitProxy(
 			this,
 			NAME_None,
 			AttackMontage,
-			FMath::Max(MontagePlayRate, UE_SMALL_NUMBER));
+			FMath::Max(MontagePlayRate, UE_SMALL_NUMBER),
+			MontageStartSection);
 
 		if (IsValid(ActiveMontageTask))
 		{
@@ -73,8 +74,8 @@ void UPRGameplayAbility_EnemyMeleeAttack::ActivateAbility(const FGameplayAbility
 
 	if (bUseAnimationNotifyForHit)
 	{
-		// AnimNotify는 Ability를 직접 찾지 않고 GameplayEvent만 보낸다.
-		// 이 Task가 활성 Ability 인스턴스 안에서 이벤트를 받아 실제 서버 판정을 실행한다.
+		// AnimNotify는 GameplayEvent만 발행
+		// 활성 Ability 인스턴스에서 이벤트를 받아 서버 판정 실행
 		ActiveMeleeHitEventTask = UAbilityTask_WaitGameplayEvent::WaitGameplayEvent(
 			this,
 			PRCombatGameplayTags::Event_Ability_EnemyMeleeHit,
@@ -93,8 +94,8 @@ void UPRGameplayAbility_EnemyMeleeAttack::ActivateAbility(const FGameplayAbility
 		|| !bUseAnimationNotifyForHit
 		|| bAllowTimedHitFallbackWhenMontagePlays;
 
-	// 몽타주+Notify 공격은 Notify가 타격 프레임을 결정한다.
-	// 몽타주가 없거나 fallback을 켠 경우에만 WindupTime 타이머를 사용한다.
+	// 몽타주+Notify 공격은 Notify 타격 프레임 우선
+	// 몽타주 없음 또는 fallback 허용 시 WindupTime 타이머 사용
 	if (bUseTimedHit && WindupTime <= 0.0f)
 	{
 		TriggerMeleeHitOnce();
@@ -109,7 +110,7 @@ void UPRGameplayAbility_EnemyMeleeAttack::ActivateAbility(const FGameplayAbility
 	const float MontageFinishDelay = bHasAttackMontage && bUseMontageDurationForFinish
 		? (AttackMontage->GetPlayLength() / FMath::Max(MontagePlayRate, UE_SMALL_NUMBER)) + 0.1f
 		: 0.0f;
-	// 몽타주 콜백이 누락되어도 Ability가 영원히 끝나지 않도록 타이머를 함께 둔다.
+	// 몽타주 콜백 누락 대비 종료 타이머
 	const float FinishDelay = FMath::Max(TimerFinishDelay, MontageFinishDelay);
 	World->GetTimerManager().SetTimer(FinishTimerHandle, this,
 		&UPRGameplayAbility_EnemyMeleeAttack::FinishMeleeAttack, FinishDelay, false);
@@ -218,8 +219,8 @@ void UPRGameplayAbility_EnemyMeleeAttack::ExecuteMeleeHit()
 	const FVector TraceStart = SourceCharacter->GetActorLocation() + FVector(0.0f, 0.0f, TraceHeightOffset);
 	const FVector TraceEnd = TraceStart + Forward * AttackRange;
 
-	// 현재 구현은 무기 소켓 기반이 아니라 캐릭터 정면 구체 Sweep이다.
-	// 무기 궤적 기반 판정이 필요해지면 이 지점을 교체하면 된다.
+	// 현재 판정 기준은 무기 소켓이 아닌 캐릭터 정면 구체 Sweep
+	// 무기 궤적 판정 전환 시 교체 지점
 	FCollisionQueryParams QueryParams(SCENE_QUERY_STAT(PREnemyMeleeAttack), false, SourceCharacter);
 	QueryParams.AddIgnoredActor(SourceCharacter);
 
@@ -260,7 +261,7 @@ void UPRGameplayAbility_EnemyMeleeAttack::ExecuteMeleeHit()
 		DamageContext.GroggyDamage = GroggyDamage;
 		DamageContext.AbilityLevel = GetAbilityLevel();
 
-		// ApplyDamageContext 내부에서 공용 Damage GE와 SetByCaller 값으로 변환된다.
+		// 공용 Damage GE와 SetByCaller 값 변환은 ApplyDamageContext 내부 처리
 		if (ApplyDamageContext(DamageContext))
 		{
 			DamagedActors.Add(HitActor);
@@ -288,7 +289,7 @@ void UPRGameplayAbility_EnemyMeleeAttack::ApplyForwardLunge(ACharacter* SourceCh
 
 	const FVector MoveDelta = SourceCharacter->GetActorForwardVector() * LungeDistance;
 	FHitResult SweepHit;
-	// Sweep을 켜서 벽을 뚫고 이동하지 않도록 한다.
+	// 벽 관통 방지용 Sweep 이동
 	SourceCharacter->AddActorWorldOffset(MoveDelta, true, &SweepHit);
 }
 
@@ -314,6 +315,7 @@ bool UPRGameplayAbility_EnemyMeleeAttack::ShouldDamageActor(const AActor* Candid
 		? EnemyCharacter->GetEnemyThreatComponent()
 		: nullptr;
 
-	// 기본값은 현재 ThreatTarget만 맞히는 것이다. 주변 플레이어 광역 공격은 옵션을 끄고 별도 패턴으로 구성한다.
+	// 기본 판정 대상은 현재 ThreatTarget
+	// 주변 플레이어 광역 공격은 옵션 해제 후 별도 패턴 구성
 	return IsValid(ThreatComponent) && ThreatComponent->GetCurrentTarget() == CandidateActor;
 }

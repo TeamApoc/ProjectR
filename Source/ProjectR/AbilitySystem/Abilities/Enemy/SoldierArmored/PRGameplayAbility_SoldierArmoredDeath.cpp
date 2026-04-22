@@ -4,7 +4,7 @@
 
 UPRGameplayAbility_SoldierArmoredDeath::UPRGameplayAbility_SoldierArmoredDeath()
 {
-	// 사망 이후 이동을 확실히 막고, 상태 유지가 필요하므로 기본적으로 Ability를 자동 종료하지 않는다.
+	// 사망 후 이동 차단 및 상태 유지
 	bDisableMovementOnDeath = true;
 	bEndAbilityWhenMontageEnds = false;
 }

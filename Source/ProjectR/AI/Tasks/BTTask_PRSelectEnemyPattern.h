@@ -35,13 +35,7 @@ protected:
 	FName TacticalModeKey = TEXT("tactical_mode");
 
 	UPROPERTY(EditAnywhere, Category = "ProjectR|Blackboard")
-	FName ComboIndexKey = TEXT("combo_index");
-
-	UPROPERTY(EditAnywhere, Category = "ProjectR|Blackboard")
 	FName SelectedAbilityTagKey = TEXT("selected_ability_tag");
-
-	UPROPERTY(EditAnywhere, Category = "ProjectR|Blackboard")
-	FName SelectedNextComboIndexKey = TEXT("selected_next_combo_index");
 
 	// 이 Task가 선택할 패턴 계열이다. Any면 계열을 제한하지 않는다.
 	UPROPERTY(EditAnywhere, Category = "ProjectR|Pattern")

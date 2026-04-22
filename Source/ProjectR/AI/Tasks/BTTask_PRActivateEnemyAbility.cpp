@@ -32,7 +32,6 @@ EBTNodeResult::Type UBTTask_PRActivateEnemyAbility::ExecuteTask(UBehaviorTreeCom
 {
 	ClearAbilityEndDelegate();
 	ActiveAbilityHandle = FGameplayAbilitySpecHandle();
-	PendingNextComboIndex = INDEX_NONE;
 
 	FGameplayTag ResolvedAbilityTag = AbilityTag;
 	if (!ResolvedAbilityTag.IsValid() && AbilityTagBlackboardKey != NAME_None)
@@ -44,17 +43,6 @@ EBTNodeResult::Type UBTTask_PRActivateEnemyAbility::ExecuteTask(UBehaviorTreeCom
 			if (AbilityTagName != NAME_None)
 			{
 				ResolvedAbilityTag = FGameplayTag::RequestGameplayTag(AbilityTagName, false);
-			}
-		}
-	}
-
-	if (bApplySelectedComboIndex && !AbilityTag.IsValid())
-	{
-		if (UBlackboardComponent* BlackboardComponent = OwnerComp.GetBlackboardComponent())
-		{
-			if (HasActivateAbilityBlackboardKey(BlackboardComponent, SelectedNextComboIndexKey))
-			{
-				PendingNextComboIndex = BlackboardComponent->GetValueAsInt(SelectedNextComboIndexKey);
 			}
 		}
 	}
@@ -135,14 +123,6 @@ void UBTTask_PRActivateEnemyAbility::ApplyPostAbilityBlackboardUpdates(UBehavior
 	if (!IsValid(BlackboardComponent))
 	{
 		return;
-	}
-
-	if (bApplySelectedComboIndex
-		&& PendingNextComboIndex != INDEX_NONE
-		&& HasActivateAbilityBlackboardKey(BlackboardComponent, ComboIndexKey))
-	{
-		// Select Task가 DataAsset 규칙에서 읽은 다음 콤보 단계를 실제 Blackboard 상태로 확정한다.
-		BlackboardComponent->SetValueAsInt(ComboIndexKey, PendingNextComboIndex);
 	}
 
 	if (bSetTacticalModeAfterAbilityEnds && HasActivateAbilityBlackboardKey(BlackboardComponent, TacticalModeKey))

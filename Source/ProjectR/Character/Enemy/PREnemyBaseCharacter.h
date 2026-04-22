@@ -49,20 +49,17 @@ public:
 	const USphereComponent* GetWeakpointCollision() const { return WeakpointCollision; }
 
 protected:
+	/*~ APRCharacterBase Interface ~*/
+	virtual void HandleGameplayTagUpdated(const FGameplayTag& ChangedTag, bool TagExists) override;
+	
 	// 서버에서 ASC ActorInfo, 초기 스탯, AbilitySet을 준비한다.
 	void InitializeEnemyAbilitySystem();
-
-	// Dead/Groggy 태그 변화를 캐릭터 이동 상태와 연결한다.
-	void BindGameplayTagEvents();
-
+	
 	UFUNCTION()
 	void HandleDeath(AActor* InstigatorActor);
 
-	UFUNCTION()
-	void HandleGroggyStateChanged(bool bEntered);
-
-	void HandleDeadTagChanged(const FGameplayTag Tag, int32 NewCount);
-	void HandleGroggyTagChanged(const FGameplayTag Tag, int32 NewCount);
+	void HandleDeadTagChanged(bool bEntered);
+	void HandleGroggyTagChanged(bool bEntered);
 
 protected:
 	// 적은 PlayerState가 아니라 캐릭터 자신이 ASC를 소유한다.

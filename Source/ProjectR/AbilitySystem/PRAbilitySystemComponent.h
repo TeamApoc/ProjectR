@@ -11,6 +11,7 @@ struct FPRAbilitySetHandles;
 class UPRAbilitySet;
 class UPRAbilitySystemRegistry;
 
+
 // 프로젝트 공통 ASC. AbilitySet 부여/해제, 속성 초기화, 입력 라우팅, AI 활성화 헬퍼 제공
 UCLASS(ClassGroup = (ProjectR), meta = (BlueprintSpawnableComponent))
 class PROJECTR_API UPRAbilitySystemComponent : public UAbilitySystemComponent
@@ -21,20 +22,14 @@ public:
 	/*~ UActorComponent Interface ~*/
 	virtual void BeginPlay() override;
 
+protected:
 	/*~ UAbilitySystemComponent Interface ~*/
 	virtual void OnGiveAbility(FGameplayAbilitySpec& AbilitySpec) override;
 	virtual void AbilitySpecInputPressed(FGameplayAbilitySpec& Spec) override;
 	virtual void AbilitySpecInputReleased(FGameplayAbilitySpec& Spec) override;
-
+	virtual void OnTagUpdated(const FGameplayTag& Tag, bool TagExists) override;
+	
 public:
-	// 어빌리티 활성화 직후 발행 (Ability 첫 태그 기준)
-	UPROPERTY(BlueprintAssignable)
-	FPRAbilityActivatedSignature OnAbilityActivated;
-
-	// 어빌리티 종료 시 발행. bCancelled == true 면 Cancel 경로
-	UPROPERTY(BlueprintAssignable)
-	FPRAbilityEndedSignature OnAbilityEnded;
-
 	// AbilitySet 일괄 부여. 서버 전용. OutHandles에 Clear용 대칭 핸들 누적
 	void GiveAbilitySet(const UPRAbilitySet* AbilitySet, FPRAbilitySetHandles& OutHandles);
 
@@ -73,6 +68,18 @@ protected:
 	// 어빌리티 활성화 시 델리게이트 브로드캐스트
 	void HandleAbilityActivated(UGameplayAbility* ActivatedAbility);
 
+public:
+	// 어빌리티 활성화 직후 발행 (Ability 첫 태그 기준)
+	UPROPERTY(BlueprintAssignable)
+	FPRAbilityActivatedSignature OnAbilityActivated;
+
+	// 어빌리티 종료 시 발행. bCancelled == true 면 Cancel 경로
+	UPROPERTY(BlueprintAssignable)
+	FPRAbilityEndedSignature OnAbilityEnded;
+
+	// 태그 신규 추가 혹은 완전 제거시 발행되는 이벤트
+	FOnGameplayTagUpdatedSignature OnGameplayTagUpdated;
+	
 protected:
 	// 이번 프레임 Pressed 후보 Spec Handle
 	TArray<FGameplayAbilitySpecHandle> InputPressedSpecHandles;

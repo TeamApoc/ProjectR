@@ -88,6 +88,9 @@ void APRPlayerCharacter::PossessedBy(AController* NewController)
 				EPRCharacterRole::Player,
 				PRRowNames::Player::Default);
 			ASC->GiveAbilitySet(AbilitySet,AbilitySetHandles);
+			
+			// 이 시점에서 플레이어의 ASC 유효하므로 BindTagChangeEvent 호출
+			BindTagChangeEvent();
 		}
 	}
 }

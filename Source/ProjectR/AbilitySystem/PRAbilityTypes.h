@@ -55,3 +55,6 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FPRGroggyStateChangedSignature, bool
 
 // Common AttributeSet Health 고갈 시 발행. Instigator는 최종 타격 소스
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FPRDeathSignature,AActor*, Instigator);
+
+// 태그 스택 변경 이벤트 (신규 추가 or 완전 제거)
+DECLARE_MULTICAST_DELEGATE_TwoParams(FOnGameplayTagUpdatedSignature, const FGameplayTag& /**Tag*/, bool /**TagExists*/)

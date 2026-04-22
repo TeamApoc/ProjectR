@@ -62,17 +62,15 @@ void APREnemyBaseCharacter::BeginPlay()
 {
 	Super::BeginPlay();
 
+	BindTagChangeEvent();
+	
 	// 배치된 위치를 복귀 기준점으로 저장한다.
 	HomeLocation = GetActorLocation();
 
 	if (IsValid(CommonSet))
 	{
-		CommonSet->OnDeath.AddDynamic(this, &APREnemyBaseCharacter::HandleDeath);
-	}
-
-	if (IsValid(EnemySet))
-	{
-		EnemySet->OnGroggyStateChanged.AddDynamic(this, &APREnemyBaseCharacter::HandleGroggyStateChanged);
+		// CommonSet->OnDeath.AddDynamic(this, &APREnemyBaseCharacter::HandleDeath);
+		// !!!Note (26.04.22, Yuchan): 이미 Tag 이벤트로 Death 처리 함수를 호출하기 때문에 위 이벤트 바인딩 불필요하여 주석처리 
 	}
 }
 
@@ -81,7 +79,6 @@ void APREnemyBaseCharacter::PossessedBy(AController* NewController)
 	Super::PossessedBy(NewController);
 
 	InitializeEnemyAbilitySystem();
-	BindGameplayTagEvents();
 }
 
 UPRAbilitySystemComponent* APREnemyBaseCharacter::GetPRAbilitySystemComponent() const
@@ -119,6 +116,20 @@ FVector APREnemyBaseCharacter::GetHomeLocation() const
 	return HomeLocation;
 }
 
+void APREnemyBaseCharacter::HandleGameplayTagUpdated(const FGameplayTag& ChangedTag, bool TagExists)
+{
+	Super::HandleGameplayTagUpdated(ChangedTag, TagExists);
+	
+	if (ChangedTag.MatchesTag(PRGameplayTags::State_Dead))
+	{
+		HandleDeadTagChanged(TagExists);
+	}
+	if (ChangedTag.MatchesTag(PRGameplayTags::State_Groggy))
+	{
+		HandleGroggyTagChanged(TagExists);
+	}
+}
+
 void APREnemyBaseCharacter::InitializeEnemyAbilitySystem()
 {
 	if (!HasAuthority() || !IsValid(AbilitySystemComponent))
@@ -143,21 +154,6 @@ void APREnemyBaseCharacter::InitializeEnemyAbilitySystem()
 	}
 }
 
-void APREnemyBaseCharacter::BindGameplayTagEvents()
-{
-	if (bGameplayTagEventsBound || !IsValid(AbilitySystemComponent))
-	{
-		return;
-	}
-
-	AbilitySystemComponent->RegisterGameplayTagEvent(PRGameplayTags::State_Dead, EGameplayTagEventType::NewOrRemoved)
-		.AddUObject(this, &APREnemyBaseCharacter::HandleDeadTagChanged);
-	AbilitySystemComponent->RegisterGameplayTagEvent(PRGameplayTags::State_Groggy, EGameplayTagEventType::NewOrRemoved)
-		.AddUObject(this, &APREnemyBaseCharacter::HandleGroggyTagChanged);
-
-	bGameplayTagEventsBound = true;
-}
-
 void APREnemyBaseCharacter::HandleDeath(AActor* InstigatorActor)
 {
 	// 사망은 Ability 쪽에서도 처리하지만, 캐릭터 레벨에서도 Brain/Movement를 확실히 멈춘다.
@@ -174,27 +170,19 @@ void APREnemyBaseCharacter::HandleDeath(AActor* InstigatorActor)
 	}
 }
 
-void APREnemyBaseCharacter::HandleGroggyStateChanged(bool bEntered)
+void APREnemyBaseCharacter::HandleDeadTagChanged(bool bEntered)
 {
+	// 사망 상태 진입
 	if (bEntered)
 	{
-		GetCharacterMovement()->StopMovementImmediately();
+		GetCharacterMovement()->DisableMovement();
 	}
 }
 
-void APREnemyBaseCharacter::HandleDeadTagChanged(const FGameplayTag Tag, int32 NewCount)
+void APREnemyBaseCharacter::HandleGroggyTagChanged(bool bEntered)
 {
-	if (NewCount <= 0)
-	{
-		return;
-	}
-
-	GetCharacterMovement()->DisableMovement();
-}
-
-void APREnemyBaseCharacter::HandleGroggyTagChanged(const FGameplayTag Tag, int32 NewCount)
-{
-	if (NewCount > 0)
+	// 그로기 상태 진입
+	if (bEntered)
 	{
 		GetCharacterMovement()->StopMovementImmediately();
 	}

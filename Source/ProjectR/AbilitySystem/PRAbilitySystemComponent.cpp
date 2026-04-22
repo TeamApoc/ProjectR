@@ -98,6 +98,15 @@ void UPRAbilitySystemComponent::AbilitySpecInputReleased(FGameplayAbilitySpec& S
 	}
 }
 
+void UPRAbilitySystemComponent::OnTagUpdated(const FGameplayTag& Tag, bool TagExists)
+{
+	Super::OnTagUpdated(Tag, TagExists);
+	if (OnGameplayTagUpdated.IsBound())
+	{
+		OnGameplayTagUpdated.Broadcast(Tag, TagExists);
+	}
+}
+
 // =====  AbilitySet 부여/해제 =====
 
 void UPRAbilitySystemComponent::GiveAbilitySet(const UPRAbilitySet* AbilitySet, FPRAbilitySetHandles& OutHandles)

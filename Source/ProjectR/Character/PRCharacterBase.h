@@ -7,6 +7,7 @@
 #include "AbilitySystemInterface.h"
 #include "PRCharacterBase.generated.h"
 
+struct FGameplayTag;
 class UPRAbilitySet;
 class UAbilitySystemComponent;
 class UPRAbilitySystemComponent;
@@ -37,6 +38,12 @@ public:
 protected:
 	/*~ AActor Interface ~*/
 	virtual void BeginPlay() override;
+	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
+	
+	/*~ APRCharacterBase Interface ~*/
+	void BindTagChangeEvent();
+	// ASC의 OwnedTags 스택 변경 이벤트 핸들러, TagExists가 true 면 태그 추가, false면 태그 제거
+	virtual void HandleGameplayTagUpdated(const FGameplayTag& ChangedTag, bool TagExists);
 	
 protected:
 	UPROPERTY(EditAnywhere, Category = "PR Config|Character")

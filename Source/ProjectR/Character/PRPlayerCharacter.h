@@ -70,8 +70,6 @@ protected:
 
 	UFUNCTION(Server, Reliable, WithValidation)
 	void Server_SetAiming(bool bNewAiming);
-
-	void CrouchPressed();
 	
 	void HandleMovementInputTag(FGameplayTag InputTag, bool bPressed);
 	
@@ -108,9 +106,6 @@ protected:
 	
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Input")
 	TObjectPtr<UInputAction> WalkAction;
-
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Input")
-	TObjectPtr<UInputAction> CrouchAction;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Input")
 	TObjectPtr<UInputAction> AimAction;

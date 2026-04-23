@@ -33,6 +33,9 @@ protected:
 	UPROPERTY(BlueprintReadOnly)
 	bool bIsAiming;
 	
+	UPROPERTY(BlueprintReadOnly)
+	bool bIsWalking;
+	
 	UPROPERTY(BlueprintReadOnly, Category = "Flags")
 	bool bShouldMove;
 	
@@ -48,15 +51,21 @@ protected:
 	
 	// 우측 기준 방향 각도
 	UPROPERTY(BlueprintReadOnly, Category = "Movement")
-	float R_OrientationAngle;
+	float FR_OrientationAngle;
+	
+	// 좌측 기준 방향 각도
+	UPROPERTY(BlueprintReadOnly, Category = "Movement")
+	float FL_OrientationAngle;
 	
 	// 후방 기준 방향 각도
 	UPROPERTY(BlueprintReadOnly, Category = "Movement")
 	float B_OrientationAngle;
 	
-	// 좌측 기준 방향 각도
 	UPROPERTY(BlueprintReadOnly, Category = "Movement")
-	float L_OrientationAngle;
+	float BL_OrientationAngle;
+	
+	UPROPERTY(BlueprintReadOnly, Category = "Movement")
+	float BR_OrientationAngle;
 	
 	UPROPERTY(BlueprintReadOnly, Category = "Movement")
 	float LeanDirection;
@@ -72,4 +81,14 @@ protected:
 	
 	UPROPERTY(BlueprintReadOnly, Category = "Movement|Aiming")
 	float RootYawOffset;
+	
+	UPROPERTY(BlueprintReadOnly, Category = "Movement")
+	float XYSpeed;
+	
+	UPROPERTY(BlueprintReadOnly, Category = "Movement")
+	float Direction;
+	
+	// 레이어의 AnimGraph에서 사용할 변수
+	UPROPERTY(BlueprintReadOnly, Category = "Movement")
+	EPRTurnAngle TargetTurnAngle = EPRTurnAngle::None;
 };

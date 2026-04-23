@@ -59,6 +59,9 @@ APRPlayerCharacter::APRPlayerCharacter()
 
 	// 초기 속도 설정
 	GetCharacterMovement()->MaxWalkSpeed = JogSpeed;
+	
+	// 루트모션을 통한 회전 켜기
+	GetCharacterMovement()->bAllowPhysicsRotationDuringAnimRootMotion = true;
 }
 
 // =====  ASC 연동 =====
@@ -262,7 +265,20 @@ void APRPlayerCharacter::UpdateMaxWalkSpeed()
 	}
 	
 	// 조준/걷기일 때는 캐릭터가 항상 카메라 정면을 바라보게 합니다.
-	bUseControllerRotationYaw = bIsStrafeMode;
+	bUseControllerRotationYaw = false;
+	
+	// Strafe 모드에서도 bUseControllerRotationYaw를 꺼야 제자리 회전이 동작합니다.
+	if (UCharacterMovementComponent* MoveComp = GetCharacterMovement())
+	{
+		MoveComp->bOrientRotationToMovement = !bIsStrafeMode;
+
+		// 조준 중(Strafe)일 때 이동하면 카메라 방향으로 부드럽게 회전하도록 설정
+		bool bIsMoving = GetVelocity().Size2D() > 10.0f;
+		MoveComp->bOrientRotationToMovement = !bIsStrafeMode && bIsMoving;
+		MoveComp->bUseControllerDesiredRotation = bIsStrafeMode && bIsMoving;
+		
+		MoveComp->bAllowPhysicsRotationDuringAnimRootMotion = true;
+	}
 }
 
 /*~ 상태 변경 및 동기화 ~*/
@@ -360,18 +376,4 @@ void APRPlayerCharacter::OnRep_IsSprinting()
 void APRPlayerCharacter::OnRep_IsAiming()
 {
     UpdateMaxWalkSpeed();
-}
-
-
-float APRPlayerCharacter::GetDesiredLookDirection() const
-{
-	if (IsValid(Controller))
-	{
-		// 카메라(Control) 방향과 캐릭터 방향의 차이를 계산하여 Lean 애니메이션 등에 활용
-		FRotator ControlRot = GetControlRotation();
-		FRotator ActorRot = GetActorRotation();
-		FRotator Delta = UKismetMathLibrary::NormalizedDeltaRotator(ControlRot, ActorRot);
-		return Delta.Yaw;
-	}
-	return 0.0f;
 }

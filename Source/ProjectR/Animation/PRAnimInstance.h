@@ -1,4 +1,4 @@
-﻿// Fill out your copyright notice in the Description page of Project Settings.
+// Fill out your copyright notice in the Description page of Project Settings.
 
 #pragma once
 
@@ -28,9 +28,9 @@ private:
 	void UpdateFlags();
 	void UpdateMovementMode();
 	void UpdateAim();
-	void UpdateLean();
 	void UpdateTurnInPlace();
 	void UpdateRootYawOffset();
+	void DetermineTargetTurnAngle(); // 앵글 계산 함수
 
 public:
 	/*~ 캐릭터 참조 ~*/
@@ -81,19 +81,20 @@ public:
 	
 	// 우측 기준 방향 각도
 	UPROPERTY(BlueprintReadOnly, Category = "Movement")
-	float R_OrientationAngle;
+	float FR_OrientationAngle;
+	
+	UPROPERTY(BlueprintReadOnly, Category = "Movement")
+	float FL_OrientationAngle;
 	
 	// 후방 기준 방향 각도
 	UPROPERTY(BlueprintReadOnly, Category = "Movement")
 	float B_OrientationAngle;
 	
-	// 좌측 기준 방향 각도
 	UPROPERTY(BlueprintReadOnly, Category = "Movement")
-	float L_OrientationAngle;
+	float BR_OrientationAngle;
 	
-	// 기울어짐 방향
 	UPROPERTY(BlueprintReadOnly, Category = "Movement")
-	float LeanDirection;
+	float BL_OrientationAngle;
 	
 	UPROPERTY(BlueprintReadOnly, Category = "Movement")
 	bool bHasAcceleration;
@@ -114,6 +115,9 @@ public:
 	bool bIsAiming;
 	
 	UPROPERTY(BlueprintReadOnly, Category = "Movement")
+	bool bIsWalking;
+	
+	UPROPERTY(BlueprintReadOnly, Category = "Movement")
 	ELandState LandState;
 	
 	UPROPERTY(BlueprintReadOnly, Category = "Movement|Aiming")
@@ -121,12 +125,6 @@ public:
 	
 	UPROPERTY(BlueprintReadOnly, Category = "Movement|Aiming")
 	float AimYaw;
-	
-	UPROPERTY(EditDefaultsOnly, Category = "TurnInPlace|Config")
-	FName TurnYawWeightCurveName = FName("TurnYawWeight");
-	
-	UPROPERTY(EditDefaultsOnly, Category = "TurnInPlace|Config")
-	FName RemainingTurnYawCurveName = FName("RemainingTurnYaw");
 	
 	// 현재 Turn 중인지 여부 (TurnYawWeight 커브 기반)
 	UPROPERTY(BlueprintReadOnly, Category = "Turn In Place")
@@ -142,7 +140,7 @@ public:
 	
 	// Turn 시작 임계값
 	UPROPERTY(EditDefaultsOnly, Category = "TurnInPlace|Config")
-	float TurnStartThreshold = 90.0f;
+	float TurnStartThreshold = 180.0f;
 
 	// Turn 종료 임계값
 	UPROPERTY(EditDefaultsOnly, Category = "TurnInPlace|Config")
@@ -151,15 +149,31 @@ public:
 	// Offset 보간 속도
 	UPROPERTY(EditDefaultsOnly, Category = "TurnInPlace|Config")
 	float RootYawOffsetInterpSpeed = 10.0f;
+
+	UPROPERTY(BlueprintReadOnly, Category = "Movement")
+	EPRTurnAngle TargetTurnAngle = EPRTurnAngle::None;
+	
+	// turn 중인지 판단하는 커브값
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Animation|Curve Names")
+	FName TurnYawWeightCurveName = FName(TEXT("TurnYawWeight"));
+	
+	// turn 진행도
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Animation|Curve Names")
+	FName TurnRotationCurveName = FName(TEXT("TurnRotationAlpha"));
+	
+	// 조준중, 걷는중에는 strafe
+	UPROPERTY(BlueprintReadOnly, Category = "Movement")
+	bool bIsStrafeMode; // (bIsAiming || bIsWalking)
 	
 private:
-	// 이전 프레임의 RemainingTurnYaw (델타 계산용)
-	float PreviousRemainingTurnYaw;
 	// Turn 시작 시점의 Yaw 저장
-	float TurnStartYaw;
+	float TurnStartYaw = 0.0f;
 	float DistanceCurve = 0.0f;
 	float LastDistanceCurve = 0.0f;
 	FRotator MovingRotation = FRotator::ZeroRotator;
 	FRotator LastMovingRotation = FRotator::ZeroRotator;
+	const float TurnThreshold = 90.0f;
+	// 이전 프레임의 카메라 회전값 (오프셋 누적용)
+	FRotator LastCameraRotation;
 	
 };

@@ -22,7 +22,7 @@ class PROJECTR_API APRPlayerCharacter : public APRCharacterBase
 public:
 	APRPlayerCharacter();
 
-	// todo : 제자리 turn 없음, lean 없음, sprint jog walk 3단계로 분류해야함
+	// todo : 제자리 turn 없음, sprint jog walk 3단계로 분류해야함
 	
 	/** 멀티플레이어 변수 복제 설정 */
 	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
@@ -42,9 +42,6 @@ public:
 	float GetWalkSpeed() const { return WalkSpeed; }
 	float GetJogSpeed() const { return JogSpeed; }
 	float GetSprintSpeed() const { return SprintSpeed; }
-	
-	// 컨트롤 회전(카메라)과 캐릭터 정면 사이의 Yaw 차이를 반환 (Lean 및 절차적 애니메이션용)
-	float GetDesiredLookDirection() const;            
 	
 protected:
 	virtual void BeginPlay() override;

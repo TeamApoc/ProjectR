@@ -43,22 +43,6 @@ void UBTService_PRUpdateEnemyCombatBlackboard::TickNode(UBehaviorTreeComponent& 
 	BlackboardComponent->SetValueAsVector(TargetLocationKey, TargetLocation);
 	BlackboardComponent->SetValueAsFloat(DistanceToTargetKey, DistanceToTarget);
 
-	if (BlackboardComponent->GetValueAsFloat(DesiredMeleeRangeKey) <= 0.0f)
-	{
-		// 에디터에서 Blackboard 기본값을 비워둬도 BT가 최소한의 거리 기준을 갖도록 보정한다.
-		BlackboardComponent->SetValueAsFloat(DesiredMeleeRangeKey, DefaultDesiredMeleeRange);
-	}
-
-	if (BlackboardComponent->GetValueAsFloat(ChargeRangeMinKey) <= 0.0f)
-	{
-		BlackboardComponent->SetValueAsFloat(ChargeRangeMinKey, DefaultChargeRangeMin);
-	}
-
-	if (BlackboardComponent->GetValueAsFloat(ChargeRangeMaxKey) <= 0.0f)
-	{
-		BlackboardComponent->SetValueAsFloat(ChargeRangeMaxKey, DefaultChargeRangeMax);
-	}
-
 	FCollisionQueryParams QueryParams(SCENE_QUERY_STAT(PREnemyChargePath), false, ControlledPawn);
 	QueryParams.AddIgnoredActor(ControlledPawn);
 

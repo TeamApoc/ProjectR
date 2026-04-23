@@ -3,11 +3,8 @@
 #include "PRAnimNotify_EnemyMeleeHit.h"
 
 #include "AbilitySystemBlueprintLibrary.h"
-#include "AbilitySystemComponent.h"
-#include "Abilities/GameplayAbility.h"
 #include "Components/SkeletalMeshComponent.h"
-#include "GameplayAbilitySpec.h"
-#include "ProjectR/AbilitySystem/Abilities/Enemy/PRGameplayAbility_EnemyMeleeAttack.h"
+#include "ProjectR/Combat/PRCombatGameplayTags.h"
 
 FString UPRAnimNotify_EnemyMeleeHit::GetNotifyName_Implementation() const
 {
@@ -30,31 +27,14 @@ void UPRAnimNotify_EnemyMeleeHit::Notify(USkeletalMeshComponent* MeshComp,
 		return;
 	}
 
-	UAbilitySystemComponent* ASC = UAbilitySystemBlueprintLibrary::GetAbilitySystemComponent(OwnerActor);
-	if (!IsValid(ASC))
-	{
-		return;
-	}
+	FGameplayEventData Payload;
+	Payload.EventTag = PRCombatGameplayTags::Event_Ability_EnemyMeleeHit;
+	Payload.Instigator = OwnerActor;
+	Payload.Target = OwnerActor;
 
-	for (const FGameplayAbilitySpec& AbilitySpec : ASC->GetActivatableAbilities())
-	{
-		if (!AbilitySpec.IsActive())
-		{
-			continue;
-		}
-
-		const TArray<UGameplayAbility*> AbilityInstances = AbilitySpec.GetAbilityInstances();
-		for (UGameplayAbility* AbilityInstance : AbilityInstances)
-		{
-			// 현재 재생 중인 공격 Ability를 찾아 Notify 프레임에 맞춰 한 번만 타격시킨다.
-			UPRGameplayAbility_EnemyMeleeAttack* MeleeAbility = Cast<UPRGameplayAbility_EnemyMeleeAttack>(AbilityInstance);
-			if (!IsValid(MeleeAbility))
-			{
-				continue;
-			}
-
-			MeleeAbility->TriggerMeleeHitFromAnimation();
-			return;
-		}
-	}
+	// 실제 타격 판정은 이 이벤트를 기다리던 EnemyMeleeAttack Ability 인스턴스가 처리한다.
+	UAbilitySystemBlueprintLibrary::SendGameplayEventToActor(
+		OwnerActor,
+		PRCombatGameplayTags::Event_Ability_EnemyMeleeHit,
+		Payload);
 }

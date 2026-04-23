@@ -15,6 +15,33 @@ void APRCharacterBase::BeginPlay()
 	Super::BeginPlay();
 }
 
+void APRCharacterBase::EndPlay(const EEndPlayReason::Type EndPlayReason)
+{
+	Super::EndPlay(EndPlayReason);
+	
+	// 바인딩한 태그 변경 이벤트 제거
+	if (UPRAbilitySystemComponent* ASC = GetPRAbilitySystemComponent())
+	{
+		ASC->OnGameplayTagUpdated.RemoveAll(this);
+	}
+}
+
+void APRCharacterBase::BindTagChangeEvent()
+{
+	UPRAbilitySystemComponent* ASC = GetPRAbilitySystemComponent();
+	if (!ensureMsgf(ASC, TEXT("BindTagChangeEvent 타이밍 에러: ASC가 아직 존재하지 않음")))
+	{
+		return;
+	}
+	
+	ASC->OnGameplayTagUpdated.AddUObject(this, &ThisClass::HandleGameplayTagUpdated);
+}
+
+void APRCharacterBase::HandleGameplayTagUpdated(const FGameplayTag& ChangedTag, bool TagExists)
+{
+	
+}
+
 void APRCharacterBase::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);

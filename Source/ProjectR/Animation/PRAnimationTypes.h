@@ -18,9 +18,11 @@ UENUM(BlueprintType)
 enum class ECardinalDirection : uint8
 {
 	Forward,
-	Right,
+	ForwardRight,
+	ForwardLeft,
 	Backward,
-	Left,
+	BackwardRight,
+	BackwardLeft
 };
 
 // 캐릭터 이동 모드 (애니메이션 판별용)
@@ -31,4 +33,12 @@ enum class EPRMovementMode : uint8
 	Walking,
 	Jogging,
 	Sprinting
+};
+
+// 캐릭터 턴 각도
+UENUM(BlueprintType)
+enum class EPRTurnAngle : uint8
+{
+	None,
+	Angle90
 };

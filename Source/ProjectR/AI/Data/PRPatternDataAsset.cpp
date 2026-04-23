@@ -34,6 +34,14 @@ EDataValidationResult UPRPatternDataAsset::IsDataValid(FDataValidationContext& C
 				FString::Printf(TEXT("PatternRules[%d]의 SelectionWeight는 0보다 커야 합니다."), RuleIndex)));
 			Result = EDataValidationResult::Invalid;
 		}
+
+		if (Rule.bRestrictTacticalModes && Rule.AllowedTacticalModes.IsEmpty())
+		{
+			Context.AddError(FText::FromString(
+				FString::Printf(TEXT("PatternRules[%d]는 전술 상태 제한을 켰지만 AllowedTacticalModes가 비어 있습니다."), RuleIndex)));
+			Result = EDataValidationResult::Invalid;
+		}
+
 	}
 
 	return Result;

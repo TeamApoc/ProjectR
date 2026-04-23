@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "BehaviorTree/BTTaskNode.h"
+#include "ProjectR/AI/PREnemyAITypes.h"
 #include "BTTask_PRSelectEnemyPattern.generated.h"
 
 // PatternDataAsset의 조건/가중치를 평가해서 이번에 실행할 AbilityTag를 고르는 Task다.
@@ -28,8 +29,26 @@ protected:
 	FName HasLOSKey = TEXT("has_los");
 
 	UPROPERTY(EditAnywhere, Category = "ProjectR|Blackboard")
+	FName ChargePathClearKey = TEXT("charge_path_clear");
+
+	UPROPERTY(EditAnywhere, Category = "ProjectR|Blackboard")
 	FName TacticalModeKey = TEXT("tactical_mode");
 
 	UPROPERTY(EditAnywhere, Category = "ProjectR|Blackboard")
 	FName SelectedAbilityTagKey = TEXT("selected_ability_tag");
+
+	// 이 Task가 선택할 패턴 계열이다. Any면 계열을 제한하지 않는다.
+	UPROPERTY(EditAnywhere, Category = "ProjectR|Pattern")
+	EPRPatternCategory PatternCategoryFilter = EPRPatternCategory::Any;
+
+	// true면 ASC가 쿨다운/차단 상태 때문에 실행할 수 없는 패턴은 후보에서 제외한다.
+	UPROPERTY(EditAnywhere, Category = "ProjectR|Pattern")
+	bool bCheckAbilityCanActivate = true;
+
+	// true면 패턴 선택 성공 시 전술 모드를 공격 상태로 기록한다.
+	UPROPERTY(EditAnywhere, Category = "ProjectR|Pattern")
+	bool bSetTacticalModeOnSelection = true;
+
+	UPROPERTY(EditAnywhere, Category = "ProjectR|Pattern", meta = (EditCondition = "bSetTacticalModeOnSelection"))
+	EPRTacticalMode TacticalModeOnSelection = EPRTacticalMode::Attack;
 };

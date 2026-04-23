@@ -49,20 +49,17 @@ public:
 	const USphereComponent* GetWeakpointCollision() const { return WeakpointCollision; }
 
 protected:
+	/*~ APRCharacterBase Interface ~*/
+	virtual void HandleGameplayTagUpdated(const FGameplayTag& ChangedTag, bool TagExists) override;
+	
 	// 서버에서 ASC ActorInfo, 초기 스탯, AbilitySet을 준비한다.
 	void InitializeEnemyAbilitySystem();
-
-	// Dead/Groggy 태그 변화를 캐릭터 이동 상태와 연결한다.
-	void BindGameplayTagEvents();
-
+	
 	UFUNCTION()
 	void HandleDeath(AActor* InstigatorActor);
 
-	UFUNCTION()
-	void HandleGroggyStateChanged(bool bEntered);
-
-	void HandleDeadTagChanged(const FGameplayTag Tag, int32 NewCount);
-	void HandleGroggyTagChanged(const FGameplayTag Tag, int32 NewCount);
+	void HandleDeadTagChanged(bool bEntered);
+	void HandleGroggyTagChanged(bool bEntered);
 
 protected:
 	// 적은 PlayerState가 아니라 캐릭터 자신이 ASC를 소유한다.
@@ -78,7 +75,7 @@ protected:
 	UPROPERTY(VisibleAnywhere, Category = "ProjectR|AI")
 	TObjectPtr<UPREnemyThreatComponent> ThreatComponent;
 
-	// 상태 태그를 GameplayEvent로 바꿔 Groggy/Death Ability를 트리거한다.
+	// 기존 BP 서브오브젝트 참조 보호용 컴포넌트다. 상태 이벤트는 AttributeSet/BossBase가 직접 발행한다.
 	UPROPERTY(VisibleAnywhere, Category = "ProjectR|AI")
 	TObjectPtr<UPREnemyCombatEventRelayComponent> CombatEventRelayComponent;
 

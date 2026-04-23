@@ -10,7 +10,7 @@ class UAbilityTask_PlayMontageAndWait;
 class UAnimMontage;
 
 // State.Dead 이벤트를 받아 적을 사망 상태로 고정하는 Ability다.
-// 진행 중인 공격을 취소하고 이동을 막은 뒤 사망 몽타주를 재생한다.
+// 공격 취소는 GA의 CancelAbilitiesWithTag 설정을 쓰고, C++은 이동 잠금과 사망 몽타주만 처리한다.
 UCLASS(Abstract)
 class PROJECTR_API UPRGameplayAbility_EnemyDeath : public UPRGameplayAbility_EnemyBase
 {
@@ -40,10 +40,6 @@ protected:
 	void FinishDeath(bool bWasCancelled);
 
 protected:
-	// 사망 시 즉시 중단할 공격/패턴 Ability 태그 목록이다.
-	UPROPERTY(EditDefaultsOnly, Category = "ProjectR|Combat")
-	FGameplayTagContainer CancelAbilityTags;
-
 	// 사망 중 재생할 몽타주다.
 	UPROPERTY(EditDefaultsOnly, Category = "ProjectR|Animation")
 	TObjectPtr<UAnimMontage> DeathMontage;

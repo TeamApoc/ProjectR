@@ -1,6 +1,7 @@
 // Copyright ProjectR. All Rights Reserved.
 
 #include "PRAttributeSet_Enemy.h"
+#include "AbilitySystemBlueprintLibrary.h"
 #include "GameplayEffectExtension.h"
 #include "Net/UnrealNetwork.h"
 #include "ProjectR/PRGameplayTags.h"
@@ -41,11 +42,30 @@ void UPRAttributeSet_Enemy::PostGameplayEffectExecute(const FGameplayEffectModCa
 			if (Current <= 0.0f && !bHasTag)
 			{
 				ASC->AddLooseGameplayTag(GroggyTag);
+				ASC->AddReplicatedLooseGameplayTag(GroggyTag);
+
+				AActor* Instigator = Data.EffectSpec.GetContext().GetOriginalInstigator();
+				AActor* AvatarActor = ASC->GetAvatarActor();
+				if (IsValid(AvatarActor) && AvatarActor->HasAuthority())
+				{
+					FGameplayEventData Payload;
+					Payload.EventTag = PRGameplayTags::Event_Ability_GroggyEntered;
+					Payload.Instigator = Instigator;
+					Payload.Target = AvatarActor;
+
+					// 그로기 진입 판정이 확정된 서버 지점에서 Ability 트리거 이벤트를 직접 발행한다.
+					UAbilitySystemBlueprintLibrary::SendGameplayEventToActor(
+						AvatarActor,
+						PRGameplayTags::Event_Ability_GroggyEntered,
+						Payload);
+				}
+
 				OnGroggyStateChanged.Broadcast(true);
 			}
 			else if (Current >= GetMaxGroggyGauge() && bHasTag)
 			{
 				ASC->RemoveLooseGameplayTag(GroggyTag);
+				ASC->RemoveReplicatedLooseGameplayTag(GroggyTag);
 				OnGroggyStateChanged.Broadcast(false);
 			}
 		}

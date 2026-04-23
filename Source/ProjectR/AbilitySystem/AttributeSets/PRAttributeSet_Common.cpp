@@ -1,6 +1,7 @@
 // Copyright ProjectR. All Rights Reserved.
 
 #include "PRAttributeSet_Common.h"
+#include "AbilitySystemBlueprintLibrary.h"
 #include "GameplayEffectExtension.h"
 #include "Net/UnrealNetwork.h"
 #include "ProjectR/PRGameplayTags.h"
@@ -40,8 +41,24 @@ void UPRAttributeSet_Common::PostGameplayEffectExecute(const FGameplayEffectModC
 				if (!ASC->HasMatchingGameplayTag(DeadTag))
 				{
 					ASC->AddLooseGameplayTag(DeadTag);
+					ASC->AddReplicatedLooseGameplayTag(DeadTag);
 
 					AActor* Instigator = Data.EffectSpec.GetContext().GetOriginalInstigator();
+					AActor* AvatarActor = ASC->GetAvatarActor();
+					if (IsValid(AvatarActor) && AvatarActor->HasAuthority())
+					{
+						FGameplayEventData Payload;
+						Payload.EventTag = PRGameplayTags::Event_Ability_Death;
+						Payload.Instigator = Instigator;
+						Payload.Target = AvatarActor;
+
+						// 사망 이벤트는 AttributeSet에서 직접 발행해 별도 릴레이 컴포넌트 의존을 줄인다.
+						UAbilitySystemBlueprintLibrary::SendGameplayEventToActor(
+							AvatarActor,
+							PRGameplayTags::Event_Ability_Death,
+							Payload);
+					}
+
 					OnDeath.Broadcast(Instigator);
 				}
 			}

@@ -19,7 +19,8 @@ public class ProjectR : ModuleRules
 			"GameplayTags",
 			"GameplayTasks",
 			"DeveloperSettings",
-			"NavigationSystem"
+			"NavigationSystem",
+			"MotionWarping"
 		});
 
 		PrivateDependencyModuleNames.AddRange(new string[] { "AnimGraphRuntime" });

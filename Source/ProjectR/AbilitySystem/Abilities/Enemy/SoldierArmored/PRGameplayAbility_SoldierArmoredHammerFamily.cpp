@@ -14,6 +14,7 @@ UPRGameplayAbility_SoldierArmoredHammerFamily::UPRGameplayAbility_SoldierArmored
 {
 	SetAssetTags(PRSoldierArmoredAbility::MakePatternAssetTags(PRSoldierArmoredGameplayTags::Ability_Enemy_SoldierArmored_HammerFamily));
 	AbilityTag = PRSoldierArmoredGameplayTags::Ability_Enemy_SoldierArmored_HammerFamily;
+	bAllowMultipleMeleeHits = true;
 }
 
 void UPRGameplayAbility_SoldierArmoredHammerFamily::ActivateAbility(const FGameplayAbilitySpecHandle Handle,
@@ -105,12 +106,15 @@ void UPRGameplayAbility_SoldierArmoredHammerFamily::HandleComboWindowGameplayEve
 
 void UPRGameplayAbility_SoldierArmoredHammerFamily::BindComboWindowEvent()
 {
+	constexpr bool bOnlyTriggerOnce = false;
+	constexpr bool bOnlyMatchExact = true;
+
 	ActiveComboWindowEventTask = UAbilityTask_WaitGameplayEvent::WaitGameplayEvent(
 		this,
 		PRCombatGameplayTags::Event_Ability_EnemyComboWindow,
 		nullptr,
-		true,
-		true);
+		bOnlyTriggerOnce,
+		bOnlyMatchExact);
 
 	if (IsValid(ActiveComboWindowEventTask))
 	{
@@ -130,6 +134,7 @@ void UPRGameplayAbility_SoldierArmoredHammerFamily::JumpToSection(FName SectionN
 	{
 		CurrentHammerSection = NewSection;
 		ApplyCurrentHitConfig();
+		RefreshAttackFacing(false);
 		ASC->CurrentMontageJumpToSection(SectionName);
 	}
 }

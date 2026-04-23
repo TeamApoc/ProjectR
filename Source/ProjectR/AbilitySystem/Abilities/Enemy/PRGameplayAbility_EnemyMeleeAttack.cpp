@@ -9,6 +9,7 @@
 #include "DrawDebugHelpers.h"
 #include "GameFramework/Character.h"
 #include "GameFramework/CharacterMovementComponent.h"
+#include "MotionWarpingComponent.h"
 #include "ProjectR/AI/Components/PREnemyThreatComponent.h"
 #include "ProjectR/Character/Enemy/PREnemyBaseCharacter.h"
 #include "ProjectR/Combat/PRCombatGameplayTags.h"
@@ -44,6 +45,8 @@ void UPRGameplayAbility_EnemyMeleeAttack::ActivateAbility(const FGameplayAbility
 		SourceCharacter->GetCharacterMovement()->StopMovementImmediately();
 	}
 
+	RefreshAttackFacing(bFaceTargetOnAbilityStart);
+
 	UWorld* World = GetWorld();
 	if (!IsValid(World))
 	{
@@ -74,14 +77,17 @@ void UPRGameplayAbility_EnemyMeleeAttack::ActivateAbility(const FGameplayAbility
 
 	if (bUseAnimationNotifyForHit)
 	{
+		const bool bOnlyTriggerOnce = !bAllowMultipleMeleeHits;
+		constexpr bool bOnlyMatchExact = true;
+
 		// AnimNotify는 GameplayEvent만 발행
 		// 활성 Ability 인스턴스에서 이벤트를 받아 서버 판정 실행
 		ActiveMeleeHitEventTask = UAbilityTask_WaitGameplayEvent::WaitGameplayEvent(
 			this,
 			PRCombatGameplayTags::Event_Ability_EnemyMeleeHit,
 			nullptr,
-			true,
-			true);
+			bOnlyTriggerOnce,
+			bOnlyMatchExact);
 
 		if (IsValid(ActiveMeleeHitEventTask))
 		{
@@ -190,12 +196,16 @@ void UPRGameplayAbility_EnemyMeleeAttack::HandleAttackMontageInterrupted()
 
 void UPRGameplayAbility_EnemyMeleeAttack::TriggerMeleeHitOnce()
 {
-	if (bMeleeAttackFinished || bMeleeHitTriggered)
+	if (bMeleeAttackFinished || (!bAllowMultipleMeleeHits && bMeleeHitTriggered))
 	{
 		return;
 	}
 
 	bMeleeHitTriggered = true;
+	if (bAllowMultipleMeleeHits)
+	{
+		DamagedActors.Reset();
+	}
 
 	if (UWorld* World = GetWorld())
 	{
@@ -213,6 +223,7 @@ void UPRGameplayAbility_EnemyMeleeAttack::ExecuteMeleeHit()
 		return;
 	}
 
+	RefreshAttackFacing(bFaceTargetOnMeleeHit);
 	ApplyForwardLunge(SourceCharacter);
 
 	const FVector Forward = SourceCharacter->GetActorForwardVector();
@@ -293,6 +304,62 @@ void UPRGameplayAbility_EnemyMeleeAttack::ApplyForwardLunge(ACharacter* SourceCh
 	SourceCharacter->AddActorWorldOffset(MoveDelta, true, &SweepHit);
 }
 
+AActor* UPRGameplayAbility_EnemyMeleeAttack::GetCurrentThreatTarget() const
+{
+	const APREnemyBaseCharacter* EnemyCharacter = GetEnemyAvatarCharacter();
+	const UPREnemyThreatComponent* ThreatComponent = IsValid(EnemyCharacter)
+		? EnemyCharacter->GetEnemyThreatComponent()
+		: nullptr;
+
+	return IsValid(ThreatComponent)
+		? ThreatComponent->GetCurrentTarget()
+		: nullptr;
+}
+
+void UPRGameplayAbility_EnemyMeleeAttack::RefreshAttackFacing(bool bApplyActorRotation) const
+{
+	AActor* AvatarActor = GetAvatarActorFromActorInfo();
+	AActor* TargetActor = GetCurrentThreatTarget();
+	if (!IsValid(AvatarActor) || !IsValid(TargetActor))
+	{
+		return;
+	}
+
+	const FVector AvatarLocation = AvatarActor->GetActorLocation();
+	const FVector TargetLocation = TargetActor->GetActorLocation();
+	FVector DirectionToTarget = TargetLocation - AvatarLocation;
+	DirectionToTarget.Z = 0.0f;
+	if (DirectionToTarget.IsNearlyZero())
+	{
+		return;
+	}
+
+	FRotator FacingRotation = DirectionToTarget.Rotation();
+	FacingRotation.Pitch = 0.0f;
+	FacingRotation.Roll = 0.0f;
+
+	if (bApplyActorRotation)
+	{
+		AvatarActor->SetActorRotation(FacingRotation);
+	}
+
+	if (!bUpdateMotionWarpTarget || MotionWarpTargetName == NAME_None)
+	{
+		return;
+	}
+
+	UMotionWarpingComponent* MotionWarpingComponent = AvatarActor->FindComponentByClass<UMotionWarpingComponent>();
+	if (!IsValid(MotionWarpingComponent))
+	{
+		return;
+	}
+
+	const FVector WarpLocation = bUseTargetLocationForMotionWarping
+		? TargetLocation
+		: AvatarLocation;
+	MotionWarpingComponent->AddOrUpdateWarpTargetFromLocationAndRotation(MotionWarpTargetName, WarpLocation, FacingRotation);
+}
+
 bool UPRGameplayAbility_EnemyMeleeAttack::ShouldDamageActor(const AActor* CandidateActor) const
 {
 	if (!IsValid(CandidateActor) || CandidateActor == GetAvatarActorFromActorInfo())
@@ -317,5 +384,5 @@ bool UPRGameplayAbility_EnemyMeleeAttack::ShouldDamageActor(const AActor* Candid
 
 	// 기본 판정 대상은 현재 ThreatTarget
 	// 주변 플레이어 광역 공격은 옵션 해제 후 별도 패턴 구성
-	return IsValid(ThreatComponent) && ThreatComponent->GetCurrentTarget() == CandidateActor;
+	return GetCurrentThreatTarget() == CandidateActor;
 }

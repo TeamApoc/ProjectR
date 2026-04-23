@@ -58,53 +58,6 @@ void UPRAnimInstance::UpdateAcceleration()
 	LocalAcceleration2D = ActorRotation.UnrotateVector(AccelerationXY);
 }
 
-// void UPRAnimInstance::UpdateDirection()
-// {
-// 	if (XYSpeed < MoveSpeedThreshold)
-// 	{
-// 		return;
-// 	}
-//
-// 	FRotator ActorRotation = PlayerCharacter->GetActorRotation();
-// 	Direction = UKismetAnimationLibrary::CalculateDirection(Velocity2D, ActorRotation);
-//
-// 	/*~ 6방향 판정 및 Warping 각도 계산 ~*/
-// 	// 각 방향의 기준값: F(0), FR(45), BR(135), B(180), BL(-135), FL(-45)
-//
-// 	if (Direction >= -25.f && Direction <= 25.f)
-// 	{
-// 		CardinalDirection = ECardinalDirection::Forward;
-// 		F_OrientationAngle = Direction; // 0도 기준
-// 	}
-// 	else if (Direction > 25.f && Direction <= 95.f)
-// 	{
-// 		CardinalDirection = ECardinalDirection::ForwardRight;
-// 		FR_OrientationAngle = Direction - 45.f; // 45도 애니메이션 기준 보정
-// 	}
-// 	else if (Direction > 95.f && Direction <= 155.f)
-// 	{
-// 		CardinalDirection = ECardinalDirection::BackwardRight;
-// 		BR_OrientationAngle = Direction - 135.f; // 135도 애니메이션 기준 보정
-// 	}
-// 	else if (Direction > 155.f || Direction <= -155.f)
-// 	{
-// 		CardinalDirection = ECardinalDirection::Backward;
-// 		// 180도 경계값 처리
-// 		float NormalizedB = (Direction > 0) ? (Direction - 180.f) : (Direction + 180.f);
-// 		B_OrientationAngle = NormalizedB; 
-// 	}
-// 	else if (Direction > -155.f && Direction <= -95.f)
-// 	{
-// 		CardinalDirection = ECardinalDirection::BackwardLeft;
-// 		BL_OrientationAngle = Direction + 135.f; // -135도 애니메이션 기준 보정
-// 	}
-// 	else if (Direction > -95.f && Direction < -25.f)
-// 	{
-// 		CardinalDirection = ECardinalDirection::ForwardLeft;
-// 		FL_OrientationAngle = Direction + 45.f; // -45도 애니메이션 기준 보정
-// 	}
-// }
-
 void UPRAnimInstance::UpdateDirection()
 {
 	if (XYSpeed < MoveSpeedThreshold) return;
@@ -171,34 +124,6 @@ void UPRAnimInstance::UpdateMovementMode()
 	MovementMode = (XYSpeed <= Threshold) ? EPRMovementMode::Walking : EPRMovementMode::Jogging;
 }
 
-// void UPRAnimInstance::UpdateAim()
-// {
-// 	// RootYawOffset은 (Actor - Aim)이므로,
-// 	// AimOffset(Aim - Actor)에 적용하려면 부호를 반대로 해야 합니다.
-// 	float DesiredAimYaw = -RootYawOffset;
-//
-// 	if (!bIsStrafeMode)
-// 	{
-// 		// Relax 모드: 90도 근처면 고개를 정면으로 (0) 부드럽게 복구
-// 		if (FMath::Abs(RootYawOffset) >= TurnThreshold - 1.0f)
-// 		{
-// 			AimYaw = FMath::FInterpTo(AimYaw, 0.0f, GetWorld()->GetDeltaSeconds(), 5.0f);
-// 		}
-// 		else
-// 		{
-// 			AimYaw = DesiredAimYaw;
-// 		}
-// 	}
-// 	else
-// 	{
-// 		// Strafe 모드: 턴이 돌 때까지 AimOffset 유지
-// 		AimYaw = DesiredAimYaw;
-// 	}
-//
-// 	FRotator AimRotation = PlayerCharacter->GetBaseAimRotation();
-// 	FRotator ActorRotation = PlayerCharacter->GetActorRotation();
-// 	AimPitch = UKismetMathLibrary::NormalizedDeltaRotator(AimRotation, ActorRotation).Pitch;
-// }
 
 void UPRAnimInstance::UpdateTurnInPlace()
 {
@@ -222,41 +147,6 @@ void UPRAnimInstance::UpdateTurnInPlace()
 	}
 }
 
-// void UPRAnimInstance::UpdateRootYawOffset()
-// {
-// 	if (bShouldMove || bIsFalling)
-// 	{
-// 		// 이동 중일 때는 오프셋을 초기화하여 메시가 정면을 보게 함
-// 		RootYawOffset = FMath::FInterpTo(RootYawOffset, 0.0f, GetWorld()->GetDeltaSeconds(), RootYawOffsetInterpSpeed);
-// 		return;
-// 	}
-//
-// 	// 1. 현재 캡슐과 카메라의 각도 차이를 직접 구합니다.
-// 	FRotator ActorRot = PlayerCharacter->GetActorRotation();
-// 	FRotator AimRot = PlayerCharacter->GetBaseAimRotation();
-// 	// (Actor - Aim)을 하면 캡슐 기준 카메라가 어디 있는지 나옵니다.
-// 	float TargetOffset = UKismetMathLibrary::NormalizedDeltaRotator(ActorRot, AimRot).Yaw;
-//
-// 	// 2. 상태별 처리
-// 	if (bIsTurningInPlace)
-// 	{
-// 		// 턴 중에는 루트 모션이 캡슐을 돌리므로, 실시간 각도 차이를 그대로 반영 (클램프 해제)
-// 		RootYawOffset = TargetOffset;
-// 	}
-// 	else if (bIsStrafeMode)
-// 	{
-// 		// Strafe: 90도까지는 메시가 고정되고, 넘어가면 90도로 클램프 (이후 DetermineTargetTurnAngle에서 턴 발동)
-// 		RootYawOffset = FMath::Clamp(TargetOffset, -TurnThreshold, TurnThreshold);
-// 	}
-// 	else
-// 	{
-// 		// Relax: 항상 90도 내로 제한 (턴 애니메이션 없음)
-// 		//RootYawOffset = FMath::Clamp(TargetOffset, -TurnThreshold, TurnThreshold);
-// 		RootYawOffset = 0.0f;
-// 	}
-//
-// 	RemainingTurnYaw = RootYawOffset;
-// }
 
 void UPRAnimInstance::UpdateRootYawOffset()
 {

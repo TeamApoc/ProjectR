@@ -152,8 +152,6 @@ void APRPlayerCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputC
 		
 		EnhancedInputComponent->BindAction(WalkAction, ETriggerEvent::Started, this, &APRPlayerCharacter::WalkPressed);
 
-		EnhancedInputComponent->BindAction(CrouchAction, ETriggerEvent::Started, this, &APRPlayerCharacter::CrouchPressed);
-
 		EnhancedInputComponent->BindAction(AimAction, ETriggerEvent::Started, this, &APRPlayerCharacter::AimStarted);
 		EnhancedInputComponent->BindAction(AimAction, ETriggerEvent::Completed, this, &APRPlayerCharacter::AimEnded);
 	}
@@ -338,19 +336,6 @@ void APRPlayerCharacter::Server_SetAiming_Implementation(bool bNewAiming)
 {
 	bIsAiming = bNewAiming;
 	UpdateMaxWalkSpeed();
-}
-
-
-void APRPlayerCharacter::CrouchPressed()
-{
-	if (CanCrouch())
-	{
-		Crouch();
-	}
-	else if (bIsCrouched)
-	{
-		UnCrouch();
-	}
 }
 
 void APRPlayerCharacter::HandleMovementInputTag(FGameplayTag InputTag, bool bPressed)

@@ -6,6 +6,8 @@
 #include "ProjectR/AbilitySystem/PRGameplayAbility.h"
 #include "PRPlayerCrouchAbility.generated.h"
 
+class UPRCameraModifier;
+
 /**
  * 캐릭터의 앉기/일어서기를 제어하는 어빌리티
  */
@@ -34,6 +36,11 @@ private:
 	UFUNCTION()
 	void OnCrouchInputPressed(float TimeWaited);
 	
+	/** 활성화된 카메라 모디파이어 (구르기 종료 시 비활성화하기 위함) */
+	UPROPERTY()
+	TObjectPtr<UPRCameraModifier> ActiveCameraModifier;
+	
+private:
 	/** 서버 데이터 수신 여부 */
 	bool bServerReceivedLocation = false;
 	FVector_NetQuantize100 SavedLocation;

@@ -6,6 +6,7 @@
 #include "ProjectR/Character/PRPlayerCharacter.h"
 #include "Abilities/Tasks/AbilityTask_WaitInputPress.h"
 #include "ProjectR/PRGameplayTags.h"
+#include "ProjectR/Player/PRCameraModifier.h"
 
 UPRPlayerCrouchAbility::UPRPlayerCrouchAbility()
 {
@@ -67,6 +68,12 @@ void UPRPlayerCrouchAbility::EndAbility(const FGameplayAbilitySpecHandle SpecHan
 		Character->UnCrouch();
 	}
 	
+	if (ActiveCameraModifier)
+	{
+		ActiveCameraModifier->DisableModifier(true); 
+		ActiveCameraModifier = nullptr;
+	}
+	
 	bServerReceivedLocation = false;
 	Super::EndAbility(SpecHandle, ActorInfo, ActivationInfo, bReplicateEndAbility, bWasCancelled);
 }
@@ -81,6 +88,26 @@ void UPRPlayerCrouchAbility::ExecuteCrouch()
 		UAbilityTask_WaitInputPress* WaitInputTask = UAbilityTask_WaitInputPress::WaitInputPress(this);
 		WaitInputTask->OnPress.AddDynamic(this, &UPRPlayerCrouchAbility::OnCrouchInputPressed);
 		WaitInputTask->Activate();
+		
+		// 카메라 모디파이어 추가 (로컬 플레이어만 적용)
+		if (IsLocallyControlled())
+		{
+			if (APlayerController* PC = Cast<APlayerController>(Character->GetController()))
+			{
+				if (APlayerCameraManager* CameraManager = PC->PlayerCameraManager)
+				{
+					// 모디파이어를 생성하고 매니저에 부착 (AlphaInTime에 맞춰 부드럽게 시야가 변함)
+					ActiveCameraModifier = Cast<UPRCameraModifier>(
+						CameraManager->AddNewCameraModifier(UPRCameraModifier::StaticClass())
+					);
+
+					if (ActiveCameraModifier)
+					{
+						ActiveCameraModifier->SetActionCameraSettings(60.0f, FVector(0.f, 0.f, 0.f));
+					}
+				}
+			}
+		}
 	}
 }
 
@@ -100,3 +127,4 @@ void UPRPlayerCrouchAbility::Server_SendCrouchLocation_Implementation(FVector_Ne
 		ExecuteCrouch();
 	}
 }
+

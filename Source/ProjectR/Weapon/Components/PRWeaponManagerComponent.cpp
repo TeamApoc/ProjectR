@@ -4,6 +4,7 @@
 
 #include "Engine/World.h"
 #include "GameFramework/Character.h"
+#include "Logging/LogMacros.h"
 #include "Net/UnrealNetwork.h"
 #include "ProjectR/Weapon/Actors/PRWeaponActor.h"
 #include "ProjectR/Weapon/Data/PRWeaponDataAsset.h"
@@ -79,6 +80,23 @@ void UPRWeaponManagerComponent::EquipTestWeaponToSlot(UPRWeaponDataAsset* Weapon
 	Server_EquipTestWeaponToSlot(WeaponData, TargetSlot);
 }
 
+void UPRWeaponManagerComponent::SwapActiveSlot(EPRWeaponSlotType TargetSlot)
+{
+	// 지원하지 않는 슬롯 요청이면 서버 전송 전에 차단한다.
+	if (!IsSupportedSlot(TargetSlot))
+	{
+		return;
+	}
+
+	if (IsValid(GetOwner()) && GetOwner()->HasAuthority())
+	{
+		SwapActiveSlotInternal(TargetSlot);
+		return;
+	}
+
+	Server_SwapActiveSlot(TargetSlot);
+}
+
 void UPRWeaponManagerComponent::SetWeaponArmedState(EPRWeaponArmedState NewArmedState)
 {
 	if (IsValid(GetOwner()) && GetOwner()->HasAuthority())
@@ -131,6 +149,53 @@ void UPRWeaponManagerComponent::SetWeaponArmedStateInternal(EPRWeaponArmedState 
 
 	ArmedState = NewArmedState;
 	RefreshVisualSlotsFromCurrentState();
+	RefreshAllWeaponActors();
+}
+
+void UPRWeaponManagerComponent::SwapActiveSlotInternal(EPRWeaponSlotType TargetSlot)
+{
+	// 지원하지 않는 슬롯이거나 빈 슬롯이면 활성 슬롯 전환을 수행하지 않는다.
+	if (!IsSupportedSlot(TargetSlot))
+	{
+		return;
+	}
+
+	UPRWeaponDataAsset* TargetWeaponData = GetWeaponDataBySlot(TargetSlot);
+	if (!IsValid(TargetWeaponData))
+	{
+		return;
+	}
+
+	// 이미 같은 슬롯이 활성 상태면 중복 전환을 생략한다.
+	if (!ActiveSlot.IsEmpty() && ActiveSlot.SlotType == TargetSlot && ActiveSlot.WeaponData == TargetWeaponData)
+	{
+		return;
+	}
+
+	const FPRActiveWeaponSlot PreviousActiveSlot = ActiveSlot;
+	if (!PreviousActiveSlot.IsEmpty())
+	{
+		UE_LOG(
+			LogTemp,
+			Log,
+			TEXT("Weapon ability skeleton cleared. Owner=%s Slot=%d Weapon=%s"),
+			*GetNameSafe(GetOwner()),
+			static_cast<int32>(PreviousActiveSlot.SlotType),
+			*GetNameSafe(PreviousActiveSlot.WeaponData));
+	}
+
+	ActiveSlot = BuildActiveSlot(TargetSlot, TargetWeaponData);
+	RefreshVisualSlotsFromCurrentState();
+
+	UE_LOG(
+		LogTemp,
+		Log,
+		TEXT("Weapon ability skeleton granted. Owner=%s Slot=%d Weapon=%s"),
+		*GetNameSafe(GetOwner()),
+		static_cast<int32>(ActiveSlot.SlotType),
+		*GetNameSafe(ActiveSlot.WeaponData));
+
+	// 슬롯 전환은 Actor를 재생성하지 않고 소켓 부착만 최신화하는 경로를 유지한다.
 	RefreshAllWeaponActors();
 }
 
@@ -270,6 +335,11 @@ void UPRWeaponManagerComponent::Server_EquipTestWeaponToSlot_Implementation(UPRW
 	EquipTestWeaponToSlotInternal(WeaponData, TargetSlot);
 }
 
+void UPRWeaponManagerComponent::Server_SwapActiveSlot_Implementation(EPRWeaponSlotType TargetSlot)
+{
+	SwapActiveSlotInternal(TargetSlot);
+}
+
 void UPRWeaponManagerComponent::Server_SetWeaponArmedState_Implementation(EPRWeaponArmedState NewArmedState)
 {
 	SetWeaponArmedStateInternal(NewArmedState);
@@ -306,20 +376,24 @@ EPRWeaponCarryState UPRWeaponManagerComponent::ResolveCarryState(EPRWeaponSlotTy
 
 FName UPRWeaponManagerComponent::ResolveAttachSocketName(EPRWeaponSlotType SlotType, EPRWeaponCarryState CarryState) const
 {
+	UE_LOG(LogTemp, Warning, TEXT("ResolveAttachSocketName()"));
 	// 손에 든 무기는 항상 Gun_Attach를 사용한다.
 	if (CarryState == EPRWeaponCarryState::Armed)
 	{
+		UE_LOG(LogTemp, Warning, TEXT("AttachSocketName : Gun_Attach()"));
 		return TEXT("Gun_Attach");
 	}
 
 	// 수납 상태 무기는 슬롯 타입에 맞는 고정 소켓을 사용한다.
 	if (SlotType == EPRWeaponSlotType::Primary)
 	{
+		UE_LOG(LogTemp, Warning, TEXT("AttachSocketName : LongGun_Stow()"));
 		return TEXT("LongGun_Stow");
 	}
 
 	if (SlotType == EPRWeaponSlotType::Secondary)
 	{
+		UE_LOG(LogTemp, Warning, TEXT("AttachSocketName : Pistol_Stow()"));
 		return TEXT("Pistol_Stow");
 	}
 

@@ -46,6 +46,10 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "ProjectR|Weapon")
 	void EquipTestWeaponToSlot(UPRWeaponDataAsset* WeaponData, EPRWeaponSlotType TargetSlot);
 
+	// 활성 무기 슬롯을 지정 슬롯으로 전환한다
+	UFUNCTION(BlueprintCallable, Category = "ProjectR|Weapon")
+	void SwapActiveSlot(EPRWeaponSlotType TargetSlot);
+
 	// 현재 무장 상태를 변경한다
 	UFUNCTION(BlueprintCallable, Category = "ProjectR|Weapon")
 	void SetWeaponArmedState(EPRWeaponArmedState NewArmedState);
@@ -53,6 +57,9 @@ public:
 protected:
 	// 서버 권위에서 슬롯 데이터와 공개 상태를 갱신한다
 	void EquipTestWeaponToSlotInternal(UPRWeaponDataAsset* WeaponData, EPRWeaponSlotType TargetSlot);
+
+	// 서버 권위에서 활성 슬롯과 공개 상태를 갱신한다
+	void SwapActiveSlotInternal(EPRWeaponSlotType TargetSlot);
 
 	// 서버 권위에서 무장 상태와 공개 상태를 갱신한다
 	void SetWeaponArmedStateInternal(EPRWeaponArmedState NewArmedState);
@@ -88,6 +95,10 @@ protected:
 	// 클라이언트 장착 요청을 서버 권위 경로로 전달한다
 	UFUNCTION(Server, Reliable)
 	void Server_EquipTestWeaponToSlot(UPRWeaponDataAsset* WeaponData, EPRWeaponSlotType TargetSlot);
+
+	// 클라이언트 슬롯 전환 요청을 서버 권위 경로로 전달한다
+	UFUNCTION(Server, Reliable)
+	void Server_SwapActiveSlot(EPRWeaponSlotType TargetSlot);
 
 	// 클라이언트 무장 상태 변경 요청을 서버 권위 경로로 전달한다
 	UFUNCTION(Server, Reliable)

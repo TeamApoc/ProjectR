@@ -9,7 +9,6 @@
 #include "DrawDebugHelpers.h"
 #include "GameFramework/Character.h"
 #include "GameFramework/CharacterMovementComponent.h"
-#include "MotionWarpingComponent.h"
 #include "ProjectR/AI/Components/PREnemyThreatComponent.h"
 #include "ProjectR/Character/Enemy/PREnemyBaseCharacter.h"
 #include "ProjectR/Combat/PRCombatGameplayTags.h"
@@ -38,6 +37,9 @@ void UPRGameplayAbility_EnemyMeleeAttack::ActivateAbility(const FGameplayAbility
 	DamagedActors.Reset();
 	bMeleeAttackFinished = false;
 	bMeleeHitTriggered = false;
+	bMeleeHitWindowActive = false;
+	bHasPreviousMeleeWindowTracePoint = false;
+	PreviousMeleeWindowTracePoint = FVector::ZeroVector;
 
 	if (ACharacter* SourceCharacter = Cast<ACharacter>(AvatarActor))
 	{
@@ -80,8 +82,7 @@ void UPRGameplayAbility_EnemyMeleeAttack::ActivateAbility(const FGameplayAbility
 		const bool bOnlyTriggerOnce = !bAllowMultipleMeleeHits;
 		constexpr bool bOnlyMatchExact = true;
 
-		// AnimNotify는 GameplayEvent만 발행
-		// 활성 Ability 인스턴스에서 이벤트를 받아 서버 판정 실행
+		// 한 프레임 타격 Notify 이벤트
 		ActiveMeleeHitEventTask = UAbilityTask_WaitGameplayEvent::WaitGameplayEvent(
 			this,
 			PRCombatGameplayTags::Event_Ability_EnemyMeleeHit,
@@ -94,13 +95,54 @@ void UPRGameplayAbility_EnemyMeleeAttack::ActivateAbility(const FGameplayAbility
 			ActiveMeleeHitEventTask->EventReceived.AddDynamic(this, &UPRGameplayAbility_EnemyMeleeAttack::HandleMeleeHitGameplayEvent);
 			ActiveMeleeHitEventTask->ReadyForActivation();
 		}
+
+		// 구간 판정 시작 이벤트
+		ActiveMeleeHitWindowBeginEventTask = UAbilityTask_WaitGameplayEvent::WaitGameplayEvent(
+			this,
+			PRCombatGameplayTags::Event_Ability_EnemyMeleeWindowBegin,
+			nullptr,
+			false,
+			bOnlyMatchExact);
+
+		if (IsValid(ActiveMeleeHitWindowBeginEventTask))
+		{
+			ActiveMeleeHitWindowBeginEventTask->EventReceived.AddDynamic(this, &UPRGameplayAbility_EnemyMeleeAttack::HandleMeleeHitWindowBeginGameplayEvent);
+			ActiveMeleeHitWindowBeginEventTask->ReadyForActivation();
+		}
+
+		// 구간 판정 갱신 이벤트
+		ActiveMeleeHitWindowTickEventTask = UAbilityTask_WaitGameplayEvent::WaitGameplayEvent(
+			this,
+			PRCombatGameplayTags::Event_Ability_EnemyMeleeWindowTick,
+			nullptr,
+			false,
+			bOnlyMatchExact);
+
+		if (IsValid(ActiveMeleeHitWindowTickEventTask))
+		{
+			ActiveMeleeHitWindowTickEventTask->EventReceived.AddDynamic(this, &UPRGameplayAbility_EnemyMeleeAttack::HandleMeleeHitWindowTickGameplayEvent);
+			ActiveMeleeHitWindowTickEventTask->ReadyForActivation();
+		}
+
+		// 구간 판정 종료 이벤트
+		ActiveMeleeHitWindowEndEventTask = UAbilityTask_WaitGameplayEvent::WaitGameplayEvent(
+			this,
+			PRCombatGameplayTags::Event_Ability_EnemyMeleeWindowEnd,
+			nullptr,
+			false,
+			bOnlyMatchExact);
+
+		if (IsValid(ActiveMeleeHitWindowEndEventTask))
+		{
+			ActiveMeleeHitWindowEndEventTask->EventReceived.AddDynamic(this, &UPRGameplayAbility_EnemyMeleeAttack::HandleMeleeHitWindowEndGameplayEvent);
+			ActiveMeleeHitWindowEndEventTask->ReadyForActivation();
+		}
 	}
 
 	const bool bUseTimedHit = !bHasAttackMontage
 		|| !bUseAnimationNotifyForHit
 		|| bAllowTimedHitFallbackWhenMontagePlays;
 
-	// 몽타주+Notify 공격은 Notify 타격 프레임 우선
 	// 몽타주 없음 또는 fallback 허용 시 WindupTime 타이머 사용
 	if (bUseTimedHit && WindupTime <= 0.0f)
 	{
@@ -116,7 +158,6 @@ void UPRGameplayAbility_EnemyMeleeAttack::ActivateAbility(const FGameplayAbility
 	const float MontageFinishDelay = bHasAttackMontage && bUseMontageDurationForFinish
 		? (AttackMontage->GetPlayLength() / FMath::Max(MontagePlayRate, UE_SMALL_NUMBER)) + 0.1f
 		: 0.0f;
-	// 몽타주 콜백 누락 대비 종료 타이머
 	const float FinishDelay = FMath::Max(TimerFinishDelay, MontageFinishDelay);
 	World->GetTimerManager().SetTimer(FinishTimerHandle, this,
 		&UPRGameplayAbility_EnemyMeleeAttack::FinishMeleeAttack, FinishDelay, false);
@@ -146,7 +187,28 @@ void UPRGameplayAbility_EnemyMeleeAttack::EndAbility(const FGameplayAbilitySpecH
 		ActiveMeleeHitEventTask = nullptr;
 	}
 
+	if (IsValid(ActiveMeleeHitWindowBeginEventTask))
+	{
+		ActiveMeleeHitWindowBeginEventTask->EndTask();
+		ActiveMeleeHitWindowBeginEventTask = nullptr;
+	}
+
+	if (IsValid(ActiveMeleeHitWindowTickEventTask))
+	{
+		ActiveMeleeHitWindowTickEventTask->EndTask();
+		ActiveMeleeHitWindowTickEventTask = nullptr;
+	}
+
+	if (IsValid(ActiveMeleeHitWindowEndEventTask))
+	{
+		ActiveMeleeHitWindowEndEventTask->EndTask();
+		ActiveMeleeHitWindowEndEventTask = nullptr;
+	}
+
 	DamagedActors.Reset();
+	bMeleeHitWindowActive = false;
+	bHasPreviousMeleeWindowTracePoint = false;
+	PreviousMeleeWindowTracePoint = FVector::ZeroVector;
 
 	Super::EndAbility(Handle, ActorInfo, ActivationInfo, bReplicateEndAbility, bWasCancelled);
 }
@@ -172,7 +234,51 @@ void UPRGameplayAbility_EnemyMeleeAttack::HandleMeleeHitGameplayEvent(FGameplayE
 		return;
 	}
 
+	if (bMeleeHitWindowActive)
+	{
+		return;
+	}
+
 	TriggerMeleeHitOnce();
+}
+
+void UPRGameplayAbility_EnemyMeleeAttack::HandleMeleeHitWindowBeginGameplayEvent(FGameplayEventData Payload)
+{
+	AActor* AvatarActor = GetAvatarActorFromActorInfo();
+	if (!IsValid(AvatarActor)
+		|| !AvatarActor->HasAuthority()
+		|| Payload.EventTag != PRCombatGameplayTags::Event_Ability_EnemyMeleeWindowBegin)
+	{
+		return;
+	}
+
+	BeginMeleeHitWindow();
+}
+
+void UPRGameplayAbility_EnemyMeleeAttack::HandleMeleeHitWindowTickGameplayEvent(FGameplayEventData Payload)
+{
+	AActor* AvatarActor = GetAvatarActorFromActorInfo();
+	if (!IsValid(AvatarActor)
+		|| !AvatarActor->HasAuthority()
+		|| Payload.EventTag != PRCombatGameplayTags::Event_Ability_EnemyMeleeWindowTick)
+	{
+		return;
+	}
+
+	UpdateMeleeHitWindow();
+}
+
+void UPRGameplayAbility_EnemyMeleeAttack::HandleMeleeHitWindowEndGameplayEvent(FGameplayEventData Payload)
+{
+	AActor* AvatarActor = GetAvatarActorFromActorInfo();
+	if (!IsValid(AvatarActor)
+		|| !AvatarActor->HasAuthority()
+		|| Payload.EventTag != PRCombatGameplayTags::Event_Ability_EnemyMeleeWindowEnd)
+	{
+		return;
+	}
+
+	EndMeleeHitWindow();
 }
 
 void UPRGameplayAbility_EnemyMeleeAttack::HandleAttackMontageCompleted()
@@ -226,12 +332,82 @@ void UPRGameplayAbility_EnemyMeleeAttack::ExecuteMeleeHit()
 	RefreshAttackFacing(bFaceTargetOnMeleeHit);
 	ApplyForwardLunge(SourceCharacter);
 
+	FVector TracePoint = FVector::ZeroVector;
+	if (GetCurrentAttackTracePoint(TracePoint))
+	{
+		ExecuteMeleeTrace(TracePoint, TracePoint);
+		return;
+	}
+
 	const FVector Forward = SourceCharacter->GetActorForwardVector();
 	const FVector TraceStart = SourceCharacter->GetActorLocation() + FVector(0.0f, 0.0f, TraceHeightOffset);
 	const FVector TraceEnd = TraceStart + Forward * AttackRange;
+	ExecuteMeleeTrace(TraceStart, TraceEnd);
+}
 
-	// 현재 판정 기준은 무기 소켓이 아닌 캐릭터 정면 구체 Sweep
-	// 무기 궤적 판정 전환 시 교체 지점
+void UPRGameplayAbility_EnemyMeleeAttack::BeginMeleeHitWindow()
+{
+	if (bMeleeAttackFinished)
+	{
+		return;
+	}
+
+	bMeleeHitWindowActive = true;
+	bHasPreviousMeleeWindowTracePoint = false;
+	PreviousMeleeWindowTracePoint = FVector::ZeroVector;
+	DamagedActors.Reset();
+	RefreshAttackFacing(bFaceTargetOnMeleeHit);
+}
+
+void UPRGameplayAbility_EnemyMeleeAttack::UpdateMeleeHitWindow()
+{
+	if (bMeleeAttackFinished || !bMeleeHitWindowActive)
+	{
+		return;
+	}
+
+	FVector CurrentTracePoint = FVector::ZeroVector;
+	if (!GetCurrentAttackTracePoint(CurrentTracePoint))
+	{
+		ACharacter* SourceCharacter = Cast<ACharacter>(GetAvatarActorFromActorInfo());
+		if (!IsValid(SourceCharacter) || !SourceCharacter->HasAuthority())
+		{
+			return;
+		}
+
+		const FVector TraceStart = SourceCharacter->GetActorLocation() + FVector(0.0f, 0.0f, TraceHeightOffset);
+		const FVector TraceEnd = TraceStart + (SourceCharacter->GetActorForwardVector() * AttackRange);
+		ExecuteMeleeTrace(TraceStart, TraceEnd);
+		return;
+	}
+
+	if (!bHasPreviousMeleeWindowTracePoint)
+	{
+		ExecuteMeleeTrace(CurrentTracePoint, CurrentTracePoint);
+		bHasPreviousMeleeWindowTracePoint = true;
+		PreviousMeleeWindowTracePoint = CurrentTracePoint;
+		return;
+	}
+
+	ExecuteMeleeTrace(PreviousMeleeWindowTracePoint, CurrentTracePoint);
+	PreviousMeleeWindowTracePoint = CurrentTracePoint;
+}
+
+void UPRGameplayAbility_EnemyMeleeAttack::EndMeleeHitWindow()
+{
+	bMeleeHitWindowActive = false;
+	bHasPreviousMeleeWindowTracePoint = false;
+	PreviousMeleeWindowTracePoint = FVector::ZeroVector;
+}
+
+void UPRGameplayAbility_EnemyMeleeAttack::ExecuteMeleeTrace(const FVector& TraceStart, const FVector& TraceEnd)
+{
+	ACharacter* SourceCharacter = Cast<ACharacter>(GetAvatarActorFromActorInfo());
+	if (!IsValid(SourceCharacter) || !SourceCharacter->HasAuthority())
+	{
+		return;
+	}
+
 	FCollisionQueryParams QueryParams(SCENE_QUERY_STAT(PREnemyMeleeAttack), false, SourceCharacter);
 	QueryParams.AddIgnoredActor(SourceCharacter);
 
@@ -250,6 +426,7 @@ void UPRGameplayAbility_EnemyMeleeAttack::ExecuteMeleeHit()
 	{
 		const FColor DebugColor = bHit ? FColor::Red : FColor::Green;
 		DrawDebugLine(SourceCharacter->GetWorld(), TraceStart, TraceEnd, DebugColor, false, 1.0f, 0, 2.0f);
+		DrawDebugSphere(SourceCharacter->GetWorld(), TraceStart, AttackRadius, 16, DebugColor, false, 1.0f);
 		DrawDebugSphere(SourceCharacter->GetWorld(), TraceEnd, AttackRadius, 16, DebugColor, false, 1.0f);
 	}
 
@@ -272,7 +449,6 @@ void UPRGameplayAbility_EnemyMeleeAttack::ExecuteMeleeHit()
 		DamageContext.GroggyDamage = GroggyDamage;
 		DamageContext.AbilityLevel = GetAbilityLevel();
 
-		// 공용 Damage GE와 SetByCaller 값 변환은 ApplyDamageContext 내부 처리
 		if (ApplyDamageContext(DamageContext))
 		{
 			DamagedActors.Add(HitActor);
@@ -300,7 +476,6 @@ void UPRGameplayAbility_EnemyMeleeAttack::ApplyForwardLunge(ACharacter* SourceCh
 
 	const FVector MoveDelta = SourceCharacter->GetActorForwardVector() * LungeDistance;
 	FHitResult SweepHit;
-	// 벽 관통 방지용 Sweep 이동
 	SourceCharacter->AddActorWorldOffset(MoveDelta, true, &SweepHit);
 }
 
@@ -342,22 +517,35 @@ void UPRGameplayAbility_EnemyMeleeAttack::RefreshAttackFacing(bool bApplyActorRo
 	{
 		AvatarActor->SetActorRotation(FacingRotation);
 	}
+}
 
-	if (!bUpdateMotionWarpTarget || MotionWarpTargetName == NAME_None)
+bool UPRGameplayAbility_EnemyMeleeAttack::GetCurrentAttackTracePoint(FVector& OutTracePoint) const
+{
+	const ACharacter* SourceCharacter = Cast<ACharacter>(GetAvatarActorFromActorInfo());
+	if (!IsValid(SourceCharacter))
 	{
-		return;
+		return false;
 	}
 
-	UMotionWarpingComponent* MotionWarpingComponent = AvatarActor->FindComponentByClass<UMotionWarpingComponent>();
-	if (!IsValid(MotionWarpingComponent))
+	const USkeletalMeshComponent* MeshComp = SourceCharacter->GetMesh();
+	if (!IsValid(MeshComp) || AttackTraceSourceName == NAME_None)
 	{
-		return;
+		return false;
 	}
 
-	const FVector WarpLocation = bUseTargetLocationForMotionWarping
-		? TargetLocation
-		: AvatarLocation;
-	MotionWarpingComponent->AddOrUpdateWarpTargetFromLocationAndRotation(MotionWarpTargetName, WarpLocation, FacingRotation);
+	const bool bHasSocket = MeshComp->DoesSocketExist(AttackTraceSourceName);
+	const bool bHasBone = MeshComp->GetBoneIndex(AttackTraceSourceName) != INDEX_NONE;
+	if (!bHasSocket && !bHasBone)
+	{
+		return false;
+	}
+
+	const FTransform SourceTransform = MeshComp->GetSocketTransform(AttackTraceSourceName, RTS_World);
+	const FVector SourceLocation = SourceTransform.GetLocation();
+	const FVector WorldOffset = SourceTransform.TransformVectorNoScale(AttackTraceSourceOffset);
+
+	OutTracePoint = SourceLocation + WorldOffset;
+	return true;
 }
 
 bool UPRGameplayAbility_EnemyMeleeAttack::ShouldDamageActor(const AActor* CandidateActor) const
@@ -382,7 +570,5 @@ bool UPRGameplayAbility_EnemyMeleeAttack::ShouldDamageActor(const AActor* Candid
 		? EnemyCharacter->GetEnemyThreatComponent()
 		: nullptr;
 
-	// 기본 판정 대상은 현재 ThreatTarget
-	// 주변 플레이어 광역 공격은 옵션 해제 후 별도 패턴 구성
 	return GetCurrentThreatTarget() == CandidateActor;
 }

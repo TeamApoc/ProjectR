@@ -134,7 +134,6 @@ void UPRGameplayAbility_SoldierArmoredHammerFamily::JumpToSection(FName SectionN
 	{
 		CurrentHammerSection = NewSection;
 		ApplyCurrentHitConfig();
-		RefreshAttackFacing(false);
 		ASC->CurrentMontageJumpToSection(SectionName);
 	}
 }
@@ -190,4 +189,6 @@ void UPRGameplayAbility_SoldierArmoredHammerFamily::ApplyCurrentHitConfig()
 	GroggyDamage = HitConfig.GroggyDamage;
 	AttackRange = HitConfig.AttackRange;
 	AttackRadius = HitConfig.AttackRadius;
+	AttackTraceSourceName = HitConfig.AttackTraceSourceName;
+	AttackTraceSourceOffset = HitConfig.AttackTraceSourceOffset;
 }

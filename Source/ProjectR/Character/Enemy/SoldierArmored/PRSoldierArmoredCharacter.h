@@ -6,11 +6,11 @@
 #include "ProjectR/Character/Enemy/PREnemyBaseCharacter.h"
 #include "PRSoldierArmoredCharacter.generated.h"
 
-class UMotionWarpingComponent;
 class UPRSoldierArmoredDebugDrawComponent;
+class UMotionWarpingComponent;
 
-// Fae Soldier Armored 전용 캐릭터 클래스
-// 기본 이동값, 피격 충돌, Motion Warping 컴포넌트를 관리
+// Fae Soldier Armored 전용 캐릭터 클래스다.
+// 공통 EnemyBase 위에 CharacterID, 이동 속도, 갑옷/약점 충돌 기본값을 지정한다.
 UCLASS()
 class PROJECTR_API APRSoldierArmoredCharacter : public APREnemyBaseCharacter
 {
@@ -20,11 +20,11 @@ public:
 	APRSoldierArmoredCharacter();
 
 protected:
-	// Soldier_Armored PIE 디버그 범위 출력
+	// Soldier_Armored PIE debug range draw
 	UPROPERTY(VisibleAnywhere, Category = "ProjectR|Debug")
 	TObjectPtr<UPRSoldierArmoredDebugDrawComponent> DebugDrawComponent;
 
-	// 에디터 Notify State에서 사용하는 Motion Warping 컴포넌트
+	// 공격 루트모션 방향 보정용 Motion Warping
 	UPROPERTY(VisibleAnywhere, Category = "ProjectR|Animation")
 	TObjectPtr<UMotionWarpingComponent> MotionWarpingComponent;
 };

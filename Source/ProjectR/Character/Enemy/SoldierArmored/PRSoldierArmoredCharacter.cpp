@@ -22,7 +22,7 @@ APRSoldierArmoredCharacter::APRSoldierArmoredCharacter()
 	if (IsValid(ArmorCollision))
 	{
 		// Soldier_Armored는 몸통 갑옷 판정만 우선 사용한다.
-		// 실제 위치/크기는 BP에서 메쉬 비율에 맞춰 다시 조정할 수 있다.
+		// 실제 위치/크기는 BP에서 메시 비율에 맞춰 다시 조정할 수 있다.
 		ArmorCollision->SetBoxExtent(FVector(42.0f, 36.0f, 78.0f));
 		ArmorCollision->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
 		ArmorCollision->SetCollisionObjectType(ECC_Pawn);

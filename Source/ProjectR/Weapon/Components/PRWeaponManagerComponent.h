@@ -46,6 +46,10 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "ProjectR|Weapon")
 	void EquipTestWeaponToSlot(UPRWeaponDataAsset* WeaponData, EPRWeaponSlotType TargetSlot);
 
+	// 지정 슬롯의 무기를 해제한다
+	UFUNCTION(BlueprintCallable, Category = "ProjectR|Weapon")
+	void UnequipWeaponSlot(EPRWeaponSlotType TargetSlot);
+
 	// 활성 무기 슬롯을 지정 슬롯으로 전환한다
 	UFUNCTION(BlueprintCallable, Category = "ProjectR|Weapon")
 	void SwapActiveSlot(EPRWeaponSlotType TargetSlot);
@@ -57,6 +61,9 @@ public:
 protected:
 	// 서버 권위에서 슬롯 데이터와 공개 상태를 갱신한다
 	void EquipTestWeaponToSlotInternal(UPRWeaponDataAsset* WeaponData, EPRWeaponSlotType TargetSlot);
+
+	// 서버 권위에서 슬롯 데이터 제거와 공개 상태를 갱신한다
+	void UnequipWeaponSlotInternal(EPRWeaponSlotType TargetSlot);
 
 	// 서버 권위에서 활성 슬롯과 공개 상태를 갱신한다
 	void SwapActiveSlotInternal(EPRWeaponSlotType TargetSlot);
@@ -96,6 +103,10 @@ protected:
 	UFUNCTION(Server, Reliable)
 	void Server_EquipTestWeaponToSlot(UPRWeaponDataAsset* WeaponData, EPRWeaponSlotType TargetSlot);
 
+	// 클라이언트 장비 해제 요청을 서버 권위 경로로 전달한다
+	UFUNCTION(Server, Reliable)
+	void Server_UnequipWeaponSlot(EPRWeaponSlotType TargetSlot);
+
 	// 클라이언트 슬롯 전환 요청을 서버 권위 경로로 전달한다
 	UFUNCTION(Server, Reliable)
 	void Server_SwapActiveSlot(EPRWeaponSlotType TargetSlot);
@@ -116,6 +127,15 @@ protected:
 
 	// 현재 원본 슬롯 데이터 기준으로 공개 비주얼 상태를 다시 구성한다
 	void RefreshVisualSlotsFromCurrentState();
+
+	// 현재 장착 상태를 기준으로 다음 활성 슬롯을 결정한다
+	FPRActiveWeaponSlot ResolveNextActiveSlotAfterUnequip(EPRWeaponSlotType UnequippedSlot) const;
+
+	// 1차 단계에서 활성 무기 어빌리티 부여 시점을 로그로 남긴다
+	void GrantWeaponAbilitiesSkeleton(const FPRActiveWeaponSlot& WeaponSlot) const;
+
+	// 1차 단계에서 활성 무기 어빌리티 해제 시점을 로그로 남긴다
+	void ClearWeaponAbilitiesSkeleton(const FPRActiveWeaponSlot& WeaponSlot) const;
 
 	// 잘못된 슬롯 입력을 차단한다
 	bool IsSupportedSlot(EPRWeaponSlotType SlotType) const;

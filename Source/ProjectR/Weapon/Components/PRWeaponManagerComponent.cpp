@@ -80,6 +80,23 @@ void UPRWeaponManagerComponent::EquipTestWeaponToSlot(UPRWeaponDataAsset* Weapon
 	Server_EquipTestWeaponToSlot(WeaponData, TargetSlot);
 }
 
+void UPRWeaponManagerComponent::UnequipWeaponSlot(EPRWeaponSlotType TargetSlot)
+{
+	// 지원하지 않는 슬롯 요청이면 서버 전송 전에 차단한다.
+	if (!IsSupportedSlot(TargetSlot))
+	{
+		return;
+	}
+
+	if (IsValid(GetOwner()) && GetOwner()->HasAuthority())
+	{
+		UnequipWeaponSlotInternal(TargetSlot);
+		return;
+	}
+
+	Server_UnequipWeaponSlot(TargetSlot);
+}
+
 void UPRWeaponManagerComponent::SwapActiveSlot(EPRWeaponSlotType TargetSlot)
 {
 	// 지원하지 않는 슬롯 요청이면 서버 전송 전에 차단한다.
@@ -116,6 +133,14 @@ void UPRWeaponManagerComponent::EquipTestWeaponToSlotInternal(UPRWeaponDataAsset
 		return;
 	}
 
+	// 같은 슬롯에 같은 무기가 이미 연결되어 있으면 중복 장착과 로그를 생략한다.
+	if (GetWeaponDataBySlot(TargetSlot) == WeaponData)
+	{
+		return;
+	}
+
+	const FPRActiveWeaponSlot PreviousActiveSlot = ActiveSlot;
+
 	if (TargetSlot == EPRWeaponSlotType::Primary)
 	{
 		PrimaryWeaponData = WeaponData;
@@ -129,13 +154,61 @@ void UPRWeaponManagerComponent::EquipTestWeaponToSlotInternal(UPRWeaponDataAsset
 	// 이미 활성 중인 슬롯에 다시 장착하는 경우에도 같은 슬롯 선택을 유지한다.
 	if (ActiveSlot.IsEmpty() || ActiveSlot.SlotType == TargetSlot)
 	{
+		if (!PreviousActiveSlot.IsEmpty() && PreviousActiveSlot.SlotType == TargetSlot && PreviousActiveSlot.WeaponData != WeaponData)
+		{
+			ClearWeaponAbilitiesSkeleton(PreviousActiveSlot);
+		}
+
 		ActiveSlot = BuildActiveSlot(TargetSlot, WeaponData);
+		GrantWeaponAbilitiesSkeleton(ActiveSlot);
 	}
 
 	// 활성 슬롯과 원본 슬롯 데이터를 기준으로 두 슬롯의 공개 비주얼 상태를 다시 구성한다.
 	RefreshVisualSlotsFromCurrentState();
 
 	// 서버 로컬도 복제 콜백과 같은 경로로 슬롯별 Actor를 즉시 최신화한다.
+	RefreshAllWeaponActors();
+}
+
+void UPRWeaponManagerComponent::UnequipWeaponSlotInternal(EPRWeaponSlotType TargetSlot)
+{
+	// 지원하지 않는 슬롯이거나 비어 있는 슬롯이면 해제를 수행하지 않는다.
+	if (!IsSupportedSlot(TargetSlot) || !IsValid(GetWeaponDataBySlot(TargetSlot)))
+	{
+		return;
+	}
+
+	const FPRActiveWeaponSlot PreviousActiveSlot = ActiveSlot;
+	const bool bWasActiveSlot = !PreviousActiveSlot.IsEmpty() && PreviousActiveSlot.SlotType == TargetSlot;
+	if (bWasActiveSlot)
+	{
+		ClearWeaponAbilitiesSkeleton(PreviousActiveSlot);
+	}
+
+	if (TargetSlot == EPRWeaponSlotType::Primary)
+	{
+		PrimaryWeaponData = nullptr;
+	}
+	else if (TargetSlot == EPRWeaponSlotType::Secondary)
+	{
+		SecondaryWeaponData = nullptr;
+	}
+
+	if (bWasActiveSlot)
+	{
+		ActiveSlot = ResolveNextActiveSlotAfterUnequip(TargetSlot);
+
+		if (!ActiveSlot.IsEmpty())
+		{
+			GrantWeaponAbilitiesSkeleton(ActiveSlot);
+		}
+		else
+		{
+			ArmedState = EPRWeaponArmedState::Unarmed;
+		}
+	}
+
+	RefreshVisualSlotsFromCurrentState();
 	RefreshAllWeaponActors();
 }
 
@@ -175,25 +248,13 @@ void UPRWeaponManagerComponent::SwapActiveSlotInternal(EPRWeaponSlotType TargetS
 	const FPRActiveWeaponSlot PreviousActiveSlot = ActiveSlot;
 	if (!PreviousActiveSlot.IsEmpty())
 	{
-		UE_LOG(
-			LogTemp,
-			Log,
-			TEXT("Weapon ability skeleton cleared. Owner=%s Slot=%d Weapon=%s"),
-			*GetNameSafe(GetOwner()),
-			static_cast<int32>(PreviousActiveSlot.SlotType),
-			*GetNameSafe(PreviousActiveSlot.WeaponData));
+		ClearWeaponAbilitiesSkeleton(PreviousActiveSlot);
 	}
 
 	ActiveSlot = BuildActiveSlot(TargetSlot, TargetWeaponData);
 	RefreshVisualSlotsFromCurrentState();
 
-	UE_LOG(
-		LogTemp,
-		Log,
-		TEXT("Weapon ability skeleton granted. Owner=%s Slot=%d Weapon=%s"),
-		*GetNameSafe(GetOwner()),
-		static_cast<int32>(ActiveSlot.SlotType),
-		*GetNameSafe(ActiveSlot.WeaponData));
+	GrantWeaponAbilitiesSkeleton(ActiveSlot);
 
 	// 슬롯 전환은 Actor를 재생성하지 않고 소켓 부착만 최신화하는 경로를 유지한다.
 	RefreshAllWeaponActors();
@@ -335,6 +396,11 @@ void UPRWeaponManagerComponent::Server_EquipTestWeaponToSlot_Implementation(UPRW
 	EquipTestWeaponToSlotInternal(WeaponData, TargetSlot);
 }
 
+void UPRWeaponManagerComponent::Server_UnequipWeaponSlot_Implementation(EPRWeaponSlotType TargetSlot)
+{
+	UnequipWeaponSlotInternal(TargetSlot);
+}
+
 void UPRWeaponManagerComponent::Server_SwapActiveSlot_Implementation(EPRWeaponSlotType TargetSlot)
 {
 	SwapActiveSlotInternal(TargetSlot);
@@ -376,24 +442,20 @@ EPRWeaponCarryState UPRWeaponManagerComponent::ResolveCarryState(EPRWeaponSlotTy
 
 FName UPRWeaponManagerComponent::ResolveAttachSocketName(EPRWeaponSlotType SlotType, EPRWeaponCarryState CarryState) const
 {
-	UE_LOG(LogTemp, Warning, TEXT("ResolveAttachSocketName()"));
 	// 손에 든 무기는 항상 Gun_Attach를 사용한다.
 	if (CarryState == EPRWeaponCarryState::Armed)
 	{
-		UE_LOG(LogTemp, Warning, TEXT("AttachSocketName : Gun_Attach()"));
 		return TEXT("Gun_Attach");
 	}
 
 	// 수납 상태 무기는 슬롯 타입에 맞는 고정 소켓을 사용한다.
 	if (SlotType == EPRWeaponSlotType::Primary)
 	{
-		UE_LOG(LogTemp, Warning, TEXT("AttachSocketName : LongGun_Stow()"));
 		return TEXT("LongGun_Stow");
 	}
 
 	if (SlotType == EPRWeaponSlotType::Secondary)
 	{
-		UE_LOG(LogTemp, Warning, TEXT("AttachSocketName : Pistol_Stow()"));
 		return TEXT("Pistol_Stow");
 	}
 
@@ -404,6 +466,58 @@ void UPRWeaponManagerComponent::RefreshVisualSlotsFromCurrentState()
 {
 	PrimaryVisualSlot = BuildVisualSlot(EPRWeaponSlotType::Primary, PrimaryWeaponData);
 	SecondaryVisualSlot = BuildVisualSlot(EPRWeaponSlotType::Secondary, SecondaryWeaponData);
+}
+
+FPRActiveWeaponSlot UPRWeaponManagerComponent::ResolveNextActiveSlotAfterUnequip(EPRWeaponSlotType UnequippedSlot) const
+{
+	FPRActiveWeaponSlot NextActiveSlot;
+
+	// 제거된 슬롯 반대편에 장착 무기가 남아 있으면 그 슬롯을 다음 활성 슬롯으로 선택한다.
+	if (UnequippedSlot != EPRWeaponSlotType::Primary && IsValid(PrimaryWeaponData))
+	{
+		return BuildActiveSlot(EPRWeaponSlotType::Primary, PrimaryWeaponData);
+	}
+
+	if (UnequippedSlot != EPRWeaponSlotType::Secondary && IsValid(SecondaryWeaponData))
+	{
+		return BuildActiveSlot(EPRWeaponSlotType::Secondary, SecondaryWeaponData);
+	}
+
+	return NextActiveSlot;
+}
+
+void UPRWeaponManagerComponent::GrantWeaponAbilitiesSkeleton(const FPRActiveWeaponSlot& WeaponSlot) const
+{
+	// 1차 단계에서는 서버에서만 부여 시점을 로그로 남기고 실제 AbilitySet은 연결하지 않는다.
+	if (!IsValid(GetOwner()) || !GetOwner()->HasAuthority() || WeaponSlot.IsEmpty())
+	{
+		return;
+	}
+
+	UE_LOG(
+		LogTemp,
+		Log,
+		TEXT("Weapon ability skeleton granted. Owner=%s Slot=%d Weapon=%s"),
+		*GetNameSafe(GetOwner()),
+		static_cast<int32>(WeaponSlot.SlotType),
+		*GetNameSafe(WeaponSlot.WeaponData));
+}
+
+void UPRWeaponManagerComponent::ClearWeaponAbilitiesSkeleton(const FPRActiveWeaponSlot& WeaponSlot) const
+{
+	// 1차 단계에서는 서버에서만 해제 시점을 로그로 남기고 실제 AbilitySet은 연결하지 않는다.
+	if (!IsValid(GetOwner()) || !GetOwner()->HasAuthority() || WeaponSlot.IsEmpty())
+	{
+		return;
+	}
+
+	UE_LOG(
+		LogTemp,
+		Log,
+		TEXT("Weapon ability skeleton cleared. Owner=%s Slot=%d Weapon=%s"),
+		*GetNameSafe(GetOwner()),
+		static_cast<int32>(WeaponSlot.SlotType),
+		*GetNameSafe(WeaponSlot.WeaponData));
 }
 
 bool UPRWeaponManagerComponent::IsSupportedSlot(EPRWeaponSlotType SlotType) const

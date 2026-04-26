@@ -64,12 +64,8 @@ EBTNodeResult::Type UBTTask_PRSelectEnemyPattern::ExecuteTask(UBehaviorTreeCompo
 	PatternContext.bChargePathClear = HasPatternSelectionBlackboardKey(BlackboardComponent, ChargePathClearKey)
 		? BlackboardComponent->GetValueAsBool(ChargePathClearKey)
 		: false;
-	PatternContext.ComboIndex = HasPatternSelectionBlackboardKey(BlackboardComponent, ComboIndexKey)
-		? BlackboardComponent->GetValueAsInt(ComboIndexKey)
-		: 0;
-
 	// 현재 상황에 맞는 패턴만 후보로 모은다.
-	// 거리/LOS/돌진 경로/콤보 조건은 FPRPatternRule::MatchesContext에서 통일해서 검사한다.
+	// 거리/LOS/돌진 경로 조건은 FPRPatternRule::MatchesContext에서 통일해서 검사한다.
 	TArray<const FPRPatternRule*> MatchedRules;
 	float TotalWeight = 0.0f;
 
@@ -113,10 +109,6 @@ EBTNodeResult::Type UBTTask_PRSelectEnemyPattern::ExecuteTask(UBehaviorTreeCompo
 		if (PickValue <= AccumulatedWeight)
 		{
 			BlackboardComponent->SetValueAsName(SelectedAbilityTagKey, PatternRule->AbilityTag.GetTagName());
-			if (HasPatternSelectionBlackboardKey(BlackboardComponent, SelectedNextComboIndexKey))
-			{
-				BlackboardComponent->SetValueAsInt(SelectedNextComboIndexKey, PatternRule->NextComboIndex);
-			}
 			if (bSetTacticalModeOnSelection && HasPatternSelectionBlackboardKey(BlackboardComponent, TacticalModeKey))
 			{
 				BlackboardComponent->SetValueAsEnum(TacticalModeKey, static_cast<uint8>(TacticalModeOnSelection));
@@ -127,10 +119,6 @@ EBTNodeResult::Type UBTTask_PRSelectEnemyPattern::ExecuteTask(UBehaviorTreeCompo
 
 	// 부동소수 오차 등으로 루프 안에서 선택되지 못한 경우 마지막 후보를 안전값으로 쓴다.
 	BlackboardComponent->SetValueAsName(SelectedAbilityTagKey, MatchedRules.Last()->AbilityTag.GetTagName());
-	if (HasPatternSelectionBlackboardKey(BlackboardComponent, SelectedNextComboIndexKey))
-	{
-		BlackboardComponent->SetValueAsInt(SelectedNextComboIndexKey, MatchedRules.Last()->NextComboIndex);
-	}
 	if (bSetTacticalModeOnSelection && HasPatternSelectionBlackboardKey(BlackboardComponent, TacticalModeKey))
 	{
 		BlackboardComponent->SetValueAsEnum(TacticalModeKey, static_cast<uint8>(TacticalModeOnSelection));

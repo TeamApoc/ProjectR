@@ -7,6 +7,7 @@
 #include "AbilitySystemBlueprintLibrary.h"
 #include "EnhancedInputComponent.h"
 #include "InputAction.h"
+#include "ProjectR/Game/PRCameraManager.h"
 #include "ProjectR/Input/PRInputConfigDataAsset.h"
 
 // =====  APlayerController Interface =====
@@ -21,6 +22,11 @@ void APRPlayerController::BeginPlay()
 	{
 		SubmitLocalCharacterToServer();
 	}
+}
+
+APRPlayerController::APRPlayerController()
+{
+	PlayerCameraManagerClass = APRCameraManager::StaticClass();
 }
 
 void APRPlayerController::AcknowledgePossession(APawn* InPawn)

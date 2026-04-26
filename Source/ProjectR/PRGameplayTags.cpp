@@ -15,6 +15,8 @@ namespace PRGameplayTags
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Ability_Player_Weapon_Fire_Primary, "Ability.Player.Weapon.Fire.Primary",
 	                               "플레이어 주무기 발사 어빌리티");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Ability_Player_Dodge, "Ability.Player.Dodge", "플레이어 구르기 어빌리티");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Ability_Player_Crouch, "Ability.Player.Crouch", "플레이어 에임 어빌리티");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Ability_Player_Aim, "Ability.Player.Aim", "플레이어 구르기 어빌리티");
 
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Ability_Enemy_Pattern, "Ability.Enemy.Pattern", "일반 적 패턴 공통 루트");
 
@@ -47,6 +49,8 @@ namespace PRGameplayTags
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(State_StaminaDepleted, "State.StaminaDepleted", "스태미너 고갈 상태");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(State_Invulnerable, "State.Invulnerable", "무적 상태 (회피 i-frame 등)");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(State_Dodging, "State.Dodging", "구르기 중 (무적이 아님)");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(State_Crouching, "State.Crouching", "앉기 상태");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(State_Aiming, "State.Aiming", "에이밍 상태");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(State_Channeling, "State.Channeling", "캐스팅 또는 채널링 상태");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(State_PhaseTransitioning, "State.PhaseTransitioning", "보스 페이즈 전환 상태");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(State_Boss_WeakpointOpen_Core, "State.Boss.WeakpointOpen.Core", "보스 코어 약점 오픈 상태");
@@ -72,6 +76,8 @@ namespace PRGameplayTags
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Input_Ability_Fire_Primary, "Input.Ability.Fire.Primary", "주무기 발사 입력 태그");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Input_Ability_Dodge, "Input.Ability.Dodge", "구르기 입력 태그");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Input_Ability_Interact, "Input.Ability.Interact", "상호작용용 입력 태그");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Input_Ability_Crouch, "Input.Ability.Crouch", "앉기용 입력 태그");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Input_Ability_Aim, "Input.Ability.Aim", "에이밍 입력 태그");
 
 	// ===== Input.Locomotion.* =====
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Input_Locomotion_Walk, "Input.Locomotion.Walk", "Walk 토글 입력 태그");

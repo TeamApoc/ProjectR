@@ -29,13 +29,4 @@ protected:
 	UPROPERTY(EditAnywhere, Category = "ProjectR|Blackboard")
 	EPRTacticalMode NewTacticalMode = EPRTacticalMode::Idle;
 
-	// true면 전술 상태 변경과 함께 콤보 단계를 지정값으로 되돌린다.
-	UPROPERTY(EditAnywhere, Category = "ProjectR|Combo")
-	bool bSetComboIndex = false;
-
-	UPROPERTY(EditAnywhere, Category = "ProjectR|Combo", meta = (EditCondition = "bSetComboIndex"))
-	FName ComboIndexKey = TEXT("combo_index");
-
-	UPROPERTY(EditAnywhere, Category = "ProjectR|Combo", meta = (EditCondition = "bSetComboIndex"))
-	int32 ComboIndexValue = 0;
 };

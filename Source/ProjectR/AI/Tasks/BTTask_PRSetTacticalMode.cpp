@@ -30,12 +30,6 @@ EBTNodeResult::Type UBTTask_PRSetTacticalMode::ExecuteTask(UBehaviorTreeComponen
 
 	BlackboardComponent->SetValueAsEnum(TacticalModeKey, static_cast<uint8>(NewTacticalMode));
 
-	if (bSetComboIndex && HasSetTacticalModeBlackboardKey(BlackboardComponent, ComboIndexKey))
-	{
-		// 수색/복귀처럼 공격 흐름이 끊기는 브랜치에서 콤보를 명시적으로 정리할 때 사용한다.
-		BlackboardComponent->SetValueAsInt(ComboIndexKey, ComboIndexValue);
-	}
-
 	return EBTNodeResult::Succeeded;
 }
 

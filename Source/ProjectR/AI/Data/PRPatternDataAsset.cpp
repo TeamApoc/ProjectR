@@ -42,19 +42,6 @@ EDataValidationResult UPRPatternDataAsset::IsDataValid(FDataValidationContext& C
 			Result = EDataValidationResult::Invalid;
 		}
 
-		if (Rule.RequiredComboIndex < INDEX_NONE)
-		{
-			Context.AddError(FText::FromString(
-				FString::Printf(TEXT("PatternRules[%d]의 RequiredComboIndex는 -1 이상이어야 합니다."), RuleIndex)));
-			Result = EDataValidationResult::Invalid;
-		}
-
-		if (Rule.NextComboIndex < INDEX_NONE)
-		{
-			Context.AddError(FText::FromString(
-				FString::Printf(TEXT("PatternRules[%d]의 NextComboIndex는 -1 이상이어야 합니다."), RuleIndex)));
-			Result = EDataValidationResult::Invalid;
-		}
 	}
 
 	return Result;

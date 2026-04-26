@@ -37,14 +37,6 @@ protected:
 	UPROPERTY(EditAnywhere, Category = "ProjectR|Ability")
 	FName AbilityTagBlackboardKey = TEXT("selected_ability_tag");
 
-	// SelectEnemyPattern이 기록한 다음 콤보 단계 값을 읽는 키다.
-	UPROPERTY(EditAnywhere, Category = "ProjectR|Ability")
-	FName SelectedNextComboIndexKey = TEXT("selected_next_combo_index");
-
-	// 실제 콤보 단계를 저장하는 Blackboard 키다.
-	UPROPERTY(EditAnywhere, Category = "ProjectR|Ability")
-	FName ComboIndexKey = TEXT("combo_index");
-
 	// 전술 상태를 저장하는 Blackboard 키다.
 	UPROPERTY(EditAnywhere, Category = "ProjectR|Ability")
 	FName TacticalModeKey = TEXT("tactical_mode");
@@ -52,10 +44,6 @@ protected:
 	// true면 Ability가 끝날 때까지 BT 실행을 InProgress로 유지한다.
 	UPROPERTY(EditAnywhere, Category = "ProjectR|Ability")
 	bool bWaitUntilAbilityEnds = true;
-
-	// true면 Ability 실행 성공 후 selected_next_combo_index를 combo_index에 반영한다.
-	UPROPERTY(EditAnywhere, Category = "ProjectR|Ability")
-	bool bApplySelectedComboIndex = true;
 
 	// true면 Ability가 끝난 뒤 전술 상태를 지정한 값으로 되돌린다.
 	UPROPERTY(EditAnywhere, Category = "ProjectR|Ability")
@@ -79,6 +67,4 @@ private:
 
 	FGameplayAbilitySpecHandle ActiveAbilityHandle;
 	FDelegateHandle AbilityEndedDelegateHandle;
-
-	int32 PendingNextComboIndex = INDEX_NONE;
 };

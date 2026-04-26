@@ -12,6 +12,7 @@ class USpringArmComponent;
 class UCameraComponent;
 class UInputMappingContext;
 class UInputAction;
+class UPRSpringArmComponent;
 struct FInputActionValue;
 
 UCLASS()
@@ -21,8 +22,6 @@ class PROJECTR_API APRPlayerCharacter : public APRCharacterBase
 
 public:
 	APRPlayerCharacter();
-
-	// todo : 제자리 turn 없음, lean 없음, sprint jog walk 3단계로 분류해야함
 	
 	/** 멀티플레이어 변수 복제 설정 */
 	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
@@ -37,14 +36,12 @@ public:
 	/** 애니메이션 인스턴스에서 사용하는 게터 함수들 */                   
 	bool IsCrouching() const { return bIsCrouched; } 
 	bool IsSprinting() const { return bIsSprinting; } 
-	bool IsAiming() const { return bIsAiming; }
 	bool IsWalking() const { return bIsWalking; }
 	float GetWalkSpeed() const { return WalkSpeed; }
 	float GetJogSpeed() const { return JogSpeed; }
 	float GetSprintSpeed() const { return SprintSpeed; }
 	
-	// 컨트롤 회전(카메라)과 캐릭터 정면 사이의 Yaw 차이를 반환 (Lean 및 절차적 애니메이션용)
-	float GetDesiredLookDirection() const;            
+	bool IsAiming() const;
 	
 protected:
 	virtual void BeginPlay() override;
@@ -67,14 +64,6 @@ protected:
 	
 	UFUNCTION(Server, Reliable, WithValidation)
 	void Server_SetWalking(bool bNewWalking);
-
-	void AimStarted();
-	void AimEnded();
-
-	UFUNCTION(Server, Reliable, WithValidation)
-	void Server_SetAiming(bool bNewAiming);
-
-	void CrouchPressed();
 	
 	void HandleMovementInputTag(FGameplayTag InputTag, bool bPressed);
 	
@@ -83,14 +72,10 @@ private:
     UFUNCTION()
     void OnRep_IsSprinting();
 
-    /** 조준 상태가 복제되었을 때 속도를 업데이트한다 */
-    UFUNCTION()
-    void OnRep_IsAiming();
-
 public:
 	/** 컴포넌트 */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Camera")
-	TObjectPtr<USpringArmComponent> CameraBoom;
+	TObjectPtr<UPRSpringArmComponent> CameraBoom;
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Camera")
 	TObjectPtr<UCameraComponent> FollowCamera;
@@ -111,12 +96,6 @@ protected:
 	
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Input")
 	TObjectPtr<UInputAction> WalkAction;
-
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Input")
-	TObjectPtr<UInputAction> CrouchAction;
-
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Input")
-	TObjectPtr<UInputAction> AimAction;
 
 	/** 조준/느린 이동 시 속도 (cm/s) */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "PR|Locomotion")

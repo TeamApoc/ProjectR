@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "Abilities/GameplayAbility.h"
 #include "ProjectR/AbilitySystem/PRAbilityTypes.h"
+#include "ProjectR/Character/PRCharacterBase.h"
 #include "PRGameplayAbility.generated.h"
 
 // 프로젝트 공통 어빌리티 베이스. 모든 어빌리티는 이 클래스를 상속
@@ -27,6 +28,16 @@ public:
 
 	// InputTag 조회
 	const FGameplayTag& GetInputTag() const { return InputTag; }
+
+protected:
+	// AvatarActor를 지정한 캐릭터 타입으로 캐스팅하여 반환. CharacterType은 APRCharacterBase 파생만 허용
+	template <typename CharacterType>
+	CharacterType* GetPRCharacter() const
+	{
+		static_assert(TIsDerivedFrom<CharacterType, APRCharacterBase>::IsDerived,
+			"CharacterType must be derived from APRCharacterBase.");
+		return Cast<CharacterType>(GetAvatarActorFromActorInfo());
+	}
 
 protected:
 	// 본 어빌리티의 활성화 정책

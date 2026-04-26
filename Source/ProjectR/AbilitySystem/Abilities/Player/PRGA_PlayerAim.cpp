@@ -9,6 +9,9 @@
 #include "ProjectR/Character/PRPlayerCharacter.h"
 #include "ProjectR/Game/PRCameraManager.h"
 #include "ProjectR/Player/Components/PRSpringArmComponent.h"
+#include "ProjectR/System/PREventManagerSubsystem.h"
+#include "ProjectR/System/PREventTypes.h"
+#include "ProjectR/UI/Crosshair/PRCrosshairConfig.h"
 
 UPRGA_PlayerAim::UPRGA_PlayerAim()
 {
@@ -72,6 +75,20 @@ void UPRGA_PlayerAim::ActivateAbility(const FGameplayAbilitySpecHandle Handle,
 				}
 			}
 		}
+
+		// 3. 26.04.26, Yuchan,UI 알림: 크로스헤어 Config 적용 -> 에이밍 시작 순으로 발송
+		// (Config 가 먼저 들어가야 위젯 표시 직전에 비주얼이 갱신됨)
+		if (UWorld* World = GetWorld())
+		{
+			if (UPREventManagerSubsystem* EventMgr = World->GetSubsystem<UPREventManagerSubsystem>())
+			{
+				FPRChangeCrosshairEventPayload CrosshairPayload;
+				CrosshairPayload.Config = AimCrosshairConfig;
+				EventMgr->BroadcastTyped(PRGameplayTags::Event_Player_ChangeCrosshair, CrosshairPayload);
+
+				EventMgr->BroadcastEmpty(PRGameplayTags::Event_Player_Aim_Start);
+			}
+		}
 	}
 }
 
@@ -114,6 +131,15 @@ void UPRGA_PlayerAim::EndAbility(const FGameplayAbilitySpecHandle Handle, const 
 				{
 					CameraManager->OverrideAimFOV = 0.0f;
 				}
+			}
+		}
+
+		// 26.04.26, Yuchan, UI 알림: 에이밍 종료
+		if (UWorld* World = GetWorld())
+		{
+			if (UPREventManagerSubsystem* EventMgr = World->GetSubsystem<UPREventManagerSubsystem>())
+			{
+				EventMgr->BroadcastEmpty(PRGameplayTags::Event_Player_Aim_End);
 			}
 		}
 	}

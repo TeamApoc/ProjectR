@@ -62,6 +62,13 @@ namespace PRGameplayTags
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Event_Ability_GroggyEntered); // 그로기 진입 이벤트.
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Event_Ability_PhaseTransition); // 페이즈 전환 이벤트.
 
+	// ===== Event.Player.* — 플레이어 액션/UI 알림용 EventManager 이벤트 키 =====
+	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Event_Player_HitShot); // 사격이 적중했을 때
+	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Event_Player_Recoil); // 사격 반동 발생 (FPRRecoilEventPayload 동반)
+	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Event_Player_Aim_Start); // 에이밍 진입
+	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Event_Player_Aim_End); // 에이밍 해제
+	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Event_Player_ChangeCrosshair); // 크로스헤어 Config 교체 (FPRChangeCrosshairEventPayload 동반)
+
 	// ===== Cue.* — GameplayCue 식별 =====
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Cue_Critical_Boss_PhaseTransition); // 보스 페이즈 전환 연출 Cue
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Cue_Critical_Boss_WeakpointOpen); // 보스 약점 창 오픈 연출 Cue

@@ -34,6 +34,7 @@ public:
 	/*~ APRCharacterBase Interface ~*/
 	virtual UPRAbilitySystemComponent* GetPRAbilitySystemComponent() const override;
 	
+	/*~ APRPlayerCharacter Interface ~*/
 	/** 애니메이션 인스턴스에서 사용하는 게터 함수들 */                   
 	bool IsCrouching() const { return bIsCrouched; } 
 	bool IsSprinting() const { return bIsSprinting; } 
@@ -41,8 +42,10 @@ public:
 	float GetWalkSpeed() const { return WalkSpeed; }
 	float GetJogSpeed() const { return JogSpeed; }
 	float GetSprintSpeed() const { return SprintSpeed; }
-	
 	bool IsAiming() const;
+	
+	// ===== Component getters =====
+	UPRWeaponManagerComponent* GetWeaponManager() const {return WeaponManagerComponent;}
 	
 protected:
 	virtual void BeginPlay() override;

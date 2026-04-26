@@ -37,6 +37,11 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "ProjectR|Weapon")
 	void AttachToOwnerMesh(ACharacter* OwnerCharacter, FName SocketName);
 
+	// 26.04.26, Yuchan, 머즐 트랜스폼 반환 함수가 없어 아래 코드 임시 추가.
+	// 총구 트랜스폼 반환 함수, BP에서 override
+	UFUNCTION(BlueprintNativeEvent)
+	FTransform GetMuzzleTransform() const;
+	
 protected:
 	// 현재 공개 상태를 기준으로 메시를 갱신한다
 	void RefreshVisualMesh();
@@ -49,5 +54,5 @@ protected:
 	TObjectPtr<USkeletalMeshComponent> WeaponMeshComponent;
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "ProjectR|Weapon")
-	FPRWeaponVisualSlot VisualSlot;
+	FPRWeaponVisualSlot VisualSlot; // TODO: 이미 WeaponComponent에서 관리하던데 여기에 중복으로 있는 이유?
 };

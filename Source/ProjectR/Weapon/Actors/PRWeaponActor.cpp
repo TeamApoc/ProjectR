@@ -45,6 +45,11 @@ void APRWeaponActor::AttachToOwnerMesh(ACharacter* OwnerCharacter, FName SocketN
 		SocketName);
 }
 
+FTransform APRWeaponActor::GetMuzzleTransform_Implementation() const
+{
+	return GetTransform();
+}
+
 void APRWeaponActor::RefreshVisualMesh()
 {
 	// 무기 데이터가 비어 있으면 표시 메시도 함께 비운다.

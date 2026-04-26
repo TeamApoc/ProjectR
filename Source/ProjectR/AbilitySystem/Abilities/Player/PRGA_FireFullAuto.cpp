@@ -8,9 +8,3 @@ UPRGA_FireFullAuto::UPRGA_FireFullAuto()
 {
 	
 }
-
-void UPRGA_FireFullAuto::FireOneShot()
-{
-	
-}
-

@@ -37,7 +37,7 @@ void APRCharacterBase::BindTagChangeEvent()
 	ASC->OnGameplayTagUpdated.AddUObject(this, &ThisClass::HandleGameplayTagUpdated);
 }
 
-void APRCharacterBase::HandleGameplayTagUpdated(const FGameplayTag& ChangedTag, bool TagExists)
+void APRCharacterBase::HandleGameplayTagUpdated(const FGameplayTag& ChangedTag, bool bTagExists)
 {
 	
 }

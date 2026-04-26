@@ -23,6 +23,9 @@ UPRGA_PlayerAim::UPRGA_PlayerAim()
 	// 조준은 클라이언트 예측(LocalPredicted)으로 서버의 허락 없이 딜레이 없이 즉각 발동해야 합니다.
 	NetExecutionPolicy = EGameplayAbilityNetExecutionPolicy::LocalPredicted;
 	InstancingPolicy = EGameplayAbilityInstancingPolicy::InstancedPerActor;
+	
+	// 26.04.26, Yuchan, 테스트를 위해 PlayerCharacter HandleGameplayTagUpdated 함수에서 bIsAiming변수 설정
+	ActivationOwnedTags.AddTag(PRGameplayTags::State_Aiming);
 }
 
 void UPRGA_PlayerAim::ActivateAbility(const FGameplayAbilitySpecHandle Handle,

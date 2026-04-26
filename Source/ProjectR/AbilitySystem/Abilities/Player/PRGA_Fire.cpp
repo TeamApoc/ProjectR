@@ -3,11 +3,18 @@
 
 #include "PRGA_Fire.h"
 
+#include "ProjectR/PRGameplayTags.h"
+
+DEFINE_LOG_CATEGORY(LogFire);
+
 UPRGA_Fire::UPRGA_Fire()
 {
 	ReplicationPolicy = EGameplayAbilityReplicationPolicy::ReplicateYes;
 	InstancingPolicy = EGameplayAbilityInstancingPolicy::InstancedPerActor;
 	NetExecutionPolicy = EGameplayAbilityNetExecutionPolicy::LocalPredicted;
+	
+	// 기본적으로 발사 어빌리티는 Aiming일 때만 활성화
+	ActivationRequiredTags.AddTag(PRGameplayTags::State_Aiming);
 }
 
 FVector UPRGA_Fire::GetMuzzleLocation() const

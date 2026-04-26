@@ -45,9 +45,12 @@ public:
 	
 protected:
 	virtual void BeginPlay() override;
-	
 	virtual void SetupPlayerInputComponent(class UInputComponent* PlayerInputComponent) override;
 	
+	/*~ APRCharacterBase Interface ~*/
+	virtual void HandleGameplayTagUpdated(const FGameplayTag& ChangedTag, bool bTagExists) override;
+	
+	/*~ APRPlayerCharacter Interface ~*/
 	/** 입력 처리 함수 */
 	void Move(const FInputActionValue& Value);
 	void Look(const FInputActionValue& Value);

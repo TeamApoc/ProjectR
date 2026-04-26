@@ -15,6 +15,7 @@
 #include "ProjectR/System/PRAssetManager.h"
 #include "ProjectR/PRGameplayTags.h"
 #include "ProjectR/AbilitySystem/AttributeSets/PRAttributeSet_Common.h"
+#include "ProjectR/Weapon/Components/PRWeaponManagerComponent.h"
 #include "ProjectR/Player/Components/PRSpringArmComponent.h"
 
 
@@ -46,6 +47,8 @@ APRPlayerCharacter::APRPlayerCharacter()
 	FollowCamera->SetupAttachment(CameraBoom, UPRSpringArmComponent::SocketName);
 	FollowCamera->bUsePawnControlRotation = false;
 	FollowCamera->SetFieldOfView(80.0f); // 기본 FOV 80도 설정
+
+	WeaponManagerComponent = CreateDefaultSubobject<UPRWeaponManagerComponent>(TEXT("WeaponManagerComponent"));
 	
 	// 캡슐 설정
 	USkeletalMeshComponent* MeshComp = GetMesh();
@@ -170,6 +173,18 @@ void APRPlayerCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputC
 	}
 	
 	// NOTE: PRPlayerController의 SetupInputComponent 에서 Ability Input을 바인딩함
+}
+
+void APRPlayerCharacter::HandleGameplayTagUpdated(const FGameplayTag& ChangedTag, bool bTagExists)
+{
+	Super::HandleGameplayTagUpdated(ChangedTag, bTagExists);
+	
+	// 26.04.26, Yuchan, Aiming 임시 테스트 코드
+	if (ChangedTag.MatchesTagExact(PRGameplayTags::State_Aiming))
+	{
+		bIsAiming = bTagExists;
+		UpdateMaxWalkSpeed(); // TODO: 이 함수에서 Strafe모드 직접 제어 하지 말고 별도 함수로 분리하는게 어떨지? 
+	}
 }
 
 void APRPlayerCharacter::Move(const FInputActionValue& Value)

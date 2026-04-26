@@ -21,6 +21,9 @@ public class ProjectR : ModuleRules
 			"DeveloperSettings",
 			"NavigationSystem",
 			"MotionWarping"
+			"UMG",
+			"NetCore",
+			"StructUtils",
 		});
 
 		PrivateDependencyModuleNames.AddRange(new string[] { "AnimGraphRuntime" });

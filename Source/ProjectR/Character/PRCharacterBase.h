@@ -43,7 +43,7 @@ protected:
 	/*~ APRCharacterBase Interface ~*/
 	void BindTagChangeEvent();
 	// ASC의 OwnedTags 스택 변경 이벤트 핸들러, TagExists가 true 면 태그 추가, false면 태그 제거
-	virtual void HandleGameplayTagUpdated(const FGameplayTag& ChangedTag, bool TagExists);
+	virtual void HandleGameplayTagUpdated(const FGameplayTag& ChangedTag, bool bTagExists);
 	
 protected:
 	UPROPERTY(EditAnywhere, Category = "PR Config|Character")

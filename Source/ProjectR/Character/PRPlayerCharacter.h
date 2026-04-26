@@ -12,6 +12,7 @@ class USpringArmComponent;
 class UCameraComponent;
 class UInputMappingContext;
 class UInputAction;
+class UPRWeaponManagerComponent;
 class UPRSpringArmComponent;
 struct FInputActionValue;
 
@@ -33,6 +34,7 @@ public:
 	/*~ APRCharacterBase Interface ~*/
 	virtual UPRAbilitySystemComponent* GetPRAbilitySystemComponent() const override;
 	
+	/*~ APRPlayerCharacter Interface ~*/
 	/** 애니메이션 인스턴스에서 사용하는 게터 함수들 */                   
 	bool IsCrouching() const { return bIsCrouched; } 
 	bool IsSprinting() const { return bIsSprinting; } 
@@ -40,14 +42,19 @@ public:
 	float GetWalkSpeed() const { return WalkSpeed; }
 	float GetJogSpeed() const { return JogSpeed; }
 	float GetSprintSpeed() const { return SprintSpeed; }
-	
 	bool IsAiming() const;
+	
+	// ===== Component getters =====
+	UPRWeaponManagerComponent* GetWeaponManager() const {return WeaponManagerComponent;}
 	
 protected:
 	virtual void BeginPlay() override;
-	
 	virtual void SetupPlayerInputComponent(class UInputComponent* PlayerInputComponent) override;
 	
+	/*~ APRCharacterBase Interface ~*/
+	virtual void HandleGameplayTagUpdated(const FGameplayTag& ChangedTag, bool bTagExists) override;
+	
+	/*~ APRPlayerCharacter Interface ~*/
 	/** 입력 처리 함수 */
 	void Move(const FInputActionValue& Value);
 	void Look(const FInputActionValue& Value);
@@ -79,6 +86,9 @@ public:
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Camera")
 	TObjectPtr<UCameraComponent> FollowCamera;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Weapon")
+	TObjectPtr<UPRWeaponManagerComponent> WeaponManagerComponent;
 
 protected:
 	/** Enhanced Input 에셋 (블루프린트에서 할당) */

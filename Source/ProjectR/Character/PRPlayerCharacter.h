@@ -12,6 +12,7 @@ class USpringArmComponent;
 class UCameraComponent;
 class UInputMappingContext;
 class UInputAction;
+class UPRWeaponManagerComponent;
 class UPRSpringArmComponent;
 struct FInputActionValue;
 
@@ -82,6 +83,9 @@ public:
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Camera")
 	TObjectPtr<UCameraComponent> FollowCamera;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Weapon")
+	TObjectPtr<UPRWeaponManagerComponent> WeaponManagerComponent;
 
 protected:
 	/** Enhanced Input 에셋 (블루프린트에서 할당) */

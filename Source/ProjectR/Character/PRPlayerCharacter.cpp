@@ -15,6 +15,7 @@
 #include "ProjectR/System/PRAssetManager.h"
 #include "ProjectR/PRGameplayTags.h"
 #include "ProjectR/AbilitySystem/AttributeSets/PRAttributeSet_Common.h"
+#include "ProjectR/Weapon/Components/PRWeaponManagerComponent.h"
 #include "ProjectR/Player/Components/PRSpringArmComponent.h"
 
 
@@ -46,6 +47,8 @@ APRPlayerCharacter::APRPlayerCharacter()
 	FollowCamera->SetupAttachment(CameraBoom, UPRSpringArmComponent::SocketName);
 	FollowCamera->bUsePawnControlRotation = false;
 	FollowCamera->SetFieldOfView(80.0f); // 기본 FOV 80도 설정
+
+	WeaponManagerComponent = CreateDefaultSubobject<UPRWeaponManagerComponent>(TEXT("WeaponManagerComponent"));
 	
 	// 캡슐 설정
 	USkeletalMeshComponent* MeshComp = GetMesh();

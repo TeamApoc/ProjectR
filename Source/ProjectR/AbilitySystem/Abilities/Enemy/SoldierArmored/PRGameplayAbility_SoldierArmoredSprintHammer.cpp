@@ -29,6 +29,8 @@ void UPRGameplayAbility_SoldierArmoredSprintHammer::ActivateAbility(const FGamep
 	GroggyDamage = HitConfig.GroggyDamage;
 	AttackRange = HitConfig.AttackRange;
 	AttackRadius = HitConfig.AttackRadius;
+	AttackTraceSourceName = HitConfig.AttackTraceSourceName;
+	AttackTraceSourceOffset = HitConfig.AttackTraceSourceOffset;
 
 	Super::ActivateAbility(Handle, ActorInfo, ActivationInfo, TriggerEventData);
 }

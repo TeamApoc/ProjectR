@@ -15,6 +15,7 @@
 #include "ProjectR/System/PRAssetManager.h"
 #include "ProjectR/PRGameplayTags.h"
 #include "ProjectR/AbilitySystem/AttributeSets/PRAttributeSet_Common.h"
+#include "ProjectR/Player/Components/PRSpringArmComponent.h"
 
 
 // Sets default values
@@ -30,15 +31,21 @@ APRPlayerCharacter::APRPlayerCharacter()
 	SetNetUpdateFrequency(100.0f);
 
 	// 카메라 붐 설정 (캐릭터 뒤에 배치)
-	CameraBoom = CreateDefaultSubobject<USpringArmComponent>(TEXT("CameraBoom"));
+	CameraBoom = CreateDefaultSubobject<UPRSpringArmComponent>(TEXT("CameraBoom"));
 	CameraBoom->SetupAttachment(RootComponent);
-	CameraBoom->TargetArmLength = 400.0f;
+	CameraBoom->TargetArmLength = 300.0f;
+	CameraBoom->TargetOffset = FVector(0.0f, 0.0f, 80.0f);
+	CameraBoom->SocketOffset = FVector(0.0f, 70.0f, 0.0f);
 	CameraBoom->bUsePawnControlRotation = true; // 컨트롤러 회전에 따라 카메라 회전
+	CameraBoom->bDoCollisionTest = true; // 카메라 충돌 처리 (장애물 감지 시 당김)
+	CameraBoom->bEnableCameraLag = true; // 카메라 지연(Lag) 활성화
+	CameraBoom->CameraLagSpeed = 10.0f; // 지연 속도 조절
 
 	// 카메라 설정
 	FollowCamera = CreateDefaultSubobject<UCameraComponent>(TEXT("FollowCamera"));
-	FollowCamera->SetupAttachment(CameraBoom, USpringArmComponent::SocketName);
+	FollowCamera->SetupAttachment(CameraBoom, UPRSpringArmComponent::SocketName);
 	FollowCamera->bUsePawnControlRotation = false;
+	FollowCamera->SetFieldOfView(80.0f); // 기본 FOV 80도 설정
 	
 	// 캡슐 설정
 	USkeletalMeshComponent* MeshComp = GetMesh();
@@ -59,6 +66,9 @@ APRPlayerCharacter::APRPlayerCharacter()
 
 	// 초기 속도 설정
 	GetCharacterMovement()->MaxWalkSpeed = JogSpeed;
+	
+	// 루트모션을 통한 회전 켜기
+	GetCharacterMovement()->bAllowPhysicsRotationDuringAnimRootMotion = true;
 }
 
 // =====  ASC 연동 =====
@@ -119,6 +129,15 @@ void APRPlayerCharacter::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& O
 	DOREPLIFETIME(APRPlayerCharacter, bIsWalking);
 }
 
+bool APRPlayerCharacter::IsAiming() const
+{
+	if (const UPRAbilitySystemComponent* ASC = GetPRAbilitySystemComponent())
+	{
+		return ASC->HasMatchingGameplayTag(PRGameplayTags::State_Aiming);
+	}
+	return false;
+}
+
 // Called when the game starts or when spawned
 void APRPlayerCharacter::BeginPlay()
 {
@@ -148,11 +167,6 @@ void APRPlayerCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputC
 		EnhancedInputComponent->BindAction(SprintAction, ETriggerEvent::Started, this, &APRPlayerCharacter::SprintPressed);
 		
 		EnhancedInputComponent->BindAction(WalkAction, ETriggerEvent::Started, this, &APRPlayerCharacter::WalkPressed);
-
-		EnhancedInputComponent->BindAction(CrouchAction, ETriggerEvent::Started, this, &APRPlayerCharacter::CrouchPressed);
-
-		EnhancedInputComponent->BindAction(AimAction, ETriggerEvent::Started, this, &APRPlayerCharacter::AimStarted);
-		EnhancedInputComponent->BindAction(AimAction, ETriggerEvent::Completed, this, &APRPlayerCharacter::AimEnded);
 	}
 	
 	// NOTE: PRPlayerController의 SetupInputComponent 에서 Ability Input을 바인딩함
@@ -262,7 +276,20 @@ void APRPlayerCharacter::UpdateMaxWalkSpeed()
 	}
 	
 	// 조준/걷기일 때는 캐릭터가 항상 카메라 정면을 바라보게 합니다.
-	bUseControllerRotationYaw = bIsStrafeMode;
+	bUseControllerRotationYaw = false;
+	
+	// Strafe 모드에서도 bUseControllerRotationYaw를 꺼야 제자리 회전이 동작합니다.
+	if (UCharacterMovementComponent* MoveComp = GetCharacterMovement())
+	{
+		MoveComp->bOrientRotationToMovement = !bIsStrafeMode;
+
+		// 조준 중(Strafe)일 때 이동하면 카메라 방향으로 부드럽게 회전하도록 설정
+		bool bIsMoving = GetVelocity().Size2D() > 10.0f;
+		MoveComp->bOrientRotationToMovement = !bIsStrafeMode && bIsMoving;
+		MoveComp->bUseControllerDesiredRotation = bIsStrafeMode && bIsMoving;
+		
+		MoveComp->bAllowPhysicsRotationDuringAnimRootMotion = true;
+	}
 }
 
 /*~ 상태 변경 및 동기화 ~*/
@@ -291,52 +318,6 @@ bool APRPlayerCharacter::Server_SetWalking_Validate(bool bNewWalking)
 	return true;
 }
 
-void APRPlayerCharacter::AimStarted()
-{
-	bIsAiming = true;
-	UpdateMaxWalkSpeed();
-
-	if (!HasAuthority())
-	{
-		Server_SetAiming(true);
-	}
-}
-
-void APRPlayerCharacter::AimEnded()
-{
-	bIsAiming = false;
-	UpdateMaxWalkSpeed();
-
-	if (!HasAuthority())
-	{
-		Server_SetAiming(false);
-	}
-}
-
-bool APRPlayerCharacter::Server_SetAiming_Validate(bool bNewAiming)
-{
-    return true;
-}
-
-void APRPlayerCharacter::Server_SetAiming_Implementation(bool bNewAiming)
-{
-	bIsAiming = bNewAiming;
-	UpdateMaxWalkSpeed();
-}
-
-
-void APRPlayerCharacter::CrouchPressed()
-{
-	if (CanCrouch())
-	{
-		Crouch();
-	}
-	else if (bIsCrouched)
-	{
-		UnCrouch();
-	}
-}
-
 void APRPlayerCharacter::HandleMovementInputTag(FGameplayTag InputTag, bool bPressed)
 {
 	if (InputTag == PRGameplayTags::Input_Locomotion_Sprint && bPressed)
@@ -355,23 +336,4 @@ void APRPlayerCharacter::OnRep_IsSprinting()
 {
     // 타 플레이어의 화면에서도 애니메이션/속도 일치
     UpdateMaxWalkSpeed();
-}
-
-void APRPlayerCharacter::OnRep_IsAiming()
-{
-    UpdateMaxWalkSpeed();
-}
-
-
-float APRPlayerCharacter::GetDesiredLookDirection() const
-{
-	if (IsValid(Controller))
-	{
-		// 카메라(Control) 방향과 캐릭터 방향의 차이를 계산하여 Lean 애니메이션 등에 활용
-		FRotator ControlRot = GetControlRotation();
-		FRotator ActorRot = GetActorRotation();
-		FRotator Delta = UKismetMathLibrary::NormalizedDeltaRotator(ControlRot, ActorRot);
-		return Delta.Yaw;
-	}
-	return 0.0f;
 }

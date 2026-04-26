@@ -1,12 +1,14 @@
 // Copyright (c) 2026 TeamApoc. All Rights Reserved.
 
 
-#include "ProjectR/AbilitySystem/Player/PRPlayerDodgeAbility.h"
+#include "ProjectR/AbilitySystem/Abilities/Player/PRPlayerDodgeAbility.h"
 #include "Abilities/Tasks/AbilityTask_PlayMontageAndWait.h"
 #include "Abilities/Tasks/AbilityTask_WaitDelay.h"
 #include "GameFramework/Character.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "ProjectR/PRGameplayTags.h"
+#include "ProjectR/Player/PRCameraModifier.h"
+#include "Camera/PlayerCameraManager.h"
 
 UPRPlayerDodgeAbility::UPRPlayerDodgeAbility()
 {
@@ -69,6 +71,14 @@ void UPRPlayerDodgeAbility::EndAbility(const FGameplayAbilitySpecHandle Handle, 
 {
     EndIFrame();
     bServerReceivedDirection = false;
+    
+    if (ActiveCameraModifier)
+    {
+        // 즉각 제거하지 않고(false), AlphaOutTime에 맞춰 부드럽게 원상 복구되도록 설정
+        ActiveCameraModifier->DisableModifier(false); 
+        ActiveCameraModifier = nullptr;
+    }
+    
     Super::EndAbility(Handle, ActorInfo, ActivationInfo, bReplicateEndAbility, bWasCancelled);
 }
 
@@ -138,4 +148,25 @@ void UPRPlayerDodgeAbility::ExecuteDodge(FVector Direction)
     UAbilityTask_WaitDelay* IFrameStartTask = UAbilityTask_WaitDelay::WaitDelay(this, IFrameStartDelay);
     IFrameStartTask->OnFinish.AddDynamic(this, &UPRPlayerDodgeAbility::StartIFrame);
     IFrameStartTask->Activate();
+    
+    // 카메라 모디파이어 추가 (로컬 플레이어만 적용)
+    if (IsLocallyControlled())
+    {
+        if (APlayerController* PC = Cast<APlayerController>(Character->GetController()))
+        {
+            if (APlayerCameraManager* CameraManager = PC->PlayerCameraManager)
+            {
+                // 모디파이어를 생성하고 매니저에 부착 (AlphaInTime에 맞춰 부드럽게 시야가 변함)
+                ActiveCameraModifier = Cast<UPRCameraModifier>(
+                    CameraManager->AddNewCameraModifier(UPRCameraModifier::StaticClass())
+                );
+
+                if (ActiveCameraModifier)
+                {
+                    // 구르기용 맞춤 수치 세팅: FOV 100, 카메라를 아래로(-30) 낮춤
+                    ActiveCameraModifier->SetActionCameraSettings(110.0f, FVector(0.f, 0.f, 0.f));
+                }
+            }
+        }
+    }
 }

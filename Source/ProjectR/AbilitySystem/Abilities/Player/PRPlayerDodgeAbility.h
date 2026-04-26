@@ -6,6 +6,7 @@
 #include "ProjectR/AbilitySystem/PRGameplayAbility.h"
 #include "PRPlayerDodgeAbility.generated.h"
 
+class UPRCameraModifier;
 /**
  * 플레이어 구르기(회피) 어빌리티
  * 8방향 이동 입력을 기반으로 회피 방향을 결정하며, 특정 구간에 무적 판정을 부여합니다.
@@ -61,6 +62,10 @@ protected:
     float IFrameDuration = 0.35f;
 
 private:
+    /** 활성화된 카메라 모디파이어 (구르기 종료 시 비활성화하기 위함) */
+    UPROPERTY()
+    TObjectPtr<UPRCameraModifier> ActiveCameraModifier;
+    
     /** 적용된 무적 효과 핸들 */
     FActiveGameplayEffectHandle InvulnerableEffectHandle;
     

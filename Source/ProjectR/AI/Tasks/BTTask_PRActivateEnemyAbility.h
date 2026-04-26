@@ -45,6 +45,10 @@ protected:
 	UPROPERTY(EditAnywhere, Category = "ProjectR|Ability")
 	bool bWaitUntilAbilityEnds = true;
 
+	// Abort 요청이 와도 Ability 종료까지 BT 전환 지연
+	UPROPERTY(EditAnywhere, Category = "ProjectR|Ability", meta = (EditCondition = "bWaitUntilAbilityEnds"))
+	bool bDelayAbortUntilAbilityEnds = true;
+
 	// true면 Ability가 끝난 뒤 전술 상태를 지정한 값으로 되돌린다.
 	UPROPERTY(EditAnywhere, Category = "ProjectR|Ability")
 	bool bSetTacticalModeAfterAbilityEnds = true;
@@ -57,6 +61,8 @@ private:
 	void BindAbilityEndDelegate(UBehaviorTreeComponent& OwnerComp, UPRAbilitySystemComponent* ASC);
 	void ClearAbilityEndDelegate();
 	void HandleObservedAbilityEnded(const FAbilityEndedData& EndedData);
+	bool IsObservedAbilityActive() const;
+	void FinishObservedAbilityWait(UBehaviorTreeComponent& OwnerComp, EBTNodeResult::Type TaskResult);
 
 	// 대기 중인 Ability가 끝났을 때 BT를 바로 깨우기 위해 캐시한다.
 	UPROPERTY()
@@ -67,4 +73,5 @@ private:
 
 	FGameplayAbilitySpecHandle ActiveAbilityHandle;
 	FDelegateHandle AbilityEndedDelegateHandle;
+	bool bAbortRequested = false;
 };

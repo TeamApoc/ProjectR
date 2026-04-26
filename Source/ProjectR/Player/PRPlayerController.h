@@ -21,6 +21,8 @@ class PROJECTR_API APRPlayerController : public APlayerController
 	GENERATED_BODY()
 
 public:
+	APRPlayerController();
+	
 	/*~ APlayerController Interface ~*/
 	virtual void AcknowledgePossession(APawn* InPawn) override;
 	virtual void BeginPlay() override;

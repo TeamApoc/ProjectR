@@ -5,12 +5,16 @@
 #include "AIController.h"
 #include "BehaviorTree/BlackboardComponent.h"
 
+// ===== 초기화 =====
+
 UBTService_PRUpdateEnemyCombatBlackboard::UBTService_PRUpdateEnemyCombatBlackboard()
 {
 	NodeName = TEXT("Update Enemy Combat Blackboard");
 	Interval = 0.2f;
 	RandomDeviation = 0.05f;
 }
+
+// ===== Blackboard 갱신 =====
 
 void UBTService_PRUpdateEnemyCombatBlackboard::TickNode(UBehaviorTreeComponent& OwnerComp, uint8* NodeMemory, float DeltaSeconds)
 {
@@ -54,12 +58,13 @@ void UBTService_PRUpdateEnemyCombatBlackboard::TickNode(UBehaviorTreeComponent& 
 		ChargeTraceChannel,
 		QueryParams);
 
-	const bool bChargeRange = DistanceToTarget >= BlackboardComponent->GetValueAsFloat(ChargeRangeMinKey)
-		&& DistanceToTarget <= BlackboardComponent->GetValueAsFloat(ChargeRangeMaxKey);
-	// 돌진은 거리 조건을 만족하고, 타겟까지의 직선 경로가 막히지 않았을 때만 허용한다.
-	const bool bChargePathClear = bChargeRange && (!bBlocked || HitResult.GetActor() == CurrentTarget);
+	// Sprint 거리 조건: BT Decorator / PatternDataAsset 책임
+	// 경로 차단 여부만 Blackboard에 기록
+	const bool bChargePathClear = !bBlocked || HitResult.GetActor() == CurrentTarget;
 	BlackboardComponent->SetValueAsBool(ChargePathClearKey, bChargePathClear);
 }
+
+// ===== 에디터 표시 =====
 
 FString UBTService_PRUpdateEnemyCombatBlackboard::GetStaticDescription() const
 {

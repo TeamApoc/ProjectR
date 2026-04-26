@@ -58,6 +58,10 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "ProjectR|Weapon")
 	void SetWeaponArmedState(EPRWeaponArmedState NewArmedState);
 
+	// 26.04.26, Yuchan, 무기 액터 반환 함수가 없어 임시로 추가. Fire 어빌리티가 의존하므로 아래 인터페이스는 유지되어야 함.
+	UFUNCTION(BlueprintPure)
+	APRWeaponActor* GetActiveWeaponActor() const;
+	
 protected:
 	// 서버 권위에서 슬롯 데이터와 공개 상태를 갱신한다
 	void EquipTestWeaponToSlotInternal(UPRWeaponDataAsset* WeaponData, EPRWeaponSlotType TargetSlot);
@@ -145,10 +149,10 @@ private:
 	FPRWeaponVisualSlot& GetMutableVisualSlotBySlotType(EPRWeaponSlotType SlotType);
 
 	// 대상 슬롯의 현재 로컬 Actor를 반환한다
-	APRWeaponActor* GetWeaponActorBySlot(EPRWeaponSlotType SlotType) const;
+	APRWeaponActor* GetWeaponActorBySlot(EPRWeaponSlotType SlotType) const; // TODO: 왜 private?
 
 	// 대상 슬롯 로컬 Actor를 수정 가능한 참조로 반환한다
-	TObjectPtr<APRWeaponActor>& GetMutableWeaponActorBySlot(EPRWeaponSlotType SlotType);
+	TObjectPtr<APRWeaponActor>& GetMutableWeaponActorBySlot(EPRWeaponSlotType SlotType); // TODO: 역할이 모호함. GetWeaponActorBySlot으로 충분하지 않은지?
 
 	// 대상 슬롯의 현재 로컬 Actor를 안전하게 정리한다
 	void DestroyWeaponActorForSlot(EPRWeaponSlotType SlotType);
@@ -156,11 +160,11 @@ private:
 protected:
 	// 현재 무장 상태
 	UPROPERTY(ReplicatedUsing = OnRep_ArmedState, VisibleInstanceOnly, Category = "ProjectR|Weapon")
-	EPRWeaponArmedState ArmedState = EPRWeaponArmedState::Armed;
+	EPRWeaponArmedState ArmedState = EPRWeaponArmedState::Armed; // TODO: 기본값이 Armed?
 
 	// 현재 활성 무기 공개 상태
 	UPROPERTY(ReplicatedUsing = OnRep_ActiveSlot, VisibleInstanceOnly, Category = "ProjectR|Weapon")
-	FPRActiveWeaponSlot ActiveSlot;
+	FPRActiveWeaponSlot ActiveSlot; // TODO: FPRActiveWeaponSlot과 FPRWeaponVisualSlot은 하나로 통합가능하지 않은지?
 
 	// 주무기 슬롯 공개 비주얼 상태
 	UPROPERTY(ReplicatedUsing = OnRep_PrimaryVisualSlot, VisibleInstanceOnly, Category = "ProjectR|Weapon")

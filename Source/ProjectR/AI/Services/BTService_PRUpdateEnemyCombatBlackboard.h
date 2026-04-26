@@ -14,9 +14,13 @@ class PROJECTR_API UBTService_PRUpdateEnemyCombatBlackboard : public UBTService
 	GENERATED_BODY()
 
 public:
+	// 서비스 기본 주기와 노드 이름 설정
 	UBTService_PRUpdateEnemyCombatBlackboard();
 
+	// 전투 대상, 거리, 돌진 경로 정보를 Blackboard에 갱신
 	virtual void TickNode(UBehaviorTreeComponent& OwnerComp, uint8* NodeMemory, float DeltaSeconds) override;
+
+	// BT 에디터에 표시할 서비스 설명 반환
 	virtual FString GetStaticDescription() const override;
 
 protected:
@@ -32,12 +36,6 @@ protected:
 
 	UPROPERTY(EditAnywhere, Category = "ProjectR|Blackboard")
 	FName DistanceToTargetKey = TEXT("distance_to_target");
-
-	UPROPERTY(EditAnywhere, Category = "ProjectR|Blackboard")
-	FName ChargeRangeMinKey = TEXT("charge_range_min");
-
-	UPROPERTY(EditAnywhere, Category = "ProjectR|Blackboard")
-	FName ChargeRangeMaxKey = TEXT("charge_range_max");
 
 	UPROPERTY(EditAnywhere, Category = "ProjectR|Blackboard")
 	FName ChargePathClearKey = TEXT("charge_path_clear");

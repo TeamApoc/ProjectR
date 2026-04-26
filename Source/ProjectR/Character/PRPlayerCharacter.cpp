@@ -16,6 +16,7 @@
 #include "ProjectR/PRGameplayTags.h"
 #include "ProjectR/AbilitySystem/AttributeSets/PRAttributeSet_Common.h"
 #include "ProjectR/Weapon/Components/PRWeaponManagerComponent.h"
+#include "ProjectR/Player/Components/PRSpringArmComponent.h"
 
 
 // Sets default values
@@ -31,15 +32,21 @@ APRPlayerCharacter::APRPlayerCharacter()
 	SetNetUpdateFrequency(100.0f);
 
 	// 카메라 붐 설정 (캐릭터 뒤에 배치)
-	CameraBoom = CreateDefaultSubobject<USpringArmComponent>(TEXT("CameraBoom"));
+	CameraBoom = CreateDefaultSubobject<UPRSpringArmComponent>(TEXT("CameraBoom"));
 	CameraBoom->SetupAttachment(RootComponent);
-	CameraBoom->TargetArmLength = 400.0f;
+	CameraBoom->TargetArmLength = 300.0f;
+	CameraBoom->TargetOffset = FVector(0.0f, 0.0f, 80.0f);
+	CameraBoom->SocketOffset = FVector(0.0f, 70.0f, 0.0f);
 	CameraBoom->bUsePawnControlRotation = true; // 컨트롤러 회전에 따라 카메라 회전
+	CameraBoom->bDoCollisionTest = true; // 카메라 충돌 처리 (장애물 감지 시 당김)
+	CameraBoom->bEnableCameraLag = true; // 카메라 지연(Lag) 활성화
+	CameraBoom->CameraLagSpeed = 10.0f; // 지연 속도 조절
 
 	// 카메라 설정
 	FollowCamera = CreateDefaultSubobject<UCameraComponent>(TEXT("FollowCamera"));
-	FollowCamera->SetupAttachment(CameraBoom, USpringArmComponent::SocketName);
+	FollowCamera->SetupAttachment(CameraBoom, UPRSpringArmComponent::SocketName);
 	FollowCamera->bUsePawnControlRotation = false;
+	FollowCamera->SetFieldOfView(80.0f); // 기본 FOV 80도 설정
 
 	WeaponManagerComponent = CreateDefaultSubobject<UPRWeaponManagerComponent>(TEXT("WeaponManagerComponent"));
 	
@@ -125,6 +132,15 @@ void APRPlayerCharacter::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& O
 	DOREPLIFETIME(APRPlayerCharacter, bIsWalking);
 }
 
+bool APRPlayerCharacter::IsAiming() const
+{
+	if (const UPRAbilitySystemComponent* ASC = GetPRAbilitySystemComponent())
+	{
+		return ASC->HasMatchingGameplayTag(PRGameplayTags::State_Aiming);
+	}
+	return false;
+}
+
 // Called when the game starts or when spawned
 void APRPlayerCharacter::BeginPlay()
 {
@@ -154,12 +170,21 @@ void APRPlayerCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputC
 		EnhancedInputComponent->BindAction(SprintAction, ETriggerEvent::Started, this, &APRPlayerCharacter::SprintPressed);
 		
 		EnhancedInputComponent->BindAction(WalkAction, ETriggerEvent::Started, this, &APRPlayerCharacter::WalkPressed);
-
-		EnhancedInputComponent->BindAction(AimAction, ETriggerEvent::Started, this, &APRPlayerCharacter::AimStarted);
-		EnhancedInputComponent->BindAction(AimAction, ETriggerEvent::Completed, this, &APRPlayerCharacter::AimEnded);
 	}
 	
 	// NOTE: PRPlayerController의 SetupInputComponent 에서 Ability Input을 바인딩함
+}
+
+void APRPlayerCharacter::HandleGameplayTagUpdated(const FGameplayTag& ChangedTag, bool bTagExists)
+{
+	Super::HandleGameplayTagUpdated(ChangedTag, bTagExists);
+	
+	// 26.04.26, Yuchan, Aiming 임시 테스트 코드
+	if (ChangedTag.MatchesTagExact(PRGameplayTags::State_Aiming))
+	{
+		bIsAiming = bTagExists;
+		UpdateMaxWalkSpeed(); // TODO: 이 함수에서 Strafe모드 직접 제어 하지 말고 별도 함수로 분리하는게 어떨지? 
+	}
 }
 
 void APRPlayerCharacter::Move(const FInputActionValue& Value)
@@ -308,39 +333,6 @@ bool APRPlayerCharacter::Server_SetWalking_Validate(bool bNewWalking)
 	return true;
 }
 
-void APRPlayerCharacter::AimStarted()
-{
-	bIsAiming = true;
-	UpdateMaxWalkSpeed();
-
-	if (!HasAuthority())
-	{
-		Server_SetAiming(true);
-	}
-}
-
-void APRPlayerCharacter::AimEnded()
-{
-	bIsAiming = false;
-	UpdateMaxWalkSpeed();
-
-	if (!HasAuthority())
-	{
-		Server_SetAiming(false);
-	}
-}
-
-bool APRPlayerCharacter::Server_SetAiming_Validate(bool bNewAiming)
-{
-    return true;
-}
-
-void APRPlayerCharacter::Server_SetAiming_Implementation(bool bNewAiming)
-{
-	bIsAiming = bNewAiming;
-	UpdateMaxWalkSpeed();
-}
-
 void APRPlayerCharacter::HandleMovementInputTag(FGameplayTag InputTag, bool bPressed)
 {
 	if (InputTag == PRGameplayTags::Input_Locomotion_Sprint && bPressed)
@@ -358,10 +350,5 @@ void APRPlayerCharacter::HandleMovementInputTag(FGameplayTag InputTag, bool bPre
 void APRPlayerCharacter::OnRep_IsSprinting()
 {
     // 타 플레이어의 화면에서도 애니메이션/속도 일치
-    UpdateMaxWalkSpeed();
-}
-
-void APRPlayerCharacter::OnRep_IsAiming()
-{
     UpdateMaxWalkSpeed();
 }

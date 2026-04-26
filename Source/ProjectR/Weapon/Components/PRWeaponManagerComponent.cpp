@@ -125,6 +125,11 @@ void UPRWeaponManagerComponent::SetWeaponArmedState(EPRWeaponArmedState NewArmed
 	Server_SetWeaponArmedState(NewArmedState);
 }
 
+APRWeaponActor* UPRWeaponManagerComponent::GetActiveWeaponActor() const
+{
+	return GetWeaponActorBySlot(ActiveSlot.SlotType);
+}
+
 void UPRWeaponManagerComponent::EquipTestWeaponToSlotInternal(UPRWeaponDataAsset* WeaponData, EPRWeaponSlotType TargetSlot)
 {
 	// 장착 결과를 검증할 수 있는 최소 데이터가 없으면 상태를 바꾸지 않는다.

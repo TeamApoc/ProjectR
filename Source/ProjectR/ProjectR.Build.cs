@@ -20,6 +20,7 @@ public class ProjectR : ModuleRules
 			"GameplayTasks",
 			"DeveloperSettings",
 			"NavigationSystem",
+			"MotionWarping"
 			"UMG",
 			"NetCore",
 			"StructUtils",

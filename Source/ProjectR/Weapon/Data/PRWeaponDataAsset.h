@@ -5,11 +5,11 @@
 #include "CoreMinimal.h"
 #include "Engine/DataAsset.h"
 #include "GameplayTagContainer.h"
+#include "ProjectR/AbilitySystem/Data/PRAbilitySet.h"
 #include "ProjectR/Weapon/Types/PRWeaponTypes.h"
 #include "PRWeaponDataAsset.generated.h"
 
 class APRWeaponActor;
-class UPRAbilitySet;
 
 // 무기 1종의 정적 장착 규칙과 기본 탄약 설정을 담는다
 UCLASS(BlueprintType)
@@ -45,9 +45,13 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|Weapon")
 	TSubclassOf<APRWeaponActor> WeaponActorClass;
 
-	// 활성 슬롯 장착 시 부여할 기본 무기 어빌리티 세트
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|Weapon")
-	TObjectPtr<UPRAbilitySet> EquippedAbilitySet = nullptr;
+	// 활성 슬롯 장착 시 부여할 어빌리티 목록. 순서대로 GiveAbility
+	UPROPERTY(EditAnywhere, Category = "ProjectR|Weapon")
+	TArray<FPRAbilityEntry> EquippedAbilities;
+
+	// 활성 슬롯 장착 시 부여 직후 자동 적용할 Startup GE 목록
+	UPROPERTY(EditAnywhere, Category = "ProjectR|Weapon")
+	TArray<FPREffectEntry> EquippedEffects;
 
 	// 장착 가능한 Mod 태그 목록 (예시. Mod.Weapon.Gun 태그 있는 모드만 착용 가능)
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|Weapon")

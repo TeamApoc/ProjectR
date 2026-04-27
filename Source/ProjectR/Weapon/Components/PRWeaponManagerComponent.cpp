@@ -80,7 +80,7 @@ void UPRWeaponManagerComponent::InitializeRuntimeLinks()
 	}
 
 	CachedASC = PlayerState->GetPRAbilitySystemComponent();
-	CachedPlayerSet = PlayerState->GetMutablePlayerSet();
+	CachedPlayerSet = PlayerState->GetPlayerSet();
 	CachedInventory = PlayerState->GetInventoryComponent();
 }
 

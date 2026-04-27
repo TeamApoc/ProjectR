@@ -11,6 +11,7 @@
 #include "GameFramework/CharacterMovementComponent.h"
 #include "ProjectR/AI/Components/PREnemyCombatEventRelayComponent.h"
 #include "ProjectR/AI/Components/PREnemyThreatComponent.h"
+#include "ProjectR/AI/Data/PREnemyCombatDataAsset.h"
 #include "ProjectR/AI/Data/PRPatternDataAsset.h"
 #include "ProjectR/AI/Data/PRPerceptionConfig.h"
 #include "ProjectR/AbilitySystem/PRAbilitySystemComponent.h"
@@ -19,6 +20,7 @@
 #include "ProjectR/AbilitySystem/Data/PRAbilitySystemRegistry.h"
 #include "ProjectR/PRGameplayTags.h"
 #include "ProjectR/System/PRAssetManager.h"
+#include "Net/UnrealNetwork.h"
 
 APREnemyBaseCharacter::APREnemyBaseCharacter()
 {
@@ -74,6 +76,14 @@ void APREnemyBaseCharacter::BeginPlay()
 	}
 }
 
+void APREnemyBaseCharacter::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const
+{
+	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
+
+	DOREPLIFETIME(APREnemyBaseCharacter, bMaintainCombatMoveFocus);
+	DOREPLIFETIME(APREnemyBaseCharacter, bUseCombatAimOffset);
+}
+
 void APREnemyBaseCharacter::PossessedBy(AController* NewController)
 {
 	Super::PossessedBy(NewController);
@@ -101,6 +111,11 @@ UPRPatternDataAsset* APREnemyBaseCharacter::GetPatternDataAsset() const
 	return PatternDataAsset;
 }
 
+UPREnemyCombatDataAsset* APREnemyBaseCharacter::GetCombatDataAsset() const
+{
+	return CombatDataAsset;
+}
+
 UPRPerceptionConfig* APREnemyBaseCharacter::GetPerceptionConfig() const
 {
 	return PerceptionConfig;
@@ -114,6 +129,18 @@ UBehaviorTree* APREnemyBaseCharacter::GetBehaviorTreeAsset() const
 FVector APREnemyBaseCharacter::GetHomeLocation() const
 {
 	return HomeLocation;
+}
+
+void APREnemyBaseCharacter::ApplyCombatMovePresentationContext(bool bMaintainTargetFocus, bool bInUseCombatAimOffset)
+{
+	bMaintainCombatMoveFocus = bMaintainTargetFocus;
+	bUseCombatAimOffset = bInUseCombatAimOffset;
+}
+
+void APREnemyBaseCharacter::ClearCombatMovePresentationContext()
+{
+	bMaintainCombatMoveFocus = false;
+	bUseCombatAimOffset = false;
 }
 
 void APREnemyBaseCharacter::HandleGameplayTagUpdated(const FGameplayTag& ChangedTag, bool TagExists)
@@ -175,6 +202,7 @@ void APREnemyBaseCharacter::HandleDeadTagChanged(bool bEntered)
 	// 사망 상태 진입
 	if (bEntered)
 	{
+		ClearCombatMovePresentationContext();
 		GetCharacterMovement()->DisableMovement();
 	}
 }
@@ -184,6 +212,7 @@ void APREnemyBaseCharacter::HandleGroggyTagChanged(bool bEntered)
 	// 그로기 상태 진입
 	if (bEntered)
 	{
+		ClearCombatMovePresentationContext();
 		GetCharacterMovement()->StopMovementImmediately();
 	}
 }

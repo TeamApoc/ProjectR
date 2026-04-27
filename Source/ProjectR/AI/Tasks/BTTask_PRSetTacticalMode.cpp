@@ -4,6 +4,7 @@
 
 #include "BehaviorTree/BlackboardComponent.h"
 #include "BehaviorTree/BlackboardData.h"
+#include "ProjectR/AI/Controllers/PREnemyAIController.h"
 
 namespace
 {
@@ -29,6 +30,14 @@ EBTNodeResult::Type UBTTask_PRSetTacticalMode::ExecuteTask(UBehaviorTreeComponen
 	}
 
 	BlackboardComponent->SetValueAsEnum(TacticalModeKey, static_cast<uint8>(NewTacticalMode));
+
+	if (NewTacticalMode != EPRTacticalMode::Reposition)
+	{
+		if (APREnemyAIController* EnemyAIController = Cast<APREnemyAIController>(OwnerComp.GetAIOwner()))
+		{
+			EnemyAIController->ClearCombatMovePresentationContext(false);
+		}
+	}
 
 	return EBTNodeResult::Succeeded;
 }

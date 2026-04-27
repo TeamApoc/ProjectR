@@ -58,11 +58,13 @@ void APREnemyAIController::OnPossess(APawn* InPawn)
 		SetBlackboardTacticalMode(EPRTacticalMode::Idle);
 	}
 
+	ClearCombatMovePresentationContext(false);
 	bPreserveAlertOnNextTargetClear = false;
 }
 
 void APREnemyAIController::OnUnPossess()
 {
+	ClearCombatMovePresentationContext(true);
 	ClearThreatBinding();
 	CachedBlackboardComponent = nullptr;
 	bPreserveAlertOnNextTargetClear = false;
@@ -166,6 +168,7 @@ void APREnemyAIController::HandleThreatTargetChanged(AActor* OldTarget, AActor* 
 	}
 	else
 	{
+		ClearCombatMovePresentationContext(true);
 		CachedBlackboardComponent->ClearValue(CurrentTargetKey);
 		CachedBlackboardComponent->SetValueAsBool(HasLOSKey, false);
 		ClearFocus(EAIFocusPriority::Gameplay);
@@ -202,6 +205,45 @@ void APREnemyAIController::ApplyPerceptionConfig(const UPRPerceptionConfig* Conf
 	EnemyPerceptionComponent->SetDominantSense(SightConfig->GetSenseImplementation());
 }
 
+void APREnemyAIController::ApplyCombatMovePresentationContext(
+	AActor* FocusTarget,
+	bool bMaintainTargetFocus,
+	bool bUseCombatAimOffset)
+{
+	if (APawn* ControlledPawn = GetPawn())
+	{
+		if (IPREnemyInterface* EnemyInterface = Cast<IPREnemyInterface>(ControlledPawn))
+		{
+			EnemyInterface->ApplyCombatMovePresentationContext(bMaintainTargetFocus, bUseCombatAimOffset);
+		}
+	}
+
+	if (bMaintainTargetFocus && IsValid(FocusTarget))
+	{
+		SetFocus(FocusTarget);
+	}
+	else
+	{
+		ClearFocus(EAIFocusPriority::Gameplay);
+	}
+}
+
+void APREnemyAIController::ClearCombatMovePresentationContext(bool bClearGameplayFocus)
+{
+	if (APawn* ControlledPawn = GetPawn())
+	{
+		if (IPREnemyInterface* EnemyInterface = Cast<IPREnemyInterface>(ControlledPawn))
+		{
+			EnemyInterface->ClearCombatMovePresentationContext();
+		}
+	}
+
+	if (bClearGameplayFocus)
+	{
+		ClearFocus(EAIFocusPriority::Gameplay);
+	}
+}
+
 EPRTacticalMode APREnemyAIController::GetBlackboardTacticalMode() const
 {
 	if (!IsValid(CachedBlackboardComponent))
@@ -226,6 +268,11 @@ void APREnemyAIController::SetBlackboardTacticalMode(EPRTacticalMode NewMode)
 	}
 
 	CachedBlackboardComponent->SetValueAsEnum(TacticalModeKey, static_cast<uint8>(NewMode));
+
+	if (NewMode != EPRTacticalMode::Reposition)
+	{
+		ClearCombatMovePresentationContext(false);
+	}
 }
 
 void APREnemyAIController::CacheBlackboardFromBehaviorTree(UBehaviorTree* BehaviorTreeAsset)

@@ -29,6 +29,12 @@ public:
 	virtual void OnPossess(APawn* InPawn) override;
 	virtual void OnUnPossess() override;
 
+	// EQS 기반 전투 이동 문맥에 맞춰 포커스와 표현 상태를 갱신한다.
+	void ApplyCombatMovePresentationContext(AActor* FocusTarget, bool bMaintainTargetFocus, bool bUseCombatAimOffset);
+
+	// EQS 기반 전투 이동 표현 문맥을 초기화한다.
+	void ClearCombatMovePresentationContext(bool bClearGameplayFocus);
+
 protected:
 	UFUNCTION()
 	void HandleTargetPerceptionUpdated(AActor* Actor, FAIStimulus Stimulus);

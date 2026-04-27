@@ -9,6 +9,7 @@
 #include "BehaviorTree/BlackboardData.h"
 #include "BehaviorTree/BehaviorTreeComponent.h"
 #include "ProjectR/AbilitySystem/PRAbilitySystemComponent.h"
+#include "ProjectR/AI/Controllers/PREnemyAIController.h"
 #include "ProjectR/Character/Enemy/PREnemyInterface.h"
 
 namespace
@@ -158,6 +159,14 @@ void UBTTask_PRActivateEnemyAbility::ApplyPostAbilityBlackboardUpdates(UBehavior
 	if (bSetTacticalModeAfterAbilityEnds && HasActivateAbilityBlackboardKey(BlackboardComponent, TacticalModeKey))
 	{
 		BlackboardComponent->SetValueAsEnum(TacticalModeKey, static_cast<uint8>(TacticalModeAfterAbilityEnds));
+
+		if (TacticalModeAfterAbilityEnds != EPRTacticalMode::Reposition)
+		{
+			if (APREnemyAIController* EnemyAIController = Cast<APREnemyAIController>(OwnerComp.GetAIOwner()))
+			{
+				EnemyAIController->ClearCombatMovePresentationContext(false);
+			}
+		}
 	}
 }
 

@@ -30,4 +30,9 @@ public:
 	// 테스트용 로컬 무기 메시
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|Weapon")
 	TObjectPtr<USkeletalMesh> DisplayMesh;
+	
+	// 04.27 김동석 추가
+	// 이 무기를 들었을 때 캐릭터에 적용할 애니메이션 레이어
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|Weapon")
+	TSubclassOf<UAnimInstance> WeaponAnimLayerClass;
 };

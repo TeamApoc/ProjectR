@@ -119,7 +119,10 @@ protected:
 	/** 질주 속도 (cm/s) */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "PR|Locomotion")
 	float SprintSpeed = 600.0f;
-
+	
+	// 게임 시작 시 기본으로 연결할 애니메이션 레이어 (맨손 레이어)
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "PR|Animation")
+	TSubclassOf<UAnimInstance> DefaultAnimLayerClass;
 private:
 	/** 복제되는 상태 변수 */
 	UPROPERTY(Replicated, VisibleInstanceOnly, BlueprintReadOnly, Category = "Locomotion", meta = (AllowPrivateAccess = "true"))

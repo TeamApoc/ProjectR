@@ -154,6 +154,11 @@ void APRPlayerCharacter::BeginPlay()
 			Subsystem->AddMappingContext(DefaultMappingContext, 0);
 		}
 	}
+	
+	if (IsValid(DefaultAnimLayerClass) && IsValid(GetMesh()))
+	{
+		GetMesh()->LinkAnimClassLayers(DefaultAnimLayerClass);
+	}
 }
 
 // Called to bind functionality to input

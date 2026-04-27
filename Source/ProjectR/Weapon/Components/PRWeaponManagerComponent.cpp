@@ -173,6 +173,9 @@ void UPRWeaponManagerComponent::EquipTestWeaponToSlotInternal(UPRWeaponDataAsset
 
 	// 서버 로컬도 복제 콜백과 같은 경로로 슬롯별 Actor를 즉시 최신화한다.
 	RefreshAllWeaponActors();
+
+	// 애님 레이어 교체
+	RefreshAnimLayer();
 }
 
 void UPRWeaponManagerComponent::UnequipWeaponSlotInternal(EPRWeaponSlotType TargetSlot)
@@ -215,6 +218,7 @@ void UPRWeaponManagerComponent::UnequipWeaponSlotInternal(EPRWeaponSlotType Targ
 
 	RefreshVisualSlotsFromCurrentState();
 	RefreshAllWeaponActors();
+	RefreshAnimLayer();
 }
 
 void UPRWeaponManagerComponent::SetWeaponArmedStateInternal(EPRWeaponArmedState NewArmedState)
@@ -263,6 +267,8 @@ void UPRWeaponManagerComponent::SwapActiveSlotInternal(EPRWeaponSlotType TargetS
 
 	// 슬롯 전환은 Actor를 재생성하지 않고 소켓 부착만 최신화하는 경로를 유지한다.
 	RefreshAllWeaponActors();
+	
+	RefreshAnimLayer();
 }
 
 void UPRWeaponManagerComponent::RefreshWeaponActorForSlot(EPRWeaponSlotType SlotType)
@@ -353,6 +359,8 @@ void UPRWeaponManagerComponent::OnRep_ActiveSlot(FPRActiveWeaponSlot OldActiveSl
 	}
 
 	RefreshAllWeaponActors();
+	
+	RefreshAnimLayer();
 }
 
 void UPRWeaponManagerComponent::OnRep_PrimaryVisualSlot(FPRWeaponVisualSlot OldVisualSlot)
@@ -528,6 +536,54 @@ void UPRWeaponManagerComponent::ClearWeaponAbilitiesSkeleton(const FPRActiveWeap
 bool UPRWeaponManagerComponent::IsSupportedSlot(EPRWeaponSlotType SlotType) const
 {
 	return SlotType == EPRWeaponSlotType::Primary || SlotType == EPRWeaponSlotType::Secondary;
+}
+
+void UPRWeaponManagerComponent::RefreshAnimLayer()
+{
+	ACharacter* OwnerCharacter = Cast<ACharacter>(GetOwner());
+	if (!IsValid(OwnerCharacter))
+	{
+		return;
+	}
+
+	USkeletalMeshComponent* MeshComp = OwnerCharacter->GetMesh();
+	if (!IsValid(MeshComp))
+	{
+		return;
+	}
+
+	// 다음에 장착해야 할 무기의 레이어 클래스를 파악한다
+	TSubclassOf<UAnimInstance> TargetAnimLayerClass = nullptr;
+
+	if (!ActiveSlot.IsEmpty() && IsValid(ActiveSlot.WeaponData))
+	{
+		TargetAnimLayerClass = ActiveSlot.WeaponData->WeaponAnimLayerClass;
+	}
+
+	// 이미 목표 레이어가 링크되어 있다면 작업을 무시한다
+	if (CurrentLinkedAnimLayerClass == TargetAnimLayerClass)
+	{
+		return;
+	}
+
+	// 기존에 링크된 레이어가 있다면 언링크(Unlink) 하여 맨손 상태로 되돌린다.
+	if (IsValid(CurrentLinkedAnimLayerClass))
+	{
+		MeshComp->UnlinkAnimClassLayers(CurrentLinkedAnimLayerClass);
+		CurrentLinkedAnimLayerClass = nullptr;
+	}
+
+	// 새로운 무기 레이어가 지정되어 있다면 새롭게 링크(Link) 한다.
+	if (IsValid(TargetAnimLayerClass))
+	{
+		MeshComp->LinkAnimClassLayers(TargetAnimLayerClass);
+		CurrentLinkedAnimLayerClass = TargetAnimLayerClass;
+	}
+	// 만약 Unlink 시 레이어가 아예 없어져서 T자 포즈가 된다면, 주석을 풀고 PRPlayerCharacter의 DefaultAnimLayerClass를 public으로 변환
+	// else
+	// {
+	// 	MeshComp->LinkAnimClassLayers(OwnerCharacter->DefaultAnimLayerClass);
+	// }
 }
 
 FPRWeaponVisualSlot& UPRWeaponManagerComponent::GetMutableVisualSlotBySlotType(EPRWeaponSlotType SlotType)

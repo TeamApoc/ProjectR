@@ -8,6 +8,8 @@
 #include "ProjectR/AbilitySystem/PRGameplayAbility.h"
 #include "PRGA_Fire.generated.h"
 
+struct FPRProjectileSpawnInfo;
+class APRProjectileBase;
 class APRWeaponActor;
 DECLARE_LOG_CATEGORY_EXTERN(LogFire, Log, All);
 
@@ -28,7 +30,8 @@ public:
 	virtual void EndAbility(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilityActivationInfo ActivationInfo, bool bReplicateEndAbility, bool bWasCancelled) override;
 
 public:
-	// 총구 위치 반환
+	// 총구 위치 
+	UFUNCTION(BlueprintPure)
 	virtual FVector GetMuzzleLocation() const;
 
 	// 로컬 화면 Viewpoint 추출
@@ -45,9 +48,19 @@ public:
 	void Server_ReportShot(FPRFireShotPayload Payload);
 
 	// 발사 1회 처리. 로컬에서 트레이스 + 디버그라인 + 서버 보고 흐름을 수행한다
-	UFUNCTION()
-	virtual void FireOneShot();
+	UFUNCTION(BlueprintCallable)
+	virtual void FireHitScan();
 
+	// 투사체 1개 발사. 결과는 OnProjectileSpawnSuccess/Failed 가상 핸들러로 통지
+	UFUNCTION(BlueprintCallable)
+	virtual void FireProjectile(TSubclassOf<APRProjectileBase> ProjectileClass, FVector SpawnLocation, FRotator SpawnRotation);
+	
+	
+	// 조준 기준 투사체 발사 트랜스폼 계산. 1차 카메라 트레이스로 조준점을 구하고, 총구->조준점 방향을 회전으로 환산
+	// 위치는 총구. 조준점이 총구 뒤쪽이거나 거리가 너무 짧으면 카메라 정면 방향으로 폴백
+	UFUNCTION(BlueprintCallable, BlueprintPure)
+	virtual FTransform GetProjectileLaunchTransform() const;
+	
 protected:
 	// 서버가 샷을 확정 처리. 데미지 적용 (현재는 로그만)
 	virtual void ServerConfirmShot(const FPRFireShotPayload& Payload);
@@ -55,6 +68,19 @@ protected:
 	// 데미지 적용. 현재 단계에서는 로그만 남긴다
 	virtual void ApplyDamageFromShot(const FPRFireShotPayload& Payload);
 
+	// AbilityTask가 투사체 스폰 성공 시 호출. 파생 클래스에서 추가 처리(VFX/SFX 등) 오버라이드 용도
+	UFUNCTION()
+	virtual void OnProjectileSpawnSuccess(APRProjectileBase* SpawnedProjectile);
+
+	// AbilityTask가 투사체 스폰 실패/예측 거부 시 호출. 파생 클래스에서 후속 처리 오버라이드 용도
+	UFUNCTION()
+	virtual void OnProjectileSpawnFailed(APRProjectileBase* SpawnedProjectile);
+
+	UFUNCTION(BlueprintImplementableEvent)
+	void K2_OnProjectileSpawnSuccess(APRProjectileBase* SpawnedProjectile);
+	
+	UFUNCTION(BlueprintImplementableEvent)
+	void K2_OnProjectileSpawnFailed(APRProjectileBase* SpawnedProjectile);
 protected:
 	// 트레이스 최대 거리
 	UPROPERTY(EditDefaultsOnly, Category = "ProjectR|Fire")

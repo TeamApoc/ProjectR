@@ -130,7 +130,8 @@ APRWeaponActor* UPRWeaponManagerComponent::GetActiveWeaponActor() const
 	return GetWeaponActorBySlot(ActiveSlot.SlotType);
 }
 
-void UPRWeaponManagerComponent::EquipTestWeaponToSlotInternal(UPRWeaponDataAsset* WeaponData, EPRWeaponSlotType TargetSlot)
+void UPRWeaponManagerComponent::EquipTestWeaponToSlotInternal(UPRWeaponDataAsset* WeaponData,
+                                                              EPRWeaponSlotType TargetSlot)
 {
 	// 장착 결과를 검증할 수 있는 최소 데이터가 없으면 상태를 바꾸지 않는다.
 	if (!IsSupportedSlot(TargetSlot) || !IsValid(WeaponData))
@@ -159,7 +160,8 @@ void UPRWeaponManagerComponent::EquipTestWeaponToSlotInternal(UPRWeaponDataAsset
 	// 이미 활성 중인 슬롯에 다시 장착하는 경우에도 같은 슬롯 선택을 유지한다.
 	if (ActiveSlot.IsEmpty() || ActiveSlot.SlotType == TargetSlot)
 	{
-		if (!PreviousActiveSlot.IsEmpty() && PreviousActiveSlot.SlotType == TargetSlot && PreviousActiveSlot.WeaponData != WeaponData)
+		if (!PreviousActiveSlot.IsEmpty() && PreviousActiveSlot.SlotType == TargetSlot && PreviousActiveSlot.WeaponData
+			!= WeaponData)
 		{
 			ClearWeaponAbilitiesSkeleton(PreviousActiveSlot);
 		}
@@ -284,7 +286,8 @@ void UPRWeaponManagerComponent::RefreshWeaponActorForSlot(EPRWeaponSlotType Slot
 	}
 
 	// 월드, 소유자, Actor 클래스가 준비되지 않았으면 공개 Actor 생성 경로를 보류한다.
-	if (!IsValid(GetWorld()) || !IsValid(GetOwner()) || !IsValid(VisualSlot.WeaponData) || !IsValid(VisualSlot.WeaponData->WeaponActorClass))
+	if (!IsValid(GetWorld()) || !IsValid(GetOwner()) || !IsValid(VisualSlot.WeaponData) || !IsValid(
+		VisualSlot.WeaponData->WeaponActorClass))
 	{
 		return;
 	}
@@ -388,7 +391,8 @@ void UPRWeaponManagerComponent::OnRep_ArmedState(EPRWeaponArmedState OldArmedSta
 	RefreshAllWeaponActors();
 }
 
-FPRActiveWeaponSlot UPRWeaponManagerComponent::BuildActiveSlot(EPRWeaponSlotType SlotType, UPRWeaponDataAsset* WeaponData) const
+FPRActiveWeaponSlot UPRWeaponManagerComponent::BuildActiveSlot(EPRWeaponSlotType SlotType,
+                                                               UPRWeaponDataAsset* WeaponData) const
 {
 	FPRActiveWeaponSlot NewActiveSlot;
 	NewActiveSlot.SlotType = SlotType;
@@ -396,7 +400,8 @@ FPRActiveWeaponSlot UPRWeaponManagerComponent::BuildActiveSlot(EPRWeaponSlotType
 	return NewActiveSlot;
 }
 
-void UPRWeaponManagerComponent::Server_EquipTestWeaponToSlot_Implementation(UPRWeaponDataAsset* WeaponData, EPRWeaponSlotType TargetSlot)
+void UPRWeaponManagerComponent::Server_EquipTestWeaponToSlot_Implementation(
+	UPRWeaponDataAsset* WeaponData, EPRWeaponSlotType TargetSlot)
 {
 	EquipTestWeaponToSlotInternal(WeaponData, TargetSlot);
 }
@@ -416,7 +421,8 @@ void UPRWeaponManagerComponent::Server_SetWeaponArmedState_Implementation(EPRWea
 	SetWeaponArmedStateInternal(NewArmedState);
 }
 
-FPRWeaponVisualSlot UPRWeaponManagerComponent::BuildVisualSlot(EPRWeaponSlotType SlotType, UPRWeaponDataAsset* WeaponData) const
+FPRWeaponVisualSlot UPRWeaponManagerComponent::BuildVisualSlot(EPRWeaponSlotType SlotType,
+                                                               UPRWeaponDataAsset* WeaponData) const
 {
 	FPRWeaponVisualSlot NewVisualSlot;
 	NewVisualSlot.SlotType = SlotType;
@@ -445,7 +451,8 @@ EPRWeaponCarryState UPRWeaponManagerComponent::ResolveCarryState(EPRWeaponSlotTy
 	return EPRWeaponCarryState::Stowed;
 }
 
-FName UPRWeaponManagerComponent::ResolveAttachSocketName(EPRWeaponSlotType SlotType, EPRWeaponCarryState CarryState) const
+FName UPRWeaponManagerComponent::ResolveAttachSocketName(EPRWeaponSlotType SlotType,
+                                                         EPRWeaponCarryState CarryState) const
 {
 	// 손에 든 무기는 항상 Gun_Attach를 사용한다.
 	if (CarryState == EPRWeaponCarryState::Armed)

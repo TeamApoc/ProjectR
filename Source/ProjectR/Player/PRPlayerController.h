@@ -8,6 +8,7 @@
 #include "ProjectR/Game/PRGameTypes.h"
 #include "PRPlayerController.generated.h"
 
+class UPRProjectileManagerComponent;
 class UAbilitySystemComponent;
 class UPRInputConfigDataAsset;
 class UPRAbilitySystemComponent;
@@ -44,6 +45,8 @@ public:
 	UFUNCTION(Client, Reliable)
 	void ClientGrantReward(const FPRRewardGrant& Grant);
 
+	UPRProjectileManagerComponent* GetProjectileManagerComponent() const {return ProjectileManager;}
+
 protected:
 	// 클라이언트 -> 서버. 로컬 캐릭터 페이로드 제출
 	UFUNCTION(Server, Reliable, WithValidation)
@@ -59,12 +62,15 @@ protected:
 	// IA Released 콜백
 	void OnAbilityInputReleased(FGameplayTag InputTag);
 
-private:
 	// 폰 -> PlayerState 경로로 ASC 조회
 	UPRAbilitySystemComponent* GetASC() const;
-
+	
+private:
 	// 캐릭터 페이로드를 이미 제출했는지 여부. 중복 제출 방지
 	bool bCharacterSubmitted = false;
 	
 	mutable TWeakObjectPtr<UPRAbilitySystemComponent> CachedASC;
+	
+	UPROPERTY(VisibleAnywhere)
+	TObjectPtr<UPRProjectileManagerComponent> ProjectileManager;
 };

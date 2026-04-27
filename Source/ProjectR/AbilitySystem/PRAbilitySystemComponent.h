@@ -60,6 +60,13 @@ public:
 	bool CanActivateAbilityByTag(const FGameplayTag& AbilityTag,
 	                              FGameplayTagContainer& OutFailureTags) const;
 
+	/**  
+	 * UAbilitySystemComponent::ConsumeClientReplicatedTargetData는 TargetData를 소모하지만, TargetData의 존재 여부에 대해서는 반환하지 않는다.
+	 * 따라서 하나의 TargetData에 대해 여러 콜백이 동시에 실행되었을 때, 하나의 콜백만 성공적으로 처리될 수 있다.
+	 * 이 함수는 TargetData Consume 성공 여부 (호출 시점 TargetData 존재 여부)를 반환함으로써 Ability Task가 Consume에 실패한 경우 TargetData 수신을 계속 기다리게 할 수 있다.
+	 */
+	bool TryConsumeClientReplicatedTargetData(FGameplayAbilitySpecHandle AbilityHandle, FPredictionKey AbilityOriginalPredictionKey);
+	
 protected:
 	// 어빌리티 종료 시 델리게이트 브로드캐스트
 	UFUNCTION()

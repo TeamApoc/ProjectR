@@ -9,6 +9,15 @@
 #include "InputAction.h"
 #include "ProjectR/Game/PRCameraManager.h"
 #include "ProjectR/Input/PRInputConfigDataAsset.h"
+#include "ProjectR/Projectile/PRProjectileManagerComponent.h"
+
+
+APRPlayerController::APRPlayerController()
+{
+	PlayerCameraManagerClass = APRCameraManager::StaticClass();
+	
+	ProjectileManager = CreateDefaultSubobject<UPRProjectileManagerComponent>(TEXT("ProjectileManager"));
+}
 
 // =====  APlayerController Interface =====
 
@@ -22,11 +31,6 @@ void APRPlayerController::BeginPlay()
 	{
 		SubmitLocalCharacterToServer();
 	}
-}
-
-APRPlayerController::APRPlayerController()
-{
-	PlayerCameraManagerClass = APRCameraManager::StaticClass();
 }
 
 void APRPlayerController::AcknowledgePossession(APawn* InPawn)

@@ -4,7 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "Abilities/Tasks/AbilityTask.h"
-#include "PRAbilityTask_RepeatFire.generated.h"
+#include "PRAT_RepeatFire.generated.h"
 
 class UPRGA_Fire;
 /**
@@ -12,14 +12,14 @@ class UPRGA_Fire;
  * OnPerform에 실제 로직 바인딩
  */
 UCLASS()
-class PROJECTR_API UPRAbilityTask_RepeatFire : public UAbilityTask
+class PROJECTR_API UPRAT_RepeatFire : public UAbilityTask
 {
 	GENERATED_BODY()
 
 public:
 	// 팩토리. bFireImmediately=true 이면 Activate 즉시 1회 수행.
 	UFUNCTION(BlueprintCallable, Category="Ability|Tasks", meta=(HidePin="OwningAbility", DefaultToSelf="OwningAbility", BlueprintInternalUseOnly="true"))
-	static UPRAbilityTask_RepeatFire* RepeatFire(UGameplayAbility* OwningAbility, float Interval, bool bFireImmediately);
+	static UPRAT_RepeatFire* RepeatFire(UGameplayAbility* OwningAbility, float Interval, bool bFireImmediately);
 
 	virtual void Activate() override;
 	virtual void OnDestroy(bool bInOwnerFinished) override;

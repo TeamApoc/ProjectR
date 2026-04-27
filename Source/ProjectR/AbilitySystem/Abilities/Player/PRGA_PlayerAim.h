@@ -6,6 +6,8 @@
 #include "ProjectR/AbilitySystem/PRGameplayAbility.h"
 #include "PRGA_PlayerAim.generated.h"
 
+class UPRCrosshairConfig;
+
 /**
  * TODO: 임시로 AIM 몽타쥬를 넣고, 기본적으로 플레이어에게 스킬을 넣어두었으나, 무기를 들었을때 맞는 애니메이션, Armed태그를 가지고 있을때 스킬 활성화 등으로 발전해야함
  */
@@ -42,4 +44,8 @@ protected:
 	/** 조준 시 변경할 어깨 오프셋(SocketOffset) */
 	UPROPERTY(EditDefaultsOnly, Category = "PR|Aim|Camera")
 	FVector AimSocketOffset = FVector(0.0f, 40.0f, 0.0f);
+
+	/** 26.04.26, Yuchan, 임시: 조준 시 사용할 크로스헤어 Config. 추후 WeaponManager 가 무기별로 관리 예정 */
+	UPROPERTY(EditDefaultsOnly, Category = "PR|Aim|Crosshair")
+	TObjectPtr<UPRCrosshairConfig> AimCrosshairConfig;
 };

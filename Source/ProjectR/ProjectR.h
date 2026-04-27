@@ -15,3 +15,8 @@ namespace PRRowNames
 		// TODO: Add Enemy Names
 	}
 }
+
+namespace PRCollisionChannels
+{
+	constexpr ECollisionChannel ECC_Combat = ECC_GameTraceChannel1;
+}

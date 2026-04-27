@@ -39,9 +39,17 @@ protected:
 
 	// 몬스터 데이터 에셋 값을 실제 AIPerception 설정에 적용한다.
 	void ApplyPerceptionConfig(const UPRPerceptionConfig* Config);
+
+	// 현재 Blackboard에 기록된 전술 상태를 읽는다.
+	EPRTacticalMode GetBlackboardTacticalMode() const;
+
+	// 마지막 목격 위치가 Blackboard에 남아 있는지 확인한다.
+	bool HasLastKnownTargetLocation() const;
+
+	// Blackboard의 tactical_mode 값을 갱신한다.
 	void SetBlackboardTacticalMode(EPRTacticalMode NewMode);
 
-	// BehaviorTree의 BlackboardAsset을 기준으로 BlackboardComponent를 준비하고 BT를 실행한다.
+	// BehaviorTree와 BlackboardAsset을 기준으로 BlackboardComponent를 준비하고 BT를 실행한다.
 	void CacheBlackboardFromBehaviorTree(UBehaviorTree* BehaviorTreeAsset);
 	void ClearThreatBinding();
 
@@ -84,4 +92,8 @@ protected:
 	// 감지 실패 시 현재 타겟을 어떻게 정리할지 정한다.
 	UPROPERTY(EditDefaultsOnly, Category = "ProjectR|AI|Perception")
 	EPRTargetLostPolicy TargetLostPolicy = EPRTargetLostPolicy::ClearCurrentTarget;
+
+	// 다음 타겟 해제 시 Investigate로 이어지도록 Alert를 유지할지 여부다.
+	UPROPERTY(Transient)
+	bool bPreserveAlertOnNextTargetClear = false;
 };

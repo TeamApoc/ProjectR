@@ -66,6 +66,13 @@ namespace PRGameplayTags
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Event_Ability_GroggyEntered, "Event.Ability.GroggyEntered", "그로기 진입 이벤트");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Event_Ability_PhaseTransition, "Event.Ability.PhaseTransition", "페이즈 전환 이벤트");
 
+	// ===== Event.Player.* =====
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Event_Player_HitShot, "Event.Player.HitShot", "사격이 적중했을 때");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Event_Player_Recoil, "Event.Player.Recoil", "사격 반동 발생 (FPRRecoilEventPayload 동반)");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Event_Player_Aim_Start, "Event.Player.Aim.Start", "에이밍 진입");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Event_Player_Aim_End, "Event.Player.Aim.End", "에이밍 해제");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Event_Player_ChangeCrosshair, "Event.Player.ChangeCrosshair", "크로스헤어 Config 교체");
+
 	// ===== Cue.* =====
 
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Cue_Critical_Boss_PhaseTransition, "Cue.Critical.Boss.PhaseTransition", "보스 페이즈 전환 연출 Cue");

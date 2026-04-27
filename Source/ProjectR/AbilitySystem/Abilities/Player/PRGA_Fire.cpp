@@ -36,6 +36,15 @@ void UPRGA_Fire::ActivateAbility(const FGameplayAbilitySpecHandle Handle, const 
 			CurrentWeapon = WeaponManager->GetActiveWeaponActor();
 		}
 	}
+
+	NextShotId = 0;
+}
+
+void UPRGA_Fire::EndAbility(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo,
+	const FGameplayAbilityActivationInfo ActivationInfo, bool bReplicateEndAbility, bool bWasCancelled)
+{
+	NextShotId = 0;
+	Super::EndAbility(Handle, ActorInfo, ActivationInfo, bReplicateEndAbility, bWasCancelled);
 }
 
 FVector UPRGA_Fire::GetMuzzleLocation() const

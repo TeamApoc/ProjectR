@@ -32,6 +32,7 @@ EBTNodeResult::Type UBTTask_PRActivateEnemyAbility::ExecuteTask(UBehaviorTreeCom
 {
 	ClearAbilityEndDelegate();
 	ActiveAbilityHandle = FGameplayAbilitySpecHandle();
+	bAbortRequested = false;
 
 	FGameplayTag ResolvedAbilityTag = AbilityTag;
 	if (!ResolvedAbilityTag.IsValid() && AbilityTagBlackboardKey != NAME_None)
@@ -94,6 +95,12 @@ EBTNodeResult::Type UBTTask_PRActivateEnemyAbility::ExecuteTask(UBehaviorTreeCom
 
 EBTNodeResult::Type UBTTask_PRActivateEnemyAbility::AbortTask(UBehaviorTreeComponent& OwnerComp, uint8* NodeMemory)
 {
+	if (bDelayAbortUntilAbilityEnds && IsObservedAbilityActive())
+	{
+		bAbortRequested = true;
+		return EBTNodeResult::InProgress;
+	}
+
 	ClearAbilityEndDelegate();
 	return EBTNodeResult::Aborted;
 }
@@ -102,8 +109,7 @@ void UBTTask_PRActivateEnemyAbility::TickTask(UBehaviorTreeComponent& OwnerComp,
 {
 	if (!IsValid(ActiveAbilitySystemComponent) || !ActiveAbilityHandle.IsValid())
 	{
-		ClearAbilityEndDelegate();
-		FinishLatentTask(OwnerComp, EBTNodeResult::Failed);
+		FinishObservedAbilityWait(OwnerComp, EBTNodeResult::Failed);
 		return;
 	}
 
@@ -111,10 +117,34 @@ void UBTTask_PRActivateEnemyAbility::TickTask(UBehaviorTreeComponent& OwnerComp,
 	const FGameplayAbilitySpec* ActiveSpec = ActiveAbilitySystemComponent->FindAbilitySpecFromHandle(ActiveAbilityHandle);
 	if (ActiveSpec == nullptr || !ActiveSpec->IsActive())
 	{
-		ClearAbilityEndDelegate();
-		ApplyPostAbilityBlackboardUpdates(OwnerComp);
-		FinishLatentTask(OwnerComp, EBTNodeResult::Succeeded);
+		FinishObservedAbilityWait(OwnerComp, EBTNodeResult::Succeeded);
 	}
+}
+
+bool UBTTask_PRActivateEnemyAbility::IsObservedAbilityActive() const
+{
+	if (!IsValid(ActiveAbilitySystemComponent) || !ActiveAbilityHandle.IsValid())
+	{
+		return false;
+	}
+
+	const FGameplayAbilitySpec* ActiveSpec = ActiveAbilitySystemComponent->FindAbilitySpecFromHandle(ActiveAbilityHandle);
+	return ActiveSpec != nullptr && ActiveSpec->IsActive();
+}
+
+void UBTTask_PRActivateEnemyAbility::FinishObservedAbilityWait(UBehaviorTreeComponent& OwnerComp, EBTNodeResult::Type TaskResult)
+{
+	ClearAbilityEndDelegate();
+	ApplyPostAbilityBlackboardUpdates(OwnerComp);
+
+	if (bAbortRequested)
+	{
+		bAbortRequested = false;
+		FinishLatentAbort(OwnerComp);
+		return;
+	}
+
+	FinishLatentTask(OwnerComp, TaskResult);
 }
 
 void UBTTask_PRActivateEnemyAbility::ApplyPostAbilityBlackboardUpdates(UBehaviorTreeComponent& OwnerComp)
@@ -177,9 +207,7 @@ void UBTTask_PRActivateEnemyAbility::HandleObservedAbilityEnded(const FAbilityEn
 		return;
 	}
 
-	ClearAbilityEndDelegate();
-	ApplyPostAbilityBlackboardUpdates(*OwnerComp);
-	FinishLatentTask(*OwnerComp, EBTNodeResult::Succeeded);
+	FinishObservedAbilityWait(*OwnerComp, EBTNodeResult::Succeeded);
 }
 
 FString UBTTask_PRActivateEnemyAbility::GetStaticDescription() const

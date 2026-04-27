@@ -5,9 +5,14 @@
 #include "Components/BoxComponent.h"
 #include "Components/SphereComponent.h"
 #include "GameFramework/CharacterMovementComponent.h"
+#include "MotionWarpingComponent.h"
+#include "ProjectR/AI/Components/PRSoldierArmoredDebugDrawComponent.h"
 
 APRSoldierArmoredCharacter::APRSoldierArmoredCharacter()
 {
+	DebugDrawComponent = CreateDefaultSubobject<UPRSoldierArmoredDebugDrawComponent>(TEXT("DebugDrawComponent"));
+	MotionWarpingComponent = CreateDefaultSubobject<UMotionWarpingComponent>(TEXT("MotionWarpingComponent"));
+
 	// 스탯 Registry / DT_EnemyStats의 RowName과 맞아야 한다.
 	CharacterID = TEXT("Soldier_Armored");
 

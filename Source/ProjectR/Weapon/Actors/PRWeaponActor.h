@@ -4,7 +4,6 @@
 
 #include "CoreMinimal.h"
 #include "GameFramework/Actor.h"
-#include "ProjectR/Weapon/Types/PRWeaponTypes.h"
 #include "PRWeaponActor.generated.h"
 
 class ACharacter;
@@ -26,13 +25,6 @@ public:
 	virtual void BeginPlay() override;
 
 public:
-	// 슬롯 공개 상태를 기준으로 메시와 내부 표시 상태를 갱신한다
-	UFUNCTION(BlueprintCallable, Category = "ProjectR|Weapon")
-	void InitializeFromVisualSlot(const FPRWeaponVisualSlot& InVisualSlot);
-
-	// 현재 공개 비주얼 상태를 반환한다
-	const FPRWeaponVisualSlot& GetVisualSlot() const { return VisualSlot; }
-
 	// 전달받은 소켓 이름 기준으로 캐릭터 메시 소켓에 자신을 부착한다
 	UFUNCTION(BlueprintCallable, Category = "ProjectR|Weapon")
 	void AttachToOwnerMesh(ACharacter* OwnerCharacter, FName SocketName);
@@ -43,16 +35,9 @@ public:
 	FTransform GetMuzzleTransform() const;
 	
 protected:
-	// 현재 공개 상태를 기준으로 메시를 갱신한다
-	void RefreshVisualMesh();
-
-protected:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "ProjectR|Weapon")
 	TObjectPtr<USceneComponent> SceneRoot;
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "ProjectR|Weapon")
 	TObjectPtr<USkeletalMeshComponent> WeaponMeshComponent;
-
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "ProjectR|Weapon")
-	FPRWeaponVisualSlot VisualSlot; // TODO: 이미 WeaponComponent에서 관리하던데 여기에 중복으로 있는 이유?
 };

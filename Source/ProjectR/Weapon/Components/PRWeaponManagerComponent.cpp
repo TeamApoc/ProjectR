@@ -6,8 +6,37 @@
 #include "GameFramework/Character.h"
 #include "Logging/LogMacros.h"
 #include "Net/UnrealNetwork.h"
+#include "ProjectR/AbilitySystem/AttributeSets/PRAttributeSet_Player.h"
+#include "ProjectR/Inventory/Components/PRInventoryComponent.h"
+#include "ProjectR/Player/PRPlayerState.h"
 #include "ProjectR/Weapon/Actors/PRWeaponActor.h"
 #include "ProjectR/Weapon/Data/PRWeaponDataAsset.h"
+#include "ProjectR/Weapon/Data/PRWeaponModDataAsset.h"
+#include "ProjectR/Weapon/Items/PRItemInstance_Weapon.h"
+
+namespace
+{
+	// 무기와 Mod의 태그 호환 여부를 판정한다
+	bool IsModCompatible(const UPRWeaponDataAsset* WeaponData, const UPRWeaponModDataAsset* ModData)
+	{
+		if (!IsValid(WeaponData) || !IsValid(ModData))
+		{
+			return false;
+		}
+
+		if (ModData->ModTags.IsEmpty())
+		{
+			return false;
+		}
+
+		if (WeaponData->SupportedModTags.IsEmpty())
+		{
+			return false;
+		}
+
+		return WeaponData->SupportedModTags.HasAny(ModData->ModTags);
+	}
+}
 
 UPRWeaponManagerComponent::UPRWeaponManagerComponent()
 {
@@ -32,19 +61,58 @@ void UPRWeaponManagerComponent::GetLifetimeReplicatedProps(TArray<FLifetimePrope
 	DOREPLIFETIME(UPRWeaponManagerComponent, SecondaryVisualSlot);
 }
 
-UPRWeaponDataAsset* UPRWeaponManagerComponent::GetWeaponDataBySlot(EPRWeaponSlotType SlotType) const
+void UPRWeaponManagerComponent::InitializeRuntimeLinks()
+{
+	CachedASC = nullptr;
+	CachedPlayerSet = nullptr;
+	CachedInventory = nullptr;
+
+	const ACharacter* OwnerCharacter = Cast<ACharacter>(GetOwner());
+	if (!IsValid(OwnerCharacter))
+	{
+		return;
+	}
+
+	const APRPlayerState* PlayerState = OwnerCharacter->GetPlayerState<APRPlayerState>();
+	if (!IsValid(PlayerState))
+	{
+		return;
+	}
+
+	CachedASC = PlayerState->GetPRAbilitySystemComponent();
+	CachedPlayerSet = PlayerState->GetMutablePlayerSet();
+	CachedInventory = PlayerState->GetInventoryComponent();
+}
+
+UPRItemInstance_Weapon* UPRWeaponManagerComponent::GetSource(EPRWeaponSlotType SlotType) const
 {
 	if (SlotType == EPRWeaponSlotType::Primary)
 	{
-		return PrimaryWeaponData;
+		return PrimarySource;
 	}
 
 	if (SlotType == EPRWeaponSlotType::Secondary)
 	{
-		return SecondaryWeaponData;
+		return SecondarySource;
 	}
 
 	return nullptr;
+}
+
+UPRWeaponDataAsset* UPRWeaponManagerComponent::GetWeaponDataBySlot(EPRWeaponSlotType SlotType) const
+{
+	if (UPRItemInstance_Weapon* Source = GetSource(SlotType))
+	{
+		return Source->GetWeaponData();
+	}
+
+	if (!ActiveSlot.IsEmpty() && ActiveSlot.SlotType == SlotType)
+	{
+		return ActiveSlot.WeaponData;
+	}
+
+	const FPRWeaponVisualSlot& VisualSlot = GetVisualSlotBySlotType(SlotType);
+	return VisualSlot.WeaponData;
 }
 
 const FPRWeaponVisualSlot& UPRWeaponManagerComponent::GetVisualSlotBySlotType(EPRWeaponSlotType SlotType) const
@@ -66,13 +134,22 @@ const FPRWeaponVisualSlot& UPRWeaponManagerComponent::GetVisualSlotBySlotType(EP
 void UPRWeaponManagerComponent::EquipTestWeaponToSlot(UPRWeaponDataAsset* WeaponData, EPRWeaponSlotType TargetSlot)
 {
 	// 지원하지 않는 슬롯 요청이면 서버 전송 전에 차단한다.
-	if (!IsSupportedSlot(TargetSlot))
+	if (!IsSupportedSlot(TargetSlot) || !IsValid(WeaponData))
 	{
 		return;
 	}
 
+	if (UPRItemInstance_Weapon* CurrentSource = GetSource(TargetSlot))
+	{
+		if (CurrentSource->MatchesWeaponData(WeaponData))
+		{
+			return;
+		}
+	}
+
 	if (IsValid(GetOwner()) && GetOwner()->HasAuthority())
 	{
+		InitializeRuntimeLinks();
 		EquipTestWeaponToSlotInternal(WeaponData, TargetSlot);
 		return;
 	}
@@ -80,21 +157,59 @@ void UPRWeaponManagerComponent::EquipTestWeaponToSlot(UPRWeaponDataAsset* Weapon
 	Server_EquipTestWeaponToSlot(WeaponData, TargetSlot);
 }
 
-void UPRWeaponManagerComponent::UnequipWeaponSlot(EPRWeaponSlotType TargetSlot)
+bool UPRWeaponManagerComponent::EquipWeaponToSlot(UPRItemInstance_Weapon* WeaponItem, EPRWeaponSlotType TargetSlot)
 {
-	// 지원하지 않는 슬롯 요청이면 서버 전송 전에 차단한다.
-	if (!IsSupportedSlot(TargetSlot))
+	if (!IsSupportedSlot(TargetSlot) || !IsValid(WeaponItem))
 	{
-		return;
+		return false;
 	}
 
 	if (IsValid(GetOwner()) && GetOwner()->HasAuthority())
 	{
-		UnequipWeaponSlotInternal(TargetSlot);
-		return;
+		InitializeRuntimeLinks();
+		return EquipWeaponToSlotInternal(WeaponItem, TargetSlot);
+	}
+
+	return false;
+}
+
+void UPRWeaponManagerComponent::UnequipWeaponSlot(EPRWeaponSlotType TargetSlot)
+{
+	UnequipWeaponFromSlot(TargetSlot);
+}
+
+bool UPRWeaponManagerComponent::UnequipWeaponFromSlot(EPRWeaponSlotType TargetSlot)
+{
+	// 지원하지 않는 슬롯 요청이면 서버 전송 전에 차단한다.
+	if (!IsSupportedSlot(TargetSlot))
+	{
+		return false;
+	}
+
+	if (IsValid(GetOwner()) && GetOwner()->HasAuthority())
+	{
+		return UnequipWeaponFromSlotInternal(TargetSlot);
 	}
 
 	Server_UnequipWeaponSlot(TargetSlot);
+	return true;
+}
+
+bool UPRWeaponManagerComponent::AttachModToSlot(EPRWeaponSlotType TargetSlot, UPRWeaponModDataAsset* NewModData)
+{
+	if (!IsSupportedSlot(TargetSlot))
+	{
+		return false;
+	}
+
+	if (IsValid(GetOwner()) && GetOwner()->HasAuthority())
+	{
+		InitializeRuntimeLinks();
+		return AttachModToSlotInternal(TargetSlot, NewModData);
+	}
+
+	Server_AttachModToSlot(TargetSlot, NewModData);
+	return true;
 }
 
 void UPRWeaponManagerComponent::SwapActiveSlot(EPRWeaponSlotType TargetSlot)
@@ -132,40 +247,86 @@ APRWeaponActor* UPRWeaponManagerComponent::GetActiveWeaponActor() const
 
 void UPRWeaponManagerComponent::EquipTestWeaponToSlotInternal(UPRWeaponDataAsset* WeaponData, EPRWeaponSlotType TargetSlot)
 {
-	// 장착 결과를 검증할 수 있는 최소 데이터가 없으면 상태를 바꾸지 않는다.
-	if (!IsSupportedSlot(TargetSlot) || !IsValid(WeaponData))
+	// 인벤토리 연결이 준비되지 않았으면 테스트용 Item 생성도 보류한다.
+	if (!IsSupportedSlot(TargetSlot) || !IsValid(WeaponData) || !IsValid(CachedInventory))
 	{
 		return;
 	}
 
-	// 같은 슬롯에 같은 무기가 이미 연결되어 있으면 중복 장착과 로그를 생략한다.
-	if (GetWeaponDataBySlot(TargetSlot) == WeaponData)
+	UPRItemInstance_Weapon* WeaponItem = CachedInventory->AddWeaponItem(WeaponData);
+	if (!IsValid(WeaponItem))
 	{
 		return;
+	}
+
+	EquipWeaponToSlotInternal(WeaponItem, TargetSlot);
+}
+
+bool UPRWeaponManagerComponent::EquipWeaponToSlotInternal(UPRItemInstance_Weapon* WeaponItem, EPRWeaponSlotType TargetSlot)
+{
+	// 잘못된 슬롯, 비소유 Item, 무기 데이터 누락은 모두 장착 실패로 처리한다.
+	if (!IsSupportedSlot(TargetSlot)
+		|| !IsValid(WeaponItem)
+		|| !IsValid(CachedInventory)
+		|| !CachedInventory->OwnsWeapon(WeaponItem)
+		|| !IsValid(WeaponItem->GetWeaponData()))
+	{
+		return false;
+	}
+
+	UPRItemInstance_Weapon* CurrentSource = GetSource(TargetSlot);
+	if (CurrentSource == WeaponItem)
+	{
+		return false;
+	}
+
+	EPRWeaponSlotType PreviousSourceSlot = EPRWeaponSlotType::None;
+	if (PrimarySource == WeaponItem)
+	{
+		PreviousSourceSlot = EPRWeaponSlotType::Primary;
+	}
+	else if (SecondarySource == WeaponItem)
+	{
+		PreviousSourceSlot = EPRWeaponSlotType::Secondary;
 	}
 
 	const FPRActiveWeaponSlot PreviousActiveSlot = ActiveSlot;
+	const bool bTargetSlotWasEmpty = !IsValid(CurrentSource);
+	const bool bWasActiveSlot = !PreviousActiveSlot.IsEmpty() && PreviousActiveSlot.SlotType == TargetSlot;
 
-	if (TargetSlot == EPRWeaponSlotType::Primary)
+	if (PreviousSourceSlot != EPRWeaponSlotType::None && PreviousSourceSlot != TargetSlot)
 	{
-		PrimaryWeaponData = WeaponData;
+		GetMutableSourceBySlot(PreviousSourceSlot) = nullptr;
+
+		if (!PreviousActiveSlot.IsEmpty() && PreviousActiveSlot.SlotType == PreviousSourceSlot)
+		{
+			WeaponItem->OnUnequipped(GetOwner());
+			ActiveSlot.Reset();
+		}
 	}
-	else if (TargetSlot == EPRWeaponSlotType::Secondary)
+
+	if (bWasActiveSlot)
 	{
-		SecondaryWeaponData = WeaponData;
+		if (IsValid(CurrentSource))
+		{
+			CurrentSource->OnUnequipped(GetOwner());
+		}
+	}
+
+	GetMutableSourceBySlot(TargetSlot) = WeaponItem;
+
+	if (bTargetSlotWasEmpty && IsValid(CachedPlayerSet))
+	{
+		CachedPlayerSet->InitializeSlotResources(TargetSlot, WeaponItem->GetWeaponData(), WeaponItem->GetModData());
 	}
 
 	// 현재 활성 슬롯이 비어 있으면 첫 장착 무기를 활성 슬롯으로 지정한다.
 	// 이미 활성 중인 슬롯에 다시 장착하는 경우에도 같은 슬롯 선택을 유지한다.
 	if (ActiveSlot.IsEmpty() || ActiveSlot.SlotType == TargetSlot)
 	{
-		if (!PreviousActiveSlot.IsEmpty() && PreviousActiveSlot.SlotType == TargetSlot && PreviousActiveSlot.WeaponData != WeaponData)
-		{
-			ClearWeaponAbilitiesSkeleton(PreviousActiveSlot);
-		}
-
-		ActiveSlot = BuildActiveSlot(TargetSlot, WeaponData);
-		GrantWeaponAbilitiesSkeleton(ActiveSlot);
+		ActiveSlot = BuildActiveSlot(TargetSlot, WeaponItem);
+		ArmedState = EPRWeaponArmedState::Armed;
+		WeaponItem->OnEquipped(GetOwner());
 	}
 
 	// 활성 슬롯과 원본 슬롯 데이터를 기준으로 두 슬롯의 공개 비주얼 상태를 다시 구성한다.
@@ -173,31 +334,26 @@ void UPRWeaponManagerComponent::EquipTestWeaponToSlotInternal(UPRWeaponDataAsset
 
 	// 서버 로컬도 복제 콜백과 같은 경로로 슬롯별 Actor를 즉시 최신화한다.
 	RefreshAllWeaponActors();
+	return true;
 }
 
-void UPRWeaponManagerComponent::UnequipWeaponSlotInternal(EPRWeaponSlotType TargetSlot)
+bool UPRWeaponManagerComponent::UnequipWeaponFromSlotInternal(EPRWeaponSlotType TargetSlot)
 {
 	// 지원하지 않는 슬롯이거나 비어 있는 슬롯이면 해제를 수행하지 않는다.
-	if (!IsSupportedSlot(TargetSlot) || !IsValid(GetWeaponDataBySlot(TargetSlot)))
+	UPRItemInstance_Weapon* CurrentSource = GetSource(TargetSlot);
+	if (!IsSupportedSlot(TargetSlot) || !IsValid(CurrentSource))
 	{
-		return;
+		return false;
 	}
 
 	const FPRActiveWeaponSlot PreviousActiveSlot = ActiveSlot;
 	const bool bWasActiveSlot = !PreviousActiveSlot.IsEmpty() && PreviousActiveSlot.SlotType == TargetSlot;
 	if (bWasActiveSlot)
 	{
-		ClearWeaponAbilitiesSkeleton(PreviousActiveSlot);
+		CurrentSource->OnUnequipped(GetOwner());
 	}
 
-	if (TargetSlot == EPRWeaponSlotType::Primary)
-	{
-		PrimaryWeaponData = nullptr;
-	}
-	else if (TargetSlot == EPRWeaponSlotType::Secondary)
-	{
-		SecondaryWeaponData = nullptr;
-	}
+	GetMutableSourceBySlot(TargetSlot) = nullptr;
 
 	if (bWasActiveSlot)
 	{
@@ -205,7 +361,10 @@ void UPRWeaponManagerComponent::UnequipWeaponSlotInternal(EPRWeaponSlotType Targ
 
 		if (!ActiveSlot.IsEmpty())
 		{
-			GrantWeaponAbilitiesSkeleton(ActiveSlot);
+			if (UPRItemInstance_Weapon* NextSource = GetSource(ActiveSlot.SlotType))
+			{
+				NextSource->OnEquipped(GetOwner());
+			}
 		}
 		else
 		{
@@ -215,6 +374,60 @@ void UPRWeaponManagerComponent::UnequipWeaponSlotInternal(EPRWeaponSlotType Targ
 
 	RefreshVisualSlotsFromCurrentState();
 	RefreshAllWeaponActors();
+	return true;
+}
+
+bool UPRWeaponManagerComponent::AttachModToSlotInternal(EPRWeaponSlotType TargetSlot, UPRWeaponModDataAsset* NewModData)
+{
+	UPRItemInstance_Weapon* TargetSource = GetSource(TargetSlot);
+	if (!IsSupportedSlot(TargetSlot) || !IsValid(TargetSource) || !IsValid(TargetSource->GetWeaponData()))
+	{
+		return false;
+	}
+
+	if (TargetSource->GetModData() == NewModData)
+	{
+		TargetSource->LastModFailReason = EPRWeaponModFailReason::AlreadyActive;
+		return false;
+	}
+
+	if (IsValid(NewModData) && !IsModCompatible(TargetSource->GetWeaponData(), NewModData))
+	{
+		TargetSource->LastModFailReason = EPRWeaponModFailReason::BlockedByState;
+		return false;
+	}
+
+	if (IsValid(CachedPlayerSet))
+	{
+		const FPRWeaponSlotResourceState PreviousResourceState = CachedPlayerSet->BuildSlotResourceState(TargetSlot);
+		CachedPlayerSet->InitializeSlotResources(TargetSlot, TargetSource->GetWeaponData(), NewModData);
+
+		FPRWeaponSlotResourceDelta PreserveAmmoDelta;
+		PreserveAmmoDelta.MagazineDelta = PreviousResourceState.MagazineAmmo - CachedPlayerSet->BuildSlotResourceState(TargetSlot).MagazineAmmo;
+		PreserveAmmoDelta.ReserveDelta = PreviousResourceState.ReserveAmmo - CachedPlayerSet->BuildSlotResourceState(TargetSlot).ReserveAmmo;
+		CachedPlayerSet->ApplySlotResourceDelta(TargetSlot, PreserveAmmoDelta);
+	}
+
+	TargetSource->OnModChanged(GetOwner(), NewModData);
+	TargetSource->LastModFailReason = IsValid(NewModData) ? EPRWeaponModFailReason::None : EPRWeaponModFailReason::MissingMod;
+
+	if (!ActiveSlot.IsEmpty() && ActiveSlot.SlotType == TargetSlot)
+	{
+		ActiveSlot = BuildActiveSlot(TargetSlot, TargetSource);
+	}
+
+	RefreshVisualSlotsFromCurrentState();
+	RefreshAllWeaponActors();
+
+	UE_LOG(
+		LogTemp,
+		Log,
+		TEXT("Weapon mod attached. Owner=%s Slot=%d Weapon=%s Mod=%s"),
+		*GetNameSafe(GetOwner()),
+		static_cast<int32>(TargetSlot),
+		*GetNameSafe(TargetSource->GetWeaponData()),
+		*GetNameSafe(NewModData));
+	return true;
 }
 
 void UPRWeaponManagerComponent::SetWeaponArmedStateInternal(EPRWeaponArmedState NewArmedState)
@@ -238,14 +451,14 @@ void UPRWeaponManagerComponent::SwapActiveSlotInternal(EPRWeaponSlotType TargetS
 		return;
 	}
 
-	UPRWeaponDataAsset* TargetWeaponData = GetWeaponDataBySlot(TargetSlot);
-	if (!IsValid(TargetWeaponData))
+	UPRItemInstance_Weapon* TargetSource = GetSource(TargetSlot);
+	if (!IsValid(TargetSource) || !IsValid(TargetSource->GetWeaponData()))
 	{
 		return;
 	}
 
 	// 이미 같은 슬롯이 활성 상태면 중복 전환을 생략한다.
-	if (!ActiveSlot.IsEmpty() && ActiveSlot.SlotType == TargetSlot && ActiveSlot.WeaponData == TargetWeaponData)
+	if (!ActiveSlot.IsEmpty() && ActiveSlot.SlotType == TargetSlot && ActiveSlot.WeaponData == TargetSource->GetWeaponData())
 	{
 		return;
 	}
@@ -253,13 +466,16 @@ void UPRWeaponManagerComponent::SwapActiveSlotInternal(EPRWeaponSlotType TargetS
 	const FPRActiveWeaponSlot PreviousActiveSlot = ActiveSlot;
 	if (!PreviousActiveSlot.IsEmpty())
 	{
-		ClearWeaponAbilitiesSkeleton(PreviousActiveSlot);
+		if (UPRItemInstance_Weapon* PreviousSource = GetSource(PreviousActiveSlot.SlotType))
+		{
+			PreviousSource->OnUnequipped(GetOwner());
+		}
 	}
 
-	ActiveSlot = BuildActiveSlot(TargetSlot, TargetWeaponData);
+	ActiveSlot = BuildActiveSlot(TargetSlot, TargetSource);
 	RefreshVisualSlotsFromCurrentState();
 
-	GrantWeaponAbilitiesSkeleton(ActiveSlot);
+	TargetSource->OnEquipped(GetOwner());
 
 	// 슬롯 전환은 Actor를 재생성하지 않고 소켓 부착만 최신화하는 경로를 유지한다.
 	RefreshAllWeaponActors();
@@ -290,8 +506,7 @@ void UPRWeaponManagerComponent::RefreshWeaponActorForSlot(EPRWeaponSlotType Slot
 	}
 
 	const bool bNeedsRespawn = !IsValid(WeaponActor)
-		|| WeaponActor->GetClass() != VisualSlot.WeaponData->WeaponActorClass
-		|| WeaponActor->GetVisualSlot().WeaponData != VisualSlot.WeaponData;
+		|| WeaponActor->GetClass() != VisualSlot.WeaponData->WeaponActorClass;
 
 	// 같은 슬롯에 다른 무기를 다시 장착한 경우에만 기존 Actor를 정리하고 새 무기로 재생성한다.
 	if (bNeedsRespawn)
@@ -314,7 +529,6 @@ void UPRWeaponManagerComponent::RefreshWeaponActorForSlot(EPRWeaponSlotType Slot
 		return;
 	}
 
-	WeaponActor->InitializeFromVisualSlot(VisualSlot);
 	RefreshWeaponAttachmentForSlot(SlotType);
 }
 
@@ -388,22 +602,29 @@ void UPRWeaponManagerComponent::OnRep_ArmedState(EPRWeaponArmedState OldArmedSta
 	RefreshAllWeaponActors();
 }
 
-FPRActiveWeaponSlot UPRWeaponManagerComponent::BuildActiveSlot(EPRWeaponSlotType SlotType, UPRWeaponDataAsset* WeaponData) const
+FPRActiveWeaponSlot UPRWeaponManagerComponent::BuildActiveSlot(EPRWeaponSlotType SlotType, const UPRItemInstance_Weapon* WeaponItem) const
 {
 	FPRActiveWeaponSlot NewActiveSlot;
+	if (!IsSupportedSlot(SlotType) || !IsValid(WeaponItem) || !IsValid(WeaponItem->GetWeaponData()))
+	{
+		return NewActiveSlot;
+	}
+
 	NewActiveSlot.SlotType = SlotType;
-	NewActiveSlot.WeaponData = WeaponData;
+	NewActiveSlot.WeaponData = WeaponItem->GetWeaponData();
+	NewActiveSlot.ModData = WeaponItem->GetModData();
 	return NewActiveSlot;
 }
 
 void UPRWeaponManagerComponent::Server_EquipTestWeaponToSlot_Implementation(UPRWeaponDataAsset* WeaponData, EPRWeaponSlotType TargetSlot)
 {
+	InitializeRuntimeLinks();
 	EquipTestWeaponToSlotInternal(WeaponData, TargetSlot);
 }
 
 void UPRWeaponManagerComponent::Server_UnequipWeaponSlot_Implementation(EPRWeaponSlotType TargetSlot)
 {
-	UnequipWeaponSlotInternal(TargetSlot);
+	UnequipWeaponFromSlotInternal(TargetSlot);
 }
 
 void UPRWeaponManagerComponent::Server_SwapActiveSlot_Implementation(EPRWeaponSlotType TargetSlot)
@@ -416,19 +637,27 @@ void UPRWeaponManagerComponent::Server_SetWeaponArmedState_Implementation(EPRWea
 	SetWeaponArmedStateInternal(NewArmedState);
 }
 
-FPRWeaponVisualSlot UPRWeaponManagerComponent::BuildVisualSlot(EPRWeaponSlotType SlotType, UPRWeaponDataAsset* WeaponData) const
+void UPRWeaponManagerComponent::Server_AttachModToSlot_Implementation(EPRWeaponSlotType TargetSlot, UPRWeaponModDataAsset* NewModData)
+{
+	InitializeRuntimeLinks();
+	AttachModToSlotInternal(TargetSlot, NewModData);
+}
+
+FPRWeaponVisualSlot UPRWeaponManagerComponent::BuildVisualSlot(EPRWeaponSlotType SlotType, const UPRItemInstance_Weapon* WeaponItem) const
 {
 	FPRWeaponVisualSlot NewVisualSlot;
 	NewVisualSlot.SlotType = SlotType;
-	NewVisualSlot.WeaponData = WeaponData;
 	NewVisualSlot.CarryState = ResolveCarryState(SlotType);
 
 	// 슬롯은 유지하되 무기가 비어 있으면 비주얼 상태만 초기화한다.
-	if (!IsValid(WeaponData))
+	if (!IsValid(WeaponItem) || !IsValid(WeaponItem->GetWeaponData()))
 	{
 		NewVisualSlot.Reset(SlotType);
+		return NewVisualSlot;
 	}
 
+	NewVisualSlot.WeaponData = WeaponItem->GetWeaponData();
+	NewVisualSlot.ModData = WeaponItem->GetModData();
 	return NewVisualSlot;
 }
 
@@ -469,8 +698,8 @@ FName UPRWeaponManagerComponent::ResolveAttachSocketName(EPRWeaponSlotType SlotT
 
 void UPRWeaponManagerComponent::RefreshVisualSlotsFromCurrentState()
 {
-	PrimaryVisualSlot = BuildVisualSlot(EPRWeaponSlotType::Primary, PrimaryWeaponData);
-	SecondaryVisualSlot = BuildVisualSlot(EPRWeaponSlotType::Secondary, SecondaryWeaponData);
+	PrimaryVisualSlot = BuildVisualSlot(EPRWeaponSlotType::Primary, PrimarySource);
+	SecondaryVisualSlot = BuildVisualSlot(EPRWeaponSlotType::Secondary, SecondarySource);
 }
 
 FPRActiveWeaponSlot UPRWeaponManagerComponent::ResolveNextActiveSlotAfterUnequip(EPRWeaponSlotType UnequippedSlot) const
@@ -478,14 +707,14 @@ FPRActiveWeaponSlot UPRWeaponManagerComponent::ResolveNextActiveSlotAfterUnequip
 	FPRActiveWeaponSlot NextActiveSlot;
 
 	// 제거된 슬롯 반대편에 장착 무기가 남아 있으면 그 슬롯을 다음 활성 슬롯으로 선택한다.
-	if (UnequippedSlot != EPRWeaponSlotType::Primary && IsValid(PrimaryWeaponData))
+	if (UnequippedSlot != EPRWeaponSlotType::Primary && IsValid(PrimarySource))
 	{
-		return BuildActiveSlot(EPRWeaponSlotType::Primary, PrimaryWeaponData);
+		return BuildActiveSlot(EPRWeaponSlotType::Primary, PrimarySource);
 	}
 
-	if (UnequippedSlot != EPRWeaponSlotType::Secondary && IsValid(SecondaryWeaponData))
+	if (UnequippedSlot != EPRWeaponSlotType::Secondary && IsValid(SecondarySource))
 	{
-		return BuildActiveSlot(EPRWeaponSlotType::Secondary, SecondaryWeaponData);
+		return BuildActiveSlot(EPRWeaponSlotType::Secondary, SecondarySource);
 	}
 
 	return NextActiveSlot;
@@ -502,10 +731,11 @@ void UPRWeaponManagerComponent::GrantWeaponAbilitiesSkeleton(const FPRActiveWeap
 	UE_LOG(
 		LogTemp,
 		Log,
-		TEXT("Weapon ability skeleton granted. Owner=%s Slot=%d Weapon=%s"),
+		TEXT("Weapon ability skeleton granted. Owner=%s Slot=%d Weapon=%s Mod=%s"),
 		*GetNameSafe(GetOwner()),
 		static_cast<int32>(WeaponSlot.SlotType),
-		*GetNameSafe(WeaponSlot.WeaponData));
+		*GetNameSafe(WeaponSlot.WeaponData.Get()),
+		*GetNameSafe(WeaponSlot.ModData.Get()));
 }
 
 void UPRWeaponManagerComponent::ClearWeaponAbilitiesSkeleton(const FPRActiveWeaponSlot& WeaponSlot) const
@@ -519,10 +749,11 @@ void UPRWeaponManagerComponent::ClearWeaponAbilitiesSkeleton(const FPRActiveWeap
 	UE_LOG(
 		LogTemp,
 		Log,
-		TEXT("Weapon ability skeleton cleared. Owner=%s Slot=%d Weapon=%s"),
+		TEXT("Weapon ability skeleton cleared. Owner=%s Slot=%d Weapon=%s Mod=%s"),
 		*GetNameSafe(GetOwner()),
 		static_cast<int32>(WeaponSlot.SlotType),
-		*GetNameSafe(WeaponSlot.WeaponData));
+		*GetNameSafe(WeaponSlot.WeaponData.Get()),
+		*GetNameSafe(WeaponSlot.ModData.Get()));
 }
 
 bool UPRWeaponManagerComponent::IsSupportedSlot(EPRWeaponSlotType SlotType) const
@@ -530,20 +761,20 @@ bool UPRWeaponManagerComponent::IsSupportedSlot(EPRWeaponSlotType SlotType) cons
 	return SlotType == EPRWeaponSlotType::Primary || SlotType == EPRWeaponSlotType::Secondary;
 }
 
-FPRWeaponVisualSlot& UPRWeaponManagerComponent::GetMutableVisualSlotBySlotType(EPRWeaponSlotType SlotType)
+TObjectPtr<UPRItemInstance_Weapon>& UPRWeaponManagerComponent::GetMutableSourceBySlot(EPRWeaponSlotType SlotType)
 {
 	if (SlotType == EPRWeaponSlotType::Primary)
 	{
-		return PrimaryVisualSlot;
+		return PrimarySource;
 	}
 
 	if (SlotType == EPRWeaponSlotType::Secondary)
 	{
-		return SecondaryVisualSlot;
+		return SecondarySource;
 	}
 
 	checkNoEntry();
-	return PrimaryVisualSlot;
+	return PrimarySource;
 }
 
 APRWeaponActor* UPRWeaponManagerComponent::GetWeaponActorBySlot(EPRWeaponSlotType SlotType) const

@@ -8,7 +8,12 @@
 #include "PRWeaponManagerComponent.generated.h"
 
 class APRWeaponActor;
+class UPRAbilitySystemComponent;
+class UPRAttributeSet_Player;
+class UPRInventoryComponent;
+class UPRItemInstance_Weapon;
 class UPRWeaponDataAsset;
+class UPRWeaponModDataAsset;
 
 // 캐릭터 기준 무기 장착 공개 상태와 슬롯별 로컬 Actor 생명주기를 관리하는 허브다.
 UCLASS(ClassGroup = (ProjectR), meta = (BlueprintSpawnableComponent))
@@ -35,6 +40,12 @@ public:
 	UFUNCTION(BlueprintPure, Category = "ProjectR|Weapon")
 	EPRWeaponArmedState GetWeaponArmedState() const { return ArmedState; }
 
+	// PlayerState와 ASC, 인벤토리 연결 캐시를 초기화한다
+	void InitializeRuntimeLinks();
+
+	// 대상 슬롯에 연결된 무기 Item 원본을 반환한다
+	UPRItemInstance_Weapon* GetSource(EPRWeaponSlotType SlotType) const;
+
 	// 대상 슬롯의 현재 무기 데이터를 반환한다
 	UFUNCTION(BlueprintPure, Category = "ProjectR|Weapon")
 	UPRWeaponDataAsset* GetWeaponDataBySlot(EPRWeaponSlotType SlotType) const;
@@ -46,9 +57,19 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "ProjectR|Weapon")
 	void EquipTestWeaponToSlot(UPRWeaponDataAsset* WeaponData, EPRWeaponSlotType TargetSlot);
 
+	// 인벤토리 소유 무기를 지정 슬롯에 연결한다
+	bool EquipWeaponToSlot(UPRItemInstance_Weapon* WeaponItem, EPRWeaponSlotType TargetSlot);
+
 	// 지정 슬롯의 무기를 해제한다
 	UFUNCTION(BlueprintCallable, Category = "ProjectR|Weapon")
 	void UnequipWeaponSlot(EPRWeaponSlotType TargetSlot);
+
+	// 지정 슬롯의 무기 연결만 해제한다
+	bool UnequipWeaponFromSlot(EPRWeaponSlotType TargetSlot);
+
+	// 대상 슬롯 무기에 Mod를 장착하거나 교체한다
+	UFUNCTION(BlueprintCallable, Category = "ProjectR|Weapon")
+	bool AttachModToSlot(EPRWeaponSlotType TargetSlot, UPRWeaponModDataAsset* NewModData);
 
 	// 활성 무기 슬롯을 지정 슬롯으로 전환한다
 	UFUNCTION(BlueprintCallable, Category = "ProjectR|Weapon")
@@ -58,16 +79,22 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "ProjectR|Weapon")
 	void SetWeaponArmedState(EPRWeaponArmedState NewArmedState);
 
-	// 26.04.26, Yuchan, 무기 액터 반환 함수가 없어 임시로 추가. Fire 어빌리티가 의존하므로 아래 인터페이스는 유지되어야 함.
-	UFUNCTION(BlueprintPure)
+	// 현재 활성 슬롯에 대응하는 로컬 무기 Actor를 반환한다
+	UFUNCTION(BlueprintPure, Category = "ProjectR|Weapon")
 	APRWeaponActor* GetActiveWeaponActor() const;
-	
+
 protected:
-	// 서버 권위에서 슬롯 데이터와 공개 상태를 갱신한다
+	// 서버 권위에서 테스트용 무기 에셋을 Item으로 생성해 슬롯에 연결한다
 	void EquipTestWeaponToSlotInternal(UPRWeaponDataAsset* WeaponData, EPRWeaponSlotType TargetSlot);
 
-	// 서버 권위에서 슬롯 데이터 제거와 공개 상태를 갱신한다
-	void UnequipWeaponSlotInternal(EPRWeaponSlotType TargetSlot);
+	// 서버 권위에서 슬롯 원본과 공개 상태를 갱신한다
+	bool EquipWeaponToSlotInternal(UPRItemInstance_Weapon* WeaponItem, EPRWeaponSlotType TargetSlot);
+
+	// 서버 권위에서 슬롯 원본 제거와 공개 상태를 갱신한다
+	bool UnequipWeaponFromSlotInternal(EPRWeaponSlotType TargetSlot);
+
+	// 서버 권위에서 슬롯 Mod 장착 결과를 갱신한다
+	bool AttachModToSlotInternal(EPRWeaponSlotType TargetSlot, UPRWeaponModDataAsset* NewModData);
 
 	// 서버 권위에서 활성 슬롯과 공개 상태를 갱신한다
 	void SwapActiveSlotInternal(EPRWeaponSlotType TargetSlot);
@@ -100,8 +127,8 @@ protected:
 	UFUNCTION()
 	void OnRep_ArmedState(EPRWeaponArmedState OldArmedState);
 
-	// 슬롯 데이터에서 활성 공개 상태를 구성한다
-	FPRActiveWeaponSlot BuildActiveSlot(EPRWeaponSlotType SlotType, UPRWeaponDataAsset* WeaponData) const;
+	// 슬롯 원본에서 활성 공개 상태를 구성한다
+	FPRActiveWeaponSlot BuildActiveSlot(EPRWeaponSlotType SlotType, const UPRItemInstance_Weapon* WeaponItem) const;
 
 	// 클라이언트 장착 요청을 서버 권위 경로로 전달한다
 	UFUNCTION(Server, Reliable)
@@ -119,9 +146,13 @@ protected:
 	UFUNCTION(Server, Reliable)
 	void Server_SetWeaponArmedState(EPRWeaponArmedState NewArmedState);
 
+	// 클라이언트 Mod 장착 요청을 서버 권위 경로로 전달한다
+	UFUNCTION(Server, Reliable)
+	void Server_AttachModToSlot(EPRWeaponSlotType TargetSlot, UPRWeaponModDataAsset* NewModData);
+
 protected:
-	// 슬롯 데이터에서 공개 비주얼 상태를 구성한다
-	FPRWeaponVisualSlot BuildVisualSlot(EPRWeaponSlotType SlotType, UPRWeaponDataAsset* WeaponData) const;
+	// 슬롯 원본에서 공개 비주얼 상태를 구성한다
+	FPRWeaponVisualSlot BuildVisualSlot(EPRWeaponSlotType SlotType, const UPRItemInstance_Weapon* WeaponItem) const;
 
 	// 현재 슬롯이 Armed 상태인지 Stowed 상태인지 계산한다
 	EPRWeaponCarryState ResolveCarryState(EPRWeaponSlotType SlotType) const;
@@ -145,14 +176,14 @@ protected:
 	bool IsSupportedSlot(EPRWeaponSlotType SlotType) const;
 
 private:
-	// 대상 슬롯 공개 비주얼 상태를 수정 가능한 참조로 반환한다
-	FPRWeaponVisualSlot& GetMutableVisualSlotBySlotType(EPRWeaponSlotType SlotType);
+	// 대상 슬롯 원본을 수정 가능한 참조로 반환한다
+	TObjectPtr<UPRItemInstance_Weapon>& GetMutableSourceBySlot(EPRWeaponSlotType SlotType);
 
 	// 대상 슬롯의 현재 로컬 Actor를 반환한다
-	APRWeaponActor* GetWeaponActorBySlot(EPRWeaponSlotType SlotType) const; // TODO: 왜 private?
+	APRWeaponActor* GetWeaponActorBySlot(EPRWeaponSlotType SlotType) const;
 
 	// 대상 슬롯 로컬 Actor를 수정 가능한 참조로 반환한다
-	TObjectPtr<APRWeaponActor>& GetMutableWeaponActorBySlot(EPRWeaponSlotType SlotType); // TODO: 역할이 모호함. GetWeaponActorBySlot으로 충분하지 않은지?
+	TObjectPtr<APRWeaponActor>& GetMutableWeaponActorBySlot(EPRWeaponSlotType SlotType);
 
 	// 대상 슬롯의 현재 로컬 Actor를 안전하게 정리한다
 	void DestroyWeaponActorForSlot(EPRWeaponSlotType SlotType);
@@ -160,11 +191,11 @@ private:
 protected:
 	// 현재 무장 상태
 	UPROPERTY(ReplicatedUsing = OnRep_ArmedState, VisibleInstanceOnly, Category = "ProjectR|Weapon")
-	EPRWeaponArmedState ArmedState = EPRWeaponArmedState::Armed; // TODO: 기본값이 Armed?
+	EPRWeaponArmedState ArmedState = EPRWeaponArmedState::Armed;
 
 	// 현재 활성 무기 공개 상태
 	UPROPERTY(ReplicatedUsing = OnRep_ActiveSlot, VisibleInstanceOnly, Category = "ProjectR|Weapon")
-	FPRActiveWeaponSlot ActiveSlot; // TODO: FPRActiveWeaponSlot과 FPRWeaponVisualSlot은 하나로 통합가능하지 않은지?
+	FPRActiveWeaponSlot ActiveSlot;
 
 	// 주무기 슬롯 공개 비주얼 상태
 	UPROPERTY(ReplicatedUsing = OnRep_PrimaryVisualSlot, VisibleInstanceOnly, Category = "ProjectR|Weapon")
@@ -174,13 +205,13 @@ protected:
 	UPROPERTY(ReplicatedUsing = OnRep_SecondaryVisualSlot, VisibleInstanceOnly, Category = "ProjectR|Weapon")
 	FPRWeaponVisualSlot SecondaryVisualSlot;
 
-	// 주무기 슬롯에 연결된 최소 무기 데이터
-	UPROPERTY(EditInstanceOnly, BlueprintReadOnly, Category = "ProjectR|Weapon")
-	TObjectPtr<UPRWeaponDataAsset> PrimaryWeaponData;
+	// 주무기 슬롯에 연결된 무기 Item 원본
+	UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Category = "ProjectR|Weapon", meta = (AllowPrivateAccess = "true"))
+	TObjectPtr<UPRItemInstance_Weapon> PrimarySource;
 
-	// 보조무기 슬롯에 연결된 최소 무기 데이터
-	UPROPERTY(EditInstanceOnly, BlueprintReadOnly, Category = "ProjectR|Weapon")
-	TObjectPtr<UPRWeaponDataAsset> SecondaryWeaponData;
+	// 보조무기 슬롯에 연결된 무기 Item 원본
+	UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Category = "ProjectR|Weapon", meta = (AllowPrivateAccess = "true"))
+	TObjectPtr<UPRItemInstance_Weapon> SecondarySource;
 
 private:
 	// 현재 머신에서만 유지하는 주무기 슬롯 Actor
@@ -190,4 +221,13 @@ private:
 	// 현재 머신에서만 유지하는 보조무기 슬롯 Actor
 	UPROPERTY(Transient)
 	TObjectPtr<APRWeaponActor> SecondaryWeaponActor;
+
+	// 현재 PlayerState에 연결된 ASC 캐시
+	TObjectPtr<UPRAbilitySystemComponent> CachedASC = nullptr;
+
+	// 현재 PlayerState에 연결된 플레이어 슬롯 자원 캐시
+	TObjectPtr<UPRAttributeSet_Player> CachedPlayerSet = nullptr;
+
+	// 현재 PlayerState에 연결된 인벤토리 캐시
+	TObjectPtr<UPRInventoryComponent> CachedInventory = nullptr;
 };

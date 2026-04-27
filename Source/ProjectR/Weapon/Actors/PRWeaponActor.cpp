@@ -25,12 +25,6 @@ void APRWeaponActor::BeginPlay()
 	Super::BeginPlay();
 }
 
-void APRWeaponActor::InitializeFromVisualSlot(const FPRWeaponVisualSlot& InVisualSlot)
-{
-	VisualSlot = InVisualSlot;
-	RefreshVisualMesh();
-}
-
 void APRWeaponActor::AttachToOwnerMesh(ACharacter* OwnerCharacter, FName SocketName)
 {
 	// 캐릭터, 메시, 소켓 이름 중 하나라도 유효하지 않으면 부착을 진행하지 않는다.
@@ -48,16 +42,4 @@ void APRWeaponActor::AttachToOwnerMesh(ACharacter* OwnerCharacter, FName SocketN
 FTransform APRWeaponActor::GetMuzzleTransform_Implementation() const
 {
 	return GetTransform();
-}
-
-void APRWeaponActor::RefreshVisualMesh()
-{
-	// 무기 데이터가 비어 있으면 표시 메시도 함께 비운다.
-	if (!IsValid(VisualSlot.WeaponData))
-	{
-		WeaponMeshComponent->SetSkeletalMesh(nullptr);
-		return;
-	}
-
-	WeaponMeshComponent->SetSkeletalMesh(VisualSlot.WeaponData->DisplayMesh);
 }

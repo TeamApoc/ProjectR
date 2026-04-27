@@ -105,6 +105,11 @@ void APRPlayerCharacter::PossessedBy(AController* NewController)
 			// 이 시점에서 플레이어의 ASC 유효하므로 BindTagChangeEvent 호출
 			BindTagChangeEvent();
 		}
+
+		if (IsValid(WeaponManagerComponent))
+		{
+			WeaponManagerComponent->InitializeRuntimeLinks();
+		}
 	}
 }
 
@@ -118,6 +123,11 @@ void APRPlayerCharacter::OnRep_PlayerState()
 		if (UPRAbilitySystemComponent* ASC = PS->GetPRAbilitySystemComponent())
 		{
 			ASC->InitAbilityActorInfo(PS, this);
+		}
+
+		if (IsValid(WeaponManagerComponent))
+		{
+			WeaponManagerComponent->InitializeRuntimeLinks();
 		}
 	}
 }

@@ -651,8 +651,7 @@ void UPRWeaponManagerComponent::SetWeaponArmedStateInternal(EPRArmedState NewArm
 	// 무장 상태가 이미 같은 경우
 	if (ArmedState == NewArmedState)
 	{
-		// 부착 갱신 불필요
-		// 함수 조기 종료
+		// 함수 조기 종료. 부착 갱신 불필요
 		return;
 	}
 
@@ -722,8 +721,7 @@ void UPRWeaponManagerComponent::RefreshWeaponActorForSlot(EPRWeaponSlotType Slot
 	// 지원하지 않는 슬롯 요청인 경우
 	if (!IsSupportedSlot(SlotType))
 	{
-		// 로컬 Actor 갱신 불가
-		// 함수 조기 종료
+		// 함수 조기 종료. 로컬 Actor 갱신 불가
 		return;
 	}
 
@@ -733,14 +731,13 @@ void UPRWeaponManagerComponent::RefreshWeaponActorForSlot(EPRWeaponSlotType Slot
 	// 슬롯별 로컬 Actor 참조. 필요 시 제거 또는 재생성 대상으로 사용
 	TObjectPtr<APRWeaponActor>& WeaponActor = GetMutableWeaponActorBySlot(SlotType);
 
-	// 슬롯이 비어 있는 경우
+	// 비주얼 정보가 비어 있는 경우
 	if (VisualInfo.IsEmpty())
 	{
 		// 해당 슬롯 Actor 제거
 		DestroyWeaponActorForSlot(SlotType);
-
-		// 빈 슬롯 갱신 마침
-		// 함수 조기 종료
+		
+		// 함수 조기 종료. 빈 슬롯 비주얼 갱신 마침
 		return;
 	}
 

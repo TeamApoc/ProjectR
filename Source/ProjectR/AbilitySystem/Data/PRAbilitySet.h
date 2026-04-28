@@ -92,7 +92,13 @@ public:
 	// 부여 직후 자동 적용할 Startup GE 목록
 	UPROPERTY(EditAnywhere, Category = "AbilitySet")
 	TArray<FPREffectEntry> Effects;
-	
+
 public:
 	UPRAbilitySet();
 };
+// 2026.04.27, 이건주, 런타임 UPRAbilitySet 생성용 함수 추가
+// 어빌리티와 효과 목록으로 런타임 AbilitySet을 생성한다
+PROJECTR_API UPRAbilitySet* CreateRuntimeAbilitySet(
+	UObject* Outer,
+	const TArray<FPRAbilityEntry>& InAbilities,
+	const TArray<FPREffectEntry>& InEffects);

@@ -25,39 +25,49 @@ void APRWeaponActor::BeginPlay()
 	Super::BeginPlay();
 }
 
-void APRWeaponActor::InitializeFromVisualSlot(const FPRWeaponVisualSlot& InVisualSlot)
-{
-	VisualSlot = InVisualSlot;
-	RefreshVisualMesh();
-}
-
 void APRWeaponActor::AttachToOwnerMesh(ACharacter* OwnerCharacter, FName SocketName)
 {
 	// 캐릭터, 메시, 소켓 이름 중 하나라도 유효하지 않으면 부착을 진행하지 않는다.
 	if (!IsValid(OwnerCharacter) || !IsValid(OwnerCharacter->GetMesh()) || SocketName.IsNone())
 	{
+		UE_LOG(
+			LogTemp,
+			Warning,
+			TEXT("[WeaponActor] Attach failed. Actor=%s Owner=%s Socket=%s"),
+			*GetNameSafe(this),
+			*GetNameSafe(OwnerCharacter),
+			*SocketName.ToString());
 		return;
 	}
 
+	if (!OwnerCharacter->GetMesh()->DoesSocketExist(SocketName))
+	{
+		UE_LOG(
+			LogTemp,
+			Warning,
+			TEXT("[WeaponActor] Attach failed. Socket missing. Actor=%s Owner=%s Socket=%s"),
+			*GetNameSafe(this),
+			*GetNameSafe(OwnerCharacter),
+			*SocketName.ToString());
+		return;
+	}
+
+    // 무기 메시 부착
 	AttachToComponent(
 		OwnerCharacter->GetMesh(),
 		FAttachmentTransformRules::SnapToTargetNotIncludingScale,
 		SocketName);
+
+	UE_LOG(
+		LogTemp,
+		Log,
+		TEXT("[WeaponActor] Attached. Actor=%s Owner=%s Socket=%s"),
+		*GetNameSafe(this),
+		*GetNameSafe(OwnerCharacter),
+		*SocketName.ToString());
 }
 
 FTransform APRWeaponActor::GetMuzzleTransform_Implementation() const
 {
 	return GetTransform();
-}
-
-void APRWeaponActor::RefreshVisualMesh()
-{
-	// 무기 데이터가 비어 있으면 표시 메시도 함께 비운다.
-	if (!IsValid(VisualSlot.WeaponData))
-	{
-		WeaponMeshComponent->SetSkeletalMesh(nullptr);
-		return;
-	}
-
-	WeaponMeshComponent->SetSkeletalMesh(VisualSlot.WeaponData->DisplayMesh);
 }

@@ -4,8 +4,10 @@
 #include "PRGA_Fire.h"
 
 #include "DrawDebugHelpers.h"
+#include "ProjectR/AbilitySystem/Tasks/PRAT_SpawnPredictedProjectile.h"
 #include "ProjectR/PRGameplayTags.h"
 #include "ProjectR/Character/PRPlayerCharacter.h"
+#include "ProjectR/Projectile/PRProjectileBase.h"
 #include "ProjectR/System/PREventManagerSubsystem.h"
 #include "ProjectR/System/PREventTypes.h"
 #include "ProjectR/UI/Crosshair/PRCrosshairTypes.h"
@@ -36,6 +38,15 @@ void UPRGA_Fire::ActivateAbility(const FGameplayAbilitySpecHandle Handle, const 
 			CurrentWeapon = WeaponManager->GetActiveWeaponActor();
 		}
 	}
+
+	NextShotId = 0;
+}
+
+void UPRGA_Fire::EndAbility(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo,
+	const FGameplayAbilityActivationInfo ActivationInfo, bool bReplicateEndAbility, bool bWasCancelled)
+{
+	NextShotId = 0;
+	Super::EndAbility(Handle, ActorInfo, ActivationInfo, bReplicateEndAbility, bWasCancelled);
 }
 
 FVector UPRGA_Fire::GetMuzzleLocation() const
@@ -145,7 +156,7 @@ FHitResult UPRGA_Fire::PerformMuzzleTrace(const FVector& MuzzleLoc, const FVecto
 	return Hit;
 }
 
-void UPRGA_Fire::FireOneShot()
+void UPRGA_Fire::FireHitScan()
 {
 	const FGameplayAbilityActorInfo& Info = GetActorInfo();
 
@@ -215,6 +226,77 @@ void UPRGA_Fire::FireOneShot()
 		Server_ReportShot(Payload);
 	}
 }
+
+FTransform UPRGA_Fire::GetProjectileLaunchTransform() const
+{
+	if (!GetActorInfo().IsLocallyControlled())
+	{
+		return FTransform();
+	}
+	
+	const FPRFireViewpoint View = GetFireViewpoint();
+	const FVector MuzzleLoc = GetMuzzleLocation();
+
+	// 1차 트레이스로 카메라가 가리키는 월드 조준점 산출 (숄더뷰 시차 보정)
+	const FVector AimPoint = ResolveAimPoint(View, MaxTraceDistance);
+
+	// 총구 -> 조준점 방향. 거리가 너무 짧으면(=조준점이 총구 바로 앞/뒤) 카메라 정면으로 폴백
+	FVector LaunchDir = AimPoint - MuzzleLoc;
+	if (!LaunchDir.Normalize(KINDA_SMALL_NUMBER))
+	{
+		LaunchDir = View.Rotation.Vector();
+	}
+
+	return FTransform(LaunchDir.Rotation(), MuzzleLoc);
+}
+
+void UPRGA_Fire::FireProjectile(TSubclassOf<APRProjectileBase> ProjectileClass, FVector SpawnLocation, FRotator SpawnRotation)
+{
+	if (!IsValid(ProjectileClass))
+	{
+		UE_LOG(LogFire, Warning, TEXT("FireProjectile: 유효하지 않은 ProjectileClass 전달"));
+		return;
+	}
+
+	UPRAT_SpawnPredictedProjectile* Task = UPRAT_SpawnPredictedProjectile::SpawnPredictedProjectile(
+		this, ProjectileClass, SpawnLocation, SpawnRotation);
+	if (!Task)
+	{
+		UE_LOG(LogFire, Warning, TEXT("FireProjectile: AbilityTask 생성 실패. Class=%s"), *GetNameSafe(ProjectileClass));
+		return;
+	}
+
+	// AbilityTask 결과 콜백 바인딩. 결과 통지는 OnProjectileSpawnSuccess/Failed 핸들러로 일원화
+	Task->OnSuccess.BindDynamic(this, &UPRGA_Fire::OnProjectileSpawnSuccess);
+	Task->OnFailed.BindDynamic(this, &UPRGA_Fire::OnProjectileSpawnFailed);
+
+	UE_LOG(LogFire, Verbose, TEXT("FireProjectile: 시작. Class=%s, Loc=%s, Rot=%s"),
+		*GetNameSafe(ProjectileClass), *SpawnLocation.ToCompactString(), *SpawnRotation.ToCompactString());
+
+	// ReadyForActivation 호출 시 AT::Activate가 실행되어 클라/서버 각자의 스폰 흐름이 진행됨
+	Task->ReadyForActivation();
+}
+
+void UPRGA_Fire::OnProjectileSpawnSuccess(APRProjectileBase* SpawnedProjectile)
+{
+	if (!IsValid(SpawnedProjectile))
+	{
+		UE_LOG(LogFire, Warning, TEXT("OnProjectileSpawnSuccess: 무효 인스턴스 수신"));
+		return;
+	}
+
+	UE_LOG(LogFire, Verbose, TEXT("OnProjectileSpawnSuccess: Id=%u, Actor=%s"),
+		SpawnedProjectile->GetProjectileId(), *GetNameSafe(SpawnedProjectile));
+	
+	K2_OnProjectileSpawnSuccess(SpawnedProjectile);
+}
+
+void UPRGA_Fire::OnProjectileSpawnFailed(APRProjectileBase* SpawnedProjectile)
+{
+	UE_LOG(LogFire, Warning, TEXT("OnProjectileSpawnFailed: 투사체 스폰 실패 또는 예측 거부"));
+	K2_OnProjectileSpawnFailed(SpawnedProjectile);
+}
+
 
 void UPRGA_Fire::Server_ReportShot_Implementation(FPRFireShotPayload Payload)
 {

@@ -12,7 +12,23 @@ bool FPREffectEntry::IsValid() const
 	return ::IsValid(EffectClass);
 }
 
+UPRAbilitySet* CreateRuntimeAbilitySet(
+	UObject* Outer,
+	const TArray<FPRAbilityEntry>& InAbilities,
+	const TArray<FPREffectEntry>& InEffects)
+{
+	if (!IsValid(Outer))
+	{
+		return nullptr;
+	}
+
+	UPRAbilitySet* RuntimeAbilitySet = NewObject<UPRAbilitySet>(Outer);
+	RuntimeAbilitySet->Abilities = InAbilities;
+	RuntimeAbilitySet->Effects = InEffects;
+
+	return RuntimeAbilitySet;
+}
+
 UPRAbilitySet::UPRAbilitySet()
 {
-	
 }

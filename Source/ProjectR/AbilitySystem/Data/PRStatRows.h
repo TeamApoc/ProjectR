@@ -54,16 +54,4 @@ struct PROJECTR_API FPRPlayerStatRow : public FTableRowBase
 	// 초당 스태미너 회복량 초기값
 	UPROPERTY(EditAnywhere, BlueprintReadOnly)
 	float StaminaRegenRate = 25.0f;
-
-	// 최대 Mod 게이지 초기값
-	UPROPERTY(EditAnywhere, BlueprintReadOnly)
-	float MaxModGauge = 100.0f;
-
-	// 주무기 탄창 기본 용량
-	UPROPERTY(EditAnywhere, BlueprintReadOnly)
-	float MaxPrimaryAmmo = 30.0f;
-
-	// 보조무기 탄창 기본 용량
-	UPROPERTY(EditAnywhere, BlueprintReadOnly)
-	float MaxSecondaryAmmo = 6.0f;
 };

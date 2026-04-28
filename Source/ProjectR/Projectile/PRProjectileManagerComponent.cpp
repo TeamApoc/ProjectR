@@ -70,7 +70,7 @@ float UPRProjectileManagerComponent::GetProjectileSpawnDelay() const
 
 	const float ExactPingMs = PC->PlayerState->ExactPing;
 	const float OverflowMs = ExactPingMs - PredictionLatencyReduction - MaxPredictionPing;
-	return 0.001f * FMath::Max(0.f, OverflowMs);
+	return 0.001f * FMath::Max(0.f, OverflowMs); // ms -> seconds 단위로 변환
 }
 
 /*~ Id Allocation ~*/
@@ -222,6 +222,9 @@ APRProjectileBase* UPRProjectileManagerComponent::SpawnAuthProjectile(FPRProject
 	{
 		return nullptr;
 	}
+
+	// 클라이언트 발사 시점까지 서버 투사체를 전진. bUseFastForward=false인 투사체는 내부에서 무시
+	Auth->ApplyFastForward(GetForwardPredictionTime());
 
 	NotifyAuthArrived(SpawnInfo.ProjectileId, Auth);
 	return Auth;

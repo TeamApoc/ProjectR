@@ -3,13 +3,15 @@
 
 #include "PRProjectileBase.h"
 
+#include "DrawDebugHelpers.h"
 #include "PRProjectileMovementComponent.h"
 #include "PRProjectileManagerComponent.h"
 #include "Net/UnrealNetwork.h"
 
 APRProjectileBase::APRProjectileBase()
 {
-	PrimaryActorTick.bCanEverTick = false;
+	PrimaryActorTick.bCanEverTick = true;
+	PrimaryActorTick.bStartWithTickEnabled = true;
 
 	bReplicates = true;
 	SetReplicateMovement(false);
@@ -22,13 +24,39 @@ void APRProjectileBase::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& Ou
 {
 	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
 
-	DOREPLIFETIME_CONDITION(APRProjectileBase, ProjectileId, COND_OwnerOnly);
+	constexpr bool bUsePushModel = true;
+	
+	FDoRepLifetimeParams OwnerOnlyParams{COND_OwnerOnly, REPNOTIFY_Always, bUsePushModel};
+	DOREPLIFETIME_WITH_PARAMS_FAST(APRProjectileBase, ProjectileId, OwnerOnlyParams);
 }
 
 void APRProjectileBase::InitializeProjectile(EPRProjectileRole InRole, uint32 InProjectileId)
 {
 	ProjectileRole = InRole;
 	ProjectileId = InProjectileId;
+}
+
+void APRProjectileBase::ApplyFastForward(float ForwardSeconds)
+{
+	if (!HasAuthority() || !bUseFastForward || ForwardSeconds <= 0.f)
+	{
+		return;
+	}
+
+	if (!IsValid(ProjectileMovementComponent))
+	{
+		return;
+	}
+
+	// PMC를 강제 틱하여 투사체를 ForwardSeconds 만큼 전진. bForceSubStepping=true로 내부 서브스텝 분할 수행
+	ProjectileMovementComponent->TickComponent(ForwardSeconds, LEVELTICK_All, nullptr);
+
+	// 수명 보정. Fast-Forward로 소모된 시간만큼 남은 수명에서 차감
+	const float RemainingLife = GetLifeSpan();
+	if (RemainingLife > 0.f)
+	{
+		SetLifeSpan(FMath::Max(RemainingLife - ForwardSeconds, 0.1f));
+	}
 }
 
 void APRProjectileBase::LinkCounterpart(APRProjectileBase* InCounterpart)
@@ -55,6 +83,19 @@ void APRProjectileBase::BeginPlay()
 	{
 		TryLinkToPredictedOnClient();
 	}
+	
+#if WITH_EDITOR
+	DrawDebugs(0);
+#endif
+}
+
+void APRProjectileBase::Tick(float DeltaSeconds)
+{
+	Super::Tick(DeltaSeconds);
+
+#if WITH_EDITOR
+	DrawDebugs(DeltaSeconds);
+#endif
 }
 
 void APRProjectileBase::EndPlay(const EEndPlayReason::Type EndPlayReason)
@@ -74,7 +115,7 @@ void APRProjectileBase::EndPlay(const EEndPlayReason::Type EndPlayReason)
 
 void APRProjectileBase::OnRep_ProjectileId()
 {
-	// COND_OwnerOnly이므로 소유 클라이언트에서만 도달. 이 경로는 항상 케이스 (3)
+	// COND_OwnerOnly이므로 소유 클라이언트에서만 도달.
 	ProjectileRole = EPRProjectileRole::Auth;
 
 	if (HasActorBegunPlay())
@@ -105,4 +146,27 @@ void APRProjectileBase::TryLinkToPredictedOnClient()
 	{
 		LinkCounterpart(Predicted);
 	}
+}
+
+void APRProjectileBase::DrawDebugs(float DeltaSeconds)
+{
+	if (HasAuthority() && ProjectileRole == EPRProjectileRole::Auth)
+	{
+		return;
+	}
+	
+	if (!bDrawDebugSphere)
+	{
+		return;
+	}
+
+	DebugDrawAccumulator += DeltaSeconds;
+	if (DebugDrawInterval > 0.f && DebugDrawAccumulator < DebugDrawInterval)
+	{
+		return;
+	}
+	DebugDrawAccumulator = 0.f;
+
+	const FColor& DrawColor = (ProjectileRole == EPRProjectileRole::Predicted) ? DebugColorPredicted : DebugColorAuth;
+	DrawDebugSphere(GetWorld(), GetActorLocation(), DebugSphereRadius, 12, DrawColor, false, DebugDrawLifetime);
 }

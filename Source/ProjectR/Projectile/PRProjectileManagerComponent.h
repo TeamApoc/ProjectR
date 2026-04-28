@@ -70,7 +70,7 @@ protected:
 	UPROPERTY(EditDefaultsOnly, Category = "ProjectR|Projectile|Prediction", meta = (ClampMin = "0.0", ClampMax = "1.0"))
 	float ClientBiasPct = 0.5f;
 
-	// 이 핑(ms)을 초과하면 클라 Fake 스폰을 지연
+	// 이 핑(ms)을 초과하면 클라 Prediction 스폰을 지연
 	UPROPERTY(EditDefaultsOnly, Category = "ProjectR|Projectile|Prediction")
 	float MaxPredictionPing = 120.f;
 

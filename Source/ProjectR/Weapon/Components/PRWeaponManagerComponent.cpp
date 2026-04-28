@@ -1107,7 +1107,8 @@ void UPRWeaponManagerComponent::RefreshAnimLayer()
 	ACharacter* OwnerCharacter = Cast<ACharacter>(GetOwner());
 	if (!IsValid(OwnerCharacter))
 	{
-		return;
+		// 주무기를 다음 활성 슬롯으로 리턴
+		return EPRWeaponSlotType::Primary;
 	}
 
 	USkeletalMeshComponent* MeshComp = OwnerCharacter->GetMesh();
@@ -1128,7 +1129,8 @@ void UPRWeaponManagerComponent::RefreshAnimLayer()
 	// 이미 목표 레이어가 링크되어 있다면 작업을 무시한다
 	if (CurrentLinkedAnimLayerClass == TargetAnimLayerClass)
 	{
-		return;
+		// 보조무기를 다음 활성 슬롯으로 리턴
+		return EPRWeaponSlotType::Secondary;
 	}
 
 	// 기존에 링크된 레이어가 있다면 언링크(Unlink) 하여 맨손 상태로 되돌린다.

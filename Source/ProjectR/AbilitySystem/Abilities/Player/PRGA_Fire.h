@@ -11,6 +11,9 @@
 struct FPRProjectileSpawnInfo;
 class APRProjectileBase;
 class APRWeaponActor;
+class UAnimMontage;      
+class UPRWeaponDataAsset;
+
 DECLARE_LOG_CATEGORY_EXTERN(LogFire, Log, All);
 
 /**
@@ -62,11 +65,21 @@ public:
 	virtual FTransform GetProjectileLaunchTransform() const;
 	
 protected:
+	// 04.28 김동석 추가, // strength, speed는 삭제
+	// 연속 발사 횟수를 초기화한다
+	void ResetConsecutiveShots();
+
 	// 서버가 샷을 확정 처리. 데미지 적용 (현재는 로그만)
 	virtual void ServerConfirmShot(const FPRFireShotPayload& Payload);
 
 	// 데미지 적용. 현재 단계에서는 로그만 남긴다
 	virtual void ApplyDamageFromShot(const FPRFireShotPayload& Payload);
+	
+	// 현재 활성 무기 데이터를 반환한다                           
+	UPRWeaponDataAsset* GetActiveWeaponData() const;              
+                                                              
+	// 지정한 무기 몽타주를 현재 어빌리티 컨텍스트에서 재생한다   
+	void PlayWeaponMontage(UAnimMontage* Montage, float PlayRate);
 
 	// AbilityTask가 투사체 스폰 성공 시 호출. 파생 클래스에서 추가 처리(VFX/SFX 등) 오버라이드 용도
 	UFUNCTION()
@@ -90,14 +103,6 @@ protected:
 	UPROPERTY(EditDefaultsOnly, Category = "ProjectR|Fire")
 	TEnumAsByte<ECollisionChannel> FireTraceChannel = PRCollisionChannels::ECC_Combat;
 
-	// 1발당 발사 시 발생하는 반동 강도 (Event.Player.Recoil 페이로드) // TODO: WeaponData로 이전
-	UPROPERTY(EditDefaultsOnly, Category = "ProjectR|Fire|Recoil")
-	float RecoilStrength = 1.0f;
-
-	// 1발당 발사 시 반동 회복/적용 속도 (Event.Player.Recoil 페이로드) // TODO: WeaponData로 이전
-	UPROPERTY(EditDefaultsOnly, Category = "ProjectR|Fire|Recoil")
-	float RecoilSpeed = 10.0f;
-
 	// 카메라 트레이스(1차, 시안색) 디버그 표시 여부
 	UPROPERTY(EditDefaultsOnly, Category = "ProjectR|Fire|Debug")
 	bool bDrawCameraTrace = true;
@@ -109,10 +114,13 @@ protected:
 	// 디버그 라인 지속 시간(초)
 	UPROPERTY(EditDefaultsOnly, Category = "ProjectR|Fire|Debug")
 	float DebugDrawDuration = 1.0f;
-
+	
 	// 활성 무기 캐시 (활성화 시 1회 획득)
 	TWeakObjectPtr<APRWeaponActor> CurrentWeapon;
 
 	// 로컬 단조 증가 ShotID (1부터)
 	uint32 NextShotId = 0;
+
+	// 현재 입력 유지 중 누적된 연속 발사 횟수
+	int32 ConsecutiveShots = 0;
 };

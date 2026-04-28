@@ -4,6 +4,7 @@
 #include "ProjectR/Game/PRCameraManager.h"
 
 #include "ProjectR/Character/PRPlayerCharacter.h"
+#include "ProjectR/Player/PRCameraModifier_Recoil.h"
 
 APRCameraManager::APRCameraManager()
 {
@@ -12,6 +13,17 @@ APRCameraManager::APRCameraManager()
 	ViewPitchMin = -80.0f;
 	ViewPitchMax = 80.0f;
 	bAlwaysApplyModifiers = true;
+}
+
+void APRCameraManager::BeginPlay()
+{
+	Super::BeginPlay();
+
+	APlayerController* OwningController = GetOwningPlayerController();
+	if (IsValid(OwningController) && OwningController->IsLocalController())
+	{
+		AddNewCameraModifier(UPRCameraModifier_Recoil::StaticClass());
+	}
 }
 
 void APRCameraManager::UpdateViewTarget(FTViewTarget& OutVT, float DeltaTime)

@@ -401,6 +401,10 @@ void UPRAT_SpawnPredictedProjectile::OnTargetDataReplicated(const FGameplayAbili
 		OnSuccess.ExecuteIfBound(Auth);	
 	}
 	
+	// 클라이언트 발사 시점까지 서버 투사체를 전진. bUseFastForward=false인 투사체는 내부에서 무시
+	// OnSuccess에서 GE 초기화등을 하므로, FastForward 시점을 OnSuccess 이후로 미룸.
+	Auth->ApplyFastForward(Manager->GetForwardPredictionTime());
+	
 	EndTask();
 }
 

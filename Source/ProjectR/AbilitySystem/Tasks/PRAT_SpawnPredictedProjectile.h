@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "Abilities/Tasks/AbilityTask.h"
 #include "ProjectR/Projectile/PRProjectileTypes.h"
+#include "ProjectR/AbilitySystem/PRAbilityTargetData.h"
 #include "PRAT_SpawnPredictedProjectile.generated.h"
 
 class APRProjectileBase;

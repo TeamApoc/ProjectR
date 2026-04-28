@@ -56,8 +56,8 @@ float UPRProjectileManagerComponent::GetForwardPredictionTime() const
 
 	const float ExactPingMs = PC->PlayerState->ExactPing;
 	const float EffectivePingMs = FMath::Max(0.f, ExactPingMs - PredictionLatencyReduction);
-	const float ClampedPingMs = FMath::Min(EffectivePingMs, MaxPredictionPing);
-	return 0.001f * ClientBiasPct * ClampedPingMs;
+	const float HalfPingMs = 0.5f * FMath::Min(EffectivePingMs, MaxPredictionPing);
+	return 0.001f * ClientBiasPct * HalfPingMs;
 }
 
 float UPRProjectileManagerComponent::GetProjectileSpawnDelay() const
@@ -175,7 +175,7 @@ APRProjectileBase* UPRProjectileManagerComponent::SpawnPredictedProjectile(FPRPr
 	{
 		return nullptr;
 	}
-
+	
 	RegisterPredictedProjectile(SpawnInfo.ProjectileId, Predicted);
 	return Predicted;
 }
@@ -223,9 +223,9 @@ APRProjectileBase* UPRProjectileManagerComponent::SpawnAuthProjectile(FPRProject
 		return nullptr;
 	}
 
-	// 클라이언트 발사 시점까지 서버 투사체를 전진. bUseFastForward=false인 투사체는 내부에서 무시
-	Auth->ApplyFastForward(GetForwardPredictionTime());
-
+	// Spawn RepMovement를 FastForward 전에 Push. SimulatedProxy는 원본 스폰 위치에서 시뮬 시작
+	Auth->PushRepMovement(EPRRepMovementEvent::Spawn);
+	
 	NotifyAuthArrived(SpawnInfo.ProjectileId, Auth);
 	return Auth;
 }

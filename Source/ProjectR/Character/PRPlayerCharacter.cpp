@@ -123,6 +123,7 @@ void APRPlayerCharacter::OnRep_PlayerState()
 		if (UPRAbilitySystemComponent* ASC = PS->GetPRAbilitySystemComponent())
 		{
 			ASC->InitAbilityActorInfo(PS, this);
+			BindTagChangeEvent();
 		}
 
 		if (IsValid(WeaponManagerComponent))
@@ -138,7 +139,7 @@ void APRPlayerCharacter::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& O
 	
 	// 상태 변수들을 모든 클라이언트에게 복제하도록 등록
 	DOREPLIFETIME(APRPlayerCharacter, bIsSprinting);
-	DOREPLIFETIME(APRPlayerCharacter, bIsAiming);
+	//DOREPLIFETIME(APRPlayerCharacter, bIsAiming);
 	DOREPLIFETIME(APRPlayerCharacter, bIsWalking);
 }
 
@@ -292,27 +293,20 @@ void APRPlayerCharacter::UpdateMaxWalkSpeed()
 	}
 	
 	// 회전 방식 제어
-	const bool bIsStrafeMode = bIsAiming || bIsWalking;
-	
-	if (UCharacterMovementComponent* MoveComp = GetCharacterMovement())
-	{
-		// 조깅/질주일 때는 이동 방향으로 캐릭터를 돌립니다.
-		MoveComp->bOrientRotationToMovement = !bIsStrafeMode;
-	}
-	
+	const bool bIsStrafeMode = bIsAiming;// bIsWalking;
 	// 조준/걷기일 때는 캐릭터가 항상 카메라 정면을 바라보게 합니다.
-	bUseControllerRotationYaw = false;
+	bUseControllerRotationYaw = bIsAiming;
 	
 	// Strafe 모드에서도 bUseControllerRotationYaw를 꺼야 제자리 회전이 동작합니다.
 	if (UCharacterMovementComponent* MoveComp = GetCharacterMovement())
 	{
 		MoveComp->bOrientRotationToMovement = !bIsStrafeMode;
-
-		// 조준 중(Strafe)일 때 이동하면 카메라 방향으로 부드럽게 회전하도록 설정
-		bool bIsMoving = GetVelocity().Size2D() > 10.0f;
-		MoveComp->bOrientRotationToMovement = !bIsStrafeMode && bIsMoving;
-		MoveComp->bUseControllerDesiredRotation = bIsStrafeMode && bIsMoving;
-		
+		// 26.04.27, Yuchan, 아래 코드가 플레이어 Strafe 모드를 해제하지 않도록 막아 주석처리
+		// // 조준 중(Strafe)일 때 이동하면 카메라 방향으로 부드럽게 회전하도록 설정
+		// bool bIsMoving = GetVelocity().Size2D() > 10.0f;
+		// MoveComp->bOrientRotationToMovement = !bIsStrafeMode && bIsMoving;
+		// MoveComp->bUseControllerDesiredRotation = bIsStrafeMode && bIsMoving;
+		//
 		MoveComp->bAllowPhysicsRotationDuringAnimRootMotion = true;
 	}
 }

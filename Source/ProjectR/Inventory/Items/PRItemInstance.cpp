@@ -2,6 +2,8 @@
 
 #include "PRItemInstance.h"
 
+#include "Net/UnrealNetwork.h"
+
 UPRItemInstance::UPRItemInstance()
 {
 }
@@ -17,6 +19,18 @@ void UPRItemInstance::PostInitProperties()
 	}
 
 	EnsureItemId();
+}
+
+bool UPRItemInstance::IsSupportedForNetworking() const
+{
+	return true;
+}
+
+void UPRItemInstance::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const
+{
+	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
+
+	DOREPLIFETIME(UPRItemInstance, ItemId);
 }
 
 void UPRItemInstance::EnsureItemId()

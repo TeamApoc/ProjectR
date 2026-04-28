@@ -4,6 +4,7 @@
 
 #include "GameFramework/Actor.h"
 #include "Logging/LogMacros.h"
+#include "Net/UnrealNetwork.h"
 #include "ProjectR/AbilitySystem/PRAbilitySystemComponent.h"
 #include "ProjectR/Character/PRCharacterBase.h"
 #include "ProjectR/Weapon/Data/PRWeaponDataAsset.h"
@@ -22,6 +23,14 @@ namespace
 
 		return OwnerCharacter->GetPRAbilitySystemComponent();
 	}
+}
+
+void UPRItemInstance_Weapon::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const
+{
+	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
+
+	DOREPLIFETIME(UPRItemInstance_Weapon, WeaponData);
+	DOREPLIFETIME(UPRItemInstance_Weapon, ModData);
 }
 
 void UPRItemInstance_Weapon::InitializeWeaponItem(UPRWeaponDataAsset* InWeaponData, UPRWeaponModDataAsset* InModData)
@@ -106,7 +115,7 @@ void UPRItemInstance_Weapon::GrantEquippedAbilitySets(AActor* OwnerActor)
 	UE_LOG(
 		LogTemp,
 		Log,
-		TEXT("Weapon item ability sets granted. Owner=%s Weapon=%s Mod=%s WeaponAbilities=%d WeaponEffects=%d ModAbilities=%d ModEffects=%d"),
+		TEXT("무기 아이템의 어빌리티 셋 부여. Owner=%s Weapon=%s Mod=%s WeaponAbilities=%d WeaponEffects=%d ModAbilities=%d ModEffects=%d"),
 		*GetNameSafe(OwnerActor),
 		*GetNameSafe(WeaponData),
 		*GetNameSafe(ModData),
@@ -135,7 +144,7 @@ void UPRItemInstance_Weapon::ClearEquippedAbilitySets(AActor* OwnerActor)
 	UE_LOG(
 		LogTemp,
 		Log,
-		TEXT("Weapon item ability sets cleared. Owner=%s Weapon=%s Mod=%s"),
+		TEXT("무기 아이템의 어빌리티 셋 회수. Owner=%s Weapon=%s Mod=%s"),
 		*GetNameSafe(OwnerActor),
 		*GetNameSafe(WeaponData),
 		*GetNameSafe(ModData));
@@ -252,4 +261,16 @@ UPRAbilitySet* UPRItemInstance_Weapon::GetModAbilitySet()
 	}
 
 	return CachedModAbilitySet;
+}
+
+void UPRItemInstance_Weapon::OnRep_WeaponData()
+{
+	UE_LOG(
+		LogTemp,
+		Log,
+		TEXT("[Inventory][Client] Weapon item data replicated. ItemId=%s Weapon=%s WeaponId=%s Mod=%s"),
+		*GetItemId().ToString(),
+		*GetNameSafe(WeaponData),
+		IsValid(WeaponData) ? *WeaponData->WeaponId.ToString() : TEXT("None"),
+		*GetNameSafe(ModData));
 }

@@ -19,6 +19,10 @@ class PROJECTR_API UPRItemInstance_Weapon : public UPRItemInstance
 	GENERATED_BODY()
 
 public:
+	/*~ UObject Interface ~*/
+	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
+
+public:
 	// 무기와 초기 Mod 데이터를 연결한다
 	void InitializeWeaponItem(UPRWeaponDataAsset* InWeaponData, UPRWeaponModDataAsset* InModData = nullptr);
 
@@ -66,13 +70,17 @@ private:
 	// Mod 데이터 배열로 생성한 장착 AbilitySet을 반환한다
 	UPRAbilitySet* GetModAbilitySet();
 
+	// 무기 데이터 복제 완료 시 클라이언트 확인 로그를 남긴다
+	UFUNCTION()
+	void OnRep_WeaponData();
+
 public:
 	// 현재 연결된 무기 데이터
-	UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Category = "ProjectR|Weapon")
+	UPROPERTY(ReplicatedUsing = OnRep_WeaponData, VisibleInstanceOnly, BlueprintReadOnly, Category = "ProjectR|Weapon")
 	TObjectPtr<UPRWeaponDataAsset> WeaponData = nullptr;
 
 	// 현재 장착된 Mod 데이터
-	UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Category = "ProjectR|Weapon")
+	UPROPERTY(Replicated, VisibleInstanceOnly, BlueprintReadOnly, Category = "ProjectR|Weapon")
 	TObjectPtr<UPRWeaponModDataAsset> ModData = nullptr;
 
 	// 무기 장착으로 부여한 어빌리티 핸들
@@ -83,7 +91,7 @@ public:
 	UPROPERTY(Transient)
 	FPRAbilitySetHandles ModAbilityHandles;
 
-	// 현재 활성 사격 상태
+	// 현재 활성 사격 상태 //note: 사격 전환 모드 어빌리티가 내부적으로 모드 사격 어빌리티가 부여됐는지 체크. 무기인스턴스의 FireModeState는 필요 없음
 	UPROPERTY(Transient)
 	EPRWeaponFireModeState FireModeState = EPRWeaponFireModeState::BaseFire;
 
@@ -95,7 +103,7 @@ public:
 	UPROPERTY(Transient)
 	EPRWeaponModFailReason LastModFailReason = EPRWeaponModFailReason::None;
 
-	// 버프형 Mod의 종료 예정 시각
+	// 버프형 Mod의 종료 예정 시각 // 무기 인스턴스에 있어야하는지 확인 필요
 	UPROPERTY(Transient)
 	float ModEffectEndServerWorldTimeSeconds = 0.0f;
 

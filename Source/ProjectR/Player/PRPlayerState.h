@@ -42,9 +42,11 @@ public:
 	UPRAttributeSet_Player* GetPlayerSet() const { return PlayerSet; }
 
 	// 플레이어 인벤토리 컴포넌트를 반환
+	UFUNCTION(BlueprintPure, Category = "ProjectR|Inventory")
 	UPRInventoryComponent* GetInventoryComponent() const { return InventoryComponent; }
 
 	// 플레이어 장비 컴포넌트를 반환
+	UFUNCTION(BlueprintPure, Category = "ProjectR|Equipment")
 	UPREquipmentManagerComponent* GetEquipmentManagerComponent() const { return EquipmentManagerComponent; }
 
 	// 표시명 조회

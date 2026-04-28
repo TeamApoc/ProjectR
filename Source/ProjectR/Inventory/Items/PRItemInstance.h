@@ -18,10 +18,13 @@ public:
 	/*~ UObject Interface ~*/
 public:
 	virtual void PostInitProperties() override;
+	virtual bool IsSupportedForNetworking() const override;
+	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
 
 public:
 	// Item 식별자를 반환한다
-	const FGuid& GetItemId() const { return ItemId; }
+	UFUNCTION(BlueprintPure, Category = "ProjectR|Item")
+	FGuid GetItemId() const { return ItemId; }
 
 protected:
 	// Item 식별자가 비어 있으면 새 식별자를 발급한다
@@ -29,6 +32,6 @@ protected:
 
 public:
 	// Item 고유 식별자
-	UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Category = "ProjectR|Item")
+	UPROPERTY(Replicated, VisibleInstanceOnly, BlueprintReadOnly, Category = "ProjectR|Item")
 	FGuid ItemId;
 };

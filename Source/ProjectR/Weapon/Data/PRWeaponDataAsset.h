@@ -29,9 +29,9 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|Weapon")
 	EPRWeaponType WeaponType = EPRWeaponType::None;
 
-	// 사용 탄약 타입
+	// 무기 슬롯 타입
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|Weapon")
-	EPRAmmoType AmmoType = EPRAmmoType::None;
+	EPRWeaponSlotType SlotType = EPRWeaponSlotType::None;
 
 	// 슬롯 초기화 시 사용할 기본 탄창 잔탄
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|Weapon", meta = (ClampMin = "0"))

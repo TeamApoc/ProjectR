@@ -19,16 +19,6 @@ enum class EPRWeaponType : uint8
 };
 
 UENUM(BlueprintType)
-enum class EPRAmmoType : uint8
-{
-	None,
-	Rifle,
-	Bolt,
-	Grenade,
-	Pistol
-};
-
-UENUM(BlueprintType)
 enum class EPRWeaponSlotType : uint8
 {
 	None,
@@ -37,17 +27,10 @@ enum class EPRWeaponSlotType : uint8
 };
 
 UENUM(BlueprintType)
-enum class EPRWeaponArmedState : uint8
+enum class EPRArmedState : uint8
 {
 	Armed,
 	Unarmed
-};
-
-UENUM(BlueprintType)
-enum class EPRWeaponCarryState : uint8
-{
-	Armed,
-	Stowed
 };
 
 UENUM(BlueprintType)
@@ -130,55 +113,7 @@ public:
 };
 
 USTRUCT(BlueprintType)
-struct PROJECTR_API FPRActiveWeaponSlot
-{
-	GENERATED_BODY()
-
-public:
-	// 현재 활성 슬롯 구분
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "ProjectR|Weapon")
-	EPRWeaponSlotType SlotType = EPRWeaponSlotType::None;
-
-	// 현재 공개 중인 무기 데이터
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "ProjectR|Weapon")
-	TObjectPtr<UPRWeaponDataAsset> WeaponData = nullptr;
-
-	// 현재 공개 중인 Mod 데이터
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "ProjectR|Weapon")
-	TObjectPtr<UPRWeaponModDataAsset> ModData = nullptr;
-
-public:
-	// 현재 공개 상태가 비어 있는지 확인한다
-	bool IsEmpty() const
-	{
-		return SlotType == EPRWeaponSlotType::None || !WeaponData;
-	}
-
-	// 공개 상태를 초기화한다
-	void Reset()
-	{
-		SlotType = EPRWeaponSlotType::None;
-		WeaponData = nullptr;
-		ModData = nullptr;
-	}
-
-	// 두 공개 상태가 같은 무기와 같은 Mod를 가리키는지 확인한다
-	bool operator==(const FPRActiveWeaponSlot& Other) const
-	{
-		return SlotType == Other.SlotType
-			&& WeaponData == Other.WeaponData
-			&& ModData == Other.ModData;
-	}
-
-	// 두 공개 상태가 다른지 확인한다
-	bool operator!=(const FPRActiveWeaponSlot& Other) const
-	{
-		return !(*this == Other);
-	}
-};
-
-USTRUCT(BlueprintType)
-struct PROJECTR_API FPRWeaponVisualSlot
+struct PROJECTR_API FPRWeaponVisualInfo
 {
 	GENERATED_BODY()
 
@@ -195,10 +130,6 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "ProjectR|Weapon")
 	TObjectPtr<UPRWeaponModDataAsset> ModData = nullptr;
 
-	// 현재 슬롯 무기가 손에 든 상태인지 수납 상태인지 나타낸다
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "ProjectR|Weapon")
-	EPRWeaponCarryState CarryState = EPRWeaponCarryState::Stowed;
-
 public:
 	// 현재 공개 비주얼 상태가 비어 있는지 확인한다
 	bool IsEmpty() const
@@ -212,20 +143,18 @@ public:
 		SlotType = InSlotType;
 		WeaponData = nullptr;
 		ModData = nullptr;
-		CarryState = EPRWeaponCarryState::Stowed;
 	}
 
-	// 두 공개 비주얼 상태가 같은 무기와 같은 표시 상태를 가리키는지 확인한다
-	bool operator==(const FPRWeaponVisualSlot& Other) const
+	// 두 공개 비주얼 상태가 같은 무기와 같은 Mod를 가리키는지 확인한다
+	bool operator==(const FPRWeaponVisualInfo& Other) const
 	{
 		return SlotType == Other.SlotType
 			&& WeaponData == Other.WeaponData
-			&& ModData == Other.ModData
-			&& CarryState == Other.CarryState;
+			&& ModData == Other.ModData;
 	}
 
 	// 두 공개 비주얼 상태가 다른지 확인한다
-	bool operator!=(const FPRWeaponVisualSlot& Other) const
+	bool operator!=(const FPRWeaponVisualInfo& Other) const
 	{
 		return !(*this == Other);
 	}

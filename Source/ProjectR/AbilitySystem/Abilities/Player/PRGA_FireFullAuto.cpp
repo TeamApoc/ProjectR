@@ -39,5 +39,6 @@ void UPRGA_FireFullAuto::ActivateAbility(const FGameplayAbilitySpecHandle Handle
 
 void UPRGA_FireFullAuto::HandleInputRelease(float TimeHeld)
 {
+	ResetConsecutiveShots();
 	EndAbility(CurrentSpecHandle, CurrentActorInfo, CurrentActivationInfo, /*bReplicateEndAbility=*/true, /*bWasCancelled=*/false);
 }

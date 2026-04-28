@@ -3,6 +3,7 @@
 
 #include "PRGA_Fire.h"
 
+#include "AbilitySystemComponent.h"
 #include "DrawDebugHelpers.h"
 #include "ProjectR/PRGameplayTags.h"
 #include "ProjectR/Character/PRPlayerCharacter.h"
@@ -29,6 +30,8 @@ void UPRGA_Fire::ActivateAbility(const FGameplayAbilitySpecHandle Handle, const 
 {
 	Super::ActivateAbility(Handle, ActorInfo, ActivationInfo, TriggerEventData);
 
+	ResetConsecutiveShots();
+
 	if (APRPlayerCharacter* PlayerCharacter = GetPRCharacter<APRPlayerCharacter>())
 	{
 		if (UPRWeaponManagerComponent* WeaponManager = PlayerCharacter->GetWeaponManager())
@@ -36,6 +39,13 @@ void UPRGA_Fire::ActivateAbility(const FGameplayAbilitySpecHandle Handle, const 
 			CurrentWeapon = WeaponManager->GetActiveWeaponActor();
 		}
 	}
+}
+
+void UPRGA_Fire::EndAbility(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo,
+	const FGameplayAbilityActivationInfo ActivationInfo, bool bReplicateEndAbility, bool bWasCancelled)
+{
+	ResetConsecutiveShots();
+	Super::EndAbility(Handle, ActorInfo, ActivationInfo, bReplicateEndAbility, bWasCancelled);
 }
 
 FVector UPRGA_Fire::GetMuzzleLocation() const
@@ -185,14 +195,31 @@ void UPRGA_Fire::FireOneShot()
 	UE_LOG(LogFire, Verbose, TEXT("[Local] FireOneShot. ShotID=%u, Hit=%s"),
 		Payload.ShotID, Hit.bBlockingHit ? TEXT("true") : TEXT("false"));
 
+	++ConsecutiveShots;
+
 	// UI/카메라 알림: 반동은 매 발사 시, 적중 신호는 적중 시에만 발송
+	// 현재 활성 슬롯의 WeaponData를 가져오고, 그 안에 들어 있는 RecoilProfile을 그대로 사용
 	if (UWorld* World = GetWorld())
 	{
 		if (UPREventManagerSubsystem* EventMgr = World->GetSubsystem<UPREventManagerSubsystem>())
 		{
 			FPRRecoilEventPayload RecoilPayload;
-			RecoilPayload.Speed = RecoilSpeed;
-			RecoilPayload.Strength = RecoilStrength;
+			if (APRPlayerCharacter* PlayerCharacter = GetPRCharacter<APRPlayerCharacter>())        
+			{                                                                                      
+				if (UPRWeaponManagerComponent* WeaponManager = PlayerCharacter->GetWeaponManager())
+				{                                                                                  
+					const FPRActiveWeaponSlot& ActiveSlot = WeaponManager->GetActiveSlot();        
+					if (IsValid(ActiveSlot.WeaponData))                                            
+					{                                                                              
+						RecoilPayload.RecoilProfile = ActiveSlot.WeaponData->RecoilProfile;        
+					}                                                                              
+				}                                                                                  
+			}                                                                                      
+			RecoilPayload.ConsecutiveShots = ConsecutiveShots;
+			RecoilPayload.bIsAiming = Info.AbilitySystemComponent.IsValid()
+				&& Info.AbilitySystemComponent->HasMatchingGameplayTag(PRGameplayTags::State_Aiming);
+			RecoilPayload.Speed = RecoilPayload.RecoilProfile.RecoilRecoverySpeed;
+			RecoilPayload.Strength = RecoilPayload.RecoilProfile.CrosshairSpreadIncrease;
 			EventMgr->BroadcastTyped(PRGameplayTags::Event_Player_Recoil, RecoilPayload);
 
 			if (Hit.bBlockingHit && IsValid(Hit.GetActor()))
@@ -214,6 +241,11 @@ void UPRGA_Fire::FireOneShot()
 	{
 		Server_ReportShot(Payload);
 	}
+}
+
+void UPRGA_Fire::ResetConsecutiveShots()
+{
+	ConsecutiveShots = 0;
 }
 
 void UPRGA_Fire::Server_ReportShot_Implementation(FPRFireShotPayload Payload)

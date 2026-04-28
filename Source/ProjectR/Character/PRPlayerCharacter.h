@@ -15,6 +15,8 @@ class UInputAction;
 class UPRWeaponManagerComponent;
 class UPRSpringArmComponent;
 struct FInputActionValue;
+//무기 테스트용
+class UPRWeaponDataAsset;
 
 UCLASS()
 class PROJECTR_API APRPlayerCharacter : public APRCharacterBase
@@ -133,6 +135,10 @@ private:
 	
 	UPROPERTY(Replicated, VisibleInstanceOnly, BlueprintReadOnly, Category = "Locomotion", meta = (AllowPrivateAccess = "true"))
 	bool bIsWalking = false;
+	
+	// 무기 테스트용
+	UPROPERTY(EditDefaultsOnly, Category = "ProjectR|Test|Weapon")
+	TObjectPtr<UPRWeaponDataAsset> TestInitialWeaponData;         
 	
 	FPRAbilitySetHandles AbilitySetHandles;
 };

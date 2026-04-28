@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "Engine/DataAsset.h"
+#include "ProjectR/Weapon/Types/PRRecoilTypes.h"
 #include "PRWeaponDataAsset.generated.h"
 
 class APRWeaponActor;
@@ -35,4 +36,8 @@ public:
 	// 이 무기를 들었을 때 캐릭터에 적용할 애니메이션 레이어
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|Weapon")
 	TSubclassOf<UAnimInstance> WeaponAnimLayerClass;
+
+	// 이 무기의 카메라 반동과 크로스헤어 확산 데이터
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|Weapon|Recoil")
+	FPRRecoilProfile RecoilProfile;
 };

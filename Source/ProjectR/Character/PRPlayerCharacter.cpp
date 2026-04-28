@@ -159,6 +159,15 @@ void APRPlayerCharacter::BeginPlay()
 	{
 		GetMesh()->LinkAnimClassLayers(DefaultAnimLayerClass);
 	}
+	
+	// 무기 테스트용
+	if (HasAuthority() && IsValid(TestInitialWeaponData))                                                    
+	{                                                                                                        
+		if (WeaponManagerComponent = GetWeaponManager())                          
+		{                                                                                                    
+			WeaponManagerComponent->EquipTestWeaponToSlot(TestInitialWeaponData, EPRWeaponSlotType::Primary);
+		}                                                                                                    
+	}                                                                                                                                                                                           
 }
 
 // Called to bind functionality to input

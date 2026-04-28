@@ -5,6 +5,8 @@
 #include "ProjectR/AbilitySystem/PRAbilitySystemComponent.h"
 #include "ProjectR/AbilitySystem/AttributeSets/PRAttributeSet_Common.h"
 #include "ProjectR/AbilitySystem/AttributeSets/PRAttributeSet_Player.h"
+#include "ProjectR/Equipment/Components/PREquipmentManagerComponent.h"
+#include "ProjectR/Inventory/Components/PRInventoryComponent.h"
 
 APRPlayerState::APRPlayerState()
 {
@@ -15,6 +17,8 @@ APRPlayerState::APRPlayerState()
 
 	CommonSet = CreateDefaultSubobject<UPRAttributeSet_Common>(TEXT("CommonSet"));
 	PlayerSet = CreateDefaultSubobject<UPRAttributeSet_Player>(TEXT("PlayerSet"));
+	InventoryComponent = CreateDefaultSubobject<UPRInventoryComponent>(TEXT("InventoryComponent"));
+	EquipmentManagerComponent = CreateDefaultSubobject<UPREquipmentManagerComponent>(TEXT("EquipmentManagerComponent"));
 
 	// PlayerState는 NetUpdate가 낮음. GAS 예측 응답성 확보를 위해 인상
 	SetNetUpdateFrequency(100.0f);
@@ -29,6 +33,7 @@ void APRPlayerState::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLi
 	DOREPLIFETIME(APRPlayerState, DisplayName);
 	DOREPLIFETIME(APRPlayerState, CharacterLevel);
 	DOREPLIFETIME(APRPlayerState, Experience);
+	DOREPLIFETIME(APRPlayerState, StatUpgradeInfo);
 }
 
 void APRPlayerState::BeginPlay()

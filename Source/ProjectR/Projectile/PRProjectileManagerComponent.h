@@ -52,13 +52,8 @@ public:
 	void NotifyAuthArrived(uint32 Id, APRProjectileBase* AuthProjectile);
 
 	// 클라이언트 측 예측 투사체 즉시 생성. ProjectileId가 0이면 신규 발급
+	// 지연 스폰이 필요한 경우 호출자(AT 등)가 자체 타이머로 본 함수 호출 시점을 제어
 	APRProjectileBase* SpawnPredictedProjectile(FPRProjectileSpawnInfo& SpawnInfo);
-
-	// 클라이언트 측 지연 스폰. GetProjectileSpawnDelay() 만큼 후 SpawnPredictedProjectile 수행하고 OnSpawned 브로드캐스트
-	void SpawnPredictedProjectileDelayed(FPRProjectileSpawnInfo& SpawnInfo, FProjectileSpawnedDelegate& OnSpawned);
-
-	// 지연 스폰 취소 (예측 거부 등)
-	void CancelDelayedSpawn(uint32 Id);
 
 	// 서버 측 권위 투사체 생성. ProjectileId는 클라가 보낸 값을 그대로 사용
 	APRProjectileBase* SpawnAuthProjectile(FPRProjectileSpawnInfo& SpawnInfo);
@@ -89,16 +84,4 @@ private:
 	// Predicted/Auth 페어 맵
 	UPROPERTY(Transient)
 	TMap<uint32, FPRLinkedProjectile> SpawnedProjectilesMap;
-
-	// 지연 스폰 타이머 (Id -> Handle). 지연 도중 정보 유지 위해 Params도 보관
-	struct FPendingDelayedSpawn
-	{
-		FPRProjectileSpawnInfo Params;
-		FProjectileSpawnedDelegate Callback;
-		FTimerHandle Timer;
-	};
-	TMap<uint32, FPendingDelayedSpawn> PendingDelayedSpawns;
-
-	// 지연 타이머 만료 시 호출
-	void HandleDelayedSpawnElapsed(uint32 Id);
 };

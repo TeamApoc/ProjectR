@@ -164,7 +164,13 @@ void UPRGA_Fire::FireOneShot()
 	{
 		return;
 	}
-
+	
+	// 몽타쥬 재생
+	if (UPRWeaponDataAsset* WeaponData = GetActiveWeaponData())                         
+	{                                                                                   
+		PlayWeaponMontage(WeaponData->ShootMontage, WeaponData->ShootMontagePlayRate);
+	}                                                                                   
+	
 	// 페이로드 구성
 	FPRFireShotPayload Payload;
 	Payload.ShotID = ++NextShotId;
@@ -289,4 +295,35 @@ void UPRGA_Fire::ApplyDamageFromShot(const FPRFireShotPayload& Payload)
 	const AActor* HitActor = Payload.ClientHitResult.IsValid() ? Payload.ClientHitResult->GetActor() : nullptr;
 	UE_LOG(LogFire, Warning, TEXT("[ApplyDamage] ShotID=%u, Target=%s"),
 		Payload.ShotID, IsValid(HitActor) ? *HitActor->GetName() : TEXT("None"));
+}
+
+UPRWeaponDataAsset* UPRGA_Fire::GetActiveWeaponData() const
+{
+	if (APRPlayerCharacter* PlayerCharacter = GetPRCharacter<APRPlayerCharacter>())             
+	{                                                                                           
+		if (UPRWeaponManagerComponent* WeaponManager = PlayerCharacter->GetWeaponManager()) 
+		{                                                                                   
+			const FPRActiveWeaponSlot& ActiveSlot = WeaponManager->GetActiveSlot();     
+			return ActiveSlot.WeaponData;                                               
+		}                                                                                   
+	}                                                                                           
+                                                                                            
+	return nullptr;                                                                             
+}
+
+void UPRGA_Fire::PlayWeaponMontage(UAnimMontage* Montage, float PlayRate)
+{
+	if (!IsValid(Montage))                                                      
+	{                                                                           
+		return;                                                             
+	}                                                                           
+                                                                            
+	if (UAbilitySystemComponent* ASC = GetAbilitySystemComponentFromActorInfo())
+	{                                                                           
+		ASC->PlayMontage(                                                   
+				this,
+				CurrentActivationInfo,                                      
+				Montage,                                                    
+				FMath::Max(PlayRate, UE_SMALL_NUMBER));                     
+	}                                                                           
 }

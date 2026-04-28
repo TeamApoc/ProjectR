@@ -9,6 +9,9 @@
 #include "PRGA_Fire.generated.h"
 
 class APRWeaponActor;
+class UAnimMontage;      
+class UPRWeaponDataAsset;
+
 DECLARE_LOG_CATEGORY_EXTERN(LogFire, Log, All);
 
 /**
@@ -59,6 +62,12 @@ protected:
 
 	// 데미지 적용. 현재 단계에서는 로그만 남긴다
 	virtual void ApplyDamageFromShot(const FPRFireShotPayload& Payload);
+	
+	// 현재 활성 무기 데이터를 반환한다                           
+	UPRWeaponDataAsset* GetActiveWeaponData() const;              
+                                                              
+	// 지정한 무기 몽타주를 현재 어빌리티 컨텍스트에서 재생한다   
+	void PlayWeaponMontage(UAnimMontage* Montage, float PlayRate);
 
 protected:
 	// 트레이스 최대 거리

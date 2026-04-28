@@ -5,13 +5,16 @@
 #include "CoreMinimal.h"
 #include "Engine/DataAsset.h"
 #include "ProjectR/Weapon/Types/PRRecoilTypes.h"
+#include "GameplayTagContainer.h"
+#include "ProjectR/AbilitySystem/Data/PRAbilitySet.h"
+#include "ProjectR/Weapon/Types/PRWeaponTypes.h"
 #include "PRWeaponDataAsset.generated.h"
 
 class APRWeaponActor;
 class USkeletalMesh;
 class UAnimMontage;
 
-// 1차 무기 장착 공개 상태 검증에 사용하는 최소 무기 데이터다.
+// 무기 1종의 정적 장착 규칙과 기본 탄약 설정을 담는다
 UCLASS(BlueprintType)
 class PROJECTR_API UPRWeaponDataAsset : public UPrimaryDataAsset
 {
@@ -25,12 +28,37 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|Weapon")
 	FName WeaponId;
 
-	// 슬롯별 공개 무기 표현에 사용할 Actor 클래스
+	// 무기 타입 분류
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|Weapon")
+	EPRWeaponType WeaponType = EPRWeaponType::None;
+
+	// 무기 슬롯 타입
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|Weapon")
+	EPRWeaponSlotType SlotType = EPRWeaponSlotType::None;
+
+	// 슬롯 초기화 시 사용할 기본 탄창 잔탄
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|Weapon", meta = (ClampMin = "0"))
+	int32 DefaultMagazineAmmo = 0;
+
+	// 슬롯 초기화 시 사용할 기본 예비 탄약
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|Weapon", meta = (ClampMin = "0"))
+	int32 DefaultReserveAmmo = 0;
+
+	// 슬롯 공개 비주얼 생성에 사용할 Actor 클래스
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|Weapon")
 	TSubclassOf<APRWeaponActor> WeaponActorClass;
 
-	// 테스트용 로컬 무기 메시
+	// 활성 슬롯 장착 시 부여할 어빌리티 목록. 순서대로 GiveAbility
+	UPROPERTY(EditAnywhere, Category = "ProjectR|Weapon")
+	TArray<FPRAbilityEntry> EquippedAbilities;
+
+	// 활성 슬롯 장착 시 부여 직후 자동 적용할 Startup GE 목록
+	UPROPERTY(EditAnywhere, Category = "ProjectR|Weapon")
+	TArray<FPREffectEntry> EquippedEffects;
+
+	// 장착 가능한 Mod 태그 목록 (예시. Mod.Weapon.Gun 태그 있는 모드만 착용 가능)
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|Weapon")
+	FGameplayTagContainer SupportedModTags;
 	TObjectPtr<USkeletalMesh> DisplayMesh;
 	
 	// 04.27 김동석 추가

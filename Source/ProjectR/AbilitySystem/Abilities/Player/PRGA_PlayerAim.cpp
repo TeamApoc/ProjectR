@@ -26,7 +26,7 @@ UPRGA_PlayerAim::UPRGA_PlayerAim()
 	InstancingPolicy = EGameplayAbilityInstancingPolicy::InstancedPerActor;
 	
 	// 26.04.26, Yuchan, 테스트를 위해 PlayerCharacter HandleGameplayTagUpdated 함수에서 bIsAiming변수 설정
-	ActivationOwnedTags.AddTag(PRGameplayTags::State_Aiming);
+	// ActivationOwnedTags.AddTag(PRGameplayTags::State_Aiming);
 }
 
 void UPRGA_PlayerAim::ActivateAbility(const FGameplayAbilitySpecHandle Handle,

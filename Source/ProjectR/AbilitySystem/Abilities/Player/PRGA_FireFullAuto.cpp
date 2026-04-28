@@ -4,7 +4,7 @@
 #include "PRGA_FireFullAuto.h"
 
 #include "Abilities/Tasks/AbilityTask_WaitInputRelease.h"
-#include "ProjectR/AbilitySystem/Tasks/PRAbilityTask_RepeatFire.h"
+#include "ProjectR/AbilitySystem/Tasks/PRAT_RepeatFire.h"
 
 UPRGA_FireFullAuto::UPRGA_FireFullAuto()
 {
@@ -23,9 +23,9 @@ void UPRGA_FireFullAuto::ActivateAbility(const FGameplayAbilitySpecHandle Handle
 	}
 
 	// FireIntrval 주기로 FireOneShot 반복
-	if (UPRAbilityTask_RepeatFire* RepeatTask = UPRAbilityTask_RepeatFire::RepeatFire(this, FireInterval, bFireOnActivate))
+	if (UPRAT_RepeatFire* RepeatTask = UPRAT_RepeatFire::RepeatFire(this, FireInterval, bFireOnActivate))
 	{
-		RepeatTask->OnPerform.AddDynamic(this, &UPRGA_FireFullAuto::FireOneShot);
+		RepeatTask->OnPerform.AddDynamic(this, &UPRGA_FireFullAuto::FireHitScan);
 		RepeatTask->ReadyForActivation();
 	}
 

@@ -130,15 +130,11 @@ private:
 	UPROPERTY(Replicated, VisibleInstanceOnly, BlueprintReadOnly, Category = "Locomotion", meta = (AllowPrivateAccess = "true"))
 	bool bIsSprinting = false;
 
-	UPROPERTY(Replicated, VisibleInstanceOnly, BlueprintReadOnly, Category = "Locomotion", meta = (AllowPrivateAccess = "true"))
+	UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Category = "Locomotion", meta = (AllowPrivateAccess = "true"))
 	bool bIsAiming = false;
 	
 	UPROPERTY(Replicated, VisibleInstanceOnly, BlueprintReadOnly, Category = "Locomotion", meta = (AllowPrivateAccess = "true"))
 	bool bIsWalking = false;
-	
-	// 무기 테스트용
-	UPROPERTY(EditDefaultsOnly, Category = "ProjectR|Test|Weapon")
-	TObjectPtr<UPRWeaponDataAsset> TestInitialWeaponData;         
 	
 	FPRAbilitySetHandles AbilitySetHandles;
 };

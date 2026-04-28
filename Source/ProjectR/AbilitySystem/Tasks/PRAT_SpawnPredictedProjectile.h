@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "Abilities/Tasks/AbilityTask.h"
 #include "ProjectR/Projectile/PRProjectileTypes.h"
+#include "ProjectR/AbilitySystem/PRAbilityTargetData.h"
 #include "PRAT_SpawnPredictedProjectile.generated.h"
 
 class APRProjectileBase;
@@ -55,9 +56,8 @@ protected:
 	// 예측 거부 콜백 (클라이언트). 스폰한 예측 투사체 정리
 	void HandlePredictionRejected();
 
-	// SpawnPredictedProjectileDelayed 콜백 (클라이언트, 지연 스폰 케이스)
-	UFUNCTION()
-	void OnDelayedPredictedSpawned(APRProjectileBase* SpawnedProjectile);
+	// 자체 타이머 만료 시 호출. 지연 분기에서 실제 예측 스폰 + TargetData 송신 수행
+	void ExecuteDelayedSpawn();
 
 	// 클라이언트가 서버로 TargetData 송신
 	void SendSpawnDataToServer(uint32 ProjectileId);
@@ -83,4 +83,10 @@ protected:
 
 	// 지연 스폰 사용 여부
 	bool bUsedDelayedSpawn = false;
+
+	// 지연 스폰 타이머. AT가 자체 소유하여 OnDestroy 시 자동 정리
+	FTimerHandle DelayedSpawnTimer;
+
+	// 지연 분기에서 만료 시점에 사용할 스폰 파라미터 보관
+	FPRProjectileSpawnInfo PendingDelayedSpawnInfo;
 };

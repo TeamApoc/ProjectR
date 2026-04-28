@@ -120,6 +120,15 @@ void UPRAT_SpawnPredictedProjectile::OnDestroy(bool bInOwnerFinished)
 		ASC->AbilityTargetDataCancelledDelegate(SpecHandle, PredKey).RemoveAll(this);
 	}
 
+	// 자체 지연 스폰 타이머 정리. AT가 일찍 죽어도 만료된 콜백이 호출되지 않도록 보장
+	if (DelayedSpawnTimer.IsValid())
+	{
+		if (UWorld* World = GetWorld())
+		{
+			World->GetTimerManager().ClearTimer(DelayedSpawnTimer);
+		}
+	}
+
 	Super::OnDestroy(bInOwnerFinished);
 }
 
@@ -144,16 +153,23 @@ void UPRAT_SpawnPredictedProjectile::HandleLocalPredictingClient(UPRProjectileMa
 	const float SpawnDelay = Manager->GetProjectileSpawnDelay();
 	if (SpawnDelay > 0.f)
 	{
-		// 지연 스폰: 콜백에서 이어서 처리
+		// 지연 스폰: AT 자체 타이머로 만료 시 ExecuteDelayedSpawn 호출. AT 수명 내내 콜백 타겟이 살아있음을 보장
 		bUsedDelayedSpawn = true;
+		PendingDelayedSpawnInfo = Params;
 
 		UE_LOG(LogPRSpawnPredictedProjectile, Verbose,
-			TEXT("LocalPredictingClient 지연 스폰 시작. ProjectileId=%u, SpawnDelay=%.3f"),
+			TEXT("LocalPredictingClient 지연 스폰 예약. ProjectileId=%u, SpawnDelay=%.3f"),
 			NewId, SpawnDelay);
 
-		FProjectileSpawnedDelegate Delegate;
-		Delegate.BindDynamic(this, &UPRAT_SpawnPredictedProjectile::OnDelayedPredictedSpawned);
-		Manager->SpawnPredictedProjectileDelayed(Params, Delegate);
+		UWorld* World = GetWorld();
+		if (!World)
+		{
+			BroadcastFailureAndEnd();
+			return;
+		}
+
+		FTimerDelegate TimerDelegate = FTimerDelegate::CreateUObject(this, &UPRAT_SpawnPredictedProjectile::ExecuteDelayedSpawn);
+		World->GetTimerManager().SetTimer(DelayedSpawnTimer, TimerDelegate, SpawnDelay, false);
 		return;
 	}
 
@@ -182,29 +198,38 @@ void UPRAT_SpawnPredictedProjectile::HandleLocalPredictingClient(UPRProjectileMa
 	EndTask();
 }
 
-void UPRAT_SpawnPredictedProjectile::OnDelayedPredictedSpawned(APRProjectileBase* SpawnedProjectile)
+void UPRAT_SpawnPredictedProjectile::ExecuteDelayedSpawn()
 {
-	// 지연 스폰 콜백에서 유효성 재검증.
-	if (!IsValid(SpawnedProjectile))
+	UPRProjectileManagerComponent* Manager = CachedManager.Get();
+	if (!Manager)
 	{
 		UE_LOG(LogPRSpawnPredictedProjectile, Warning,
-			TEXT("DelayedPredictedSpawn 실패. SpawnedProjectile 무효, CachedProjectileId=%u"),
-			CachedProjectileId);
+			TEXT("ExecuteDelayedSpawn 실패. Manager 무효, CachedProjectileId=%u"), CachedProjectileId);
 		BroadcastFailureAndEnd();
 		return;
 	}
 
-	SpawnedPredictedProjectile = SpawnedProjectile;
+	APRProjectileBase* Predicted = Manager->SpawnPredictedProjectile(PendingDelayedSpawnInfo);
+	if (!IsValid(Predicted))
+	{
+		UE_LOG(LogPRSpawnPredictedProjectile, Warning,
+			TEXT("ExecuteDelayedSpawn 실패. 예측 투사체 스폰 실패, ProjectileId=%u"), CachedProjectileId);
+		BroadcastFailureAndEnd();
+		return;
+	}
+
+	SpawnedPredictedProjectile = Predicted;
 	UE_LOG(LogPRSpawnPredictedProjectile, Verbose,
-		TEXT("DelayedPredictedSpawn 성공. ProjectileId=%u, Actor=%s"),
-		SpawnedProjectile->GetProjectileId(), *GetNameSafe(SpawnedProjectile));
-	SendSpawnDataToServer(SpawnedProjectile->GetProjectileId());
+		TEXT("ExecuteDelayedSpawn 성공. ProjectileId=%u, Actor=%s"),
+		Predicted->GetProjectileId(), *GetNameSafe(Predicted));
+
+	SendSpawnDataToServer(Predicted->GetProjectileId());
 
 	if (ShouldBroadcastAbilityTaskDelegates())
 	{
-		OnSuccess.ExecuteIfBound(SpawnedProjectile);	
+		OnSuccess.ExecuteIfBound(Predicted);
 	}
-	
+
 	EndTask();
 }
 
@@ -376,6 +401,10 @@ void UPRAT_SpawnPredictedProjectile::OnTargetDataReplicated(const FGameplayAbili
 		OnSuccess.ExecuteIfBound(Auth);	
 	}
 	
+	// 클라이언트 발사 시점까지 서버 투사체를 전진. bUseFastForward=false인 투사체는 내부에서 무시
+	// OnSuccess에서 GE 초기화등을 하므로, FastForward 시점을 OnSuccess 이후로 미룸.
+	Auth->ApplyFastForward(Manager->GetForwardPredictionTime());
+	
 	EndTask();
 }
 
@@ -390,24 +419,23 @@ void UPRAT_SpawnPredictedProjectile::OnTargetDataCancelled()
 
 void UPRAT_SpawnPredictedProjectile::HandlePredictionRejected()
 {
-	UPRProjectileManagerComponent* Manager = CachedManager.Get();
-	if (Manager)
+	// 지연 스폰 타이머가 아직 만료 전이면 취소. 만료 후라면 SpawnedPredictedProjectile 정리로 충분
+	if (bUsedDelayedSpawn && DelayedSpawnTimer.IsValid())
 	{
-		// 지연 스폰 진행 중인 경우 타이머 취소
-		if (bUsedDelayedSpawn && CachedProjectileId != 0)
+		if (UWorld* World = GetWorld())
 		{
 			UE_LOG(LogPRSpawnPredictedProjectile, Verbose,
-				TEXT("PredictionRejected 지연 스폰 취소. ProjectileId=%u"), CachedProjectileId);
-			Manager->CancelDelayedSpawn(CachedProjectileId);
+				TEXT("PredictionRejected 지연 스폰 타이머 취소. ProjectileId=%u"), CachedProjectileId);
+			World->GetTimerManager().ClearTimer(DelayedSpawnTimer);
 		}
+	}
 
-		// 매니저 맵 정리
-		if (CachedProjectileId != 0)
-		{
-			UE_LOG(LogPRSpawnPredictedProjectile, Verbose,
-				TEXT("PredictionRejected 예측 맵 정리. ProjectileId=%u"), CachedProjectileId);
-			Manager->UnregisterPredictedProjectile(CachedProjectileId);
-		}
+	UPRProjectileManagerComponent* Manager = CachedManager.Get();
+	if (Manager && CachedProjectileId != 0)
+	{
+		UE_LOG(LogPRSpawnPredictedProjectile, Verbose,
+			TEXT("PredictionRejected 예측 맵 정리. ProjectileId=%u"), CachedProjectileId);
+		Manager->UnregisterPredictedProjectile(CachedProjectileId);
 	}
 
 	if (APRProjectileBase* Predicted = SpawnedPredictedProjectile.Get())

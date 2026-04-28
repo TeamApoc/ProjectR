@@ -56,8 +56,8 @@ float UPRProjectileManagerComponent::GetForwardPredictionTime() const
 
 	const float ExactPingMs = PC->PlayerState->ExactPing;
 	const float EffectivePingMs = FMath::Max(0.f, ExactPingMs - PredictionLatencyReduction);
-	const float ClampedPingMs = FMath::Min(EffectivePingMs, MaxPredictionPing);
-	return 0.001f * ClientBiasPct * ClampedPingMs;
+	const float HalfPingMs = 0.5f * FMath::Min(EffectivePingMs, MaxPredictionPing);
+	return 0.001f * ClientBiasPct * HalfPingMs;
 }
 
 float UPRProjectileManagerComponent::GetProjectileSpawnDelay() const
@@ -70,7 +70,7 @@ float UPRProjectileManagerComponent::GetProjectileSpawnDelay() const
 
 	const float ExactPingMs = PC->PlayerState->ExactPing;
 	const float OverflowMs = ExactPingMs - PredictionLatencyReduction - MaxPredictionPing;
-	return 0.001f * FMath::Max(0.f, OverflowMs);
+	return 0.001f * FMath::Max(0.f, OverflowMs); // ms -> seconds 단위로 변환
 }
 
 /*~ Id Allocation ~*/
@@ -175,59 +175,9 @@ APRProjectileBase* UPRProjectileManagerComponent::SpawnPredictedProjectile(FPRPr
 	{
 		return nullptr;
 	}
-
+	
 	RegisterPredictedProjectile(SpawnInfo.ProjectileId, Predicted);
 	return Predicted;
-}
-
-void UPRProjectileManagerComponent::SpawnPredictedProjectileDelayed(FPRProjectileSpawnInfo& SpawnInfo, FProjectileSpawnedDelegate& OnSpawned)
-{
-	UWorld* World = GetWorld();
-	if (!World)
-	{
-		return;
-	}
-
-	check(!SpawnInfo.ProjectileId == NULL_PROJECTILE_ID);
-	if (SpawnInfo.ProjectileId == NULL_PROJECTILE_ID)
-	{
-		return;
-	}
-
-	const float Delay = GetProjectileSpawnDelay();
-	if (Delay <= 0.f)
-	{
-		// 지연이 없으면 즉시 스폰 후 콜백
-		APRProjectileBase* Spawned = SpawnPredictedProjectile(SpawnInfo);
-		if (OnSpawned.IsBound())
-		{
-			OnSpawned.Execute(Spawned);
-		}
-		return;
-	}
-
-	const uint32 Id = SpawnInfo.ProjectileId;
-	FPendingDelayedSpawn& Pending = PendingDelayedSpawns.Add(Id);
-	Pending.Params = SpawnInfo;
-	Pending.Callback = OnSpawned;
-
-	FTimerDelegate TimerDelegate = FTimerDelegate::CreateUObject(this, &UPRProjectileManagerComponent::HandleDelayedSpawnElapsed, Id);
-	World->GetTimerManager().SetTimer(Pending.Timer, TimerDelegate, Delay, false);
-}
-
-void UPRProjectileManagerComponent::CancelDelayedSpawn(uint32 Id)
-{
-	FPendingDelayedSpawn* Pending = PendingDelayedSpawns.Find(Id);
-	if (!Pending)
-	{
-		return;
-	}
-
-	if (UWorld* World = GetWorld())
-	{
-		World->GetTimerManager().ClearTimer(Pending->Timer);
-	}
-	PendingDelayedSpawns.Remove(Id);
 }
 
 APRProjectileBase* UPRProjectileManagerComponent::SpawnAuthProjectile(FPRProjectileSpawnInfo& SpawnInfo)
@@ -273,6 +223,9 @@ APRProjectileBase* UPRProjectileManagerComponent::SpawnAuthProjectile(FPRProject
 		return nullptr;
 	}
 
+	// Spawn RepMovement를 FastForward 전에 Push. SimulatedProxy는 원본 스폰 위치에서 시뮬 시작
+	Auth->PushRepMovement(EPRRepMovementEvent::Spawn);
+	
 	NotifyAuthArrived(SpawnInfo.ProjectileId, Auth);
 	return Auth;
 }
@@ -301,19 +254,3 @@ APlayerController* UPRProjectileManagerComponent::ResolveOwningController() cons
 	return nullptr;
 }
 
-void UPRProjectileManagerComponent::HandleDelayedSpawnElapsed(uint32 Id)
-{
-	FPendingDelayedSpawn* Pending = PendingDelayedSpawns.Find(Id);
-	if (!Pending)
-	{
-		return;
-	}
-
-	// 로컬 복사 후 맵에서 제거 (콜백 도중 재진입 방지)
-	FPRProjectileSpawnInfo Params = Pending->Params;
-	FProjectileSpawnedDelegate Callback = Pending->Callback;
-	PendingDelayedSpawns.Remove(Id);
-
-	APRProjectileBase* Spawned = SpawnPredictedProjectile(Params);
-	Callback.ExecuteIfBound(Spawned);
-}

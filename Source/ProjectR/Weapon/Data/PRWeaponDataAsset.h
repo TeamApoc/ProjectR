@@ -9,6 +9,7 @@
 
 class APRWeaponActor;
 class USkeletalMesh;
+class UAnimMontage;
 
 // 1차 무기 장착 공개 상태 검증에 사용하는 최소 무기 데이터다.
 UCLASS(BlueprintType)
@@ -40,4 +41,20 @@ public:
 	// 이 무기의 카메라 반동과 크로스헤어 확산 데이터
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|Weapon|Recoil")
 	FPRRecoilProfile RecoilProfile;
+	
+	// 발사 시 재생할 캐릭터 몽타주                                                   
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|Weapon|Animation")
+	TObjectPtr<UAnimMontage> ShootMontage;                                            
+                                                                                  
+	// 재장전 시 재생할 캐릭터 몽타주                                                 
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|Weapon|Animation")
+	TObjectPtr<UAnimMontage> ReloadMontage;                
+	
+	// 발사 몽타주 재생 속도                                                           
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|Weapon|Animation") 
+	float ShootMontagePlayRate = 1.0f;                                                 
+                                                                                   
+	// 재장전 몽타주 재생 속도                                                         
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|Weapon|Animation") 
+	float ReloadMontagePlayRate = 1.0f;                                                
 };

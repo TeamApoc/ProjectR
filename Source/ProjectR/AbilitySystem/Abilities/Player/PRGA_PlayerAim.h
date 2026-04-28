@@ -8,9 +8,6 @@
 
 class UPRCrosshairConfig;
 
-/**
- * TODO: 임시로 AIM 몽타쥬를 넣고, 기본적으로 플레이어에게 스킬을 넣어두었으나, 무기를 들었을때 맞는 애니메이션, Armed태그를 가지고 있을때 스킬 활성화 등으로 발전해야함
- */
 UCLASS()
 class PROJECTR_API UPRGA_PlayerAim : public UPRGameplayAbility
 {
@@ -25,10 +22,6 @@ public:
 	virtual void EndAbility(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilityActivationInfo ActivationInfo, bool bReplicateEndAbility, bool bWasCancelled) override;
 	
 protected:
-	// 임시 구현 몽타쥬
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "PR|Aim")
-	TObjectPtr<UAnimMontage> AimMontage;
-	
 	/** 조준 시 변경할 시야각(FOV) */
 	UPROPERTY(EditDefaultsOnly, Category = "PR|Aim|Camera")
 	float AimFOV = 50.0f;

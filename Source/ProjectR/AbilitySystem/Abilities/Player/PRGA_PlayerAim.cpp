@@ -4,8 +4,6 @@
 #include "ProjectR/AbilitySystem/Abilities/Player/PRGA_PlayerAim.h"
 
 #include "ProjectR/PRGameplayTags.h"
-#include "Abilities/Tasks/AbilityTask_PlayMontageAndWait.h"
-#include "GameFramework/Character.h"
 #include "ProjectR/Character/PRPlayerCharacter.h"
 #include "ProjectR/Game/PRCameraManager.h"
 #include "ProjectR/Player/Components/PRSpringArmComponent.h"
@@ -42,17 +40,8 @@ void UPRGA_PlayerAim::ActivateAbility(const FGameplayAbilitySpecHandle Handle,
 		EndAbility(Handle, ActorInfo, ActivationInfo, true, true);
 		return;
 	}
-	//임시구현
-	if (AimMontage)
-	{
-		// true 옵션: 어빌리티가 종료되면 이 태스크도 자동으로 취소됨
-		UAbilityTask_PlayMontageAndWait* MontageTask = UAbilityTask_PlayMontageAndWait::CreatePlayMontageAndWaitProxy(
-			this, TEXT("AimMontage"), AimMontage, 1.0f, NAME_None, true);
-
-		MontageTask->Activate();
-	}
 	//----
-	// [추가] 내 조준 세팅값을 카메라 컴포넌트들에게 전달 (로컬 플레이어만 적용)
+	// 내 조준 세팅값을 카메라 컴포넌트들에게 전달 (로컬 플레이어만 적용)
 	if (IsLocallyControlled())
 	{
 		if (APRPlayerCharacter* Character = Cast<APRPlayerCharacter>(GetAvatarActorFromActorInfo()))
@@ -104,17 +93,6 @@ void UPRGA_PlayerAim::InputReleased(const FGameplayAbilitySpecHandle Handle, con
 void UPRGA_PlayerAim::EndAbility(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo,
 	const FGameplayAbilityActivationInfo ActivationInfo, bool bReplicateEndAbility, bool bWasCancelled)
 {
-	// 임시구현
-	if (AimMontage)
-	{
-		if (ACharacter* Character = Cast<ACharacter>(GetAvatarActorFromActorInfo()))
-		{
-			if (UAnimInstance* AnimInstance = Character->GetMesh()->GetAnimInstance())
-			{
-				AnimInstance->Montage_Stop(0.2f, AimMontage);
-			}
-		}
-	}
 	// [추가] 조준이 끝났으므로 카메라 덮어쓰기 해제
 	if (IsLocallyControlled())
 	{

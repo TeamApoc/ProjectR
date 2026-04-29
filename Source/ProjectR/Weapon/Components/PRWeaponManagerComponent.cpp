@@ -208,6 +208,7 @@ bool UPRWeaponManagerComponent::EquipInventoryWeaponAtIndex(int32 InventoryIndex
 		return false;
 	}
 
+	
 	// 인덱스 기반 요청을 서버 검증 가능한 Item 식별자 요청으로 변환하기 위한 Item 조회
 	UPRItemInstance_Weapon* WeaponItem = CachedInventory->GetWeaponItemAtIndex(InventoryIndex);
 
@@ -372,6 +373,32 @@ APRWeaponActor* UPRWeaponManagerComponent::GetActiveWeaponActor() const
 	// 현재 활성 슬롯에 대응하는 로컬 무기 Actor 리턴
 	return GetWeaponActorBySlot(CurrentWeaponSlot);
 }
+
+EPRWeaponSlotType UPRWeaponManagerComponent::GetAimOffsetWeaponSlot() const
+{
+	// 비무장 상태에서는 맨손 AimOffset을 사용하도록 빈 슬롯을 반환한다
+	if (ArmedState != EPRArmedState::Armed)
+	{
+		return EPRWeaponSlotType::None;
+	}
+
+	// 주무기와 보조무기 외 슬롯은 AimOffset 대상으로 사용하지 않는다
+	if (!IsSupportedSlot(CurrentWeaponSlot))
+	{
+		return EPRWeaponSlotType::None;
+	}
+
+	const FPRWeaponVisualInfo& CurrentVisualInfo = GetCurrentWeaponVisualInfo();
+
+	// 현재 활성 슬롯에 공개 무기 데이터가 없으면 맨손 AimOffset으로 처리한다
+	if (CurrentVisualInfo.IsEmpty())
+	{
+		return EPRWeaponSlotType::None;
+	}
+
+	return CurrentWeaponSlot;
+}
+
 
 bool UPRWeaponManagerComponent::EquipWeaponItemByIdInternal(const FGuid& ItemId)
 {

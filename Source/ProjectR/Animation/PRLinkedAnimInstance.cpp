@@ -18,6 +18,11 @@ void UPRLinkedAnimInstance::NativeUpdateAnimation(float DeltaSeconds)
 	
 	if (!IsValid(MainAnimInstance))
 	{
+		MainAnimInstance = Cast<UPRAnimInstance>(Blueprint_GetMainAnimInstance());
+	}
+	
+	if (!IsValid(MainAnimInstance))
+	{
 		return;
 	}
 	
@@ -41,5 +46,8 @@ void UPRLinkedAnimInstance::NativeUpdateAnimation(float DeltaSeconds)
 	TargetTurnAngle = MainAnimInstance->TargetTurnAngle;
 	XYSpeed = MainAnimInstance->XYSpeed;
 	Direction = MainAnimInstance->Direction;
+	ArmedState = MainAnimInstance->ArmedState;
+	EquippedWeaponSlot = MainAnimInstance->EquippedWeaponSlot;
+	AimOffsetWeaponSlot = MainAnimInstance->AimOffsetWeaponSlot;
 }
 

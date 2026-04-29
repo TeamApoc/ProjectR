@@ -33,15 +33,6 @@ UDataTable* UPRAbilitySystemRegistry::GetStatTableSynchronous(EPRCharacterRole R
 	return nullptr;
 }
 
-TSubclassOf<UGameplayEffect> UPRAbilitySystemRegistry::GetInitializeGESynchronous() const
-{
-	if (!InitializeGE.IsNull())
-	{
-		return InitializeGE.LoadSynchronous();
-	}
-	return nullptr;
-}
-
 // =====  Data Validation =====
 
 #if WITH_EDITOR

@@ -5,6 +5,7 @@
 #include "Components/SceneComponent.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "GameFramework/Character.h"
+#include "ProjectR/Animation/Weapon/PRWeaponAnimInstance.h"
 
 APRWeaponActor::APRWeaponActor()
 {
@@ -65,6 +66,63 @@ void APRWeaponActor::AttachToOwnerMesh(ACharacter* OwnerCharacter, FName SocketN
 		*GetNameSafe(this),
 		*GetNameSafe(OwnerCharacter),
 		*SocketName.ToString());
+}
+
+UPRWeaponAnimInstance* APRWeaponActor::GetWeaponAnimInstance() const
+{
+	if (!IsValid(WeaponMeshComponent))
+	{
+		return nullptr;
+	}
+
+	return Cast<UPRWeaponAnimInstance>(WeaponMeshComponent->GetAnimInstance());
+}
+
+bool APRWeaponActor::RequestWeaponAnimation(EPRWeaponAnimationState AnimationState)
+{
+	UPRWeaponAnimInstance* WeaponAnimInstance = GetWeaponAnimInstance();
+	if (!IsValid(WeaponAnimInstance))
+	{
+		UE_LOG(
+			LogTemp,
+			Verbose,
+			TEXT("[WeaponActor] 무기 애니메이션 요청 실패. Actor=%s State=%s"),
+			*GetNameSafe(this),
+			*UEnum::GetValueAsString(AnimationState));
+		return false;
+	}
+
+	switch (AnimationState)
+	{
+	case EPRWeaponAnimationState::Idle:
+		WeaponAnimInstance->SetIdleState();
+		break;
+	case EPRWeaponAnimationState::Shoot:
+		WeaponAnimInstance->RequestShoot();
+		break;
+	case EPRWeaponAnimationState::Reload:
+		WeaponAnimInstance->RequestReload();
+		break;
+	default:
+		return false;
+	}
+
+	return true;
+}
+
+bool APRWeaponActor::RequestShootAnimation()
+{
+	return RequestWeaponAnimation(EPRWeaponAnimationState::Shoot);
+}
+
+bool APRWeaponActor::RequestReloadAnimation()
+{
+	return RequestWeaponAnimation(EPRWeaponAnimationState::Reload);
+}
+
+bool APRWeaponActor::SetWeaponAnimationIdle()
+{
+	return RequestWeaponAnimation(EPRWeaponAnimationState::Idle);
 }
 
 FTransform APRWeaponActor::GetMuzzleTransform_Implementation() const

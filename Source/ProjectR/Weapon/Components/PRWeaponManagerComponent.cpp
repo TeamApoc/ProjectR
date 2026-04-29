@@ -208,6 +208,7 @@ bool UPRWeaponManagerComponent::EquipInventoryWeaponAtIndex(int32 InventoryIndex
 		return false;
 	}
 
+	
 	// 인덱스 기반 요청을 서버 검증 가능한 Item 식별자 요청으로 변환하기 위한 Item 조회
 	UPRItemInstance_Weapon* WeaponItem = CachedInventory->GetWeaponItemAtIndex(InventoryIndex);
 
@@ -373,6 +374,32 @@ APRWeaponActor* UPRWeaponManagerComponent::GetActiveWeaponActor() const
 	return GetWeaponActorBySlot(CurrentWeaponSlot);
 }
 
+EPRWeaponSlotType UPRWeaponManagerComponent::GetAimOffsetWeaponSlot() const
+{
+	// 비무장 상태에서는 맨손 AimOffset을 사용하도록 빈 슬롯을 반환한다
+	if (ArmedState != EPRArmedState::Armed)
+	{
+		return EPRWeaponSlotType::None;
+	}
+
+	// 주무기와 보조무기 외 슬롯은 AimOffset 대상으로 사용하지 않는다
+	if (!IsSupportedSlot(CurrentWeaponSlot))
+	{
+		return EPRWeaponSlotType::None;
+	}
+
+	const FPRWeaponVisualInfo& CurrentVisualInfo = GetCurrentWeaponVisualInfo();
+
+	// 현재 활성 슬롯에 공개 무기 데이터가 없으면 맨손 AimOffset으로 처리한다
+	if (CurrentVisualInfo.IsEmpty())
+	{
+		return EPRWeaponSlotType::None;
+	}
+
+	return CurrentWeaponSlot;
+}
+
+
 bool UPRWeaponManagerComponent::EquipWeaponItemByIdInternal(const FGuid& ItemId)
 {
 	// 서버 내부 장착에 필요한 ItemId와 인벤토리 캐시가 유효하지 않은 경우
@@ -462,8 +489,10 @@ bool UPRWeaponManagerComponent::EquipWeaponInternal(UPRItemInstance_Weapon* Weap
 	// 장착 슬롯이 비어 있었고 플레이어 슬롯 자원이 연결된 경우
 	if (bWeaponSlotWasEmpty && IsValid(CachedPlayerSet))
 	{
+		// 26.04.28, Yuchan, Attribute 수정은 GE를 통해 진행되어야 하므로 아래 코드 주석 처리
+		// TODO: 초기화 GE 적용
 		// 빈 슬롯에 최초 장착되는 경우에만 슬롯별 탄약과 Mod 자원 초기화
-		CachedPlayerSet->InitializeSlotResources(WeaponSlot, WeaponData, WeaponItem->GetModData());
+		// CachedPlayerSet->InitializeSlotResources(WeaponSlot, WeaponData, WeaponItem->GetModData());
 	}
 
 	// 현재 활성 슬롯이 비어 있거나 이미 활성 중인 슬롯에 다시 장착하는 경우
@@ -607,24 +636,26 @@ bool UPRWeaponManagerComponent::AttachModToSlotInternal(EPRWeaponSlotType Target
 		// Mod 장착 실패
 		return false;
 	}
-
-	// 플레이어 슬롯 자원이 연결된 경우
-	if (IsValid(CachedPlayerSet))
-	{
-		// Mod 교체 전 탄약 상태. 자원 재초기화 뒤 탄약량 보존에 사용
-		const FPRWeaponSlotResourceState PreResourceState = CachedPlayerSet->BuildSlotResourceState(TargetSlot);
-
-		// 새 Mod 기준으로 슬롯 자원 구조 재초기화
-		CachedPlayerSet->InitializeSlotResources(TargetSlot, TargetWeaponInstance->GetWeaponData(), NewModData);
-
-		// 재초기화로 변경된 탄약량을 이전 상태에 맞추기 위한 보정값
-		FPRWeaponSlotResourceDelta PreserveAmmoDelta;
-		PreserveAmmoDelta.MagazineDelta = PreResourceState.MagazineAmmo - CachedPlayerSet->BuildSlotResourceState(TargetSlot).MagazineAmmo;
-		PreserveAmmoDelta.ReserveDelta = PreResourceState.ReserveAmmo - CachedPlayerSet->BuildSlotResourceState(TargetSlot).ReserveAmmo;
-
-		// Mod 교체가 탄약 수량을 임의로 바꾸지 않도록 보정 적용
-		CachedPlayerSet->ApplySlotResourceDelta(TargetSlot, PreserveAmmoDelta);
-	}
+	
+	// 26.04.28, Yuchan, Attribute 수정은 GE를 통해 진행되어야 하므로 아래 코드 주석 처리
+	// TODO: 초기화 GE 적용
+	// // 플레이어 슬롯 자원이 연결된 경우
+	// if (IsValid(CachedPlayerSet))
+	// {
+	// 	// Mod 교체 전 탄약 상태. 자원 재초기화 뒤 탄약량 보존에 사용
+	// 	const FPRWeaponSlotResourceState PreResourceState = CachedPlayerSet->BuildSlotResourceState(TargetSlot);
+	//
+	// 	// 새 Mod 기준으로 슬롯 자원 구조 재초기화
+	// 	// CachedPlayerSet->InitializeSlotResources(TargetSlot, TargetWeaponInstance->GetWeaponData(), NewModData);
+	//
+	// 	// 재초기화로 변경된 탄약량을 이전 상태에 맞추기 위한 보정값
+	// 	FPRWeaponSlotResourceDelta PreserveAmmoDelta;
+	// 	PreserveAmmoDelta.MagazineDelta = PreResourceState.MagazineAmmo - CachedPlayerSet->BuildSlotResourceState(TargetSlot).MagazineAmmo;
+	// 	PreserveAmmoDelta.ReserveDelta = PreResourceState.ReserveAmmo - CachedPlayerSet->BuildSlotResourceState(TargetSlot).ReserveAmmo;
+	//
+	// 	// Mod 교체가 탄약 수량을 임의로 바꾸지 않도록 보정 적용
+	// 	// CachedPlayerSet->ApplySlotResourceDelta(TargetSlot, PreserveAmmoDelta);
+	// }
 
 	// 무기 Item에 Mod 변경을 반영하고 장착 효과 갱신
 	TargetWeaponInstance->OnModChanged(GetOwner(), NewModData);

@@ -437,22 +437,24 @@ void UPRGameplayAbility_EnemyMeleeAttack::ExecuteMeleeTrace(const FVector& Trace
 		{
 			continue;
 		}
-
-		FPRDamageContext DamageContext;
-		DamageContext.SourceActor = SourceCharacter;
-		DamageContext.TargetActor = HitActor;
-		DamageContext.EffectCauser = SourceCharacter;
-		DamageContext.SourceObject = this;
-		DamageContext.HitResult = HitResult;
-		DamageContext.SourceAbilityTag = AbilityTag;
-		DamageContext.Damage = Damage;
-		DamageContext.GroggyDamage = GroggyDamage;
-		DamageContext.AbilityLevel = GetAbilityLevel();
-
-		if (ApplyDamageContext(DamageContext))
-		{
-			DamagedActors.Add(HitActor);
-		}
+		// 26.04.29, Yuchan, 아래 데미지 적용 코드는 ApplyDamage 함수로 대체됨.
+		// FPRDamageContext DamageContext;
+		// DamageContext.SourceActor = SourceCharacter;
+		// DamageContext.TargetActor = HitActor;
+		// DamageContext.EffectCauser = SourceCharacter;
+		// DamageContext.SourceObject = this;
+		// DamageContext.HitResult = HitResult;
+		// DamageContext.SourceAbilityTag = AbilityTag;
+		// DamageContext.Damage = Damage;
+		// DamageContext.GroggyDamage = GroggyDamage;
+		// DamageContext.AbilityLevel = GetAbilityLevel();
+		//
+		// if (ApplyDamageContext(DamageContext))
+		// {
+		// 	DamagedActors.Add(HitActor);
+		// }
+		
+		ApplyDamage(HitActor, 1.0f, &HitResult); // TODO: 각 모션 별 AttackMultiplier 실제 값 전달이 필요 
 	}
 }
 

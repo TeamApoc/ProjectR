@@ -72,14 +72,20 @@ protected:
 	// 서버가 샷을 확정 처리. 데미지 적용 (현재는 로그만)
 	virtual void ServerConfirmShot(const FPRFireShotPayload& Payload);
 
-	// 데미지 적용. 현재 단계에서는 로그만 남긴다
+	// 데미지 적용. Payload의 HitResult를 바탕으로 GE를 생성해 타겟 ASC에 적용한다
 	virtual void ApplyDamageFromShot(const FPRFireShotPayload& Payload);
+
+	// 플레이어 무기 데미지 GE를 타겟에 적용한다. HitResult를 EffectContext에 포함시킨다
+	void ApplyDamage(AActor* TargetActor, const FHitResult* HitResult = nullptr);
 	
 	// 현재 활성 무기 데이터를 반환한다                           
 	UPRWeaponDataAsset* GetActiveWeaponData() const;              
                                                               
-	// 지정한 무기 몽타주를 현재 어빌리티 컨텍스트에서 재생한다   
+	// 지정한 무기 몽타주를 현재 어빌리티 컨텍스트에서 재생한다
 	void PlayWeaponMontage(UAnimMontage* Montage, float PlayRate);
+
+	// 현재 활성 무기 Actor에 발사 애니메이션 요청을 전달한다
+	void RequestCurrentWeaponShootAnimation() const;
 
 	// AbilityTask가 투사체 스폰 성공 시 호출. 파생 클래스에서 추가 처리(VFX/SFX 등) 오버라이드 용도
 	UFUNCTION()

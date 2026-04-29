@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "GameFramework/Character.h"
 #include "AbilitySystemInterface.h"
+#include "ProjectR/Combat/PRCombatInterface.h"
 #include "PRCharacterBase.generated.h"
 
 struct FGameplayTag;
@@ -12,10 +13,10 @@ class UPRAbilitySet;
 class UAbilitySystemComponent;
 class UPRAbilitySystemComponent;
 
-// 프로젝트 전체 캐릭터 베이스. IAbilitySystemInterface 구현
+// 프로젝트 전체 캐릭터 베이스. IAbilitySystemInterface와 IPRCombatInterface를 구현한다.
 // 플레이어는 PlayerState의 ASC를 위임, 적은 자기 컴포넌트를 반환 (파생 클래스에서 분기)
 UCLASS(Abstract)
-class PROJECTR_API APRCharacterBase : public ACharacter, public IAbilitySystemInterface
+class PROJECTR_API APRCharacterBase : public ACharacter, public IAbilitySystemInterface, public IPRCombatInterface
 {
 	GENERATED_BODY()
 

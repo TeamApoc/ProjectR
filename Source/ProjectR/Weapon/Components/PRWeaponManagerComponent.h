@@ -87,6 +87,11 @@ public:
 	// 현재 활성 슬롯에 대응하는 로컬 무기 Actor를 반환한다
 	UFUNCTION(BlueprintPure, Category = "ProjectR|Weapon")
 	APRWeaponActor* GetActiveWeaponActor() const;
+	
+	// 애니메이션용 공개 Getter 함수
+	// 04.29 김동석 수정 현재 AimOffset 선택에 사용할 무장 슬롯을 반환한다
+	UFUNCTION(BlueprintPure, Category = "ProjectR|Weapon")
+	EPRWeaponSlotType GetAimOffsetWeaponSlot() const;
 
 protected:
 	// 서버 권위에서 슬롯 원본과 공개 상태를 갱신한다

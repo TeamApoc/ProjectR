@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "PRAnimationTypes.h"
 #include "Animation/AnimInstance.h"
+#include "ProjectR/Weapon/Types/PRWeaponTypes.h"
 #include "PRLinkedAnimInstance.generated.h"
 
 class UPRAnimInstance;
@@ -91,4 +92,17 @@ protected:
 	// 레이어의 AnimGraph에서 사용할 변수
 	UPROPERTY(BlueprintReadOnly, Category = "Movement")
 	EPRTurnAngle TargetTurnAngle = EPRTurnAngle::None;
+	
+	// 현재 무장 상태
+	UPROPERTY(BlueprintReadOnly, Category = "Movement|Weapon")
+	EPRArmedState ArmedState = EPRArmedState::Unarmed;
+	
+	// 현재 장착 또는 활성화된 무기 슬롯
+	UPROPERTY(BlueprintReadOnly, Category = "Movement|Weapon")
+	EPRWeaponSlotType EquippedWeaponSlot = EPRWeaponSlotType::None;
+
+	// 현재 AimOffset 선택에 사용할 무기 슬롯
+	UPROPERTY(BlueprintReadOnly, Category = "Movement|Aiming")
+	EPRWeaponSlotType AimOffsetWeaponSlot = EPRWeaponSlotType::None;
+
 };

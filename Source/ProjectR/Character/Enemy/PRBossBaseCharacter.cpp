@@ -38,6 +38,18 @@ void APRBossBaseCharacter::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>&
 	DOREPLIFETIME(APRBossBaseCharacter, CurrentPhase);
 }
 
+void APRBossBaseCharacter::OnPostDamageApplied(const FPRDamageAppliedContext& Context)
+{
+	Super::OnPostDamageApplied(Context);
+
+	if (Context.MaxHealth > 0.0f)
+	{
+		// 데미지 적용 직후 예측 체력 비율로 페이즈 전환을 검사한다.
+		const float NewRatio = FMath::Clamp(Context.HealthAfterDamage / Context.MaxHealth, 0.0f, 1.0f);
+		OnHealthRatioChanged(NewRatio);
+	}
+}
+
 void APRBossBaseCharacter::OnHealthRatioChanged(float NewRatio)
 {
 	if (!HasAuthority())

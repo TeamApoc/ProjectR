@@ -169,6 +169,10 @@ protected:
 
 	// 잘못된 슬롯 입력을 차단한다
 	bool IsSupportedSlot(EPRWeaponSlotType SlotType) const;
+	
+	// 04.27 김동석 추가
+	// 현재 활성 슬롯(ActiveSlot)의 무기 데이터를 확인하여 캐릭터의 애님 레이어를 교체한다.
+	void RefreshAnimLayer();
 
 private:
 	// 대상 슬롯 원본을 수정 가능한 참조로 반환한다
@@ -204,9 +208,18 @@ protected:
 	UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Category = "ProjectR|Weapon", meta = (AllowPrivateAccess = "true"))
 	TObjectPtr<UPRItemInstance_Weapon> PrimaryWeaponInstance;
 
+	// 보조무기 슬롯에 연결된 최소 무기 데이터
+	UPROPERTY(EditInstanceOnly, BlueprintReadOnly, Category = "ProjectR|Weapon")
+	TObjectPtr<UPRWeaponDataAsset> SecondaryWeaponData;
+	
 	// 보조무기 슬롯에 연결된 무기 Item 원본
 	UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Category = "ProjectR|Weapon", meta = (AllowPrivateAccess = "true"))
 	TObjectPtr<UPRItemInstance_Weapon> SecondaryWeaponInstance;
+	
+	// 04.27 김동석 추가
+	// 현재 캐릭터 메시(Mesh)에 연결되어 있는 애니메이션 레이어 클래스를 추적하기 위한 캐시 변수
+	UPROPERTY(Transient)
+	TSubclassOf<UAnimInstance> CurrentLinkedAnimLayerClass;
 
 private:
 	// 현재 머신에서만 유지하는 주무기 슬롯 Actor

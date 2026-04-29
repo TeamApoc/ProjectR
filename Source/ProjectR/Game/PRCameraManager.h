@@ -15,6 +15,11 @@ class PROJECTR_API APRCameraManager : public APlayerCameraManager
 	GENERATED_BODY()
 public:
 	APRCameraManager();
+
+	/*~ AActor Interface ~*/
+	// 로컬 카메라 피드백 모디파이어를 등록한다
+	virtual void BeginPlay() override;
+
 	// 모디파이어(구르기 등)가 외부에서 덮어씌울 목표 FOV (0이면 사용 안 함)
 	float ModifierTargetFOV = 0.0f;
 	

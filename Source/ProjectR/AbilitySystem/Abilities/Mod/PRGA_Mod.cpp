@@ -1,26 +1,19 @@
 // Copyright ProjectR. All Rights Reserved.
 
-#include "PRGameplayAbility_EnemyBase.h"
+#include "PRGA_Mod.h"
 #include "AbilitySystemComponent.h"
 #include "AbilitySystemBlueprintLibrary.h"
 #include "ProjectR/AbilitySystem/Data/PRAbilitySystemRegistry.h"
-#include "ProjectR/Character/Enemy/PREnemyBaseCharacter.h"
 #include "ProjectR/Combat/PRCombatGameplayTags.h"
 #include "ProjectR/System/PRAssetManager.h"
 
-UPRGameplayAbility_EnemyBase::UPRGameplayAbility_EnemyBase()
+UPRGA_Mod::UPRGA_Mod()
 {
-	ActivationPolicy = EPRAbilityActivationPolicy::ServerInvoked;
 	InstancingPolicy = EGameplayAbilityInstancingPolicy::InstancedPerActor;
-	NetExecutionPolicy = EGameplayAbilityNetExecutionPolicy::ServerOnly;
+	NetExecutionPolicy = EGameplayAbilityNetExecutionPolicy::LocalPredicted;
 }
 
-APREnemyBaseCharacter* UPRGameplayAbility_EnemyBase::GetEnemyAvatarCharacter() const
-{
-	return Cast<APREnemyBaseCharacter>(GetAvatarActorFromActorInfo());
-}
-
-void UPRGameplayAbility_EnemyBase::ApplyDamage(AActor* TargetActor, float AttackMultiplier, const FHitResult* HitResult)
+void UPRGA_Mod::ApplyDamage(AActor* TargetActor, float Damage, float GroggyDamage, const FHitResult* HitResult)
 {
 	if (!IsValid(TargetActor))
 	{
@@ -34,7 +27,7 @@ void UPRGameplayAbility_EnemyBase::ApplyDamage(AActor* TargetActor, float Attack
 	}
 
 	const UPRAbilitySystemRegistry* Registry = UPRAssetManager::Get().GetAbilitySystemRegistry();
-	if (!IsValid(Registry) || !IsValid(Registry->DamageGE_FromEnemy))
+	if (!IsValid(Registry) || !IsValid(Registry->DamageGE_FromMod))
 	{
 		return;
 	}
@@ -43,15 +36,23 @@ void UPRGameplayAbility_EnemyBase::ApplyDamage(AActor* TargetActor, float Attack
 		GetCurrentAbilitySpecHandle(),
 		GetCurrentActorInfo(),
 		GetCurrentActivationInfo(),
-		Registry->DamageGE_FromEnemy);
+		Registry->DamageGE_FromMod);
 
 	if (!SpecHandle.IsValid())
 	{
 		return;
 	}
 
-	// AttackMultiplier를 SetByCaller로 전달한다
-	SpecHandle.Data->SetSetByCallerMagnitude(PRCombatGameplayTags::SetByCaller_AttackMultiplier, AttackMultiplier);
+	// 모드 스킬의 데미지와 그로기 데미지를 SetByCaller로 전달한다
+	if (Damage > 0.0f)
+	{
+		SpecHandle.Data->SetSetByCallerMagnitude(PRCombatGameplayTags::SetByCaller_Damage, Damage);
+	}
+
+	if (GroggyDamage > 0.0f)
+	{
+		SpecHandle.Data->SetSetByCallerMagnitude(PRCombatGameplayTags::SetByCaller_GroggyDamage, GroggyDamage);
+	}
 
 	// HitResult가 있으면 EffectContext에 포함시켜 ExecCalc에서 부위 판정에 활용한다
 	if (HitResult != nullptr && HitResult->bBlockingHit)

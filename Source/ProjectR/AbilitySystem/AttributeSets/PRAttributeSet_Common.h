@@ -42,16 +42,26 @@ public:
 	FGameplayAttributeData MovementSpeedMultiplier;
 	PR_ATTRIBUTE_ACCESSORS(UPRAttributeSet_Common, MovementSpeedMultiplier)
 
+	// 방어력
+	UPROPERTY(BlueprintReadOnly, ReplicatedUsing = OnRep_Armor, Category = "ProjectR|Attributes|Common")
+	FGameplayAttributeData Armor;
+	PR_ATTRIBUTE_ACCESSORS(UPRAttributeSet_Common, Armor)
+
+	// 받는 데미지. 메타 어트리뷰트로 체력 차감 처리 후 즉시 0으로 초기화됨
+	UPROPERTY(BlueprintReadOnly, Category = "ProjectR|Attributes|Common", meta = (HideFromModifiers))
+	FGameplayAttributeData IncomingDamage;
+	PR_ATTRIBUTE_ACCESSORS(UPRAttributeSet_Common, IncomingDamage)
+
 protected:
-	// 클라이언트 복제 동기화 콜백. 상태 전이 금지
 	UFUNCTION()
 	void OnRep_Health(const FGameplayAttributeData& OldValue);
 
-	// 클라이언트 복제 동기화 콜백
 	UFUNCTION()
 	void OnRep_MaxHealth(const FGameplayAttributeData& OldValue);
 
-	// 클라이언트 복제 동기화 콜백
 	UFUNCTION()
 	void OnRep_MovementSpeedMultiplier(const FGameplayAttributeData& OldValue);
+
+	UFUNCTION()
+	void OnRep_Armor(const FGameplayAttributeData& OldValue);
 };

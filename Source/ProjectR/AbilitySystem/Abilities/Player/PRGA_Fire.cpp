@@ -4,11 +4,14 @@
 #include "PRGA_Fire.h"
 
 #include "AbilitySystemComponent.h"
+#include "AbilitySystemBlueprintLibrary.h"
 #include "DrawDebugHelpers.h"
+#include "ProjectR/AbilitySystem/Data/PRAbilitySystemRegistry.h"
 #include "ProjectR/AbilitySystem/Tasks/PRAT_SpawnPredictedProjectile.h"
 #include "ProjectR/PRGameplayTags.h"
 #include "ProjectR/Character/PRPlayerCharacter.h"
 #include "ProjectR/Projectile/PRProjectileBase.h"
+#include "ProjectR/System/PRAssetManager.h"
 #include "ProjectR/System/PREventManagerSubsystem.h"
 #include "ProjectR/System/PREventTypes.h"
 #include "ProjectR/UI/Crosshair/PRCrosshairTypes.h"
@@ -362,10 +365,61 @@ void UPRGA_Fire::ServerConfirmShot(const FPRFireShotPayload& Payload)
 
 void UPRGA_Fire::ApplyDamageFromShot(const FPRFireShotPayload& Payload)
 {
-	// 실제 데미지 처리는 추후 GE 기반으로 구현. 현 단계는 로그만 남긴다
-	const AActor* HitActor = Payload.ClientHitResult.IsValid() ? Payload.ClientHitResult->GetActor() : nullptr;
-	UE_LOG(LogFire, Warning, TEXT("[ApplyDamage] ShotID=%u, Target=%s"),
-		Payload.ShotID, IsValid(HitActor) ? *HitActor->GetName() : TEXT("None"));
+	if (!Payload.ClientHitResult.IsValid())
+	{
+		return;
+	}
+
+	AActor* HitActor = Payload.ClientHitResult->GetActor();
+	if (!IsValid(HitActor))
+	{
+		return;
+	}
+
+	ApplyDamage(HitActor, Payload.ClientHitResult.Get());
+}
+
+void UPRGA_Fire::ApplyDamage(AActor* TargetActor, const FHitResult* HitResult)
+{
+	if (!IsValid(TargetActor))
+	{
+		return;
+	}
+
+	UAbilitySystemComponent* SourceASC = GetAbilitySystemComponentFromActorInfo();
+	if (!IsValid(SourceASC))
+	{
+		return;
+	}
+
+	const UPRAbilitySystemRegistry* Registry = UPRAssetManager::Get().GetAbilitySystemRegistry();
+	if (!IsValid(Registry) || !IsValid(Registry->DamageGE_FromWeapon))
+	{
+		return;
+	}
+
+	const FGameplayEffectSpecHandle SpecHandle = MakeOutgoingGameplayEffectSpec(
+		GetCurrentAbilitySpecHandle(),
+		GetCurrentActorInfo(),
+		GetCurrentActivationInfo(),
+		Registry->DamageGE_FromWeapon);
+
+	if (!SpecHandle.IsValid())
+	{
+		return;
+	}
+
+	// HitResult가 있으면 EffectContext에 포함시켜 ExecCalc에서 부위 판정에 활용한다
+	if (HitResult != nullptr && HitResult->bBlockingHit)
+	{
+		SpecHandle.Data->GetContext().AddHitResult(*HitResult, true);
+	}
+
+	UAbilitySystemComponent* TargetASC = UAbilitySystemBlueprintLibrary::GetAbilitySystemComponent(TargetActor);
+	if (IsValid(TargetASC))
+	{
+		SourceASC->ApplyGameplayEffectSpecToTarget(*SpecHandle.Data.Get(), TargetASC);
+	}
 }
 
 UPRWeaponDataAsset* UPRGA_Fire::GetActiveWeaponData() const                                                            

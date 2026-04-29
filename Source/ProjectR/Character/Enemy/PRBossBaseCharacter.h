@@ -27,6 +27,9 @@ public:
 	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
 	virtual EPRCharacterRole GetCharacterRole() const override { return EPRCharacterRole::Boss; }
 
+	/*~ IPRCombatInterface ~*/
+	virtual void OnPostDamageApplied(const FPRDamageAppliedContext& Context) override;
+
 	EPRFaerinPhase GetCurrentPhase() const { return CurrentPhase; }
 
 	// 체력 비율이 바뀔 때 호출해 다음 페이즈 조건을 검사한다.

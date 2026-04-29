@@ -81,8 +81,11 @@ protected:
 	// 현재 활성 무기 데이터를 반환한다                           
 	UPRWeaponDataAsset* GetActiveWeaponData() const;              
                                                               
-	// 지정한 무기 몽타주를 현재 어빌리티 컨텍스트에서 재생한다   
+	// 지정한 무기 몽타주를 현재 어빌리티 컨텍스트에서 재생한다
 	void PlayWeaponMontage(UAnimMontage* Montage, float PlayRate);
+
+	// 현재 활성 무기 Actor에 발사 애니메이션 요청을 전달한다
+	void RequestCurrentWeaponShootAnimation() const;
 
 	// AbilityTask가 투사체 스폰 성공 시 호출. 파생 클래스에서 추가 처리(VFX/SFX 등) 오버라이드 용도
 	UFUNCTION()

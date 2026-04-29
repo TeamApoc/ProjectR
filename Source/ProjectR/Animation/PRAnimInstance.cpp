@@ -7,6 +7,7 @@
 #include "GameFramework/CharacterMovementComponent.h"
 #include "Kismet/KismetMathLibrary.h"
 #include "ProjectR/Character/PRPlayerCharacter.h"
+#include "ProjectR/Weapon/Components/PRWeaponManagerComponent.h"
 
 void UPRAnimInstance::NativeInitializeAnimation()
 {
@@ -201,6 +202,20 @@ void UPRAnimInstance::UpdateAim()
     FRotator AimRot = PlayerCharacter->GetBaseAimRotation();
     float CurrentDiff = UKismetMathLibrary::NormalizedDeltaRotator(AimRot, ActorRot).Yaw;
 
+	ArmedState = EPRArmedState::Unarmed;
+	EquippedWeaponSlot = EPRWeaponSlotType::None;
+	AimOffsetWeaponSlot = EPRWeaponSlotType::None;
+
+	if (IsValid(PlayerCharacter))
+	{
+		if (const UPRWeaponManagerComponent* WeaponManager = PlayerCharacter->GetWeaponManager())
+		{
+			ArmedState = WeaponManager->GetArmedState();
+			EquippedWeaponSlot = WeaponManager->GetCurrentWeaponSlot();
+			AimOffsetWeaponSlot = WeaponManager->GetAimOffsetWeaponSlot();
+		}
+	}
+	
     if (bIsStrafeMode)
     {
         // 턴 중에는 몸이 돌아가는 만큼 고개 각도를 보정하여 목표 고정

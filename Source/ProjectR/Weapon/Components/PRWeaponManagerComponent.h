@@ -8,6 +8,7 @@
 #include "PRWeaponManagerComponent.generated.h"
 
 class APRWeaponActor;
+class UAnimInstance;
 class UPRAbilitySystemComponent;
 class UPRAttributeSet_Player;
 class UPRInventoryComponent;
@@ -170,6 +171,9 @@ protected:
 	// 잘못된 슬롯 입력을 차단한다
 	bool IsSupportedSlot(EPRWeaponSlotType SlotType) const;
 
+	// 현재 활성 무기 데이터를 기준으로 캐릭터 애니메이션 레이어를 갱신한다
+	void RefreshAnimLayer();
+
 private:
 	// 대상 슬롯 원본을 수정 가능한 참조로 반환한다
 	TObjectPtr<UPRItemInstance_Weapon>& GetMutableWeaponInstanceBySlot(EPRWeaponSlotType SlotType);
@@ -207,6 +211,10 @@ protected:
 	// 보조무기 슬롯에 연결된 무기 Item 원본
 	UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Category = "ProjectR|Weapon", meta = (AllowPrivateAccess = "true"))
 	TObjectPtr<UPRItemInstance_Weapon> SecondaryWeaponInstance;
+
+	// 현재 캐릭터 메시와 연결된 무기 애니메이션 레이어 클래스
+	UPROPERTY(Transient)
+	TSubclassOf<UAnimInstance> CurrentLinkedAnimLayerClass;
 
 private:
 	// 현재 머신에서만 유지하는 주무기 슬롯 Actor

@@ -1,5 +1,6 @@
 ﻿#pragma once
 #include "ProjectR/System/PREventTypes.h"
+#include "ProjectR/Weapon/Types/PRRecoilTypes.h"
 #include "PRCrosshairTypes.generated.h"
 
 UENUM(BlueprintType)
@@ -29,6 +30,18 @@ struct PROJECTR_API FPRRecoilEventPayload : public FPREventPayload
 	// 반동 강도
 	UPROPERTY(BlueprintReadWrite)
 	float Strength = 0.f;
+
+	// 발사 시점의 무기 반동 프로파일
+	UPROPERTY(BlueprintReadWrite)
+	FPRRecoilProfile RecoilProfile;
+
+	// 현재 입력 유지 중 누적된 연속 발사 횟수
+	UPROPERTY(BlueprintReadWrite)
+	int32 ConsecutiveShots = 0;
+
+	// 발사 시점에 ADS 상태였는지 여부
+	UPROPERTY(BlueprintReadWrite)
+	bool bIsAiming = false;
 };
 
 class UPRCrosshairConfig;

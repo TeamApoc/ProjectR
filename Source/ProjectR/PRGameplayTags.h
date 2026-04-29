@@ -90,4 +90,6 @@ namespace PRGameplayTags
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Fail_Cooldown); // Cooldown 태그가 활성 중
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Fail_Blocked); // Block 태그에 의해 차단됨
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Fail_Invalid); // 어빌리티/소유자 상태가 유효하지 않음
+	
+	
 }

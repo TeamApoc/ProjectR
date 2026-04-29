@@ -11,6 +11,7 @@
 class UPRAbilitySystemComponent;
 class UPRAttributeSet_Common;
 class UPRAttributeSet_Player;
+class UPRAttributeSet_Weapon;
 class UPRInventoryComponent;
 class UPREquipmentManagerComponent;
 
@@ -41,6 +42,9 @@ public:
 	// 플레이어 AttributeSet 조회
 	UPRAttributeSet_Player* GetPlayerSet() const { return PlayerSet; }
 
+	// 무기 자원 AttributeSet 조회
+	UPRAttributeSet_Weapon* GetWeaponSet() const { return WeaponSet; }
+
 	// 플레이어 인벤토리 컴포넌트를 반환
 	UFUNCTION(BlueprintPure, Category = "ProjectR|Inventory")
 	UPRInventoryComponent* GetInventoryComponent() const { return InventoryComponent; }
@@ -66,13 +70,17 @@ protected:
 	UPROPERTY(VisibleAnywhere, Category = "ProjectR|Ability")
 	TObjectPtr<UPRAbilitySystemComponent> AbilitySystemComponent;
 
-	// 공통 속성 (Health/MaxHealth/MoveSpeedMul)
+	// 공통 속성
 	UPROPERTY()
 	TObjectPtr<UPRAttributeSet_Common> CommonSet;
 
-	// 플레이어 속성. 스태미너와 무기 슬롯 자원을 포함한다
+	// 플레이어 속성
 	UPROPERTY()
 	TObjectPtr<UPRAttributeSet_Player> PlayerSet;
+
+	// 무기 속성
+	UPROPERTY()
+	TObjectPtr<UPRAttributeSet_Weapon> WeaponSet;
 
 	// 플레이어가 소유한 Item 인스턴스 정본 컨테이너
 	UPROPERTY(VisibleAnywhere, Category = "ProjectR|Inventory")

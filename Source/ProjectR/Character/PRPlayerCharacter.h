@@ -35,7 +35,10 @@ public:
 
 	/*~ APRCharacterBase Interface ~*/
 	virtual UPRAbilitySystemComponent* GetPRAbilitySystemComponent() const override;
-	
+
+	/*~ IPRCombatInterface ~*/
+	virtual EPRTeam GetTeam() const override { return EPRTeam::Player; }
+
 	/*~ APRPlayerCharacter Interface ~*/
 	/** 애니메이션 인스턴스에서 사용하는 게터 함수들 */                   
 	bool IsCrouching() const { return bIsCrouched; } 

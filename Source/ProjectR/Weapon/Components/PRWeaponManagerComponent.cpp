@@ -914,6 +914,12 @@ void UPRWeaponManagerComponent::OnRep_PrimaryVisualInfo(FPRWeaponVisualInfo OldV
 
 	// 주무기 공개 비주얼 변화에 맞춰 주무기 Actor 갱신
 	RefreshWeaponActorForSlot(EPRWeaponSlotType::Primary);
+	
+	// 애님 레이어 갱신
+	if (CurrentWeaponSlot == EPRWeaponSlotType::Primary)
+	{
+		RefreshAnimLayer();
+	}
 }
 
 void UPRWeaponManagerComponent::OnRep_SecondaryVisualInfo(FPRWeaponVisualInfo OldVisualInfo)
@@ -938,6 +944,12 @@ void UPRWeaponManagerComponent::OnRep_SecondaryVisualInfo(FPRWeaponVisualInfo Ol
 
 	// 보조무기 공개 비주얼 변화에 맞춰 보조무기 Actor 갱신
 	RefreshWeaponActorForSlot(EPRWeaponSlotType::Secondary);
+	
+	// 애님 레이어 갱신
+	if (CurrentWeaponSlot == EPRWeaponSlotType::Secondary)
+	{
+		RefreshAnimLayer();
+	}
 }
 
 void UPRWeaponManagerComponent::OnRep_ArmedState(EPRArmedState OldArmedState)
@@ -1108,7 +1120,7 @@ void UPRWeaponManagerComponent::RefreshAnimLayer()
 	if (!IsValid(OwnerCharacter))
 	{
 		// 주무기를 다음 활성 슬롯으로 리턴
-		return EPRWeaponSlotType::Primary;
+		return;
 	}
 
 	USkeletalMeshComponent* MeshComp = OwnerCharacter->GetMesh();
@@ -1130,7 +1142,7 @@ void UPRWeaponManagerComponent::RefreshAnimLayer()
 	if (CurrentLinkedAnimLayerClass == TargetAnimLayerClass)
 	{
 		// 보조무기를 다음 활성 슬롯으로 리턴
-		return EPRWeaponSlotType::Secondary;
+		return;
 	}
 
 	// 기존에 링크된 레이어가 있다면 언링크(Unlink) 하여 맨손 상태로 되돌린다.

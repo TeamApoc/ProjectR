@@ -17,6 +17,7 @@
 #include "ProjectR/AbilitySystem/AttributeSets/PRAttributeSet_Common.h"
 #include "ProjectR/AbilitySystem/AttributeSets/PRAttributeSet_Enemy.h"
 #include "ProjectR/AbilitySystem/Data/PRAbilitySystemRegistry.h"
+#include "Engine/DataTable.h"
 #include "ProjectR/PRGameplayTags.h"
 #include "ProjectR/System/PRAssetManager.h"
 
@@ -116,6 +117,18 @@ FVector APREnemyBaseCharacter::GetHomeLocation() const
 	return HomeLocation;
 }
 
+FPRDamageRegionInfo APREnemyBaseCharacter::GetDamageRegionInfo(FName BoneName) const
+{
+	if (bHasCachedStatRow)
+	{
+		if (const FPRDamageRegionInfo* Found = CachedStatRow.RegionMap.Find(BoneName))
+		{
+			return *Found;
+		}
+	}
+	return FPRDamageRegionInfo();
+}
+
 void APREnemyBaseCharacter::HandleGameplayTagUpdated(const FGameplayTag& ChangedTag, bool TagExists)
 {
 	Super::HandleGameplayTagUpdated(ChangedTag, TagExists);
@@ -143,6 +156,17 @@ void APREnemyBaseCharacter::InitializeEnemyAbilitySystem()
 	{
 		// CharacterID와 Role을 기준으로 DataTable 초기 스탯을 주입한다.
 		AbilitySystemComponent->InitializeAttributesFromRegistry(Registry, GetCharacterRole(), CharacterID);
+
+		// 부위 매핑 조회를 위해 동일 Row를 캐릭터에도 캐싱한다.
+		if (UDataTable* StatTable = Registry->GetStatTableSynchronous(GetCharacterRole()))
+		{
+			static const FString ContextString(TEXT("APREnemyBaseCharacter::CacheStatRow"));
+			if (const FPREnemyStatRow* FoundRow = StatTable->FindRow<FPREnemyStatRow>(CharacterID, ContextString, false))
+			{
+				CachedStatRow = *FoundRow;
+				bHasCachedStatRow = true;
+			}
+		}
 	}
 
 	// 재 Possess나 재초기화 상황에서 이전 AbilitySet이 중복 부여되지 않도록 먼저 회수한다.

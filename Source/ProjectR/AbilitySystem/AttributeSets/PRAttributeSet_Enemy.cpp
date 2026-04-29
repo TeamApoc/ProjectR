@@ -16,9 +16,7 @@ void UPRAttributeSet_Enemy::PreAttributeChange(const FGameplayAttribute& Attribu
 	{
 		NewValue = FMath::Clamp(NewValue, 0.0f, GetMaxGroggyGauge());
 	}
-	else if (Attribute == GetMaxGroggyGaugeAttribute()
-		|| Attribute == GetArmorMultiplierAttribute()
-		|| Attribute == GetWeakpointMultiplierAttribute())
+	else if (Attribute == GetMaxGroggyGaugeAttribute() || Attribute == GetAttackPowerAttribute())
 	{
 		// 음수 금지
 		NewValue = FMath::Max(NewValue, 0.0f);
@@ -78,13 +76,12 @@ void UPRAttributeSet_Enemy::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>
 
 	DOREPLIFETIME_CONDITION_NOTIFY(UPRAttributeSet_Enemy, GroggyGauge,         COND_None, REPNOTIFY_Always);
 	DOREPLIFETIME_CONDITION_NOTIFY(UPRAttributeSet_Enemy, MaxGroggyGauge,      COND_None, REPNOTIFY_Always);
-	DOREPLIFETIME_CONDITION_NOTIFY(UPRAttributeSet_Enemy, ArmorMultiplier,     COND_None, REPNOTIFY_Always);
-	DOREPLIFETIME_CONDITION_NOTIFY(UPRAttributeSet_Enemy, WeakpointMultiplier, COND_None, REPNOTIFY_Always);
+	DOREPLIFETIME_CONDITION_NOTIFY(UPRAttributeSet_Enemy, AttackPower,         COND_None, REPNOTIFY_Always);
+
 }
 
 // =====  OnRep =====
 
 void UPRAttributeSet_Enemy::OnRep_GroggyGauge(const FGameplayAttributeData& OldValue)         { GAMEPLAYATTRIBUTE_REPNOTIFY(UPRAttributeSet_Enemy, GroggyGauge, OldValue); }
 void UPRAttributeSet_Enemy::OnRep_MaxGroggyGauge(const FGameplayAttributeData& OldValue)      { GAMEPLAYATTRIBUTE_REPNOTIFY(UPRAttributeSet_Enemy, MaxGroggyGauge, OldValue); }
-void UPRAttributeSet_Enemy::OnRep_ArmorMultiplier(const FGameplayAttributeData& OldValue)     { GAMEPLAYATTRIBUTE_REPNOTIFY(UPRAttributeSet_Enemy, ArmorMultiplier, OldValue); }
-void UPRAttributeSet_Enemy::OnRep_WeakpointMultiplier(const FGameplayAttributeData& OldValue) { GAMEPLAYATTRIBUTE_REPNOTIFY(UPRAttributeSet_Enemy, WeakpointMultiplier, OldValue); }
+void UPRAttributeSet_Enemy::OnRep_AttackPower(const FGameplayAttributeData& OldValue)         { GAMEPLAYATTRIBUTE_REPNOTIFY(UPRAttributeSet_Enemy, AttackPower, OldValue); }

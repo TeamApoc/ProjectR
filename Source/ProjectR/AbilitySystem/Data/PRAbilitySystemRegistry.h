@@ -31,10 +31,6 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "ProjectR|Ability")
 	UDataTable* GetStatTableSynchronous(EPRCharacterRole Role) const;
 
-	// 초기화 GE를 동기 로딩하여 반환
-	UFUNCTION(BlueprintCallable, Category = "ProjectR|Ability")
-	TSubclassOf<UGameplayEffect> GetInitializeGESynchronous() const;
-	
 public:
 	// 역할별 스탯 DataTable 약참조
 	UPROPERTY(EditAnywhere, Category = "Registry")
@@ -46,5 +42,15 @@ public:
 	
 	// 초기화 GE
 	UPROPERTY(EditAnywhere, Category = "Registry")
-	TSoftClassPtr<UGameplayEffect>  InitializeGE;
+	TSubclassOf<UGameplayEffect>  InitializeGE;
+	
+	// ==== 데미지 적용 GE ====
+	UPROPERTY(EditAnywhere, Category = "Registry")
+	TSubclassOf<UGameplayEffect>  DamageGE_FromEnemy;
+	
+	UPROPERTY(EditAnywhere, Category = "Registry")
+	TSubclassOf<UGameplayEffect>  DamageGE_FromWeapon;
+	
+	UPROPERTY(EditAnywhere, Category = "Registry")
+	TSubclassOf<UGameplayEffect>  DamageGE_FromMod;
 };

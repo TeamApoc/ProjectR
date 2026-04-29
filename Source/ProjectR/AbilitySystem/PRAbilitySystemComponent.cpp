@@ -231,10 +231,10 @@ bool UPRAbilitySystemComponent::InitializeAttributesFromRegistry(const UPRAbilit
 	}
 	
 	// 초기화 GE 적용
-	if (TSubclassOf<UGameplayEffect> InitializeGE = Registry->GetInitializeGESynchronous())
+	if (IsValid(Registry->InitializeGE))
 	{
 		FGameplayEffectContextHandle EffectContextHandle = MakeEffectContext();
-		FGameplayEffectSpecHandle SpecHandle = MakeOutgoingSpec(InitializeGE, 1.0f, EffectContextHandle);
+		FGameplayEffectSpecHandle SpecHandle = MakeOutgoingSpec(Registry->InitializeGE, 1.0f, EffectContextHandle);
 		ApplyGameplayEffectSpecToSelf(*SpecHandle.Data.Get());
 	}
 

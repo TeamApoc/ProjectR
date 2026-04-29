@@ -462,8 +462,10 @@ bool UPRWeaponManagerComponent::EquipWeaponInternal(UPRItemInstance_Weapon* Weap
 	// 장착 슬롯이 비어 있었고 플레이어 슬롯 자원이 연결된 경우
 	if (bWeaponSlotWasEmpty && IsValid(CachedPlayerSet))
 	{
+		// 26.04.28, Yuchan, Attribute 수정은 GE를 통해 진행되어야 하므로 아래 코드 주석 처리
+		// TODO: 초기화 GE 적용
 		// 빈 슬롯에 최초 장착되는 경우에만 슬롯별 탄약과 Mod 자원 초기화
-		CachedPlayerSet->InitializeSlotResources(WeaponSlot, WeaponData, WeaponItem->GetModData());
+		// CachedPlayerSet->InitializeSlotResources(WeaponSlot, WeaponData, WeaponItem->GetModData());
 	}
 
 	// 현재 활성 슬롯이 비어 있거나 이미 활성 중인 슬롯에 다시 장착하는 경우
@@ -607,24 +609,26 @@ bool UPRWeaponManagerComponent::AttachModToSlotInternal(EPRWeaponSlotType Target
 		// Mod 장착 실패
 		return false;
 	}
-
-	// 플레이어 슬롯 자원이 연결된 경우
-	if (IsValid(CachedPlayerSet))
-	{
-		// Mod 교체 전 탄약 상태. 자원 재초기화 뒤 탄약량 보존에 사용
-		const FPRWeaponSlotResourceState PreResourceState = CachedPlayerSet->BuildSlotResourceState(TargetSlot);
-
-		// 새 Mod 기준으로 슬롯 자원 구조 재초기화
-		CachedPlayerSet->InitializeSlotResources(TargetSlot, TargetWeaponInstance->GetWeaponData(), NewModData);
-
-		// 재초기화로 변경된 탄약량을 이전 상태에 맞추기 위한 보정값
-		FPRWeaponSlotResourceDelta PreserveAmmoDelta;
-		PreserveAmmoDelta.MagazineDelta = PreResourceState.MagazineAmmo - CachedPlayerSet->BuildSlotResourceState(TargetSlot).MagazineAmmo;
-		PreserveAmmoDelta.ReserveDelta = PreResourceState.ReserveAmmo - CachedPlayerSet->BuildSlotResourceState(TargetSlot).ReserveAmmo;
-
-		// Mod 교체가 탄약 수량을 임의로 바꾸지 않도록 보정 적용
-		CachedPlayerSet->ApplySlotResourceDelta(TargetSlot, PreserveAmmoDelta);
-	}
+	
+	// 26.04.28, Yuchan, Attribute 수정은 GE를 통해 진행되어야 하므로 아래 코드 주석 처리
+	// TODO: 초기화 GE 적용
+	// // 플레이어 슬롯 자원이 연결된 경우
+	// if (IsValid(CachedPlayerSet))
+	// {
+	// 	// Mod 교체 전 탄약 상태. 자원 재초기화 뒤 탄약량 보존에 사용
+	// 	const FPRWeaponSlotResourceState PreResourceState = CachedPlayerSet->BuildSlotResourceState(TargetSlot);
+	//
+	// 	// 새 Mod 기준으로 슬롯 자원 구조 재초기화
+	// 	// CachedPlayerSet->InitializeSlotResources(TargetSlot, TargetWeaponInstance->GetWeaponData(), NewModData);
+	//
+	// 	// 재초기화로 변경된 탄약량을 이전 상태에 맞추기 위한 보정값
+	// 	FPRWeaponSlotResourceDelta PreserveAmmoDelta;
+	// 	PreserveAmmoDelta.MagazineDelta = PreResourceState.MagazineAmmo - CachedPlayerSet->BuildSlotResourceState(TargetSlot).MagazineAmmo;
+	// 	PreserveAmmoDelta.ReserveDelta = PreResourceState.ReserveAmmo - CachedPlayerSet->BuildSlotResourceState(TargetSlot).ReserveAmmo;
+	//
+	// 	// Mod 교체가 탄약 수량을 임의로 바꾸지 않도록 보정 적용
+	// 	// CachedPlayerSet->ApplySlotResourceDelta(TargetSlot, PreserveAmmoDelta);
+	// }
 
 	// 무기 Item에 Mod 변경을 반영하고 장착 효과 갱신
 	TargetWeaponInstance->OnModChanged(GetOwner(), NewModData);

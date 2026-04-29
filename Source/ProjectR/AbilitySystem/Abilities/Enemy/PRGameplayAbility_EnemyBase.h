@@ -21,16 +21,10 @@ public:
 	UPRGameplayAbility_EnemyBase();
 
 protected:
-	// FPRDamageContext를 공용 Damage GE로 변환해 타겟 ASC에 적용한다.
-	UFUNCTION(BlueprintCallable, Category = "ProjectR|Combat")
-	bool ApplyDamageContext(FPRDamageContext DamageContext) const;
-
 	// Enemy 전용 컴포넌트/데이터에 접근해야 할 때 사용하는 Avatar 캐스팅 헬퍼다.
 	UFUNCTION(BlueprintPure, Category = "ProjectR|Combat")
 	APREnemyBaseCharacter* GetEnemyAvatarCharacter() const;
 
-protected:
-	// 기본값은 PRGameplayEffect_Damage이며, 몬스터별 특수 피해 GE가 필요하면 에디터에서 교체한다.
-	UPROPERTY(EditDefaultsOnly, Category = "ProjectR|Combat")
-	TSubclassOf<UGameplayEffect> DamageEffectClass;
+	// 타겟 액터에 적 발신 데미지 GE를 적용한다. AttackPower * AttackMultiplier로 BaseDamage를 산정
+	void ApplyDamage(AActor* TargetActor, float AttackMultiplier = 1.0f, const FHitResult* HitResult = nullptr);
 };

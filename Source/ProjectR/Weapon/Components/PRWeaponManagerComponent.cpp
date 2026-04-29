@@ -230,6 +230,42 @@ bool UPRWeaponManagerComponent::EquipInventoryWeaponAtIndex(int32 InventoryIndex
 	return EquipWeaponItemById(WeaponItem->GetItemId());
 }
 
+bool UPRWeaponManagerComponent::EquipInventoryWeaponAtIndex(int32 InventoryIndex)
+{
+	// 클라이언트가 복제받은 인벤토리 항목으로 장착할 수 있도록 인덱스를 Item 식별자로 변환한다
+	// 인벤토리 캐시가 비어 있을 수 있으므로 장착 요청마다 런타임 링크 갱신
+	InitializeRuntimeLinks();
+
+	// 인벤토리 컴포넌트를 찾지 못한 경우
+	if (!IsValid(CachedInventory))
+	{
+		// 장착 실패. 장착 대상 조회 불가
+		return false;
+	}
+
+	// 인덱스 기반 요청을 서버 검증 가능한 Item 식별자 요청으로 변환하기 위한 Item 조회
+	UPRItemInstance_Weapon* WeaponItem = CachedInventory->GetWeaponItemAtIndex(InventoryIndex);
+
+	// 인덱스에 대응하는 무기 Item이 없는 경우
+	if (!IsValid(WeaponItem))
+	{
+		// 장착 실패 상황을 Owner, Index 기준으로 추적
+		UE_LOG(
+			LogTemp,
+			Warning,
+			TEXT("[WeaponManagerComponent][%s] 무기 장착 실패. EquipInventoryWeaponAtIndex() | Owner = %s | Index = %d"),
+			*GetNetModeLogName(this),
+			*GetNameSafe(GetOwner()),
+			InventoryIndex);
+
+		// 장착 실패. Item 조회 실패
+		return false;
+	}
+
+	// 조회된 ItemId로 포인터 신뢰 없이 장착 요청을 이어감
+	return EquipWeaponItemById(WeaponItem->GetItemId());
+}
+
 bool UPRWeaponManagerComponent::EquipWeaponItemById(const FGuid& ItemId)
 {
 	// Item 식별자 기반 요청은 클라이언트가 원본 포인터를 신뢰하지 않도록 서버에서 다시 조회한다
@@ -1107,7 +1143,8 @@ void UPRWeaponManagerComponent::RefreshAnimLayer()
 	ACharacter* OwnerCharacter = Cast<ACharacter>(GetOwner());
 	if (!IsValid(OwnerCharacter))
 	{
-		return;
+		// 주무기를 다음 활성 슬롯으로 리턴
+		return EPRWeaponSlotType::Primary;
 	}
 
 	USkeletalMeshComponent* MeshComp = OwnerCharacter->GetMesh();
@@ -1128,7 +1165,8 @@ void UPRWeaponManagerComponent::RefreshAnimLayer()
 	// 이미 목표 레이어가 링크되어 있다면 작업을 무시한다
 	if (CurrentLinkedAnimLayerClass == TargetAnimLayerClass)
 	{
-		return;
+		// 보조무기를 다음 활성 슬롯으로 리턴
+		return EPRWeaponSlotType::Secondary;
 	}
 
 	// 기존에 링크된 레이어가 있다면 언링크(Unlink) 하여 맨손 상태로 되돌린다.

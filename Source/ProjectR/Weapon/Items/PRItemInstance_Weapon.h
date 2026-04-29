@@ -9,6 +9,7 @@
 #include "PRItemInstance_Weapon.generated.h"
 
 class AActor;
+class UPRItemInstance_Mod;
 class UPRWeaponDataAsset;
 class UPRWeaponModDataAsset;
 
@@ -32,13 +33,13 @@ public:
 	// 현재 연결된 Mod 데이터를 반환한다
 	UPRWeaponModDataAsset* GetModData() const { return ModData; }
 
-	// 현재 장착된 Mod Item 식별자를 반환한다
+	// 현재 장착된 Mod Item을 반환한다
 	UFUNCTION(BlueprintPure, Category = "ProjectR|Weapon")
-	FGuid GetEquippedModItemId() const { return EquippedModItemId; }
+	UPRItemInstance_Mod* GetEquippedModItem() const { return EquippedModItem; }
 
 	// 현재 Mod Item이 장착되어 있는지 확인한다
 	UFUNCTION(BlueprintPure, Category = "ProjectR|Weapon")
-	bool HasEquippedModItem() const { return EquippedModItemId.IsValid(); }
+	bool HasEquippedModItem() const;
 
 	// 현재 활성 무기 슬롯에 장착되어 있는지 확인한다
 	UFUNCTION(BlueprintPure, Category = "ProjectR|Weapon")
@@ -50,11 +51,11 @@ public:
 	// 장착된 Mod 데이터를 교체한다
 	void SetModData(UPRWeaponModDataAsset* NewModData);
 
-	// 장착된 Mod Item 식별자를 교체한다
-	void SetEquippedModItemId(const FGuid& NewModItemId);
+	// 장착된 Mod Item을 교체한다
+	void SetEquippedModItem(UPRItemInstance_Mod* NewModItem);
 
-	// 장착된 Mod Item 식별자를 비운다
-	void ClearEquippedModItemId();
+	// 장착된 Mod Item을 비운다
+	void ClearEquippedModItem();
 
 	// 활성 슬롯 장착 시점의 생명주기 훅
 	void OnEquipped(AActor* OwnerActor);
@@ -92,9 +93,9 @@ private:
 	UFUNCTION()
 	void OnRep_WeaponData();
 
-	// 장착 Mod Item 식별자 복제 완료 시 클라이언트 확인 로그를 남긴다
+	// 장착 Mod Item 복제 완료 시 클라이언트 확인 로그를 남긴다
 	UFUNCTION()
-	void OnRep_EquippedModItemId();
+	void OnRep_EquippedModItem();
 
 public:
 	// 현재 연결된 무기 데이터
@@ -105,9 +106,9 @@ public:
 	UPROPERTY(Replicated, VisibleInstanceOnly, BlueprintReadOnly, Category = "ProjectR|Weapon")
 	TObjectPtr<UPRWeaponModDataAsset> ModData = nullptr;
 
-	// 현재 장착된 Mod Item 식별자
-	UPROPERTY(ReplicatedUsing = OnRep_EquippedModItemId, VisibleInstanceOnly, BlueprintReadOnly, Category = "ProjectR|Weapon")
-	FGuid EquippedModItemId;
+	// 현재 장착된 Mod Item
+	UPROPERTY(ReplicatedUsing = OnRep_EquippedModItem, VisibleInstanceOnly, BlueprintReadOnly, Category = "ProjectR|Weapon")
+	TObjectPtr<UPRItemInstance_Mod> EquippedModItem = nullptr;
 
 	// 무기 장착으로 부여한 어빌리티 핸들
 	UPROPERTY(Transient)

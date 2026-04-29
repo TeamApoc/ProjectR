@@ -9,6 +9,7 @@
 #include "ProjectR/Character/PRCharacterBase.h"
 #include "ProjectR/Weapon/Data/PRWeaponDataAsset.h"
 #include "ProjectR/Weapon/Data/PRWeaponModDataAsset.h"
+#include "ProjectR/Weapon/Items/PRItemInstance_Mod.h"
 
 namespace
 {
@@ -31,7 +32,7 @@ void UPRItemInstance_Weapon::GetLifetimeReplicatedProps(TArray<FLifetimeProperty
 
 	DOREPLIFETIME(UPRItemInstance_Weapon, WeaponData);
 	DOREPLIFETIME(UPRItemInstance_Weapon, ModData);
-	DOREPLIFETIME(UPRItemInstance_Weapon, EquippedModItemId);
+	DOREPLIFETIME(UPRItemInstance_Weapon, EquippedModItem);
 	DOREPLIFETIME(UPRItemInstance_Weapon, bIsEquippedCurrentWeaponSlot);
 }
 
@@ -39,7 +40,7 @@ void UPRItemInstance_Weapon::InitializeWeaponItem(UPRWeaponDataAsset* InWeaponDa
 {
 	WeaponData = InWeaponData;
 	ModData = InModData;
-	ClearEquippedModItemId();
+	ClearEquippedModItem();
 	bIsEquippedCurrentWeaponSlot = false;
 	CachedWeaponAbilitySet = nullptr;
 	CachedModAbilitySet = nullptr;
@@ -50,20 +51,25 @@ bool UPRItemInstance_Weapon::MatchesWeaponData(const UPRWeaponDataAsset* InWeapo
 	return WeaponData == InWeaponData;
 }
 
+bool UPRItemInstance_Weapon::HasEquippedModItem() const
+{
+	return IsValid(EquippedModItem);
+}
+
 void UPRItemInstance_Weapon::SetModData(UPRWeaponModDataAsset* NewModData)
 {
 	ModData = NewModData;
 	CachedModAbilitySet = nullptr;
 }
 
-void UPRItemInstance_Weapon::SetEquippedModItemId(const FGuid& NewModItemId)
+void UPRItemInstance_Weapon::SetEquippedModItem(UPRItemInstance_Mod* NewModItem)
 {
-	EquippedModItemId = NewModItemId;
+	EquippedModItem = NewModItem;
 }
 
-void UPRItemInstance_Weapon::ClearEquippedModItemId()
+void UPRItemInstance_Weapon::ClearEquippedModItem()
 {
-	EquippedModItemId.Invalidate();
+	EquippedModItem = nullptr;
 }
 
 void UPRItemInstance_Weapon::OnEquipped(AActor* OwnerActor)
@@ -285,23 +291,23 @@ void UPRItemInstance_Weapon::OnRep_WeaponData()
 	UE_LOG(
 		LogTemp,
 		Log,
-		TEXT("[Inventory][Client] Weapon item data replicated. ItemId=%s Weapon=%s WeaponId=%s Mod=%s ModItemId=%s"),
-		*GetItemId().ToString(),
+		TEXT("[Inventory][Client] Weapon item data replicated. Item = %s | Weapon = %s | WeaponId = %s | Mod = %s | ModItem = %s"),
+		*GetNameSafe(this),
 		*GetNameSafe(WeaponData),
 		IsValid(WeaponData) ? *WeaponData->WeaponId.ToString() : TEXT("None"),
 		*GetNameSafe(ModData),
-		*EquippedModItemId.ToString());
+		*GetNameSafe(EquippedModItem.Get()));
 }
 
-void UPRItemInstance_Weapon::OnRep_EquippedModItemId()
+void UPRItemInstance_Weapon::OnRep_EquippedModItem()
 {
-	// 클라이언트에서 장착 Mod Item 식별자만 갱신되는 상황을 ItemId 기준으로 추적
+	// 클라이언트에서 장착 Mod Item 참조만 갱신되는 상황을 추적
 	UE_LOG(
 		LogTemp,
 		Log,
-		TEXT("[Inventory][Client] Weapon item mod item replicated. ItemId=%s Weapon=%s Mod=%s ModItemId=%s"),
-		*GetItemId().ToString(),
+		TEXT("[Inventory][Client] Weapon item mod item replicated. Item = %s | Weapon = %s | Mod = %s | ModItem = %s"),
+		*GetNameSafe(this),
 		*GetNameSafe(WeaponData),
 		*GetNameSafe(ModData),
-		*EquippedModItemId.ToString());
+		*GetNameSafe(EquippedModItem.Get()));
 }

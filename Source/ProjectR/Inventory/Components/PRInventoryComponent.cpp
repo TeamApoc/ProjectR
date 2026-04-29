@@ -124,9 +124,9 @@ UPRItemInstance_Weapon* UPRInventoryComponent::AddWeaponItem(UPRWeaponDataAsset*
 		UE_LOG(
 			LogTemp,
 			Log,
-			TEXT("[Inventory][Server] AddItem. Owner=%s ItemId=%s Weapon=%s WeaponId=%s Count=%d"),
+			TEXT("[Inventory][Server] AddItem. Owner = %s | Item = %s | Weapon = %s | WeaponId = %s | Count = %d"),
 			*GetNameSafe(GetOwner()),
-			*NewWeaponItem->GetItemId().ToString(),
+			*GetNameSafe(NewWeaponItem),
 			*GetNameSafe(WeaponData),
 			*WeaponData->WeaponId.ToString(),
 			InventoryWeaponItems.Num());
@@ -174,9 +174,9 @@ UPRItemInstance_Mod* UPRInventoryComponent::AddModItem(UPRWeaponModDataAsset* Mo
 		UE_LOG(
 			LogTemp,
 			Log,
-			TEXT("[Inventory][Server] AddModItem. Owner=%s ItemId=%s Mod=%s Count=%d"),
+			TEXT("[Inventory][Server] AddModItem. Owner = %s | Item = %s | Mod = %s | Count = %d"),
 			*GetNameSafe(GetOwner()),
-			*NewModItem->GetItemId().ToString(),
+			*GetNameSafe(NewModItem),
 			*GetNameSafe(ModData),
 			InventoryModItems.Num());
 	}
@@ -184,159 +184,133 @@ UPRItemInstance_Mod* UPRInventoryComponent::AddModItem(UPRWeaponModDataAsset* Mo
 	return NewModItem;
 }
 
-void UPRInventoryComponent::RequestEquipModItemToWeapon(const FGuid& ModItemId, const FGuid& TargetWeaponItemId)
+void UPRInventoryComponent::RequestEquipModItemToWeapon(UPRItemInstance_Mod* ModItem, UPRItemInstance_Weapon* TargetWeaponItem)
 {
-	// 잘못된 식별자 요청은 서버 RPC를 보내기 전에 중단한다
-	if (!ModItemId.IsValid() || !TargetWeaponItemId.IsValid())
+	// 잘못된 Item 참조 요청은 서버 RPC를 보내기 전에 중단한다
+	if (!IsValid(ModItem) || !IsValid(TargetWeaponItem))
 	{
 		return;
 	}
 
 	if (IsValid(GetOwner()) && GetOwner()->HasAuthority())
 	{
-		EquipModItemToWeapon(ModItemId, TargetWeaponItemId);
+		EquipModItemToWeapon(ModItem, TargetWeaponItem);
 		return;
 	}
 
-	Server_RequestEquipModItemToWeapon(ModItemId, TargetWeaponItemId);
+	Server_RequestEquipModItemToWeapon(ModItem, TargetWeaponItem);
 }
 
-void UPRInventoryComponent::RequestUnequipModFromWeapon(const FGuid& TargetWeaponItemId)
+void UPRInventoryComponent::RequestUnequipModFromWeapon(UPRItemInstance_Weapon* TargetWeaponItem)
 {
-	// 잘못된 식별자 요청은 서버 RPC를 보내기 전에 중단한다
-	if (!TargetWeaponItemId.IsValid())
+	// 잘못된 Item 참조 요청은 서버 RPC를 보내기 전에 중단한다
+	if (!IsValid(TargetWeaponItem))
 	{
 		return;
 	}
 
 	if (IsValid(GetOwner()) && GetOwner()->HasAuthority())
 	{
-		UnequipModFromWeapon(TargetWeaponItemId);
+		UnequipModFromWeapon(TargetWeaponItem);
 		return;
 	}
 
-	Server_RequestUnequipModFromWeapon(TargetWeaponItemId);
+	Server_RequestUnequipModFromWeapon(TargetWeaponItem);
 }
 
-bool UPRInventoryComponent::EquipModItemToWeapon(const FGuid& ModItemId, const FGuid& TargetWeaponItemId)
+bool UPRInventoryComponent::EquipModItemToWeapon(UPRItemInstance_Mod* ModItem, UPRItemInstance_Weapon* TargetWeaponItem)
 {
-	// 서버 내부 장착에 필요한 식별자들이 유효하지 않은 경우
-	if (!ModItemId.IsValid() || !TargetWeaponItemId.IsValid())
-	{
-		// Mod 장착 실패 입력을 ItemId 기준으로 추적
-		UE_LOG(
-			LogTemp,
-			Warning,
-			TEXT("[Inventory][Server] Mod 장착 실패. EquipModItemToWeapon() | Owner = %s | ModItemId = %s | TargetWeaponItemId = %s"),
-			*GetNameSafe(GetOwner()),
-			*ModItemId.ToString(),
-			*TargetWeaponItemId.ToString());
-
-		// 장착 실패. 요청 식별자 검증 실패
-		return false;
-	}
-
-	// 서버 인벤토리에서 장착 대상 Mod Item을 조회한다
-	UPRItemInstance_Mod* ModItem = FindModByItemId(ModItemId);
+	// 서버 내부 장착에 필요한 Item 참조와 소유권이 유효하지 않은 경우
 	if (!IsValid(ModItem) || !OwnsMod(ModItem) || !IsValid(ModItem->GetModData()))
 	{
-		// Mod Item 소유권이나 데이터 누락 상황을 Owner와 ItemId 기준으로 추적
+		// Mod Item 소유권이나 데이터 누락 상황을 Owner와 Item 참조 기준으로 추적
 		UE_LOG(
 			LogTemp,
 			Warning,
-			TEXT("[Inventory][Server] Mod 장착 실패. EquipModItemToWeapon() | Owner = %s | ModItemId = %s | Reason = InvalidModItem"),
+			TEXT("[Inventory][Server] Mod 장착 실패. EquipModItemToWeapon() | Owner = %s | ModItem = %s | Reason = InvalidModItem"),
 			*GetNameSafe(GetOwner()),
-			*ModItemId.ToString());
+			*GetNameSafe(ModItem));
 
 		// 장착 실패. Mod Item 조회나 데이터 검증 실패
 		return false;
 	}
 
-	// 서버 인벤토리에서 장착 대상 Weapon Item을 조회한다
-	UPRItemInstance_Weapon* TargetWeaponItem = FindWeaponByItemId(TargetWeaponItemId);
+	// 장착 대상 Weapon Item은 같은 인벤토리 소유여야 서버 정본 변경이 가능하다
 	if (!IsValid(TargetWeaponItem) || !OwnsWeapon(TargetWeaponItem))
 	{
-		// Weapon Item 소유권 검증 실패 상황을 Owner와 ItemId 기준으로 추적
+		// Weapon Item 소유권 검증 실패 상황을 Owner와 Item 참조 기준으로 추적
 		UE_LOG(
 			LogTemp,
 			Warning,
-			TEXT("[Inventory][Server] Mod 장착 실패. EquipModItemToWeapon() | Owner = %s | TargetWeaponItemId = %s | Reason = InvalidWeaponItem"),
+			TEXT("[Inventory][Server] Mod 장착 실패. EquipModItemToWeapon() | Owner = %s | TargetWeaponItem = %s | Reason = InvalidWeaponItem"),
 			*GetNameSafe(GetOwner()),
-			*TargetWeaponItemId.ToString());
+			*GetNameSafe(TargetWeaponItem));
 
-		// 장착 실패. Weapon Item 조회나 소유권 검증 실패
+		// 장착 실패. Weapon Item 소유권 검증 실패
 		return false;
 	}
 
 	// Mod 장착은 인벤토리 정본 변경 전 무기 데이터와 Mod 태그 호환성을 먼저 검증한다
 	if (!IsWeaponModCompatible(TargetWeaponItem->GetWeaponData(), ModItem->GetModData()))
 	{
-		// 호환되지 않는 무기와 Mod 조합을 Owner, WeaponItemId, ModItemId 기준으로 추적
+		// 호환되지 않는 무기와 Mod 조합을 Owner, Weapon Item, Mod Item 기준으로 추적
 		UE_LOG(
 			LogTemp,
 			Warning,
-			TEXT("[Inventory][Server] Mod 장착 실패. EquipModItemToWeapon() | Owner = %s | TargetWeaponItemId = %s | ModItemId = %s | Reason = IncompatibleMod"),
+			TEXT("[Inventory][Server] Mod 장착 실패. EquipModItemToWeapon() | Owner = %s | TargetWeaponItem = %s | ModItem = %s | Reason = IncompatibleMod"),
 			*GetNameSafe(GetOwner()),
-			*TargetWeaponItemId.ToString(),
-			*ModItemId.ToString());
+			*GetNameSafe(TargetWeaponItem),
+			*GetNameSafe(ModItem));
 
 		// 장착 실패. 무기와 Mod 태그 호환성 검증 실패
 		return false;
 	}
 
 	// 이미 같은 무기에 같은 Mod Item이 연결된 경우 중복 요청으로 처리한다
-	if (TargetWeaponItem->GetEquippedModItemId() == ModItemId
-		&& ModItem->GetEquippedWeaponItemId() == TargetWeaponItemId)
+	if (TargetWeaponItem->GetEquippedModItem() == ModItem
+		&& ModItem->GetEquippedWeaponItem() == TargetWeaponItem)
 	{
-		// 중복 장착 요청을 Owner, WeaponItemId, ModItemId 기준으로 추적
+		// 중복 장착 요청을 Owner, Weapon Item, Mod Item 기준으로 추적
 		UE_LOG(
 			LogTemp,
 			Warning,
-			TEXT("[Inventory][Server] Mod 장착 실패. EquipModItemToWeapon() | Owner = %s | TargetWeaponItemId = %s | ModItemId = %s | Reason = AlreadyEquipped"),
+			TEXT("[Inventory][Server] Mod 장착 실패. EquipModItemToWeapon() | Owner = %s | TargetWeaponItem = %s | ModItem = %s | Reason = AlreadyEquipped"),
 			*GetNameSafe(GetOwner()),
-			*TargetWeaponItemId.ToString(),
-			*ModItemId.ToString());
+			*GetNameSafe(TargetWeaponItem),
+			*GetNameSafe(ModItem));
 
 		// 장착 실패. 이미 동일한 연결 상태다
 		return false;
 	}
 
 	// 이동 장착을 위해 Mod Item이 기억하던 기존 Weapon Item 연결을 먼저 해제한다
-	const FGuid PreviousWeaponItemId = ModItem->GetEquippedWeaponItemId();
-	if (PreviousWeaponItemId.IsValid())
+	UPRItemInstance_Weapon* PreviousWeaponItem = ModItem->GetEquippedWeaponItem();
+	if (IsValid(PreviousWeaponItem) && OwnsWeapon(PreviousWeaponItem) && PreviousWeaponItem != TargetWeaponItem)
 	{
-		UPRItemInstance_Weapon* PreviousWeaponItem = FindWeaponByItemId(PreviousWeaponItemId);
-		if (IsValid(PreviousWeaponItem) && PreviousWeaponItem != TargetWeaponItem)
-		{
-			// 기존 장착 무기에서 Mod Item 연결과 적용 데이터를 제거한다
-			PreviousWeaponItem->ClearEquippedModItemId();
-			PreviousWeaponItem->SetModData(nullptr);
+		// 기존 장착 무기에서 Mod Item 연결과 적용 데이터를 제거한다
+		PreviousWeaponItem->ClearEquippedModItem();
+		PreviousWeaponItem->SetModData(nullptr);
 
-			// 기존 무기가 현재 장착 중이면 어빌리티와 공개 상태를 해제 상태로 갱신한다
-			NotifyWeaponItemModChanged(PreviousWeaponItem);
-		}
-		else if (!IsValid(PreviousWeaponItem))
-		{
-			// 인벤토리에 없는 Weapon Item을 가리키는 오래된 연결은 새 장착 전에 정리한다
-			ModItem->ClearEquippedWeaponItem();
-		}
+		// 기존 무기가 현재 장착 중이면 어빌리티와 공개 상태를 해제 상태로 갱신한다
+		NotifyWeaponItemModChanged(PreviousWeaponItem);
+	}
+	else if (!IsValid(PreviousWeaponItem) || !OwnsWeapon(PreviousWeaponItem))
+	{
+		// 인벤토리에 없는 Weapon Item을 가리키는 오래된 연결은 새 장착 전에 정리한다
+		ModItem->ClearEquippedWeaponItem();
 	}
 
 	// 타겟 무기에 다른 Mod Item이 있었다면 해당 Mod Item의 역참조를 먼저 비운다
-	const FGuid PreviousModItemId = TargetWeaponItem->GetEquippedModItemId();
-	if (PreviousModItemId.IsValid() && PreviousModItemId != ModItemId)
+	UPRItemInstance_Mod* PreviousModItem = TargetWeaponItem->GetEquippedModItem();
+	if (IsValid(PreviousModItem) && PreviousModItem != ModItem)
 	{
-		UPRItemInstance_Mod* PreviousModItem = FindModByItemId(PreviousModItemId);
-		if (IsValid(PreviousModItem))
-		{
-			PreviousModItem->ClearEquippedWeaponItem();
-		}
+		PreviousModItem->ClearEquippedWeaponItem();
 	}
 
 	// 인벤토리 정본 상태를 새 Mod Item과 타겟 Weapon Item의 양방향 연결로 확정한다
-	TargetWeaponItem->SetEquippedModItemId(ModItemId);
+	TargetWeaponItem->SetEquippedModItem(ModItem);
 	TargetWeaponItem->SetModData(ModItem->GetModData());
-	ModItem->MarkEquippedToWeaponItem(TargetWeaponItemId);
+	ModItem->MarkEquippedToWeaponItem(TargetWeaponItem);
 
 	// 타겟 무기가 현재 장착 중이면 어빌리티와 공개 상태를 새 Mod 기준으로 갱신한다
 	NotifyWeaponItemModChanged(TargetWeaponItem);
@@ -346,80 +320,61 @@ bool UPRInventoryComponent::EquipModItemToWeapon(const FGuid& ModItemId, const F
 		GetOwner()->ForceNetUpdate();
 	}
 
-	// 서버 장착 처리가 확정된 뒤 Owner, WeaponItemId, ModItemId, Mod 데이터를 남겨 UI 요청 흐름 추적
+	// 서버 장착 처리가 확정된 뒤 Owner, Weapon Item, Mod Item, Mod 데이터를 남겨 UI 요청 흐름 추적
 	UE_LOG(
 		LogTemp,
 		Log,
-		TEXT("[Inventory][Server] Mod 장착 완료. EquipModItemToWeapon() | Owner = %s | TargetWeaponItemId = %s | ModItemId = %s | Mod = %s"),
+		TEXT("[Inventory][Server] Mod 장착 완료. EquipModItemToWeapon() | Owner = %s | TargetWeaponItem = %s | ModItem = %s | Mod = %s"),
 		*GetNameSafe(GetOwner()),
-		*TargetWeaponItemId.ToString(),
-		*ModItemId.ToString(),
+		*GetNameSafe(TargetWeaponItem),
+		*GetNameSafe(ModItem),
 		*GetNameSafe(ModItem->GetModData()));
 
 	// 장착 성공. 기존 연결 해제, 새 연결 확정, 장착 중 무기 런타임 갱신 마침
 	return true;
 }
 
-bool UPRInventoryComponent::UnequipModFromWeapon(const FGuid& TargetWeaponItemId)
+bool UPRInventoryComponent::UnequipModFromWeapon(UPRItemInstance_Weapon* TargetWeaponItem)
 {
-	// 서버 내부 해제에 필요한 Weapon Item 식별자가 유효하지 않은 경우
-	if (!TargetWeaponItemId.IsValid())
-	{
-		// Mod 해제 실패 입력을 Owner와 WeaponItemId 기준으로 추적
-		UE_LOG(
-			LogTemp,
-			Warning,
-			TEXT("[Inventory][Server] Mod 해제 실패. UnequipModFromWeapon() | Owner = %s | TargetWeaponItemId = %s"),
-			*GetNameSafe(GetOwner()),
-			*TargetWeaponItemId.ToString());
-
-		// 해제 실패. 요청 식별자 검증 실패
-		return false;
-	}
-
-	UPRItemInstance_Weapon* TargetWeaponItem = FindWeaponByItemId(TargetWeaponItemId);
+	// 해제 대상 Weapon Item은 같은 인벤토리 소유여야 서버 정본 변경이 가능하다
 	if (!IsValid(TargetWeaponItem) || !OwnsWeapon(TargetWeaponItem))
 	{
-		// Weapon Item 소유권 검증 실패 상황을 Owner와 ItemId 기준으로 추적
+		// Weapon Item 소유권 검증 실패 상황을 Owner와 Item 참조 기준으로 추적
 		UE_LOG(
 			LogTemp,
 			Warning,
-			TEXT("[Inventory][Server] Mod 해제 실패. UnequipModFromWeapon() | Owner = %s | TargetWeaponItemId = %s | Reason = InvalidWeaponItem"),
+			TEXT("[Inventory][Server] Mod 해제 실패. UnequipModFromWeapon() | Owner = %s | TargetWeaponItem = %s | Reason = InvalidWeaponItem"),
 			*GetNameSafe(GetOwner()),
-			*TargetWeaponItemId.ToString());
+			*GetNameSafe(TargetWeaponItem));
 
-		// 해제 실패. Weapon Item 조회나 소유권 검증 실패
+		// 해제 실패. Weapon Item 소유권 검증 실패
 		return false;
 	}
 
 	// Weapon Item이 기억하던 Mod Item이 있으면 Mod Item의 역참조를 함께 정리한다
-	const FGuid PreviousModItemId = TargetWeaponItem->GetEquippedModItemId();
-	if (PreviousModItemId.IsValid())
+	UPRItemInstance_Mod* PreviousModItem = TargetWeaponItem->GetEquippedModItem();
+	if (IsValid(PreviousModItem))
 	{
-		UPRItemInstance_Mod* PreviousModItem = FindModByItemId(PreviousModItemId);
-		if (IsValid(PreviousModItem))
-		{
-			PreviousModItem->ClearEquippedWeaponItem();
-		}
+		PreviousModItem->ClearEquippedWeaponItem();
 	}
 
 	// 장착된 Mod Item도 Mod 데이터도 없으면 해제할 상태가 없다
-	if (!PreviousModItemId.IsValid() && !IsValid(TargetWeaponItem->GetModData()))
+	if (!IsValid(PreviousModItem) && !IsValid(TargetWeaponItem->GetModData()))
 	{
-		// 무변경 해제 요청을 Owner와 WeaponItemId 기준으로 추적
+		// 무변경 해제 요청을 Owner와 Weapon Item 기준으로 추적
 		UE_LOG(
 			LogTemp,
 			Warning,
-			TEXT("[Inventory][Server] Mod 해제 실패. UnequipModFromWeapon() | Owner = %s | TargetWeaponItemId = %s | Reason = EmptyMod"),
+			TEXT("[Inventory][Server] Mod 해제 실패. UnequipModFromWeapon() | Owner = %s | TargetWeaponItem = %s | Reason = EmptyMod"),
 			*GetNameSafe(GetOwner()),
-			*TargetWeaponItemId.ToString());
+			*GetNameSafe(TargetWeaponItem));
 
 		// 해제 실패. 이미 빈 Mod 상태다
 		return false;
 	}
 
 	// 인벤토리 정본 상태에서 Weapon Item의 Mod 연결을 제거한다
-	TargetWeaponItem->ClearEquippedModItemId();
+	TargetWeaponItem->ClearEquippedModItem();
 	TargetWeaponItem->SetModData(nullptr);
 
 	// 타겟 무기가 현재 장착 중이면 어빌리티와 공개 상태를 빈 Mod 기준으로 갱신한다
@@ -430,14 +385,14 @@ bool UPRInventoryComponent::UnequipModFromWeapon(const FGuid& TargetWeaponItemId
 		GetOwner()->ForceNetUpdate();
 	}
 
-	// 서버 해제 처리가 확정된 뒤 Owner, WeaponItemId, 이전 ModItemId를 남겨 UI 요청 흐름 추적
+	// 서버 해제 처리가 확정된 뒤 Owner, Weapon Item, 이전 Mod Item을 남겨 UI 요청 흐름 추적
 	UE_LOG(
 		LogTemp,
 		Log,
-		TEXT("[Inventory][Server] Mod 해제 완료. UnequipModFromWeapon() | Owner = %s | TargetWeaponItemId = %s | PreviousModItemId = %s"),
+		TEXT("[Inventory][Server] Mod 해제 완료. UnequipModFromWeapon() | Owner = %s | TargetWeaponItem = %s | PreviousModItem = %s"),
 		*GetNameSafe(GetOwner()),
-		*TargetWeaponItemId.ToString(),
-		*PreviousModItemId.ToString());
+		*GetNameSafe(TargetWeaponItem),
+		*GetNameSafe(PreviousModItem));
 
 	// 해제 성공. Mod Item 역참조와 Weapon Item Mod 상태 갱신 마침
 	return true;
@@ -461,102 +416,6 @@ UPRItemInstance_Mod* UPRInventoryComponent::GetModItemAtIndex(int32 ItemIndex) c
 	}
 
 	return InventoryModItems[ItemIndex];
-}
-
-UPRItemInstance_Weapon* UPRInventoryComponent::FindWeaponByItemId(const FGuid& ItemId) const
-{
-	// 잘못된 식별자면 조회를 수행하지 않는다
-	if (!ItemId.IsValid())
-	{
-		return nullptr;
-	}
-
-	for (UPRItemInstance_Weapon* WeaponItem : InventoryWeaponItems)
-	{
-		if (!IsValid(WeaponItem))
-		{
-			continue;
-		}
-
-		if (WeaponItem->GetItemId() == ItemId)
-		{
-			return WeaponItem;
-		}
-	}
-
-	return nullptr;
-}
-
-UPRItemInstance_Mod* UPRInventoryComponent::FindModByItemId(const FGuid& ItemId) const
-{
-	// 잘못된 식별자면 조회를 수행하지 않는다
-	if (!ItemId.IsValid())
-	{
-		return nullptr;
-	}
-
-	for (UPRItemInstance_Mod* ModItem : InventoryModItems)
-	{
-		if (!IsValid(ModItem))
-		{
-			continue;
-		}
-
-		if (ModItem->GetItemId() == ItemId)
-		{
-			return ModItem;
-		}
-	}
-
-	return nullptr;
-}
-
-FGuid UPRInventoryComponent::FindWeaponItemIdByWeaponData(const UPRWeaponDataAsset* WeaponData) const
-{
-	// 잘못된 무기 데이터면 조회를 수행하지 않는다
-	if (!IsValid(WeaponData))
-	{
-		return FGuid();
-	}
-
-	for (const UPRItemInstance_Weapon* WeaponItem : InventoryWeaponItems)
-	{
-		if (!IsValid(WeaponItem))
-		{
-			continue;
-		}
-
-		if (WeaponItem->MatchesWeaponData(WeaponData))
-		{
-			return WeaponItem->GetItemId();
-		}
-	}
-
-	return FGuid();
-}
-
-FGuid UPRInventoryComponent::FindModItemIdByModData(const UPRWeaponModDataAsset* ModData) const
-{
-	// 잘못된 Mod 데이터면 조회를 수행하지 않는다
-	if (!IsValid(ModData))
-	{
-		return FGuid();
-	}
-
-	for (const UPRItemInstance_Mod* ModItem : InventoryModItems)
-	{
-		if (!IsValid(ModItem))
-		{
-			continue;
-		}
-
-		if (ModItem->MatchesModData(ModData))
-		{
-			return ModItem->GetItemId();
-		}
-	}
-
-	return FGuid();
 }
 
 bool UPRInventoryComponent::OwnsWeapon(const UPRItemInstance_Weapon* WeaponItem) const
@@ -583,11 +442,11 @@ bool UPRInventoryComponent::OwnsMod(const UPRItemInstance_Mod* ModItem) const
 
 void UPRInventoryComponent::OnRep_InventoryWeaponItems()
 {
-	// 클라이언트에서 무기 Item 목록과 장착 Mod Item 식별자 복제 결과를 추적
+	// 클라이언트에서 무기 Item 목록과 장착 Mod Item 참조 복제 결과를 추적
 	UE_LOG(
 		LogTemp,
 		Log,
-		TEXT("[Inventory][Client] InventoryWeaponItems replicated. Owner=%s Count=%d"),
+		TEXT("[Inventory][Client] InventoryWeaponItems replicated. Owner = %s | Count = %d"),
 		*GetNameSafe(GetOwner()),
 		InventoryWeaponItems.Num());
 
@@ -610,23 +469,23 @@ void UPRInventoryComponent::OnRep_InventoryWeaponItems()
 		UE_LOG(
 			LogTemp,
 			Log,
-			TEXT("[Inventory][Client] Item[%d] WeaponItem. ItemId=%s Weapon=%s WeaponId=%s Mod=%s ModItemId=%s"),
+			TEXT("[Inventory][Client] Item[%d] WeaponItem. Item = %s | Weapon = %s | WeaponId = %s | Mod = %s | ModItem = %s"),
 			ItemIndex,
-			*WeaponItem->GetItemId().ToString(),
+			*GetNameSafe(WeaponItem),
 			*GetNameSafe(WeaponData),
 			IsValid(WeaponData) ? *WeaponData->WeaponId.ToString() : TEXT("None"),
 			*GetNameSafe(WeaponItem->GetModData()),
-			*WeaponItem->GetEquippedModItemId().ToString());
+			*GetNameSafe(WeaponItem->GetEquippedModItem()));
 	}
 }
 
 void UPRInventoryComponent::OnRep_InventoryModItems()
 {
-	// 클라이언트에서 Mod Item 목록과 장착 대상 식별자 복제 결과를 추적
+	// 클라이언트에서 Mod Item 목록과 장착 대상 Item 참조 복제 결과를 추적
 	UE_LOG(
 		LogTemp,
 		Log,
-		TEXT("[Inventory][Client] InventoryModItems replicated. Owner=%s Count=%d"),
+		TEXT("[Inventory][Client] InventoryModItems replicated. Owner = %s | Count = %d"),
 		*GetNameSafe(GetOwner()),
 		InventoryModItems.Num());
 
@@ -649,11 +508,11 @@ void UPRInventoryComponent::OnRep_InventoryModItems()
 		UE_LOG(
 			LogTemp,
 			Log,
-			TEXT("[Inventory][Client] ModItem[%d] ItemId=%s Mod=%s EquippedWeaponItemId=%s"),
+			TEXT("[Inventory][Client] ModItem[%d] Item = %s | Mod = %s | EquippedWeaponItem = %s"),
 			ItemIndex,
-			*ModItem->GetItemId().ToString(),
+			*GetNameSafe(ModItem),
 			*GetNameSafe(ModData),
-			*ModItem->GetEquippedWeaponItemId().ToString());
+			*GetNameSafe(ModItem->GetEquippedWeaponItem()));
 	}
 }
 
@@ -772,12 +631,12 @@ void UPRInventoryComponent::Server_RequestAddModItem_Implementation(UPRWeaponMod
 	AddModItem(ModData);
 }
 
-void UPRInventoryComponent::Server_RequestEquipModItemToWeapon_Implementation(const FGuid& ModItemId, const FGuid& TargetWeaponItemId)
+void UPRInventoryComponent::Server_RequestEquipModItemToWeapon_Implementation(UPRItemInstance_Mod* ModItem, UPRItemInstance_Weapon* TargetWeaponItem)
 {
-	EquipModItemToWeapon(ModItemId, TargetWeaponItemId);
+	EquipModItemToWeapon(ModItem, TargetWeaponItem);
 }
 
-void UPRInventoryComponent::Server_RequestUnequipModFromWeapon_Implementation(const FGuid& TargetWeaponItemId)
+void UPRInventoryComponent::Server_RequestUnequipModFromWeapon_Implementation(UPRItemInstance_Weapon* TargetWeaponItem)
 {
-	UnequipModFromWeapon(TargetWeaponItemId);
+	UnequipModFromWeapon(TargetWeaponItem);
 }

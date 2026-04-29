@@ -6,6 +6,7 @@
 #include "ProjectR/Inventory/Items/PRItemInstance.h"
 #include "PRItemInstance_Mod.generated.h"
 
+class UPRItemInstance_Weapon;
 class UPRWeaponModDataAsset;
 
 // 인벤토리가 소유하는 무기 Mod 1개의 지속 인스턴스다
@@ -31,17 +32,17 @@ public:
 
 	// 현재 다른 무기 Item에 장착되어 있는지 확인한다
 	UFUNCTION(BlueprintPure, Category = "ProjectR|Weapon")
-	bool IsEquipped() const { return EquippedWeaponItemId.IsValid(); }
+	bool IsEquipped() const;
 
-	// 현재 이 Mod를 장착 중인 무기 Item 식별자를 반환한다
+	// 현재 이 Mod를 장착 중인 무기 Item을 반환한다
 	UFUNCTION(BlueprintPure, Category = "ProjectR|Weapon")
-	FGuid GetEquippedWeaponItemId() const { return EquippedWeaponItemId; }
+	UPRItemInstance_Weapon* GetEquippedWeaponItem() const { return EquippedWeaponItem; }
 
 	// 지정 무기 Item에 장착 가능한 상태인지 확인한다
-	bool CanEquipToWeaponItem(const FGuid& WeaponItemId) const;
+	bool CanEquipToWeaponItem(const UPRItemInstance_Weapon* WeaponItem) const;
 
 	// 지정 무기 Item에 장착된 상태로 표시한다
-	void MarkEquippedToWeaponItem(const FGuid& WeaponItemId);
+	void MarkEquippedToWeaponItem(UPRItemInstance_Weapon* WeaponItem);
 
 	// 장착 중인 무기 Item 연결을 해제한다
 	void ClearEquippedWeaponItem();
@@ -53,14 +54,14 @@ private:
 
 	// 장착 대상 복제 완료 시 클라이언트 확인 로그를 남긴다
 	UFUNCTION()
-	void OnRep_EquippedWeaponItemId();
+	void OnRep_EquippedWeaponItem();
 
 public:
 	// 현재 연결된 Mod 데이터
 	UPROPERTY(ReplicatedUsing = OnRep_ModData, VisibleInstanceOnly, BlueprintReadOnly, Category = "ProjectR|Weapon")
 	TObjectPtr<UPRWeaponModDataAsset> ModData = nullptr;
 
-	// 이 Mod를 장착 중인 무기 Item 식별자
-	UPROPERTY(ReplicatedUsing = OnRep_EquippedWeaponItemId, VisibleInstanceOnly, BlueprintReadOnly, Category = "ProjectR|Weapon")
-	FGuid EquippedWeaponItemId;
+	// 이 Mod를 장착 중인 무기 Item
+	UPROPERTY(ReplicatedUsing = OnRep_EquippedWeaponItem, VisibleInstanceOnly, BlueprintReadOnly, Category = "ProjectR|Weapon")
+	TObjectPtr<UPRItemInstance_Weapon> EquippedWeaponItem = nullptr;
 };

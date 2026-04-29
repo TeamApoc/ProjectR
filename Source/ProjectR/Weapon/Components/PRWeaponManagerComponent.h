@@ -61,11 +61,8 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "ProjectR|Weapon")
 	bool EquipInventoryWeaponAtIndex(int32 InventoryIndex);
 
-	// 인벤토리 Item 식별자로 무기를 데이터가 지정한 슬롯에 연결한다
-	UFUNCTION(BlueprintCallable, Category = "ProjectR|Weapon")
-	bool EquipWeaponItemById(const FGuid& ItemId);
-
 	// 인벤토리 소유 무기를 데이터가 지정한 슬롯에 연결한다
+	UFUNCTION(BlueprintCallable, Category = "ProjectR|Weapon")
 	bool EquipWeapon(UPRItemInstance_Weapon* WeaponItem);
 
 	// 지정 슬롯의 무기 연결만 해제한다
@@ -97,9 +94,6 @@ public:
 protected:
 	// 서버 권위에서 슬롯 원본과 공개 상태를 갱신한다
 	bool EquipWeaponInternal(UPRItemInstance_Weapon* WeaponItem);
-
-	// 서버 권위에서 Item 식별자로 슬롯 원본과 공개 상태를 갱신한다
-	bool EquipWeaponItemByIdInternal(const FGuid& ItemId);
 
 	// 서버 권위에서 슬롯 원본 제거와 공개 상태를 갱신한다
 	bool UnequipWeaponFromSlotInternal(EPRWeaponSlotType TargetSlot);
@@ -138,9 +132,9 @@ protected:
 	UFUNCTION()
 	void OnRep_ArmedState(EPRArmedState OldArmedState);
 
-	// 클라이언트 Item 식별자 장착 요청을 서버 권위 경로로 전달한다
+	// 클라이언트 Item 장착 요청을 서버 권위 경로로 전달한다
 	UFUNCTION(Server, Reliable)
-	void Server_EquipWeaponItemById(const FGuid& ItemId);
+	void Server_EquipWeapon(UPRItemInstance_Weapon* WeaponItem);
 
 	// 클라이언트 장비 해제 요청을 서버 권위 경로로 전달한다
 	UFUNCTION(Server, Reliable)
@@ -214,11 +208,11 @@ protected:
 	FPRWeaponVisualInfo SecondaryVisualInfo;
 
 	// 주무기 슬롯에 연결된 무기 Item 원본
-	UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Category = "ProjectR|Weapon", meta = (AllowPrivateAccess = "true"))
+	UPROPERTY(Replicated, VisibleInstanceOnly, BlueprintReadOnly, Category = "ProjectR|Weapon", meta = (AllowPrivateAccess = "true"))
 	TObjectPtr<UPRItemInstance_Weapon> PrimaryWeaponInstance;
 
 	// 보조무기 슬롯에 연결된 무기 Item 원본
-	UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Category = "ProjectR|Weapon", meta = (AllowPrivateAccess = "true"))
+	UPROPERTY(Replicated, VisibleInstanceOnly, BlueprintReadOnly, Category = "ProjectR|Weapon", meta = (AllowPrivateAccess = "true"))
 	TObjectPtr<UPRItemInstance_Weapon> SecondaryWeaponInstance;
 
 	// 현재 캐릭터 메시와 연결된 무기 애니메이션 레이어 클래스

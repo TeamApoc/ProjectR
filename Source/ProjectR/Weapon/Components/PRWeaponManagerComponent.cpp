@@ -13,6 +13,7 @@
 #include "ProjectR/Weapon/Actors/PRWeaponActor.h"
 #include "ProjectR/Weapon/Data/PRWeaponDataAsset.h"
 #include "ProjectR/Weapon/Data/PRWeaponModDataAsset.h"
+#include "ProjectR/Weapon/Items/PRItemInstance_Mod.h"
 #include "ProjectR/Weapon/Items/PRItemInstance_Weapon.h"
 
 namespace
@@ -112,6 +113,12 @@ void UPRWeaponManagerComponent::GetLifetimeReplicatedProps(TArray<FLifetimePrope
 
 	// 보조무기 공개 비주얼 정보는 owner-only 원본 포인터 없이 클라이언트 표시를 갱신하기 위해 복제
 	DOREPLIFETIME(UPRWeaponManagerComponent, SecondaryVisualInfo);
+
+	// 주무기 원본 Item 참조는 소유자 UI와 서버 내부 장착 판단에만 필요하므로 owner-only로 복제
+	DOREPLIFETIME_CONDITION(UPRWeaponManagerComponent, PrimaryWeaponInstance, COND_OwnerOnly);
+
+	// 보조무기 원본 Item 참조는 소유자 UI와 서버 내부 장착 판단에만 필요하므로 owner-only로 복제
+	DOREPLIFETIME_CONDITION(UPRWeaponManagerComponent, SecondaryWeaponInstance, COND_OwnerOnly);
 }
 
 void UPRWeaponManagerComponent::InitializeRuntimeLinks()
@@ -203,7 +210,6 @@ const FPRWeaponVisualInfo& UPRWeaponManagerComponent::GetVisualInfoBySlotType(EP
 
 bool UPRWeaponManagerComponent::EquipInventoryWeaponAtIndex(int32 InventoryIndex)
 {
-	// 클라이언트가 복제받은 인벤토리 항목으로 장착할 수 있도록 인덱스를 Item 식별자로 변환한다
 	// 인벤토리 캐시가 비어 있을 수 있으므로 장착 요청마다 런타임 링크 갱신
 	InitializeRuntimeLinks();
 
@@ -214,7 +220,7 @@ bool UPRWeaponManagerComponent::EquipInventoryWeaponAtIndex(int32 InventoryIndex
 		return false;
 	}
 
-	// 인덱스 기반 요청을 서버 검증 가능한 Item 식별자 요청으로 변환하기 위한 Item 조회
+	// 인덱스 기반 UI 요청을 실제 Item 참조 요청으로 변환하기 위한 Item 조회
 	UPRItemInstance_Weapon* WeaponItem = CachedInventory->GetWeaponItemAtIndex(InventoryIndex);
 
 	// 인덱스에 대응하는 무기 Item이 없는 경우
@@ -233,35 +239,8 @@ bool UPRWeaponManagerComponent::EquipInventoryWeaponAtIndex(int32 InventoryIndex
 		return false;
 	}
 
-	// 조회된 ItemId로 포인터 신뢰 없이 장착 요청을 이어감
-	return EquipWeaponItemById(WeaponItem->GetItemId());
-}
-
-bool UPRWeaponManagerComponent::EquipWeaponItemById(const FGuid& ItemId)
-{
-	// Item 식별자 기반 요청은 클라이언트가 원본 포인터를 신뢰하지 않도록 서버에서 다시 조회한다
-	// 유효하지 않은 ItemId인 경우
-	if (!ItemId.IsValid())
-	{
-		// 장착 실패. 요청 검증 실패
-		return false;
-	}
-
-	// 서버 권위가 있으면 RPC를 거치지 않고 내부 장착 경로로 즉시 처리
-	if (IsValid(GetOwner()) && GetOwner()->HasAuthority())
-	{
-		// 내부 처리에서 인벤토리를 다시 조회할 수 있도록 런타임 링크 갱신
-		InitializeRuntimeLinks();
-
-		// 서버 권위 장착 결과 리턴
-		return EquipWeaponItemByIdInternal(ItemId);
-	}
-
-	// 클라이언트 요청은 서버에서 ItemId를 다시 검증하도록 RPC 전송
-	Server_EquipWeaponItemById(ItemId);
-
-	// 요청 접수 성공. 서버 요청 전송 마침
-	return true;
+	// 조회된 Item 참조로 장착 요청을 이어간다
+	return EquipWeapon(WeaponItem);
 }
 
 bool UPRWeaponManagerComponent::EquipWeapon(UPRItemInstance_Weapon* WeaponItem)
@@ -283,8 +262,11 @@ bool UPRWeaponManagerComponent::EquipWeapon(UPRItemInstance_Weapon* WeaponItem)
 		return EquipWeaponInternal(WeaponItem);
 	}
 
-	// 장착 실패. 클라이언트의 원본 포인터 기반 장착 요청은 신뢰하지 않음
-	return false;
+	// 클라이언트 요청은 서버에서 Item 참조와 인벤토리 소유권을 다시 검증하도록 RPC 전송
+	Server_EquipWeapon(WeaponItem);
+
+	// 요청 접수 성공. 서버 요청 전송 마침
+	return true;
 }
 
 bool UPRWeaponManagerComponent::UnequipWeaponFromSlot(EPRWeaponSlotType TargetSlot)
@@ -437,56 +419,16 @@ void UPRWeaponManagerComponent::HandleInventoryWeaponModChanged(UPRItemInstance_
 	// 현재 활성 무기의 애니메이션 레이어 캐시를 재확인한다
 	RefreshAnimLayer();
 
-	// 서버 Mod 변경 반응이 끝난 뒤 Owner, 슬롯, ItemId, Mod 상태를 남겨 인벤토리 연동 흐름 추적
+	// 서버 Mod 변경 반응이 끝난 뒤 Owner, 슬롯, Weapon Item, Mod 상태를 남겨 인벤토리 연동 흐름 추적
 	UE_LOG(
 		LogTemp,
 		Log,
-		TEXT("[WeaponManagerComponent][Server] 인벤토리 Mod 변경 반영. HandleInventoryWeaponModChanged() | Owner = %s | Slot = %s | WeaponItemId = %s | Mod = %s | ModItemId = %s"),
+		TEXT("[WeaponManagerComponent][Server] 인벤토리 Mod 변경 반영. HandleInventoryWeaponModChanged() | Owner = %s | Slot = %s | WeaponItem = %s | Mod = %s | ModItem = %s"),
 		*GetNameSafe(GetOwner()),
 		*UEnum::GetValueAsString(TargetSlot),
-		*WeaponItem->GetItemId().ToString(),
+		*GetNameSafe(WeaponItem),
 		*GetNameSafe(WeaponItem->GetModData()),
-		*WeaponItem->GetEquippedModItemId().ToString());
-}
-
-bool UPRWeaponManagerComponent::EquipWeaponItemByIdInternal(const FGuid& ItemId)
-{
-	// 서버 내부 장착에 필요한 ItemId와 인벤토리 캐시가 유효하지 않은 경우
-	if (!ItemId.IsValid() || !IsValid(CachedInventory))
-	{
-		// 장착 실패. 내부 검증 실패
-		return false;
-	}
-
-	// 서버 인벤토리에서 ItemId에 대응하는 실제 무기 Item 조회
-	UPRItemInstance_Weapon* WeaponItem = CachedInventory->FindWeaponByItemId(ItemId);
-
-	// 서버 인벤토리에서 무기 Item을 찾지 못한 경우
-	if (!IsValid(WeaponItem))
-	{
-		// ItemId 기반 장착 실패 상황을 Owner, ItemId 기준으로 추적
-		UE_LOG(
-			LogTemp,
-			Warning,
-			TEXT("[WeaponManagerComponent][Server] 무기 장착 실패. EquipWeaponItemByIdInternal | Owner = %s | ItemId = %s"),
-			*GetNameSafe(GetOwner()),
-			*ItemId.ToString());
-		
-		// 장착 실패. Item 조회 실패
-		return false;
-	}
-
-	// // ItemId 검증이 끝난 뒤 실제 장착 처리로 넘어가는 입력 상태를 추적
-	// UE_LOG(
-	// 	LogTemp,
-	// 	Log,
-	// 	TEXT("[WeaponManagerComponent][Server] ItemId 장착 처리 시작 | Owner = %s | ItemId = %s | Weapon = %s"),
-	// 	*GetNameSafe(GetOwner()),
-	// 	*ItemId.ToString(),
-	// 	*GetNameSafe(WeaponItem->GetWeaponData()));
-
-	// 검증된 무기 Item으로 슬롯 장착 처리 결과 리턴
-	return EquipWeaponInternal(WeaponItem);
+		*GetNameSafe(WeaponItem->GetEquippedModItem()));
 }
 
 bool UPRWeaponManagerComponent::EquipWeaponInternal(UPRItemInstance_Weapon* WeaponItem)
@@ -562,14 +504,14 @@ bool UPRWeaponManagerComponent::EquipWeaponInternal(UPRItemInstance_Weapon* Weap
 	// 활성 무기 변화에 맞춰 애니메이션 레이어 갱신
 	RefreshAnimLayer();
 
-	// 서버 장착 처리가 확정된 뒤 Owner, 슬롯, ItemId, 무기 데이터, 활성 슬롯을 남겨 장착 흐름 추적
+	// 서버 장착 처리가 확정된 뒤 Owner, 슬롯, Weapon Item, 무기 데이터, 활성 슬롯을 남겨 장착 흐름 추적
 	UE_LOG(
 		LogTemp,
 		Log,
-		TEXT("[WeaponManagerComponent][Server] 무기 장착 완료. EquipWeaponInternal | Owner = %s | Slot = %s | ItemId = %s | Weapon = %s | CurrentWeaponSlot = %s"),
+		TEXT("[WeaponManagerComponent][Server] 무기 장착 완료. EquipWeaponInternal | Owner = %s | Slot = %s | WeaponItem = %s | Weapon = %s | CurrentWeaponSlot = %s"),
 		*GetNameSafe(GetOwner()),
 		*UEnum::GetValueAsString(WeaponSlot),
-		*WeaponItem->GetItemId().ToString(),
+		*GetNameSafe(WeaponItem),
 		*GetNameSafe(WeaponData),
 		*UEnum::GetValueAsString(CurrentWeaponSlot));
 	
@@ -637,14 +579,14 @@ bool UPRWeaponManagerComponent::UnequipWeaponFromSlotInternal(EPRWeaponSlotType 
 	// 활성 슬롯 해제 결과에 맞춰 애니메이션 레이어 갱신
 	RefreshAnimLayer();
 
-	// 서버 해제 처리가 확정된 뒤 Owner, 해제 슬롯, ItemId, 무기 데이터, 다음 활성 슬롯을 남겨 해제 흐름 추적
+	// 서버 해제 처리가 확정된 뒤 Owner, 해제 슬롯, Weapon Item, 무기 데이터, 다음 활성 슬롯을 남겨 해제 흐름 추적
 	UE_LOG(
 		LogTemp,
 		Log,
-		TEXT("[WeaponManagerComponent][Server] 무기 해제 완료. UnequipWeaponFromSlotInternal | Owner = %s | Slot = %s | ItemId = %s | Weapon = %s | NextWeaponSlot = %s"),
+		TEXT("[WeaponManagerComponent][Server] 무기 해제 완료. UnequipWeaponFromSlotInternal | Owner = %s | Slot = %s | WeaponItem = %s | Weapon = %s | NextWeaponSlot = %s"),
 		*GetNameSafe(GetOwner()),
 		*UEnum::GetValueAsString(TargetSlot),
-		*CurrentWeaponInstance->GetItemId().ToString(),
+		*GetNameSafe(CurrentWeaponInstance),
 		*GetNameSafe(CurrentWeaponInstance->GetWeaponData()),
 		*UEnum::GetValueAsString(CurrentWeaponSlot));
 	
@@ -684,8 +626,8 @@ bool UPRWeaponManagerComponent::AttachModToSlotInternal(EPRWeaponSlotType Target
 		return false;
 	}
 
-	// DataAsset 직접 장착 경로는 인벤토리 Mod Item을 거치지 않으므로 Item 식별자 연결을 비운다
-	TargetWeaponInstance->ClearEquippedModItemId();
+	// DataAsset 직접 장착 경로는 인벤토리 Mod Item을 거치지 않으므로 Item 참조 연결을 비운다
+	TargetWeaponInstance->ClearEquippedModItem();
 
 	// 플레이어 슬롯 자원이 연결된 경우
 	if (IsValid(CachedPlayerSet))
@@ -1059,13 +1001,13 @@ void UPRWeaponManagerComponent::OnRep_ArmedState(EPRArmedState OldArmedState)
 	RefreshAllWeaponActors();
 }
 
-void UPRWeaponManagerComponent::Server_EquipWeaponItemById_Implementation(const FGuid& ItemId)
+void UPRWeaponManagerComponent::Server_EquipWeapon_Implementation(UPRItemInstance_Weapon* WeaponItem)
 {
 	// 서버 RPC 진입 시 PlayerState 기반 런타임 링크 갱신
 	InitializeRuntimeLinks();
 
-	// 서버 권위에서 ItemId 기반 장착 처리
-	EquipWeaponItemByIdInternal(ItemId);
+	// 서버 권위에서 Item 참조 기반 장착 처리
+	EquipWeaponInternal(WeaponItem);
 }
 
 void UPRWeaponManagerComponent::Server_UnequipWeaponSlot_Implementation(EPRWeaponSlotType TargetSlot)
@@ -1114,7 +1056,6 @@ FPRWeaponVisualInfo UPRWeaponManagerComponent::BuildVisualInfo(EPRWeaponSlotType
 	// 원본 Item 기준으로 공개 가능한 무기와 Mod 데이터를 구성
 	NewVisualInfo.WeaponData = WeaponItem->GetWeaponData();
 	NewVisualInfo.ModData = WeaponItem->GetModData();
-	NewVisualInfo.ModItemId = WeaponItem->GetEquippedModItemId();
 
 	// 공개 비주얼 정보 구성 마침
 	return NewVisualInfo;

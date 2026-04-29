@@ -130,10 +130,6 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "ProjectR|Weapon")
 	TObjectPtr<UPRWeaponModDataAsset> ModData = nullptr;
 
-	// 슬롯에 장착된 공개 Mod Item 식별자
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "ProjectR|Weapon")
-	FGuid ModItemId;
-
 public:
 	// 현재 공개 비주얼 상태가 비어 있는지 확인한다
 	bool IsEmpty() const
@@ -147,7 +143,6 @@ public:
 		SlotType = InSlotType;
 		WeaponData = nullptr;
 		ModData = nullptr;
-		ModItemId.Invalidate();
 	}
 
 	// 두 공개 비주얼 상태가 같은 무기와 같은 Mod를 가리키는지 확인한다
@@ -155,8 +150,7 @@ public:
 	{
 		return SlotType == Other.SlotType
 			&& WeaponData == Other.WeaponData
-			&& ModData == Other.ModData
-			&& ModItemId == Other.ModItemId;
+			&& ModData == Other.ModData;
 	}
 
 	// 두 공개 비주얼 상태가 다른지 확인한다

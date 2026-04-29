@@ -46,17 +46,17 @@ public:
 
 	// Mod Item을 지정 무기 Item에 장착하도록 서버 권위 경로로 요청한다
 	UFUNCTION(BlueprintCallable, Category = "ProjectR|Inventory")
-	void RequestEquipModItemToWeapon(const FGuid& ModItemId, const FGuid& TargetWeaponItemId);
+	void RequestEquipModItemToWeapon(UPRItemInstance_Mod* ModItem, UPRItemInstance_Weapon* TargetWeaponItem);
 
 	// 지정 무기 Item의 Mod Item 장착을 해제하도록 서버 권위 경로로 요청한다
 	UFUNCTION(BlueprintCallable, Category = "ProjectR|Inventory")
-	void RequestUnequipModFromWeapon(const FGuid& TargetWeaponItemId);
+	void RequestUnequipModFromWeapon(UPRItemInstance_Weapon* TargetWeaponItem);
 
 	// Mod Item을 지정 무기 Item에 장착한다
-	bool EquipModItemToWeapon(const FGuid& ModItemId, const FGuid& TargetWeaponItemId);
+	bool EquipModItemToWeapon(UPRItemInstance_Mod* ModItem, UPRItemInstance_Weapon* TargetWeaponItem);
 
 	// 지정 무기 Item의 Mod Item 장착을 해제한다
-	bool UnequipModFromWeapon(const FGuid& TargetWeaponItemId);
+	bool UnequipModFromWeapon(UPRItemInstance_Weapon* TargetWeaponItem);
 
 	// 인벤토리 인덱스로 무기 Item을 조회한다
 	UFUNCTION(BlueprintPure, Category = "ProjectR|Inventory")
@@ -65,20 +65,6 @@ public:
 	// 인벤토리 인덱스로 무기 Mod Item을 조회한다
 	UFUNCTION(BlueprintPure, Category = "ProjectR|Inventory")
 	UPRItemInstance_Mod* GetModItemAtIndex(int32 ItemIndex) const;
-
-	// 식별자로 무기 Item을 조회한다
-	UPRItemInstance_Weapon* FindWeaponByItemId(const FGuid& ItemId) const;
-
-	// 식별자로 무기 Mod Item을 조회한다
-	UPRItemInstance_Mod* FindModByItemId(const FGuid& ItemId) const;
-
-	// 무기 데이터로 무기 Item 식별자를 찾는다
-	UFUNCTION(BlueprintPure, Category = "ProjectR|Inventory")
-	FGuid FindWeaponItemIdByWeaponData(const UPRWeaponDataAsset* WeaponData) const;
-
-	// Mod 데이터로 Mod Item 식별자를 찾는다
-	UFUNCTION(BlueprintPure, Category = "ProjectR|Inventory")
-	FGuid FindModItemIdByModData(const UPRWeaponModDataAsset* ModData) const;
 
 	// 인자로 받은 무기 Item을 현재 인벤토리가 소유하는지 확인한다
 	bool OwnsWeapon(const UPRItemInstance_Weapon* WeaponItem) const;
@@ -117,11 +103,11 @@ protected:
 
 	// 클라이언트 Mod 장착 요청을 서버의 인벤토리 장착 처리로 전달한다
 	UFUNCTION(Server, Reliable)
-	void Server_RequestEquipModItemToWeapon(const FGuid& ModItemId, const FGuid& TargetWeaponItemId);
+	void Server_RequestEquipModItemToWeapon(UPRItemInstance_Mod* ModItem, UPRItemInstance_Weapon* TargetWeaponItem);
 
 	// 클라이언트 Mod 해제 요청을 서버의 인벤토리 해제 처리로 전달한다
 	UFUNCTION(Server, Reliable)
-	void Server_RequestUnequipModFromWeapon(const FGuid& TargetWeaponItemId);
+	void Server_RequestUnequipModFromWeapon(UPRItemInstance_Weapon* TargetWeaponItem);
 
 private:
 	// 현재 인벤토리 소유자의 무기 매니저 컴포넌트를 조회한다

@@ -31,12 +31,16 @@ void UPRItemInstance_Weapon::GetLifetimeReplicatedProps(TArray<FLifetimeProperty
 
 	DOREPLIFETIME(UPRItemInstance_Weapon, WeaponData);
 	DOREPLIFETIME(UPRItemInstance_Weapon, ModData);
+	DOREPLIFETIME(UPRItemInstance_Weapon, EquippedModItemId);
+	DOREPLIFETIME(UPRItemInstance_Weapon, bIsEquippedCurrentWeaponSlot);
 }
 
 void UPRItemInstance_Weapon::InitializeWeaponItem(UPRWeaponDataAsset* InWeaponData, UPRWeaponModDataAsset* InModData)
 {
 	WeaponData = InWeaponData;
 	ModData = InModData;
+	ClearEquippedModItemId();
+	bIsEquippedCurrentWeaponSlot = false;
 	CachedWeaponAbilitySet = nullptr;
 	CachedModAbilitySet = nullptr;
 }
@@ -52,6 +56,16 @@ void UPRItemInstance_Weapon::SetModData(UPRWeaponModDataAsset* NewModData)
 	CachedModAbilitySet = nullptr;
 }
 
+void UPRItemInstance_Weapon::SetEquippedModItemId(const FGuid& NewModItemId)
+{
+	EquippedModItemId = NewModItemId;
+}
+
+void UPRItemInstance_Weapon::ClearEquippedModItemId()
+{
+	EquippedModItemId.Invalidate();
+}
+
 void UPRItemInstance_Weapon::OnEquipped(AActor* OwnerActor)
 {
 	// 장착 생명주기에서는 실제 부여 로직 대신 인터페이스 함수만 통과시킨다
@@ -60,12 +74,17 @@ void UPRItemInstance_Weapon::OnEquipped(AActor* OwnerActor)
 		return;
 	}
 
+	// 활성 슬롯 상태는 AbilitySet 부여 성공 여부와 분리해 먼저 기록한다
+	bIsEquippedCurrentWeaponSlot = true;
+
 	GrantEquippedAbilitySets(OwnerActor);
 }
 
 void UPRItemInstance_Weapon::OnUnequipped(AActor* OwnerActor)
 {
 	// 해제 생명주기에서는 실제 회수 로직 대신 인터페이스 함수만 통과시킨다
+	bIsEquippedCurrentWeaponSlot = false;
+
 	if (!IsValid(OwnerActor))
 	{
 		return;
@@ -165,10 +184,7 @@ void UPRItemInstance_Weapon::RebuildModAbility(AActor* OwnerActor, UPRWeaponModD
 	}
 
 	const UPRWeaponModDataAsset* PreviousModData = ModData;
-	const bool bWasEquipped = WeaponAbilityHandles.AbilityHandles.Num() > 0
-		|| WeaponAbilityHandles.EffectHandles.Num() > 0
-		|| ModAbilityHandles.AbilityHandles.Num() > 0
-		|| ModAbilityHandles.EffectHandles.Num() > 0;
+	const bool bWasEquipped = IsEquippedCurrentWeaponSlot();
 
 	ASC->ClearAbilitySetByHandles(ModAbilityHandles);
 
@@ -265,12 +281,27 @@ UPRAbilitySet* UPRItemInstance_Weapon::GetModAbilitySet()
 
 void UPRItemInstance_Weapon::OnRep_WeaponData()
 {
+	// 클라이언트에서 무기 데이터와 현재 Mod 연결 상태가 함께 복제됐는지 추적
 	UE_LOG(
 		LogTemp,
 		Log,
-		TEXT("[Inventory][Client] Weapon item data replicated. ItemId=%s Weapon=%s WeaponId=%s Mod=%s"),
+		TEXT("[Inventory][Client] Weapon item data replicated. ItemId=%s Weapon=%s WeaponId=%s Mod=%s ModItemId=%s"),
 		*GetItemId().ToString(),
 		*GetNameSafe(WeaponData),
 		IsValid(WeaponData) ? *WeaponData->WeaponId.ToString() : TEXT("None"),
-		*GetNameSafe(ModData));
+		*GetNameSafe(ModData),
+		*EquippedModItemId.ToString());
+}
+
+void UPRItemInstance_Weapon::OnRep_EquippedModItemId()
+{
+	// 클라이언트에서 장착 Mod Item 식별자만 갱신되는 상황을 ItemId 기준으로 추적
+	UE_LOG(
+		LogTemp,
+		Log,
+		TEXT("[Inventory][Client] Weapon item mod item replicated. ItemId=%s Weapon=%s Mod=%s ModItemId=%s"),
+		*GetItemId().ToString(),
+		*GetNameSafe(WeaponData),
+		*GetNameSafe(ModData),
+		*EquippedModItemId.ToString());
 }

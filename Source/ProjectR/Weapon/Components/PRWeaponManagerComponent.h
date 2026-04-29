@@ -88,6 +88,12 @@ public:
 	UFUNCTION(BlueprintPure, Category = "ProjectR|Weapon")
 	APRWeaponActor* GetActiveWeaponActor() const;
 
+	// 지정 무기 Item이 현재 매니저의 슬롯 원본인지 확인한다
+	bool IsManagingWeaponItem(const UPRItemInstance_Weapon* WeaponItem) const;
+
+	// 인벤토리에서 변경된 Mod 상태를 현재 관리 중인 무기 슬롯에 반영한다
+	void HandleInventoryWeaponModChanged(UPRItemInstance_Weapon* WeaponItem);
+
 protected:
 	// 서버 권위에서 슬롯 원본과 공개 상태를 갱신한다
 	bool EquipWeaponInternal(UPRItemInstance_Weapon* WeaponItem);
@@ -186,6 +192,9 @@ private:
 
 	// 대상 슬롯의 현재 로컬 Actor를 안전하게 정리한다
 	void DestroyWeaponActorForSlot(EPRWeaponSlotType SlotType);
+
+	// 지정 무기 Item이 연결된 슬롯 타입을 반환한다
+	EPRWeaponSlotType ResolveWeaponItemSlot(const UPRItemInstance_Weapon* WeaponItem) const;
 
 protected:
 	// 현재 무장 상태

@@ -82,6 +82,12 @@ UPRWeaponManagerComponent::UPRWeaponManagerComponent()
 
 void UPRWeaponManagerComponent::EndPlay(const EEndPlayReason::Type EndPlayReason)
 {
+	// 컴포넌트 종료 전에 활성 무기 Item의 AbilitySet을 회수해 ASC 핸들이 남지 않도록 정리
+	if (UPRItemInstance_Weapon* CurrentWeaponInstance = GetWeaponInstanceBySlotType(CurrentWeaponSlot))
+	{
+		CurrentWeaponInstance->OnUnequipped(GetOwner());
+	}
+
 	// 컴포넌트 종료 시 남아 있는 주무기 Actor 정리
 	DestroyWeaponActorForSlot(EPRWeaponSlotType::Primary);
 
@@ -373,6 +379,76 @@ APRWeaponActor* UPRWeaponManagerComponent::GetActiveWeaponActor() const
 	return GetWeaponActorBySlot(CurrentWeaponSlot);
 }
 
+bool UPRWeaponManagerComponent::IsManagingWeaponItem(const UPRItemInstance_Weapon* WeaponItem) const
+{
+	return ResolveWeaponItemSlot(WeaponItem) != EPRWeaponSlotType::None;
+}
+
+void UPRWeaponManagerComponent::HandleInventoryWeaponModChanged(UPRItemInstance_Weapon* WeaponItem)
+{
+	// PlayerState 기반 런타임 캐시가 늦게 연결된 경우를 대비해 반응 처리 전에 갱신한다
+	InitializeRuntimeLinks();
+
+	// 인벤토리 변경 반응은 현재 매니저가 슬롯 원본으로 들고 있는 무기만 처리한다
+	const EPRWeaponSlotType TargetSlot = ResolveWeaponItemSlot(WeaponItem);
+	if (TargetSlot == EPRWeaponSlotType::None)
+	{
+		// 함수 조기 종료. 현재 캐릭터가 장착 중인 무기 Item이 아니다
+		return;
+	}
+
+	// 슬롯 자원 재초기화와 어빌리티 리빌드에는 유효한 무기 데이터가 필요하다
+	if (!IsValid(WeaponItem) || !IsValid(WeaponItem->GetWeaponData()))
+	{
+		// 함수 조기 종료. 슬롯 원본 데이터가 유효하지 않다
+		return;
+	}
+
+	// Mod 변경 전 탄약 상태. Mod 자원만 새 Mod 기준으로 갱신하고 탄약은 유지하기 위해 보존한다
+	if (IsValid(CachedPlayerSet))
+	{
+		const FPRWeaponSlotResourceState PreResourceState = CachedPlayerSet->BuildSlotResourceState(TargetSlot);
+
+		// 새 Mod 기준으로 슬롯별 Mod 게이지와 스택 정책을 재초기화한다
+		CachedPlayerSet->InitializeSlotResources(TargetSlot, WeaponItem->GetWeaponData(), WeaponItem->GetModData());
+
+		// 자원 재초기화로 바뀐 탄약 수량을 이전 상태로 되돌리기 위한 보정값을 만든다
+		const FPRWeaponSlotResourceState PostResourceState = CachedPlayerSet->BuildSlotResourceState(TargetSlot);
+		FPRWeaponSlotResourceDelta PreserveAmmoDelta;
+		PreserveAmmoDelta.MagazineDelta = PreResourceState.MagazineAmmo - PostResourceState.MagazineAmmo;
+		PreserveAmmoDelta.ReserveDelta = PreResourceState.ReserveAmmo - PostResourceState.ReserveAmmo;
+
+		// Mod 교체가 탄약 수량을 임의로 바꾸지 않도록 탄약 보정만 적용한다
+		CachedPlayerSet->ApplySlotResourceDelta(TargetSlot, PreserveAmmoDelta);
+	}
+
+	// 현재 활성 중인 무기라면 기존 Mod 어빌리티를 회수하고 새 Mod 어빌리티를 부여한다
+	WeaponItem->OnModChanged(GetOwner(), WeaponItem->GetModData());
+
+	// Mod 장착 여부에 맞춰 최근 Mod 실패 사유를 정리한다
+	WeaponItem->LastModFailReason = IsValid(WeaponItem->GetModData()) ? EPRWeaponModFailReason::None : EPRWeaponModFailReason::MissingMod;
+
+	// 인벤토리 정본 변경 결과를 복제 공개 비주얼 정보에 반영한다
+	RefreshVisualInfosFromCurrentState();
+
+	// 서버 로컬 Actor도 Mod 변경 결과에 맞춰 즉시 최신화한다
+	RefreshAllWeaponActors();
+
+	// 현재 활성 무기의 애니메이션 레이어 캐시를 재확인한다
+	RefreshAnimLayer();
+
+	// 서버 Mod 변경 반응이 끝난 뒤 Owner, 슬롯, ItemId, Mod 상태를 남겨 인벤토리 연동 흐름 추적
+	UE_LOG(
+		LogTemp,
+		Log,
+		TEXT("[WeaponManagerComponent][Server] 인벤토리 Mod 변경 반영. HandleInventoryWeaponModChanged() | Owner = %s | Slot = %s | WeaponItemId = %s | Mod = %s | ModItemId = %s"),
+		*GetNameSafe(GetOwner()),
+		*UEnum::GetValueAsString(TargetSlot),
+		*WeaponItem->GetItemId().ToString(),
+		*GetNameSafe(WeaponItem->GetModData()),
+		*WeaponItem->GetEquippedModItemId().ToString());
+}
+
 bool UPRWeaponManagerComponent::EquipWeaponItemByIdInternal(const FGuid& ItemId)
 {
 	// 서버 내부 장착에 필요한 ItemId와 인벤토리 캐시가 유효하지 않은 경우
@@ -607,6 +683,9 @@ bool UPRWeaponManagerComponent::AttachModToSlotInternal(EPRWeaponSlotType Target
 		// Mod 장착 실패
 		return false;
 	}
+
+	// DataAsset 직접 장착 경로는 인벤토리 Mod Item을 거치지 않으므로 Item 식별자 연결을 비운다
+	TargetWeaponInstance->ClearEquippedModItemId();
 
 	// 플레이어 슬롯 자원이 연결된 경우
 	if (IsValid(CachedPlayerSet))
@@ -1035,6 +1114,7 @@ FPRWeaponVisualInfo UPRWeaponManagerComponent::BuildVisualInfo(EPRWeaponSlotType
 	// 원본 Item 기준으로 공개 가능한 무기와 Mod 데이터를 구성
 	NewVisualInfo.WeaponData = WeaponItem->GetWeaponData();
 	NewVisualInfo.ModData = WeaponItem->GetModData();
+	NewVisualInfo.ModItemId = WeaponItem->GetEquippedModItemId();
 
 	// 공개 비주얼 정보 구성 마침
 	return NewVisualInfo;
@@ -1117,6 +1197,27 @@ bool UPRWeaponManagerComponent::IsSupportedSlot(EPRWeaponSlotType SlotType) cons
 {
 	// 무기 매니저가 관리하는 주무기와 보조무기 슬롯만 지원
 	return SlotType == EPRWeaponSlotType::Primary || SlotType == EPRWeaponSlotType::Secondary;
+}
+
+EPRWeaponSlotType UPRWeaponManagerComponent::ResolveWeaponItemSlot(const UPRItemInstance_Weapon* WeaponItem) const
+{
+	// 유효하지 않은 Item은 어떤 슬롯의 원본으로도 인정하지 않는다
+	if (!IsValid(WeaponItem))
+	{
+		return EPRWeaponSlotType::None;
+	}
+
+	if (PrimaryWeaponInstance == WeaponItem)
+	{
+		return EPRWeaponSlotType::Primary;
+	}
+
+	if (SecondaryWeaponInstance == WeaponItem)
+	{
+		return EPRWeaponSlotType::Secondary;
+	}
+
+	return EPRWeaponSlotType::None;
 }
 
 void UPRWeaponManagerComponent::RefreshAnimLayer()

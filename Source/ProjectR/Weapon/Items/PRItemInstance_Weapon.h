@@ -32,11 +32,29 @@ public:
 	// 현재 연결된 Mod 데이터를 반환한다
 	UPRWeaponModDataAsset* GetModData() const { return ModData; }
 
+	// 현재 장착된 Mod Item 식별자를 반환한다
+	UFUNCTION(BlueprintPure, Category = "ProjectR|Weapon")
+	FGuid GetEquippedModItemId() const { return EquippedModItemId; }
+
+	// 현재 Mod Item이 장착되어 있는지 확인한다
+	UFUNCTION(BlueprintPure, Category = "ProjectR|Weapon")
+	bool HasEquippedModItem() const { return EquippedModItemId.IsValid(); }
+
+	// 현재 활성 무기 슬롯에 장착되어 있는지 확인한다
+	UFUNCTION(BlueprintPure, Category = "ProjectR|Weapon")
+	bool IsEquippedCurrentWeaponSlot() const { return bIsEquippedCurrentWeaponSlot; }
+
 	// 입력 데이터가 현재 무기와 같은지 확인한다
 	bool MatchesWeaponData(const UPRWeaponDataAsset* InWeaponData) const;
 
 	// 장착된 Mod 데이터를 교체한다
 	void SetModData(UPRWeaponModDataAsset* NewModData);
+
+	// 장착된 Mod Item 식별자를 교체한다
+	void SetEquippedModItemId(const FGuid& NewModItemId);
+
+	// 장착된 Mod Item 식별자를 비운다
+	void ClearEquippedModItemId();
 
 	// 활성 슬롯 장착 시점의 생명주기 훅
 	void OnEquipped(AActor* OwnerActor);
@@ -74,6 +92,10 @@ private:
 	UFUNCTION()
 	void OnRep_WeaponData();
 
+	// 장착 Mod Item 식별자 복제 완료 시 클라이언트 확인 로그를 남긴다
+	UFUNCTION()
+	void OnRep_EquippedModItemId();
+
 public:
 	// 현재 연결된 무기 데이터
 	UPROPERTY(ReplicatedUsing = OnRep_WeaponData, VisibleInstanceOnly, BlueprintReadOnly, Category = "ProjectR|Weapon")
@@ -83,6 +105,10 @@ public:
 	UPROPERTY(Replicated, VisibleInstanceOnly, BlueprintReadOnly, Category = "ProjectR|Weapon")
 	TObjectPtr<UPRWeaponModDataAsset> ModData = nullptr;
 
+	// 현재 장착된 Mod Item 식별자
+	UPROPERTY(ReplicatedUsing = OnRep_EquippedModItemId, VisibleInstanceOnly, BlueprintReadOnly, Category = "ProjectR|Weapon")
+	FGuid EquippedModItemId;
+
 	// 무기 장착으로 부여한 어빌리티 핸들
 	UPROPERTY(Transient)
 	FPRAbilitySetHandles WeaponAbilityHandles;
@@ -90,6 +116,10 @@ public:
 	// Mod 장착으로 부여한 어빌리티와 효과 핸들
 	UPROPERTY(Transient)
 	FPRAbilitySetHandles ModAbilityHandles;
+
+	// 현재 활성 무기 슬롯에 장착되어 어빌리티 부여 대상인지 여부
+	UPROPERTY(Replicated, Transient, VisibleInstanceOnly, BlueprintReadOnly, Category = "ProjectR|Weapon")
+	bool bIsEquippedCurrentWeaponSlot = false;
 
 	// 현재 활성 사격 상태 //note: 사격 전환 모드 어빌리티가 내부적으로 모드 사격 어빌리티가 부여됐는지 체크. 무기인스턴스의 FireModeState는 필요 없음
 	UPROPERTY(Transient)

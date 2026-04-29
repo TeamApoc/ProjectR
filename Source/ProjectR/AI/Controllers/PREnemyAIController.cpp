@@ -7,9 +7,25 @@
 #include "Perception/AIPerceptionComponent.h"
 #include "Perception/AISenseConfig_Hearing.h"
 #include "Perception/AISenseConfig_Sight.h"
+#include "ProjectR/AI/PREnemyAIDebug.h"
 #include "ProjectR/AI/Components/PREnemyThreatComponent.h"
+#include "ProjectR/AI/Data/PREnemyCombatDataAsset.h"
 #include "ProjectR/AI/Data/PRPerceptionConfig.h"
 #include "ProjectR/Character/Enemy/PREnemyInterface.h"
+
+namespace
+{
+	const UPREnemyCombatDataAsset* ResolveCombatDataAssetFromPawn(const APawn* ControlledPawn)
+	{
+		const IPREnemyInterface* EnemyInterface = Cast<IPREnemyInterface>(ControlledPawn);
+		if (EnemyInterface == nullptr)
+		{
+			return nullptr;
+		}
+
+		return EnemyInterface->GetCombatDataAsset();
+	}
+}
 
 APREnemyAIController::APREnemyAIController()
 {
@@ -55,10 +71,9 @@ void APREnemyAIController::OnPossess(APawn* InPawn)
 	if (IsValid(CachedBlackboardComponent))
 	{
 		CachedBlackboardComponent->SetValueAsVector(HomeLocationKey, EnemyInterface->GetHomeLocation());
-		SetBlackboardTacticalMode(EPRTacticalMode::Idle);
+		ApplyTacticalModeState(EPRTacticalMode::Idle);
 	}
 
-	ClearCombatMovePresentationContext(false);
 	bPreserveAlertOnNextTargetClear = false;
 }
 
@@ -70,6 +85,27 @@ void APREnemyAIController::OnUnPossess()
 	bPreserveAlertOnNextTargetClear = false;
 
 	Super::OnUnPossess();
+}
+
+void APREnemyAIController::ApplyTacticalModeState(
+	EPRTacticalMode NewMode,
+	AActor* FocusTarget,
+	const FPREnemyMovePresentationConfig* OverridePresentationConfig)
+{
+	SetBlackboardTacticalMode(NewMode);
+	ApplyPresentationForTacticalMode(NewMode, FocusTarget, OverridePresentationConfig);
+
+	if (PREnemyAIDebug::IsPresentationLogEnabled())
+	{
+		UE_LOG(
+			LogPREnemyAI,
+			Verbose,
+			TEXT("[Presentation] ApplyTacticalMode Mode=%s Override=%s Focus=%s Pawn=%s"),
+			*StaticEnum<EPRTacticalMode>()->GetNameStringByValue(static_cast<int64>(NewMode)),
+			OverridePresentationConfig != nullptr ? TEXT("true") : TEXT("false"),
+			*GetNameSafe(FocusTarget),
+			*GetNameSafe(GetPawn()));
+	}
 }
 
 void APREnemyAIController::HandleTargetPerceptionUpdated(AActor* Actor, FAIStimulus Stimulus)
@@ -91,10 +127,6 @@ void APREnemyAIController::HandleTargetPerceptionUpdated(AActor* Actor, FAIStimu
 
 	if (Stimulus.WasSuccessfullySensed())
 	{
-		const AActor* PreviousTarget = CachedThreatComponent->GetCurrentTarget();
-		const bool bShouldEnterAlert = !IsValid(PreviousTarget) || PreviousTarget != Actor;
-
-		// 감지만으로도 최소 위협을 부여해 전투 대상 후보에 올린다.
 		CachedThreatComponent->AddThreat(Actor, 1.0f);
 
 		if (IsValid(CachedBlackboardComponent))
@@ -104,11 +136,6 @@ void APREnemyAIController::HandleTargetPerceptionUpdated(AActor* Actor, FAIStimu
 		}
 
 		bPreserveAlertOnNextTargetClear = false;
-
-		if (bShouldEnterAlert)
-		{
-			SetBlackboardTacticalMode(EPRTacticalMode::Alert);
-		}
 	}
 	else
 	{
@@ -123,7 +150,6 @@ void APREnemyAIController::HandleTargetPerceptionUpdated(AActor* Actor, FAIStimu
 		case EPRTargetLostPolicy::ClearCurrentTarget:
 			bPreserveAlertOnNextTargetClear = true;
 			CachedThreatComponent->ReleaseCurrentTargetForSearch(Actor);
-			SetBlackboardTacticalMode(EPRTacticalMode::Alert);
 			break;
 		case EPRTargetLostPolicy::RemoveThreatEntry:
 			bPreserveAlertOnNextTargetClear = false;
@@ -132,12 +158,10 @@ void APREnemyAIController::HandleTargetPerceptionUpdated(AActor* Actor, FAIStimu
 				CachedBlackboardComponent->ClearValue(LastKnownTargetLocationKey);
 			}
 			CachedThreatComponent->OnTargetLost(Actor);
-			SetBlackboardTacticalMode(EPRTacticalMode::Return);
 			break;
 		case EPRTargetLostPolicy::KeepCurrentTarget:
 		default:
 			bPreserveAlertOnNextTargetClear = false;
-			SetBlackboardTacticalMode(EPRTacticalMode::Alert);
 			break;
 		}
 	}
@@ -154,27 +178,29 @@ void APREnemyAIController::HandleThreatTargetChanged(AActor* OldTarget, AActor* 
 
 	if (IsValid(NewTarget))
 	{
+		const bool bHasPreviousTarget = IsValid(OldTarget);
+
 		CachedBlackboardComponent->SetValueAsVector(TargetLocationKey, NewTarget->GetActorLocation());
 		CachedBlackboardComponent->SetValueAsBool(HasLOSKey, true);
-		SetFocus(NewTarget);
-
-		// 첫 감지 Alert를 BT가 한 번 소비할 수 있도록 Alert 상태는 유지한다.
-		if (GetBlackboardTacticalMode() != EPRTacticalMode::Alert)
+		if (!bHasPreviousTarget)
 		{
-			SetBlackboardTacticalMode(EPRTacticalMode::Chase);
+			ApplyTacticalModeState(EPRTacticalMode::Alert, NewTarget);
+			ApplyInitialAttackPressureOnAlert();
+		}
+		else
+		{
+			ApplyPresentationForTacticalMode(GetBlackboardTacticalMode(), NewTarget);
 		}
 
 		bPreserveAlertOnNextTargetClear = false;
 	}
 	else
 	{
-		ClearCombatMovePresentationContext(true);
 		CachedBlackboardComponent->ClearValue(CurrentTargetKey);
 		CachedBlackboardComponent->SetValueAsBool(HasLOSKey, false);
-		ClearFocus(EAIFocusPriority::Gameplay);
 
 		const bool bShouldInvestigate = bPreserveAlertOnNextTargetClear && HasLastKnownTargetLocation();
-		SetBlackboardTacticalMode(bShouldInvestigate ? EPRTacticalMode::Alert : EPRTacticalMode::Return);
+		ApplyTacticalModeState(bShouldInvestigate ? EPRTacticalMode::Alert : EPRTacticalMode::Return);
 		bPreserveAlertOnNextTargetClear = false;
 	}
 }
@@ -207,24 +233,38 @@ void APREnemyAIController::ApplyPerceptionConfig(const UPRPerceptionConfig* Conf
 
 void APREnemyAIController::ApplyCombatMovePresentationContext(
 	AActor* FocusTarget,
-	bool bMaintainTargetFocus,
-	bool bUseCombatAimOffset)
+	const FPREnemyMovePresentationConfig& PresentationConfig)
 {
 	if (APawn* ControlledPawn = GetPawn())
 	{
 		if (IPREnemyInterface* EnemyInterface = Cast<IPREnemyInterface>(ControlledPawn))
 		{
-			EnemyInterface->ApplyCombatMovePresentationContext(bMaintainTargetFocus, bUseCombatAimOffset);
+			EnemyInterface->ApplyCombatMovePresentationContext(PresentationConfig);
 		}
 	}
 
-	if (bMaintainTargetFocus && IsValid(FocusTarget))
+	if (PresentationConfig.bMaintainTargetFocus && IsValid(FocusTarget))
 	{
 		SetFocus(FocusTarget);
 	}
 	else
 	{
 		ClearFocus(EAIFocusPriority::Gameplay);
+	}
+
+	if (PREnemyAIDebug::IsPresentationLogEnabled())
+	{
+		UE_LOG(
+			LogPREnemyAI,
+			Verbose,
+			TEXT("[Presentation] Apply MoveSpeed=%.1f YawRate=%.1f Focus=%s CombatMove=%s AimOffset=%s StrafeState=%s Pawn=%s"),
+			PresentationConfig.MoveSpeedOverride,
+			PresentationConfig.RotationYawRate,
+			PresentationConfig.bMaintainTargetFocus ? TEXT("true") : TEXT("false"),
+			PresentationConfig.bUseCombatMovePose ? TEXT("true") : TEXT("false"),
+			PresentationConfig.bUseCombatAimOffset ? TEXT("true") : TEXT("false"),
+			PresentationConfig.bUseCombatStrafeState ? TEXT("true") : TEXT("false"),
+			*GetNameSafe(GetPawn()));
 	}
 }
 
@@ -241,6 +281,16 @@ void APREnemyAIController::ClearCombatMovePresentationContext(bool bClearGamepla
 	if (bClearGameplayFocus)
 	{
 		ClearFocus(EAIFocusPriority::Gameplay);
+	}
+
+	if (PREnemyAIDebug::IsPresentationLogEnabled())
+	{
+		UE_LOG(
+			LogPREnemyAI,
+			Verbose,
+			TEXT("[Presentation] Clear Focus=%s Pawn=%s"),
+			bClearGameplayFocus ? TEXT("true") : TEXT("false"),
+			*GetNameSafe(GetPawn()));
 	}
 }
 
@@ -268,10 +318,80 @@ void APREnemyAIController::SetBlackboardTacticalMode(EPRTacticalMode NewMode)
 	}
 
 	CachedBlackboardComponent->SetValueAsEnum(TacticalModeKey, static_cast<uint8>(NewMode));
+}
 
-	if (NewMode != EPRTacticalMode::Reposition)
+const UPREnemyCombatDataAsset* APREnemyAIController::GetCurrentCombatDataAsset() const
+{
+	return ResolveCombatDataAssetFromPawn(GetPawn());
+}
+
+void APREnemyAIController::ApplyPresentationForTacticalMode(
+	EPRTacticalMode NewMode,
+	AActor* FocusTarget,
+	const FPREnemyMovePresentationConfig* OverridePresentationConfig)
+{
+	AActor* ResolvedFocusTarget = FocusTarget;
+	if (!IsValid(ResolvedFocusTarget) && IsValid(CachedBlackboardComponent))
 	{
-		ClearCombatMovePresentationContext(false);
+		ResolvedFocusTarget = Cast<AActor>(CachedBlackboardComponent->GetValueAsObject(CurrentTargetKey));
+	}
+
+	if (OverridePresentationConfig != nullptr)
+	{
+		ApplyCombatMovePresentationContext(ResolvedFocusTarget, *OverridePresentationConfig);
+		return;
+	}
+
+	const UPREnemyCombatDataAsset* CombatDataAsset = GetCurrentCombatDataAsset();
+	if (!IsValid(CombatDataAsset))
+	{
+		ClearCombatMovePresentationContext(true);
+		return;
+	}
+
+	const FPREnemyMovePresentationConfig* PresentationConfig = CombatDataAsset->FindTacticalModePresentationConfig(NewMode);
+	if (PresentationConfig == nullptr)
+	{
+		ClearCombatMovePresentationContext(true);
+		return;
+	}
+
+	ApplyCombatMovePresentationContext(ResolvedFocusTarget, *PresentationConfig);
+}
+
+void APREnemyAIController::ApplyInitialAttackPressureOnAlert()
+{
+	if (!IsValid(CachedBlackboardComponent))
+	{
+		return;
+	}
+
+	const UPREnemyCombatDataAsset* CombatDataAsset = GetCurrentCombatDataAsset();
+	if (!IsValid(CombatDataAsset) || AttackPressureKey == NAME_None)
+	{
+		return;
+	}
+
+	if (CachedBlackboardComponent->GetKeyID(AttackPressureKey) == FBlackboard::InvalidKey)
+	{
+		return;
+	}
+
+	const float InitialAttackPressure = FMath::Clamp(
+		CombatDataAsset->AttackPressureConfig.InitialAttackPressureOnAlert,
+		0.0f,
+		CombatDataAsset->AttackPressureConfig.MaxPressure);
+
+	CachedBlackboardComponent->SetValueAsFloat(AttackPressureKey, InitialAttackPressure);
+
+	if (PREnemyAIDebug::IsAttackPressureLogEnabled())
+	{
+		UE_LOG(
+			LogPREnemyAI,
+			Verbose,
+			TEXT("[AttackPressure] AlertInitial Value=%.2f Pawn=%s"),
+			InitialAttackPressure,
+			*GetNameSafe(GetPawn()));
 	}
 }
 

@@ -12,7 +12,7 @@ void UPREnemyCombatEventRelayComponent::BeginPlay()
 {
 	Super::BeginPlay();
 
-	// 상태 이벤트는 AttributeSet/BossBase에서 직접 발행한다.
-	// 이 컴포넌트는 기존 BP 서브오브젝트 참조가 깨지지 않도록 남긴 호환 레이어다.
+	// 새 적 AI 구조에서는 상태 이벤트를 직접 중계하지 않는다.
+	// 기존 BP 서브오브젝트 참조가 끊기지 않도록 호환용 껍데기만 유지한다.
 	bEventsBound = true;
 }

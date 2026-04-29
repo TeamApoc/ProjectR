@@ -41,6 +41,20 @@ protected:
 	UPROPERTY(EditAnywhere, Category = "ProjectR|Ability")
 	FName TacticalModeKey = TEXT("tactical_mode");
 
+	// 전투 표현 적용 시 참조할 현재 타겟 Blackboard 키
+	UPROPERTY(EditAnywhere, Category = "ProjectR|Ability")
+	FName CurrentTargetKey = TEXT("current_target");
+
+	UPROPERTY(EditAnywhere, Category = "ProjectR|Ability")
+	FName AttackPressureKey = TEXT("attack_pressure");
+
+	// true면 실제 Ability 활성화 성공 시점에 전술 모드를 공격 상태로 전환한다.
+	UPROPERTY(EditAnywhere, Category = "ProjectR|Ability")
+	bool bSetTacticalModeOnAbilityActivated = true;
+
+	UPROPERTY(EditAnywhere, Category = "ProjectR|Ability", meta = (EditCondition = "bSetTacticalModeOnAbilityActivated"))
+	EPRTacticalMode TacticalModeOnAbilityActivated = EPRTacticalMode::Attack;
+
 	// true면 Ability가 끝날 때까지 BT 실행을 InProgress로 유지한다.
 	UPROPERTY(EditAnywhere, Category = "ProjectR|Ability")
 	bool bWaitUntilAbilityEnds = true;
@@ -51,13 +65,17 @@ protected:
 
 	// true면 Ability가 끝난 뒤 전술 상태를 지정한 값으로 되돌린다.
 	UPROPERTY(EditAnywhere, Category = "ProjectR|Ability")
-	bool bSetTacticalModeAfterAbilityEnds = true;
+	bool bSetTacticalModeAfterAbilityEnds = false;
 
 	UPROPERTY(EditAnywhere, Category = "ProjectR|Ability", meta = (EditCondition = "bSetTacticalModeAfterAbilityEnds"))
-	EPRTacticalMode TacticalModeAfterAbilityEnds = EPRTacticalMode::Chase;
+	EPRTacticalMode TacticalModeAfterAbilityEnds = EPRTacticalMode::FastApproach;
+
+	UPROPERTY(EditAnywhere, Category = "ProjectR|Ability")
+	bool bResetAttackPressureOnAbilityActivated = true;
 
 private:
-	void ApplyPostAbilityBlackboardUpdates(UBehaviorTreeComponent& OwnerComp);
+	void ApplyTacticalModeOnAbilityActivated(UBehaviorTreeComponent& OwnerComp);
+	void ApplyPostAbilityCombatStateUpdates(UBehaviorTreeComponent& OwnerComp);
 	void BindAbilityEndDelegate(UBehaviorTreeComponent& OwnerComp, UPRAbilitySystemComponent* ASC);
 	void ClearAbilityEndDelegate();
 	void HandleObservedAbilityEnded(const FAbilityEndedData& EndedData);

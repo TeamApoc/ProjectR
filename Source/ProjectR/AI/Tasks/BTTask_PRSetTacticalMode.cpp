@@ -29,16 +29,19 @@ EBTNodeResult::Type UBTTask_PRSetTacticalMode::ExecuteTask(UBehaviorTreeComponen
 		return EBTNodeResult::Failed;
 	}
 
-	BlackboardComponent->SetValueAsEnum(TacticalModeKey, static_cast<uint8>(NewTacticalMode));
-
-	if (NewTacticalMode != EPRTacticalMode::Reposition)
+	AActor* FocusTarget = nullptr;
+	if (HasSetTacticalModeBlackboardKey(BlackboardComponent, CurrentTargetKey))
 	{
-		if (APREnemyAIController* EnemyAIController = Cast<APREnemyAIController>(OwnerComp.GetAIOwner()))
-		{
-			EnemyAIController->ClearCombatMovePresentationContext(false);
-		}
+		FocusTarget = Cast<AActor>(BlackboardComponent->GetValueAsObject(CurrentTargetKey));
 	}
 
+	if (APREnemyAIController* EnemyAIController = Cast<APREnemyAIController>(OwnerComp.GetAIOwner()))
+	{
+		EnemyAIController->ApplyTacticalModeState(NewTacticalMode, FocusTarget);
+		return EBTNodeResult::Succeeded;
+	}
+
+	BlackboardComponent->SetValueAsEnum(TacticalModeKey, static_cast<uint8>(NewTacticalMode));
 	return EBTNodeResult::Succeeded;
 }
 

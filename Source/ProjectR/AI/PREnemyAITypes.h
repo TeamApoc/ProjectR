@@ -15,9 +15,9 @@ enum class EPRTacticalMode : uint8
 {
 	Idle		UMETA(DisplayName = "Idle"),
 	Alert		UMETA(DisplayName = "Alert"),
-	Chase		UMETA(DisplayName = "Chase"),
+	FastApproach	UMETA(DisplayName = "FastApproach"),
 	Attack		UMETA(DisplayName = "Attack"),
-	Reposition	UMETA(DisplayName = "Reposition"),
+	Strafe		UMETA(DisplayName = "Strafe"),
 	Return		UMETA(DisplayName = "Return")
 };
 
@@ -30,8 +30,16 @@ enum class EPRPatternCategory : uint8
 	Melee		UMETA(DisplayName = "Melee"),
 	Sprint		UMETA(DisplayName = "Sprint"),
 	Ranged		UMETA(DisplayName = "Ranged"),
-	Reposition	UMETA(DisplayName = "Reposition"),
+	Movement	UMETA(DisplayName = "Movement"),
 	Special		UMETA(DisplayName = "Special")
+};
+
+// 패턴 컨텍스트 비교 시 어떤 조건을 무시할지 정의한다.
+UENUM(BlueprintType)
+enum class EPRPatternContextMatchMode : uint8
+{
+	FullMatch	UMETA(DisplayName = "FullMatch"),
+	IgnoreRange	UMETA(DisplayName = "IgnoreRange")
 };
 
 // Perception이 타겟을 잃었을 때 Threat/Blackboard를 어디까지 정리할지 정한다.
@@ -96,6 +104,9 @@ struct PROJECTR_API FPRPatternContext
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "ProjectR|AI")
 	bool bChargePathClear = false;
 
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "ProjectR|AI")
+	float CurrentAttackPressure = 0.0f;
+
 };
 
 // 하나의 몬스터 패턴 후보를 정의한다.
@@ -141,6 +152,9 @@ struct PROJECTR_API FPRPatternRule
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|AI", meta = (ClampMin = "0.0"))
 	float SelectionWeight = 1.0f;
 
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|AI", meta = (ClampMin = "0.0"))
+	float RequiredAttackPressure = 0.0f;
+
 	// 데이터 에셋에서 잘못된 패턴이 들어왔는지 빠르게 걸러낸다.
 	bool IsValid() const
 	{
@@ -150,18 +164,23 @@ struct PROJECTR_API FPRPatternRule
 	}
 
 	// 현재 상황값이 이 패턴의 거리/시야 조건을 만족하는지 확인한다.
-	bool MatchesContext(const FPRPatternContext& Context) const
+	bool MatchesContext(
+		const FPRPatternContext& Context,
+		const EPRPatternContextMatchMode MatchMode = EPRPatternContextMatchMode::FullMatch) const
 	{
 		if (!IsValid())
 		{
 			return false;
 		}
 
-		const bool bInRange = Context.DistanceToTarget >= MinRange
-			&& Context.DistanceToTarget <= MaxRange;
-		if (!bInRange)
+		if (MatchMode != EPRPatternContextMatchMode::IgnoreRange)
 		{
-			return false;
+			const bool bInRange = Context.DistanceToTarget >= MinRange
+				&& Context.DistanceToTarget <= MaxRange;
+			if (!bInRange)
+			{
+				return false;
+			}
 		}
 
 		if (bRequiresLOS && !Context.bHasLOS)
@@ -175,6 +194,11 @@ struct PROJECTR_API FPRPatternRule
 		}
 
 		if (bRestrictTacticalModes && !AllowedTacticalModes.Contains(Context.TacticalMode))
+		{
+			return false;
+		}
+
+		if (Context.CurrentAttackPressure < RequiredAttackPressure)
 		{
 			return false;
 		}

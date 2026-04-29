@@ -95,9 +95,9 @@ void UPREnemyAnimInstance::UpdateCombatPresentationData()
 	}
 
 	bMaintainCombatMoveFocus = EnemyCharacter->ShouldMaintainCombatMoveFocus();
+	bUseCombatMovePose = EnemyCharacter->ShouldUseCombatMovePose();
 	bUseCombatAimOffset = EnemyCharacter->ShouldUseCombatAimOffset();
-	bUseCombatMovePose = bMaintainCombatMoveFocus || bUseCombatAimOffset;
-	bIsCombatStrafe = bShouldMove && bUseCombatAimOffset;
+	bIsCombatStrafe = bShouldMove && EnemyCharacter->ShouldUseCombatStrafeState();
 }
 
 void UPREnemyAnimInstance::UpdateAimData()

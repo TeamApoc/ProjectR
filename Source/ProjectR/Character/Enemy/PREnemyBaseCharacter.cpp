@@ -81,7 +81,9 @@ void APREnemyBaseCharacter::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>
 	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
 
 	DOREPLIFETIME(APREnemyBaseCharacter, bMaintainCombatMoveFocus);
+	DOREPLIFETIME(APREnemyBaseCharacter, bUseCombatMovePose);
 	DOREPLIFETIME(APREnemyBaseCharacter, bUseCombatAimOffset);
+	DOREPLIFETIME(APREnemyBaseCharacter, bUseCombatStrafeState);
 }
 
 void APREnemyBaseCharacter::PossessedBy(AController* NewController)
@@ -131,16 +133,89 @@ FVector APREnemyBaseCharacter::GetHomeLocation() const
 	return HomeLocation;
 }
 
-void APREnemyBaseCharacter::ApplyCombatMovePresentationContext(bool bMaintainTargetFocus, bool bInUseCombatAimOffset)
+void APREnemyBaseCharacter::ApplyCombatMovePresentationContext(const FPREnemyMovePresentationConfig& PresentationConfig)
 {
-	bMaintainCombatMoveFocus = bMaintainTargetFocus;
-	bUseCombatAimOffset = bInUseCombatAimOffset;
+	CacheMovementPresentationDefaults();
+	ApplyMovementPresentationConfig(PresentationConfig);
+
+	bMaintainCombatMoveFocus = PresentationConfig.bMaintainTargetFocus;
+	bUseCombatMovePose = PresentationConfig.bUseCombatMovePose;
+	bUseCombatAimOffset = PresentationConfig.bUseCombatAimOffset;
+	bUseCombatStrafeState = PresentationConfig.bUseCombatStrafeState;
 }
 
 void APREnemyBaseCharacter::ClearCombatMovePresentationContext()
 {
+	RestoreMovementPresentationDefaults();
 	bMaintainCombatMoveFocus = false;
+	bUseCombatMovePose = false;
 	bUseCombatAimOffset = false;
+	bUseCombatStrafeState = false;
+}
+
+void APREnemyBaseCharacter::CacheMovementPresentationDefaults()
+{
+	if (bHasCachedMovementPresentation)
+	{
+		return;
+	}
+
+	if (!IsValid(GetCharacterMovement()))
+	{
+		return;
+	}
+
+	bHasCachedMovementPresentation = true;
+	CachedMaxWalkSpeed = GetCharacterMovement()->MaxWalkSpeed;
+	CachedRotationRate = GetCharacterMovement()->RotationRate;
+	bCachedOrientRotationToMovement = GetCharacterMovement()->bOrientRotationToMovement;
+	bCachedUseControllerDesiredRotation = GetCharacterMovement()->bUseControllerDesiredRotation;
+	bCachedUseControllerRotationYaw = bUseControllerRotationYaw;
+}
+
+void APREnemyBaseCharacter::ApplyMovementPresentationConfig(const FPREnemyMovePresentationConfig& PresentationConfig)
+{
+	if (!IsValid(GetCharacterMovement()))
+	{
+		return;
+	}
+
+	bUseControllerRotationYaw = false;
+	GetCharacterMovement()->bOrientRotationToMovement = PresentationConfig.bOrientRotationToMovement;
+	GetCharacterMovement()->bUseControllerDesiredRotation = PresentationConfig.bUseControllerDesiredRotation;
+
+	if (PresentationConfig.RotationYawRate > 0.0f)
+	{
+		GetCharacterMovement()->RotationRate = FRotator(0.0f, PresentationConfig.RotationYawRate, 0.0f);
+	}
+	else if (bHasCachedMovementPresentation)
+	{
+		GetCharacterMovement()->RotationRate = CachedRotationRate;
+	}
+
+	if (PresentationConfig.MoveSpeedOverride > 0.0f)
+	{
+		GetCharacterMovement()->MaxWalkSpeed = PresentationConfig.MoveSpeedOverride;
+	}
+	else if (bHasCachedMovementPresentation)
+	{
+		GetCharacterMovement()->MaxWalkSpeed = CachedMaxWalkSpeed;
+	}
+}
+
+void APREnemyBaseCharacter::RestoreMovementPresentationDefaults()
+{
+	if (!bHasCachedMovementPresentation || !IsValid(GetCharacterMovement()))
+	{
+		return;
+	}
+
+	GetCharacterMovement()->MaxWalkSpeed = CachedMaxWalkSpeed;
+	GetCharacterMovement()->RotationRate = CachedRotationRate;
+	GetCharacterMovement()->bOrientRotationToMovement = bCachedOrientRotationToMovement;
+	GetCharacterMovement()->bUseControllerDesiredRotation = bCachedUseControllerDesiredRotation;
+	bUseControllerRotationYaw = bCachedUseControllerRotationYaw;
+	bHasCachedMovementPresentation = false;
 }
 
 void APREnemyBaseCharacter::HandleGameplayTagUpdated(const FGameplayTag& ChangedTag, bool TagExists)

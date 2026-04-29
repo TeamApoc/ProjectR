@@ -2,6 +2,7 @@
 
 #include "PRWeaponManagerComponent.h"
 
+#include "Components/SkeletalMeshComponent.h"
 #include "Engine/World.h"
 #include "GameFramework/Character.h"
 #include "Logging/LogMacros.h"
@@ -482,7 +483,7 @@ bool UPRWeaponManagerComponent::EquipWeaponInternal(UPRItemInstance_Weapon* Weap
 	// 서버 로컬도 복제 콜백과 같은 경로로 슬롯별 Actor를 즉시 최신화
 	RefreshAllWeaponActors();
 
-	// 애님 레이어 교체
+	// 활성 무기 변화에 맞춰 애니메이션 레이어 갱신
 	RefreshAnimLayer();
 
 	// 서버 장착 처리가 확정된 뒤 Owner, 슬롯, ItemId, 무기 데이터, 활성 슬롯을 남겨 장착 흐름 추적
@@ -556,6 +557,9 @@ bool UPRWeaponManagerComponent::UnequipWeaponFromSlotInternal(EPRWeaponSlotType 
 
 	// 서버 로컬 Actor도 해제 결과에 맞춰 즉시 최신화
 	RefreshAllWeaponActors();
+
+	// 활성 슬롯 해제 결과에 맞춰 애니메이션 레이어 갱신
+	RefreshAnimLayer();
 
 	// 서버 해제 처리가 확정된 뒤 Owner, 해제 슬롯, ItemId, 무기 데이터, 다음 활성 슬롯을 남겨 해제 흐름 추적
 	UE_LOG(
@@ -633,6 +637,8 @@ bool UPRWeaponManagerComponent::AttachModToSlotInternal(EPRWeaponSlotType Target
 
 	// 서버 로컬 Actor도 Mod 변경 결과에 맞춰 즉시 최신화
 	RefreshAllWeaponActors();
+
+	// 현재 활성 무기의 애니메이션 레이어 캐시 재확인
 	RefreshAnimLayer();
 
 	// 서버 Mod 장착 처리가 확정된 뒤 Owner, 슬롯, 무기 데이터, Mod 데이터를 남겨 Mod 변경 흐름 추적
@@ -655,8 +661,7 @@ void UPRWeaponManagerComponent::SetWeaponArmedStateInternal(EPRArmedState NewArm
 	// 무장 상태가 이미 같은 경우
 	if (ArmedState == NewArmedState)
 	{
-		// 부착 갱신 불필요
-		// 함수 조기 종료
+		// 함수 조기 종료. 부착 갱신 불필요
 		return;
 	}
 
@@ -719,7 +724,8 @@ void UPRWeaponManagerComponent::SetCurrentWeaponSlotInternal(EPRWeaponSlotType T
 
 	// 슬롯 전환은 Actor를 재생성하지 않고 소켓 부착만 최신화하는 경로 유지
 	RefreshAllWeaponActors();
-	
+
+	// 활성 슬롯 전환에 맞춰 애니메이션 레이어 갱신
 	RefreshAnimLayer();
 }
 
@@ -728,8 +734,7 @@ void UPRWeaponManagerComponent::RefreshWeaponActorForSlot(EPRWeaponSlotType Slot
 	// 지원하지 않는 슬롯 요청인 경우
 	if (!IsSupportedSlot(SlotType))
 	{
-		// 로컬 Actor 갱신 불가
-		// 함수 조기 종료
+		// 함수 조기 종료. 로컬 Actor 갱신 불가
 		return;
 	}
 
@@ -739,14 +744,13 @@ void UPRWeaponManagerComponent::RefreshWeaponActorForSlot(EPRWeaponSlotType Slot
 	// 슬롯별 로컬 Actor 참조. 필요 시 제거 또는 재생성 대상으로 사용
 	TObjectPtr<APRWeaponActor>& WeaponActor = GetMutableWeaponActorBySlot(SlotType);
 
-	// 슬롯이 비어 있는 경우
+	// 비주얼 정보가 비어 있는 경우
 	if (VisualInfo.IsEmpty())
 	{
 		// 해당 슬롯 Actor 제거
 		DestroyWeaponActorForSlot(SlotType);
 
-		// 빈 슬롯 갱신 마침
-		// 함수 조기 종료
+		// 함수 조기 종료. 빈 슬롯 비주얼 갱신 마침
 		return;
 	}
 
@@ -888,7 +892,8 @@ void UPRWeaponManagerComponent::OnRep_CurrentWeaponSlot(EPRWeaponSlotType OldCur
 
 	// 활성 슬롯 변화에 맞춰 두 슬롯의 Actor와 부착 상태 갱신
 	RefreshAllWeaponActors();
-	
+
+	// 활성 슬롯 변화에 맞춰 애니메이션 레이어 갱신
 	RefreshAnimLayer();
 }
 
@@ -914,8 +919,8 @@ void UPRWeaponManagerComponent::OnRep_PrimaryVisualInfo(FPRWeaponVisualInfo OldV
 
 	// 주무기 공개 비주얼 변화에 맞춰 주무기 Actor 갱신
 	RefreshWeaponActorForSlot(EPRWeaponSlotType::Primary);
-	
-	// 애님 레이어 갱신
+
+	// 현재 활성 주무기 비주얼에 맞춰 애니메이션 레이어 갱신
 	if (CurrentWeaponSlot == EPRWeaponSlotType::Primary)
 	{
 		RefreshAnimLayer();
@@ -944,8 +949,8 @@ void UPRWeaponManagerComponent::OnRep_SecondaryVisualInfo(FPRWeaponVisualInfo Ol
 
 	// 보조무기 공개 비주얼 변화에 맞춰 보조무기 Actor 갱신
 	RefreshWeaponActorForSlot(EPRWeaponSlotType::Secondary);
-	
-	// 애님 레이어 갱신
+
+	// 현재 활성 보조무기 비주얼에 맞춰 애니메이션 레이어 갱신
 	if (CurrentWeaponSlot == EPRWeaponSlotType::Secondary)
 	{
 		RefreshAnimLayer();
@@ -1119,29 +1124,30 @@ void UPRWeaponManagerComponent::RefreshAnimLayer()
 	ACharacter* OwnerCharacter = Cast<ACharacter>(GetOwner());
 	if (!IsValid(OwnerCharacter))
 	{
-		// 주무기를 다음 활성 슬롯으로 리턴
+		// 함수 조기 종료. 애니메이션 레이어 갱신 대상 없음
 		return;
 	}
 
 	USkeletalMeshComponent* MeshComp = OwnerCharacter->GetMesh();
 	if (!IsValid(MeshComp))
 	{
+		// 함수 조기 종료. 메시 컴포넌트 없음
 		return;
 	}
 
-	// 다음에 장착해야 할 무기의 레이어 클래스를 파악한다
+	// 현재 활성 무기에 연결해야 할 애니메이션 레이어 클래스를 결정
 	TSubclassOf<UAnimInstance> TargetAnimLayerClass = nullptr;
-                                                                                      
-	const FPRWeaponVisualInfo& CurrentWeaponVisualInfo = GetCurrentWeaponVisualInfo();    
+
+	const FPRWeaponVisualInfo& CurrentWeaponVisualInfo = GetCurrentWeaponVisualInfo();
 	if (!CurrentWeaponVisualInfo.IsEmpty() && IsValid(CurrentWeaponVisualInfo.WeaponData))
 	{
 		TargetAnimLayerClass = CurrentWeaponVisualInfo.WeaponData->WeaponAnimLayerClass;
-	}                                                                                     
+	}
 
-	// 이미 목표 레이어가 링크되어 있다면 작업을 무시한다
+	// 이미 목표 레이어가 연결된 경우
 	if (CurrentLinkedAnimLayerClass == TargetAnimLayerClass)
 	{
-		// 보조무기를 다음 활성 슬롯으로 리턴
+		// 함수 조기 종료. 애니메이션 레이어 갱신 불필요
 		return;
 	}
 
@@ -1164,7 +1170,6 @@ void UPRWeaponManagerComponent::RefreshAnimLayer()
 	// 	MeshComp->LinkAnimClassLayers(OwnerCharacter->DefaultAnimLayerClass);
 	// }
 }
-
 
 TObjectPtr<UPRItemInstance_Weapon>& UPRWeaponManagerComponent::GetMutableWeaponInstanceBySlot(EPRWeaponSlotType SlotType)
 {

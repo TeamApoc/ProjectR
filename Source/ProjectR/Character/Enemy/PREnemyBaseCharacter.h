@@ -42,7 +42,8 @@ public:
 	/*~ IPRCombatInterface ~*/
 	virtual EPRTeam GetTeam() const override { return EPRTeam::Enemy; }
 	virtual FPRDamageRegionInfo GetDamageRegionInfo(FName BoneName) const override;
-
+	virtual void OnPostDamageApplied(const FPRDamageAppliedContext& Context) override;
+	
 public:
 	virtual UPRAbilitySystemComponent* GetEnemyAbilitySystemComponent() const override;
 	virtual UPREnemyThreatComponent* GetEnemyThreatComponent() const override;

@@ -10,6 +10,7 @@
 #include "ProjectR/Game/PRCameraManager.h"
 #include "ProjectR/Input/PRInputConfigDataAsset.h"
 #include "ProjectR/Projectile/PRProjectileManagerComponent.h"
+#include "ProjectR/UI/FloatingText/PRFloatingTextManager.h"
 
 
 APRPlayerController::APRPlayerController()
@@ -17,6 +18,7 @@ APRPlayerController::APRPlayerController()
 	PlayerCameraManagerClass = APRCameraManager::StaticClass();
 	
 	ProjectileManager = CreateDefaultSubobject<UPRProjectileManagerComponent>(TEXT("ProjectileManager"));
+	FloatingTextManager = CreateDefaultSubobject<UPRFloatingTextManager>(TEXT("FloatingTextManager"));
 }
 
 // =====  APlayerController Interface =====

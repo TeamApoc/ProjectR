@@ -9,6 +9,7 @@
 #include "PRPlayerController.generated.h"
 
 class UPRProjectileManagerComponent;
+class UPRFloatingTextManager;
 class UAbilitySystemComponent;
 class UPRInputConfigDataAsset;
 class UPRAbilitySystemComponent;
@@ -47,6 +48,9 @@ public:
 
 	UPRProjectileManagerComponent* GetProjectileManagerComponent() const {return ProjectileManager;}
 
+	// 플로팅 텍스트 매니저 컴포넌트를 반환한다
+	UPRFloatingTextManager* GetFloatingTextManager() const { return FloatingTextManager; }
+
 protected:
 	// 클라이언트 -> 서버. 로컬 캐릭터 페이로드 제출
 	UFUNCTION(Server, Reliable, WithValidation)
@@ -73,4 +77,7 @@ private:
 	
 	UPROPERTY(VisibleAnywhere)
 	TObjectPtr<UPRProjectileManagerComponent> ProjectileManager;
+
+	UPROPERTY(VisibleAnywhere)
+	TObjectPtr<UPRFloatingTextManager> FloatingTextManager;
 };

@@ -14,10 +14,12 @@ class UAISenseConfig_Sight;
 class UBlackboardComponent;
 class UBehaviorTree;
 class UPRPerceptionConfig;
+class UPREnemyCombatDataAsset;
 class UPREnemyThreatComponent;
+struct FPREnemyMovePresentationConfig;
 
-// 모든 일반 몬스터가 사용하는 서버 권한 AIController다.
-// Perception으로 타겟 후보를 수집하고, ThreatComponent가 고른 타겟을 Blackboard에 반영한다.
+// 공용 적 AIController
+// Perception, Threat, Blackboard, 전투 표현 문맥 적용 담당
 UCLASS()
 class PROJECTR_API APREnemyAIController : public AAIController
 {
@@ -29,32 +31,61 @@ public:
 	virtual void OnPossess(APawn* InPawn) override;
 	virtual void OnUnPossess() override;
 
+	// tactical_mode 갱신 및 전투 표현 규칙 적용
+	void ApplyTacticalModeState(
+		EPRTacticalMode NewMode,
+		AActor* FocusTarget = nullptr,
+		const FPREnemyMovePresentationConfig* OverridePresentationConfig = nullptr);
+
+	// 전투 이동 표현 문맥 적용
+	void ApplyCombatMovePresentationContext(AActor* FocusTarget, const FPREnemyMovePresentationConfig& PresentationConfig);
+
+	// 전투 이동 표현 문맥 해제
+	void ClearCombatMovePresentationContext(bool bClearGameplayFocus);
+
 protected:
+	/*~ AIPerception Interface ~*/
+
 	UFUNCTION()
 	void HandleTargetPerceptionUpdated(AActor* Actor, FAIStimulus Stimulus);
 
-	// ThreatComponent가 현재 타겟을 바꾸면 BT가 바로 따라갈 수 있도록 Blackboard를 갱신한다.
+	/*~ Threat Interface ~*/
+
 	UFUNCTION()
 	void HandleThreatTargetChanged(AActor* OldTarget, AActor* NewTarget);
 
-	// 몬스터 데이터 에셋 값을 실제 AIPerception 설정에 적용한다.
+	// Perception 설정 적용
 	void ApplyPerceptionConfig(const UPRPerceptionConfig* Config);
 
-	// 현재 Blackboard에 기록된 전술 상태를 읽는다.
+	// 현재 Blackboard tactical_mode 반환
 	EPRTacticalMode GetBlackboardTacticalMode() const;
 
-	// 마지막 목격 위치가 Blackboard에 남아 있는지 확인한다.
+	// last_known_target_location 유효 여부 반환
 	bool HasLastKnownTargetLocation() const;
 
-	// Blackboard의 tactical_mode 값을 갱신한다.
+	// Blackboard tactical_mode 값 기록
 	void SetBlackboardTacticalMode(EPRTacticalMode NewMode);
 
-	// BehaviorTree와 BlackboardAsset을 기준으로 BlackboardComponent를 준비하고 BT를 실행한다.
+	// 현재 소유 Pawn 기준 전투 데이터 자산 반환
+	const UPREnemyCombatDataAsset* GetCurrentCombatDataAsset() const;
+
+	// tactical_mode 규칙 또는 override 기반 전투 표현 적용 또는 해제
+	void ApplyPresentationForTacticalMode(
+		EPRTacticalMode NewMode,
+		AActor* FocusTarget,
+		const FPREnemyMovePresentationConfig* OverridePresentationConfig = nullptr);
+
+	// 탐지 직후 시작 attack_pressure 적용
+	void ApplyInitialAttackPressureOnAlert();
+
+	// BehaviorTree / Blackboard 준비 및 실행
 	void CacheBlackboardFromBehaviorTree(UBehaviorTree* BehaviorTreeAsset);
+
+	// Threat 바인딩 해제
 	void ClearThreatBinding();
 
 protected:
-	// Sight/Hearing Sense를 담는 실제 Perception 컴포넌트다.
+	// AI Perception 컴포넌트
 	UPROPERTY(VisibleAnywhere, Category = "ProjectR|AI")
 	TObjectPtr<UAIPerceptionComponent> EnemyPerceptionComponent;
 
@@ -70,30 +101,39 @@ protected:
 	UPROPERTY(Transient)
 	TObjectPtr<UPREnemyThreatComponent> CachedThreatComponent;
 
-	// 아래 키 이름들은 BT/Blackboard 에셋과 반드시 맞아야 한다.
+	// 현재 타겟 Blackboard 키 이름
 	UPROPERTY(EditDefaultsOnly, Category = "ProjectR|AI|Blackboard")
 	FName CurrentTargetKey = TEXT("current_target");
 
+	// 타겟 위치 Blackboard 키 이름
 	UPROPERTY(EditDefaultsOnly, Category = "ProjectR|AI|Blackboard")
 	FName TargetLocationKey = TEXT("target_location");
 
+	// 마지막 목격 위치 Blackboard 키 이름
 	UPROPERTY(EditDefaultsOnly, Category = "ProjectR|AI|Blackboard")
 	FName LastKnownTargetLocationKey = TEXT("last_known_target_location");
 
+	// 복귀 위치 Blackboard 키 이름
 	UPROPERTY(EditDefaultsOnly, Category = "ProjectR|AI|Blackboard")
 	FName HomeLocationKey = TEXT("home_location");
 
+	// LOS Blackboard 키 이름
 	UPROPERTY(EditDefaultsOnly, Category = "ProjectR|AI|Blackboard")
 	FName HasLOSKey = TEXT("has_los");
 
+	// tactical_mode Blackboard 키 이름
 	UPROPERTY(EditDefaultsOnly, Category = "ProjectR|AI|Blackboard")
 	FName TacticalModeKey = TEXT("tactical_mode");
 
-	// 감지 실패 시 현재 타겟을 어떻게 정리할지 정한다.
+	// attack_pressure Blackboard 키 이름
+	UPROPERTY(EditDefaultsOnly, Category = "ProjectR|AI|Blackboard")
+	FName AttackPressureKey = TEXT("attack_pressure");
+
+	// 타겟 상실 시 처리 정책
 	UPROPERTY(EditDefaultsOnly, Category = "ProjectR|AI|Perception")
 	EPRTargetLostPolicy TargetLostPolicy = EPRTargetLostPolicy::ClearCurrentTarget;
 
-	// 다음 타겟 해제 시 Investigate로 이어지도록 Alert를 유지할지 여부다.
+	// 다음 타겟 해제 시 Investigate로 이어가기 위한 Alert 유지 플래그
 	UPROPERTY(Transient)
 	bool bPreserveAlertOnNextTargetClear = false;
 };

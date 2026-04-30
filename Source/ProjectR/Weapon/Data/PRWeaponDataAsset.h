@@ -4,6 +4,9 @@
 
 #include "CoreMinimal.h"
 #include "Engine/DataAsset.h"
+#include "GameplayTagContainer.h"
+#include "ProjectR/AbilitySystem/Data/PRAbilitySet.h"
+#include "ProjectR/Weapon/Types/PRWeaponTypes.h"
 #include "ProjectR/Weapon/Types/PRRecoilTypes.h"
 #include "GameplayTagContainer.h"
 #include "ProjectR/AbilitySystem/Data/PRAbilitySet.h"

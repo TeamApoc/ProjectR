@@ -11,6 +11,7 @@
 #include "GameFramework/CharacterMovementComponent.h"
 #include "ProjectR/AI/Components/PREnemyCombatEventRelayComponent.h"
 #include "ProjectR/AI/Components/PREnemyThreatComponent.h"
+#include "ProjectR/AI/Data/PREnemyCombatDataAsset.h"
 #include "ProjectR/AI/Data/PRPatternDataAsset.h"
 #include "ProjectR/AI/Data/PRPerceptionConfig.h"
 #include "ProjectR/AbilitySystem/PRAbilitySystemComponent.h"
@@ -20,6 +21,7 @@
 #include "Engine/DataTable.h"
 #include "ProjectR/PRGameplayTags.h"
 #include "ProjectR/System/PRAssetManager.h"
+#include "Net/UnrealNetwork.h"
 
 APREnemyBaseCharacter::APREnemyBaseCharacter()
 {
@@ -75,6 +77,16 @@ void APREnemyBaseCharacter::BeginPlay()
 	}
 }
 
+void APREnemyBaseCharacter::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const
+{
+	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
+
+	DOREPLIFETIME(APREnemyBaseCharacter, bMaintainCombatMoveFocus);
+	DOREPLIFETIME(APREnemyBaseCharacter, bUseCombatMovePose);
+	DOREPLIFETIME(APREnemyBaseCharacter, bUseCombatAimOffset);
+	DOREPLIFETIME(APREnemyBaseCharacter, bUseCombatStrafeState);
+}
+
 void APREnemyBaseCharacter::PossessedBy(AController* NewController)
 {
 	Super::PossessedBy(NewController);
@@ -102,6 +114,11 @@ UPRPatternDataAsset* APREnemyBaseCharacter::GetPatternDataAsset() const
 	return PatternDataAsset;
 }
 
+UPREnemyCombatDataAsset* APREnemyBaseCharacter::GetCombatDataAsset() const
+{
+	return CombatDataAsset;
+}
+
 UPRPerceptionConfig* APREnemyBaseCharacter::GetPerceptionConfig() const
 {
 	return PerceptionConfig;
@@ -117,6 +134,89 @@ FVector APREnemyBaseCharacter::GetHomeLocation() const
 	return HomeLocation;
 }
 
+void APREnemyBaseCharacter::ApplyCombatMovePresentationContext(const FPREnemyMovePresentationConfig& PresentationConfig)
+{
+	CacheMovementPresentationDefaults();
+	ApplyMovementPresentationConfig(PresentationConfig);
+
+	bMaintainCombatMoveFocus = PresentationConfig.bMaintainTargetFocus;
+	bUseCombatMovePose = PresentationConfig.bUseCombatMovePose;
+	bUseCombatAimOffset = PresentationConfig.bUseCombatAimOffset;
+	bUseCombatStrafeState = PresentationConfig.bUseCombatStrafeState;
+}
+
+void APREnemyBaseCharacter::ClearCombatMovePresentationContext()
+{
+	RestoreMovementPresentationDefaults();
+	bMaintainCombatMoveFocus = false;
+	bUseCombatMovePose = false;
+	bUseCombatAimOffset = false;
+	bUseCombatStrafeState = false;
+}
+
+void APREnemyBaseCharacter::CacheMovementPresentationDefaults()
+{
+	if (bHasCachedMovementPresentation)
+	{
+		return;
+	}
+
+	if (!IsValid(GetCharacterMovement()))
+	{
+		return;
+	}
+
+	bHasCachedMovementPresentation = true;
+	CachedMaxWalkSpeed = GetCharacterMovement()->MaxWalkSpeed;
+	CachedRotationRate = GetCharacterMovement()->RotationRate;
+	bCachedOrientRotationToMovement = GetCharacterMovement()->bOrientRotationToMovement;
+	bCachedUseControllerDesiredRotation = GetCharacterMovement()->bUseControllerDesiredRotation;
+	bCachedUseControllerRotationYaw = bUseControllerRotationYaw;
+}
+
+void APREnemyBaseCharacter::ApplyMovementPresentationConfig(const FPREnemyMovePresentationConfig& PresentationConfig)
+{
+	if (!IsValid(GetCharacterMovement()))
+	{
+		return;
+	}
+
+	bUseControllerRotationYaw = false;
+	GetCharacterMovement()->bOrientRotationToMovement = PresentationConfig.bOrientRotationToMovement;
+	GetCharacterMovement()->bUseControllerDesiredRotation = PresentationConfig.bUseControllerDesiredRotation;
+
+	if (PresentationConfig.RotationYawRate > 0.0f)
+	{
+		GetCharacterMovement()->RotationRate = FRotator(0.0f, PresentationConfig.RotationYawRate, 0.0f);
+	}
+	else if (bHasCachedMovementPresentation)
+	{
+		GetCharacterMovement()->RotationRate = CachedRotationRate;
+	}
+
+	if (PresentationConfig.MoveSpeedOverride > 0.0f)
+	{
+		GetCharacterMovement()->MaxWalkSpeed = PresentationConfig.MoveSpeedOverride;
+	}
+	else if (bHasCachedMovementPresentation)
+	{
+		GetCharacterMovement()->MaxWalkSpeed = CachedMaxWalkSpeed;
+	}
+}
+
+void APREnemyBaseCharacter::RestoreMovementPresentationDefaults()
+{
+	if (!bHasCachedMovementPresentation || !IsValid(GetCharacterMovement()))
+	{
+		return;
+	}
+
+	GetCharacterMovement()->MaxWalkSpeed = CachedMaxWalkSpeed;
+	GetCharacterMovement()->RotationRate = CachedRotationRate;
+	GetCharacterMovement()->bOrientRotationToMovement = bCachedOrientRotationToMovement;
+	GetCharacterMovement()->bUseControllerDesiredRotation = bCachedUseControllerDesiredRotation;
+	bUseControllerRotationYaw = bCachedUseControllerRotationYaw;
+	bHasCachedMovementPresentation = false;
 FPRDamageRegionInfo APREnemyBaseCharacter::GetDamageRegionInfo(FName BoneName) const
 {
 	if (bHasCachedStatRow)
@@ -199,6 +299,7 @@ void APREnemyBaseCharacter::HandleDeadTagChanged(bool bEntered)
 	// 사망 상태 진입
 	if (bEntered)
 	{
+		ClearCombatMovePresentationContext();
 		GetCharacterMovement()->DisableMovement();
 	}
 }
@@ -208,6 +309,7 @@ void APREnemyBaseCharacter::HandleGroggyTagChanged(bool bEntered)
 	// 그로기 상태 진입
 	if (bEntered)
 	{
+		ClearCombatMovePresentationContext();
 		GetCharacterMovement()->StopMovementImmediately();
 	}
 }

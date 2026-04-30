@@ -35,6 +35,9 @@ protected:
 	FName TacticalModeKey = TEXT("tactical_mode");
 
 	UPROPERTY(EditAnywhere, Category = "ProjectR|Blackboard")
+	FName AttackPressureKey = TEXT("attack_pressure");
+
+	UPROPERTY(EditAnywhere, Category = "ProjectR|Blackboard")
 	FName SelectedAbilityTagKey = TEXT("selected_ability_tag");
 
 	// 이 Task가 선택할 패턴 계열이다. Any면 계열을 제한하지 않는다.
@@ -47,7 +50,7 @@ protected:
 
 	// true면 패턴 선택 성공 시 전술 모드를 공격 상태로 기록한다.
 	UPROPERTY(EditAnywhere, Category = "ProjectR|Pattern")
-	bool bSetTacticalModeOnSelection = true;
+	bool bSetTacticalModeOnSelection = false;
 
 	UPROPERTY(EditAnywhere, Category = "ProjectR|Pattern", meta = (EditCondition = "bSetTacticalModeOnSelection"))
 	EPRTacticalMode TacticalModeOnSelection = EPRTacticalMode::Attack;

@@ -3,9 +3,13 @@
 #include "PREnemyAnimInstance.h"
 
 #include "GameFramework/CharacterMovementComponent.h"
-#include "ProjectR/Character/Enemy/PREnemyBaseCharacter.h"
+#include "KismetAnimationLibrary.h"
+#include "Kismet/KismetMathLibrary.h"
 #include "ProjectR/AbilitySystem/PRAbilitySystemComponent.h"
+#include "ProjectR/Character/Enemy/PREnemyBaseCharacter.h"
 #include "ProjectR/PRGameplayTags.h"
+
+// ===== UAnimInstance Interface =====
 
 void UPREnemyAnimInstance::NativeInitializeAnimation()
 {
@@ -28,12 +32,16 @@ void UPREnemyAnimInstance::NativeUpdateAnimation(float DeltaSeconds)
 	}
 
 	UpdateMovementData();
+	UpdateCombatPresentationData();
+	UpdateAimData();
 	UpdateStateFlags();
 }
 
+// ===== 내부 갱신 =====
+
 void UPREnemyAnimInstance::RefreshOwnerReferences()
 {
-	// AnimInstance는 초기화 시점에 Pawn이 아직 없을 수 있어 Update에서도 다시 캐시한다.
+	// AnimInstance 초기화 시점에는 Pawn 참조가 아직 없을 수 있어 Update에서도 다시 캐시한다.
 	EnemyCharacter = Cast<APREnemyBaseCharacter>(TryGetPawnOwner());
 	CharacterMovement = IsValid(EnemyCharacter) ? EnemyCharacter->GetCharacterMovement() : nullptr;
 }
@@ -43,17 +51,71 @@ void UPREnemyAnimInstance::UpdateMovementData()
 	if (!IsValid(EnemyCharacter) || !IsValid(CharacterMovement))
 	{
 		Velocity = FVector::ZeroVector;
+		LocalVelocity2D = FVector::ZeroVector;
 		XYSpeed = 0.0f;
+		ForwardSpeed = 0.0f;
+		RightSpeed = 0.0f;
+		Direction = 0.0f;
 		bShouldMove = false;
 		bIsFalling = false;
 		return;
 	}
 
 	Velocity = EnemyCharacter->GetVelocity();
+	Velocity.Z = 0.0f;
+	LocalVelocity2D = EnemyCharacter->GetActorRotation().UnrotateVector(Velocity);
+	LocalVelocity2D.Z = 0.0f;
+
 	XYSpeed = Velocity.Size2D();
-	// ABP에서는 이 bool만 보고 Idle/Move를 나누면 된다.
+	ForwardSpeed = LocalVelocity2D.X;
+	RightSpeed = LocalVelocity2D.Y;
 	bShouldMove = XYSpeed > MoveSpeedThreshold;
 	bIsFalling = CharacterMovement->IsFalling();
+
+	if (bShouldMove)
+	{
+		Direction = UKismetAnimationLibrary::CalculateDirection(Velocity, EnemyCharacter->GetActorRotation());
+	}
+	else
+	{
+		Direction = 0.0f;
+	}
+}
+
+void UPREnemyAnimInstance::UpdateCombatPresentationData()
+{
+	bMaintainCombatMoveFocus = false;
+	bUseCombatAimOffset = false;
+	bUseCombatMovePose = false;
+	bIsCombatStrafe = false;
+
+	if (!IsValid(EnemyCharacter))
+	{
+		return;
+	}
+
+	bMaintainCombatMoveFocus = EnemyCharacter->ShouldMaintainCombatMoveFocus();
+	bUseCombatMovePose = EnemyCharacter->ShouldUseCombatMovePose();
+	bUseCombatAimOffset = EnemyCharacter->ShouldUseCombatAimOffset();
+	bIsCombatStrafe = bShouldMove && EnemyCharacter->ShouldUseCombatStrafeState();
+}
+
+void UPREnemyAnimInstance::UpdateAimData()
+{
+	AimYaw = 0.0f;
+	AimPitch = 0.0f;
+
+	if (!IsValid(EnemyCharacter) || !bUseCombatAimOffset)
+	{
+		return;
+	}
+
+	const FRotator ActorRotation = EnemyCharacter->GetActorRotation();
+	const FRotator BaseAimRotation = EnemyCharacter->GetBaseAimRotation();
+	const FRotator AimDeltaRotation = UKismetMathLibrary::NormalizedDeltaRotator(BaseAimRotation, ActorRotation);
+
+	AimYaw = FMath::Clamp(FRotator::NormalizeAxis(AimDeltaRotation.Yaw), -MaxAimYaw, MaxAimYaw);
+	AimPitch = FMath::Clamp(FRotator::NormalizeAxis(AimDeltaRotation.Pitch), -MaxAimPitch, MaxAimPitch);
 }
 
 void UPREnemyAnimInstance::UpdateStateFlags()
@@ -68,7 +130,7 @@ void UPREnemyAnimInstance::UpdateStateFlags()
 
 	if (UPRAbilitySystemComponent* ASC = EnemyCharacter->GetPRAbilitySystemComponent())
 	{
-		// 상태 전환은 애니메이션 자체 판단이 아니라 ASC 태그를 신뢰한다.
+		// 애니메이션 중단 여부는 ASC 상태 태그를 기준으로 판단한다.
 		bIsDead = ASC->HasMatchingGameplayTag(PRGameplayTags::State_Dead);
 		bIsGroggy = ASC->HasMatchingGameplayTag(PRGameplayTags::State_Groggy);
 	}

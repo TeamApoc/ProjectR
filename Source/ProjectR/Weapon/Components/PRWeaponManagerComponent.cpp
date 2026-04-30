@@ -13,6 +13,7 @@
 #include "ProjectR/Weapon/Actors/PRWeaponActor.h"
 #include "ProjectR/Weapon/Data/PRWeaponDataAsset.h"
 #include "ProjectR/Weapon/Data/PRWeaponModDataAsset.h"
+#include "ProjectR/Weapon/Items/PRItemInstance_Mod.h"
 #include "ProjectR/Weapon/Items/PRItemInstance_Weapon.h"
 
 namespace
@@ -82,6 +83,12 @@ UPRWeaponManagerComponent::UPRWeaponManagerComponent()
 
 void UPRWeaponManagerComponent::EndPlay(const EEndPlayReason::Type EndPlayReason)
 {
+	// 컴포넌트 종료 전에 활성 무기 Item의 AbilitySet을 회수해 ASC 핸들이 남지 않도록 정리
+	if (UPRItemInstance_Weapon* CurrentWeaponInstance = GetWeaponInstanceBySlotType(CurrentWeaponSlot))
+	{
+		CurrentWeaponInstance->OnUnequipped(GetOwner());
+	}
+
 	// 컴포넌트 종료 시 남아 있는 주무기 Actor 정리
 	DestroyWeaponActorForSlot(EPRWeaponSlotType::Primary);
 
@@ -106,6 +113,12 @@ void UPRWeaponManagerComponent::GetLifetimeReplicatedProps(TArray<FLifetimePrope
 
 	// 보조무기 공개 비주얼 정보는 owner-only 원본 포인터 없이 클라이언트 표시를 갱신하기 위해 복제
 	DOREPLIFETIME(UPRWeaponManagerComponent, SecondaryVisualInfo);
+
+	// 주무기 원본 Item 참조는 소유자 UI와 서버 내부 장착 판단에만 필요하므로 owner-only로 복제
+	DOREPLIFETIME_CONDITION(UPRWeaponManagerComponent, PrimaryWeaponInstance, COND_OwnerOnly);
+
+	// 보조무기 원본 Item 참조는 소유자 UI와 서버 내부 장착 판단에만 필요하므로 owner-only로 복제
+	DOREPLIFETIME_CONDITION(UPRWeaponManagerComponent, SecondaryWeaponInstance, COND_OwnerOnly);
 }
 
 void UPRWeaponManagerComponent::InitializeRuntimeLinks()
@@ -197,7 +210,6 @@ const FPRWeaponVisualInfo& UPRWeaponManagerComponent::GetVisualInfoBySlotType(EP
 
 bool UPRWeaponManagerComponent::EquipInventoryWeaponAtIndex(int32 InventoryIndex)
 {
-	// 클라이언트가 복제받은 인벤토리 항목으로 장착할 수 있도록 인덱스를 Item 식별자로 변환한다
 	// 인벤토리 캐시가 비어 있을 수 있으므로 장착 요청마다 런타임 링크 갱신
 	InitializeRuntimeLinks();
 
@@ -208,8 +220,7 @@ bool UPRWeaponManagerComponent::EquipInventoryWeaponAtIndex(int32 InventoryIndex
 		return false;
 	}
 
-	
-	// 인덱스 기반 요청을 서버 검증 가능한 Item 식별자 요청으로 변환하기 위한 Item 조회
+	// 인덱스 기반 UI 요청을 실제 Item 참조 요청으로 변환하기 위한 Item 조회
 	UPRItemInstance_Weapon* WeaponItem = CachedInventory->GetWeaponItemAtIndex(InventoryIndex);
 
 	// 인덱스에 대응하는 무기 Item이 없는 경우
@@ -228,35 +239,8 @@ bool UPRWeaponManagerComponent::EquipInventoryWeaponAtIndex(int32 InventoryIndex
 		return false;
 	}
 
-	// 조회된 ItemId로 포인터 신뢰 없이 장착 요청을 이어감
-	return EquipWeaponItemById(WeaponItem->GetItemId());
-}
-
-bool UPRWeaponManagerComponent::EquipWeaponItemById(const FGuid& ItemId)
-{
-	// Item 식별자 기반 요청은 클라이언트가 원본 포인터를 신뢰하지 않도록 서버에서 다시 조회한다
-	// 유효하지 않은 ItemId인 경우
-	if (!ItemId.IsValid())
-	{
-		// 장착 실패. 요청 검증 실패
-		return false;
-	}
-
-	// 서버 권위가 있으면 RPC를 거치지 않고 내부 장착 경로로 즉시 처리
-	if (IsValid(GetOwner()) && GetOwner()->HasAuthority())
-	{
-		// 내부 처리에서 인벤토리를 다시 조회할 수 있도록 런타임 링크 갱신
-		InitializeRuntimeLinks();
-
-		// 서버 권위 장착 결과 리턴
-		return EquipWeaponItemByIdInternal(ItemId);
-	}
-
-	// 클라이언트 요청은 서버에서 ItemId를 다시 검증하도록 RPC 전송
-	Server_EquipWeaponItemById(ItemId);
-
-	// 요청 접수 성공. 서버 요청 전송 마침
-	return true;
+	// 조회된 Item 참조로 장착 요청을 이어간다
+	return EquipWeapon(WeaponItem);
 }
 
 bool UPRWeaponManagerComponent::EquipWeapon(UPRItemInstance_Weapon* WeaponItem)
@@ -278,8 +262,11 @@ bool UPRWeaponManagerComponent::EquipWeapon(UPRItemInstance_Weapon* WeaponItem)
 		return EquipWeaponInternal(WeaponItem);
 	}
 
-	// 장착 실패. 클라이언트의 원본 포인터 기반 장착 요청은 신뢰하지 않음
-	return false;
+	// 클라이언트 요청은 서버에서 Item 참조와 인벤토리 소유권을 다시 검증하도록 RPC 전송
+	Server_EquipWeapon(WeaponItem);
+
+	// 요청 접수 성공. 서버 요청 전송 마침
+	return true;
 }
 
 bool UPRWeaponManagerComponent::UnequipWeaponFromSlot(EPRWeaponSlotType TargetSlot)
@@ -399,45 +386,74 @@ EPRWeaponSlotType UPRWeaponManagerComponent::GetAimOffsetWeaponSlot() const
 	return CurrentWeaponSlot;
 }
 
-
-bool UPRWeaponManagerComponent::EquipWeaponItemByIdInternal(const FGuid& ItemId)
+bool UPRWeaponManagerComponent::IsManagingWeaponItem(const UPRItemInstance_Weapon* WeaponItem) const
 {
-	// 서버 내부 장착에 필요한 ItemId와 인벤토리 캐시가 유효하지 않은 경우
-	if (!ItemId.IsValid() || !IsValid(CachedInventory))
+	return ResolveWeaponItemSlot(WeaponItem) != EPRWeaponSlotType::None;
+}
+
+void UPRWeaponManagerComponent::HandleInventoryWeaponModChanged(UPRItemInstance_Weapon* WeaponItem)
+{
+	// PlayerState 기반 런타임 캐시가 늦게 연결된 경우를 대비해 반응 처리 전에 갱신한다
+	InitializeRuntimeLinks();
+
+	// 인벤토리 변경 반응은 현재 매니저가 슬롯 원본으로 들고 있는 무기만 처리한다
+	const EPRWeaponSlotType TargetSlot = ResolveWeaponItemSlot(WeaponItem);
+	if (TargetSlot == EPRWeaponSlotType::None)
 	{
-		// 장착 실패. 내부 검증 실패
-		return false;
+		// 함수 조기 종료. 현재 캐릭터가 장착 중인 무기 Item이 아니다
+		return;
 	}
 
-	// 서버 인벤토리에서 ItemId에 대응하는 실제 무기 Item 조회
-	UPRItemInstance_Weapon* WeaponItem = CachedInventory->FindWeaponByItemId(ItemId);
-
-	// 서버 인벤토리에서 무기 Item을 찾지 못한 경우
-	if (!IsValid(WeaponItem))
+	// 슬롯 자원 재초기화와 어빌리티 리빌드에는 유효한 무기 데이터가 필요하다
+	if (!IsValid(WeaponItem) || !IsValid(WeaponItem->GetWeaponData()))
 	{
-		// ItemId 기반 장착 실패 상황을 Owner, ItemId 기준으로 추적
-		UE_LOG(
-			LogTemp,
-			Warning,
-			TEXT("[WeaponManagerComponent][Server] 무기 장착 실패. EquipWeaponItemByIdInternal | Owner = %s | ItemId = %s"),
-			*GetNameSafe(GetOwner()),
-			*ItemId.ToString());
-		
-		// 장착 실패. Item 조회 실패
-		return false;
+		// 함수 조기 종료. 슬롯 원본 데이터가 유효하지 않다
+		return;
 	}
 
-	// // ItemId 검증이 끝난 뒤 실제 장착 처리로 넘어가는 입력 상태를 추적
-	// UE_LOG(
-	// 	LogTemp,
-	// 	Log,
-	// 	TEXT("[WeaponManagerComponent][Server] ItemId 장착 처리 시작 | Owner = %s | ItemId = %s | Weapon = %s"),
-	// 	*GetNameSafe(GetOwner()),
-	// 	*ItemId.ToString(),
-	// 	*GetNameSafe(WeaponItem->GetWeaponData()));
+	// // Mod 변경 전 탄약 상태. Mod 자원만 새 Mod 기준으로 갱신하고 탄약은 유지하기 위해 보존한다
+	// if (IsValid(CachedPlayerSet))
+	// {
+	// 	const FPRWeaponSlotResourceState PreResourceState = CachedPlayerSet->BuildSlotResourceState(TargetSlot);
+	//
+	// 	// 새 Mod 기준으로 슬롯별 Mod 게이지와 스택 정책을 재초기화한다
+	// 	CachedPlayerSet->InitializeSlotResources(TargetSlot, WeaponItem->GetWeaponData(), WeaponItem->GetModData());
+	//
+	// 	// 자원 재초기화로 바뀐 탄약 수량을 이전 상태로 되돌리기 위한 보정값을 만든다
+	// 	const FPRWeaponSlotResourceState PostResourceState = CachedPlayerSet->BuildSlotResourceState(TargetSlot);
+	// 	FPRWeaponSlotResourceDelta PreserveAmmoDelta;
+	// 	PreserveAmmoDelta.MagazineDelta = PreResourceState.MagazineAmmo - PostResourceState.MagazineAmmo;
+	// 	PreserveAmmoDelta.ReserveDelta = PreResourceState.ReserveAmmo - PostResourceState.ReserveAmmo;
+	//
+	// 	// Mod 교체가 탄약 수량을 임의로 바꾸지 않도록 탄약 보정만 적용한다
+	// 	CachedPlayerSet->ApplySlotResourceDelta(TargetSlot, PreserveAmmoDelta);
+	// }
 
-	// 검증된 무기 Item으로 슬롯 장착 처리 결과 리턴
-	return EquipWeaponInternal(WeaponItem);
+	// 현재 활성 중인 무기라면 기존 Mod 어빌리티를 회수하고 새 Mod 어빌리티를 부여한다
+	WeaponItem->OnModChanged(GetOwner(), WeaponItem->GetModData());
+
+	// Mod 장착 여부에 맞춰 최근 Mod 실패 사유를 정리한다
+	WeaponItem->LastModFailReason = IsValid(WeaponItem->GetModData()) ? EPRWeaponModFailReason::None : EPRWeaponModFailReason::MissingMod;
+
+	// 인벤토리 정본 변경 결과를 복제 공개 비주얼 정보에 반영한다
+	RefreshVisualInfosFromCurrentState();
+
+	// 서버 로컬 Actor도 Mod 변경 결과에 맞춰 즉시 최신화한다
+	RefreshAllWeaponActors();
+
+	// 현재 활성 무기의 애니메이션 레이어 캐시를 재확인한다
+	RefreshAnimLayer();
+
+	// 서버 Mod 변경 반응이 끝난 뒤 Owner, 슬롯, Weapon Item, Mod 상태를 남겨 인벤토리 연동 흐름 추적
+	UE_LOG(
+		LogTemp,
+		Log,
+		TEXT("[WeaponManagerComponent][Server] 인벤토리 Mod 변경 반영. HandleInventoryWeaponModChanged() | Owner = %s | Slot = %s | WeaponItem = %s | Mod = %s | ModItem = %s"),
+		*GetNameSafe(GetOwner()),
+		*UEnum::GetValueAsString(TargetSlot),
+		*GetNameSafe(WeaponItem),
+		*GetNameSafe(WeaponItem->GetModData()),
+		*GetNameSafe(WeaponItem->GetEquippedModItem()));
 }
 
 bool UPRWeaponManagerComponent::EquipWeaponInternal(UPRItemInstance_Weapon* WeaponItem)
@@ -486,14 +502,12 @@ bool UPRWeaponManagerComponent::EquipWeaponInternal(UPRItemInstance_Weapon* Weap
 	// 장착 검증이 끝난 뒤 장착 슬롯 원본을 새 무기로 확정
 	GetMutableWeaponInstanceBySlot(WeaponSlot) = WeaponItem;
 
-	// 장착 슬롯이 비어 있었고 플레이어 슬롯 자원이 연결된 경우
-	if (bWeaponSlotWasEmpty && IsValid(CachedPlayerSet))
-	{
-		// 26.04.28, Yuchan, Attribute 수정은 GE를 통해 진행되어야 하므로 아래 코드 주석 처리
-		// TODO: 초기화 GE 적용
-		// 빈 슬롯에 최초 장착되는 경우에만 슬롯별 탄약과 Mod 자원 초기화
-		// CachedPlayerSet->InitializeSlotResources(WeaponSlot, WeaponData, WeaponItem->GetModData());
-	}
+	// // 장착 슬롯이 비어 있었고 플레이어 슬롯 자원이 연결된 경우
+	// if (bWeaponSlotWasEmpty && IsValid(CachedPlayerSet))
+	// {
+	// 	// 빈 슬롯에 최초 장착되는 경우에만 슬롯별 탄약과 Mod 자원 초기화
+	// 	CachedPlayerSet->InitializeSlotResources(WeaponSlot, WeaponData, WeaponItem->GetModData());
+	// }
 
 	// 현재 활성 슬롯이 비어 있거나 이미 활성 중인 슬롯에 다시 장착하는 경우
 	if (CurrentWeaponSlot == EPRWeaponSlotType::None || CurrentWeaponSlot == WeaponSlot)
@@ -515,14 +529,14 @@ bool UPRWeaponManagerComponent::EquipWeaponInternal(UPRItemInstance_Weapon* Weap
 	// 활성 무기 변화에 맞춰 애니메이션 레이어 갱신
 	RefreshAnimLayer();
 
-	// 서버 장착 처리가 확정된 뒤 Owner, 슬롯, ItemId, 무기 데이터, 활성 슬롯을 남겨 장착 흐름 추적
+	// 서버 장착 처리가 확정된 뒤 Owner, 슬롯, Weapon Item, 무기 데이터, 활성 슬롯을 남겨 장착 흐름 추적
 	UE_LOG(
 		LogTemp,
 		Log,
-		TEXT("[WeaponManagerComponent][Server] 무기 장착 완료. EquipWeaponInternal | Owner = %s | Slot = %s | ItemId = %s | Weapon = %s | CurrentWeaponSlot = %s"),
+		TEXT("[WeaponManagerComponent][Server] 무기 장착 완료. EquipWeaponInternal | Owner = %s | Slot = %s | WeaponItem = %s | Weapon = %s | CurrentWeaponSlot = %s"),
 		*GetNameSafe(GetOwner()),
 		*UEnum::GetValueAsString(WeaponSlot),
-		*WeaponItem->GetItemId().ToString(),
+		*GetNameSafe(WeaponItem),
 		*GetNameSafe(WeaponData),
 		*UEnum::GetValueAsString(CurrentWeaponSlot));
 	
@@ -590,14 +604,14 @@ bool UPRWeaponManagerComponent::UnequipWeaponFromSlotInternal(EPRWeaponSlotType 
 	// 활성 슬롯 해제 결과에 맞춰 애니메이션 레이어 갱신
 	RefreshAnimLayer();
 
-	// 서버 해제 처리가 확정된 뒤 Owner, 해제 슬롯, ItemId, 무기 데이터, 다음 활성 슬롯을 남겨 해제 흐름 추적
+	// 서버 해제 처리가 확정된 뒤 Owner, 해제 슬롯, Weapon Item, 무기 데이터, 다음 활성 슬롯을 남겨 해제 흐름 추적
 	UE_LOG(
 		LogTemp,
 		Log,
-		TEXT("[WeaponManagerComponent][Server] 무기 해제 완료. UnequipWeaponFromSlotInternal | Owner = %s | Slot = %s | ItemId = %s | Weapon = %s | NextWeaponSlot = %s"),
+		TEXT("[WeaponManagerComponent][Server] 무기 해제 완료. UnequipWeaponFromSlotInternal | Owner = %s | Slot = %s | WeaponItem = %s | Weapon = %s | NextWeaponSlot = %s"),
 		*GetNameSafe(GetOwner()),
 		*UEnum::GetValueAsString(TargetSlot),
-		*CurrentWeaponInstance->GetItemId().ToString(),
+		*GetNameSafe(CurrentWeaponInstance),
 		*GetNameSafe(CurrentWeaponInstance->GetWeaponData()),
 		*UEnum::GetValueAsString(CurrentWeaponSlot));
 	
@@ -636,9 +650,10 @@ bool UPRWeaponManagerComponent::AttachModToSlotInternal(EPRWeaponSlotType Target
 		// Mod 장착 실패
 		return false;
 	}
-	
-	// 26.04.28, Yuchan, Attribute 수정은 GE를 통해 진행되어야 하므로 아래 코드 주석 처리
-	// TODO: 초기화 GE 적용
+
+	// DataAsset 직접 장착 경로는 인벤토리 Mod Item을 거치지 않으므로 Item 참조 연결을 비운다
+	TargetWeaponInstance->ClearEquippedModItem();
+
 	// // 플레이어 슬롯 자원이 연결된 경우
 	// if (IsValid(CachedPlayerSet))
 	// {
@@ -646,7 +661,7 @@ bool UPRWeaponManagerComponent::AttachModToSlotInternal(EPRWeaponSlotType Target
 	// 	const FPRWeaponSlotResourceState PreResourceState = CachedPlayerSet->BuildSlotResourceState(TargetSlot);
 	//
 	// 	// 새 Mod 기준으로 슬롯 자원 구조 재초기화
-	// 	// CachedPlayerSet->InitializeSlotResources(TargetSlot, TargetWeaponInstance->GetWeaponData(), NewModData);
+	// 	CachedPlayerSet->InitializeSlotResources(TargetSlot, TargetWeaponInstance->GetWeaponData(), NewModData);
 	//
 	// 	// 재초기화로 변경된 탄약량을 이전 상태에 맞추기 위한 보정값
 	// 	FPRWeaponSlotResourceDelta PreserveAmmoDelta;
@@ -654,7 +669,7 @@ bool UPRWeaponManagerComponent::AttachModToSlotInternal(EPRWeaponSlotType Target
 	// 	PreserveAmmoDelta.ReserveDelta = PreResourceState.ReserveAmmo - CachedPlayerSet->BuildSlotResourceState(TargetSlot).ReserveAmmo;
 	//
 	// 	// Mod 교체가 탄약 수량을 임의로 바꾸지 않도록 보정 적용
-	// 	// CachedPlayerSet->ApplySlotResourceDelta(TargetSlot, PreserveAmmoDelta);
+	// 	CachedPlayerSet->ApplySlotResourceDelta(TargetSlot, PreserveAmmoDelta);
 	// }
 
 	// 무기 Item에 Mod 변경을 반영하고 장착 효과 갱신
@@ -1011,13 +1026,13 @@ void UPRWeaponManagerComponent::OnRep_ArmedState(EPRArmedState OldArmedState)
 	RefreshAllWeaponActors();
 }
 
-void UPRWeaponManagerComponent::Server_EquipWeaponItemById_Implementation(const FGuid& ItemId)
+void UPRWeaponManagerComponent::Server_EquipWeapon_Implementation(UPRItemInstance_Weapon* WeaponItem)
 {
 	// 서버 RPC 진입 시 PlayerState 기반 런타임 링크 갱신
 	InitializeRuntimeLinks();
 
-	// 서버 권위에서 ItemId 기반 장착 처리
-	EquipWeaponItemByIdInternal(ItemId);
+	// 서버 권위에서 Item 참조 기반 장착 처리
+	EquipWeaponInternal(WeaponItem);
 }
 
 void UPRWeaponManagerComponent::Server_UnequipWeaponSlot_Implementation(EPRWeaponSlotType TargetSlot)
@@ -1150,6 +1165,27 @@ bool UPRWeaponManagerComponent::IsSupportedSlot(EPRWeaponSlotType SlotType) cons
 	return SlotType == EPRWeaponSlotType::Primary || SlotType == EPRWeaponSlotType::Secondary;
 }
 
+EPRWeaponSlotType UPRWeaponManagerComponent::ResolveWeaponItemSlot(const UPRItemInstance_Weapon* WeaponItem) const
+{
+	// 유효하지 않은 Item은 어떤 슬롯의 원본으로도 인정하지 않는다
+	if (!IsValid(WeaponItem))
+	{
+		return EPRWeaponSlotType::None;
+	}
+
+	if (PrimaryWeaponInstance == WeaponItem)
+	{
+		return EPRWeaponSlotType::Primary;
+	}
+
+	if (SecondaryWeaponInstance == WeaponItem)
+	{
+		return EPRWeaponSlotType::Secondary;
+	}
+
+	return EPRWeaponSlotType::None;
+}
+
 void UPRWeaponManagerComponent::RefreshAnimLayer()
 {
 	ACharacter* OwnerCharacter = Cast<ACharacter>(GetOwner());
@@ -1182,24 +1218,19 @@ void UPRWeaponManagerComponent::RefreshAnimLayer()
 		return;
 	}
 
-	// 기존에 링크된 레이어가 있다면 언링크(Unlink) 하여 맨손 상태로 되돌린다.
+	// 기존에 연결된 레이어가 있다면 먼저 해제
 	if (IsValid(CurrentLinkedAnimLayerClass))
 	{
 		MeshComp->UnlinkAnimClassLayers(CurrentLinkedAnimLayerClass);
 		CurrentLinkedAnimLayerClass = nullptr;
 	}
 
-	// 새로운 무기 레이어가 지정되어 있다면 새롭게 링크(Link) 한다.
+	// 새로운 무기 레이어가 지정된 경우 메시 컴포넌트에 연결
 	if (IsValid(TargetAnimLayerClass))
 	{
 		MeshComp->LinkAnimClassLayers(TargetAnimLayerClass);
 		CurrentLinkedAnimLayerClass = TargetAnimLayerClass;
 	}
-	// 만약 Unlink 시 레이어가 아예 없어져서 T자 포즈가 된다면, 주석을 풀고 PRPlayerCharacter의 DefaultAnimLayerClass를 public으로 변환
-	// else
-	// {
-	// 	MeshComp->LinkAnimClassLayers(OwnerCharacter->DefaultAnimLayerClass);
-	// }
 }
 
 TObjectPtr<UPRItemInstance_Weapon>& UPRWeaponManagerComponent::GetMutableWeaponInstanceBySlot(EPRWeaponSlotType SlotType)

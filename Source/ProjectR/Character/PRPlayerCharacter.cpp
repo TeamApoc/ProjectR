@@ -10,6 +10,7 @@
 #include "EnhancedInputSubsystems.h"
 #include "Kismet/KismetMathLibrary.h"
 #include "ProjectR/ProjectR.h"
+#include "ProjectR/Animation/PRAnimInstance.h"
 #include "ProjectR/AbilitySystem/PRAbilitySystemComponent.h"
 #include "ProjectR/Player/PRPlayerState.h"
 #include "ProjectR/System/PRAssetManager.h"
@@ -40,7 +41,7 @@ APRPlayerCharacter::APRPlayerCharacter()
 	CameraBoom->bUsePawnControlRotation = true; // 컨트롤러 회전에 따라 카메라 회전
 	CameraBoom->bDoCollisionTest = true; // 카메라 충돌 처리 (장애물 감지 시 당김)
 	CameraBoom->bEnableCameraLag = true; // 카메라 지연(Lag) 활성화
-	CameraBoom->CameraLagSpeed = 10.0f; // 지연 속도 조절
+	CameraBoom->CameraLagSpeed = 15.0f; // 지연 속도 조절
 
 	// 카메라 설정
 	FollowCamera = CreateDefaultSubobject<UCameraComponent>(TEXT("FollowCamera"));
@@ -141,6 +142,7 @@ void APRPlayerCharacter::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& O
 	DOREPLIFETIME(APRPlayerCharacter, bIsSprinting);
 	//DOREPLIFETIME(APRPlayerCharacter, bIsAiming);
 	DOREPLIFETIME(APRPlayerCharacter, bIsWalking);
+	DOREPLIFETIME_CONDITION(APRPlayerCharacter, DodgeAnimationRequest, COND_SkipOwner);
 }
 
 bool APRPlayerCharacter::IsAiming() const
@@ -150,6 +152,26 @@ bool APRPlayerCharacter::IsAiming() const
 		return ASC->HasMatchingGameplayTag(PRGameplayTags::State_Aiming);
 	}
 	return false;
+}
+
+/*~ 회피 애니메이션 요청 ~*/
+
+void APRPlayerCharacter::RequestDodgeAnimation(const FVector& Direction, EPRDodgeAnimationType AnimationType)
+{
+	const FVector SafeDirection = Direction.IsNearlyZero() ? GetActorForwardVector() : Direction.GetSafeNormal();
+
+	// 소유자 또는 서버 자신은 즉시 로컬 AnimInstance에 요청을 전달한다.
+	PlayDodgeAnimation(SafeDirection, AnimationType);
+
+	if (HasAuthority())
+	{
+		// 소유자는 이미 로컬 예측으로 재생했으므로 COND_SkipOwner로 제외하고 관전자 클라이언트에만 전달한다.
+		// 서버에서 갱신한 요청 번호와 애니메이션 종류는 non-owner 클라이언트의 화면 표현에 사용된다.
+		++DodgeAnimationRequest.RequestId;
+		DodgeAnimationRequest.Direction = SafeDirection;
+		DodgeAnimationRequest.AnimationType = AnimationType;
+		ForceNetUpdate();
+	}
 }
 
 // Called when the game starts or when spawned
@@ -360,4 +382,36 @@ void APRPlayerCharacter::OnRep_IsSprinting()
 {
     // 타 플레이어의 화면에서도 애니메이션/속도 일치
     UpdateMaxWalkSpeed();
+}
+
+void APRPlayerCharacter::OnRep_DodgeAnimationRequest()
+{
+	if (DodgeAnimationRequest.RequestId == LastProcessedDodgeAnimationRequestId)
+	{
+		return;
+	}
+
+	// 같은 종류의 회피 몽타주가 연속으로 와도 RequestId가 증가하므로 매번 별도 요청으로 처리된다.
+	// 같은 복제 요청을 중복 처리하지 않도록 마지막 처리 번호를 기억한다.
+	LastProcessedDodgeAnimationRequestId = DodgeAnimationRequest.RequestId;
+	PlayDodgeAnimation(DodgeAnimationRequest.Direction, DodgeAnimationRequest.AnimationType);
+}
+
+void APRPlayerCharacter::PlayDodgeAnimation(const FVector& Direction, EPRDodgeAnimationType AnimationType)
+{
+	USkeletalMeshComponent* MeshComponent = GetMesh();
+	if (!IsValid(MeshComponent))
+	{
+		return;
+	}
+
+	UPRAnimInstance* AnimInstance = Cast<UPRAnimInstance>(MeshComponent->GetAnimInstance());
+	if (!IsValid(AnimInstance))
+	{
+		return;
+	}
+
+	// 실제 애니메이션 상태 전환은 캐릭터 메인 AnimInstance가 담당한다.
+	// 루트모션 회피는 Linked AnimInstance가 아니라 이 메인 AnimInstance에서 몽타주가 재생되어야 캡슐 이동이 반영된다.
+	AnimInstance->RequestDodge(Direction, AnimationType);
 }

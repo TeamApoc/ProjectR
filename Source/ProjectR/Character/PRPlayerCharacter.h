@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "PRCharacterBase.h"
 #include "Net/UnrealNetwork.h"
+#include "ProjectR/Animation/PRAnimationTypes.h"
 #include "ProjectR/AbilitySystem/Data/PRAbilitySet.h"
 #include "PRPlayerCharacter.generated.h"
 
@@ -48,6 +49,9 @@ public:
 	float GetJogSpeed() const { return JogSpeed; }
 	float GetSprintSpeed() const { return SprintSpeed; }
 	bool IsAiming() const;
+
+	/** 회피 애니메이션 요청을 현재 메시와 원격 클라이언트에 전달한다 */
+	void RequestDodgeAnimation(const FVector& Direction, EPRDodgeAnimationType AnimationType);
 	
 	// ===== Component getters =====
 	UPRWeaponManagerComponent* GetWeaponManager() const {return WeaponManagerComponent;}
@@ -84,6 +88,13 @@ private:
     /** 질주 상태가 복제되었을 때 속도를 업데이트한다 */
     UFUNCTION()
     void OnRep_IsSprinting();
+
+	/** 회피 애니메이션 요청이 복제되었을 때 로컬 AnimInstance에 전달한다 */
+	UFUNCTION()
+	void OnRep_DodgeAnimationRequest();
+
+	/** 지정 방향으로 로컬 AnimInstance에 회피 애니메이션을 요청한다 */
+	void PlayDodgeAnimation(const FVector& Direction, EPRDodgeAnimationType AnimationType);
 
 public:
 	/** 컴포넌트 */
@@ -138,6 +149,11 @@ private:
 	
 	UPROPERTY(Replicated, VisibleInstanceOnly, BlueprintReadOnly, Category = "Locomotion", meta = (AllowPrivateAccess = "true"))
 	bool bIsWalking = false;
+
+	UPROPERTY(ReplicatedUsing = OnRep_DodgeAnimationRequest, VisibleInstanceOnly, BlueprintReadOnly, Category = "PR|Animation", meta = (AllowPrivateAccess = "true"))
+	FPRDodgeAnimationRequest DodgeAnimationRequest;
+
+	int32 LastProcessedDodgeAnimationRequestId = 0;
 	
 	FPRAbilitySetHandles AbilitySetHandles;
 };

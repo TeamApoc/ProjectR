@@ -44,49 +44,52 @@ struct PROJECTR_API FPRDamageRegionInfo
 	}
 };
 
-USTRUCT(BlueprintType)
-struct PROJECTR_API FPRDamageContext
+
+// 프렌들리 파이어 감쇠 등 전투 산식 상수 모음
+namespace PRCombatConstants
+{
+	// 플레이어 진영 우호 공격 시 데미지 곱연산 배율 (0.0 = 우호 완전 면역)
+	constexpr float FriendlyFireMultiplier_PvP = 0.0f;
+
+	// 적 진영 우호 공격 시 데미지 곱연산 배율
+	constexpr float FriendlyFireMultiplier_EvE = 0.0f;
+	
+	// 무기 데미지 -> 그로기 데미지 변환 배율
+	constexpr float GroggyDamageCoeff = 0.3f;
+
+	// 방어력 경감 공식의 스케일링 상수. 경감률 = Armor / (Armor + ArmorScaling)
+	constexpr float ArmorScaling = 100.0f;
+
+	// 장갑 부위 적중 시 추가 방어력 보너스 (대상 Armor에 더해진다)
+	constexpr float ArmorRegionBonus = 50.0f;
+}
+
+// ExecCalc 산식의 입력 묶음
+USTRUCT()
+struct PROJECTR_API FPRDamageInputs
 {
 	GENERATED_BODY()
 
-	// 피해를 발생시킨 Actor다. 일반적으로 Ability를 실행한 캐릭터다.
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "ProjectR|Combat")
-	TObjectPtr<AActor> SourceActor = nullptr;
+	float BaseDamage = 0.f;
+	float GroggyDamage = 0.f;
+	float TargetArmor = 0.f;
+	float ArmorPenetration = 0.f;
+	float WeakpointMultiplier = 1.f;
+	float CriticalHitChance = 0.f;
+	float CriticalDamageMultiplier = 1.f;
+	bool bIsFromFriendly = false;
+	bool bIsFromPlayer = false;
+};
 
-	// 피해를 받을 Actor다.
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "ProjectR|Combat")
-	TObjectPtr<AActor> TargetActor = nullptr;
+// ExecCalc 산식 결과 묶음
+USTRUCT()
+struct PROJECTR_API FPRDamageOutputs
+{
+	GENERATED_BODY()
 
-	// GE Context에 기록될 EffectCauser다. 투사체/무기 Actor가 있으면 여기에 들어간다.
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "ProjectR|Combat")
-	TObjectPtr<AActor> EffectCauser = nullptr;
-
-	// Ability 또는 데이터 에셋처럼 피해의 출처를 추적할 객체다.
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "ProjectR|Combat")
-	TObjectPtr<UObject> SourceObject = nullptr;
-
-	// 피격 지점과 피격 컴포넌트를 담는다. 갑옷/약점 판정의 입력값이다.
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "ProjectR|Combat")
-	FHitResult HitResult;
-
-	// 어떤 Ability가 만든 피해인지 추적하기 위한 태그다.
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "ProjectR|Combat")
-	FGameplayTag SourceAbilityTag;
-
-	// Health에 적용할 피해량이다.
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "ProjectR|Combat", meta = (ClampMin = "0.0"))
-	float Damage = 0.0f;
-
-	// 적 전용 GroggyGauge에 적용할 피해량이다.
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "ProjectR|Combat", meta = (ClampMin = "0.0"))
-	float GroggyDamage = 0.0f;
-
-	// GE Spec Level로 전달할 값이다.
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "ProjectR|Combat", meta = (ClampMin = "0.0"))
-	float AbilityLevel = 1.0f;
-
-	bool HasValidPayload() const
-	{
-		return Damage > 0.0f || GroggyDamage > 0.0f;
-	}
+	float FinalDamage = 0.f;
+	float GroggyDamage = 0.f;
+	bool bIsCritical = false;
+	bool bIsFromFriendly = false;
+	FPRDamageRegionInfo Region;
 };

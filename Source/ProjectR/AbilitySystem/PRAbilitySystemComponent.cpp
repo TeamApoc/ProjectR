@@ -231,10 +231,10 @@ bool UPRAbilitySystemComponent::InitializeAttributesFromRegistry(const UPRAbilit
 	}
 	
 	// 초기화 GE 적용
-	if (TSubclassOf<UGameplayEffect> InitializeGE = Registry->GetInitializeGESynchronous())
+	if (IsValid(Registry->InitializeGE))
 	{
 		FGameplayEffectContextHandle EffectContextHandle = MakeEffectContext();
-		FGameplayEffectSpecHandle SpecHandle = MakeOutgoingSpec(InitializeGE, 1.0f, EffectContextHandle);
+		FGameplayEffectSpecHandle SpecHandle = MakeOutgoingSpec(Registry->InitializeGE, 1.0f, EffectContextHandle);
 		ApplyGameplayEffectSpecToSelf(*SpecHandle.Data.Get());
 	}
 
@@ -415,6 +415,21 @@ bool UPRAbilitySystemComponent::CanActivateAbilityByTag(const FGameplayTag& Abil
 	if (OutFailureTags.IsEmpty())
 	{
 		OutFailureTags.AddTag(PRGameplayTags::Fail_Invalid);
+	}
+	return false;
+}
+
+bool UPRAbilitySystemComponent::TryConsumeClientReplicatedTargetData(FGameplayAbilitySpecHandle AbilityHandle,
+	FPredictionKey AbilityOriginalPredictionKey)
+{
+	TSharedPtr<FAbilityReplicatedDataCache> CachedData = AbilityTargetDataMap.Find(FGameplayAbilitySpecHandleAndPredictionKey(AbilityHandle, AbilityOriginalPredictionKey));
+	if (CachedData.IsValid())
+	{
+		const bool bConsumed = CachedData->TargetData.Num() > 0;
+		CachedData->TargetData.Clear();
+		CachedData->bTargetConfirmed = false;
+		CachedData->bTargetCancelled = false;
+		return bConsumed;
 	}
 	return false;
 }

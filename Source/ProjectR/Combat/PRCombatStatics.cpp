@@ -1,149 +1,91 @@
 // Copyright ProjectR. All Rights Reserved.
 
 #include "PRCombatStatics.h"
-
 #include "AbilitySystemBlueprintLibrary.h"
-#include "AbilitySystemComponent.h"
-#include "Components/PrimitiveComponent.h"
-#include "GameplayEffect.h"
-#include "ProjectR/AbilitySystem/Effects/PRGameplayEffect_Damage.h"
-#include "ProjectR/Combat/PRCombatGameplayTags.h"
-#include "ProjectR/PRGameplayTags.h"
+#include "ProjectR/Combat/PRCombatInterface.h"
 
 UAbilitySystemComponent* UPRCombatStatics::FindAbilitySystemComponent(const AActor* Actor)
 {
 	return UAbilitySystemBlueprintLibrary::GetAbilitySystemComponent(const_cast<AActor*>(Actor));
 }
 
-FPRDamageRegionInfo UPRCombatStatics::ResolveDamageRegion(const FHitResult& HitResult, const AActor* TargetActor)
+EPRTeam UPRCombatStatics::GetActorTeam(const AActor* Actor)
 {
-	return ResolveDamageRegionInternal(HitResult, FindAbilitySystemComponent(TargetActor));
+	if (const IPRCombatInterface* Combat = Cast<IPRCombatInterface>(Actor))
+	{
+		return Combat->GetTeam();
+	}
+	return EPRTeam::Neutral;
 }
 
-bool UPRCombatStatics::IsCoreWeakpointOpen(const AActor* TargetActor)
+bool UPRCombatStatics::IsFriendly(const AActor* SourceActor, const AActor* TargetActor)
 {
-	const UAbilitySystemComponent* TargetASC = FindAbilitySystemComponent(TargetActor);
-	return IsValid(TargetASC) && TargetASC->HasMatchingGameplayTag(PRGameplayTags::State_Boss_WeakpointOpen_Core);
+	const EPRTeam SourceTeam = GetActorTeam(SourceActor);
+	const EPRTeam TargetTeam = GetActorTeam(TargetActor);
+	if (SourceTeam == EPRTeam::Neutral || TargetTeam == EPRTeam::Neutral)
+	{
+		return false;
+	}
+	return SourceTeam == TargetTeam;
 }
 
-bool UPRCombatStatics::ApplyDamageEffect(const FPRDamageContext& DamageContext,
-	TSubclassOf<UGameplayEffect> DamageEffectClass)
+FPRDamageOutputs UPRCombatStatics::ComputeDamage(const FPRDamageInputs& Inputs, const FHitResult& HitResult, const AActor* TargetActor)
 {
-	// 피해 적용은 서버 권한 타겟에서만 수행한다.
-	// 클라이언트에서 같은 계산을 반복하면 체력/그로기 수치가 엇갈릴 수 있다.
-	if (!IsValid(DamageContext.SourceActor)
-		|| !IsValid(DamageContext.TargetActor)
-		|| !DamageContext.HasValidPayload()
-		|| !DamageContext.TargetActor->HasAuthority())
+	FPRDamageOutputs Outputs;
+	Outputs.bIsFromFriendly = Inputs.bIsFromFriendly;
+	
+	// 부위 위치는 타깃이 알고 있다 (IPRCombatInterface::GetDamageRegionInfo)
+	if (const IPRCombatInterface* Combat = Cast<IPRCombatInterface>(TargetActor))
 	{
-		return false;
+		Outputs.Region = Combat->GetDamageRegionInfo(HitResult.BoneName);
 	}
 
-	UAbilitySystemComponent* SourceASC = FindAbilitySystemComponent(DamageContext.SourceActor);
-	UAbilitySystemComponent* TargetASC = FindAbilitySystemComponent(DamageContext.TargetActor);
-	if (!IsValid(SourceASC) || !IsValid(TargetASC))
+	// 부위별 데미지 배율. 약점은 증폭, 장갑은 방어력 보너스로 처리
+	float DamageMultiplier = 1.0f;
+	float ArmorBonus = 0.0f;
+
+	if (Outputs.Region.IsWeakpoint())
 	{
-		return false;
+		DamageMultiplier *= FMath::Max(Inputs.WeakpointMultiplier, 0.0f);
 	}
-
-	TSubclassOf<UGameplayEffect> ResolvedDamageEffectClass = DamageEffectClass;
-	if (!IsValid(ResolvedDamageEffectClass))
+	else if (Outputs.Region.IsArmor())
 	{
-		ResolvedDamageEffectClass = UPRGameplayEffect_Damage::StaticClass();
+		ArmorBonus = PRCombatConstants::ArmorRegionBonus;
 	}
-
-	FGameplayEffectContextHandle EffectContext = SourceASC->MakeEffectContext();
-	EffectContext.AddInstigator(DamageContext.SourceActor,
-		IsValid(DamageContext.EffectCauser) ? DamageContext.EffectCauser : DamageContext.SourceActor);
-
-	// SourceObject와 HitResult를 Context에 넣어 ExecutionCalculation에서 부위 판정까지 이어가게 한다.
-	if (IsValid(DamageContext.SourceObject))
+	
+	// 프렌들리 파이어 감쇠
+	if (Inputs.bIsFromFriendly)
 	{
-		EffectContext.AddSourceObject(DamageContext.SourceObject);
-	}
-
-	if (DamageContext.HitResult.bBlockingHit)
-	{
-		EffectContext.AddHitResult(DamageContext.HitResult, true);
-	}
-
-	const float AbilityLevel = FMath::Max(DamageContext.AbilityLevel, 1.0f);
-	const FGameplayEffectSpecHandle SpecHandle = SourceASC->MakeOutgoingSpec(ResolvedDamageEffectClass, AbilityLevel, EffectContext);
-	if (!SpecHandle.IsValid())
-	{
-		return false;
-	}
-
-	if (DamageContext.Damage > 0.0f)
-	{
-		// 실제 수치는 SetByCaller로 전달한다. GE 클래스는 공용으로 재사용할 수 있다.
-		SpecHandle.Data->SetSetByCallerMagnitude(PRCombatGameplayTags::SetByCaller_Damage, DamageContext.Damage);
-	}
-
-	if (DamageContext.GroggyDamage > 0.0f)
-	{
-		SpecHandle.Data->SetSetByCallerMagnitude(PRCombatGameplayTags::SetByCaller_GroggyDamage, DamageContext.GroggyDamage);
-	}
-
-	if (DamageContext.SourceAbilityTag.IsValid())
-	{
-		SpecHandle.Data->AddDynamicAssetTag(DamageContext.SourceAbilityTag);
-	}
-
-	SourceASC->ApplyGameplayEffectSpecToTarget(*SpecHandle.Data.Get(), TargetASC);
-	return true;
-}
-
-bool UPRCombatStatics::FindTaggedRegion(const UPrimitiveComponent* HitComponent, const TCHAR* Prefix, FName& OutRegionTag)
-{
-	if (!IsValid(HitComponent))
-	{
-		return false;
-	}
-
-	for (const FName& ComponentTag : HitComponent->ComponentTags)
-	{
-		if (ComponentTag.ToString().StartsWith(Prefix))
+		if (Inputs.bIsFromPlayer)
 		{
-			OutRegionTag = ComponentTag;
-			return true;
+			DamageMultiplier *= FMath::Max(PRCombatConstants::FriendlyFireMultiplier_PvP, 0.f);
+		}
+		else
+		{
+			DamageMultiplier *= FMath::Max(PRCombatConstants::FriendlyFireMultiplier_EvE, 0.f);
 		}
 	}
+	
+	// 치명타 판정
+	Outputs.bIsCritical = FMath::FRand() <= Inputs.CriticalHitChance;
+	const float CriticalMultiplier = Outputs.bIsCritical ? FMath::Max(Inputs.CriticalDamageMultiplier, 1.0f) : 1.0f;
 
-	return false;
+	// 배율 적용 (부위·프렌들리·치명타)
+	const float PreArmorDamage = FMath::Max(Inputs.BaseDamage * DamageMultiplier * CriticalMultiplier, 0.0f);
+	const float PreArmorGroggy = FMath::Max(Inputs.GroggyDamage * DamageMultiplier, 0.0f);
+
+	// 방어력 경감: EffectiveArmor = max(Armor + ArmorBonus - ArmorPenetration, 0)
+	// 경감률 = EffectiveArmor / (EffectiveArmor + K)
+	const float EffectiveArmor = FMath::Max(Inputs.TargetArmor + ArmorBonus - Inputs.ArmorPenetration, 0.0f);
+	const float ArmorReduction = EffectiveArmor / (EffectiveArmor + PRCombatConstants::ArmorScaling);
+
+	Outputs.FinalDamage = PreArmorDamage * (1.0f - ArmorReduction);
+	Outputs.GroggyDamage = PreArmorGroggy * (1.0f - ArmorReduction);
+
+	return Outputs;
 }
 
-FPRDamageRegionInfo UPRCombatStatics::ResolveDamageRegionInternal(const FHitResult& HitResult,
-	const UAbilitySystemComponent* TargetASC)
+float UPRCombatStatics::CalculateBaseGroggyDamage(float BaseDamage)
 {
-	FPRDamageRegionInfo RegionInfo;
-
-	const UPrimitiveComponent* HitComponent = HitResult.GetComponent();
-	if (!IsValid(HitComponent))
-	{
-		return RegionInfo;
-	}
-
-	FName WeakpointTag = NAME_None;
-	if (FindTaggedRegion(HitComponent, TEXT("Weakpoint."), WeakpointTag))
-	{
-		// 보스 코어 약점은 별도 태그로 열린 상태일 때만 약점으로 인정한다.
-		const bool bIsCoreWeakpoint = WeakpointTag == TEXT("Weakpoint.Core");
-		if (!bIsCoreWeakpoint
-			|| (IsValid(TargetASC) && TargetASC->HasMatchingGameplayTag(PRGameplayTags::State_Boss_WeakpointOpen_Core)))
-		{
-			RegionInfo.RegionType = EPRDamageRegionType::Weakpoint;
-			RegionInfo.RegionTag = WeakpointTag;
-			return RegionInfo;
-		}
-	}
-
-	FName ArmorTag = NAME_None;
-	if (FindTaggedRegion(HitComponent, TEXT("Armor."), ArmorTag))
-	{
-		RegionInfo.RegionType = EPRDamageRegionType::Armor;
-		RegionInfo.RegionTag = ArmorTag;
-	}
-
-	return RegionInfo;
+	return BaseDamage * PRCombatConstants::GroggyDamageCoeff;
 }

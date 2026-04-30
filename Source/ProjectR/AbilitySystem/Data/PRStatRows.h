@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "Engine/DataTable.h"
+#include "ProjectR/Combat/PRCombatTypes.h"
 #include "PRStatRows.generated.h"
 
 // DT_EnemyStats / DT_BossStats 공용 Row. 프로퍼티 이름이 Registry의 리플렉션 키
@@ -24,13 +25,17 @@ struct PROJECTR_API FPREnemyStatRow : public FTableRowBase
 	UPROPERTY(EditAnywhere, BlueprintReadOnly)
 	float MaxGroggyGauge = 100.0f;
 
-	// 장갑 피해 배율 초기값 (1.0 = 감산 없음)
+	// 방어력
 	UPROPERTY(EditAnywhere, BlueprintReadOnly)
-	float ArmorMultiplier = 1.0f;
+	float Armor = 0.0f;
 
-	// 약점 피해 배율 초기값
+	// 적 기본 공격력
 	UPROPERTY(EditAnywhere, BlueprintReadOnly)
-	float WeakpointMultiplier = 2.0f;
+	float AttackPower = 10.0f;
+
+	// 본 이름별 데미지 부위 매핑. 미정의 본은 Default Region(None)으로 처리
+	UPROPERTY(EditAnywhere, BlueprintReadOnly)
+	TMap<FName, FPRDamageRegionInfo> RegionMap;
 };
 
 // DT_PlayerStats Row. 프로퍼티 이름이 Registry의 리플렉션 키
@@ -55,15 +60,15 @@ struct PROJECTR_API FPRPlayerStatRow : public FTableRowBase
 	UPROPERTY(EditAnywhere, BlueprintReadOnly)
 	float StaminaRegenRate = 25.0f;
 
-	// 최대 Mod 게이지 초기값
+	// 방어력
 	UPROPERTY(EditAnywhere, BlueprintReadOnly)
-	float MaxModGauge = 100.0f;
+	float Armor = 0.0f;
 
-	// 주무기 탄창 기본 용량
+	// 치명타 확률 (0.0 ~ 1.0)
 	UPROPERTY(EditAnywhere, BlueprintReadOnly)
-	float MaxPrimaryAmmo = 30.0f;
+	float CriticalHitChance = 0.05f;
 
-	// 보조무기 탄창 기본 용량
+	// 치명타 피해 배율
 	UPROPERTY(EditAnywhere, BlueprintReadOnly)
-	float MaxSecondaryAmmo = 6.0f;
+	float CriticalDamageMultiplier = 1.5f;
 };

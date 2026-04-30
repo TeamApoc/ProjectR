@@ -15,6 +15,8 @@ class UInputAction;
 class UPRWeaponManagerComponent;
 class UPRSpringArmComponent;
 struct FInputActionValue;
+//무기 테스트용
+class UPRWeaponDataAsset;
 
 UCLASS()
 class PROJECTR_API APRPlayerCharacter : public APRCharacterBase
@@ -33,7 +35,10 @@ public:
 
 	/*~ APRCharacterBase Interface ~*/
 	virtual UPRAbilitySystemComponent* GetPRAbilitySystemComponent() const override;
-	
+
+	/*~ IPRCombatInterface ~*/
+	virtual EPRTeam GetTeam() const override { return EPRTeam::Player; }
+
 	/*~ APRPlayerCharacter Interface ~*/
 	/** 애니메이션 인스턴스에서 사용하는 게터 함수들 */                   
 	bool IsCrouching() const { return bIsCrouched; } 
@@ -46,6 +51,7 @@ public:
 	
 	// ===== Component getters =====
 	UPRWeaponManagerComponent* GetWeaponManager() const {return WeaponManagerComponent;}
+
 	
 protected:
 	virtual void BeginPlay() override;
@@ -118,13 +124,16 @@ protected:
 	/** 질주 속도 (cm/s) */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "PR|Locomotion")
 	float SprintSpeed = 600.0f;
-
+	
+	// 게임 시작 시 기본으로 연결할 애니메이션 레이어 (맨손 레이어)
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "PR|Animation")
+	TSubclassOf<UAnimInstance> DefaultAnimLayerClass;
 private:
 	/** 복제되는 상태 변수 */
 	UPROPERTY(Replicated, VisibleInstanceOnly, BlueprintReadOnly, Category = "Locomotion", meta = (AllowPrivateAccess = "true"))
 	bool bIsSprinting = false;
 
-	UPROPERTY(Replicated, VisibleInstanceOnly, BlueprintReadOnly, Category = "Locomotion", meta = (AllowPrivateAccess = "true"))
+	UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Category = "Locomotion", meta = (AllowPrivateAccess = "true"))
 	bool bIsAiming = false;
 	
 	UPROPERTY(Replicated, VisibleInstanceOnly, BlueprintReadOnly, Category = "Locomotion", meta = (AllowPrivateAccess = "true"))

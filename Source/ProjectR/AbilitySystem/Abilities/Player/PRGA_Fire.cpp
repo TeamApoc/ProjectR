@@ -3,14 +3,21 @@
 
 #include "PRGA_Fire.h"
 
+#include "AbilitySystemComponent.h"
+#include "AbilitySystemBlueprintLibrary.h"
 #include "DrawDebugHelpers.h"
+#include "ProjectR/AbilitySystem/Data/PRAbilitySystemRegistry.h"
+#include "ProjectR/AbilitySystem/Tasks/PRAT_SpawnPredictedProjectile.h"
 #include "ProjectR/PRGameplayTags.h"
 #include "ProjectR/Character/PRPlayerCharacter.h"
+#include "ProjectR/Projectile/PRProjectileBase.h"
+#include "ProjectR/System/PRAssetManager.h"
 #include "ProjectR/System/PREventManagerSubsystem.h"
 #include "ProjectR/System/PREventTypes.h"
 #include "ProjectR/UI/Crosshair/PRCrosshairTypes.h"
 #include "ProjectR/Weapon/Actors/PRWeaponActor.h"
 #include "ProjectR/Weapon/Components/PRWeaponManagerComponent.h"
+#include "ProjectR/Weapon/Data/PRWeaponDataAsset.h"
 
 DEFINE_LOG_CATEGORY(LogFire);
 
@@ -29,6 +36,8 @@ void UPRGA_Fire::ActivateAbility(const FGameplayAbilitySpecHandle Handle, const 
 {
 	Super::ActivateAbility(Handle, ActorInfo, ActivationInfo, TriggerEventData);
 
+	ResetConsecutiveShots();
+
 	if (APRPlayerCharacter* PlayerCharacter = GetPRCharacter<APRPlayerCharacter>())
 	{
 		if (UPRWeaponManagerComponent* WeaponManager = PlayerCharacter->GetWeaponManager())
@@ -44,8 +53,10 @@ void UPRGA_Fire::EndAbility(const FGameplayAbilitySpecHandle Handle, const FGame
 	const FGameplayAbilityActivationInfo ActivationInfo, bool bReplicateEndAbility, bool bWasCancelled)
 {
 	NextShotId = 0;
+	ResetConsecutiveShots();
 	Super::EndAbility(Handle, ActorInfo, ActivationInfo, bReplicateEndAbility, bWasCancelled);
 }
+
 
 FVector UPRGA_Fire::GetMuzzleLocation() const
 {
@@ -154,7 +165,7 @@ FHitResult UPRGA_Fire::PerformMuzzleTrace(const FVector& MuzzleLoc, const FVecto
 	return Hit;
 }
 
-void UPRGA_Fire::FireOneShot()
+void UPRGA_Fire::FireHitScan()
 {
 	const FGameplayAbilityActorInfo& Info = GetActorInfo();
 
@@ -163,6 +174,13 @@ void UPRGA_Fire::FireOneShot()
 	{
 		return;
 	}
+
+	// 몽타쥬 재생
+	if (UPRWeaponDataAsset* WeaponData = GetActiveWeaponData())
+	{
+		PlayWeaponMontage(WeaponData->ShootMontage, WeaponData->ShootMontagePlayRate);
+	}
+	RequestCurrentWeaponShootAnimation();
 
 	// 페이로드 구성
 	FPRFireShotPayload Payload;
@@ -194,14 +212,24 @@ void UPRGA_Fire::FireOneShot()
 	UE_LOG(LogFire, Verbose, TEXT("[Local] FireOneShot. ShotID=%u, Hit=%s"),
 		Payload.ShotID, Hit.bBlockingHit ? TEXT("true") : TEXT("false"));
 
+	++ConsecutiveShots;
+
 	// UI/카메라 알림: 반동은 매 발사 시, 적중 신호는 적중 시에만 발송
+	// 현재 활성 슬롯의 WeaponData를 가져오고, 그 안에 들어 있는 RecoilProfile을 그대로 사용
 	if (UWorld* World = GetWorld())
 	{
 		if (UPREventManagerSubsystem* EventMgr = World->GetSubsystem<UPREventManagerSubsystem>())
 		{
 			FPRRecoilEventPayload RecoilPayload;
-			RecoilPayload.Speed = RecoilSpeed;
-			RecoilPayload.Strength = RecoilStrength;
+			if (UPRWeaponDataAsset* WeaponData = GetActiveWeaponData())   
+			{
+				RecoilPayload.RecoilProfile = WeaponData->RecoilProfile;
+			}                                                                                                                                                   
+			RecoilPayload.ConsecutiveShots = ConsecutiveShots;
+			RecoilPayload.bIsAiming = Info.AbilitySystemComponent.IsValid()
+				&& Info.AbilitySystemComponent->HasMatchingGameplayTag(PRGameplayTags::State_Aiming);
+			RecoilPayload.Speed = RecoilPayload.RecoilProfile.RecoilRecoverySpeed;
+			RecoilPayload.Strength = RecoilPayload.RecoilProfile.CrosshairSpreadIncrease;
 			EventMgr->BroadcastTyped(PRGameplayTags::Event_Player_Recoil, RecoilPayload);
 
 			if (Hit.bBlockingHit && IsValid(Hit.GetActor()))
@@ -224,6 +252,82 @@ void UPRGA_Fire::FireOneShot()
 		Server_ReportShot(Payload);
 	}
 }
+
+void UPRGA_Fire::ResetConsecutiveShots()
+{
+	ConsecutiveShots = 0;
+}
+
+FTransform UPRGA_Fire::GetProjectileLaunchTransform() const
+{
+	if (!GetActorInfo().IsLocallyControlled())
+	{
+		return FTransform();
+	}
+	
+	const FPRFireViewpoint View = GetFireViewpoint();
+	const FVector MuzzleLoc = GetMuzzleLocation();
+
+	// 1차 트레이스로 카메라가 가리키는 월드 조준점 산출 (숄더뷰 시차 보정)
+	const FVector AimPoint = ResolveAimPoint(View, MaxTraceDistance);
+
+	// 총구 -> 조준점 방향. 거리가 너무 짧으면(=조준점이 총구 바로 앞/뒤) 카메라 정면으로 폴백
+	FVector LaunchDir = AimPoint - MuzzleLoc;
+	if (!LaunchDir.Normalize(KINDA_SMALL_NUMBER))
+	{
+		LaunchDir = View.Rotation.Vector();
+	}
+
+	return FTransform(LaunchDir.Rotation(), MuzzleLoc);
+}
+
+void UPRGA_Fire::FireProjectile(TSubclassOf<APRProjectileBase> ProjectileClass, FVector SpawnLocation, FRotator SpawnRotation)
+{
+	if (!IsValid(ProjectileClass))
+	{
+		UE_LOG(LogFire, Warning, TEXT("FireProjectile: 유효하지 않은 ProjectileClass 전달"));
+		return;
+	}
+
+	UPRAT_SpawnPredictedProjectile* Task = UPRAT_SpawnPredictedProjectile::SpawnPredictedProjectile(
+		this, ProjectileClass, SpawnLocation, SpawnRotation);
+	if (!Task)
+	{
+		UE_LOG(LogFire, Warning, TEXT("FireProjectile: AbilityTask 생성 실패. Class=%s"), *GetNameSafe(ProjectileClass));
+		return;
+	}
+
+	// AbilityTask 결과 콜백 바인딩. 결과 통지는 OnProjectileSpawnSuccess/Failed 핸들러로 일원화
+	Task->OnSuccess.BindDynamic(this, &UPRGA_Fire::OnProjectileSpawnSuccess);
+	Task->OnFailed.BindDynamic(this, &UPRGA_Fire::OnProjectileSpawnFailed);
+
+	UE_LOG(LogFire, Verbose, TEXT("FireProjectile: 시작. Class=%s, Loc=%s, Rot=%s"),
+		*GetNameSafe(ProjectileClass), *SpawnLocation.ToCompactString(), *SpawnRotation.ToCompactString());
+
+	// ReadyForActivation 호출 시 AT::Activate가 실행되어 클라/서버 각자의 스폰 흐름이 진행됨
+	Task->ReadyForActivation();
+}
+
+void UPRGA_Fire::OnProjectileSpawnSuccess(APRProjectileBase* SpawnedProjectile)
+{
+	if (!IsValid(SpawnedProjectile))
+	{
+		UE_LOG(LogFire, Warning, TEXT("OnProjectileSpawnSuccess: 무효 인스턴스 수신"));
+		return;
+	}
+
+	UE_LOG(LogFire, Verbose, TEXT("OnProjectileSpawnSuccess: Id=%u, Actor=%s"),
+		SpawnedProjectile->GetProjectileId(), *GetNameSafe(SpawnedProjectile));
+	
+	K2_OnProjectileSpawnSuccess(SpawnedProjectile);
+}
+
+void UPRGA_Fire::OnProjectileSpawnFailed(APRProjectileBase* SpawnedProjectile)
+{
+	UE_LOG(LogFire, Warning, TEXT("OnProjectileSpawnFailed: 투사체 스폰 실패 또는 예측 거부"));
+	K2_OnProjectileSpawnFailed(SpawnedProjectile);
+}
+
 
 void UPRGA_Fire::Server_ReportShot_Implementation(FPRFireShotPayload Payload)
 {
@@ -262,8 +366,98 @@ void UPRGA_Fire::ServerConfirmShot(const FPRFireShotPayload& Payload)
 
 void UPRGA_Fire::ApplyDamageFromShot(const FPRFireShotPayload& Payload)
 {
-	// 실제 데미지 처리는 추후 GE 기반으로 구현. 현 단계는 로그만 남긴다
-	const AActor* HitActor = Payload.ClientHitResult.IsValid() ? Payload.ClientHitResult->GetActor() : nullptr;
-	UE_LOG(LogFire, Warning, TEXT("[ApplyDamage] ShotID=%u, Target=%s"),
-		Payload.ShotID, IsValid(HitActor) ? *HitActor->GetName() : TEXT("None"));
+	if (!Payload.ClientHitResult.IsValid())
+	{
+		return;
+	}
+
+	AActor* HitActor = Payload.ClientHitResult->GetActor();
+	if (!IsValid(HitActor))
+	{
+		return;
+	}
+
+	ApplyDamage(HitActor, Payload.ClientHitResult.Get());
+}
+
+void UPRGA_Fire::ApplyDamage(AActor* TargetActor, const FHitResult* HitResult)
+{
+	if (!IsValid(TargetActor))
+	{
+		return;
+	}
+
+	UAbilitySystemComponent* SourceASC = GetAbilitySystemComponentFromActorInfo();
+	if (!IsValid(SourceASC))
+	{
+		return;
+	}
+
+	const UPRAbilitySystemRegistry* Registry = UPRAssetManager::Get().GetAbilitySystemRegistry();
+	if (!IsValid(Registry) || !IsValid(Registry->DamageGE_FromWeapon))
+	{
+		return;
+	}
+
+	const FGameplayEffectSpecHandle SpecHandle = MakeOutgoingGameplayEffectSpec(
+		GetCurrentAbilitySpecHandle(),
+		GetCurrentActorInfo(),
+		GetCurrentActivationInfo(),
+		Registry->DamageGE_FromWeapon);
+
+	if (!SpecHandle.IsValid())
+	{
+		return;
+	}
+
+	// HitResult가 있으면 EffectContext에 포함시켜 ExecCalc에서 부위 판정에 활용한다
+	if (HitResult != nullptr && HitResult->bBlockingHit)
+	{
+		SpecHandle.Data->GetContext().AddHitResult(*HitResult, true);
+	}
+
+	UAbilitySystemComponent* TargetASC = UAbilitySystemBlueprintLibrary::GetAbilitySystemComponent(TargetActor);
+	if (IsValid(TargetASC))
+	{
+		SourceASC->ApplyGameplayEffectSpecToTarget(*SpecHandle.Data.Get(), TargetASC);
+	}
+}
+
+UPRWeaponDataAsset* UPRGA_Fire::GetActiveWeaponData() const                                                            
+{                                                                                                                      
+	if (APRPlayerCharacter* PlayerCharacter = GetPRCharacter<APRPlayerCharacter>())                                  
+	{                                                                                                                
+		if (UPRWeaponManagerComponent* WeaponManager = PlayerCharacter->GetWeaponManager())                      
+		{                                                                                                        
+			const FPRWeaponVisualInfo& CurrentWeaponVisualInfo = WeaponManager->GetCurrentWeaponVisualInfo();
+			return CurrentWeaponVisualInfo.WeaponData;                                                       
+		}                                                                                                        
+	}                                                                                                                
+                                                                                                                       
+	return nullptr;                                                                                                  
+}                                                                                                                      
+
+void UPRGA_Fire::PlayWeaponMontage(UAnimMontage* Montage, float PlayRate)
+{
+	if (!IsValid(Montage))
+	{
+		return;
+	}
+
+	if (UAbilitySystemComponent* ASC = GetAbilitySystemComponentFromActorInfo())
+	{
+		ASC->PlayMontage(
+				this,
+				CurrentActivationInfo,
+				Montage,
+				FMath::Max(PlayRate, UE_SMALL_NUMBER));
+	}
+}
+
+void UPRGA_Fire::RequestCurrentWeaponShootAnimation() const
+{
+	if (CurrentWeapon.IsValid())
+	{
+		CurrentWeapon->RequestShootAnimation();
+	}
 }

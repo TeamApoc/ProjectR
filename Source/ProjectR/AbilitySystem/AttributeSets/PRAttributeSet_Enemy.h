@@ -37,19 +37,14 @@ public:
 	FGameplayAttributeData MaxGroggyGauge;
 	PR_ATTRIBUTE_ACCESSORS(UPRAttributeSet_Enemy, MaxGroggyGauge)
 
-	// 장갑 피해 배율 (1.0 = 감산 없음)
-	UPROPERTY(BlueprintReadOnly, ReplicatedUsing = OnRep_ArmorMultiplier, Category = "ProjectR|Attributes|Enemy")
-	FGameplayAttributeData ArmorMultiplier;
-	PR_ATTRIBUTE_ACCESSORS(UPRAttributeSet_Enemy, ArmorMultiplier)
-
-	// 약점 피해 배율
-	UPROPERTY(BlueprintReadOnly, ReplicatedUsing = OnRep_WeakpointMultiplier, Category = "ProjectR|Attributes|Enemy")
-	FGameplayAttributeData WeakpointMultiplier;
-	PR_ATTRIBUTE_ACCESSORS(UPRAttributeSet_Enemy, WeakpointMultiplier)
+	// 적 공격력
+	UPROPERTY(BlueprintReadOnly, ReplicatedUsing = OnRep_AttackPower, Category = "ProjectR|Attributes|Enemy")
+	FGameplayAttributeData AttackPower;
+	PR_ATTRIBUTE_ACCESSORS(UPRAttributeSet_Enemy, AttackPower)
 
 protected:
 	UFUNCTION() void OnRep_GroggyGauge(const FGameplayAttributeData& OldValue);
 	UFUNCTION() void OnRep_MaxGroggyGauge(const FGameplayAttributeData& OldValue);
-	UFUNCTION() void OnRep_ArmorMultiplier(const FGameplayAttributeData& OldValue);
-	UFUNCTION() void OnRep_WeakpointMultiplier(const FGameplayAttributeData& OldValue);
+	UFUNCTION() void OnRep_AttackPower(const FGameplayAttributeData& OldValue);
+
 };

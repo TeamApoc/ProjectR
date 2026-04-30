@@ -79,6 +79,7 @@ namespace PRGameplayTags
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Input_Ability_Interact); // 상호작용 입력 태그
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Input_Ability_Crouch); // 앉기 입력 태그
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Input_Ability_Aim); // 에임 입력 태그
+	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Input_Ability_Mod); // 모드 스킬 입력 태그
 	
 	// ===== Input.Locomotion.* — 플레이어 InputTag (Ability에 해당하지 않는 Input 키) =====
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Input_Locomotion_Walk)
@@ -89,4 +90,6 @@ namespace PRGameplayTags
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Fail_Cooldown); // Cooldown 태그가 활성 중
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Fail_Blocked); // Block 태그에 의해 차단됨
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Fail_Invalid); // 어빌리티/소유자 상태가 유효하지 않음
+	
+	
 }

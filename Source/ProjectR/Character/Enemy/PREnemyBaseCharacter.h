@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "ProjectR/AbilitySystem/PRAbilityTypes.h"
 #include "ProjectR/AbilitySystem/Data/PRAbilitySet.h"
+#include "ProjectR/AbilitySystem/Data/PRStatRows.h"
 #include "ProjectR/Character/PRCharacterBase.h"
 #include "ProjectR/Character/Enemy/PREnemyInterface.h"
 #include "PREnemyBaseCharacter.generated.h"
@@ -37,6 +38,10 @@ public:
 	virtual void PossessedBy(AController* NewController) override;
 	virtual UPRAbilitySystemComponent* GetPRAbilitySystemComponent() const override;
 	virtual EPRCharacterRole GetCharacterRole() const { return EPRCharacterRole::Enemy; }
+
+	/*~ IPRCombatInterface ~*/
+	virtual EPRTeam GetTeam() const override { return EPRTeam::Enemy; }
+	virtual FPRDamageRegionInfo GetDamageRegionInfo(FName BoneName) const override;
 
 public:
 	virtual UPRAbilitySystemComponent* GetEnemyAbilitySystemComponent() const override;
@@ -162,6 +167,9 @@ protected:
 	bool bCachedOrientRotationToMovement = true;
 	bool bCachedUseControllerDesiredRotation = false;
 	bool bCachedUseControllerRotationYaw = false;
+	// 부위 매핑 조회용으로 보유한 StatRow 사본. InitializeEnemyAbilitySystem에서 채운다.
+	FPREnemyStatRow CachedStatRow;
+	bool bHasCachedStatRow = false;
 
 	bool bGameplayTagEventsBound = false;
 };

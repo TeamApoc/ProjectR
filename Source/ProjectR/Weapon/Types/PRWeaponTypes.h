@@ -3,8 +3,20 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "ProjectR/Weapon/Data/PRWeaponDataAsset.h"
 #include "PRWeaponTypes.generated.h"
+
+class UPRWeaponDataAsset;
+class UPRWeaponModDataAsset;
+
+UENUM(BlueprintType)
+enum class EPRWeaponType : uint8
+{
+	None,
+	Rifle,
+	GrenadeLauncher,
+	BoltAction,
+	Pistol
+};
 
 UENUM(BlueprintType)
 enum class EPRWeaponSlotType : uint8
@@ -15,67 +27,98 @@ enum class EPRWeaponSlotType : uint8
 };
 
 UENUM(BlueprintType)
-enum class EPRWeaponArmedState : uint8
+enum class EPRArmedState : uint8
 {
 	Armed,
 	Unarmed
 };
 
 UENUM(BlueprintType)
-enum class EPRWeaponCarryState : uint8
+enum class EPRWeaponFireModeState : uint8
 {
-	Armed,
-	Stowed
+	BaseFire,
+	ModFire
+};
+
+UENUM(BlueprintType)
+enum class EPRWeaponActionFailReason : uint8
+{
+	None,
+	InvalidSource,
+	NoMagazineAmmo,
+	NoReserveAmmo,
+	BlockedByState,
+	InvalidRuntimeState
+};
+
+UENUM(BlueprintType)
+enum class EPRWeaponModFailReason : uint8
+{
+	None,
+	MissingMod,
+	NoGauge,
+	NoStack,
+	AlreadyActive,
+	BlockedByState
 };
 
 USTRUCT(BlueprintType)
-struct PROJECTR_API FPRActiveWeaponSlot
+struct PROJECTR_API FPRWeaponSlotResourceDelta
 {
 	GENERATED_BODY()
 
 public:
-	// 현재 활성 슬롯 구분
+	// 탄창 잔탄 변화량
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "ProjectR|Weapon")
+	int32 MagazineDelta = 0;
+
+	// 예비 탄약 변화량
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "ProjectR|Weapon")
+	int32 ReserveDelta = 0;
+
+	// Mod 게이지 변화량
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "ProjectR|Weapon")
+	float ModGaugeDelta = 0.0f;
+
+	// Mod 스택 변화량
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "ProjectR|Weapon")
+	int32 ModStackDelta = 0;
+};
+
+USTRUCT(BlueprintType)
+struct PROJECTR_API FPRWeaponSlotResourceState
+{
+	GENERATED_BODY()
+
+public:
+	// 어느 슬롯의 자원 상태인지 식별한다
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "ProjectR|Weapon")
 	EPRWeaponSlotType SlotType = EPRWeaponSlotType::None;
 
-	// 현재 공개 중인 무기 데이터
+	// 현재 탄창 잔탄
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "ProjectR|Weapon")
-	TObjectPtr<UPRWeaponDataAsset> WeaponData = nullptr;
+	int32 MagazineAmmo = 0;
 
-public:
-	// 현재 공개 상태가 비어 있는지 확인한다
-	bool IsEmpty() const
-	{
-		return SlotType == EPRWeaponSlotType::None || !IsValid(WeaponData);
-	}
+	// 현재 예비 탄약
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "ProjectR|Weapon")
+	int32 ReserveAmmo = 0;
 
-	// 공개 상태를 초기화한다
-	void Reset()
-	{
-		SlotType = EPRWeaponSlotType::None;
-		WeaponData = nullptr;
-	}
+	// 현재 Mod 게이지
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "ProjectR|Weapon")
+	float ModGauge = 0.0f;
 
-	// 두 공개 상태가 같은 무기를 가리키는지 확인한다
-	bool operator==(const FPRActiveWeaponSlot& Other) const
-	{
-		return SlotType == Other.SlotType && WeaponData == Other.WeaponData;
-	}
-
-	// 두 공개 상태가 다른지 확인한다
-	bool operator!=(const FPRActiveWeaponSlot& Other) const
-	{
-		return !(*this == Other);
-	}
+	// 현재 Mod 스택
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "ProjectR|Weapon")
+	int32 ModStack = 0;
 };
 
 USTRUCT(BlueprintType)
-struct PROJECTR_API FPRWeaponVisualSlot
+struct PROJECTR_API FPRWeaponVisualInfo
 {
 	GENERATED_BODY()
 
 public:
-	// 현재 공개 상태가 어떤 슬롯을 나타내는지 식별한다
+	// 현재 공개 상태가 어느 슬롯인지 식별한다
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "ProjectR|Weapon")
 	EPRWeaponSlotType SlotType = EPRWeaponSlotType::None;
 
@@ -83,15 +126,15 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "ProjectR|Weapon")
 	TObjectPtr<UPRWeaponDataAsset> WeaponData = nullptr;
 
-	// 현재 슬롯 무기가 손에 들린 상태인지 수납 상태인지 나타낸다
+	// 슬롯에 장착된 공개 Mod 데이터
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "ProjectR|Weapon")
-	EPRWeaponCarryState CarryState = EPRWeaponCarryState::Stowed;
+	TObjectPtr<UPRWeaponModDataAsset> ModData = nullptr;
 
 public:
 	// 현재 공개 비주얼 상태가 비어 있는지 확인한다
 	bool IsEmpty() const
 	{
-		return SlotType == EPRWeaponSlotType::None || !IsValid(WeaponData);
+		return SlotType == EPRWeaponSlotType::None || !WeaponData;
 	}
 
 	// 슬롯 타입을 유지한 채 공개 비주얼 상태를 초기화한다
@@ -99,19 +142,19 @@ public:
 	{
 		SlotType = InSlotType;
 		WeaponData = nullptr;
-		CarryState = EPRWeaponCarryState::Stowed;
+		ModData = nullptr;
 	}
 
-	// 두 공개 비주얼 상태가 같은 무기와 같은 휴대 상태를 가리키는지 확인한다
-	bool operator==(const FPRWeaponVisualSlot& Other) const
+	// 두 공개 비주얼 상태가 같은 무기와 같은 Mod를 가리키는지 확인한다
+	bool operator==(const FPRWeaponVisualInfo& Other) const
 	{
 		return SlotType == Other.SlotType
 			&& WeaponData == Other.WeaponData
-			&& CarryState == Other.CarryState;
+			&& ModData == Other.ModData;
 	}
 
 	// 두 공개 비주얼 상태가 다른지 확인한다
-	bool operator!=(const FPRWeaponVisualSlot& Other) const
+	bool operator!=(const FPRWeaponVisualInfo& Other) const
 	{
 		return !(*this == Other);
 	}

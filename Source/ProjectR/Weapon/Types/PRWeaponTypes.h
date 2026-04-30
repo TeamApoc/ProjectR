@@ -8,6 +8,18 @@
 class UPRWeaponDataAsset;
 class UPRWeaponModDataAsset;
 
+namespace PREnumHelper
+{
+	// 이넘타입 이름을 FName으로 리턴
+	template<typename T>
+	FName EnumToFName(T Value)
+	{
+		const UEnum* EnumPtr = StaticEnum<T>();
+		return EnumPtr ? FName(EnumPtr->GetNameStringByValue((int64)Value)) : NAME_None;
+	}
+}
+
+
 UENUM(BlueprintType)
 enum class EPRWeaponType : uint8
 {
@@ -24,6 +36,23 @@ enum class EPRWeaponSlotType : uint8
 	None,
 	Primary,
 	Secondary
+};
+
+// 무기 무장 소켓 이름
+UENUM(BlueprintType)
+enum class EPRWeaponArmedSocketNames : uint8
+{
+	Socket_Gun_Arm_R, 
+	Socket_Gun_Arm_L, 
+	Socket_Gun_Arm_Dual
+};
+// 무기 비주장 소켓 이름
+UENUM(BlueprintType)
+enum class EPRWeaponStowedSocketNames : uint8
+{
+	Socket_Gun_Stow_L,
+	Socket_Gun_Stow_R
+	Socket_Pistol_Stow, 
 };
 
 UENUM(BlueprintType)

@@ -7,6 +7,7 @@
 #include "ProjectR/Weapon/Types/PRWeaponAnimationTypes.h"
 #include "PRWeaponActor.generated.h"
 
+enum class EPRArmedState : uint8;
 class ACharacter;
 class USceneComponent;
 class USkeletalMeshComponent;

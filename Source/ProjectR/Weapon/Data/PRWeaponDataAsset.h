@@ -38,6 +38,14 @@ public:
 	// 무기 슬롯 타입
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|Weapon")
 	EPRWeaponSlotType SlotType = EPRWeaponSlotType::None;
+	
+	// 무기 Armed 부착 소켓 이름 
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|Weapon")
+	EPRWeaponArmedSocketNames ArmedSocketName;
+	
+	// 무기 Unarmed 부착 소켓 이름
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|Weapon")
+	EPRWeaponStowedSocketNames StowedSocketName;
 
 	// 슬롯 초기화 시 사용할 기본 탄창 잔탄
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|Weapon", meta = (ClampMin = "0"))
@@ -62,7 +70,6 @@ public:
 	// 장착 가능한 Mod 태그 목록 (예시. Mod.Weapon.Gun 태그 있는 모드만 착용 가능)
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|Weapon")
 	FGameplayTagContainer SupportedModTags;
-	TObjectPtr<USkeletalMesh> DisplayMesh;
 	
 	// 04.27 김동석 추가
 	// 이 무기를 들었을 때 캐릭터에 적용할 애니메이션 레이어

@@ -6,6 +6,7 @@
 #include "Components/SkeletalMeshComponent.h"
 #include "GameFramework/Character.h"
 #include "ProjectR/Animation/Weapon/PRWeaponAnimInstance.h"
+#include "ProjectR/Weapon/Items/PRItemInstance_Weapon.h"
 
 APRWeaponActor::APRWeaponActor()
 {

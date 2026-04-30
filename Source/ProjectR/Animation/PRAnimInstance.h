@@ -43,6 +43,15 @@ public:
 	// 회피 애니메이션 상태를 강제로 정리한다
 	UFUNCTION(BlueprintCallable, Category = "ProjectR|Animation|Dodge")
 	void CancelDodge();
+
+	// 회피 중 들어온 입력을 소비하고, 취소 가능 구간이면 몽타주와 Ability 종료 흐름을 조기 실행한다
+	bool HandleDodgeInput();
+
+	// AnimNotifyState가 여는 회피 입력 취소 가능 구간을 설정한다
+	void SetDodgeInputCancelWindow(bool bCanCancel, float BlendOutTime = 0.0f);
+
+	// 마지막 회피 종료가 입력 취소로 발생했는지 반환한다
+	bool WasDodgeInputCancelRequested() const { return bDodgeInputCancelRequested; }
 	
 private:
 	void UpdateVelocity();
@@ -242,6 +251,10 @@ public:
 	UPROPERTY(BlueprintReadOnly, Category = "ProjectR|Animation|Dodge")
 	bool bIsDodgeBackStep = false;
 
+	// 회피 몽타주 끝부분의 입력 취소 가능 구간이 열려 있는지 나타낸다
+	UPROPERTY(BlueprintReadOnly, Category = "ProjectR|Animation|Dodge")
+	bool bCanCancelDodgeByInput = false;
+
 	// 회피 애니메이션 요청 후 경과 시간이다
 	UPROPERTY(BlueprintReadOnly, Category = "ProjectR|Animation|Dodge")
 	float DodgeElapsedTime = 0.0f;
@@ -290,6 +303,10 @@ public:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "ProjectR|Animation|Dodge|Montage")
 	float DodgeMontageStopBlendOutTime = 0.15f;
 
+	// 입력 취소 구간에서 회피를 조기 종료할 때 사용할 몽타주 블렌드 아웃 시간이다
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "ProjectR|Animation|Dodge|Montage")
+	float DodgeInputCancelBlendOutTime = 0.18f;
+
 	// 몽타주 종료 델리게이트가 들어오기 전에 자동 종료 fallback이 먼저 실행되지 않도록 더해주는 여유 시간이다
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "ProjectR|Animation|Dodge|Montage")
 	float DodgeMontageAutoFinishPadding = 0.15f;
@@ -314,5 +331,11 @@ private:
 
 	// 현재 회피 요청에 적용할 자동 종료 시간이다
 	float CurrentDodgeAutoFinishTime = 0.0f;
+
+	// 현재 회피 입력 취소 구간에서 사용할 몽타주 블렌드 아웃 시간이다
+	float CurrentDodgeInputCancelBlendOutTime = 0.0f;
+
+	// 마지막 회피 종료가 입력 취소 구간의 입력으로 발생했는지 나타낸다
+	bool bDodgeInputCancelRequested = false;
 	
 };

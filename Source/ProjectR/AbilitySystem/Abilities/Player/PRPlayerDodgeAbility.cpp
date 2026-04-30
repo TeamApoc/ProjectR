@@ -135,7 +135,8 @@ void UPRPlayerDodgeAbility::HandleDodgeAnimationFinished()
 	}
 
 	bDodgeEndRequested = true;
-	EndAbility(CurrentSpecHandle, CurrentActorInfo, CurrentActivationInfo, true, false);
+	const bool bWasCancelledByInput = IsValid(ActiveAnimInstance) && ActiveAnimInstance->WasDodgeInputCancelRequested();
+	EndAbility(CurrentSpecHandle, CurrentActorInfo, CurrentActivationInfo, true, bWasCancelledByInput);
 }
 
 void UPRPlayerDodgeAbility::HandleDodgeSafetyTimeout(int32 FinishedDodgeExecutionId)

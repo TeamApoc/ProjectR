@@ -174,6 +174,24 @@ void APRPlayerCharacter::RequestDodgeAnimation(const FVector& Direction, EPRDodg
 	}
 }
 
+bool APRPlayerCharacter::HandleDodgeInputDuringMontage()
+{
+	USkeletalMeshComponent* MeshComponent = GetMesh();
+	if (!IsValid(MeshComponent))
+	{
+		return false;
+	}
+
+	UPRAnimInstance* AnimInstance = Cast<UPRAnimInstance>(MeshComponent->GetAnimInstance());
+	if (!IsValid(AnimInstance))
+	{
+		return false;
+	}
+
+	// 회피 중에는 입력을 실제 행동으로 넘기지 않고 AnimInstance의 취소 창 판정에 맡긴다.
+	return AnimInstance->HandleDodgeInput();
+}
+
 // Called when the game starts or when spawned
 void APRPlayerCharacter::BeginPlay()
 {
@@ -229,6 +247,11 @@ void APRPlayerCharacter::Move(const FInputActionValue& Value)
 {
 	FVector2D MovementVector = Value.Get<FVector2D>();
 
+	if (!MovementVector.IsNearlyZero() && HandleDodgeInputDuringMontage())
+	{
+		return;
+	}
+
 	if (IsValid(Controller))
 	{
 		const FRotator Rotation = Controller->GetControlRotation();
@@ -255,6 +278,11 @@ void APRPlayerCharacter::Look(const FInputActionValue& Value)
 
 void APRPlayerCharacter::SprintPressed()
 {
+	if (HandleDodgeInputDuringMontage())
+	{
+		return;
+	}
+
 	// 멈춰있을때는 질주 불가
 	if (!bIsSprinting && GetCharacterMovement()->GetCurrentAcceleration().IsNearlyZero())
 	{
@@ -273,6 +301,11 @@ void APRPlayerCharacter::SprintPressed()
 
 void APRPlayerCharacter::WalkPressed()
 {
+	if (HandleDodgeInputDuringMontage())
+	{
+		return;
+	}
+
 	bIsWalking = !bIsWalking;
 	UpdateMaxWalkSpeed();
 	

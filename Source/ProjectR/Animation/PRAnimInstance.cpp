@@ -88,6 +88,9 @@ void UPRAnimInstance::RequestDodge(const FVector& WorldDirection, EPRDodgeAnimat
 	// 같은 상태 안에서 연속 요청을 감지할 수 있도록 요청 번호와 펄스를 함께 갱신한다.
 	DodgeElapsedTime = 0.0f;
 	CurrentDodgeAutoFinishTime = FMath::Max(DodgeAutoFinishTime, 1.0f);
+	bCanCancelDodgeByInput = false;
+	bDodgeInputCancelRequested = false;
+	CurrentDodgeInputCancelBlendOutTime = 0.0f;
 	bIsDodging = true;
 	bDodgeRequested = true;
 	++DodgeRequestId;
@@ -107,6 +110,8 @@ void UPRAnimInstance::FinishDodge()
 	bDodgeRequested = false;
 	bIsDodgeForwardRoll = false;
 	bIsDodgeBackStep = false;
+	bCanCancelDodgeByInput = false;
+	CurrentDodgeInputCancelBlendOutTime = 0.0f;
 	DodgeElapsedTime = 0.0f;
 	CurrentDodgeAutoFinishTime = 0.0f;
 
@@ -122,8 +127,51 @@ void UPRAnimInstance::CancelDodge()
 	bDodgeRequested = false;
 	bIsDodgeForwardRoll = false;
 	bIsDodgeBackStep = false;
+	bCanCancelDodgeByInput = false;
+	bDodgeInputCancelRequested = false;
+	CurrentDodgeInputCancelBlendOutTime = 0.0f;
 	DodgeElapsedTime = 0.0f;
 	CurrentDodgeAutoFinishTime = 0.0f;
+}
+
+/*~ 회피 입력 처리 ~*/
+
+bool UPRAnimInstance::HandleDodgeInput()
+{
+	if (!bIsDodging)
+	{
+		return false;
+	}
+
+	if (!bCanCancelDodgeByInput)
+	{
+		// 회피 몽타주 중에는 입력 이벤트만 소비하고 실제 이동이나 다른 Ability 실행은 막는다.
+		return true;
+	}
+
+	// NotifyState가 연 취소 가능 구간에서는 입력 한 번으로 몽타주와 Ability를 조기 종료한다.
+	bDodgeInputCancelRequested = true;
+	bCanCancelDodgeByInput = false;
+	const float BlendOutTime = CurrentDodgeInputCancelBlendOutTime > 0.0f
+		? CurrentDodgeInputCancelBlendOutTime
+		: DodgeInputCancelBlendOutTime;
+	StopDodgeMontage(BlendOutTime);
+	FinishDodge();
+	return true;
+}
+
+void UPRAnimInstance::SetDodgeInputCancelWindow(bool bCanCancel, float BlendOutTime)
+{
+	// NotifyState가 남아 있던 상태에서 회피가 이미 끝났다면 취소 창을 열지 않는다.
+	if (!bCanCancel || !bIsDodging)
+	{
+		bCanCancelDodgeByInput = false;
+		CurrentDodgeInputCancelBlendOutTime = 0.0f;
+		return;
+	}
+
+	bCanCancelDodgeByInput = true;
+	CurrentDodgeInputCancelBlendOutTime = BlendOutTime > 0.0f ? BlendOutTime : DodgeInputCancelBlendOutTime;
 }
 
 /*~ 회피 몽타주 재생 ~*/

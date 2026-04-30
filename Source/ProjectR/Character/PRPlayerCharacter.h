@@ -52,6 +52,9 @@ public:
 
 	/** 회피 애니메이션 요청을 현재 메시와 원격 클라이언트에 전달한다 */
 	void RequestDodgeAnimation(const FVector& Direction, EPRDodgeAnimationType AnimationType);
+
+	/** 회피 중 입력을 소비하고, 취소 가능 구간이면 회피를 조기 종료한다 */
+	bool HandleDodgeInputDuringMontage();
 	
 	// ===== Component getters =====
 	UPRWeaponManagerComponent* GetWeaponManager() const {return WeaponManagerComponent;}

@@ -19,4 +19,6 @@ namespace PRRowNames
 namespace PRCollisionChannels
 {
 	constexpr ECollisionChannel ECC_Combat = ECC_GameTraceChannel1;
+	constexpr ECollisionChannel ECC_Projectile = ECC_GameTraceChannel2;
+	constexpr ECollisionChannel ECC_Ground = ECC_GameTraceChannel3;
 }

@@ -78,9 +78,12 @@ protected:
 	// 현재 활성 무기 데이터를 반환한다                           
 	UPRWeaponDataAsset* GetActiveWeaponData() const;              
                                                               
-	// 지정한 무기 몽타주를 현재 어빌리티 컨텍스트에서 재생한다   
+	// 지정한 무기 몽타주를 현재 어빌리티 컨텍스트에서 재생한다
 	void PlayWeaponMontage(UAnimMontage* Montage, float PlayRate);
 
+	// 현재 활성 무기 Actor에 발사 애니메이션 요청을 전달한다
+	void RequestCurrentWeaponShootAnimation() const;
+	
 	// 플레이어 무기 데미지 GE를 타겟에 적용한다. HitResult를 EffectContext에 포함시킨다
 	void ApplyDamage(AActor* TargetActor, const FHitResult* HitResult = nullptr);
 

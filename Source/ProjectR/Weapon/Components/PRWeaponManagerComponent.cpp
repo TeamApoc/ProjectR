@@ -361,6 +361,31 @@ APRWeaponActor* UPRWeaponManagerComponent::GetActiveWeaponActor() const
 	return GetWeaponActorBySlot(CurrentWeaponSlot);
 }
 
+EPRWeaponSlotType UPRWeaponManagerComponent::GetAimOffsetWeaponSlot() const
+{
+	// 비무장 상태에서는 맨손 AimOffset을 사용하도록 빈 슬롯을 반환한다
+	if (ArmedState != EPRArmedState::Armed)
+	{
+		return EPRWeaponSlotType::None;
+	}
+
+	// 주무기와 보조무기 외 슬롯은 AimOffset 대상으로 사용하지 않는다
+	if (!IsSupportedSlot(CurrentWeaponSlot))
+	{
+		return EPRWeaponSlotType::None;
+	}
+
+	const FPRWeaponVisualInfo& CurrentVisualInfo = GetCurrentWeaponVisualInfo();
+
+	// 현재 활성 슬롯에 공개 무기 데이터가 없으면 맨손 AimOffset으로 처리한다
+	if (CurrentVisualInfo.IsEmpty())
+	{
+		return EPRWeaponSlotType::None;
+	}
+
+	return CurrentWeaponSlot;
+}
+
 bool UPRWeaponManagerComponent::IsManagingWeaponItem(const UPRItemInstance_Weapon* WeaponItem) const
 {
 	return ResolveWeaponItemSlot(WeaponItem) != EPRWeaponSlotType::None;

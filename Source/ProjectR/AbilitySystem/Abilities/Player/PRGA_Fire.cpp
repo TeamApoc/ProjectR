@@ -174,13 +174,14 @@ void UPRGA_Fire::FireHitScan()
 	{
 		return;
 	}
-	
+
 	// 몽타쥬 재생
-	if (UPRWeaponDataAsset* WeaponData = GetActiveWeaponData())                         
-	{                                                                                   
+	if (UPRWeaponDataAsset* WeaponData = GetActiveWeaponData())
+	{
 		PlayWeaponMontage(WeaponData->ShootMontage, WeaponData->ShootMontagePlayRate);
-	}                                                                                   
-	
+	}
+	RequestCurrentWeaponShootAnimation();
+
 	// 페이로드 구성
 	FPRFireShotPayload Payload;
 	Payload.ShotID = ++NextShotId;
@@ -438,17 +439,25 @@ UPRWeaponDataAsset* UPRGA_Fire::GetActiveWeaponData() const
 
 void UPRGA_Fire::PlayWeaponMontage(UAnimMontage* Montage, float PlayRate)
 {
-	if (!IsValid(Montage))                                                      
-	{                                                                           
-		return;                                                             
-	}                                                                           
-                                                                            
+	if (!IsValid(Montage))
+	{
+		return;
+	}
+
 	if (UAbilitySystemComponent* ASC = GetAbilitySystemComponentFromActorInfo())
-	{                                                                           
-		ASC->PlayMontage(                                                   
+	{
+		ASC->PlayMontage(
 				this,
-				CurrentActivationInfo,                                      
-				Montage,                                                    
-				FMath::Max(PlayRate, UE_SMALL_NUMBER));                     
-	}                                                                           
+				CurrentActivationInfo,
+				Montage,
+				FMath::Max(PlayRate, UE_SMALL_NUMBER));
+	}
+}
+
+void UPRGA_Fire::RequestCurrentWeaponShootAnimation() const
+{
+	if (CurrentWeapon.IsValid())
+	{
+		CurrentWeapon->RequestShootAnimation();
+	}
 }

@@ -217,6 +217,7 @@ void APREnemyBaseCharacter::RestoreMovementPresentationDefaults()
 	GetCharacterMovement()->bUseControllerDesiredRotation = bCachedUseControllerDesiredRotation;
 	bUseControllerRotationYaw = bCachedUseControllerRotationYaw;
 	bHasCachedMovementPresentation = false;
+}
 FPRDamageRegionInfo APREnemyBaseCharacter::GetDamageRegionInfo(FName BoneName) const
 {
 	if (bHasCachedStatRow)

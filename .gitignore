@@ -80,6 +80,7 @@ DerivedDataCache/*
 .github/
 Content/Marketplace
 Content/Assets
+Temp/
 Docs/Private
 .idea
 *.code-workspace

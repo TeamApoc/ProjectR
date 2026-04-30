@@ -8,7 +8,9 @@
 #include "BehaviorTree/BlackboardComponent.h"
 #include "BehaviorTree/BlackboardData.h"
 #include "BehaviorTree/BehaviorTreeComponent.h"
+#include "ProjectR/AI/PREnemyAIDebug.h"
 #include "ProjectR/AbilitySystem/PRAbilitySystemComponent.h"
+#include "ProjectR/AI/Controllers/PREnemyAIController.h"
 #include "ProjectR/Character/Enemy/PREnemyInterface.h"
 
 namespace
@@ -70,12 +72,54 @@ EBTNodeResult::Type UBTTask_PRActivateEnemyAbility::ExecuteTask(UBehaviorTreeCom
 	// 몬스터 Ability 실행은 서버 ASC에서만 시도한다.
 	if (!ASC->TryActivateAbilityOnServer(ResolvedAbilityTag, ActiveAbilityHandle))
 	{
+		if (PREnemyAIDebug::IsPatternLogEnabled())
+		{
+			UE_LOG(
+				LogPREnemyAI,
+				Warning,
+				TEXT("[Ability] ActivateFailed Tag=%s Pawn=%s"),
+				*ResolvedAbilityTag.ToString(),
+				*GetNameSafe(ControlledPawn));
+		}
 		return EBTNodeResult::Failed;
+	}
+
+	ApplyTacticalModeOnAbilityActivated(OwnerComp);
+
+	if (PREnemyAIDebug::IsPatternLogEnabled())
+	{
+		UE_LOG(
+			LogPREnemyAI,
+			Verbose,
+			TEXT("[Ability] Activated Tag=%s Pawn=%s"),
+			*ResolvedAbilityTag.ToString(),
+			*GetNameSafe(ControlledPawn));
+	}
+
+	if (bResetAttackPressureOnAbilityActivated)
+	{
+		if (UBlackboardComponent* BlackboardComponent = OwnerComp.GetBlackboardComponent())
+		{
+			if (HasActivateAbilityBlackboardKey(BlackboardComponent, AttackPressureKey))
+			{
+				const float PreviousPressure = BlackboardComponent->GetValueAsFloat(AttackPressureKey);
+				BlackboardComponent->SetValueAsFloat(AttackPressureKey, 0.0f);
+				if (PREnemyAIDebug::IsAttackPressureLogEnabled())
+				{
+					UE_LOG(
+						LogPREnemyAI,
+						Verbose,
+						TEXT("[AttackPressure] Reset Reason=AbilityActivated Prev=%.2f Pawn=%s"),
+						PreviousPressure,
+						*GetNameSafe(ControlledPawn));
+				}
+			}
+		}
 	}
 
 	if (!bWaitUntilAbilityEnds)
 	{
-		ApplyPostAbilityBlackboardUpdates(OwnerComp);
+		ApplyPostAbilityCombatStateUpdates(OwnerComp);
 		return EBTNodeResult::Succeeded;
 	}
 
@@ -89,7 +133,7 @@ EBTNodeResult::Type UBTTask_PRActivateEnemyAbility::ExecuteTask(UBehaviorTreeCom
 	}
 
 	ClearAbilityEndDelegate();
-	ApplyPostAbilityBlackboardUpdates(OwnerComp);
+	ApplyPostAbilityCombatStateUpdates(OwnerComp);
 	return EBTNodeResult::Succeeded;
 }
 
@@ -135,7 +179,7 @@ bool UBTTask_PRActivateEnemyAbility::IsObservedAbilityActive() const
 void UBTTask_PRActivateEnemyAbility::FinishObservedAbilityWait(UBehaviorTreeComponent& OwnerComp, EBTNodeResult::Type TaskResult)
 {
 	ClearAbilityEndDelegate();
-	ApplyPostAbilityBlackboardUpdates(OwnerComp);
+	ApplyPostAbilityCombatStateUpdates(OwnerComp);
 
 	if (bAbortRequested)
 	{
@@ -147,7 +191,36 @@ void UBTTask_PRActivateEnemyAbility::FinishObservedAbilityWait(UBehaviorTreeComp
 	FinishLatentTask(OwnerComp, TaskResult);
 }
 
-void UBTTask_PRActivateEnemyAbility::ApplyPostAbilityBlackboardUpdates(UBehaviorTreeComponent& OwnerComp)
+void UBTTask_PRActivateEnemyAbility::ApplyTacticalModeOnAbilityActivated(UBehaviorTreeComponent& OwnerComp)
+{
+	if (!bSetTacticalModeOnAbilityActivated)
+	{
+		return;
+	}
+
+	UBlackboardComponent* BlackboardComponent = OwnerComp.GetBlackboardComponent();
+	if (!IsValid(BlackboardComponent) || !HasActivateAbilityBlackboardKey(BlackboardComponent, TacticalModeKey))
+	{
+		return;
+	}
+
+	AActor* FocusTarget = nullptr;
+	if (HasActivateAbilityBlackboardKey(BlackboardComponent, CurrentTargetKey))
+	{
+		FocusTarget = Cast<AActor>(BlackboardComponent->GetValueAsObject(CurrentTargetKey));
+	}
+
+	if (APREnemyAIController* EnemyAIController = Cast<APREnemyAIController>(OwnerComp.GetAIOwner()))
+	{
+		EnemyAIController->ApplyTacticalModeState(TacticalModeOnAbilityActivated, FocusTarget);
+	}
+	else
+	{
+		BlackboardComponent->SetValueAsEnum(TacticalModeKey, static_cast<uint8>(TacticalModeOnAbilityActivated));
+	}
+}
+
+void UBTTask_PRActivateEnemyAbility::ApplyPostAbilityCombatStateUpdates(UBehaviorTreeComponent& OwnerComp)
 {
 	UBlackboardComponent* BlackboardComponent = OwnerComp.GetBlackboardComponent();
 	if (!IsValid(BlackboardComponent))
@@ -157,7 +230,20 @@ void UBTTask_PRActivateEnemyAbility::ApplyPostAbilityBlackboardUpdates(UBehavior
 
 	if (bSetTacticalModeAfterAbilityEnds && HasActivateAbilityBlackboardKey(BlackboardComponent, TacticalModeKey))
 	{
-		BlackboardComponent->SetValueAsEnum(TacticalModeKey, static_cast<uint8>(TacticalModeAfterAbilityEnds));
+		AActor* FocusTarget = nullptr;
+		if (HasActivateAbilityBlackboardKey(BlackboardComponent, CurrentTargetKey))
+		{
+			FocusTarget = Cast<AActor>(BlackboardComponent->GetValueAsObject(CurrentTargetKey));
+		}
+
+		if (APREnemyAIController* EnemyAIController = Cast<APREnemyAIController>(OwnerComp.GetAIOwner()))
+		{
+			EnemyAIController->ApplyTacticalModeState(TacticalModeAfterAbilityEnds, FocusTarget);
+		}
+		else
+		{
+			BlackboardComponent->SetValueAsEnum(TacticalModeKey, static_cast<uint8>(TacticalModeAfterAbilityEnds));
+		}
 	}
 }
 
@@ -212,9 +298,12 @@ void UBTTask_PRActivateEnemyAbility::HandleObservedAbilityEnded(const FAbilityEn
 
 FString UBTTask_PRActivateEnemyAbility::GetStaticDescription() const
 {
-	return FString::Printf(TEXT("%s\nAbilityTag: %s\nWait: %s\nPost Mode: %s"),
+	return FString::Printf(TEXT("%s\nAbilityTag: %s\nActivated Mode: %s\nWait: %s\nPost Mode: %s"),
 		*Super::GetStaticDescription(),
 		AbilityTag.IsValid() ? *AbilityTag.ToString() : *FString::Printf(TEXT("BB:%s"), *AbilityTagBlackboardKey.ToString()),
+		bSetTacticalModeOnAbilityActivated
+			? *StaticEnum<EPRTacticalMode>()->GetNameStringByValue(static_cast<int64>(TacticalModeOnAbilityActivated))
+			: TEXT("None"),
 		bWaitUntilAbilityEnds ? TEXT("true") : TEXT("false"),
 		bSetTacticalModeAfterAbilityEnds
 			? *StaticEnum<EPRTacticalMode>()->GetNameStringByValue(static_cast<int64>(TacticalModeAfterAbilityEnds))

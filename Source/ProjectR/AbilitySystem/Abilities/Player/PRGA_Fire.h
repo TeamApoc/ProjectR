@@ -74,9 +74,6 @@ protected:
 
 	// 데미지 적용. Payload의 HitResult를 바탕으로 GE를 생성해 타겟 ASC에 적용한다
 	virtual void ApplyDamageFromShot(const FPRFireShotPayload& Payload);
-
-	// 플레이어 무기 데미지 GE를 타겟에 적용한다. HitResult를 EffectContext에 포함시킨다
-	void ApplyDamage(AActor* TargetActor, const FHitResult* HitResult = nullptr);
 	
 	// 현재 활성 무기 데이터를 반환한다                           
 	UPRWeaponDataAsset* GetActiveWeaponData() const;              
@@ -86,6 +83,9 @@ protected:
 
 	// 현재 활성 무기 Actor에 발사 애니메이션 요청을 전달한다
 	void RequestCurrentWeaponShootAnimation() const;
+	
+	// 플레이어 무기 데미지 GE를 타겟에 적용한다. HitResult를 EffectContext에 포함시킨다
+	void ApplyDamage(AActor* TargetActor, const FHitResult* HitResult = nullptr);
 
 	// AbilityTask가 투사체 스폰 성공 시 호출. 파생 클래스에서 추가 처리(VFX/SFX 등) 오버라이드 용도
 	UFUNCTION()

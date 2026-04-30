@@ -61,11 +61,8 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "ProjectR|Weapon")
 	bool EquipInventoryWeaponAtIndex(int32 InventoryIndex);
 
-	// 인벤토리 Item 식별자로 무기를 데이터가 지정한 슬롯에 연결한다
-	UFUNCTION(BlueprintCallable, Category = "ProjectR|Weapon")
-	bool EquipWeaponItemById(const FGuid& ItemId);
-
 	// 인벤토리 소유 무기를 데이터가 지정한 슬롯에 연결한다
+	UFUNCTION(BlueprintCallable, Category = "ProjectR|Weapon")
 	bool EquipWeapon(UPRItemInstance_Weapon* WeaponItem);
 
 	// 지정 슬롯의 무기 연결만 해제한다
@@ -93,12 +90,15 @@ public:
 	UFUNCTION(BlueprintPure, Category = "ProjectR|Weapon")
 	EPRWeaponSlotType GetAimOffsetWeaponSlot() const;
 
+	// 지정 무기 Item이 현재 매니저의 슬롯 원본인지 확인한다
+	bool IsManagingWeaponItem(const UPRItemInstance_Weapon* WeaponItem) const;
+
+	// 인벤토리에서 변경된 Mod 상태를 현재 관리 중인 무기 슬롯에 반영한다
+	void HandleInventoryWeaponModChanged(UPRItemInstance_Weapon* WeaponItem);
+
 protected:
 	// 서버 권위에서 슬롯 원본과 공개 상태를 갱신한다
 	bool EquipWeaponInternal(UPRItemInstance_Weapon* WeaponItem);
-
-	// 서버 권위에서 Item 식별자로 슬롯 원본과 공개 상태를 갱신한다
-	bool EquipWeaponItemByIdInternal(const FGuid& ItemId);
 
 	// 서버 권위에서 슬롯 원본 제거와 공개 상태를 갱신한다
 	bool UnequipWeaponFromSlotInternal(EPRWeaponSlotType TargetSlot);
@@ -137,9 +137,9 @@ protected:
 	UFUNCTION()
 	void OnRep_ArmedState(EPRArmedState OldArmedState);
 
-	// 클라이언트 Item 식별자 장착 요청을 서버 권위 경로로 전달한다
+	// 클라이언트 Item 장착 요청을 서버 권위 경로로 전달한다
 	UFUNCTION(Server, Reliable)
-	void Server_EquipWeaponItemById(const FGuid& ItemId);
+	void Server_EquipWeapon(UPRItemInstance_Weapon* WeaponItem);
 
 	// 클라이언트 장비 해제 요청을 서버 권위 경로로 전달한다
 	UFUNCTION(Server, Reliable)
@@ -192,6 +192,9 @@ private:
 	// 대상 슬롯의 현재 로컬 Actor를 안전하게 정리한다
 	void DestroyWeaponActorForSlot(EPRWeaponSlotType SlotType);
 
+	// 지정 무기 Item이 연결된 슬롯 타입을 반환한다
+	EPRWeaponSlotType ResolveWeaponItemSlot(const UPRItemInstance_Weapon* WeaponItem) const;
+
 protected:
 	// 현재 무장 상태
 	UPROPERTY(ReplicatedUsing = OnRep_ArmedState, VisibleInstanceOnly, Category = "ProjectR|Weapon")
@@ -210,15 +213,14 @@ protected:
 	FPRWeaponVisualInfo SecondaryVisualInfo;
 
 	// 주무기 슬롯에 연결된 무기 Item 원본
-	UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Category = "ProjectR|Weapon", meta = (AllowPrivateAccess = "true"))
+	UPROPERTY(Replicated, VisibleInstanceOnly, BlueprintReadOnly, Category = "ProjectR|Weapon", meta = (AllowPrivateAccess = "true"))
 	TObjectPtr<UPRItemInstance_Weapon> PrimaryWeaponInstance;
-	
+
 	// 보조무기 슬롯에 연결된 무기 Item 원본
-	UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Category = "ProjectR|Weapon", meta = (AllowPrivateAccess = "true"))
+	UPROPERTY(Replicated, VisibleInstanceOnly, BlueprintReadOnly, Category = "ProjectR|Weapon", meta = (AllowPrivateAccess = "true"))
 	TObjectPtr<UPRItemInstance_Weapon> SecondaryWeaponInstance;
-	
-	// 04.27 김동석 추가
-	// 현재 캐릭터 메시(Mesh)에 연결되어 있는 애니메이션 레이어 클래스를 추적하기 위한 캐시 변수
+
+	// 현재 캐릭터 메시와 연결된 무기 애니메이션 레이어 클래스
 	UPROPERTY(Transient)
 	TSubclassOf<UAnimInstance> CurrentLinkedAnimLayerClass;
 

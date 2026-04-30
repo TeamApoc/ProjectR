@@ -35,13 +35,19 @@ EDataValidationResult UPRPatternDataAsset::IsDataValid(FDataValidationContext& C
 			Result = EDataValidationResult::Invalid;
 		}
 
-		if (Rule.bRestrictTacticalModes && Rule.AllowedTacticalModes.IsEmpty())
+		if (Rule.RequiredAttackPressure < 0.0f)
 		{
 			Context.AddError(FText::FromString(
-				FString::Printf(TEXT("PatternRules[%d]는 전술 상태 제한을 켰지만 AllowedTacticalModes가 비어 있습니다."), RuleIndex)));
+				FString::Printf(TEXT("PatternRules[%d]의 RequiredAttackPressure는 0보다 작을 수 없습니다."), RuleIndex)));
 			Result = EDataValidationResult::Invalid;
 		}
 
+		if (Rule.bRestrictTacticalModes && Rule.AllowedTacticalModes.IsEmpty())
+		{
+			Context.AddError(FText::FromString(
+				FString::Printf(TEXT("PatternRules[%d]가 전술 상태 제한을 사용하지만 AllowedTacticalModes가 비어 있습니다."), RuleIndex)));
+			Result = EDataValidationResult::Invalid;
+		}
 	}
 
 	return Result;

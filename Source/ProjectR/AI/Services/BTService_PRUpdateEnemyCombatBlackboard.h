@@ -40,6 +40,15 @@ protected:
 	UPROPERTY(EditAnywhere, Category = "ProjectR|Blackboard")
 	FName ChargePathClearKey = TEXT("charge_path_clear");
 
+	UPROPERTY(EditAnywhere, Category = "ProjectR|Blackboard")
+	FName HasLOSKey = TEXT("has_los");
+
+	UPROPERTY(EditAnywhere, Category = "ProjectR|Blackboard")
+	FName TacticalModeKey = TEXT("tactical_mode");
+
+	UPROPERTY(EditAnywhere, Category = "ProjectR|Blackboard")
+	FName AttackPressureKey = TEXT("attack_pressure");
+
 	// 돌진 경로가 막혔는지 확인할 Trace 채널이다.
 	UPROPERTY(EditAnywhere, Category = "ProjectR|SoldierArmored")
 	TEnumAsByte<ECollisionChannel> ChargeTraceChannel = ECC_Visibility;

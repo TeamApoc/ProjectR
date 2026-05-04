@@ -51,13 +51,11 @@ void UPRGA_Mod_FireProjectile::ActivateAbility(const FGameplayAbilitySpecHandle 
 	// 총구 이펙트 스폰. unreliable multicast
 	if (IsValid(MuzzleVFX) && CachedWeaponManager.IsValid())
 	{
-		if (GetActorInfo().IsLocallyControlled())
+		CachedWeaponManager->PlayWeaponNiagaraEffect(EPRWeaponEffectType::ProjectileLaunch,MuzzleVFX);
+		
+		if (HasAuthority(&ActivationInfo))
 		{
-			CachedWeaponManager->PlayWeaponNiagaraEffect(EPRWeaponEffectType::ProjectileLaunch,MuzzleVFX);
-		}
-		else
-		{
-			CachedWeaponManager->Multicast_PlayWeaponNiagaraEffect(EPRWeaponEffectType::ProjectileLaunch,MuzzleVFX);	
+			CachedWeaponManager->Multicast_PlayWeaponNiagaraEffect(EPRWeaponEffectType::ProjectileLaunch,MuzzleVFX);
 		}
 	}
 

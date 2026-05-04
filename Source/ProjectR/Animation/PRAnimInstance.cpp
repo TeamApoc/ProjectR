@@ -3,11 +3,14 @@
 
 #include "PRAnimInstance.h"
 
+#include "Animation/AnimMontage.h"
 #include "KismetAnimationLibrary.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "Kismet/KismetMathLibrary.h"
 #include "ProjectR/Character/PRPlayerCharacter.h"
 #include "ProjectR/Weapon/Components/PRWeaponManagerComponent.h"
+
+/*~ 초기화 및 업데이트 ~*/
 
 void UPRAnimInstance::NativeInitializeAnimation()
 {
@@ -38,7 +41,261 @@ void UPRAnimInstance::NativeUpdateAnimation(float DeltaSeconds)
 	UpdateRootYawOffset();
 	DetermineTargetTurnAngle();
 	UpdateAim();
+	UpdateDodge(DeltaSeconds);
 }
+
+void UPRAnimInstance::NativePostEvaluateAnimation()
+{
+	Super::NativePostEvaluateAnimation();
+
+	// AnimGraph가 한 번 평가한 뒤 일회성 회피 요청 플래그를 내린다.
+	ClearDodgeRequestFlags();
+}
+
+/*~ 회피 요청 ~*/
+
+void UPRAnimInstance::RequestDodge(const FVector& WorldDirection, EPRDodgeAnimationType AnimationType)
+{
+	// Character와 Ability는 회피를 언제, 어느 방향으로 할지만 결정한다.
+	// 실제 방향 캐싱, 몽타주 선택, 루트모션 재생은 메인 AnimInstance에서 한 번에 처리한다.
+	if (!IsValid(PlayerCharacter))
+	{
+		PlayerCharacter = Cast<APRPlayerCharacter>(GetOwningActor());
+	}
+
+	if (!IsValid(PlayerCharacter))
+	{
+		return;
+	}
+
+	const FVector SafeWorldDirection = WorldDirection.IsNearlyZero()
+		? PlayerCharacter->GetActorForwardVector()
+		: WorldDirection.GetSafeNormal();
+	
+	// 현재 프로젝트의 실제 회피 모션은 전방 구르기와 백스텝 두 종류만 사용한다.
+	DodgeAnimationType = AnimationType;
+	bIsDodgeForwardRoll = DodgeAnimationType == EPRDodgeAnimationType::ForwardRoll;
+	bIsDodgeBackStep = DodgeAnimationType == EPRDodgeAnimationType::BackStep;
+
+	if (const UPRWeaponManagerComponent* WeaponManager = PlayerCharacter->GetWeaponManager())
+	{
+		// 회피 순간의 무장 상태를 기준으로 맞는 몽타주를 고르기 위해 최신 무기 상태를 다시 읽는다.
+		ArmedState = WeaponManager->GetArmedState();
+		EquippedWeaponSlot = WeaponManager->GetCurrentWeaponSlot();
+		AimOffsetWeaponSlot = WeaponManager->GetAimOffsetWeaponSlot();
+	}
+
+	// 같은 상태 안에서 연속 요청을 감지할 수 있도록 요청 번호와 펄스를 함께 갱신한다.
+	DodgeElapsedTime = 0.0f;
+	CurrentDodgeAutoFinishTime = FMath::Max(DodgeAutoFinishTime, 1.0f);
+	bCanCancelDodgeByInput = false;
+	bDodgeInputCancelRequested = false;
+	CurrentDodgeInputCancelBlendOutTime = 0.0f;
+	bIsDodging = true;
+	bDodgeRequested = true;
+	++DodgeRequestId;
+
+	// 루트모션이 CharacterMovement까지 전달되도록 메인 AnimInstance에서 회피 몽타주를 직접 재생한다.
+	PlayDodgeMontage();
+}
+
+void UPRAnimInstance::FinishDodge()
+{
+	if (!bIsDodging)
+	{
+		return;
+	}
+
+	bIsDodging = false;
+	bDodgeRequested = false;
+	bIsDodgeForwardRoll = false;
+	bIsDodgeBackStep = false;
+	bCanCancelDodgeByInput = false;
+	CurrentDodgeInputCancelBlendOutTime = 0.0f;
+	DodgeElapsedTime = 0.0f;
+	CurrentDodgeAutoFinishTime = 0.0f;
+
+	// Ability가 회피 상태와 무적 타이머를 정리할 수 있도록 종료 이벤트를 발행한다.
+	OnDodgeAnimationFinished.Broadcast();
+}
+
+void UPRAnimInstance::CancelDodge()
+{
+	StopDodgeMontage(DodgeMontageStopBlendOutTime);
+
+	bIsDodging = false;
+	bDodgeRequested = false;
+	bIsDodgeForwardRoll = false;
+	bIsDodgeBackStep = false;
+	bCanCancelDodgeByInput = false;
+	bDodgeInputCancelRequested = false;
+	CurrentDodgeInputCancelBlendOutTime = 0.0f;
+	DodgeElapsedTime = 0.0f;
+	CurrentDodgeAutoFinishTime = 0.0f;
+}
+
+/*~ 회피 입력 처리 ~*/
+
+bool UPRAnimInstance::HandleDodgeInput()
+{
+	if (!bIsDodging)
+	{
+		return false;
+	}
+
+	if (!bCanCancelDodgeByInput)
+	{
+		// 회피 몽타주 중에는 입력 이벤트만 소비하고 실제 이동이나 다른 Ability 실행은 막는다.
+		return true;
+	}
+
+	// NotifyState가 연 취소 가능 구간에서는 입력 한 번으로 몽타주와 Ability를 조기 종료한다.
+	bDodgeInputCancelRequested = true;
+	bCanCancelDodgeByInput = false;
+	const float BlendOutTime = CurrentDodgeInputCancelBlendOutTime > 0.0f
+		? CurrentDodgeInputCancelBlendOutTime
+		: DodgeInputCancelBlendOutTime;
+	StopDodgeMontage(BlendOutTime);
+	FinishDodge();
+	return true;
+}
+
+void UPRAnimInstance::SetDodgeInputCancelWindow(bool bCanCancel, float BlendOutTime)
+{
+	// NotifyState가 남아 있던 상태에서 회피가 이미 끝났다면 취소 창을 열지 않는다.
+	if (!bCanCancel || !bIsDodging)
+	{
+		bCanCancelDodgeByInput = false;
+		CurrentDodgeInputCancelBlendOutTime = 0.0f;
+		return;
+	}
+
+	bCanCancelDodgeByInput = true;
+	CurrentDodgeInputCancelBlendOutTime = BlendOutTime > 0.0f ? BlendOutTime : DodgeInputCancelBlendOutTime;
+}
+
+/*~ 회피 몽타주 재생 ~*/
+
+void UPRAnimInstance::PlayDodgeMontage()
+{
+	// 현재 무장 슬롯과 회피 타입에 맞는 메인 AnimInstance 몽타주를 선택한다.
+	UAnimMontage* DodgeMontage = GetDodgeMontage();
+	if (!IsValid(DodgeMontage))
+	{
+		return;
+	}
+
+	if (IsValid(ActiveDodgeMontage) && Montage_IsPlaying(ActiveDodgeMontage.Get()))
+	{
+		// 새 회피 요청이 이전 회피 몽타주 위에 들어오면 짧게 정리한 뒤 새 몽타주를 시작한다.
+		// StopDodgeMontage가 현재 몽타주 정보를 먼저 비워 두므로, 이전 몽타주의 Interrupted 콜백이 새 회피를 끝내지 못한다.
+		StopDodgeMontage(0.05f);
+	}
+
+	// 메인 AnimInstance에서 재생해야 Root Motion From Montages Only 설정에서 캡슐 이동까지 반영된다.
+	const float PlayedDuration = Montage_Play(
+		DodgeMontage,
+		DodgeMontagePlayRate,
+		EMontagePlayReturnType::Duration,
+		0.0f,
+		true
+	);
+	if (PlayedDuration <= 0.0f)
+	{
+		ActiveDodgeMontage = nullptr;
+		ActiveDodgeMontageRequestId = 0;
+		return;
+	}
+
+	ActiveDodgeMontage = DodgeMontage;
+	ActiveDodgeMontageRequestId = DodgeRequestId;
+	CurrentDodgeAutoFinishTime = FMath::Max(DodgeAutoFinishTime, PlayedDuration + DodgeMontageAutoFinishPadding);
+
+	// 노티파이가 없어도 몽타주 종료 시 Ability까지 회피 종료가 전달되도록 종료 델리게이트를 연결한다.
+	FOnMontageEnded MontageEndedDelegate;
+	MontageEndedDelegate.BindUObject(this, &UPRAnimInstance::HandleDodgeMontageEnded, DodgeRequestId);
+	Montage_SetEndDelegate(MontageEndedDelegate, DodgeMontage);
+}
+
+void UPRAnimInstance::StopDodgeMontage(float BlendOutTime)
+{
+	if (!IsValid(ActiveDodgeMontage))
+	{
+		return;
+	}
+
+	UAnimMontage* MontageToStop = ActiveDodgeMontage.Get();
+	ActiveDodgeMontage = nullptr;
+	ActiveDodgeMontageRequestId = 0;
+
+	// 회피 흐름에서 시작한 몽타주만 멈춰서 다른 Slot 몽타주에 영향이 가지 않도록 한다.
+	Montage_Stop(BlendOutTime, MontageToStop);
+}
+
+UAnimMontage* UPRAnimInstance::GetDodgeMontage() const
+{
+	const bool bUseForwardRoll = bIsDodgeForwardRoll;
+	UAnimMontage* SelectedMontage = nullptr;
+
+	if (ArmedState == EPRArmedState::Unarmed || EquippedWeaponSlot == EPRWeaponSlotType::None)
+	{
+		return bUseForwardRoll ? UnarmedForwardRollMontage.Get() : UnarmedBackStepMontage.Get();
+	}
+
+	if (EquippedWeaponSlot == EPRWeaponSlotType::Primary)
+	{
+		SelectedMontage = bUseForwardRoll ? PrimaryForwardRollMontage.Get() : PrimaryBackStepMontage.Get();
+		if (IsValid(SelectedMontage))
+		{
+			return SelectedMontage;
+		}
+	}
+
+	if (EquippedWeaponSlot == EPRWeaponSlotType::Secondary)
+	{
+		SelectedMontage = bUseForwardRoll ? SecondaryForwardRollMontage.Get() : SecondaryBackStepMontage.Get();
+		if (IsValid(SelectedMontage))
+		{
+			return SelectedMontage;
+		}
+	}
+	// 슬롯별 몽타주가 비어 있으면 비무장 몽타주를 fallback으로 사용해 테스트와 임시 세팅을 돕는다.
+	return bUseForwardRoll ? UnarmedForwardRollMontage.Get() : UnarmedBackStepMontage.Get();
+}
+
+void UPRAnimInstance::HandleDodgeMontageEnded(UAnimMontage* Montage, bool bInterrupted, int32 EndedDodgeRequestId)
+{
+	if (bInterrupted)
+	{
+		// 연속 회피로 이전 몽타주가 끊긴 상황은 정상 흐름이므로 종료 이벤트로 취급하지 않는다.
+		return;
+	}
+
+	// 이전 회피 요청의 블렌드아웃 콜백이 늦게 들어오면 새 회피 몽타주를 끊지 않도록 무시한다.
+	if (EndedDodgeRequestId != ActiveDodgeMontageRequestId)
+	{
+		return;
+	}
+
+	// 다른 몽타주의 종료 콜백이 들어온 경우 현재 회피 흐름과 무관하므로 무시한다.
+	if (Montage != ActiveDodgeMontage.Get())
+	{
+		return;
+	}
+
+	ActiveDodgeMontage = nullptr;
+	ActiveDodgeMontageRequestId = 0;
+
+	if (!bIsDodging)
+	{
+		return;
+	}
+
+	// 몽타주가 자연 종료되거나 외부에서 끊긴 경우에도 Ability가 회피 상태를 정리할 수 있도록 전달한다.
+	FinishDodge();
+}
+
+/*~ 이동 상태 갱신 ~*/
 
 void UPRAnimInstance::UpdateVelocity()
 {
@@ -125,6 +382,8 @@ void UPRAnimInstance::UpdateMovementMode()
 	MovementMode = (XYSpeed <= Threshold) ? EPRMovementMode::Walking : EPRMovementMode::Jogging;
 }
 
+
+/*~ 회전 및 조준 상태 갱신 ~*/
 
 void UPRAnimInstance::UpdateTurnInPlace()
 {
@@ -261,4 +520,32 @@ void UPRAnimInstance::DetermineTargetTurnAngle()
 	{
 		TargetTurnAngle = EPRTurnAngle::None;
 	}
+}
+
+/*~ 회피 상태 갱신 ~*/
+
+void UPRAnimInstance::UpdateDodge(float DeltaSeconds)
+{
+	if (!bIsDodging)
+	{
+		return;
+	}
+
+	// 기본 종료 경로는 몽타주 종료 델리게이트다.
+	// 이 타이머는 몽타주 설정 오류나 델리게이트 누락 시 상태가 남는 것을 막는 보조 안전장치다.
+	DodgeElapsedTime += DeltaSeconds;
+	const float AutoFinishTime = CurrentDodgeAutoFinishTime > 0.0f
+		? CurrentDodgeAutoFinishTime
+		: DodgeAutoFinishTime;
+
+	if (DodgeElapsedTime >= AutoFinishTime)
+	{
+		// Anim Notify가 누락되어도 AnimInstance와 Ability 상태가 남지 않도록 자동 종료한다.
+		FinishDodge();
+	}
+}
+
+void UPRAnimInstance::ClearDodgeRequestFlags()
+{
+	bDodgeRequested = false;
 }

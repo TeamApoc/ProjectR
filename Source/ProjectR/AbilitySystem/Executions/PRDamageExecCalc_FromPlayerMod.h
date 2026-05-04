@@ -3,12 +3,12 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "GameplayEffectExecutionCalculation.h"
+#include "PRDamageExecCalcBase.h"
 #include "PRDamageExecCalc_FromPlayerMod.generated.h"
 
 // 플레이어 모드 스킬 발신 데미지 ExecCalc.
 UCLASS()
-class PROJECTR_API UPRDamageExecCalc_FromPlayerMod : public UGameplayEffectExecutionCalculation
+class PROJECTR_API UPRDamageExecCalc_FromPlayerMod : public UPRDamageExecCalcBase
 {
 	GENERATED_BODY()
 

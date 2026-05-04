@@ -6,7 +6,6 @@
 #include "ProjectR/AbilitySystem/AttributeSets/PRAttributeSet_Common.h"
 #include "ProjectR/AbilitySystem/AttributeSets/PRAttributeSet_Enemy.h"
 #include "ProjectR/Combat/PRCombatGameplayTags.h"
-#include "ProjectR/Combat/PRCombatInterface.h"
 #include "ProjectR/Combat/PRCombatStatics.h"
 #include "ProjectR/PRGameplayTags.h"
 
@@ -99,18 +98,5 @@ void UPRDamageExecCalc_FromEnemy::Execute_Implementation(const FGameplayEffectCu
 			UPRAttributeSet_Common::GetIncomingDamageAttribute(), EGameplayModOp::Additive, Outputs.FinalDamage));
 	}
 
-	if (IPRCombatInterface* CombatTarget = Cast<IPRCombatInterface>(TargetActor))
-	{
-		FPRDamageAppliedContext Context;
-		Context.FinalDamage = Outputs.FinalDamage;
-		Context.FinalGroggyDamage = Outputs.GroggyDamage;
-		Context.HealthBeforeDamage = CurrentHealth;
-		Context.HealthAfterDamage = FMath::Clamp(CurrentHealth - Outputs.FinalDamage, 0.0f, MaxHealth);
-		Context.MaxHealth = MaxHealth;
-		Context.Region = Outputs.Region;
-		Context.Instigator = OwningSpec.GetContext().GetOriginalInstigator();
-		Context.HitResult = EffectiveHitResult;
-		Context.bIsCritical = Outputs.bIsCritical;
-		CombatTarget->OnPostDamageApplied(Context);
-	}
+	DispatchPostDamageApplied(TargetActor, OwningSpec, Outputs, EffectiveHitResult, CurrentHealth, MaxHealth);
 }

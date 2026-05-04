@@ -76,6 +76,11 @@ void UPRFloatingTextManager::ClientShowFloatingText_Unreliable_Implementation(co
 
 void UPRFloatingTextManager::ShowFloatingText(const FPRFloatingTextRequest& Request)
 {
+	if (MaxActiveCount <= 0)
+	{
+		return;
+	}
+
 	// 활성 텍스트가 최대 수에 도달했으면 가장 오래된 것을 제거
 	ForceRetireOldest();
 
@@ -140,9 +145,13 @@ void UPRFloatingTextManager::ShowFloatingText(const FPRFloatingTextRequest& Requ
 UWidgetComponent* UPRFloatingTextManager::AcquireWidgetComponent()
 {
 	// 풀에 사용 가능한 컴포넌트가 있으면 꺼낸다
-	if (AvailablePool.Num() > 0)
+	while (AvailablePool.Num() > 0)
 	{
 		UWidgetComponent* Comp = AvailablePool.Pop();
+		if (!IsValid(Comp))
+		{
+			continue;
+		}
 		ActiveWidgets.Add(Comp);
 		return Comp;
 	}
@@ -176,6 +185,15 @@ void UPRFloatingTextManager::ReleaseWidgetComponent(UWidgetComponent* InComponen
 		return;
 	}
 
+	UPRFloatingTextWidget* CurrentWidget = Cast<UPRFloatingTextWidget>(InComponent->GetWidget());
+	if (IsValid(CurrentWidget))
+	{
+		CurrentWidget->SetVisibility(ESlateVisibility::Collapsed);
+		CurrentWidget->RemoveFromParent();
+		CurrentWidget->OnFloatingTextFinished.Unbind();
+		WidgetToComponentMap.Remove(CurrentWidget);
+	}
+
 	// 위젯 인스턴스는 유지한 채 숨기기만 한다 (풀링 재사용)
 	InComponent->SetVisibility(false);
 	
@@ -189,28 +207,33 @@ void UPRFloatingTextManager::OnFloatingTextFinished(UPRFloatingTextWidget* InWid
 	{
 		return;
 	}
-	
-	if (GEngine)
-	{
-		GEngine->AddOnScreenDebugMessage(-1,1.f,FColor::Green,FString::Printf(TEXT("Fuck")));
-	}
-	
-	InWidget->SetVisibility(ESlateVisibility::Collapsed);
-	InWidget->RemoveFromParent();
-	InWidget->OnFloatingTextFinished.Unbind();
-	InWidget->Destruct();
 
 	TObjectPtr<UWidgetComponent>* FoundComp = WidgetToComponentMap.Find(InWidget);
 	if (FoundComp && IsValid(*FoundComp))
 	{
 		ReleaseWidgetComponent(*FoundComp);
 	}
-
-	WidgetToComponentMap.Remove(InWidget);
 }
 
 void UPRFloatingTextManager::ForceRetireOldest()
 {
+	if (MaxActiveCount <= 0)
+	{
+		ensureMsgf(false, TEXT("MaxActiveCount must be greater than 0."));
+
+		// 잘못된 최대값이면 활성 항목을 모두 정리한다
+		while (ActiveWidgets.Num() > 0)
+		{
+			UWidgetComponent* OldestComp = ActiveWidgets[0];
+			ActiveWidgets.RemoveAt(0);
+			if (IsValid(OldestComp))
+			{
+				ReleaseWidgetComponent(OldestComp);
+			}
+		}
+		return;
+	}
+
 	while (ActiveWidgets.Num() >= MaxActiveCount)
 	{
 		// ActiveWidgets 배열의 첫 번째가 가장 오래된 항목
@@ -226,7 +249,10 @@ void UPRFloatingTextManager::ForceRetireOldest()
 		if (IsValid(OldestWidget))
 		{
 			OldestWidget->FinishFloatingText();
+			break;
 		}
+
+		ReleaseWidgetComponent(OldestComp);
 	}
 }
 

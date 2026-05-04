@@ -3,12 +3,12 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "GameplayEffectExecutionCalculation.h"
+#include "PRDamageExecCalcBase.h"
 #include "PRDamageExecCalc_FromEnemy.generated.h"
 
 // 적 발신 데미지 ExecCalc.
 UCLASS()
-class PROJECTR_API UPRDamageExecCalc_FromEnemy : public UGameplayEffectExecutionCalculation
+class PROJECTR_API UPRDamageExecCalc_FromEnemy : public UPRDamageExecCalcBase
 {
 	GENERATED_BODY()
 

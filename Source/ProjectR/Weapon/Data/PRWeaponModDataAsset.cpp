@@ -4,4 +4,5 @@
 
 UPRWeaponModDataAsset::UPRWeaponModDataAsset()
 {
+	SetItemType(EPRItemType::Mod);
 }

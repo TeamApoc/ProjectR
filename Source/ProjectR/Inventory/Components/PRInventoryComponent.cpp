@@ -128,7 +128,7 @@ UPRItemInstance_Weapon* UPRInventoryComponent::AddWeaponItem(UPRWeaponDataAsset*
 			*GetNameSafe(GetOwner()),
 			*GetNameSafe(NewWeaponItem),
 			*GetNameSafe(WeaponData),
-			*WeaponData->WeaponId.ToString(),
+			*WeaponData->GetDisplayName().ToString(),
 			InventoryWeaponItems.Num());
 	}
 
@@ -473,7 +473,7 @@ void UPRInventoryComponent::OnRep_InventoryWeaponItems()
 			ItemIndex,
 			*GetNameSafe(WeaponItem),
 			*GetNameSafe(WeaponData),
-			IsValid(WeaponData) ? *WeaponData->WeaponId.ToString() : TEXT("None"),
+			IsValid(WeaponData) ? *WeaponData->GetDisplayName().ToString() : TEXT("None"),
 			*GetNameSafe(WeaponItem->GetModData()),
 			*GetNameSafe(WeaponItem->GetEquippedModItem()));
 	}

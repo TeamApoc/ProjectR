@@ -51,7 +51,7 @@ UENUM(BlueprintType)
 enum class EPRWeaponStowedSocketNames : uint8
 {
 	Socket_Gun_Stow_L,
-	Socket_Gun_Stow_R
+	Socket_Gun_Stow_R,
 	Socket_Pistol_Stow, 
 };
 

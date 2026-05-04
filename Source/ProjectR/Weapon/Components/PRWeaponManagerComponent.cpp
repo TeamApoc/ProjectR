@@ -456,6 +456,27 @@ void UPRWeaponManagerComponent::HandleInventoryWeaponModChanged(UPRItemInstance_
 		*GetNameSafe(WeaponItem->GetEquippedModItem()));
 }
 
+void UPRWeaponManagerComponent::PlayWeaponNiagaraEffect(EPRWeaponEffectType EffectType, UNiagaraSystem* InNiagaraSystem)
+{
+	APRWeaponActor* ActiveWeaponActor = CurrentWeaponSlot == EPRWeaponSlotType::Primary ? PrimaryWeaponActor : SecondaryWeaponActor;
+	if (IsValid(ActiveWeaponActor))
+	{
+		ActiveWeaponActor->PlayNiagaraEffect(EffectType, InNiagaraSystem);
+	}
+}
+
+void UPRWeaponManagerComponent::Multicast_PlayWeaponNiagaraEffect_Implementation(EPRWeaponEffectType EffectType,UNiagaraSystem* InNiagaraSystem)
+{
+	if (APawn* OwnerPawn = GetTypedOuter<APawn>())
+	{
+		// LocallyControlled인 경우 Multicast가 아닌 직접 PlayWeaponNiagaraEffect 호출
+		if (!OwnerPawn->IsLocallyControlled())
+		{
+			PlayWeaponNiagaraEffect(EffectType, InNiagaraSystem);		
+		}
+	}
+}
+
 bool UPRWeaponManagerComponent::EquipWeaponInternal(UPRItemInstance_Weapon* WeaponItem)
 {
 	const UPRWeaponDataAsset* WeaponData = IsValid(WeaponItem) ? WeaponItem->GetWeaponData() : nullptr;

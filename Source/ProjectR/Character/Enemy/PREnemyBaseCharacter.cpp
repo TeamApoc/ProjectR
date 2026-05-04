@@ -21,6 +21,8 @@
 #include "Engine/DataTable.h"
 #include "ProjectR/PRGameplayTags.h"
 #include "ProjectR/System/PRAssetManager.h"
+#include "ProjectR/Player/PRPlayerController.h"
+#include "ProjectR/UI/FloatingText/PRFloatingTextManager.h"
 #include "Net/UnrealNetwork.h"
 
 APREnemyBaseCharacter::APREnemyBaseCharacter()
@@ -228,6 +230,47 @@ FPRDamageRegionInfo APREnemyBaseCharacter::GetDamageRegionInfo(FName BoneName) c
 		}
 	}
 	return FPRDamageRegionInfo();
+}
+
+void APREnemyBaseCharacter::OnPostDamageApplied(const FPRDamageAppliedContext& Context)
+{
+	Super::OnPostDamageApplied(Context);
+
+	// 서버에서만 실행. InstigatorController에게 Unreliable RPC로 데미지 텍스트를 전송한다
+	if (!HasAuthority())
+	{
+		return;
+	}
+
+	APRPlayerController* PC = Cast<APRPlayerController>(Context.InstigatorController.Get());
+	if (!IsValid(PC))
+	{
+		return;
+	}
+
+	UPRFloatingTextManager* FloatingTextManager = PC->GetFloatingTextManager();
+	if (!IsValid(FloatingTextManager))
+	{
+		return;
+	}
+
+	// 텍스트 타입 결정
+	EPRFloatingTextType TextType = EPRFloatingTextType::NormalDamage;
+	if (Context.Region.IsWeakpoint())
+	{
+		TextType = EPRFloatingTextType::HitWeakpoint;
+	}
+	else if (Context.bIsCritical)
+	{
+		TextType = EPRFloatingTextType::CriticalDamage;
+	}
+
+	FPRFloatingTextRequest Request;
+	Request.Text = FText::AsNumber(FMath::CeilToInt(Context.FinalDamage));
+	Request.TextType = TextType;
+	Request.WorldLocation = Context.HitResult.ImpactPoint;
+
+	FloatingTextManager->ClientShowFloatingText_Unreliable(Request);
 }
 
 void APREnemyBaseCharacter::HandleGameplayTagUpdated(const FGameplayTag& ChangedTag, bool TagExists)

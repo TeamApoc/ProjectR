@@ -3,110 +3,193 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "ProjectR/Animation/PRAnimationTypes.h"
 #include "ProjectR/AbilitySystem/PRGameplayAbility.h"
+#include "ProjectR/Animation/PRAnimationTypes.h"
+#include "ProjectR/Input/PRActionInputConsumer.h"
 #include "PRPlayerDodgeAbility.generated.h"
 
-class UPRCameraModifier;
-class UPRAnimInstance;
 class ACharacter;
+class APRPlayerCharacter;
+class UAbilityTask_PlayMontageAndWait;
+class UAnimMontage;
+class UPRCameraModifier;
+
 /**
- * 플레이어 구르기(회피) 어빌리티
- * 8방향 이동 입력을 기반으로 회피 방향을 결정하며, 특정 구간에 무적 판정을 부여합니다.
+ * 플레이어 회피 Ability다.
+ * 입력 방향에 따라 전방 구르기 또는 백스텝을 결정하고, 몽타주 재생과 입력 스킵을 직접 관리한다.
  */
 UCLASS()
-class PROJECTR_API UPRPlayerDodgeAbility : public UPRGameplayAbility
+class PROJECTR_API UPRPlayerDodgeAbility : public UPRGameplayAbility, public IPRActionInputConsumer
 {
 	GENERATED_BODY()
 
 public:
-    UPRPlayerDodgeAbility();
+	UPRPlayerDodgeAbility();
 
-    /*~ UGameplayAbility Interface ~*/
-    virtual void ActivateAbility(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilityActivationInfo ActivationInfo, const FGameplayEventData* TriggerEventData) override;
-    virtual void EndAbility(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilityActivationInfo ActivationInfo, bool bReplicateEndAbility, bool bWasCancelled) override;
+	/*~ UGameplayAbility Interface ~*/
+	virtual void ActivateAbility(const FGameplayAbilitySpecHandle Handle,
+		const FGameplayAbilityActorInfo* ActorInfo,
+		const FGameplayAbilityActivationInfo ActivationInfo,
+		const FGameplayEventData* TriggerEventData) override;
+	virtual void EndAbility(const FGameplayAbilitySpecHandle Handle,
+		const FGameplayAbilityActorInfo* ActorInfo,
+		const FGameplayAbilityActivationInfo ActivationInfo,
+		bool bReplicateEndAbility,
+		bool bWasCancelled) override;
+
+	/*~ IPRActionInputConsumer Interface ~*/
+	/** 라우터가 전달한 입력을 소비하고, 노티파이 스테이트가 연 스킵 구간이면 회피를 조기 종료한다 */
+	virtual bool HandleRoutedActionInput() override;
+
+	/** 회피 몽타주 끝부분의 입력 스킵 가능 구간을 열거나 닫는다 */
+	virtual void SetRoutedInputCancelWindow(bool bCanCancel, float BlendOutTime) override;
 
 protected:
-    /*~ [서버 전용] 클라이언트로부터 방향데이터를 받는 RPC~*/
-    UFUNCTION(Server, Reliable)
-    void Server_SendDodgeDirection(FVector_NetQuantize Direction, bool bHasMovementInput);
-    
+	/** 클라이언트가 회피 발동 순간의 방향 정보를 서버에 한 번 전달한다 */
+	UFUNCTION(Server, Reliable)
+	void Server_SendDodgeDirection(FVector_NetQuantize Direction, bool bHasMovementInput);
+
 private:
-    /** 회피 애니메이션 종료 시 호출될 콜백 */
-    UFUNCTION()
-    void HandleDodgeAnimationFinished();
+	/** 회피 몽타주가 정상 종료되었을 때 Ability를 종료한다 */
+	UFUNCTION()
+	void HandleDodgeMontageCompleted();
 
-    /** 회피 최대 안전 시간이 끝났을 때 현재 실행과 일치하면 회피를 종료한다 */
-    void HandleDodgeSafetyTimeout(int32 FinishedDodgeExecutionId);
+	/** 회피 몽타주가 끊겼을 때 Ability를 취소 종료한다 */
+	UFUNCTION()
+	void HandleDodgeMontageInterrupted();
 
-    /** 무적 프레임 시작 타이머가 끝났을 때 현재 실행과 일치하면 무적을 시작한다 */
-    void HandleIFrameStartTimer(int32 FinishedDodgeExecutionId);
+	/** 안전 종료 타이머가 현재 회피 실행과 일치하면 Ability를 종료한다 */
+	void HandleDodgeSafetyTimeout(int32 FinishedDodgeExecutionId);
 
-    /** 무적 프레임 종료 타이머가 끝났을 때 현재 실행과 일치하면 무적을 종료한다 */
-    void HandleIFrameEndTimer(int32 FinishedDodgeExecutionId);
+	/** 무적 프레임 시작 타이머가 현재 회피 실행과 일치하면 무적을 시작한다 */
+	void HandleIFrameStartTimer(int32 FinishedDodgeExecutionId);
 
-    /** 무적 프레임을 즉시 적용한다 */
-    void StartIFrame();
+	/** 무적 프레임 종료 타이머가 현재 회피 실행과 일치하면 무적을 종료한다 */
+	void HandleIFrameEndTimer(int32 FinishedDodgeExecutionId);
 
-    /** 무적 프레임 종료 시 호출될 콜백 */
-    void EndIFrame();
+	/** 무적 GameplayEffect를 적용한다 */
+	void StartIFrame();
 
-    /** 이전 회피 실행에서 남은 타이머를 정리한다 */
-    void ClearDodgeTimers();
-    
-    /** 실제 구르기 로직 집행 (클라/서버 공용) */
-    void ExecuteDodge(FVector Direction, bool bHasMovementInput);
+	/** 적용 중인 무적 GameplayEffect를 제거한다 */
+	void EndIFrame();
 
-    /** 현재 캐릭터 AnimInstance의 회피 종료 이벤트를 구독한다 */
-    void BindDodgeAnimationFinished(ACharacter* Character);
-    
+	/** 이전 회피 실행에서 남은 타이머를 정리한다 */
+	void ClearDodgeTimers();
+
+	/** 회피 방향, 회피 종류, 몽타주 재생, 보조 피드백을 실제로 시작한다 */
+	void ExecuteDodge(FVector Direction, bool bHasMovementInput);
+
+	/** 현재 무장 상태와 회피 종류에 맞는 몽타주를 선택한다 */
+	UAnimMontage* SelectDodgeMontage(const APRPlayerCharacter* Character, EPRDodgeAnimationType AnimationType) const;
+
+	/** 선택된 회피 몽타주를 GAS 몽타주 태스크로 재생한다 */
+	void PlayDodgeMontage(UAnimMontage* DodgeMontage);
+
+	/** 현재 회피 몽타주를 지정한 블렌드 시간으로 정지한다 */
+	void StopDodgeMontage(float BlendOutTime);
+
+	/** 회피 종료가 여러 콜백에서 중복 처리되지 않도록 한 번만 EndAbility를 호출한다 */
+	void FinishDodge(bool bWasCancelled);
+
 protected:
-    /** 무적 상태를 부여할 GameplayEffect 클래스 (State.Invulnerable 태그 포함) */
-    UPROPERTY(EditDefaultsOnly, Category = "PR|Dodge")
-    TSubclassOf<UGameplayEffect> InvulnerableEffectClass;
+	/** 무적 상태를 부여할 GameplayEffect 클래스 */
+	UPROPERTY(EditDefaultsOnly, Category = "PR|Dodge")
+	TSubclassOf<UGameplayEffect> InvulnerableEffectClass;
 
-    /** 무적 프레임 시작 딜레이 (기본 0.1초) */
-    UPROPERTY(EditDefaultsOnly, Category = "PR|Dodge")
-    float IFrameStartDelay = 0.1f;
+	/** 무적 프레임이 시작되기 전 지연 시간 */
+	UPROPERTY(EditDefaultsOnly, Category = "PR|Dodge")
+	float IFrameStartDelay = 0.1f;
 
-    /** 무적 프레임 지속 시간 (기본 0.35초 = 0.45 - 0.1) */
-    UPROPERTY(EditDefaultsOnly, Category = "PR|Dodge")
-    float IFrameDuration = 0.35f;
+	/** 무적 프레임 지속 시간 */
+	UPROPERTY(EditDefaultsOnly, Category = "PR|Dodge")
+	float IFrameDuration = 0.35f;
 
-    /** 회피 종료 콜백이 누락됐을 때 어빌리티를 종료할 최대 안전 시간 */
-    UPROPERTY(EditDefaultsOnly, Category = "PR|Dodge")
-    float DodgeDuration = 3.0f;
+	/** 몽타주 종료 콜백이 누락되었을 때 Ability를 끝내는 최대 안전 시간 */
+	UPROPERTY(EditDefaultsOnly, Category = "PR|Dodge")
+	float DodgeDuration = 3.0f;
+
+	/** 맨손 상태에서 입력 방향 회피 요청 시 재생할 전방 구르기 몽타주 */
+	UPROPERTY(EditDefaultsOnly, Category = "PR|Dodge|Montage")
+	TObjectPtr<UAnimMontage> UnarmedForwardRollMontage;
+
+	/** 맨손 상태에서 무입력 회피 요청 시 재생할 백스텝 몽타주 */
+	UPROPERTY(EditDefaultsOnly, Category = "PR|Dodge|Montage")
+	TObjectPtr<UAnimMontage> UnarmedBackStepMontage;
+
+	/** 주무기 장착 상태에서 입력 방향 회피 요청 시 재생할 전방 구르기 몽타주 */
+	UPROPERTY(EditDefaultsOnly, Category = "PR|Dodge|Montage")
+	TObjectPtr<UAnimMontage> PrimaryForwardRollMontage;
+
+	/** 주무기 장착 상태에서 무입력 회피 요청 시 재생할 백스텝 몽타주 */
+	UPROPERTY(EditDefaultsOnly, Category = "PR|Dodge|Montage")
+	TObjectPtr<UAnimMontage> PrimaryBackStepMontage;
+
+	/** 보조무기 장착 상태에서 입력 방향 회피 요청 시 재생할 전방 구르기 몽타주 */
+	UPROPERTY(EditDefaultsOnly, Category = "PR|Dodge|Montage")
+	TObjectPtr<UAnimMontage> SecondaryForwardRollMontage;
+
+	/** 보조무기 장착 상태에서 무입력 회피 요청 시 재생할 백스텝 몽타주 */
+	UPROPERTY(EditDefaultsOnly, Category = "PR|Dodge|Montage")
+	TObjectPtr<UAnimMontage> SecondaryBackStepMontage;
+
+	/** 회피 몽타주 재생 속도 */
+	UPROPERTY(EditDefaultsOnly, Category = "PR|Dodge|Montage")
+	float DodgeMontagePlayRate = 1.0f;
+
+	/** Ability 종료나 외부 취소로 회피 몽타주를 정지할 때 사용할 기본 블렌드 아웃 시간 */
+	UPROPERTY(EditDefaultsOnly, Category = "PR|Dodge|Montage")
+	float DodgeMontageStopBlendOutTime = 0.15f;
+
+	/** 입력 스킵 구간에서 회피를 조기 종료할 때 사용할 기본 블렌드 아웃 시간 */
+	UPROPERTY(EditDefaultsOnly, Category = "PR|Dodge|Montage")
+	float DodgeInputCancelBlendOutTime = 0.18f;
 
 private:
-    /** 회피 종료 이벤트를 구독 중인 AnimInstance */
-    UPROPERTY()
-    TObjectPtr<UPRAnimInstance> ActiveAnimInstance;
+	/** 현재 재생 중인 회피 몽타주 태스크 */
+	UPROPERTY()
+	TObjectPtr<UAbilityTask_PlayMontageAndWait> ActiveMontageTask;
 
-    /** 활성화된 카메라 모디파이어 (구르기 종료 시 비활성화하기 위함) */
-    UPROPERTY()
-    TObjectPtr<UPRCameraModifier> ActiveCameraModifier;
-    
-    /** 적용된 무적 효과 핸들 */
-    FActiveGameplayEffectHandle InvulnerableEffectHandle;
+	/** 현재 Ability가 재생을 요청한 회피 몽타주 */
+	UPROPERTY()
+	TObjectPtr<UAnimMontage> ActiveDodgeMontage;
 
-    /** 회피 최대 안전 종료 타이머 핸들 */
-    FTimerHandle DodgeEndTimerHandle;
+	/** 활성화된 카메라 모디파이어 */
+	UPROPERTY()
+	TObjectPtr<UPRCameraModifier> ActiveCameraModifier;
 
-    /** 무적 시작 타이머 핸들 */
-    FTimerHandle IFrameStartTimerHandle;
+	/** 적용 중인 무적 효과 핸들 */
+	FActiveGameplayEffectHandle InvulnerableEffectHandle;
 
-    /** 무적 종료 타이머 핸들 */
-    FTimerHandle IFrameEndTimerHandle;
-    
-    /** 서버가 데이터를 받았는지 확인하기 위한 플래그 */
-    bool bServerReceivedDirection = false;
-    FVector SavedDirection = FVector::ZeroVector;
-    bool bSavedHasMovementInput = false;
-    bool bDodgeEndRequested = false;
+	/** 회피 최대 안전 종료 타이머 핸들 */
+	FTimerHandle DodgeEndTimerHandle;
 
-    /** 회피 실행을 구분하기 위한 누적 번호 */
-    int32 DodgeExecutionId = 0;
+	/** 무적 시작 타이머 핸들 */
+	FTimerHandle IFrameStartTimerHandle;
 
-    /** 현재 진행 중인 회피 실행 번호 */
-    int32 ActiveDodgeExecutionId = 0;
+	/** 무적 종료 타이머 핸들 */
+	FTimerHandle IFrameEndTimerHandle;
+
+	/** 서버가 클라이언트의 회피 방향 데이터를 받았는지 추적한다 */
+	bool bServerReceivedDirection = false;
+
+	/** 서버 실행 경로에서 사용할 회피 방향이다 */
+	FVector SavedDirection = FVector::ZeroVector;
+
+	/** 서버 실행 경로에서 사용할 이동 입력 여부다 */
+	bool bSavedHasMovementInput = false;
+
+	/** 회피 종료가 이미 요청되었는지 추적한다 */
+	bool bDodgeEndRequested = false;
+
+	/** 현재 입력으로 회피를 스킵할 수 있는 구간인지 추적한다 */
+	bool bCanCancelDodgeByInput = false;
+
+	/** 현재 스킵 구간에서 사용할 몽타주 블렌드 아웃 시간이다 */
+	float CurrentDodgeInputCancelBlendOutTime = 0.0f;
+
+	/** 회피 실행을 구분하기 위한 누적 번호 */
+	int32 DodgeExecutionId = 0;
+
+	/** 현재 진행 중인 회피 실행 번호 */
+	int32 ActiveDodgeExecutionId = 0;
 };

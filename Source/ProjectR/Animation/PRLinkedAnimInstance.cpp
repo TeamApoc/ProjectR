@@ -28,8 +28,8 @@ void UPRLinkedAnimInstance::NativeUpdateAnimation(float DeltaSeconds)
 		return;
 	}
 
-	// Linked AnimInstance는 더 이상 회피 몽타주를 재생하지 않는다.
-	// 루트모션은 메인 AnimInstance 몽타주에서 처리하고, 레이어는 상태 변수만 읽어 그래프 표현을 보조한다.
+	// Linked AnimInstance는 회피 몽타주를 재생하지 않는다.
+	// 회피 몽타주는 DodgeAbility가 소유하고, 레이어는 상태 변수만 읽어 그래프 표현을 보조한다.
 	// 링크드 레이어 AnimBP가 메인 AnimInstance의 이동 상태를 그대로 읽을 수 있도록 복사한다.
 	MovementMode = MainAnimInstance->MovementMode;
 	bShouldMove = MainAnimInstance->bShouldMove;
@@ -55,14 +55,6 @@ void UPRLinkedAnimInstance::NativeUpdateAnimation(float DeltaSeconds)
 	EquippedWeaponSlot = MainAnimInstance->EquippedWeaponSlot;
 	AimOffsetWeaponSlot = MainAnimInstance->AimOffsetWeaponSlot;
 
-	// 회피 애니메이션 요청 값은 레이어 그래프가 상태 표현을 보조할 때 참고하는 값이다.
-	DodgeRequestId = MainAnimInstance->DodgeRequestId;
-	bDodgeRequested = MainAnimInstance->bDodgeRequested;
+	// 회피 상태는 Ability 태그를 관찰한 메인 AnimInstance 값을 복사한다.
 	bIsDodging = MainAnimInstance->bIsDodging;
-	DodgeAnimationType = MainAnimInstance->DodgeAnimationType;
-	bIsDodgeForwardRoll = MainAnimInstance->bIsDodgeForwardRoll;
-	bIsDodgeBackStep = MainAnimInstance->bIsDodgeBackStep;
-	DodgeElapsedTime = MainAnimInstance->DodgeElapsedTime;
-	DodgeWorldDirection = MainAnimInstance->DodgeWorldDirection;
-	DodgeLocalDirection = MainAnimInstance->DodgeLocalDirection;
 }

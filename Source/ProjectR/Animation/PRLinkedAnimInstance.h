@@ -108,39 +108,7 @@ protected:
 	UPROPERTY(BlueprintReadOnly, Category = "Movement|Aiming")
 	EPRWeaponSlotType AimOffsetWeaponSlot = EPRWeaponSlotType::None;
 
-	// 회피 애니메이션 요청 누적 번호다
-	UPROPERTY(BlueprintReadOnly, Category = "ProjectR|Animation|Dodge")
-	int32 DodgeRequestId = 0;
-
-	// 이번 애니메이션 평가에서 회피 요청이 들어왔는지 나타내는 일회성 플래그다
-	UPROPERTY(BlueprintReadOnly, Category = "ProjectR|Animation|Dodge")
-	bool bDodgeRequested = false;
-
-	// 회피 애니메이션 상태가 진행 중인지 나타낸다
+	// DodgeAbility가 활성화되어 회피 상태 태그를 소유 중인지 나타낸다
 	UPROPERTY(BlueprintReadOnly, Category = "ProjectR|Animation|Dodge")
 	bool bIsDodging = false;
-
-	// 재생할 회피 애니메이션 종류다
-	UPROPERTY(BlueprintReadOnly, Category = "ProjectR|Animation|Dodge")
-	EPRDodgeAnimationType DodgeAnimationType = EPRDodgeAnimationType::ForwardRoll;
-
-	// 입력 방향 회피로 전방 구르기를 재생하는지 나타낸다
-	UPROPERTY(BlueprintReadOnly, Category = "ProjectR|Animation|Dodge")
-	bool bIsDodgeForwardRoll = false;
-
-	// 무입력 회피로 뒤로 물러나기를 재생하는지 나타낸다
-	UPROPERTY(BlueprintReadOnly, Category = "ProjectR|Animation|Dodge")
-	bool bIsDodgeBackStep = false;
-
-	// 회피 애니메이션 요청 후 경과 시간이다
-	UPROPERTY(BlueprintReadOnly, Category = "ProjectR|Animation|Dodge")
-	float DodgeElapsedTime = 0.0f;
-
-	// 월드 기준 회피 방향이다
-	UPROPERTY(BlueprintReadOnly, Category = "ProjectR|Animation|Dodge")
-	FVector DodgeWorldDirection = FVector::ForwardVector;
-
-	// 캐릭터 로컬 기준 회피 방향이다
-	UPROPERTY(BlueprintReadOnly, Category = "ProjectR|Animation|Dodge")
-	FVector DodgeLocalDirection = FVector::ForwardVector;
 };

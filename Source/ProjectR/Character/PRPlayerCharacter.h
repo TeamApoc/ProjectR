@@ -5,7 +5,6 @@
 #include "CoreMinimal.h"
 #include "PRCharacterBase.h"
 #include "Net/UnrealNetwork.h"
-#include "ProjectR/Animation/PRAnimationTypes.h"
 #include "ProjectR/AbilitySystem/Data/PRAbilitySet.h"
 #include "PRPlayerCharacter.generated.h"
 
@@ -15,6 +14,7 @@ class UInputMappingContext;
 class UInputAction;
 class UPRWeaponManagerComponent;
 class UPRSpringArmComponent;
+class UPRActionInputRouterComponent;
 struct FInputActionValue;
 //무기 테스트용
 class UPRWeaponDataAsset;
@@ -50,11 +50,8 @@ public:
 	float GetSprintSpeed() const { return SprintSpeed; }
 	bool IsAiming() const;
 
-	/** 회피 애니메이션 요청을 현재 메시와 원격 클라이언트에 전달한다 */
-	void RequestDodgeAnimation(const FVector& Direction, EPRDodgeAnimationType AnimationType);
-
-	/** 회피 중 입력을 소비하고, 취소 가능 구간이면 회피를 조기 종료한다 */
-	bool HandleDodgeInputDuringMontage();
+	/** 액션 입력 라우터 컴포넌트를 반환한다 */
+	UPRActionInputRouterComponent* GetActionInputRouter() const { return ActionInputRouterComponent; }
 	
 	// ===== Component getters =====
 	UPRWeaponManagerComponent* GetWeaponManager() const {return WeaponManagerComponent;}
@@ -92,13 +89,6 @@ private:
     UFUNCTION()
     void OnRep_IsSprinting();
 
-	/** 회피 애니메이션 요청이 복제되었을 때 로컬 AnimInstance에 전달한다 */
-	UFUNCTION()
-	void OnRep_DodgeAnimationRequest();
-
-	/** 지정 방향으로 로컬 AnimInstance에 회피 애니메이션을 요청한다 */
-	void PlayDodgeAnimation(const FVector& Direction, EPRDodgeAnimationType AnimationType);
-
 public:
 	/** 컴포넌트 */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Camera")
@@ -109,6 +99,10 @@ public:
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Weapon")
 	TObjectPtr<UPRWeaponManagerComponent> WeaponManagerComponent;
+
+	/** 몽타주 기반 액션 중 입력 차단과 스킵 요청을 중계하는 컴포넌트 */
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Input")
+	TObjectPtr<UPRActionInputRouterComponent> ActionInputRouterComponent;
 
 protected:
 	/** Enhanced Input 에셋 (블루프린트에서 할당) */
@@ -153,10 +147,5 @@ private:
 	UPROPERTY(Replicated, VisibleInstanceOnly, BlueprintReadOnly, Category = "Locomotion", meta = (AllowPrivateAccess = "true"))
 	bool bIsWalking = false;
 
-	UPROPERTY(ReplicatedUsing = OnRep_DodgeAnimationRequest, VisibleInstanceOnly, BlueprintReadOnly, Category = "PR|Animation", meta = (AllowPrivateAccess = "true"))
-	FPRDodgeAnimationRequest DodgeAnimationRequest;
-
-	int32 LastProcessedDodgeAnimationRequestId = 0;
-	
 	FPRAbilitySetHandles AbilitySetHandles;
 };

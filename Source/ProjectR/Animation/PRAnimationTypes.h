@@ -52,22 +52,3 @@ enum class EPRDodgeAnimationType : uint8
 	ForwardRoll,
 	BackStep
 };
-
-// 원격 클라이언트에 전달할 회피 애니메이션 요청 정보
-USTRUCT(BlueprintType)
-struct FPRDodgeAnimationRequest
-{
-	GENERATED_BODY()
-
-	// 회피 요청 순번이다
-	UPROPERTY(BlueprintReadOnly)
-	int32 RequestId = 0;
-
-	// 월드 기준 회피 방향이다
-	UPROPERTY(BlueprintReadOnly)
-	FVector_NetQuantizeNormal Direction = FVector::ForwardVector;
-
-	// 재생할 회피 애니메이션 종류다
-	UPROPERTY(BlueprintReadOnly)
-	EPRDodgeAnimationType AnimationType = EPRDodgeAnimationType::ForwardRoll;
-};

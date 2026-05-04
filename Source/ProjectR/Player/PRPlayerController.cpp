@@ -8,6 +8,7 @@
 #include "EnhancedInputComponent.h"
 #include "InputAction.h"
 #include "ProjectR/Game/PRCameraManager.h"
+#include "ProjectR/Character/PRPlayerCharacter.h"
 #include "ProjectR/Input/PRInputConfigDataAsset.h"
 #include "ProjectR/Projectile/PRProjectileManagerComponent.h"
 #include "ProjectR/UI/FloatingText/PRFloatingTextManager.h"

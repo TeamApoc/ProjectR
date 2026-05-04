@@ -14,6 +14,7 @@ class UInputMappingContext;
 class UInputAction;
 class UPRWeaponManagerComponent;
 class UPRSpringArmComponent;
+class UPRActionInputRouterComponent;
 struct FInputActionValue;
 //무기 테스트용
 class UPRWeaponDataAsset;
@@ -48,6 +49,9 @@ public:
 	float GetJogSpeed() const { return JogSpeed; }
 	float GetSprintSpeed() const { return SprintSpeed; }
 	bool IsAiming() const;
+
+	/** 액션 입력 라우터 컴포넌트를 반환한다 */
+	UPRActionInputRouterComponent* GetActionInputRouter() const { return ActionInputRouterComponent; }
 	
 	// ===== Component getters =====
 	UPRWeaponManagerComponent* GetWeaponManager() const {return WeaponManagerComponent;}
@@ -96,6 +100,10 @@ public:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Weapon")
 	TObjectPtr<UPRWeaponManagerComponent> WeaponManagerComponent;
 
+	/** 몽타주 기반 액션 중 입력 차단과 스킵 요청을 중계하는 컴포넌트 */
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Input")
+	TObjectPtr<UPRActionInputRouterComponent> ActionInputRouterComponent;
+
 protected:
 	/** Enhanced Input 에셋 (블루프린트에서 할당) */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Input")
@@ -138,6 +146,6 @@ private:
 	
 	UPROPERTY(Replicated, VisibleInstanceOnly, BlueprintReadOnly, Category = "Locomotion", meta = (AllowPrivateAccess = "true"))
 	bool bIsWalking = false;
-	
+
 	FPRAbilitySetHandles AbilitySetHandles;
 };

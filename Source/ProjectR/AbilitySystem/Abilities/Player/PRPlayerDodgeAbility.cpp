@@ -27,11 +27,13 @@ UPRPlayerDodgeAbility::UPRPlayerDodgeAbility()
 	CancelAbilitiesWithTag.AddTag(PRGameplayTags::Ability_Player_Weapon_Fire_Primary);
 	CancelAbilitiesWithTag.AddTag(PRGameplayTags::Ability_Player_Aim);
 	CancelAbilitiesWithTag.AddTag(PRGameplayTags::Ability_Player_Crouch);
+	CancelAbilitiesWithTag.AddTag(PRGameplayTags::Ability_Player_Sprint);
 
 	BlockAbilitiesWithTag.AddTag(PRGameplayTags::Ability_Player_Weapon_Fire_Primary);
 	BlockAbilitiesWithTag.AddTag(PRGameplayTags::Ability_Player_Aim);
 	BlockAbilitiesWithTag.AddTag(PRGameplayTags::Ability_Player_Crouch);
 	BlockAbilitiesWithTag.AddTag(PRGameplayTags::Ability_Player_Dodge);
+	BlockAbilitiesWithTag.AddTag(PRGameplayTags::Ability_Player_Sprint);
 
 	// 클라이언트 예측으로 몽타주와 루트모션을 즉시 재생하고, 서버에는 발동 순간의 방향만 한 번 전달한다.
 	ReplicationPolicy = EGameplayAbilityReplicationPolicy::ReplicateYes;

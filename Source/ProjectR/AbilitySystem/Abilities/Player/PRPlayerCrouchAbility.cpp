@@ -14,6 +14,7 @@ UPRPlayerCrouchAbility::UPRPlayerCrouchAbility()
 	AbilityTags.AddTag(PRGameplayTags::Ability_Player_Crouch);
 	ActivationOwnedTags.AddTag(PRGameplayTags::State_Crouching);
 	InputTag = PRGameplayTags::Input_Ability_Crouch;
+	CancelAbilitiesWithTag.AddTag(PRGameplayTags::Ability_Player_Sprint);
 
 	// 네트워크 설정
 	ReplicationPolicy = EGameplayAbilityReplicationPolicy::ReplicateYes;

@@ -48,6 +48,13 @@ EDataValidationResult UPRPatternDataAsset::IsDataValid(FDataValidationContext& C
 				FString::Printf(TEXT("PatternRules[%d]가 전술 상태 제한을 사용하지만 AllowedTacticalModes가 비어 있습니다."), RuleIndex)));
 			Result = EDataValidationResult::Invalid;
 		}
+
+		if (Rule.bRestrictBossPhases && Rule.AllowedBossPhases.IsEmpty())
+		{
+			Context.AddError(FText::FromString(
+				FString::Printf(TEXT("PatternRules[%d]가 보스 페이즈 제한을 사용하지만 AllowedBossPhases가 비어 있습니다."), RuleIndex)));
+			Result = EDataValidationResult::Invalid;
+		}
 	}
 
 	return Result;

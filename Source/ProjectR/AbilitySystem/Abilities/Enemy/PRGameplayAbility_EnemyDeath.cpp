@@ -18,7 +18,7 @@ UPRGameplayAbility_EnemyDeath::UPRGameplayAbility_EnemyDeath()
 
 	// 사망 Ability 활성화 시 GAS 내장 태그 취소 규약으로 진행 중인 패턴을 중단한다.
 	CancelAbilitiesWithTag.AddTag(PRGameplayTags::Ability_Enemy_Pattern);
-	CancelAbilitiesWithTag.AddTag(PRGameplayTags::Ability_Boss_Faerin_Pattern);
+	CancelAbilitiesWithTag.AddTag(PRGameplayTags::Ability_Boss_Pattern);
 }
 
 void UPRGameplayAbility_EnemyDeath::ActivateAbility(const FGameplayAbilitySpecHandle Handle,

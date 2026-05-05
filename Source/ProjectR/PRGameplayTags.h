@@ -19,6 +19,8 @@ namespace PRGameplayTags
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Ability_Player_Aim); // 플레이어 에임 어빌리티
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Ability_Player_Sprint); // 플레이어 질주 어빌리티
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Ability_Enemy_Pattern); // 일반 적 패턴 공통 루트
+	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Ability_Boss_Pattern); // 보스 패턴 공통 루트
+	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Ability_Boss_PhaseTransition); // 보스 페이즈 전환 공통 루트
 
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Ability_Enemy_Penitent_Pattern); // Penitent 패턴 루트
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Ability_Enemy_Penitent_Fireball); // Penitent 기본 화염구

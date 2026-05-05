@@ -21,7 +21,7 @@ UPRGameplayAbility_EnemyGroggy::UPRGameplayAbility_EnemyGroggy()
 
 	// 그로기에 들어가면 현재 공격/패턴 Ability를 먼저 끊는다.
 	CancelAbilityTags.AddTag(PRGameplayTags::Ability_Enemy_Pattern);
-	CancelAbilityTags.AddTag(PRGameplayTags::Ability_Boss_Faerin_Pattern);
+	CancelAbilityTags.AddTag(PRGameplayTags::Ability_Boss_Pattern);
 }
 
 void UPRGameplayAbility_EnemyGroggy::ActivateAbility(const FGameplayAbilitySpecHandle Handle,

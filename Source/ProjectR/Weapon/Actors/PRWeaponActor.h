@@ -8,13 +8,12 @@
 #include "ProjectR/Weapon/Types/PRWeaponTypes.h"
 #include "PRWeaponActor.generated.h"
 
+enum class EPRArmedState : uint8;
 class UNiagaraSystem;
 class ACharacter;
 class USceneComponent;
 class USkeletalMeshComponent;
 class UPRWeaponAnimInstance;
-
-
 
 // 슬롯에 장착된 무기의 로컬 공개 표현만 담당하는 Actor다.
 UCLASS()

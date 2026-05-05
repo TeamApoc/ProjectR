@@ -6,11 +6,12 @@
 #include "Engine/DataAsset.h"
 #include "GameplayTagContainer.h"
 #include "ProjectR/AbilitySystem/Data/PRAbilitySet.h"
+#include "ProjectR/Inventory/Data/PRItemDataAsset.h"
 #include "PRWeaponModDataAsset.generated.h"
 
 // 무기 Mod 1종의 초기 게이지, 스택, 어빌리티 연결 정보를 담는다
 UCLASS(BlueprintType)
-class PROJECTR_API UPRWeaponModDataAsset : public UPrimaryDataAsset
+class PROJECTR_API UPRWeaponModDataAsset : public UPRItemDataAsset
 {
 	GENERATED_BODY()
 

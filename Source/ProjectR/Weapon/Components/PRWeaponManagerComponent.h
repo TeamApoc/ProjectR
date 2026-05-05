@@ -11,7 +11,7 @@ class UNiagaraSystem;
 class APRWeaponActor;
 class UAnimInstance;
 class UPRAbilitySystemComponent;
-class UPRAttributeSet_Player;
+class UPRAttributeSet_Weapon;
 class UPRInventoryComponent;
 class UPRItemInstance_Weapon;
 class UPRWeaponDataAsset;
@@ -243,8 +243,8 @@ private:
 	// 현재 PlayerState에 연결된 ASC 캐시
 	TObjectPtr<UPRAbilitySystemComponent> CachedASC = nullptr;
 
-	// 현재 PlayerState에 연결된 플레이어 슬롯 자원 캐시
-	TObjectPtr<UPRAttributeSet_Player> CachedPlayerSet = nullptr;
+	// 현재 PlayerState에 연결된 무기 슬롯 자원 캐시
+	TObjectPtr<UPRAttributeSet_Weapon> CachedWeaponSet = nullptr;
 
 	// 현재 PlayerState에 연결된 인벤토리 캐시
 	TObjectPtr<UPRInventoryComponent> CachedInventory = nullptr;

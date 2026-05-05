@@ -9,10 +9,13 @@
 #include "PRPlayerController.generated.h"
 
 class UPRProjectileManagerComponent;
+class UPRFloatingTextManager;
 class UAbilitySystemComponent;
 class UPRInputConfigDataAsset;
 class UPRAbilitySystemComponent;
 struct FInputActionValue;
+class UInputAction;
+class UPRUIManagerComponent;
 
 // 플레이어 입력·UI 소유. Join 시 캐릭터 페이로드를 서버로 전송하고,
 // 인게임 중 발생한 보상 Grant를 연결이 살아있는 동안 즉시 수령하여 GameInstance에 반영한다
@@ -47,6 +50,9 @@ public:
 
 	UPRProjectileManagerComponent* GetProjectileManagerComponent() const {return ProjectileManager;}
 
+	// 플로팅 텍스트 매니저 컴포넌트를 반환한다
+	UPRFloatingTextManager* GetFloatingTextManager() const { return FloatingTextManager; }
+
 protected:
 	// 클라이언트 -> 서버. 로컬 캐릭터 페이로드 제출
 	UFUNCTION(Server, Reliable, WithValidation)
@@ -64,6 +70,14 @@ protected:
 
 	// 폰 -> PlayerState 경로로 ASC 조회
 	UPRAbilitySystemComponent* GetASC() const;
+
+    // ====== UI =====
+	// 인벤토리 입력 시작을 처리
+	void OnInventoryInputStarted();
+
+	// 인벤토리 열기 입력 액션
+	UPROPERTY(EditDefaultsOnly, Category = "ProjectR|Input")
+	TObjectPtr<const UInputAction> InventoryAction;
 	
 private:
 	// 캐릭터 페이로드를 이미 제출했는지 여부. 중복 제출 방지
@@ -73,4 +87,12 @@ private:
 	
 	UPROPERTY(VisibleAnywhere)
 	TObjectPtr<UPRProjectileManagerComponent> ProjectileManager;
+
+	UPROPERTY(VisibleAnywhere)
+	TObjectPtr<UPRFloatingTextManager> FloatingTextManager;
+
+    // ====== UI =====
+	// 로컬 플레이어 UI 표시 흐름을 담당하는 컴포넌트
+	UPROPERTY(VisibleAnywhere, Category = "ProjectR|UI")
+	TObjectPtr<UPRUIManagerComponent> UIManagerComponent;
 };

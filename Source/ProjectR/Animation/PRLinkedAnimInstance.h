@@ -18,7 +18,10 @@ class PROJECTR_API UPRLinkedAnimInstance : public UAnimInstance
 	GENERATED_BODY()
 	
 public:
+	// 레이어 애니메이션 인스턴스 초기화 시 메인 AnimInstance를 캐시한다
 	virtual void NativeInitializeAnimation() override;
+
+	// 메인 AnimInstance의 애니메이션 변수를 레이어로 복사한다
 	virtual void NativeUpdateAnimation(float DeltaSeconds) override;
 	
 protected:
@@ -105,4 +108,7 @@ protected:
 	UPROPERTY(BlueprintReadOnly, Category = "Movement|Aiming")
 	EPRWeaponSlotType AimOffsetWeaponSlot = EPRWeaponSlotType::None;
 
+	// DodgeAbility가 활성화되어 회피 상태 태그를 소유 중인지 나타낸다
+	UPROPERTY(BlueprintReadOnly, Category = "ProjectR|Animation|Dodge")
+	bool bIsDodging = false;
 };

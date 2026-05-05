@@ -294,7 +294,7 @@ void UPRItemInstance_Weapon::OnRep_WeaponData()
 		TEXT("[Inventory][Client] Weapon item data replicated. Item = %s | Weapon = %s | WeaponId = %s | Mod = %s | ModItem = %s"),
 		*GetNameSafe(this),
 		*GetNameSafe(WeaponData),
-		IsValid(WeaponData) ? *WeaponData->WeaponId.ToString() : TEXT("None"),
+		IsValid(WeaponData) ? *WeaponData->GetDisplayName().ToString() : TEXT("None"),
 		*GetNameSafe(ModData),
 		*GetNameSafe(EquippedModItem.Get()));
 }

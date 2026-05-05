@@ -16,6 +16,7 @@
 #include "ProjectR/PRGameplayTags.h"
 #include "ProjectR/AbilitySystem/AttributeSets/PRAttributeSet_Common.h"
 #include "ProjectR/Weapon/Components/PRWeaponManagerComponent.h"
+#include "ProjectR/Player/Components/PRActionInputRouterComponent.h"
 #include "ProjectR/Player/Components/PRSpringArmComponent.h"
 
 
@@ -40,7 +41,7 @@ APRPlayerCharacter::APRPlayerCharacter()
 	CameraBoom->bUsePawnControlRotation = true; // 컨트롤러 회전에 따라 카메라 회전
 	CameraBoom->bDoCollisionTest = true; // 카메라 충돌 처리 (장애물 감지 시 당김)
 	CameraBoom->bEnableCameraLag = true; // 카메라 지연(Lag) 활성화
-	CameraBoom->CameraLagSpeed = 10.0f; // 지연 속도 조절
+	CameraBoom->CameraLagSpeed = 15.0f; // 지연 속도 조절
 
 	// 카메라 설정
 	FollowCamera = CreateDefaultSubobject<UCameraComponent>(TEXT("FollowCamera"));
@@ -49,6 +50,7 @@ APRPlayerCharacter::APRPlayerCharacter()
 	FollowCamera->SetFieldOfView(80.0f); // 기본 FOV 80도 설정
 
 	WeaponManagerComponent = CreateDefaultSubobject<UPRWeaponManagerComponent>(TEXT("WeaponManagerComponent"));
+	ActionInputRouterComponent = CreateDefaultSubobject<UPRActionInputRouterComponent>(TEXT("ActionInputRouterComponent"));
 	
 	// 캡슐 설정
 	USkeletalMeshComponent* MeshComp = GetMesh();
@@ -100,7 +102,7 @@ void APRPlayerCharacter::PossessedBy(AController* NewController)
 				UPRAssetManager::Get().GetAbilitySystemRegistry(),
 				EPRCharacterRole::Player,
 				PRRowNames::Player::Default);
-			ASC->GiveAbilitySet(AbilitySet,AbilitySetHandles);
+			ASC->GiveAbilitySet(AbilitySet, AbilitySetHandles);
 			
 			// 이 시점에서 플레이어의 ASC 유효하므로 BindTagChangeEvent 호출
 			BindTagChangeEvent();
@@ -182,8 +184,6 @@ void APRPlayerCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputC
 	{
 		EnhancedInputComponent->BindAction(MoveAction, ETriggerEvent::Triggered, this, &APRPlayerCharacter::Move);
 		EnhancedInputComponent->BindAction(LookAction, ETriggerEvent::Triggered, this, &APRPlayerCharacter::Look);
-
-		EnhancedInputComponent->BindAction(SprintAction, ETriggerEvent::Started, this, &APRPlayerCharacter::SprintPressed);
 		
 		EnhancedInputComponent->BindAction(WalkAction, ETriggerEvent::Started, this, &APRPlayerCharacter::WalkPressed);
 	}
@@ -199,13 +199,26 @@ void APRPlayerCharacter::HandleGameplayTagUpdated(const FGameplayTag& ChangedTag
 	if (ChangedTag.MatchesTagExact(PRGameplayTags::State_Aiming))
 	{
 		bIsAiming = bTagExists;
-		UpdateMaxWalkSpeed(); // TODO: 이 함수에서 Strafe모드 직접 제어 하지 말고 별도 함수로 분리하는게 어떨지? 
+		UpdateMaxWalkSpeed();
+	}
+
+	if (ChangedTag.MatchesTagExact(PRGameplayTags::State_Sprinting))
+	{
+		SetSprintingFromAbility(bTagExists);
 	}
 }
 
 void APRPlayerCharacter::Move(const FInputActionValue& Value)
 {
 	FVector2D MovementVector = Value.Get<FVector2D>();
+
+	if (!MovementVector.IsNearlyZero()
+		&& IsValid(ActionInputRouterComponent)
+		&& ActionInputRouterComponent->IsRoutingInput()
+		&& ActionInputRouterComponent->HandleRoutedInput())
+	{
+		return;
+	}
 
 	if (IsValid(Controller))
 	{
@@ -231,26 +244,15 @@ void APRPlayerCharacter::Look(const FInputActionValue& Value)
 	}
 }
 
-void APRPlayerCharacter::SprintPressed()
+void APRPlayerCharacter::WalkPressed()
 {
-	// 멈춰있을때는 질주 불가
-	if (!bIsSprinting && GetCharacterMovement()->GetCurrentAcceleration().IsNearlyZero())
+	if (IsValid(ActionInputRouterComponent)
+		&& ActionInputRouterComponent->IsRoutingInput()
+		&& ActionInputRouterComponent->HandleRoutedInput())
 	{
 		return;
 	}
-	
-	bIsSprinting = !bIsSprinting;
-	UpdateMaxWalkSpeed();
-	
-	// 호스트가 아닐경우 서버에 보고
-	if (!HasAuthority())
-	{
-		Server_SetSprinting(bIsSprinting);
-	}
-}
 
-void APRPlayerCharacter::WalkPressed()
-{
 	bIsWalking = !bIsWalking;
 	UpdateMaxWalkSpeed();
 	
@@ -262,16 +264,6 @@ void APRPlayerCharacter::WalkPressed()
 
 void APRPlayerCharacter::UpdateMaxWalkSpeed()
 {
-	// 이동 입력 종료시 sprint 자동 종료
-	if (bIsSprinting && GetCharacterMovement()->GetCurrentAcceleration().IsNearlyZero() || bIsAiming)
-	{
-		bIsSprinting = false;
-		if (GetLocalRole() < ROLE_Authority)
-		{
-			Server_SetSprinting(false);
-		}
-	}
-	
     // 클라이언트 예측과 서버 보정 오차를 줄이기 위해 양측 동시 수행
     float BaseSpeed = JogSpeed;
 
@@ -318,17 +310,10 @@ void APRPlayerCharacter::UpdateMaxWalkSpeed()
 
 /*~ 상태 변경 및 동기화 ~*/
 
-
-void APRPlayerCharacter::Server_SetSprinting_Implementation(bool bNewSprinting)
+void APRPlayerCharacter::SetSprintingFromAbility(bool bNewSprinting)
 {
 	bIsSprinting = bNewSprinting;
 	UpdateMaxWalkSpeed();
-}
-
-bool APRPlayerCharacter::Server_SetSprinting_Validate(bool bNewSprinting)
-{
-    // 비정상적인 상태 변경 검증 (스태미너 체크 로직 추가 ?)
-    return true;
 }
 
 void APRPlayerCharacter::Server_SetWalking_Implementation(bool bNewWalking)
@@ -340,20 +325,6 @@ void APRPlayerCharacter::Server_SetWalking_Implementation(bool bNewWalking)
 bool APRPlayerCharacter::Server_SetWalking_Validate(bool bNewWalking)
 {
 	return true;
-}
-
-void APRPlayerCharacter::HandleMovementInputTag(FGameplayTag InputTag, bool bPressed)
-{
-	if (InputTag == PRGameplayTags::Input_Locomotion_Sprint && bPressed)
-	{
-		bIsSprinting = !bIsSprinting;
-	}
-	else if (InputTag == PRGameplayTags::Input_Locomotion_Walk && bPressed)
-	{
-		bIsWalking = !bIsWalking;
-	}
-	
-	UpdateMaxWalkSpeed();
 }
 
 void APRPlayerCharacter::OnRep_IsSprinting()

@@ -5,6 +5,8 @@
 
 #include "PRAnimInstance.h"
 
+/*~ 초기화 및 업데이트 ~*/
+
 void UPRLinkedAnimInstance::NativeInitializeAnimation()
 {
 	Super::NativeInitializeAnimation();
@@ -25,7 +27,10 @@ void UPRLinkedAnimInstance::NativeUpdateAnimation(float DeltaSeconds)
 	{
 		return;
 	}
-	
+
+	// Linked AnimInstance는 회피 몽타주를 재생하지 않는다.
+	// 회피 몽타주는 DodgeAbility가 소유하고, 레이어는 상태 변수만 읽어 그래프 표현을 보조한다.
+	// 링크드 레이어 AnimBP가 메인 AnimInstance의 이동 상태를 그대로 읽을 수 있도록 복사한다.
 	MovementMode = MainAnimInstance->MovementMode;
 	bShouldMove = MainAnimInstance->bShouldMove;
 	bIsFalling = MainAnimInstance->bIsFalling;
@@ -49,5 +54,7 @@ void UPRLinkedAnimInstance::NativeUpdateAnimation(float DeltaSeconds)
 	ArmedState = MainAnimInstance->ArmedState;
 	EquippedWeaponSlot = MainAnimInstance->EquippedWeaponSlot;
 	AimOffsetWeaponSlot = MainAnimInstance->AimOffsetWeaponSlot;
-}
 
+	// 회피 상태는 Ability 태그를 관찰한 메인 AnimInstance 값을 복사한다.
+	bIsDodging = MainAnimInstance->bIsDodging;
+}

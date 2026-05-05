@@ -3,6 +3,10 @@
 
 #include "PRProjectileBase.h"
 
+#include "AbilitySystemBlueprintLibrary.h"
+#include "AbilitySystemComponent.h"
+#include "AbilitySystemGlobals.h"
+#include "AbilitySystemInterface.h"
 #include "Components/SphereComponent.h"
 #include "DrawDebugHelpers.h"
 #include "PRProjectileMovementComponent.h"
@@ -45,6 +49,11 @@ void APRProjectileBase::InitializeProjectile(EPRProjectileRole InRole, uint32 In
 {
 	ProjectileRole = InRole;
 	ProjectileId = InProjectileId;
+}
+
+void APRProjectileBase::InitGameplayEffectSpec(const FGameplayEffectSpecHandle& InEffectSpec)
+{
+	EffectSpecHandle = InEffectSpec;
 }
 
 void APRProjectileBase::ApplyFastForward(float ForwardSeconds)
@@ -167,6 +176,12 @@ void APRProjectileBase::DestroyProjectile()
 	{
 		Destroy();
 	}
+	
+	OnProjectileDestroyed();
+}
+
+void APRProjectileBase::OnProjectileDestroyed_Implementation()
+{
 }
 
 void APRProjectileBase::BeginPlay()
@@ -195,8 +210,9 @@ void APRProjectileBase::BeginPlay()
 		}
 		return;
 	}
-	else if (GetProjectileRole() == EPRProjectileRole::Auth)
+	else if (!HasAuthority() && GetProjectileRole() == EPRProjectileRole::Auth)
 	{
+		// 예측 클라측은 감춤
 		SetActorHiddenInGame(true);
 	}
 
@@ -264,6 +280,57 @@ void APRProjectileBase::OnRep_ProjectileId()
 	ProjectileRole = EPRProjectileRole::Auth;
 	TryLinkToPredictedOnClient();
 	// HasActorBegunPlay()가 false면 BeginPlay에서 처리
+}
+
+void APRProjectileBase::ApplyEffectToTarget(AActor* TargetActor)
+{
+	if (GetLocalRole() != ROLE_Authority || ProjectileRole == EPRProjectileRole::Predicted)
+	{
+		return;
+	}
+	
+	IAbilitySystemInterface* ASI = Cast<IAbilitySystemInterface>(TargetActor);
+	if (!ASI)
+	{
+		return;
+	}
+
+	UAbilitySystemComponent* TargetASC = ASI->GetAbilitySystemComponent();
+	if (!TargetASC)
+	{
+		return;
+	}
+	
+	if (FGameplayEffectSpec* EffectSpec = EffectSpecHandle.Data.Get())
+	{
+		TargetASC->ApplyGameplayEffectSpecToSelf(*EffectSpec);	
+	}
+}
+
+void APRProjectileBase::ApplyEffectToTargetWithHit(AActor* TargetActor, const FHitResult& InHitResult)
+{
+	if (GetLocalRole() != ROLE_Authority || ProjectileRole == EPRProjectileRole::Predicted)
+	{
+		return;
+	}
+	
+	IAbilitySystemInterface* ASI = Cast<IAbilitySystemInterface>(TargetActor);
+	if (!ASI)
+	{
+		return;
+	}
+
+	UAbilitySystemComponent* TargetASC = ASI->GetAbilitySystemComponent();
+	if (!TargetASC)
+	{
+		return;
+	}
+	
+	if (FGameplayEffectSpec* EffectSpec = EffectSpecHandle.Data.Get())
+	{
+		EffectSpec->GetContext().AddHitResult(InHitResult,true);
+		TargetASC->ApplyGameplayEffectSpecToSelf(*EffectSpec);	
+	}
 }
 
 void APRProjectileBase::LinkCounterpart(APRProjectileBase* InCounterpart)
@@ -349,8 +416,8 @@ void APRProjectileBase::OnSphereHit(UPrimitiveComponent* HitComponent, AActor* O
 	// TODO: 권위 투사체의 첫 복제 전 바로 파괴되어 버린 경우 Remote의 파괴 이펙트 보장 필요
 }
 
-void APRProjectileBase::HandleHit(UPrimitiveComponent* HitComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp,
-	FVector NormalImpulse, const FHitResult& Hit)
+void APRProjectileBase::HandleHit_Implementation(UPrimitiveComponent* HitComponent, AActor* OtherActor,
+	UPrimitiveComponent* OtherComp, FVector NormalImpulse, const FHitResult& Hit)
 {
 	DestroyProjectile();
 }

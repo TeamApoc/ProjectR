@@ -4,4 +4,5 @@
 
 UPRWeaponDataAsset::UPRWeaponDataAsset()
 {
+	SetItemType(EPRItemType::Weapon);
 }

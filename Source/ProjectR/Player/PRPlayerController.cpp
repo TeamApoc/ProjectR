@@ -8,8 +8,11 @@
 #include "EnhancedInputComponent.h"
 #include "InputAction.h"
 #include "ProjectR/Game/PRCameraManager.h"
+#include "ProjectR/Character/PRPlayerCharacter.h"
 #include "ProjectR/Input/PRInputConfigDataAsset.h"
 #include "ProjectR/Projectile/PRProjectileManagerComponent.h"
+#include "ProjectR/UI/Components/PRUIManagerComponent.h"
+#include "ProjectR/UI/FloatingText/PRFloatingTextManager.h"
 
 
 APRPlayerController::APRPlayerController()
@@ -17,6 +20,9 @@ APRPlayerController::APRPlayerController()
 	PlayerCameraManagerClass = APRCameraManager::StaticClass();
 	
 	ProjectileManager = CreateDefaultSubobject<UPRProjectileManagerComponent>(TEXT("ProjectileManager"));
+	FloatingTextManager = CreateDefaultSubobject<UPRFloatingTextManager>(TEXT("FloatingTextManager"));
+	// 2026.05.01 이건주 | UI 매니저 컴포넌트 추가 
+	UIManagerComponent = CreateDefaultSubobject<UPRUIManagerComponent>(TEXT("UIManagerComponent"));
 }
 
 // =====  APlayerController Interface =====
@@ -43,7 +49,17 @@ void APRPlayerController::SetupInputComponent()
 	Super::SetupInputComponent();
 
 	UEnhancedInputComponent* EIC = Cast<UEnhancedInputComponent>(InputComponent);
-	if (EIC == nullptr || !IsValid(InputConfig))
+	if (!IsValid(EIC))
+	{
+		return;
+	}
+
+	if (IsValid(InventoryAction.Get()))
+	{
+		EIC->BindAction(InventoryAction.Get(), ETriggerEvent::Started, this, &APRPlayerController::OnInventoryInputStarted);
+	}
+
+	if (!IsValid(InputConfig))
 	{
 		return;
 	}
@@ -51,14 +67,14 @@ void APRPlayerController::SetupInputComponent()
 	// IA별로 Started/Completed에 InputTag 포함 콜백을 바인딩
 	for (const FPRInputActionBinding& Binding : InputConfig->AbilityInputBindings)
 	{
-		if (Binding.InputAction == nullptr || !Binding.InputTag.IsValid())
+		if (!IsValid(Binding.InputAction.Get()) || !Binding.InputTag.IsValid())
 		{
 			continue;
 		}
 
-		EIC->BindAction(Binding.InputAction, ETriggerEvent::Started, this,
+		EIC->BindAction(Binding.InputAction.Get(), ETriggerEvent::Started, this,
 			&APRPlayerController::OnAbilityInputPressed, Binding.InputTag);
-		EIC->BindAction(Binding.InputAction, ETriggerEvent::Completed, this,
+		EIC->BindAction(Binding.InputAction.Get(), ETriggerEvent::Completed, this,
 			&APRPlayerController::OnAbilityInputReleased, Binding.InputTag);
 	}
 }
@@ -176,4 +192,15 @@ void APRPlayerController::ClientGrantReward_Implementation(const FPRRewardGrant&
 	}
 
 	GI->ApplyRewardGrant(Grant);
+}
+
+// ===== UI =====
+void APRPlayerController::OnInventoryInputStarted()
+{
+	if (!IsValid(UIManagerComponent))
+	{
+		return;
+	}
+    // 인벤토리 UI 토글 
+	UIManagerComponent->ToggleInventory();
 }

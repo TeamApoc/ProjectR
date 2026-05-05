@@ -48,7 +48,7 @@ public:
 	PR_ATTRIBUTE_ACCESSORS(UPRAttributeSet_Common, Armor)
 
 	// 받는 데미지. 메타 어트리뷰트로 체력 차감 처리 후 즉시 0으로 초기화됨
-	UPROPERTY(BlueprintReadOnly, Category = "ProjectR|Attributes|Common", meta = (HideFromModifiers))
+	UPROPERTY(BlueprintReadOnly, Category = "ProjectR|Attributes|Common")
 	FGameplayAttributeData IncomingDamage;
 	PR_ATTRIBUTE_ACCESSORS(UPRAttributeSet_Common, IncomingDamage)
 

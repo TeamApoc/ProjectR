@@ -7,10 +7,11 @@
 #include "ProjectR/Weapon/Types/PRWeaponTypes.h"
 #include "PRWeaponManagerComponent.generated.h"
 
+class UNiagaraSystem;
 class APRWeaponActor;
 class UAnimInstance;
 class UPRAbilitySystemComponent;
-class UPRAttributeSet_Player;
+class UPRAttributeSet_Weapon;
 class UPRInventoryComponent;
 class UPRItemInstance_Weapon;
 class UPRWeaponDataAsset;
@@ -96,6 +97,12 @@ public:
 	// 인벤토리에서 변경된 Mod 상태를 현재 관리 중인 무기 슬롯에 반영한다
 	void HandleInventoryWeaponModChanged(UPRItemInstance_Weapon* WeaponItem);
 
+	// 26.05.04, Yuchan, rpc 이펙트 재생 추가
+	void PlayWeaponNiagaraEffect(EPRWeaponEffectType EffectType, UNiagaraSystem* InNiagaraSystem = nullptr);
+	
+	UFUNCTION(NetMulticast, Unreliable)
+	void Multicast_PlayWeaponNiagaraEffect(EPRWeaponEffectType EffectType, UNiagaraSystem* InNiagaraSystem = nullptr);
+	
 protected:
 	// 서버 권위에서 슬롯 원본과 공개 상태를 갱신한다
 	bool EquipWeaponInternal(UPRItemInstance_Weapon* WeaponItem);
@@ -236,8 +243,8 @@ private:
 	// 현재 PlayerState에 연결된 ASC 캐시
 	TObjectPtr<UPRAbilitySystemComponent> CachedASC = nullptr;
 
-	// 현재 PlayerState에 연결된 플레이어 슬롯 자원 캐시
-	TObjectPtr<UPRAttributeSet_Player> CachedPlayerSet = nullptr;
+	// 현재 PlayerState에 연결된 무기 슬롯 자원 캐시
+	TObjectPtr<UPRAttributeSet_Weapon> CachedWeaponSet = nullptr;
 
 	// 현재 PlayerState에 연결된 인벤토리 캐시
 	TObjectPtr<UPRInventoryComponent> CachedInventory = nullptr;

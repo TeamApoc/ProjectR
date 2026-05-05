@@ -148,8 +148,12 @@ FHitResult UPRGA_Fire::PerformMuzzleTrace(const FVector& MuzzleLoc, const FVecto
 	{
 		Params.AddIgnoredActor(AvatarActor);
 	}
+	
+	FVector Dir = AimPoint - MuzzleLoc;
+	Dir.Normalize();
+	FVector EndPoint = AimPoint + Dir * 30.f; // AimPoint에서 바로 멈추면 히트 실패 가능 있으므로 약간의 여유분 추가
 
-	World->LineTraceSingleByChannel(Hit, MuzzleLoc, AimPoint, FireTraceChannel.GetValue(), Params);
+	World->LineTraceSingleByChannel(Hit, MuzzleLoc, EndPoint, FireTraceChannel.GetValue(), Params);
 
 	// 디버그 라인: 실제 탄도(총구 -> 끝점). 빨강
 	if (bDrawMuzzleTrace)

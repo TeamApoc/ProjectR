@@ -16,6 +16,7 @@ UPRGA_PlayerAim::UPRGA_PlayerAim()
 	// 어빌리티 식별 및 입력 태그 설정
 	AbilityTags.AddTag(PRGameplayTags::Ability_Player_Aim);
 	InputTag = PRGameplayTags::Input_Ability_Aim;
+	CancelAbilitiesWithTag.AddTag(PRGameplayTags::Ability_Player_Sprint);
 
 	// [핵심] 조준 중일 때 스스로에게 State.Aiming 태그를 부여합니다.
 	// 이 태그가 켜져 있으면 캐릭터가 이를 감지하고 걷기 속도와 카메라 FOV를 자동으로 변경합니다.

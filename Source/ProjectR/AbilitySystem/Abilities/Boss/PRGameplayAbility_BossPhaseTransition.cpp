@@ -2,11 +2,39 @@
 
 #include "PRGameplayAbility_BossPhaseTransition.h"
 
+#include "ProjectR/AbilitySystem/Abilities/Boss/PRBossAbilityTagUtils.h"
 #include "ProjectR/Character/Enemy/PRBossBaseCharacter.h"
 #include "ProjectR/PRGameplayTags.h"
 
+namespace
+{
+	EPRBossPhase ResolveBossPhaseFromEvent(const FGameplayEventData* TriggerEventData, EPRBossPhase FallbackPhase)
+	{
+		if (TriggerEventData == nullptr)
+		{
+			return FallbackPhase;
+		}
+
+		const UEnum* BossPhaseEnum = StaticEnum<EPRBossPhase>();
+		if (BossPhaseEnum == nullptr)
+		{
+			return FallbackPhase;
+		}
+
+		const int32 EventPhaseValue = FMath::RoundToInt(TriggerEventData->EventMagnitude);
+		if (!BossPhaseEnum->IsValidEnumValue(EventPhaseValue))
+		{
+			return FallbackPhase;
+		}
+
+		return static_cast<EPRBossPhase>(EventPhaseValue);
+	}
+}
+
 UPRGameplayAbility_BossPhaseTransition::UPRGameplayAbility_BossPhaseTransition()
 {
+	SetAssetTags(PRBossAbility::MakePhaseTransitionAssetTags());
+
 	// 보스가 PhaseTransition GameplayEvent를 보내면 이 Ability가 자동 실행된다.
 	FAbilityTriggerData TriggerData;
 	TriggerData.TriggerSource = EGameplayAbilityTriggerSource::GameplayEvent;
@@ -28,7 +56,7 @@ void UPRGameplayAbility_BossPhaseTransition::ActivateAbility(const FGameplayAbil
 	if (APRBossBaseCharacter* BossCharacter = Cast<APRBossBaseCharacter>(GetAvatarActorFromActorInfo()))
 	{
 		// 현재는 전환 연출 없이 즉시 확정한다. 연출이 붙으면 해당 연출 몽타주 완료 시점으로 옮기면 된다.
-		BossCharacter->CommitPhaseTransition(TargetPhase);
+		BossCharacter->CommitPhaseTransition(ResolveBossPhaseFromEvent(TriggerEventData, TargetPhase));
 	}
 
 	EndAbility(Handle, ActorInfo, ActivationInfo, true, false);

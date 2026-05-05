@@ -9,6 +9,7 @@
 #include "GameplayTagContainer.h"
 #include "ProjectR/AbilitySystem/PRAbilitySystemComponent.h"
 #include "ProjectR/AI/Data/PRPatternDataAsset.h"
+#include "ProjectR/Character/Enemy/PRBossBaseCharacter.h"
 #include "ProjectR/Character/Enemy/PREnemyInterface.h"
 
 namespace PREnemyPatternSelectionUtils
@@ -69,6 +70,13 @@ namespace PREnemyPatternSelectionUtils
 		OutRuntime.PatternContext.CurrentAttackPressure = HasValidBlackboardKey(BlackboardComponent, AttackPressureKey)
 			? BlackboardComponent->GetValueAsFloat(AttackPressureKey)
 			: 0.0f;
+
+		if (const APRBossBaseCharacter* BossCharacter = Cast<APRBossBaseCharacter>(ControlledPawn))
+		{
+			OutRuntime.PatternContext.bIsBoss = true;
+			OutRuntime.PatternContext.BossPhase = BossCharacter->GetCurrentPhase();
+		}
+
 		return true;
 	}
 

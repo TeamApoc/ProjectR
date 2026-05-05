@@ -19,6 +19,8 @@ namespace PRGameplayTags
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Ability_Player_Aim, "Ability.Player.Aim", "플레이어 구르기 어빌리티");
 
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Ability_Enemy_Pattern, "Ability.Enemy.Pattern", "일반 적 패턴 공통 루트");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Ability_Boss_Pattern, "Ability.Boss.Pattern", "보스 패턴 공통 루트");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Ability_Boss_PhaseTransition, "Ability.Boss.PhaseTransition", "보스 페이즈 전환 공통 루트");
 
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Ability_Enemy_Penitent_Pattern, "Ability.Enemy.Penitent.Pattern", "Penitent 패턴 루트");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Ability_Enemy_Penitent_Fireball, "Ability.Enemy.Penitent.Fireball", "Penitent 기본 화염구");

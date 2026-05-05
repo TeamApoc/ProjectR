@@ -2,10 +2,12 @@
 
 #include "PRWeaponActor.h"
 
+#include "NiagaraFunctionLibrary.h"
 #include "Components/SceneComponent.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "GameFramework/Character.h"
 #include "ProjectR/Animation/Weapon/PRWeaponAnimInstance.h"
+#include "ProjectR/Weapon/Items/PRItemInstance_Weapon.h"
 
 APRWeaponActor::APRWeaponActor()
 {
@@ -123,6 +125,26 @@ bool APRWeaponActor::RequestReloadAnimation()
 bool APRWeaponActor::SetWeaponAnimationIdle()
 {
 	return RequestWeaponAnimation(EPRWeaponAnimationState::Idle);
+}
+
+void APRWeaponActor::PlayNiagaraEffect_Implementation(EPRWeaponEffectType EffectType, UNiagaraSystem* InNiagaraSystem)
+{
+	if (!IsValid(InNiagaraSystem))
+	{
+		return;
+	}
+	
+	if (EffectType == EPRWeaponEffectType::MuzzleFlash || EffectType == EPRWeaponEffectType::ProjectileLaunch)
+	{
+		FTransform MuzzleTransform = GetMuzzleTransform();
+		UNiagaraFunctionLibrary::SpawnSystemAtLocation(this,InNiagaraSystem,
+			MuzzleTransform.GetLocation(),
+			MuzzleTransform.Rotator(),
+			MuzzleTransform.GetScale3D(),
+			true,
+			true,
+			ENCPoolMethod::AutoRelease);
+	}
 }
 
 FTransform APRWeaponActor::GetMuzzleTransform_Implementation() const

@@ -125,7 +125,7 @@ void UPRWeaponManagerComponent::InitializeRuntimeLinks()
 {
 	// PlayerState 재연결 시 이전 캐시가 남지 않도록 먼저 초기화
 	CachedASC = nullptr;
-	CachedPlayerSet = nullptr;
+	CachedWeaponSet = nullptr;
 	CachedInventory = nullptr;
 
 	// 무기 매니저는 캐릭터 소유를 전제로 PlayerState 런타임 링크를 조회
@@ -147,7 +147,7 @@ void UPRWeaponManagerComponent::InitializeRuntimeLinks()
 
 	// 서버 권위 장착 처리에서 사용할 런타임 의존성 캐시
 	CachedASC = PlayerState->GetPRAbilitySystemComponent();
-	CachedPlayerSet = PlayerState->GetPlayerSet();
+	CachedWeaponSet = PlayerState->GetWeaponSet();
 	CachedInventory = PlayerState->GetInventoryComponent();
 }
 
@@ -454,6 +454,27 @@ void UPRWeaponManagerComponent::HandleInventoryWeaponModChanged(UPRItemInstance_
 		*GetNameSafe(WeaponItem),
 		*GetNameSafe(WeaponItem->GetModData()),
 		*GetNameSafe(WeaponItem->GetEquippedModItem()));
+}
+
+void UPRWeaponManagerComponent::PlayWeaponNiagaraEffect(EPRWeaponEffectType EffectType, UNiagaraSystem* InNiagaraSystem)
+{
+	APRWeaponActor* ActiveWeaponActor = CurrentWeaponSlot == EPRWeaponSlotType::Primary ? PrimaryWeaponActor : SecondaryWeaponActor;
+	if (IsValid(ActiveWeaponActor))
+	{
+		ActiveWeaponActor->PlayNiagaraEffect(EffectType, InNiagaraSystem);
+	}
+}
+
+void UPRWeaponManagerComponent::Multicast_PlayWeaponNiagaraEffect_Implementation(EPRWeaponEffectType EffectType,UNiagaraSystem* InNiagaraSystem)
+{
+	if (APawn* OwnerPawn = GetTypedOuter<APawn>())
+	{
+		// LocallyControlled인 경우 Multicast가 아닌 직접 PlayWeaponNiagaraEffect 호출
+		if (!OwnerPawn->IsLocallyControlled())
+		{
+			PlayWeaponNiagaraEffect(EffectType, InNiagaraSystem);		
+		}
+	}
 }
 
 bool UPRWeaponManagerComponent::EquipWeaponInternal(UPRItemInstance_Weapon* WeaponItem)
@@ -1101,30 +1122,19 @@ EPRArmedState UPRWeaponManagerComponent::GetSlotWeaponArmedState(EPRWeaponSlotTy
 }
 
 FName UPRWeaponManagerComponent::GetAttachTargetSocketName(EPRWeaponSlotType SlotType, EPRArmedState SlotArmedState) const
-{
-	// 손에 든 무기인 경우
-	if (SlotArmedState == EPRArmedState::Armed)
+{	
+	// 소켓 네임을 얻기 위해 무기슬롯의 무기 데이터를 가져온다 
+	UPRWeaponDataAsset* Data = GetWeaponDataBySlotType(SlotType);
+	if (!IsValid(Data))
 	{
-		// 손 무기 소켓 리턴
-		return TEXT("Gun_Attach");
+		return NAME_None;
 	}
-
-	// 수납 상태의 주무기인 경우
-	if (SlotType == EPRWeaponSlotType::Primary)
-	{
-		// 주무기 수납 소켓 리턴
-		return TEXT("LongGun_Stow");
-	}
-
-	// 수납 상태의 보조무기인 경우
-	if (SlotType == EPRWeaponSlotType::Secondary)
-	{
-		// 보조무기 수납 소켓 리턴
-		return TEXT("Pistol_Stow");
-	}
-
-	// 지원하지 않는 슬롯은 부착 소켓 없음으로 리턴
-	return NAME_None;
+	
+	// 무장 상태에 맞는 소켓 이름을 가져온다 
+	FName TargetSocketName = (SlotArmedState == EPRArmedState::Armed) 
+	? FName(PREnumHelper::EnumToFName(Data->ArmedSocketName))
+	: FName(PREnumHelper::EnumToFName(Data->StowedSocketName));
+	return TargetSocketName;
 }
 
 void UPRWeaponManagerComponent::RefreshVisualInfosFromCurrentState()

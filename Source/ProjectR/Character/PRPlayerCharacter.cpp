@@ -102,7 +102,7 @@ void APRPlayerCharacter::PossessedBy(AController* NewController)
 				UPRAssetManager::Get().GetAbilitySystemRegistry(),
 				EPRCharacterRole::Player,
 				PRRowNames::Player::Default);
-			ASC->GiveAbilitySet(AbilitySet,AbilitySetHandles);
+			ASC->GiveAbilitySet(AbilitySet, AbilitySetHandles);
 			
 			// 이 시점에서 플레이어의 ASC 유효하므로 BindTagChangeEvent 호출
 			BindTagChangeEvent();
@@ -184,8 +184,6 @@ void APRPlayerCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputC
 	{
 		EnhancedInputComponent->BindAction(MoveAction, ETriggerEvent::Triggered, this, &APRPlayerCharacter::Move);
 		EnhancedInputComponent->BindAction(LookAction, ETriggerEvent::Triggered, this, &APRPlayerCharacter::Look);
-
-		EnhancedInputComponent->BindAction(SprintAction, ETriggerEvent::Started, this, &APRPlayerCharacter::SprintPressed);
 		
 		EnhancedInputComponent->BindAction(WalkAction, ETriggerEvent::Started, this, &APRPlayerCharacter::WalkPressed);
 	}
@@ -202,6 +200,11 @@ void APRPlayerCharacter::HandleGameplayTagUpdated(const FGameplayTag& ChangedTag
 	{
 		bIsAiming = bTagExists;
 		UpdateMaxWalkSpeed();
+	}
+
+	if (ChangedTag.MatchesTagExact(PRGameplayTags::State_Sprinting))
+	{
+		SetSprintingFromAbility(bTagExists);
 	}
 }
 
@@ -241,31 +244,6 @@ void APRPlayerCharacter::Look(const FInputActionValue& Value)
 	}
 }
 
-void APRPlayerCharacter::SprintPressed()
-{
-	if (IsValid(ActionInputRouterComponent)
-		&& ActionInputRouterComponent->IsRoutingInput()
-		&& ActionInputRouterComponent->HandleRoutedInput())
-	{
-		return;
-	}
-
-	// 멈춰있을때는 질주 불가
-	if (!bIsSprinting && GetCharacterMovement()->GetCurrentAcceleration().IsNearlyZero())
-	{
-		return;
-	}
-	
-	bIsSprinting = !bIsSprinting;
-	UpdateMaxWalkSpeed();
-	
-	// 호스트가 아닐경우 서버에 보고
-	if (!HasAuthority())
-	{
-		Server_SetSprinting(bIsSprinting);
-	}
-}
-
 void APRPlayerCharacter::WalkPressed()
 {
 	if (IsValid(ActionInputRouterComponent)
@@ -286,16 +264,6 @@ void APRPlayerCharacter::WalkPressed()
 
 void APRPlayerCharacter::UpdateMaxWalkSpeed()
 {
-	// 이동 입력 종료시 sprint 자동 종료
-	if (bIsSprinting && GetCharacterMovement()->GetCurrentAcceleration().IsNearlyZero() || bIsAiming)
-	{
-		bIsSprinting = false;
-		if (GetLocalRole() < ROLE_Authority)
-		{
-			Server_SetSprinting(false);
-		}
-	}
-	
     // 클라이언트 예측과 서버 보정 오차를 줄이기 위해 양측 동시 수행
     float BaseSpeed = JogSpeed;
 
@@ -342,17 +310,10 @@ void APRPlayerCharacter::UpdateMaxWalkSpeed()
 
 /*~ 상태 변경 및 동기화 ~*/
 
-
-void APRPlayerCharacter::Server_SetSprinting_Implementation(bool bNewSprinting)
+void APRPlayerCharacter::SetSprintingFromAbility(bool bNewSprinting)
 {
 	bIsSprinting = bNewSprinting;
 	UpdateMaxWalkSpeed();
-}
-
-bool APRPlayerCharacter::Server_SetSprinting_Validate(bool bNewSprinting)
-{
-    // 비정상적인 상태 변경 검증 (스태미너 체크 로직 추가 ?)
-    return true;
 }
 
 void APRPlayerCharacter::Server_SetWalking_Implementation(bool bNewWalking)
@@ -364,20 +325,6 @@ void APRPlayerCharacter::Server_SetWalking_Implementation(bool bNewWalking)
 bool APRPlayerCharacter::Server_SetWalking_Validate(bool bNewWalking)
 {
 	return true;
-}
-
-void APRPlayerCharacter::HandleMovementInputTag(FGameplayTag InputTag, bool bPressed)
-{
-	if (InputTag == PRGameplayTags::Input_Locomotion_Sprint && bPressed)
-	{
-		bIsSprinting = !bIsSprinting;
-	}
-	else if (InputTag == PRGameplayTags::Input_Locomotion_Walk && bPressed)
-	{
-		bIsWalking = !bIsWalking;
-	}
-	
-	UpdateMaxWalkSpeed();
 }
 
 void APRPlayerCharacter::OnRep_IsSprinting()

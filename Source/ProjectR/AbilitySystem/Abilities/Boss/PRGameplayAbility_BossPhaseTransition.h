@@ -25,5 +25,5 @@ public:
 protected:
 	// 이 Ability가 확정할 목표 페이즈다.
 	UPROPERTY(EditDefaultsOnly, Category = "ProjectR|AI|Boss")
-	EPRFaerinPhase TargetPhase = EPRFaerinPhase::Opening;
+	EPRBossPhase TargetPhase = EPRBossPhase::Phase1;
 };

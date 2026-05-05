@@ -5,8 +5,11 @@
 #include "CoreMinimal.h"
 #include "GameFramework/Actor.h"
 #include "ProjectR/Weapon/Types/PRWeaponAnimationTypes.h"
+#include "ProjectR/Weapon/Types/PRWeaponTypes.h"
 #include "PRWeaponActor.generated.h"
 
+enum class EPRArmedState : uint8;
+class UNiagaraSystem;
 class ACharacter;
 class USceneComponent;
 class USkeletalMeshComponent;
@@ -59,6 +62,15 @@ public:
 	// 총구 트랜스폼 반환 함수, BP에서 override
 	UFUNCTION(BlueprintNativeEvent)
 	FTransform GetMuzzleTransform() const;
+	
+	// 26.05.04, Yuchan, 총구 이펙트 재생 추가
+	// 총기 관련 특정 이펙트 재생, BP에서 선택적 override 가능
+	UFUNCTION(BlueprintNativeEvent)
+	void PlayNiagaraEffect(EPRWeaponEffectType EffectType, UNiagaraSystem* InNiagaraSystem = nullptr);
+	
+	// 총기 관련 이펙트 중단, BP에서 선택적 구현
+	UFUNCTION(BlueprintImplementableEvent)
+	void StopEffect(EPRWeaponEffectType EffectType);
 	
 protected:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "ProjectR|Weapon")

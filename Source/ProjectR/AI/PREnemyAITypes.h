@@ -52,15 +52,15 @@ enum class EPRTargetLostPolicy : uint8
 	RemoveThreatEntry	UMETA(DisplayName = "Remove Threat Entry")
 };
 
-// Faerin 보스 전용 페이즈 값이다.
-// 페이즈 전환 Ability와 이벤트 릴레이가 같은 기준을 보도록 공용 타입으로 둔다.
+// 보스 공통 페이즈 값이다.
+// 현재 Faerin은 이 공용 페이즈를 자신의 패턴 단계에 매핑한다.
 UENUM(BlueprintType)
-enum class EPRFaerinPhase : uint8
+enum class EPRBossPhase : uint8
 {
-	Opening				UMETA(DisplayName = "Opening"),
-	AdvancedRanged		UMETA(DisplayName = "AdvancedRanged"),
-	SwordJudgment		UMETA(DisplayName = "SwordJudgment"),
-	FinalTeleportLoop	UMETA(DisplayName = "FinalTeleportLoop")
+	Phase1	UMETA(DisplayName = "Phase 1"),
+	Phase2	UMETA(DisplayName = "Phase 2"),
+	Phase3	UMETA(DisplayName = "Phase 3"),
+	Phase4	UMETA(DisplayName = "Phase 4")
 };
 
 USTRUCT(BlueprintType)
@@ -104,9 +104,17 @@ struct PROJECTR_API FPRPatternContext
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "ProjectR|AI")
 	bool bChargePathClear = false;
 
+	// 현재 패턴 선택 주체가 보스인지 여부다.
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "ProjectR|AI")
+	bool bIsBoss = false;
+
+	// 보스 패턴 선택 시 비교할 현재 보스 페이즈다.
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "ProjectR|AI")
+	EPRBossPhase BossPhase = EPRBossPhase::Phase1;
+
+	// 현재 누적된 공격 압박도다.
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "ProjectR|AI")
 	float CurrentAttackPressure = 0.0f;
-
 };
 
 // 하나의 몬스터 패턴 후보를 정의한다.
@@ -148,10 +156,19 @@ struct PROJECTR_API FPRPatternRule
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|AI", meta = (EditCondition = "bRestrictTacticalModes"))
 	TArray<EPRTacticalMode> AllowedTacticalModes;
 
+	// true면 AllowedBossPhases에 들어 있는 보스 페이즈에서만 선택된다.
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|AI")
+	bool bRestrictBossPhases = false;
+
+	// 이 패턴을 허용할 보스 페이즈 목록이다. 일반 몬스터에는 적용하지 않는다.
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|AI", meta = (EditCondition = "bRestrictBossPhases"))
+	TArray<EPRBossPhase> AllowedBossPhases;
+
 	// 조건을 통과한 후보끼리의 선택 가중치다.
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|AI", meta = (ClampMin = "0.0"))
 	float SelectionWeight = 1.0f;
 
+	// 이 패턴을 선택하기 위해 필요한 최소 공격 압박도다.
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|AI", meta = (ClampMin = "0.0"))
 	float RequiredAttackPressure = 0.0f;
 
@@ -194,6 +211,11 @@ struct PROJECTR_API FPRPatternRule
 		}
 
 		if (bRestrictTacticalModes && !AllowedTacticalModes.Contains(Context.TacticalMode))
+		{
+			return false;
+		}
+
+		if (bRestrictBossPhases && (!Context.bIsBoss || !AllowedBossPhases.Contains(Context.BossPhase)))
 		{
 			return false;
 		}

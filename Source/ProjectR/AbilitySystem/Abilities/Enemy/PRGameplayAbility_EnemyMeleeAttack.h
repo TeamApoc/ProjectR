@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "Abilities/GameplayAbilityTypes.h"
 #include "ProjectR/AbilitySystem/Abilities/Enemy/PRGameplayAbility_EnemyBase.h"
+#include "ProjectR/Combat/PREnemyAttackTypes.h"
 #include "PRGameplayAbility_EnemyMeleeAttack.generated.h"
 
 class ACharacter;
@@ -104,6 +105,22 @@ protected:
 	// 두 지점 사이 Sweep 판정과 피해 적용을 수행한다.
 	void ExecuteMeleeTrace(const FVector& TraceStart, const FVector& TraceEnd);
 
+private:
+	// 현재 공격이 PhysicsAsset Body 기반 판정을 사용하는지 확인한다.
+	bool UsesPhysicsAssetBodyCollision() const;
+
+	// PhysicsAsset Body 위치를 기준으로 단발 판정을 수행한다.
+	bool ExecutePhysicsBodyMeleeHit();
+
+	// PhysicsAsset Body 위치를 기준으로 구간 판정을 갱신한다.
+	bool UpdatePhysicsBodyMeleeHitWindow();
+
+	// 지정한 Physics Body 또는 같은 이름의 소켓/본 위치를 공격 판정 중심점으로 계산한다.
+	bool GetAttackPhysicsBodyTracePoint(FName BodyName, FVector& OutTracePoint) const;
+
+	// 지정 반경으로 두 지점 사이 Sweep 판정과 피해 적용을 수행한다.
+	void ExecuteMeleeTraceWithRadius(const FVector& TraceStart, const FVector& TraceEnd, float TraceRadius);
+
 protected:
 	// BTTask 활성화용 Ability 식별 태그
 	UPROPERTY(EditDefaultsOnly, Category = "ProjectR|Combat")
@@ -157,6 +174,10 @@ protected:
 	UPROPERTY(EditDefaultsOnly, Category = "ProjectR|Combat", meta = (ClampMin = "0.0"))
 	float AttackRange = 220.0f;
 
+	// 공격 판정 기준 소스
+	UPROPERTY(EditDefaultsOnly, Category = "ProjectR|Combat")
+	EPREnemyAttackCollisionSource CollisionSource = EPREnemyAttackCollisionSource::SocketOrBone;
+
 	// Sweep 구체 반경
 	UPROPERTY(EditDefaultsOnly, Category = "ProjectR|Combat", meta = (ClampMin = "0.0"))
 	float AttackRadius = 75.0f;
@@ -169,6 +190,14 @@ protected:
 	// 소켓 또는 본 기준 근접 판정 중심점 오프셋
 	UPROPERTY(EditDefaultsOnly, Category = "ProjectR|Combat")
 	FVector AttackTraceSourceOffset = FVector::ZeroVector;
+
+	// PhysicsAsset Body 기반 판정에서 사용할 공격 전용 Body 이름 목록
+	UPROPERTY(EditDefaultsOnly, Category = "ProjectR|Combat", meta = (EditCondition = "CollisionSource == EPREnemyAttackCollisionSource::PhysicsAssetBody"))
+	TArray<FName> AttackPhysicsBodyNames;
+
+	// PhysicsAsset Body 기반 판정에서 Body별 Sweep 반경에 곱할 보정값
+	UPROPERTY(EditDefaultsOnly, Category = "ProjectR|Combat", meta = (ClampMin = "0.0", EditCondition = "CollisionSource == EPREnemyAttackCollisionSource::PhysicsAssetBody"))
+	float PhysicsBodyScale = 1.0f;
 
 	// 소켓 미지정 시 정면 Sweep 시작점 높이 오프셋
 	UPROPERTY(EditDefaultsOnly, Category = "ProjectR|Combat")
@@ -238,4 +267,7 @@ private:
 
 	// 직전 히트 윈도우 위치
 	FVector PreviousMeleeWindowTracePoint = FVector::ZeroVector;
+
+	// PhysicsAsset Body별 직전 히트 윈도우 위치
+	TMap<FName, FVector> PreviousMeleeWindowPhysicsBodyTracePoints;
 };

@@ -6,9 +6,11 @@
 #include "Abilities/Tasks/AbilityTask_PlayMontageAndWait.h"
 #include "Abilities/Tasks/AbilityTask_WaitGameplayEvent.h"
 #include "Animation/AnimMontage.h"
+#include "Components/SkeletalMeshComponent.h"
 #include "DrawDebugHelpers.h"
 #include "GameFramework/Character.h"
 #include "GameFramework/CharacterMovementComponent.h"
+#include "PhysicsEngine/BodyInstance.h"
 #include "ProjectR/AI/Components/PREnemyThreatComponent.h"
 #include "ProjectR/Character/Enemy/PREnemyBaseCharacter.h"
 #include "ProjectR/Combat/PRCombatGameplayTags.h"
@@ -40,6 +42,7 @@ void UPRGameplayAbility_EnemyMeleeAttack::ActivateAbility(const FGameplayAbility
 	bMeleeHitWindowActive = false;
 	bHasPreviousMeleeWindowTracePoint = false;
 	PreviousMeleeWindowTracePoint = FVector::ZeroVector;
+	PreviousMeleeWindowPhysicsBodyTracePoints.Reset();
 
 	if (ACharacter* SourceCharacter = Cast<ACharacter>(AvatarActor))
 	{
@@ -209,6 +212,7 @@ void UPRGameplayAbility_EnemyMeleeAttack::EndAbility(const FGameplayAbilitySpecH
 	bMeleeHitWindowActive = false;
 	bHasPreviousMeleeWindowTracePoint = false;
 	PreviousMeleeWindowTracePoint = FVector::ZeroVector;
+	PreviousMeleeWindowPhysicsBodyTracePoints.Reset();
 
 	Super::EndAbility(Handle, ActorInfo, ActivationInfo, bReplicateEndAbility, bWasCancelled);
 }
@@ -332,8 +336,14 @@ void UPRGameplayAbility_EnemyMeleeAttack::ExecuteMeleeHit()
 	RefreshAttackFacing(bFaceTargetOnMeleeHit);
 	ApplyForwardLunge(SourceCharacter);
 
+	if (UsesPhysicsAssetBodyCollision() && ExecutePhysicsBodyMeleeHit())
+	{
+		return;
+	}
+
 	FVector TracePoint = FVector::ZeroVector;
-	if (GetCurrentAttackTracePoint(TracePoint))
+	if (CollisionSource == EPREnemyAttackCollisionSource::SocketOrBone
+		&& GetCurrentAttackTracePoint(TracePoint))
 	{
 		ExecuteMeleeTrace(TracePoint, TracePoint);
 		return;
@@ -355,6 +365,7 @@ void UPRGameplayAbility_EnemyMeleeAttack::BeginMeleeHitWindow()
 	bMeleeHitWindowActive = true;
 	bHasPreviousMeleeWindowTracePoint = false;
 	PreviousMeleeWindowTracePoint = FVector::ZeroVector;
+	PreviousMeleeWindowPhysicsBodyTracePoints.Reset();
 	DamagedActors.Reset();
 	RefreshAttackFacing(bFaceTargetOnMeleeHit);
 }
@@ -366,8 +377,14 @@ void UPRGameplayAbility_EnemyMeleeAttack::UpdateMeleeHitWindow()
 		return;
 	}
 
+	if (UsesPhysicsAssetBodyCollision() && UpdatePhysicsBodyMeleeHitWindow())
+	{
+		return;
+	}
+
 	FVector CurrentTracePoint = FVector::ZeroVector;
-	if (!GetCurrentAttackTracePoint(CurrentTracePoint))
+	if (CollisionSource != EPREnemyAttackCollisionSource::SocketOrBone
+		|| !GetCurrentAttackTracePoint(CurrentTracePoint))
 	{
 		ACharacter* SourceCharacter = Cast<ACharacter>(GetAvatarActorFromActorInfo());
 		if (!IsValid(SourceCharacter) || !SourceCharacter->HasAuthority())
@@ -398,9 +415,105 @@ void UPRGameplayAbility_EnemyMeleeAttack::EndMeleeHitWindow()
 	bMeleeHitWindowActive = false;
 	bHasPreviousMeleeWindowTracePoint = false;
 	PreviousMeleeWindowTracePoint = FVector::ZeroVector;
+	PreviousMeleeWindowPhysicsBodyTracePoints.Reset();
 }
 
 void UPRGameplayAbility_EnemyMeleeAttack::ExecuteMeleeTrace(const FVector& TraceStart, const FVector& TraceEnd)
+{
+	ExecuteMeleeTraceWithRadius(TraceStart, TraceEnd, AttackRadius);
+}
+
+bool UPRGameplayAbility_EnemyMeleeAttack::UsesPhysicsAssetBodyCollision() const
+{
+	return CollisionSource == EPREnemyAttackCollisionSource::PhysicsAssetBody
+		&& !AttackPhysicsBodyNames.IsEmpty();
+}
+
+bool UPRGameplayAbility_EnemyMeleeAttack::ExecutePhysicsBodyMeleeHit()
+{
+	bool bExecutedTrace = false;
+	const float BodyTraceRadius = AttackRadius * FMath::Max(PhysicsBodyScale, 0.0f);
+
+	for (const FName BodyName : AttackPhysicsBodyNames)
+	{
+		FVector TracePoint = FVector::ZeroVector;
+		if (!GetAttackPhysicsBodyTracePoint(BodyName, TracePoint))
+		{
+			continue;
+		}
+
+		ExecuteMeleeTraceWithRadius(TracePoint, TracePoint, BodyTraceRadius);
+		bExecutedTrace = true;
+	}
+
+	return bExecutedTrace;
+}
+
+bool UPRGameplayAbility_EnemyMeleeAttack::UpdatePhysicsBodyMeleeHitWindow()
+{
+	bool bExecutedTrace = false;
+	const float BodyTraceRadius = AttackRadius * FMath::Max(PhysicsBodyScale, 0.0f);
+
+	for (const FName BodyName : AttackPhysicsBodyNames)
+	{
+		FVector CurrentTracePoint = FVector::ZeroVector;
+		if (!GetAttackPhysicsBodyTracePoint(BodyName, CurrentTracePoint))
+		{
+			continue;
+		}
+
+		if (const FVector* PreviousTracePoint = PreviousMeleeWindowPhysicsBodyTracePoints.Find(BodyName))
+		{
+			ExecuteMeleeTraceWithRadius(*PreviousTracePoint, CurrentTracePoint, BodyTraceRadius);
+		}
+		else
+		{
+			ExecuteMeleeTraceWithRadius(CurrentTracePoint, CurrentTracePoint, BodyTraceRadius);
+		}
+
+		PreviousMeleeWindowPhysicsBodyTracePoints.Add(BodyName, CurrentTracePoint);
+		bExecutedTrace = true;
+	}
+
+	return bExecutedTrace;
+}
+
+bool UPRGameplayAbility_EnemyMeleeAttack::GetAttackPhysicsBodyTracePoint(FName BodyName, FVector& OutTracePoint) const
+{
+	const ACharacter* SourceCharacter = Cast<ACharacter>(GetAvatarActorFromActorInfo());
+	if (!IsValid(SourceCharacter) || BodyName == NAME_None)
+	{
+		return false;
+	}
+
+	const USkeletalMeshComponent* MeshComp = SourceCharacter->GetMesh();
+	if (!IsValid(MeshComp))
+	{
+		return false;
+	}
+
+	if (const FBodyInstance* BodyInstance = MeshComp->GetBodyInstance(BodyName))
+	{
+		const FTransform BodyTransform = BodyInstance->GetUnrealWorldTransform();
+		const FVector WorldOffset = BodyTransform.TransformVectorNoScale(AttackTraceSourceOffset);
+		OutTracePoint = BodyTransform.GetLocation() + WorldOffset;
+		return true;
+	}
+
+	const bool bHasSocket = MeshComp->DoesSocketExist(BodyName);
+	const bool bHasBone = MeshComp->GetBoneIndex(BodyName) != INDEX_NONE;
+	if (!bHasSocket && !bHasBone)
+	{
+		return false;
+	}
+
+	const FTransform SourceTransform = MeshComp->GetSocketTransform(BodyName, RTS_World);
+	const FVector WorldOffset = SourceTransform.TransformVectorNoScale(AttackTraceSourceOffset);
+	OutTracePoint = SourceTransform.GetLocation() + WorldOffset;
+	return true;
+}
+
+void UPRGameplayAbility_EnemyMeleeAttack::ExecuteMeleeTraceWithRadius(const FVector& TraceStart, const FVector& TraceEnd, float TraceRadius)
 {
 	ACharacter* SourceCharacter = Cast<ACharacter>(GetAvatarActorFromActorInfo());
 	if (!IsValid(SourceCharacter) || !SourceCharacter->HasAuthority())
@@ -412,7 +525,8 @@ void UPRGameplayAbility_EnemyMeleeAttack::ExecuteMeleeTrace(const FVector& Trace
 	QueryParams.AddIgnoredActor(SourceCharacter);
 
 	TArray<FHitResult> HitResults;
-	const FCollisionShape CollisionShape = FCollisionShape::MakeSphere(AttackRadius);
+	const float ClampedTraceRadius = FMath::Max(TraceRadius, 0.0f);
+	const FCollisionShape CollisionShape = FCollisionShape::MakeSphere(ClampedTraceRadius);
 	const bool bHit = SourceCharacter->GetWorld()->SweepMultiByChannel(
 		HitResults,
 		TraceStart,
@@ -426,8 +540,8 @@ void UPRGameplayAbility_EnemyMeleeAttack::ExecuteMeleeTrace(const FVector& Trace
 	{
 		const FColor DebugColor = bHit ? FColor::Red : FColor::Green;
 		DrawDebugLine(SourceCharacter->GetWorld(), TraceStart, TraceEnd, DebugColor, false, 1.0f, 0, 2.0f);
-		DrawDebugSphere(SourceCharacter->GetWorld(), TraceStart, AttackRadius, 16, DebugColor, false, 1.0f);
-		DrawDebugSphere(SourceCharacter->GetWorld(), TraceEnd, AttackRadius, 16, DebugColor, false, 1.0f);
+		DrawDebugSphere(SourceCharacter->GetWorld(), TraceStart, ClampedTraceRadius, 16, DebugColor, false, 1.0f);
+		DrawDebugSphere(SourceCharacter->GetWorld(), TraceEnd, ClampedTraceRadius, 16, DebugColor, false, 1.0f);
 	}
 
 	for (const FHitResult& HitResult : HitResults)
@@ -455,6 +569,7 @@ void UPRGameplayAbility_EnemyMeleeAttack::ExecuteMeleeTrace(const FVector& Trace
 		// }
 		
 		ApplyDamage(HitActor, 1.0f, &HitResult); // TODO: 각 모션 별 AttackMultiplier 실제 값 전달이 필요 
+		DamagedActors.Add(HitActor);
 	}
 }
 

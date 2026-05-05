@@ -14,6 +14,7 @@ class UInputMappingContext;
 class UInputAction;
 class UPRWeaponManagerComponent;
 class UPRSpringArmComponent;
+class UPRActionInputRouterComponent;
 struct FInputActionValue;
 //무기 테스트용
 class UPRWeaponDataAsset;
@@ -48,6 +49,12 @@ public:
 	float GetJogSpeed() const { return JogSpeed; }
 	float GetSprintSpeed() const { return SprintSpeed; }
 	bool IsAiming() const;
+
+	/** Sprint Ability가 질주 상태를 캐릭터 이동 상태에 반영한다 */
+	void SetSprintingFromAbility(bool bNewSprinting);
+
+	/** 액션 입력 라우터 컴포넌트를 반환한다 */
+	UPRActionInputRouterComponent* GetActionInputRouter() const { return ActionInputRouterComponent; }
 	
 	// ===== Component getters =====
 	UPRWeaponManagerComponent* GetWeaponManager() const {return WeaponManagerComponent;}
@@ -66,19 +73,13 @@ protected:
 	void Look(const FInputActionValue& Value);
 
 	/** 상태 변경 함수 (멀티플레이어 대응) */
-	void SprintPressed();
 	void WalkPressed();
 
 	/** 현재 상태(질주, 조준 등)에 맞춰 MaxWalkSpeed를 업데이트한다 (클라이언트 예측용) */
 	void UpdateMaxWalkSpeed();
 
 	UFUNCTION(Server, Reliable, WithValidation)
-	void Server_SetSprinting(bool bNewSprinting);
-	
-	UFUNCTION(Server, Reliable, WithValidation)
 	void Server_SetWalking(bool bNewWalking);
-	
-	void HandleMovementInputTag(FGameplayTag InputTag, bool bPressed);
 	
 private:
     /** 질주 상태가 복제되었을 때 속도를 업데이트한다 */
@@ -96,6 +97,10 @@ public:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Weapon")
 	TObjectPtr<UPRWeaponManagerComponent> WeaponManagerComponent;
 
+	/** 몽타주 기반 액션 중 입력 차단과 스킵 요청을 중계하는 컴포넌트 */
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Input")
+	TObjectPtr<UPRActionInputRouterComponent> ActionInputRouterComponent;
+
 protected:
 	/** Enhanced Input 에셋 (블루프린트에서 할당) */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Input")
@@ -107,9 +112,6 @@ protected:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Input")
 	TObjectPtr<UInputAction> LookAction;
 
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Input")
-	TObjectPtr<UInputAction> SprintAction;
-	
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Input")
 	TObjectPtr<UInputAction> WalkAction;
 
@@ -130,7 +132,7 @@ protected:
 	TSubclassOf<UAnimInstance> DefaultAnimLayerClass;
 private:
 	/** 복제되는 상태 변수 */
-	UPROPERTY(Replicated, VisibleInstanceOnly, BlueprintReadOnly, Category = "Locomotion", meta = (AllowPrivateAccess = "true"))
+	UPROPERTY(ReplicatedUsing = OnRep_IsSprinting, VisibleInstanceOnly, BlueprintReadOnly, Category = "Locomotion", meta = (AllowPrivateAccess = "true"))
 	bool bIsSprinting = false;
 
 	UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Category = "Locomotion", meta = (AllowPrivateAccess = "true"))
@@ -138,6 +140,6 @@ private:
 	
 	UPROPERTY(Replicated, VisibleInstanceOnly, BlueprintReadOnly, Category = "Locomotion", meta = (AllowPrivateAccess = "true"))
 	bool bIsWalking = false;
-	
+
 	FPRAbilitySetHandles AbilitySetHandles;
 };

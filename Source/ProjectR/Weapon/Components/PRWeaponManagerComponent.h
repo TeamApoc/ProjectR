@@ -7,6 +7,7 @@
 #include "ProjectR/Weapon/Types/PRWeaponTypes.h"
 #include "PRWeaponManagerComponent.generated.h"
 
+class UNiagaraSystem;
 class APRWeaponActor;
 class UAnimInstance;
 class UPRAbilitySystemComponent;
@@ -96,6 +97,12 @@ public:
 	// 인벤토리에서 변경된 Mod 상태를 현재 관리 중인 무기 슬롯에 반영한다
 	void HandleInventoryWeaponModChanged(UPRItemInstance_Weapon* WeaponItem);
 
+	// 26.05.04, Yuchan, rpc 이펙트 재생 추가
+	void PlayWeaponNiagaraEffect(EPRWeaponEffectType EffectType, UNiagaraSystem* InNiagaraSystem = nullptr);
+	
+	UFUNCTION(NetMulticast, Unreliable)
+	void Multicast_PlayWeaponNiagaraEffect(EPRWeaponEffectType EffectType, UNiagaraSystem* InNiagaraSystem = nullptr);
+	
 protected:
 	// 서버 권위에서 슬롯 원본과 공개 상태를 갱신한다
 	bool EquipWeaponInternal(UPRItemInstance_Weapon* WeaponItem);

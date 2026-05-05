@@ -24,6 +24,7 @@ public class ProjectR : ModuleRules
 			"UMG",
 			"NetCore",
 			"StructUtils",
+			"Niagara",
 		});
 
 		PrivateDependencyModuleNames.AddRange(new string[] { "AnimGraphRuntime" });

@@ -188,3 +188,13 @@ public:
 		return !(*this == Other);
 	}
 };
+
+// 무기 관련 FX 타입
+UENUM(BlueprintType)
+enum class EPRWeaponEffectType : uint8
+{
+	None,
+	MuzzleFlash,
+	ProjectileLaunch,
+	All,
+};

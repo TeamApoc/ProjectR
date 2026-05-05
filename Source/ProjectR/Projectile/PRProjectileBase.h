@@ -3,10 +3,12 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "GameplayEffectTypes.h"
 #include "GameFramework/Actor.h"
 #include "PRProjectileTypes.h"
 #include "PRProjectileBase.generated.h"
 
+struct FGameplayEffectSpecHandle;
 class UPRProjectileMovementComponent;
 class USphereComponent;
 
@@ -31,6 +33,9 @@ public:
 public:
 	// 스폰 직후 1회 호출. 역할/ID 부여 (FinishSpawning 이전 호출 권장)
 	void InitializeProjectile(EPRProjectileRole InRole, uint32 InProjectileId);
+	
+	// 스폰 직후 권위 투사체에 대해 GE 초기화
+	void InitGameplayEffectSpec(const FGameplayEffectSpecHandle& InEffectSpec);
 
 	// 서버 권위 투사체를 클라이언트 발사 시점까지 전진. HasAuthority() && bUseFastForward인 경우만 실행
 	void ApplyFastForward(float ForwardSeconds);
@@ -50,7 +55,11 @@ public:
 	// 링크된 카운터파트 조회. Predicted면 Auth, Auth면 Predicted
 	APRProjectileBase* GetLinkedCounterpart() const { return LinkedCounterpart.Get(); }
 
+	UFUNCTION(BlueprintCallable)
 	void DestroyProjectile();
+	
+	UFUNCTION(BlueprintNativeEvent, Category = "ProjectR|Projectile")
+	void OnProjectileDestroyed();
 	
 protected:
 	/*~ AActor Interface ~*/
@@ -79,8 +88,16 @@ protected:
 	virtual void OnSphereHit(UPrimitiveComponent* HitComponent, AActor* OtherActor,
 		UPrimitiveComponent* OtherComp, FVector NormalImpulse, const FHitResult& Hit);
 
-	virtual void HandleHit(UPrimitiveComponent* HitComponent, AActor* OtherActor,
+	UFUNCTION(BlueprintNativeEvent, Category = "ProjectR|Projectile")
+	void HandleHit(UPrimitiveComponent* HitComponent, AActor* OtherActor,
 		UPrimitiveComponent* OtherComp, FVector NormalImpulse, const FHitResult& Hit);
+	
+	UFUNCTION(BlueprintCallable)
+	void ApplyEffectToTarget(AActor* TargetActor);
+	
+	UFUNCTION(BlueprintCallable)
+	void ApplyEffectToTargetWithHit(AActor* TargetActor, const FHitResult& InHitResult);
+	
 private:
 	// Predicted-Auth 양방향 링크
 	void LinkCounterpart(APRProjectileBase* InCounterpart);
@@ -110,6 +127,9 @@ protected:
 
 	UPROPERTY(VisibleAnywhere, Category = "ProjectR|Projectile")
 	TObjectPtr<UPRProjectileMovementComponent> ProjectileMovementComponent;
+	
+	UPROPERTY(BlueprintReadOnly)
+	FGameplayEffectSpecHandle EffectSpecHandle;
 	
 private:
 	// 투사체 식별자. Auth 액터에 한해 소유 클라이언트로만 리플리케이트

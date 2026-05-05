@@ -8,9 +8,11 @@
 #include "EnhancedInputComponent.h"
 #include "InputAction.h"
 #include "ProjectR/Game/PRCameraManager.h"
+#include "ProjectR/Character/PRPlayerCharacter.h"
 #include "ProjectR/Input/PRInputConfigDataAsset.h"
 #include "ProjectR/Projectile/PRProjectileManagerComponent.h"
 #include "ProjectR/UI/Components/PRUIManagerComponent.h"
+#include "ProjectR/UI/FloatingText/PRFloatingTextManager.h"
 
 
 APRPlayerController::APRPlayerController()
@@ -18,6 +20,7 @@ APRPlayerController::APRPlayerController()
 	PlayerCameraManagerClass = APRCameraManager::StaticClass();
 	
 	ProjectileManager = CreateDefaultSubobject<UPRProjectileManagerComponent>(TEXT("ProjectileManager"));
+	FloatingTextManager = CreateDefaultSubobject<UPRFloatingTextManager>(TEXT("FloatingTextManager"));
 	// 2026.05.01 이건주 | UI 매니저 컴포넌트 추가 
 	UIManagerComponent = CreateDefaultSubobject<UPRUIManagerComponent>(TEXT("UIManagerComponent"));
 }

@@ -6,6 +6,7 @@
 #include "Components/ActorComponent.h"
 #include "PRInventoryComponent.generated.h"
 
+class UPRItemDataAsset;
 class UPRItemInstance_Mod;
 class UPRItemInstance_Weapon;
 class UPRWeaponManagerComponent;

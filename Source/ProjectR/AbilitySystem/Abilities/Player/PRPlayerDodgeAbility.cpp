@@ -57,6 +57,7 @@ void UPRPlayerDodgeAbility::ActivateAbility(const FGameplayAbilitySpecHandle Han
 	ACharacter* Character = Cast<ACharacter>(ActorInfo->AvatarActor.Get());
 	if (!IsValid(Character))
 	{
+		// Avatar가 캐릭터가 아니면 입력 방향과 전방 벡터를 계산할 수 없어 Ability를 취소한다.
 		EndAbility(Handle, ActorInfo, ActivationInfo, true, true);
 		return;
 	}
@@ -114,6 +115,7 @@ void UPRPlayerDodgeAbility::EndAbility(const FGameplayAbilitySpecHandle Handle,
 
 	if (IsValid(ActiveMontageTask))
 	{
+		// 살아있는 몽타주 태스크가 남아 있으면 종료 콜백이 뒤늦게 재진입할 수 있어 정리한다.
 		ActiveMontageTask->EndTask();
 		ActiveMontageTask = nullptr;
 	}
@@ -125,9 +127,15 @@ void UPRPlayerDodgeAbility::EndAbility(const FGameplayAbilitySpecHandle Handle,
 		ActiveCameraModifier = nullptr;
 	}
 
+	if (bDodgeStarted)
+	{
+		ApplyStaminaRegenDelay();
+	}
+
 	bServerReceivedDirection = false;
 	SavedDirection = FVector::ZeroVector;
 	bSavedHasMovementInput = false;
+	bDodgeStarted = false;
 	bCanCancelDodgeByInput = false;
 	CurrentDodgeInputCancelBlendOutTime = 0.0f;
 	ActiveDodgeExecutionId = 0;
@@ -141,6 +149,7 @@ bool UPRPlayerDodgeAbility::HandleRoutedActionInput()
 {
 	if (!IsActive())
 	{
+		// 이미 종료된 Ability에는 라우팅된 입력을 소비하지 않는다.
 		return false;
 	}
 
@@ -166,6 +175,7 @@ void UPRPlayerDodgeAbility::SetRoutedInputCancelWindow(bool bCanCancel, float Bl
 {
 	if (!IsActive() || !bCanCancel)
 	{
+		// Ability가 비활성 상태이거나 닫힘 요청이면 입력 스킵 구간을 해제한다.
 		bCanCancelDodgeByInput = false;
 		CurrentDodgeInputCancelBlendOutTime = 0.0f;
 		return;
@@ -218,6 +228,7 @@ void UPRPlayerDodgeAbility::FinishDodge(bool bWasCancelled)
 {
 	if (bDodgeEndRequested || !IsActive())
 	{
+		// 여러 콜백이 동시에 도착해도 EndAbility는 한 번만 호출한다.
 		return;
 	}
 
@@ -231,6 +242,7 @@ void UPRPlayerDodgeAbility::HandleIFrameStartTimer(int32 FinishedDodgeExecutionI
 {
 	if (FinishedDodgeExecutionId != ActiveDodgeExecutionId || bDodgeEndRequested || !IsActive())
 	{
+		// 이전 회피의 타이머이거나 이미 종료된 실행이면 무적 시작을 무시한다.
 		return;
 	}
 
@@ -239,6 +251,7 @@ void UPRPlayerDodgeAbility::HandleIFrameStartTimer(int32 FinishedDodgeExecutionI
 	UWorld* World = GetWorld();
 	if (!IsValid(World))
 	{
+		// 월드가 없으면 타이머를 예약할 수 없으므로 무적 종료 예약을 건너뛴다.
 		return;
 	}
 
@@ -262,11 +275,13 @@ void UPRPlayerDodgeAbility::StartIFrame()
 	const FGameplayAbilityActorInfo* ActorInfo = GetCurrentActorInfo();
 	if (ActorInfo == nullptr || !ActorInfo->AbilitySystemComponent.IsValid())
 	{
+		// ActorInfo는 구조체 포인터이고 ASC는 약참조라 각각 null과 핸들 유효성을 확인한다.
 		return;
 	}
 
 	if (IsValid(InvulnerableEffectClass))
 	{
+		// 무적 GE가 BP에서 할당된 경우에만 무적 상태를 적용한다.
 		const FGameplayEffectSpecHandle SpecHandle = MakeOutgoingGameplayEffectSpec(InvulnerableEffectClass);
 		InvulnerableEffectHandle = ApplyGameplayEffectSpecToOwner(CurrentSpecHandle, CurrentActorInfo, CurrentActivationInfo, SpecHandle);
 	}
@@ -276,6 +291,7 @@ void UPRPlayerDodgeAbility::EndIFrame()
 {
 	if (InvulnerableEffectHandle.IsValid())
 	{
+		// 적용된 무적 GE 핸들이 있을 때만 제거를 요청한다.
 		BP_RemoveGameplayEffectFromOwnerWithHandle(InvulnerableEffectHandle);
 		InvulnerableEffectHandle.Invalidate();
 	}
@@ -286,6 +302,7 @@ void UPRPlayerDodgeAbility::ClearDodgeTimers()
 	UWorld* World = GetWorld();
 	if (!IsValid(World))
 	{
+		// 월드가 없으면 타이머 매니저도 사용할 수 없으므로 정리할 타이머가 없다.
 		return;
 	}
 
@@ -301,6 +318,7 @@ void UPRPlayerDodgeAbility::ExecuteDodge(FVector Direction, bool bHasMovementInp
 	APRPlayerCharacter* Character = Cast<APRPlayerCharacter>(GetAvatarActorFromActorInfo());
 	if (!IsValid(Character))
 	{
+		// 회피 실행에는 플레이어 캐릭터의 회전, 입력 라우터, 무장 정보가 필요하다.
 		return;
 	}
 
@@ -311,6 +329,7 @@ void UPRPlayerDodgeAbility::ExecuteDodge(FVector Direction, bool bHasMovementInp
 		? EPRDodgeAnimationType::ForwardRoll
 		: EPRDodgeAnimationType::BackStep;
 	bDodgeEndRequested = false;
+	bDodgeStarted = true;
 	bCanCancelDodgeByInput = false;
 	CurrentDodgeInputCancelBlendOutTime = 0.0f;
 	ClearDodgeTimers();
@@ -335,6 +354,7 @@ void UPRPlayerDodgeAbility::ExecuteDodge(FVector Direction, bool bHasMovementInp
 	UWorld* World = GetWorld();
 	if (IsValid(World))
 	{
+		// 월드가 유효할 때만 안전 종료와 무적 프레임 타이머를 등록한다.
 		// 몽타주 콜백이 누락되어도 Ability가 남지 않도록 안전 종료 타이머를 둔다.
 		FTimerDelegate DodgeEndDelegate;
 		DodgeEndDelegate.BindUObject(this, &UPRPlayerDodgeAbility::HandleDodgeSafetyTimeout, ActiveDodgeExecutionId);
@@ -352,12 +372,14 @@ void UPRPlayerDodgeAbility::ExecuteDodge(FVector Direction, bool bHasMovementInp
 		APlayerController* PlayerController = Cast<APlayerController>(Character->GetController());
 		if (IsValid(PlayerController) && IsValid(PlayerController->PlayerCameraManager))
 		{
+			// 로컬 컨트롤러와 CameraManager가 모두 유효할 때만 카메라 피드백을 추가한다.
 			ActiveCameraModifier = Cast<UPRCameraModifier>(
 				PlayerController->PlayerCameraManager->AddNewCameraModifier(UPRCameraModifier::StaticClass())
 			);
 
 			if (IsValid(ActiveCameraModifier))
 			{
+				// 모디파이어 생성에 성공한 경우에만 액션 카메라 값을 설정한다.
 				ActiveCameraModifier->SetActionCameraSettings(110.0f, FVector::ZeroVector);
 			}
 		}
@@ -369,6 +391,7 @@ UAnimMontage* UPRPlayerDodgeAbility::SelectDodgeMontage(const APRPlayerCharacter
 	const bool bUseForwardRoll = AnimationType == EPRDodgeAnimationType::ForwardRoll;
 	if (!IsValid(Character))
 	{
+		// 캐릭터가 없으면 무장 상태를 알 수 없으므로 맨손 몽타주를 기본값으로 사용한다.
 		return bUseForwardRoll ? UnarmedForwardRollMontage.Get() : UnarmedBackStepMontage.Get();
 	}
 
@@ -377,6 +400,7 @@ UAnimMontage* UPRPlayerDodgeAbility::SelectDodgeMontage(const APRPlayerCharacter
 		|| WeaponManager->GetArmedState() == EPRArmedState::Unarmed
 		|| WeaponManager->GetCurrentWeaponSlot() == EPRWeaponSlotType::None)
 	{
+		// 무기 매니저가 없거나 무장하지 않은 상태면 맨손 회피 몽타주를 사용한다.
 		return bUseForwardRoll ? UnarmedForwardRollMontage.Get() : UnarmedBackStepMontage.Get();
 	}
 
@@ -399,6 +423,7 @@ void UPRPlayerDodgeAbility::PlayDodgeMontage(UAnimMontage* DodgeMontage)
 {
 	if (!IsValid(DodgeMontage))
 	{
+		// 선택된 몽타주가 없으면 회피를 정상 재생할 수 없으므로 취소 종료한다.
 		FinishDodge(true);
 		return;
 	}
@@ -412,6 +437,7 @@ void UPRPlayerDodgeAbility::PlayDodgeMontage(UAnimMontage* DodgeMontage)
 
 	if (!IsValid(ActiveMontageTask))
 	{
+		// GAS 몽타주 태스크 생성 실패 시 콜백을 받을 수 없으므로 취소 종료한다.
 		FinishDodge(true);
 		return;
 	}
@@ -428,6 +454,7 @@ void UPRPlayerDodgeAbility::StopDodgeMontage(float BlendOutTime)
 {
 	if (!IsValid(ActiveDodgeMontage))
 	{
+		// 현재 Ability가 재생 중인 몽타주가 없으면 정지 요청을 건너뛴다.
 		return;
 	}
 
@@ -437,4 +464,22 @@ void UPRPlayerDodgeAbility::StopDodgeMontage(float BlendOutTime)
 	}
 
 	ActiveDodgeMontage = nullptr;
+}
+
+/*~ 스태미너 ~*/
+
+void UPRPlayerDodgeAbility::ApplyStaminaRegenDelay()
+{
+	if (!IsValid(StaminaRegenDelayEffectClass))
+	{
+		// BP에서 회복 딜레이 GE가 할당되지 않은 경우에는 딜레이 적용 없이 종료한다.
+		return;
+	}
+
+	const FGameplayEffectSpecHandle SpecHandle = MakeOutgoingGameplayEffectSpec(StaminaRegenDelayEffectClass);
+	if (SpecHandle.IsValid())
+	{
+		// 유효한 Spec이 만들어진 경우에만 Owner ASC에 회복 딜레이 GE를 적용한다.
+		ApplyGameplayEffectSpecToOwner(CurrentSpecHandle, CurrentActorInfo, CurrentActivationInfo, SpecHandle);
+	}
 }

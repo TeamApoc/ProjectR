@@ -6,13 +6,44 @@
 #include "Blueprint/WidgetTree.h"
 #include "Components/GridPanel.h"
 #include "Components/PanelWidget.h"
+#include "Components/TextBlock.h"
 #include "ProjectR/Inventory/Items/PRItemInstance.h"
 #include "ProjectR/UI/Inventory/PRItemSlotWidget.h"
 
-void UPRInventoryItemListWidget::SetItemList(EPRInventoryItemListType InListType, const TArray<FPRInventoryItemSlotViewData>& InItems)
+void UPRInventoryItemListWidget::SetItemList(EPRItemType InListType, const TArray<FPRInventoryItemSlotViewData>& InItems)
 {
 	ListType = InListType;	// 표시할 아이템 리스트 타입
 	Items = InItems;		// 표시할 아이템들 뷰 데이터
+
+	//ItemListTypeText->SetText()
+
+	FString ItemTypeString;
+	switch (ListType)
+	{
+		case EPRItemType::PrimaryWeapon:
+		ItemTypeString = TEXT("주무기");
+		break;
+		case EPRItemType::SecondaryWeapon:
+		ItemTypeString = TEXT("보조무기");
+		break;
+		case EPRItemType::Consumable:
+		ItemTypeString = TEXT("소비");
+		break;
+		case EPRItemType::Mod:
+		ItemTypeString = TEXT("모드");
+		break;
+		case EPRItemType::Weapon:
+		ItemTypeString = TEXT("무기");
+		break;
+		default:
+		ItemTypeString = TEXT("아이템 리스트");
+		break;
+	}
+
+	if (IsValid(ItemListTypeText))
+	{
+		ItemListTypeText->SetText(FText::FromString(ItemTypeString));
+	}
 
 	// 생성한 슬롯에 현재 리스트 항목을 반영한다
 	RebuildNativeItemList();

@@ -8,12 +8,26 @@
 
 class UPRItemInstance_Mod;
 class UPRItemInstance_Weapon;
+class UPRInventoryComponent;
 class UPRWeaponManagerComponent;
 class UPRWeaponDataAsset;
 class UPRWeaponModDataAsset;
 class UActorChannel;
 class FOutBunch;
 struct FReplicationFlags;
+
+// 인벤토리 변경 신호의 원인이다
+UENUM(BlueprintType)
+enum class EPRInventoryChangeReason : uint8
+{
+	// 아이템 목록이 변경되었다
+	ItemListChanged,
+
+	// Mod 장착 상태가 변경되었다
+	ModEquipChanged
+};
+
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FPRInventoryChangedSignature, UPRInventoryComponent*, InventoryComponent, EPRInventoryChangeReason, ChangeReason);
 
 // 플레이어가 소유한 Item 인스턴스의 정본 컨테이너다
 UCLASS(ClassGroup = (ProjectR), meta = (BlueprintSpawnableComponent))
@@ -72,6 +86,12 @@ public:
 	// 인자로 받은 무기 Mod Item을 현재 인벤토리가 소유하는지 확인한다
 	bool OwnsMod(const UPRItemInstance_Mod* ModItem) const;
 
+	// 인벤토리 변경 이벤트를 발행한다
+	void OnInventoryChanged(EPRInventoryChangeReason ChangeReason);
+
+	// 인벤토리 변경 델리게이트를 반환한다
+	FPRInventoryChangedSignature& GetOnInventoryChanged() { return OnInventoryChangedDelegate; }
+
 protected:
 	// 클라이언트에서 무기 Item 목록 복제 결과를 확인한다
 	UFUNCTION()
@@ -124,4 +144,8 @@ public:
 	// 현재 인벤토리가 소유한 무기 Mod Item 목록
 	UPROPERTY(ReplicatedUsing = OnRep_InventoryModItems, VisibleInstanceOnly, BlueprintReadOnly, Category = "ProjectR|Inventory")
 	TArray<TObjectPtr<UPRItemInstance_Mod>> InventoryModItems;
+
+private:
+	// 인벤토리 목록 또는 Item 장착 상태가 변경되었을 때 알린다
+	FPRInventoryChangedSignature OnInventoryChangedDelegate;
 };

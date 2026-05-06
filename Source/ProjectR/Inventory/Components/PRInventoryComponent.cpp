@@ -331,6 +331,7 @@ bool UPRInventoryComponent::EquipModItemToWeapon(UPRItemInstance_Mod* ModItem, U
 		*GetNameSafe(ModItem->GetModData()));
 
 	// 장착 성공. 기존 연결 해제, 새 연결 확정, 장착 중 무기 런타임 갱신 마침
+	OnInventoryChanged(EPRInventoryChangeReason::ModEquipChanged);
 	return true;
 }
 
@@ -395,6 +396,7 @@ bool UPRInventoryComponent::UnequipModFromWeapon(UPRItemInstance_Weapon* TargetW
 		*GetNameSafe(PreviousModItem));
 
 	// 해제 성공. Mod Item 역참조와 Weapon Item Mod 상태 갱신 마침
+	OnInventoryChanged(EPRInventoryChangeReason::ModEquipChanged);
 	return true;
 }
 
@@ -440,6 +442,11 @@ bool UPRInventoryComponent::OwnsMod(const UPRItemInstance_Mod* ModItem) const
 	return InventoryModItems.Contains(ModItem);
 }
 
+void UPRInventoryComponent::OnInventoryChanged(EPRInventoryChangeReason ChangeReason)
+{
+	OnInventoryChangedDelegate.Broadcast(this, ChangeReason);
+}
+
 void UPRInventoryComponent::OnRep_InventoryWeaponItems()
 {
 	// 클라이언트에서 무기 Item 목록과 장착 Mod Item 참조 복제 결과를 추적
@@ -477,6 +484,8 @@ void UPRInventoryComponent::OnRep_InventoryWeaponItems()
 			*GetNameSafe(WeaponItem->GetModData()),
 			*GetNameSafe(WeaponItem->GetEquippedModItem()));
 	}
+
+	OnInventoryChanged(EPRInventoryChangeReason::ItemListChanged);
 }
 
 void UPRInventoryComponent::OnRep_InventoryModItems()
@@ -514,6 +523,8 @@ void UPRInventoryComponent::OnRep_InventoryModItems()
 			*GetNameSafe(ModData),
 			*GetNameSafe(ModItem->GetEquippedWeaponItem()));
 	}
+
+	OnInventoryChanged(EPRInventoryChangeReason::ItemListChanged);
 }
 
 void UPRInventoryComponent::RegisterInventoryWeaponItem(UPRItemInstance_Weapon* WeaponItem)
@@ -530,6 +541,8 @@ void UPRInventoryComponent::RegisterInventoryWeaponItem(UPRItemInstance_Weapon* 
 	{
 		GetOwner()->ForceNetUpdate();
 	}
+
+	OnInventoryChanged(EPRInventoryChangeReason::ItemListChanged);
 }
 
 void UPRInventoryComponent::UnregisterInventoryWeaponItem(UPRItemInstance_Weapon* WeaponItem)
@@ -546,6 +559,8 @@ void UPRInventoryComponent::UnregisterInventoryWeaponItem(UPRItemInstance_Weapon
 	{
 		GetOwner()->ForceNetUpdate();
 	}
+
+	OnInventoryChanged(EPRInventoryChangeReason::ItemListChanged);
 }
 
 void UPRInventoryComponent::RegisterInventoryModItem(UPRItemInstance_Mod* ModItem)
@@ -562,6 +577,8 @@ void UPRInventoryComponent::RegisterInventoryModItem(UPRItemInstance_Mod* ModIte
 	{
 		GetOwner()->ForceNetUpdate();
 	}
+
+	OnInventoryChanged(EPRInventoryChangeReason::ItemListChanged);
 }
 
 void UPRInventoryComponent::UnregisterInventoryModItem(UPRItemInstance_Mod* ModItem)
@@ -578,6 +595,8 @@ void UPRInventoryComponent::UnregisterInventoryModItem(UPRItemInstance_Mod* ModI
 	{
 		GetOwner()->ForceNetUpdate();
 	}
+
+	OnInventoryChanged(EPRInventoryChangeReason::ItemListChanged);
 }
 
 UPRWeaponManagerComponent* UPRInventoryComponent::ResolveOwnerWeaponManager() const

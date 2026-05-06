@@ -7,6 +7,7 @@
 #include "Net/UnrealNetwork.h"
 #include "ProjectR/AbilitySystem/PRAbilitySystemComponent.h"
 #include "ProjectR/Character/PRCharacterBase.h"
+#include "ProjectR/Inventory/Components/PRInventoryComponent.h"
 #include "ProjectR/Weapon/Data/PRWeaponDataAsset.h"
 #include "ProjectR/Weapon/Data/PRWeaponModDataAsset.h"
 #include "ProjectR/Weapon/Items/PRItemInstance_Mod.h"
@@ -299,6 +300,11 @@ void UPRItemInstance_Weapon::OnRep_WeaponData()
 		*GetNameSafe(EquippedModItem.Get()));
 }
 
+void UPRItemInstance_Weapon::OnRep_ModData()
+{
+	NotifyInventoryChanged(EPRInventoryChangeReason::ModEquipChanged);
+}
+
 void UPRItemInstance_Weapon::OnRep_EquippedModItem()
 {
 	// 클라이언트에서 장착 Mod Item 참조만 갱신되는 상황을 추적
@@ -310,4 +316,6 @@ void UPRItemInstance_Weapon::OnRep_EquippedModItem()
 		*GetNameSafe(WeaponData),
 		*GetNameSafe(ModData),
 		*GetNameSafe(EquippedModItem.Get()));
+
+	NotifyInventoryChanged(EPRInventoryChangeReason::ModEquipChanged);
 }

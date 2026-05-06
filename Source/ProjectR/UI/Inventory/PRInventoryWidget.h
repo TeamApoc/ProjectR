@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "ProjectR/Inventory/Components/PRInventoryComponent.h"
 #include "ProjectR/UI/Inventory/PRInventoryUITypes.h"
 #include "ProjectR/Weapon/Types/PRWeaponTypes.h"
 #include "ProjectR/UI/PRWidgetBase.h"
@@ -59,6 +60,12 @@ private:
 	// 하위 슬롯과 리스트 이벤트 바인딩을 정리한다
 	void UnbindChildWidgetEvents();
 
+	// 인벤토리와 무기 매니저 변경 이벤트를 바인딩한다
+	void BindInventorySourceEvents();
+
+	// 인벤토리와 무기 매니저 변경 이벤트 바인딩을 정리한다
+	void UnbindInventorySourceEvents();
+
 	// ========= 이벤트 바인드 처리 함수 =========
 	// 주무기 슬롯 좌클릭을 처리한다
 	UFUNCTION()
@@ -79,6 +86,14 @@ private:
 	// 리스트에서 선택한 아이템을 장착 요청으로 변환한다
 	UFUNCTION()
 	void HandleItemListSelection(const FPRInventoryItemSlotViewData& ViewData);
+
+	// 인벤토리 변경 알림을 받아 화면을 갱신한다
+	UFUNCTION()
+	void HandleInventoryChanged(UPRInventoryComponent* ChangedInventoryComponent, EPRInventoryChangeReason ChangeReason);
+
+	// 무기 장착 변경 알림을 받아 화면을 갱신한다
+	UFUNCTION()
+	void HandleWeaponEquipmentChanged(UPRWeaponManagerComponent* ChangedWeaponManagerComponent, EPRWeaponSlotType ChangedSlot);
 	// =======================
 
 
@@ -94,6 +109,9 @@ private:
 	// 현재 장착 슬롯 위젯을 갱신한다
 	void RefreshEquippedSlotWidgets();
 
+	// 장착 슬롯과 열린 리스트를 현재 데이터 기준으로 갱신한다
+	void RefreshInventoryView();
+
 	// 무기 슬롯 뷰 데이터를 만든다
 	FPRInventoryItemSlotViewData BuildWeaponSlotViewData(EPRWeaponSlotType SlotType) const;
 
@@ -104,7 +122,7 @@ private:
 	FPRInventoryItemSlotViewData BuildModItemViewData(UPRItemInstance_Mod* ModItem, bool bEquipped) const;
 
 	// 장착 해제 항목 뷰 데이터를 만든다
-	FPRInventoryItemSlotViewData BuildUnequipViewData(EPRInventoryItemListType ListType) const;
+	FPRInventoryItemSlotViewData BuildUnequipViewData(EPRItemType ListType) const;
 
 	// 지정 무기에 Mod가 장착 가능한지 확인한다
 	bool IsModCompatibleWithWeapon(const UPRItemInstance_Mod* ModItem, const UPRItemInstance_Weapon* WeaponItem) const;

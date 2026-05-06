@@ -10,5 +10,8 @@ enum class EPRItemType : uint8
 {
 	None,
 	Weapon,
-	Mod
+	Mod,
+	PrimaryWeapon,
+	SecondaryWeapon,
+	Consumable
 };

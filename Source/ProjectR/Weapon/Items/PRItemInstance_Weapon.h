@@ -93,6 +93,10 @@ private:
 	UFUNCTION()
 	void OnRep_WeaponData();
 
+	// 장착 Mod 데이터 복제 완료 시 인벤토리 UI 갱신 신호를 발행한다
+	UFUNCTION()
+	void OnRep_ModData();
+
 	// 장착 Mod Item 복제 완료 시 클라이언트 확인 로그를 남긴다
 	UFUNCTION()
 	void OnRep_EquippedModItem();
@@ -103,7 +107,7 @@ public:
 	TObjectPtr<UPRWeaponDataAsset> WeaponData = nullptr;
 
 	// 현재 장착된 Mod 데이터
-	UPROPERTY(Replicated, VisibleInstanceOnly, BlueprintReadOnly, Category = "ProjectR|Weapon")
+	UPROPERTY(ReplicatedUsing = OnRep_ModData, VisibleInstanceOnly, BlueprintReadOnly, Category = "ProjectR|Weapon")
 	TObjectPtr<UPRWeaponModDataAsset> ModData = nullptr;
 
 	// 현재 장착된 Mod Item

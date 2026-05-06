@@ -66,6 +66,10 @@ protected:
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "ProjectR|Inventory")
 	TObjectPtr<UImage> ItemIconImage;
 
+	// UMG에서 바인딩할 장착 중 표시 이미지
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "ProjectR|Inventory")
+	TObjectPtr<UImage> EquippedIndicatorImage;
+
 	// UMG에서 바인딩할 클릭 버튼
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "ProjectR|Inventory")
 	TObjectPtr<UButton> ClickButton;

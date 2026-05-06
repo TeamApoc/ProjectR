@@ -10,14 +10,6 @@ class UPRItemDataAsset;
 class UPRItemInstance;
 class UTexture2D;
 
-UENUM(BlueprintType)
-enum class EPRInventoryItemListType : uint8
-{
-	None,
-	Weapon,
-	Mod
-};
-
 // 인벤토리 UI에서 아이템 한 칸을 표시하기 위한 데이터다
 USTRUCT(BlueprintType)
 struct PROJECTR_API FPRInventoryItemSlotViewData

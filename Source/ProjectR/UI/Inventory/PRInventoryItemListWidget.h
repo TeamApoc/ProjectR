@@ -7,6 +7,7 @@
 #include "ProjectR/UI/PRWidgetBase.h"
 #include "PRInventoryItemListWidget.generated.h"
 
+class UTextBlock;
 class UPanelWidget;
 class UPRItemSlotWidget;
 
@@ -21,11 +22,11 @@ class PROJECTR_API UPRInventoryItemListWidget : public UPRWidgetBase
 public:
 	// 리스트 타입과 표시 항목을 갱신한다
 	UFUNCTION(BlueprintCallable, Category = "ProjectR|Inventory")
-	void SetItemList(EPRInventoryItemListType InListType, const TArray<FPRInventoryItemSlotViewData>& InItems);
+	void SetItemList(EPRItemType InListType, const TArray<FPRInventoryItemSlotViewData>& InItems);
 
 	// 현재 리스트 타입을 반환한다
 	UFUNCTION(BlueprintPure, Category = "ProjectR|Inventory")
-	EPRInventoryItemListType GetListType() const {return ListType;}
+	EPRItemType GetListType() const {return ListType;}
 
 	// 현재 표시 항목 목록을 반환한다
 	UFUNCTION(BlueprintPure, Category = "ProjectR|Inventory")
@@ -73,6 +74,9 @@ protected:
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "ProjectR|Inventory")
 	TObjectPtr<UPanelWidget> ItemListPanel;
 
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "ProjectR|Inventory")
+	TObjectPtr<UTextBlock> ItemListTypeText;
+
 	// 생성할 슬롯 행 수
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|Inventory", meta = (ClampMin = "0", UIMin = "0"))
 	int32 RowCount = 2;
@@ -92,7 +96,7 @@ private:
 
 	// 현재 리스트 타입
 	UPROPERTY(BlueprintReadOnly, Category = "ProjectR|Inventory", meta = (AllowPrivateAccess = "true"))
-	EPRInventoryItemListType ListType = EPRInventoryItemListType::None;
+	EPRItemType ListType = EPRItemType::None;
 
 	// 현재 표시 항목 목록
 	UPROPERTY(BlueprintReadOnly, Category = "ProjectR|Inventory", meta = (AllowPrivateAccess = "true"))

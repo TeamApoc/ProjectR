@@ -5,6 +5,7 @@
 
 #include "Logging/LogMacros.h"
 #include "Net/UnrealNetwork.h"
+#include "ProjectR/Inventory/Components/PRInventoryComponent.h"
 #include "ProjectR/Weapon/Data/PRWeaponModDataAsset.h"
 #include "ProjectR/Weapon/Items/PRItemInstance_Weapon.h"
 
@@ -78,4 +79,6 @@ void UPRItemInstance_Mod::OnRep_EquippedWeaponItem()
 		*GetNameSafe(this),
 		*GetNameSafe(ModData),
 		*GetNameSafe(EquippedWeaponItem.Get()));
+
+	NotifyInventoryChanged(EPRInventoryChangeReason::ModEquipChanged);
 }

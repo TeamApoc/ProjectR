@@ -68,7 +68,26 @@ void UPRItemSlotWidget::RefreshNativeDisplay()
 
 	if (IsValid(ItemIconImage))
 	{
-		ItemIconImage->SetBrushFromTexture(ViewData.Icon.Get());
+		UTexture2D* ItemIcon = ViewData.Icon.Get();
+		if (!IsValid(ItemIcon))
+		{
+			// 아이템 아이콘이 없으면 아이템 아이콘 이미지 숨김
+			ItemIconImage->SetVisibility(ESlateVisibility::Hidden);
+		}
+		else
+		{
+			ItemIconImage->SetVisibility(ESlateVisibility::Visible);
+			ItemIconImage->SetBrushFromTexture(ItemIcon);
+		}
+	}
+
+	if (IsValid(EquippedIndicatorImage))
+	{
+		// 아이템 장착중 여부에 따라 이미지 숨김/표시
+		const ESlateVisibility EquippedIndicatorVisibility = ViewData.bEquipped
+			? ESlateVisibility::Visible
+			: ESlateVisibility::Hidden;
+		EquippedIndicatorImage->SetVisibility(EquippedIndicatorVisibility);
 	}
 }
 

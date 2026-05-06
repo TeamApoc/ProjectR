@@ -6,6 +6,8 @@
 #include "UObject/Object.h"
 #include "PRItemInstance.generated.h"
 
+enum class EPRInventoryChangeReason : uint8;
+
 // 인벤토리가 소유하는 공용 Item 인스턴스의 최소 기반 클래스다
 UCLASS(BlueprintType, EditInlineNew, DefaultToInstanced)
 class PROJECTR_API UPRItemInstance : public UObject
@@ -19,4 +21,8 @@ public:
 public:
 	virtual bool IsSupportedForNetworking() const override;
 	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
+
+public:
+	// 소유 인벤토리에 변경 이벤트를 전달한다
+	void NotifyInventoryChanged(EPRInventoryChangeReason ChangeReason);
 };

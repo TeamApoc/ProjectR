@@ -5,7 +5,6 @@
 #include "GameplayEffectExtension.h"
 #include "Logging/LogMacros.h"
 #include "Net/UnrealNetwork.h"
-#include "ProjectR/PRGameplayTags.h"
 
 // =====  UAttributeSet Interface =====
 void UPRAttributeSet_Player::PreAttributeChange(const FGameplayAttribute& Attribute, float& NewValue)
@@ -29,23 +28,9 @@ void UPRAttributeSet_Player::PostGameplayEffectExecute(const FGameplayEffectModC
 {
 	Super::PostGameplayEffectExecute(Data);
 
-	// Stamina 고갈 시 State.StaminaDepleted 태그 부여, 회복 시 제거
 	if (Data.EvaluatedData.Attribute == GetStaminaAttribute())
 	{
-		UAbilitySystemComponent* ASC = GetOwningAbilitySystemComponent();
-		if (IsValid(ASC))
-		{
-			const FGameplayTag DepletedTag = PRGameplayTags::State_StaminaDepleted;
-			const bool bHasTag = ASC->HasMatchingGameplayTag(DepletedTag);
-			if (GetStamina() <= 0.0f && !bHasTag)
-			{
-				ASC->AddLooseGameplayTag(DepletedTag);
-			}
-			else if (GetStamina() > 0.0f && bHasTag)
-			{
-				ASC->RemoveLooseGameplayTag(DepletedTag);
-			}
-		}
+		SetStamina(FMath::Clamp(GetStamina(), 0.0f, GetMaxStamina()));
 	}
 }
 

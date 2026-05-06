@@ -12,6 +12,7 @@ class ACharacter;
 class APRPlayerCharacter;
 class UAbilityTask_PlayMontageAndWait;
 class UAnimMontage;
+class UGameplayEffect;
 class UPRCameraModifier;
 
 /**
@@ -91,7 +92,14 @@ private:
 	/** 회피 종료가 여러 콜백에서 중복 처리되지 않도록 한 번만 EndAbility를 호출한다 */
 	void FinishDodge(bool bWasCancelled);
 
+	/** 스태미너 회복 딜레이 GameplayEffect를 적용한다 */
+	void ApplyStaminaRegenDelay();
+
 protected:
+	/** 회피 종료 후 회복 딜레이를 부여할 GameplayEffect 클래스 */
+	UPROPERTY(EditDefaultsOnly, Category = "PR|Dodge|Stamina")
+	TSubclassOf<UGameplayEffect> StaminaRegenDelayEffectClass;
+
 	/** 무적 상태를 부여할 GameplayEffect 클래스 */
 	UPROPERTY(EditDefaultsOnly, Category = "PR|Dodge")
 	TSubclassOf<UGameplayEffect> InvulnerableEffectClass;
@@ -180,6 +188,9 @@ private:
 
 	/** 회피 종료가 이미 요청되었는지 추적한다 */
 	bool bDodgeEndRequested = false;
+
+	/** 이번 활성화에서 회피가 실제로 시작되었는지 추적한다 */
+	bool bDodgeStarted = false;
 
 	/** 현재 입력으로 회피를 스킵할 수 있는 구간인지 추적한다 */
 	bool bCanCancelDodgeByInput = false;

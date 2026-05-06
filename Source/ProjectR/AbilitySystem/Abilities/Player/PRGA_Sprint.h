@@ -6,6 +6,9 @@
 #include "ProjectR/AbilitySystem/PRGameplayAbility.h"
 #include "PRGA_Sprint.generated.h"
 
+class UGameplayEffect;
+struct FOnAttributeChangeData;
+
 UCLASS()
 class PROJECTR_API UPRGA_Sprint : public UPRGameplayAbility
 {
@@ -36,4 +39,35 @@ public:
 private:
 	/** 질주 상태를 시작한다 */
 	void StartSprint();
+
+	/** 스태미너 회복 딜레이 GameplayEffect를 적용한다 */
+	void ApplyStaminaRegenDelay();
+
+	/** 현재 스태미너가 질주 가능한 상태인지 확인한다 */
+	bool HasEnoughStaminaToSprint(const FGameplayAbilityActorInfo* ActorInfo) const;
+
+	/** 스태미너 변경 콜백을 등록한다 */
+	void RegisterStaminaChangeDelegate();
+
+	/** 스태미너 변경 콜백을 해제한다 */
+	void UnregisterStaminaChangeDelegate();
+
+	/** 스태미너가 고갈되면 질주를 종료한다 */
+	void HandleStaminaChanged(const FOnAttributeChangeData& ChangeData);
+
+protected:
+	/** 질주 종료 후 회복 딜레이를 부여할 GameplayEffect 클래스 */
+	UPROPERTY(EditDefaultsOnly, Category = "PR|Sprint|Stamina")
+	TSubclassOf<UGameplayEffect> StaminaRegenDelayEffectClass;
+
+	/** 이 값 이하로 스태미너가 내려가면 질주를 종료한다 */
+	UPROPERTY(EditDefaultsOnly, Category = "PR|Sprint|Stamina")
+	float SprintStaminaEndThreshold = 0.0f;
+
+private:
+	/** 스태미너 변경 델리게이트 핸들 */
+	FDelegateHandle StaminaChangedDelegateHandle;
+
+	/** 이번 활성화에서 질주가 실제로 시작되었는지 추적한다 */
+	bool bSprintStarted = false;
 };

@@ -45,6 +45,26 @@ void APRBossPatternActor::InitializeBossPatternActor(APRBossBaseCharacter* InOwn
 	BP_OnPatternActorInitialized();
 }
 
+void APRBossPatternActor::RequestPatternActorExpire()
+{
+	if (!HasAuthority())
+	{
+		return;
+	}
+
+	ExpirePatternActor();
+}
+
+void APRBossPatternActor::CancelPatternActor()
+{
+	if (!HasAuthority())
+	{
+		return;
+	}
+
+	ExpirePatternActor();
+}
+
 void APRBossPatternActor::BeginPlay()
 {
 	Super::BeginPlay();

@@ -10,6 +10,7 @@
 
 struct FGameplayEffectSpecHandle;
 class UPRProjectileMovementComponent;
+class USceneComponent;
 class USphereComponent;
 
 UENUM()
@@ -36,6 +37,12 @@ public:
 	
 	// 스폰 직후 권위 투사체에 대해 GE 초기화
 	void InitGameplayEffectSpec(const FGameplayEffectSpecHandle& InEffectSpec);
+
+	// 서버가 직접 생성한 투사체의 초기 진행 방향과 속도를 설정한다.
+	void SetProjectileInitialVelocity(const FVector& Direction, float SpeedOverride = 0.0f);
+
+	// 서버가 직접 생성한 투사체의 Homing 타겟을 설정한다.
+	void ConfigureProjectileHoming(USceneComponent* HomingTargetComponent, float HomingAcceleration);
 
 	// 서버 권위 투사체를 클라이언트 발사 시점까지 전진. HasAuthority() && bUseFastForward인 경우만 실행
 	void ApplyFastForward(float ForwardSeconds);

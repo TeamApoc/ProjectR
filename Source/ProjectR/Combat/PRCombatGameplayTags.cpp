@@ -6,7 +6,7 @@ namespace PRCombatGameplayTags
 {
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(SetByCaller_Damage, "SetByCaller.Damage", "피해 SetByCaller 키");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(SetByCaller_GroggyDamage, "SetByCaller.GroggyDamage", "그로기 피해 SetByCaller 키");
-	UE_DEFINE_GAMEPLAY_TAG_COMMENT(SetByCaller_AttackMultiplier, "SetByCaller.GroggyDamage", "그로기 피해 SetByCaller 키");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(SetByCaller_AttackMultiplier, "SetByCaller.AttackMultiplier", "적 어빌리티 공격 배수 SetByCaller 키");
 
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Event_Ability_EnemyMeleeHit, "Event.Ability.EnemyMeleeHit", "적 근접 공격 타격 프레임 이벤트");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Event_Ability_EnemyMeleeWindowBegin, "Event.Ability.EnemyMeleeWindowBegin", "적 근접 공격 판정 구간 시작 이벤트");

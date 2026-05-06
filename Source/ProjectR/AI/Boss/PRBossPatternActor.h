@@ -33,6 +33,14 @@ public:
 	UFUNCTION(BlueprintPure, Category = "ProjectR|AI|Boss")
 	AActor* GetPatternTarget() const { return PatternTarget; }
 
+	// 서버에서 패턴 Actor의 정상 만료를 요청한다.
+	UFUNCTION(BlueprintCallable, Category = "ProjectR|AI|Boss")
+	virtual void RequestPatternActorExpire();
+
+	// 서버에서 패턴 Actor를 즉시 취소하고 정리한다.
+	UFUNCTION(BlueprintCallable, Category = "ProjectR|AI|Boss")
+	virtual void CancelPatternActor();
+
 protected:
 	virtual void BeginPlay() override;
 

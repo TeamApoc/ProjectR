@@ -56,6 +56,48 @@ void APRProjectileBase::InitGameplayEffectSpec(const FGameplayEffectSpecHandle& 
 	EffectSpecHandle = InEffectSpec;
 }
 
+void APRProjectileBase::SetProjectileInitialVelocity(const FVector& Direction, float SpeedOverride)
+{
+	if (!IsValid(ProjectileMovementComponent))
+	{
+		return;
+	}
+
+	const FVector SafeDirection = Direction.GetSafeNormal();
+	if (SafeDirection.IsNearlyZero())
+	{
+		return;
+	}
+
+	const float ResolvedSpeed = SpeedOverride > 0.0f
+		? SpeedOverride
+		: ProjectileMovementComponent->InitialSpeed;
+
+	ProjectileMovementComponent->InitialSpeed = ResolvedSpeed;
+	ProjectileMovementComponent->MaxSpeed = FMath::Max(ProjectileMovementComponent->MaxSpeed, ResolvedSpeed);
+	ProjectileMovementComponent->Velocity = SafeDirection * ResolvedSpeed;
+	SetActorRotation(SafeDirection.Rotation());
+}
+
+void APRProjectileBase::ConfigureProjectileHoming(USceneComponent* HomingTargetComponent, float HomingAcceleration)
+{
+	if (!IsValid(ProjectileMovementComponent))
+	{
+		return;
+	}
+
+	if (!IsValid(HomingTargetComponent) || HomingAcceleration <= 0.0f)
+	{
+		ProjectileMovementComponent->bIsHomingProjectile = false;
+		ProjectileMovementComponent->HomingTargetComponent = nullptr;
+		return;
+	}
+
+	ProjectileMovementComponent->bIsHomingProjectile = true;
+	ProjectileMovementComponent->HomingTargetComponent = HomingTargetComponent;
+	ProjectileMovementComponent->HomingAccelerationMagnitude = HomingAcceleration;
+}
+
 void APRProjectileBase::ApplyFastForward(float ForwardSeconds)
 {
 	if (!HasAuthority() || !bUseFastForward || ForwardSeconds <= 0.f)
@@ -188,8 +230,9 @@ void APRProjectileBase::BeginPlay()
 {
 	Super::BeginPlay();
 	
-	// 투사체의 NetOwner는 PC로 설정되므로, remote에서는 nullptr
-	bIsRemoteProjectile = GetNetOwner() == nullptr;
+	// 투사체의 NetOwner는 PC로 설정되므로, 클라이언트 remote에서는 nullptr이다.
+	// AI/보스가 서버에서 직접 생성한 권위 투사체는 NetOwner가 없을 수 있으므로 서버에서는 remote 판정을 하지 않는다.
+	bIsRemoteProjectile = !HasAuthority() && GetNetOwner() == nullptr;
 	
 	if (bIsRemoteProjectile)
 	{

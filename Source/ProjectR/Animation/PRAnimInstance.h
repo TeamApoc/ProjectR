@@ -37,6 +37,10 @@ private:
 	void UpdateFlags();
 	void UpdateMovementMode();
 	void UpdateAim();
+	// 현재 무기의 왼손 그립 소켓을 FABRIK Effector 값으로 캐시한다
+	void UpdateLeftHandIK();
+	// 왼손 IK 타깃이 유효하지 않을 때 AnimGraph 입력값을 초기화한다
+	void ResetLeftHandIK();
 	void UpdateTurnInPlace();
 	void UpdateRootYawOffset();
 	void DetermineTargetTurnAngle();
@@ -169,6 +173,22 @@ public:
 
 	UPROPERTY(BlueprintReadOnly, Category = "Movement|Aiming")
 	EPRWeaponSlotType AimOffsetWeaponSlot = EPRWeaponSlotType::None;
+
+	// FABRIK 노드에 전달할 왼손 Effector 트랜스폼이다
+	UPROPERTY(BlueprintReadOnly, Category = "ProjectR|Animation|IK")
+	FTransform LeftHandIKEffectorTransform = FTransform::Identity;
+
+	// 왼손 IK 적용 비율이다
+	UPROPERTY(BlueprintReadOnly, Category = "ProjectR|Animation|IK")
+	float LeftHandIKAlpha = 0.0f;
+
+	// 현재 프레임에 사용할 왼손 IK 타깃이 준비되었는지 나타낸다
+	UPROPERTY(BlueprintReadOnly, Category = "ProjectR|Animation|IK")
+	bool bHasLeftHandIKTarget = false;
+
+	// Effector 트랜스폼을 계산할 기준 오른손 본 이름이다
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "ProjectR|Animation|IK")
+	FName LeftHandIKTargetBoneName = FName(TEXT("Bone_M_Hand_R"));
 
 	/*~ Ability 액션 관찰 상태 ~*/
 	UPROPERTY(BlueprintReadOnly, Category = "ProjectR|Animation|Dodge")

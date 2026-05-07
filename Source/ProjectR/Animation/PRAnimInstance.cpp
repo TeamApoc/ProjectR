@@ -2,13 +2,16 @@
 
 #include "PRAnimInstance.h"
 
+#include "Components/SkeletalMeshComponent.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "Kismet/KismetMathLibrary.h"
 #include "KismetAnimationLibrary.h"
 #include "ProjectR/AbilitySystem/PRAbilitySystemComponent.h"
 #include "ProjectR/Character/PRPlayerCharacter.h"
 #include "ProjectR/PRGameplayTags.h"
+#include "ProjectR/Weapon/Actors/PRWeaponActor.h"
 #include "ProjectR/Weapon/Components/PRWeaponManagerComponent.h"
+#include "ProjectR/Weapon/Data/PRWeaponDataAsset.h"
 
 /*~ 초기화 및 업데이트 ~*/
 
@@ -39,6 +42,7 @@ void UPRAnimInstance::NativeUpdateAnimation(float DeltaSeconds)
 
 	if (!IsValid(PlayerCharacter) || !IsValid(CharacterMovement))
 	{
+		ResetLeftHandIK();
 		return;
 	}
 
@@ -51,6 +55,7 @@ void UPRAnimInstance::NativeUpdateAnimation(float DeltaSeconds)
 	UpdateRootYawOffset();
 	DetermineTargetTurnAngle();
 	UpdateAim();
+	UpdateLeftHandIK();
 }
 
 void UPRAnimInstance::NativePostEvaluateAnimation()
@@ -260,6 +265,104 @@ void UPRAnimInstance::UpdateAim()
 	}
 
 	AimPitch = UKismetMathLibrary::NormalizedDeltaRotator(AimRot, ActorRot).Pitch;
+}
+
+void UPRAnimInstance::UpdateLeftHandIK()
+{
+	// 무기를 실제로 들고 있을 때만 왼손 IK를 적용한다.
+	if (ArmedState != EPRArmedState::Armed || EquippedWeaponSlot == EPRWeaponSlotType::None)
+	{
+		ResetLeftHandIK();
+		return;
+	}
+
+	const UPRWeaponManagerComponent* WeaponManager = IsValid(PlayerCharacter) ? PlayerCharacter->GetWeaponManager() : nullptr;
+	if (!IsValid(WeaponManager))
+	{
+		ResetLeftHandIK();
+		return;
+	}
+
+	const FPRWeaponVisualInfo& WeaponVisualInfo = WeaponManager->GetCurrentWeaponVisualInfo();
+	const UPRWeaponDataAsset* WeaponData = WeaponVisualInfo.WeaponData;
+	APRWeaponActor* ActiveWeaponActor = WeaponManager->GetActiveWeaponActor();
+	USkeletalMeshComponent* WeaponMeshComponent = IsValid(ActiveWeaponActor) ? ActiveWeaponActor->GetWeaponMeshComponent() : nullptr;
+	USkeletalMeshComponent* CharacterMeshComponent = GetSkelMeshComponent();
+
+	// 무기 데이터, 무기 메시, 캐릭터 메시, 타깃 소켓과 기준 본이 모두 준비된 경우에만 캐시한다.
+	if (!IsValid(WeaponData))
+	{
+		ResetLeftHandIK();
+		return;
+	}
+
+	if (!WeaponData->bUseLeftHandIK)
+	{
+		ResetLeftHandIK();
+		return;
+	}
+
+	if (WeaponData->LeftHandIKSocketName.IsNone())
+	{
+		ResetLeftHandIK();
+		return;
+	}
+
+	if (!IsValid(ActiveWeaponActor))
+	{
+		ResetLeftHandIK();
+		return;
+	}
+
+	if (!IsValid(WeaponMeshComponent))
+	{
+		ResetLeftHandIK();
+		return;
+	}
+
+	if (!IsValid(CharacterMeshComponent))
+	{
+		ResetLeftHandIK();
+		return;
+	}
+
+	if (!WeaponMeshComponent->DoesSocketExist(WeaponData->LeftHandIKSocketName))
+	{
+		ResetLeftHandIK();
+		return;
+	}
+
+	if (CharacterMeshComponent->GetBoneIndex(LeftHandIKTargetBoneName) == INDEX_NONE)
+	{
+		ResetLeftHandIK();
+		return;
+	}
+
+	// 무기 메시의 왼손 그립 소켓을 월드 공간에서 가져온 뒤 무기별 보정값을 적용한다.
+	const FTransform SocketWorldTransform = WeaponMeshComponent->GetSocketTransform(WeaponData->LeftHandIKSocketName, RTS_World);
+	const FTransform TargetWorldTransform = WeaponData->LeftHandIKOffset * SocketWorldTransform;
+
+	FVector EffectorLocation = FVector::ZeroVector;
+	FRotator EffectorRotation = FRotator::ZeroRotator;
+	// FABRIK 노드가 오른손 본 기준 Bone Space를 쓰도록 월드 트랜스폼을 오른손 본 공간으로 변환한다.
+	CharacterMeshComponent->TransformToBoneSpace(
+		LeftHandIKTargetBoneName,
+		TargetWorldTransform.GetLocation(),
+		TargetWorldTransform.Rotator(),
+		EffectorLocation,
+		EffectorRotation);
+
+	LeftHandIKEffectorTransform = FTransform(EffectorRotation, EffectorLocation, FVector::OneVector);
+	LeftHandIKAlpha = 1.0f;
+	bHasLeftHandIKTarget = true;
+}
+
+void UPRAnimInstance::ResetLeftHandIK()
+{
+	// 유효하지 않은 이전 프레임 타깃이 AnimGraph에 남지 않도록 기본값으로 되돌린다.
+	LeftHandIKEffectorTransform = FTransform::Identity;
+	LeftHandIKAlpha = 0.0f;
+	bHasLeftHandIKTarget = false;
 }
 
 void UPRAnimInstance::DetermineTargetTurnAngle()

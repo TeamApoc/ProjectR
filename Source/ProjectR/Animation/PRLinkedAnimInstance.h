@@ -108,6 +108,22 @@ protected:
 	UPROPERTY(BlueprintReadOnly, Category = "Movement|Aiming")
 	EPRWeaponSlotType AimOffsetWeaponSlot = EPRWeaponSlotType::None;
 
+	// 메인 AnimInstance에서 계산한 FABRIK용 왼손 Effector 트랜스폼이다
+	UPROPERTY(BlueprintReadOnly, Category = "ProjectR|Animation|IK")
+	FTransform LeftHandIKEffectorTransform = FTransform::Identity;
+
+	// 레이어 AnimGraph에서 사용할 왼손 IK 적용 비율이다
+	UPROPERTY(BlueprintReadOnly, Category = "ProjectR|Animation|IK")
+	float LeftHandIKAlpha = 0.0f;
+
+	// 메인 AnimInstance가 현재 프레임에 유효한 왼손 IK 타깃을 찾았는지 나타낸다
+	UPROPERTY(BlueprintReadOnly, Category = "ProjectR|Animation|IK")
+	bool bHasLeftHandIKTarget = false;
+
+	// Effector 트랜스폼이 기준으로 삼는 오른손 본 이름이다
+	UPROPERTY(BlueprintReadOnly, Category = "ProjectR|Animation|IK")
+	FName LeftHandIKTargetBoneName = FName(TEXT("Bone_M_Hand_R"));
+
 	// DodgeAbility가 활성화되어 회피 상태 태그를 소유 중인지 나타낸다
 	UPROPERTY(BlueprintReadOnly, Category = "ProjectR|Animation|Dodge")
 	bool bIsDodging = false;

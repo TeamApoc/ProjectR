@@ -186,6 +186,10 @@ protected:
 	// 현재 활성 무기 데이터를 기준으로 캐릭터 애니메이션 레이어를 갱신한다
 	void RefreshAnimLayer();
 
+	// 무기 데이터의 EquipAmmoGE를 SetByCaller 자력값과 함께 ASC에 적용한다
+	// 슬롯의 AmmoScale·ReserveAmmoRatio 비율만 갱신하며, 탄창·예비탄 raw 자원은 보존한다
+	void ApplyEquipAmmoGE(const UPRWeaponDataAsset* WeaponData, UObject* SourceObject);
+
 private:
 	// 대상 슬롯 원본을 수정 가능한 참조로 반환한다
 	TObjectPtr<UPRItemInstance_Weapon>& GetMutableWeaponInstanceBySlot(EPRWeaponSlotType SlotType);

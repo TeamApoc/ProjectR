@@ -60,6 +60,7 @@ bool FPRHoldInfo::IsValid() const
 UPRInteractorComponent::UPRInteractorComponent()
 {
 	PrimaryComponentTick.bCanEverTick = true;
+	PrimaryComponentTick.TickInterval = 0.05f;
 	PrimaryComponentTick.SetTickFunctionEnable(false);
 	SetIsReplicatedByDefault(true);
 }

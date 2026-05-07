@@ -5,7 +5,7 @@
 
 #include "Components/SphereComponent.h"
 #include "ProjectR/Interaction/PRInteractableComponent.h"
-#include "ProjectR/Interaction/Actions/PRInteraction_PickUp.h"
+#include "ProjectR/Interaction/Actions/PRInteraction_PickUpAmmo.h"
 
 APRPickableActor::APRPickableActor()
 {
@@ -17,5 +17,5 @@ APRPickableActor::APRPickableActor()
 	InteractionCollision->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
 	SetRootComponent(InteractionCollision);
 	
-	InteractableComponent->InteractionActions.Add(CreateDefaultSubobject<UPRInteraction_PickUp>(TEXT("PickUpAction")));
+	InteractableComponent->InteractionActions.Add(CreateDefaultSubobject<UPRInteraction_PickUpAmmo>(TEXT("PickUpAction")));
 }

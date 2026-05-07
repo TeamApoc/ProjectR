@@ -33,6 +33,11 @@ UDataTable* UPRAbilitySystemRegistry::GetStatTableSynchronous(EPRCharacterRole R
 	return nullptr;
 }
 
+TSubclassOf<UGameplayEffect> UPRAbilitySystemRegistry::GetEquipAmmoGE(EPRAmmoType AmmoType) const
+{
+	return AmmoType == EPRAmmoType::Primary ? EquipAmmoGE_Primary : EquipAmmoGE_Secondary;
+}
+
 // =====  Data Validation =====
 
 #if WITH_EDITOR

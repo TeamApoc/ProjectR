@@ -43,6 +43,7 @@ enum class EPRTriggerType : uint8
 /**
  * 상호작용 행동 베이스 클래스.
  * UPRInteractableComponent에 추가되며, OnInteract 시 조건에 맞는 최우선 행동이 실행된다.
+ * Interactor는 주로 PlayerController가 되므로 주의
  */
 UCLASS(Blueprintable, BlueprintType, EditInlineNew, DefaultToInstanced, Abstract)
 class PROJECTR_API UPRInteractionAction : public UObject

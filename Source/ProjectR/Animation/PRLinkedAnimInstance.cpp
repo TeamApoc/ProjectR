@@ -54,6 +54,10 @@ void UPRLinkedAnimInstance::NativeUpdateAnimation(float DeltaSeconds)
 	ArmedState = MainAnimInstance->ArmedState;
 	EquippedWeaponSlot = MainAnimInstance->EquippedWeaponSlot;
 	AimOffsetWeaponSlot = MainAnimInstance->AimOffsetWeaponSlot;
+	LeftHandIKEffectorTransform = MainAnimInstance->LeftHandIKEffectorTransform;
+	LeftHandIKAlpha = MainAnimInstance->LeftHandIKAlpha;
+	bHasLeftHandIKTarget = MainAnimInstance->bHasLeftHandIKTarget;
+	LeftHandIKTargetBoneName = MainAnimInstance->LeftHandIKTargetBoneName;
 
 	// 회피 상태는 Ability 태그를 관찰한 메인 AnimInstance 값을 복사한다.
 	bIsDodging = MainAnimInstance->bIsDodging;

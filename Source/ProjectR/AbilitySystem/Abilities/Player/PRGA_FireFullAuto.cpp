@@ -15,12 +15,16 @@ void UPRGA_FireFullAuto::ActivateAbility(const FGameplayAbilitySpecHandle Handle
 	const FGameplayEventData* TriggerEventData)
 {
 	Super::ActivateAbility(Handle, ActorInfo, ActivationInfo, TriggerEventData);
-	
-	if (!CommitAbility(Handle, ActorInfo, ActivationInfo))
+
+	// cost는 per-shot에서 CommitAbilityCost로 처리하므로 활성화 단계는 검증만
+	if (!CheckCost(Handle, ActorInfo))
 	{
 		EndAbility(Handle, ActorInfo, ActivationInfo, /*bReplicateEndAbility=*/true, /*bWasCancelled=*/true);
 		return;
 	}
+
+	// 쿨다운만 활성화 시점에 적용
+	CommitAbilityCooldown(Handle, ActorInfo, ActivationInfo, /*ForceCooldown=*/true);
 
 	// FireIntrval 주기로 FireOneShot 반복
 	if (UPRAT_RepeatFire* RepeatTask = UPRAT_RepeatFire::RepeatFire(this, FireInterval, bFireOnActivate))

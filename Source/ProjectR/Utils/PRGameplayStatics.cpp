@@ -3,6 +3,7 @@
 
 #include "PRGameplayStatics.h"
 
+#include "AbilitySystemBlueprintLibrary.h"
 #include "ProjectR/Player/PRPlayerState.h"
 
 void UPRGameplayStatics::GetAllMeshComponents(AActor* Actor, TArray<UMeshComponent*>& OutMeshes)
@@ -73,4 +74,14 @@ UPRInventoryComponent* UPRGameplayStatics::GetInventoryComponent(AActor* Actor)
 	}
 	
 	return nullptr;
+}
+
+UAbilitySystemComponent* UPRGameplayStatics::GetAbilitySystemComponent(AActor* Actor)
+{
+	if (AController* AsController = Cast<AController>(Actor))
+	{
+		return UAbilitySystemBlueprintLibrary::GetAbilitySystemComponent(AsController->GetPawn()); 
+	}
+	
+	return UAbilitySystemBlueprintLibrary::GetAbilitySystemComponent(Actor);
 }

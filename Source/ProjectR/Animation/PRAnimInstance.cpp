@@ -63,6 +63,56 @@ void UPRAnimInstance::NativePostEvaluateAnimation()
 	Super::NativePostEvaluateAnimation();
 }
 
+bool UPRAnimInstance::ShouldApplyLeftHandIK() const
+{
+	USkeletalMeshComponent* CharacterMeshComponent = GetSkelMeshComponent();
+	if (!IsValid(CharacterMeshComponent) ||
+		CharacterMeshComponent->GetBoneIndex(LeftHandIKTargetBoneName) == INDEX_NONE)
+	{
+		return false;
+	}
+	
+	// 무기를 실제로 들고 있을 때만 왼손 IK를 적용한다.
+	if (ArmedState != EPRArmedState::Armed || EquippedWeaponSlot == EPRWeaponSlotType::None)
+	{
+		return false;
+	}
+
+	const UPRWeaponManagerComponent* WeaponManager = IsValid(PlayerCharacter) ? PlayerCharacter->GetWeaponManager() : nullptr;
+	if (!IsValid(WeaponManager))
+	{
+		return false;
+	}
+	
+	// WeaponActor의 ShouldApplyLeftHandIK 확인
+	APRWeaponActor* ActiveWeaponActor = WeaponManager->GetActiveWeaponActor();
+	if (!IsValid(ActiveWeaponActor) || !ActiveWeaponActor->ShouldApplyLeftHandIK())
+	{
+		return false;
+	}
+	
+	// 방어 코드: WeaponMesh가 설정되지 않은 경우
+	USkeletalMeshComponent* WeaponMeshComponent = ActiveWeaponActor->GetWeaponMeshComponent();
+	if (!IsValid(WeaponMeshComponent) || !IsValid(WeaponMeshComponent->GetSkeletalMeshAsset()))
+	{
+		ensureMsgf(false, TEXT("Weapon Actor에 Mesh가 설정되지 않음"));
+		return false;
+	}
+	
+	return true;
+}
+
+APRWeaponActor* UPRAnimInstance::GetActiveWeaponActor() const
+{
+	const UPRWeaponManagerComponent* WeaponManager = IsValid(PlayerCharacter) ? PlayerCharacter->GetWeaponManager() : nullptr;
+	if (!IsValid(WeaponManager))
+	{
+		return nullptr;
+	}
+	
+	return  WeaponManager->GetActiveWeaponActor();
+}
+
 /*~ 이동 상태 갱신 ~*/
 
 void UPRAnimInstance::UpdateVelocity()
@@ -269,83 +319,27 @@ void UPRAnimInstance::UpdateAim()
 
 void UPRAnimInstance::UpdateLeftHandIK()
 {
-	// 무기를 실제로 들고 있을 때만 왼손 IK를 적용한다.
-	if (ArmedState != EPRArmedState::Armed || EquippedWeaponSlot == EPRWeaponSlotType::None)
+	if (!ShouldApplyLeftHandIK())
 	{
 		ResetLeftHandIK();
 		return;
 	}
-
-	const UPRWeaponManagerComponent* WeaponManager = IsValid(PlayerCharacter) ? PlayerCharacter->GetWeaponManager() : nullptr;
-	if (!IsValid(WeaponManager))
-	{
-		ResetLeftHandIK();
-		return;
-	}
-
-	const FPRWeaponVisualInfo& WeaponVisualInfo = WeaponManager->GetCurrentWeaponVisualInfo();
-	const UPRWeaponDataAsset* WeaponData = WeaponVisualInfo.WeaponData;
-	APRWeaponActor* ActiveWeaponActor = WeaponManager->GetActiveWeaponActor();
-	USkeletalMeshComponent* WeaponMeshComponent = IsValid(ActiveWeaponActor) ? ActiveWeaponActor->GetWeaponMeshComponent() : nullptr;
-	USkeletalMeshComponent* CharacterMeshComponent = GetSkelMeshComponent();
-
-	// 무기 데이터, 무기 메시, 캐릭터 메시, 타깃 소켓과 기준 본이 모두 준비된 경우에만 캐시한다.
-	if (!IsValid(WeaponData))
-	{
-		ResetLeftHandIK();
-		return;
-	}
-
-	if (!WeaponData->bUseLeftHandIK)
-	{
-		ResetLeftHandIK();
-		return;
-	}
-
-	if (WeaponData->LeftHandIKSocketName.IsNone())
-	{
-		ResetLeftHandIK();
-		return;
-	}
-
-	if (!IsValid(ActiveWeaponActor))
-	{
-		ResetLeftHandIK();
-		return;
-	}
-
+	
+	APRWeaponActor* ActiveWeaponActor = GetActiveWeaponActor();
+	USkeletalMeshComponent* WeaponMeshComponent = ActiveWeaponActor->GetWeaponMeshComponent();
 	if (!IsValid(WeaponMeshComponent))
 	{
-		ResetLeftHandIK();
 		return;
 	}
-
-	if (!IsValid(CharacterMeshComponent))
-	{
-		ResetLeftHandIK();
-		return;
-	}
-
-	if (!WeaponMeshComponent->DoesSocketExist(WeaponData->LeftHandIKSocketName))
-	{
-		ResetLeftHandIK();
-		return;
-	}
-
-	if (CharacterMeshComponent->GetBoneIndex(LeftHandIKTargetBoneName) == INDEX_NONE)
-	{
-		ResetLeftHandIK();
-		return;
-	}
-
+	
 	// 무기 메시의 왼손 그립 소켓을 월드 공간에서 가져온 뒤 무기별 보정값을 적용한다.
-	const FTransform SocketWorldTransform = WeaponMeshComponent->GetSocketTransform(WeaponData->LeftHandIKSocketName, RTS_World);
-	const FTransform TargetWorldTransform = WeaponData->LeftHandIKOffset * SocketWorldTransform;
+	const FTransform SocketWorldTransform = WeaponMeshComponent->GetSocketTransform(ActiveWeaponActor->LeftHandIKSocketName, RTS_World);
+	const FTransform TargetWorldTransform = ActiveWeaponActor->LeftHandIKOffset * SocketWorldTransform;
 
 	FVector EffectorLocation = FVector::ZeroVector;
 	FRotator EffectorRotation = FRotator::ZeroRotator;
 	// FABRIK 노드가 오른손 본 기준 Bone Space를 쓰도록 월드 트랜스폼을 오른손 본 공간으로 변환한다.
-	CharacterMeshComponent->TransformToBoneSpace(
+	GetSkelMeshComponent()->TransformToBoneSpace(
 		LeftHandIKTargetBoneName,
 		TargetWorldTransform.GetLocation(),
 		TargetWorldTransform.Rotator(),

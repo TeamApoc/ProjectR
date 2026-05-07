@@ -13,7 +13,7 @@ class APRWeaponActor;
 class USkeletalMeshComponent;
 
 /**
- * 무기 스켈레탈 메시 ABP가 공통으로 읽는 애니메이션 상태 계약이다.
+ * 무기 스켈레탈 메시 ABP가 공통으로 읽는 애니메이션 상태를 관리하는 AnimInstance
  */
 UCLASS(Abstract, Blueprintable)
 class PROJECTR_API UPRWeaponAnimInstance : public UAnimInstance

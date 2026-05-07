@@ -460,7 +460,41 @@ void UPRWeaponManagerComponent::Multicast_PlayWeaponNiagaraEffect_Implementation
 		// LocallyControlled인 경우 Multicast가 아닌 직접 PlayWeaponNiagaraEffect 호출
 		if (!OwnerPawn->IsLocallyControlled())
 		{
-			PlayWeaponNiagaraEffect(EffectType, InNiagaraSystem);		
+			PlayWeaponNiagaraEffect(EffectType, InNiagaraSystem);
+		}
+	}
+}
+
+void UPRWeaponManagerComponent::RequestWeaponAnimation(EPRWeaponAnimationState AnimationState)
+{
+	APRWeaponActor* ActiveWeaponActor = (CurrentWeaponSlot == EPRWeaponSlotType::Primary)
+		? PrimaryWeaponActor
+		: SecondaryWeaponActor;
+	if (IsValid(ActiveWeaponActor))
+	{
+		ActiveWeaponActor->RequestWeaponAnimation(AnimationState);
+	}
+}
+
+void UPRWeaponManagerComponent::Multicast_RequestWeaponAnimation_Reliable_Implementation(EPRWeaponAnimationState AnimationState)
+{
+	// 로컬 컨트롤러는 자체 예측 경로에서 이미 애니메이션을 요청했으므로 멀티캐스트로는 시뮬 프록시만 갱신
+	if (APawn* OwnerPawn = GetTypedOuter<APawn>())
+	{
+		if (!OwnerPawn->IsLocallyControlled())
+		{
+			RequestWeaponAnimation(AnimationState);
+		}
+	}
+}
+
+void UPRWeaponManagerComponent::Multicast_RequestWeaponAnimation_Unreliable_Implementation(EPRWeaponAnimationState AnimationState)
+{
+	if (APawn* OwnerPawn = GetTypedOuter<APawn>())
+	{
+		if (!OwnerPawn->IsLocallyControlled())
+		{
+			RequestWeaponAnimation(AnimationState);
 		}
 	}
 }

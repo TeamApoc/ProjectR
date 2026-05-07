@@ -86,18 +86,6 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|01_Weapon")
 	TSubclassOf<UAnimInstance> WeaponAnimLayerClass;
 
-	// 이 무기가 왼손 IK 보정을 사용할지 결정한다
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|01_Weapon|Animation|IK")
-	bool bUseLeftHandIK = true;
-
-	// 왼손이 따라갈 무기 메시 소켓 이름이다
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|01_Weapon|Animation|IK")
-	FName LeftHandIKSocketName = FName(TEXT("Socket_LeftHandIK"));
-
-	// 무기 소켓 위치에서 추가로 적용할 왼손 보정 트랜스폼이다
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|01_Weapon|Animation|IK")
-	FTransform LeftHandIKOffset = FTransform::Identity;
-
 	// 이 무기의 카메라 반동과 크로스헤어 확산 데이터
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|01_Weapon|Recoil")
 	FPRRecoilProfile RecoilProfile;

@@ -1,0 +1,37 @@
+// Copyright ProjectR. All Rights Reserved.
+
+#include "PRAnimNotify_WeaponAnimationState.h"
+
+#include "Components/SkeletalMeshComponent.h"
+#include "ProjectR/Character/PRPlayerCharacter.h"
+#include "ProjectR/Weapon/Components/PRWeaponManagerComponent.h"
+
+FString UPRAnimNotify_WeaponAnimationState::GetNotifyName_Implementation() const
+{
+	return FString::Printf(TEXT("PR Weapon Anim: %s"), *UEnum::GetValueAsString(AnimationState));
+}
+
+void UPRAnimNotify_WeaponAnimationState::Notify(USkeletalMeshComponent* MeshComp,
+	UAnimSequenceBase* Animation,
+	const FAnimNotifyEventReference& EventReference)
+{
+	if (!IsValid(MeshComp))
+	{
+		return;
+	}
+
+	APRPlayerCharacter* PlayerCharacter = Cast<APRPlayerCharacter>(MeshComp->GetOwner());
+	if (!IsValid(PlayerCharacter))
+	{
+		return;
+	}
+
+	UPRWeaponManagerComponent* WeaponManager = PlayerCharacter->GetWeaponManager();
+	if (!IsValid(WeaponManager))
+	{
+		return;
+	}
+
+	// 각 머신에서 로컬 활성 슬롯 무기 메시 애니메이션 상태를 갱신한다
+	WeaponManager->RequestWeaponAnimation(AnimationState);
+}

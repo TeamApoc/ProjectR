@@ -7,11 +7,13 @@
 #include "ProjectR/Weapon/Types/PRWeaponAnimationTypes.h"
 #include "PRWeaponAnimInstance.generated.h"
 
+class APRCharacterBase;
+class UPRAnimInstance;
 class APRWeaponActor;
 class USkeletalMeshComponent;
 
 /**
- * 무기 스켈레탈 메시 ABP가 공통으로 읽는 애니메이션 상태 계약이다.
+ * 무기 스켈레탈 메시 ABP가 공통으로 읽는 애니메이션 상태를 관리하는 AnimInstance
  */
 UCLASS(Abstract, Blueprintable)
 class PROJECTR_API UPRWeaponAnimInstance : public UAnimInstance
@@ -22,69 +24,42 @@ public:
 	/*~ UAnimInstance Interface ~*/
 	virtual void NativeInitializeAnimation() override;
 	virtual void NativeUpdateAnimation(float DeltaSeconds) override;
-	virtual void NativePostEvaluateAnimation() override;
 
 public:
-	// 무기 애니메이션 상태를 Idle로 되돌린다
+	// 무기 애니메이션 상태를 Idle로 되돌림
 	UFUNCTION(BlueprintCallable, Category = "ProjectR|Weapon|Animation")
-	void SetIdleState();
+	void SetToIdle();
 
-	// 발사 애니메이션 요청 번호를 갱신하고 Shoot 상태로 전환한다
+	// 발사 몽타주를 재생하고 Shoot 상태로 전환
 	UFUNCTION(BlueprintCallable, Category = "ProjectR|Weapon|Animation")
-	void RequestShoot();
+	void PlayShoot();
 
-	// 재장전 애니메이션 요청 번호를 갱신하고 Reload 상태로 전환한다
+	// 재장전 몽타주를 재생하고 Reload 상태로 전환
 	UFUNCTION(BlueprintCallable, Category = "ProjectR|Weapon|Animation")
-	void RequestReload();
-
-	// 지정한 액션이 아직 진행 중일 때만 Idle 상태로 복귀한다
-	UFUNCTION(BlueprintCallable, Category = "ProjectR|Weapon|Animation")
-	void FinishAction(EPRWeaponAnimationState ExpectedState);
-
-	// 현재 무기 애니메이션 상태가 지정 상태와 같은지 확인한다
+	void PlayReload();
+	
+	// 현재 무기 애니메이션 상태가 지정 상태와 같은지 확인
 	UFUNCTION(BlueprintPure, Category = "ProjectR|Weapon|Animation")
-	bool IsAnimationState(EPRWeaponAnimationState InState) const;
+	bool CheckAnimationState(EPRWeaponAnimationState InState) const;
 
 protected:
-	// 무기 Actor와 메시 컴포넌트 참조를 다시 캐시한다
-	void RefreshOwnerReferences();
-
-	// 액션 상태 진입 시 경과 시간을 초기화한다
-	void ResetActionTimer();
-
-	// 이번 평가에서 소비된 일회성 애니메이션 요청 플래그를 초기화한다
-	void ClearRequestFlags();
-
+	// 무기 몽타주가 재생 중인지 확인
+	virtual bool IsWeaponMontagePlaying() const;
+	
 public:
-	// 이 AnimInstance가 붙어 있는 무기 Actor다
+	// 재장전 몽타주
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "ProjectR|Weapon|Animation")
+	TObjectPtr<UAnimMontage> ReloadMontage;
+	
+	// 발사 몽타주
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "ProjectR|Weapon|Animation")
+	TObjectPtr<UAnimMontage> ShootMontage;
+	
+	// 이 AnimInstance가 붙어 있는 무기 Actor
 	UPROPERTY(BlueprintReadOnly, Category = "ProjectR|Weapon|Animation")
 	TObjectPtr<APRWeaponActor> WeaponActor;
-
-	// 이 AnimInstance가 구동하는 무기 스켈레탈 메시 컴포넌트다
-	UPROPERTY(BlueprintReadOnly, Category = "ProjectR|Weapon|Animation")
-	TObjectPtr<USkeletalMeshComponent> WeaponMeshComponent;
-
-	// 현재 무기 애니메이션 상태다
+	
+	// 현재 무기 애니메이션 상태
 	UPROPERTY(BlueprintReadOnly, Category = "ProjectR|Weapon|Animation")
 	EPRWeaponAnimationState AnimationState = EPRWeaponAnimationState::Idle;
-
-	// 발사 애니메이션 요청 누적 번호다
-	UPROPERTY(BlueprintReadOnly, Category = "ProjectR|Weapon|Animation")
-	int32 ShootRequestId = 0;
-
-	// 재장전 애니메이션 요청 누적 번호다
-	UPROPERTY(BlueprintReadOnly, Category = "ProjectR|Weapon|Animation")
-	int32 ReloadRequestId = 0;
-
-	// 이번 애니메이션 평가에서 발사 요청이 들어왔는지 나타내는 일회성 플래그다
-	UPROPERTY(BlueprintReadOnly, Category = "ProjectR|Weapon|Animation")
-	bool bShootRequested = false;
-
-	// 이번 애니메이션 평가에서 재장전 요청이 들어왔는지 나타내는 일회성 플래그다
-	UPROPERTY(BlueprintReadOnly, Category = "ProjectR|Weapon|Animation")
-	bool bReloadRequested = false;
-
-	// 현재 액션 상태로 전환된 뒤 지난 시간이다
-	UPROPERTY(BlueprintReadOnly, Category = "ProjectR|Weapon|Animation")
-	float ActionElapsedTime = 0.0f;
 };

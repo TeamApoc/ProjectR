@@ -193,12 +193,11 @@ void UPRGA_Fire::FireHitScan()
 		}
 	}
 
-	// 몽타쥬 재생
+	// 몽타쥬 재생. 무기 메시 애니메이션은 몽타주 노티파이가 각 머신에서 로컬로 트리거한다
 	if (UPRWeaponDataAsset* WeaponData = GetActiveWeaponData())
 	{
 		PlayWeaponMontage(WeaponData->ShootMontage, WeaponData->ShootMontagePlayRate);
 	}
-	RequestCurrentWeaponShootAnimation();
 
 	// 페이로드 구성
 	FPRFireShotPayload Payload;
@@ -478,10 +477,3 @@ void UPRGA_Fire::PlayWeaponMontage(UAnimMontage* Montage, float PlayRate)
 	}
 }
 
-void UPRGA_Fire::RequestCurrentWeaponShootAnimation() const
-{
-	if (CurrentWeapon.IsValid())
-	{
-		CurrentWeapon->RequestShootAnimation();
-	}
-}

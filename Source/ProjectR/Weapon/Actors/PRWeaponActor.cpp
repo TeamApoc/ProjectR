@@ -97,30 +97,13 @@ bool APRWeaponActor::RequestWeaponAnimation(EPRWeaponAnimationState AnimationSta
 	switch (AnimationState)
 	{
 	case EPRWeaponAnimationState::Idle:
-		WeaponAnimInstance->Montage_Stop(0.f);
-		// WeaponAnimInstance->SetIdleState();
+		WeaponAnimInstance->SetToIdle();
 		break;
 	case EPRWeaponAnimationState::Shoot:
-		if (ShotMontage)
-		{
-			WeaponAnimInstance->Montage_Play(ShotMontage);	
-		}
-		else
-		{
-			WeaponAnimInstance->Montage_Stop(0.f);
-		}
-		//WeaponAnimInstance->RequestShoot();
+		WeaponAnimInstance->PlayShoot();
 		break;
 	case EPRWeaponAnimationState::Reload:
-		if (ShotMontage)
-		{
-			WeaponAnimInstance->Montage_Play(ShotMontage);	
-		}
-		else
-		{
-			WeaponAnimInstance->Montage_Stop(0.f);
-		}
-		//WeaponAnimInstance->RequestReload();
+		WeaponAnimInstance->PlayReload();
 		break;
 	default:
 		return false;
@@ -142,6 +125,16 @@ bool APRWeaponActor::RequestReloadAnimation()
 bool APRWeaponActor::SetWeaponAnimationIdle()
 {
 	return RequestWeaponAnimation(EPRWeaponAnimationState::Idle);
+}
+
+bool APRWeaponActor::ShouldApplyLeftHandIK() const
+{
+	return bUseLeftHandIK && LeftHandIKSocketName.IsValid() && !bIsIKSuppressed;
+}
+
+void APRWeaponActor::SetIsIKSuppressed(bool bInSuppressed)
+{
+	bIsIKSuppressed = bInSuppressed;
 }
 
 void APRWeaponActor::PlayNiagaraEffect_Implementation(EPRWeaponEffectType EffectType, UNiagaraSystem* InNiagaraSystem)

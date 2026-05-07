@@ -72,6 +72,30 @@ public:
 	UFUNCTION(BlueprintImplementableEvent)
 	void StopEffect(EPRWeaponEffectType EffectType);
 	
+	// 무기 기준으로 왼손 IK 적용 가능 여부를 반환
+	UFUNCTION(BlueprintPure)
+	virtual bool ShouldApplyLeftHandIK() const;
+	
+	// IK 보정 억제 상태를 설정
+	UFUNCTION(BlueprintCallable)
+	void SetIsIKSuppressed(bool bInSuppressed);
+	
+	// IK 보정 억제 상태를 반환
+	UFUNCTION(BLueprintPure)
+	bool IsIKSuppressed() const { return bIsIKSuppressed; }
+public:
+	// 이 무기가 왼손 IK 보정을 사용할지 결정
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|Weapon|Animation")
+	bool bUseLeftHandIK = true;
+	
+	// 왼손이 따라갈 무기 메시 소켓 이름
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|Weapon|Animation")
+	FName LeftHandIKSocketName = FName(TEXT("Socket_LeftHandIK"));
+
+	// 무기 소켓 위치에서 추가로 적용할 왼손 보정 트랜스폼
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|Weapon|Animation")
+	FTransform LeftHandIKOffset = FTransform::Identity;
+	
 protected:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "ProjectR|Weapon")
 	TObjectPtr<USceneComponent> SceneRoot;
@@ -79,9 +103,7 @@ protected:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "ProjectR|Weapon")
 	TObjectPtr<USkeletalMeshComponent> WeaponMeshComponent;
 	
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "ProjectR|Weapon")
-	TObjectPtr<UAnimMontage> ReloadMontage;
-	
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "ProjectR|Weapon")
-	TObjectPtr<UAnimMontage> ShotMontage;
+private:
+	// IK 보정 억제 상태
+	bool bIsIKSuppressed = false;
 };

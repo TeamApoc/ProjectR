@@ -78,4 +78,10 @@ protected:
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "ProjectR|Weapon")
 	TObjectPtr<USkeletalMeshComponent> WeaponMeshComponent;
+	
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "ProjectR|Weapon")
+	TObjectPtr<UAnimMontage> ReloadMontage;
+	
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "ProjectR|Weapon")
+	TObjectPtr<UAnimMontage> ShotMontage;
 };

@@ -97,13 +97,30 @@ bool APRWeaponActor::RequestWeaponAnimation(EPRWeaponAnimationState AnimationSta
 	switch (AnimationState)
 	{
 	case EPRWeaponAnimationState::Idle:
-		WeaponAnimInstance->SetIdleState();
+		WeaponAnimInstance->Montage_Stop(0.f);
+		// WeaponAnimInstance->SetIdleState();
 		break;
 	case EPRWeaponAnimationState::Shoot:
-		WeaponAnimInstance->RequestShoot();
+		if (ShotMontage)
+		{
+			WeaponAnimInstance->Montage_Play(ShotMontage);	
+		}
+		else
+		{
+			WeaponAnimInstance->Montage_Stop(0.f);
+		}
+		//WeaponAnimInstance->RequestShoot();
 		break;
 	case EPRWeaponAnimationState::Reload:
-		WeaponAnimInstance->RequestReload();
+		if (ShotMontage)
+		{
+			WeaponAnimInstance->Montage_Play(ShotMontage);	
+		}
+		else
+		{
+			WeaponAnimInstance->Montage_Stop(0.f);
+		}
+		//WeaponAnimInstance->RequestReload();
 		break;
 	default:
 		return false;

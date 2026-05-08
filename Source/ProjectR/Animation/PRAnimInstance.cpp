@@ -2,13 +2,16 @@
 
 #include "PRAnimInstance.h"
 
+#include "Components/SkeletalMeshComponent.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "Kismet/KismetMathLibrary.h"
 #include "KismetAnimationLibrary.h"
 #include "ProjectR/AbilitySystem/PRAbilitySystemComponent.h"
 #include "ProjectR/Character/PRPlayerCharacter.h"
 #include "ProjectR/PRGameplayTags.h"
+#include "ProjectR/Weapon/Actors/PRWeaponActor.h"
 #include "ProjectR/Weapon/Components/PRWeaponManagerComponent.h"
+#include "ProjectR/Weapon/Data/PRWeaponDataAsset.h"
 
 /*~ 초기화 및 업데이트 ~*/
 
@@ -39,6 +42,7 @@ void UPRAnimInstance::NativeUpdateAnimation(float DeltaSeconds)
 
 	if (!IsValid(PlayerCharacter) || !IsValid(CharacterMovement))
 	{
+		ResetLeftHandIK();
 		return;
 	}
 
@@ -51,11 +55,62 @@ void UPRAnimInstance::NativeUpdateAnimation(float DeltaSeconds)
 	UpdateRootYawOffset();
 	DetermineTargetTurnAngle();
 	UpdateAim();
+	UpdateLeftHandIK();
 }
 
 void UPRAnimInstance::NativePostEvaluateAnimation()
 {
 	Super::NativePostEvaluateAnimation();
+}
+
+bool UPRAnimInstance::ShouldApplyLeftHandIK() const
+{
+	USkeletalMeshComponent* CharacterMeshComponent = GetSkelMeshComponent();
+	if (!IsValid(CharacterMeshComponent) ||
+		CharacterMeshComponent->GetBoneIndex(LeftHandIKTargetBoneName) == INDEX_NONE)
+	{
+		return false;
+	}
+	
+	// 무기를 실제로 들고 있을 때만 왼손 IK를 적용한다.
+	if (ArmedState != EPRArmedState::Armed || EquippedWeaponSlot == EPRWeaponSlotType::None)
+	{
+		return false;
+	}
+
+	const UPRWeaponManagerComponent* WeaponManager = IsValid(PlayerCharacter) ? PlayerCharacter->GetWeaponManager() : nullptr;
+	if (!IsValid(WeaponManager))
+	{
+		return false;
+	}
+	
+	// WeaponActor의 ShouldApplyLeftHandIK 확인
+	APRWeaponActor* ActiveWeaponActor = WeaponManager->GetActiveWeaponActor();
+	if (!IsValid(ActiveWeaponActor) || !ActiveWeaponActor->ShouldApplyLeftHandIK())
+	{
+		return false;
+	}
+	
+	// 방어 코드: WeaponMesh가 설정되지 않은 경우
+	USkeletalMeshComponent* WeaponMeshComponent = ActiveWeaponActor->GetWeaponMeshComponent();
+	if (!IsValid(WeaponMeshComponent) || !IsValid(WeaponMeshComponent->GetSkeletalMeshAsset()))
+	{
+		ensureMsgf(false, TEXT("Weapon Actor에 Mesh가 설정되지 않음"));
+		return false;
+	}
+	
+	return true;
+}
+
+APRWeaponActor* UPRAnimInstance::GetActiveWeaponActor() const
+{
+	const UPRWeaponManagerComponent* WeaponManager = IsValid(PlayerCharacter) ? PlayerCharacter->GetWeaponManager() : nullptr;
+	if (!IsValid(WeaponManager))
+	{
+		return nullptr;
+	}
+	
+	return  WeaponManager->GetActiveWeaponActor();
 }
 
 /*~ 이동 상태 갱신 ~*/
@@ -260,6 +315,48 @@ void UPRAnimInstance::UpdateAim()
 	}
 
 	AimPitch = UKismetMathLibrary::NormalizedDeltaRotator(AimRot, ActorRot).Pitch;
+}
+
+void UPRAnimInstance::UpdateLeftHandIK()
+{
+	if (!ShouldApplyLeftHandIK())
+	{
+		ResetLeftHandIK();
+		return;
+	}
+	
+	APRWeaponActor* ActiveWeaponActor = GetActiveWeaponActor();
+	USkeletalMeshComponent* WeaponMeshComponent = ActiveWeaponActor->GetWeaponMeshComponent();
+	if (!IsValid(WeaponMeshComponent))
+	{
+		return;
+	}
+	
+	// 무기 메시의 왼손 그립 소켓을 월드 공간에서 가져온 뒤 무기별 보정값을 적용한다.
+	const FTransform SocketWorldTransform = WeaponMeshComponent->GetSocketTransform(ActiveWeaponActor->LeftHandIKSocketName, RTS_World);
+	const FTransform TargetWorldTransform = ActiveWeaponActor->LeftHandIKOffset * SocketWorldTransform;
+
+	FVector EffectorLocation = FVector::ZeroVector;
+	FRotator EffectorRotation = FRotator::ZeroRotator;
+	// FABRIK 노드가 오른손 본 기준 Bone Space를 쓰도록 월드 트랜스폼을 오른손 본 공간으로 변환한다.
+	GetSkelMeshComponent()->TransformToBoneSpace(
+		LeftHandIKTargetBoneName,
+		TargetWorldTransform.GetLocation(),
+		TargetWorldTransform.Rotator(),
+		EffectorLocation,
+		EffectorRotation);
+
+	LeftHandIKEffectorTransform = FTransform(EffectorRotation, EffectorLocation, FVector::OneVector);
+	LeftHandIKAlpha = 1.0f;
+	bHasLeftHandIKTarget = true;
+}
+
+void UPRAnimInstance::ResetLeftHandIK()
+{
+	// 유효하지 않은 이전 프레임 타깃이 AnimGraph에 남지 않도록 기본값으로 되돌린다.
+	LeftHandIKEffectorTransform = FTransform::Identity;
+	LeftHandIKAlpha = 0.0f;
+	bHasLeftHandIKTarget = false;
 }
 
 void UPRAnimInstance::DetermineTargetTurnAngle()

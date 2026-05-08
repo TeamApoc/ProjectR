@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "Components/ActorComponent.h"
+#include "ProjectR/Weapon/Types/PRWeaponAnimationTypes.h"
 #include "ProjectR/Weapon/Types/PRWeaponTypes.h"
 #include "PRWeaponManagerComponent.generated.h"
 
@@ -100,14 +101,26 @@ public:
 	// 인벤토리에서 변경된 Mod 상태를 현재 관리 중인 무기 슬롯에 반영한다
 	void HandleInventoryWeaponModChanged(UPRItemInstance_Weapon* WeaponItem);
 
-	// 26.05.04, Yuchan, rpc 이펙트 재생 추가
+	// 26.05.04, Yuchan, rpc 이펙트 재생 추가 (AnimNotify에서 호출)
 	void PlayWeaponNiagaraEffect(EPRWeaponEffectType EffectType, UNiagaraSystem* InNiagaraSystem = nullptr);
-	
+
+	// Multicast 이펙트 재생 함수는 특수한 케이스에서 예외적으로 사용하고, 가급적 각자의 AnimNotify에서 로컬 버전 PlayWeaponNiagaraEffect 함수 호출
 	UFUNCTION(NetMulticast, Unreliable)
 	void Multicast_PlayWeaponNiagaraEffect(EPRWeaponEffectType EffectType, UNiagaraSystem* InNiagaraSystem = nullptr);
 
 	// 무기 장착 변경 델리게이트를 반환한다
 	FPRWeaponEquipmentChangedSignature& GetOnWeaponEquipmentChanged() { return OnWeaponEquipmentChanged; }
+  
+	// 활성 슬롯 무기 메시 애니메이션 상태 요청. 각 머신의 로컬 WeaponActor에서 실행
+	void RequestWeaponAnimation(EPRWeaponAnimationState AnimationState);
+
+	// 신뢰 멀티캐스트. 상태 전이가 누락되면 안 되는 케이스(Reload/Idle 복귀 등)에 사용
+	UFUNCTION(NetMulticast, Reliable)
+	void Multicast_RequestWeaponAnimation_Reliable(EPRWeaponAnimationState AnimationState);
+
+	// 비신뢰 멀티캐스트. 빈도 높고 누락 허용되는 케이스에 사용
+	UFUNCTION(NetMulticast, Unreliable)
+	void Multicast_RequestWeaponAnimation_Unreliable(EPRWeaponAnimationState AnimationState);
 	
 protected:
 	// 서버 권위에서 슬롯 원본과 공개 상태를 갱신한다
@@ -199,6 +212,10 @@ protected:
 
 	// 현재 활성 무기 데이터를 기준으로 캐릭터 애니메이션 레이어를 갱신한다
 	void RefreshAnimLayer();
+
+	// 무기 데이터의 EquipAmmoGE를 SetByCaller 자력값과 함께 ASC에 적용한다
+	// 슬롯의 AmmoScale·ReserveAmmoRatio 비율만 갱신하며, 탄창·예비탄 raw 자원은 보존한다
+	void ApplyEquipAmmoGE(const UPRWeaponDataAsset* WeaponData, UObject* SourceObject);
 
 private:
 	// 대상 슬롯 원본을 수정 가능한 참조로 반환한다

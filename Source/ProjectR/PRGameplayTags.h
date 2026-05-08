@@ -18,6 +18,9 @@ namespace PRGameplayTags
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Ability_Player_Crouch); // 플레이어 앉기 어빌리티
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Ability_Player_Aim); // 플레이어 에임 어빌리티
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Ability_Player_Sprint); // 플레이어 질주 어빌리티
+	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Ability_Player_Interaction); // 플레이어 상호작용 어빌리티
+	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Ability_Player_Reload); // 플레이어 재장전 어빌리티
+	
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Ability_Enemy_Pattern); // 일반 적 패턴 공통 루트
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Ability_Boss_Pattern); // 보스 패턴 공통 루트
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Ability_Boss_PhaseTransition); // 보스 페이즈 전환 공통 루트
@@ -53,6 +56,7 @@ namespace PRGameplayTags
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(State_Crouching); // 구르기 동작중
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(State_Aiming); // 에이밍 상태
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(State_Sprinting); // 질주 상태
+	UE_DECLARE_GAMEPLAY_TAG_EXTERN(State_Reloading); // 재장전 진행 상태
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(State_Channeling); // 캐스팅 또는 채널링 상태.
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(State_PhaseTransitioning); // 보스 페이즈 전환 상태.
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(State_Boss_WeakpointOpen_Core); // 보스 코어 약점 오픈 상태.
@@ -72,6 +76,7 @@ namespace PRGameplayTags
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Event_Player_Aim_Start); // 에이밍 진입
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Event_Player_Aim_End); // 에이밍 해제
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Event_Player_ChangeCrosshair); // 크로스헤어 Config 교체 (FPRChangeCrosshairEventPayload 동반)
+	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Event_Player_ReloadCommit); // 재장전 몽타주 노티파이가 발행하는 자원 이동 트리거
 
 	// ===== Cue.* — GameplayCue 식별 =====
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Cue_Critical_Boss_PhaseTransition); // 보스 페이즈 전환 연출 Cue
@@ -85,6 +90,7 @@ namespace PRGameplayTags
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Input_Ability_Aim); // 에임 입력 태그
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Input_Ability_Sprint); // 질주 입력 태그
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Input_Ability_Mod); // 모드 스킬 입력 태그
+	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Input_Ability_Reload); // 재장전 입력 태그
 	
 	// ===== Input.Locomotion.* — 플레이어 InputTag (Ability에 해당하지 않는 Input 키) =====
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Input_Locomotion_Walk)

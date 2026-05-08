@@ -81,9 +81,6 @@ protected:
 	// 지정한 무기 몽타주를 현재 어빌리티 컨텍스트에서 재생한다
 	void PlayWeaponMontage(UAnimMontage* Montage, float PlayRate);
 
-	// 현재 활성 무기 Actor에 발사 애니메이션 요청을 전달한다
-	void RequestCurrentWeaponShootAnimation() const;
-	
 	// 플레이어 무기 데미지 GE를 타겟에 적용한다. HitResult를 EffectContext에 포함시킨다
 	void ApplyDamage(AActor* TargetActor, const FHitResult* HitResult = nullptr);
 
@@ -122,7 +119,7 @@ protected:
 	float DebugDrawDuration = 1.0f;
 	
 	// 활성 무기 캐시 (활성화 시 1회 획득)
-	TWeakObjectPtr<APRWeaponActor> CurrentWeapon;
+	mutable TWeakObjectPtr<APRWeaponActor> CurrentWeapon;
 
 	// 로컬 단조 증가 ShotID (1부터)
 	uint32 NextShotId = 0;

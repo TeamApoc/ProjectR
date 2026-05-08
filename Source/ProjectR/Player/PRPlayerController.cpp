@@ -8,11 +8,12 @@
 #include "EnhancedInputComponent.h"
 #include "InputAction.h"
 #include "ProjectR/Game/PRCameraManager.h"
-#include "ProjectR/Character/PRPlayerCharacter.h"
 #include "ProjectR/Input/PRInputConfigDataAsset.h"
 #include "ProjectR/Projectile/PRProjectileManagerComponent.h"
 #include "ProjectR/UI/Components/PRUIControllerComponent.h"
 #include "ProjectR/UI/FloatingText/PRFloatingTextManager.h"
+#include "ProjectR/Interaction/PRInteractionSensor.h"
+#include "ProjectR/Interaction/PRInteractorComponent.h"
 
 
 APRPlayerController::APRPlayerController()
@@ -22,7 +23,9 @@ APRPlayerController::APRPlayerController()
 	ProjectileManager = CreateDefaultSubobject<UPRProjectileManagerComponent>(TEXT("ProjectileManager"));
 	FloatingTextManager = CreateDefaultSubobject<UPRFloatingTextManager>(TEXT("FloatingTextManager"));
 	// 2026.05.01 이건주 | UI 매니저 컴포넌트 추가 
-	UIManagerComponent = CreateDefaultSubobject<UPRUIControllerComponent>(TEXT("UIManagerComponent"));
+	UIControllerComponent = CreateDefaultSubobject<UPRUIControllerComponent>(TEXT("UIControllerComponent"));
+	InteractionSensor = CreateDefaultSubobject<UPRInteractionSensor>(TEXT("InteractionSensor"));
+	InteractorComponent = CreateDefaultSubobject<UPRInteractorComponent>(TEXT("InteractorComponent"));
 }
 
 // =====  APlayerController Interface =====
@@ -197,10 +200,10 @@ void APRPlayerController::ClientGrantReward_Implementation(const FPRRewardGrant&
 // ===== UI =====
 void APRPlayerController::OnInventoryInputStarted()
 {
-	if (!IsValid(UIManagerComponent))
+	if (!IsValid(UIControllerComponent))
 	{
 		return;
 	}
     // 인벤토리 UI 토글 
-	UIManagerComponent->ToggleInventory();
+	UIControllerComponent->ToggleInventory();
 }

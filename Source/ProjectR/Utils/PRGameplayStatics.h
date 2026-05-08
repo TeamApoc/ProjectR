@@ -6,6 +6,8 @@
 #include "Kismet/BlueprintFunctionLibrary.h"
 #include "PRGameplayStatics.generated.h"
 
+class UAbilitySystemComponent;
+class UPRAbilitySystemComponent;
 class UPRInventoryComponent;
 /**
  * 
@@ -22,4 +24,7 @@ public:
 	/** 액터의 InventoryComponent를 찾아 반환 */
 	UFUNCTION(BlueprintCallable, Category = "PR|Utils")
 	static UPRInventoryComponent* GetInventoryComponent(AActor* Actor);
+	
+	UFUNCTION(BlueprintCallable, Category = "PR|Utils")
+	static UAbilitySystemComponent* GetAbilitySystemComponent(AActor* Actor);
 };

@@ -17,6 +17,7 @@
 class APRWeaponActor;
 class USkeletalMesh;
 class UAnimMontage;
+class UGameplayEffect;
 
 // 무기 1종의 정적 장착 규칙과 기본 탄약 설정을 담는다
 UCLASS(BlueprintType)
@@ -26,6 +27,10 @@ class PROJECTR_API UPRWeaponDataAsset : public UPRItemDataAsset
 
 public:
 	UPRWeaponDataAsset();
+
+	// 탄약 타입 반환 (무기 슬롯 타입에 따름)
+	UFUNCTION(BlueprintPure)
+	EPRAmmoType GetAmmoType() const {return SlotType == EPRWeaponSlotType::Primary ? EPRAmmoType::Primary : EPRAmmoType::Secondary;}
 
 public:
 	// 무기 타입 분류
@@ -44,14 +49,22 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|01_Weapon")
 	EPRWeaponStowedSocketNames StowedSocketName;
 
-	// 슬롯 초기화 시 사용할 기본 탄창 잔탄
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|01_Weapon", meta = (ClampMin = "0"))
-	int32 DefaultMagazineAmmo = 0;
+	// 효율 단가. 탄창 baseline(100) 대비 표시 발수를 결정한다
+	// 1.0 = 100발 탄창 baseline, 3.33 = 약 30발 탄창, 16.7 = 약 6발 탄창
+	// 사격 시 raw 차감량 = 1발 × AmmoScale
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|01_Weapon|Ammo", meta = (ClampMin = "0.1"))
+	float AmmoScale = 1.0f;
 
-	// 슬롯 초기화 시 사용할 기본 예비 탄약
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|01_Weapon", meta = (ClampMin = "0"))
-	int32 DefaultReserveAmmo = 0;
+	// 보유 한도 비율. 탄창 baseline 대비 예비탄 한도 배수
+	// 5.0 = 탄창 5개분 예비탄 보유 가능
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|01_Weapon|Ammo", meta = (ClampMin = "0.0"))
+	float ReserveAmmoRatio = 5.0f;
 
+	// 무기 장착 GE 오버라이드. 비워두면 PRAbilitySystemRegistry의 슬롯별 EquipAmmoGE를 사용한다
+	// 특정 무기가 다른 장착 효과(예: 부분 충전, 다단 set)를 필요로 할 때만 지정
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|01_Weapon|Ammo")
+	TSubclassOf<UGameplayEffect> EquipAmmoGEOverride;
+	
 	// 슬롯 공개 비주얼 생성에 사용할 Actor 클래스
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|01_Weapon")
 	TSubclassOf<APRWeaponActor> WeaponActorClass;
@@ -72,18 +85,6 @@ public:
 	// 이 무기를 들었을 때 캐릭터에 적용할 애니메이션 레이어
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|01_Weapon")
 	TSubclassOf<UAnimInstance> WeaponAnimLayerClass;
-
-	// 이 무기가 왼손 IK 보정을 사용할지 결정한다
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|01_Weapon|Animation|IK")
-	bool bUseLeftHandIK = true;
-
-	// 왼손이 따라갈 무기 메시 소켓 이름이다
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|01_Weapon|Animation|IK")
-	FName LeftHandIKSocketName = FName(TEXT("Socket_LeftHandIK"));
-
-	// 무기 소켓 위치에서 추가로 적용할 왼손 보정 트랜스폼이다
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|01_Weapon|Animation|IK")
-	FTransform LeftHandIKOffset = FTransform::Identity;
 
 	// 이 무기의 카메라 반동과 크로스헤어 확산 데이터
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|01_Weapon|Recoil")

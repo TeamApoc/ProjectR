@@ -198,3 +198,11 @@ enum class EPRWeaponEffectType : uint8
 	ProjectileLaunch,
 	All,
 };
+
+// 05.07, Yuchan, 탄약 타입 정의 (주무기, 보조무기 2종류만 존재) 
+UENUM(BlueprintType)
+enum class EPRAmmoType : uint8
+{
+	Primary,
+	Secondary,
+};

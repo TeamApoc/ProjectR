@@ -19,6 +19,16 @@ enum class EPRProjectileRole : uint8
 	Auth,
 };
 
+/** 
+ * TODO: 발사한 Client는 예측을 사용하고, Remote Client는 Spawn 위치를 동기화 받기 때문에 둘 모두 총구 근처에서부터 발사되지만,
+ * 서버는 여전히 FastForward로 인해 총구보다 멀리서부터 발사되는 것처럼 보인다.
+ * 리슨서버이기에 모든 클라이언트의 투사체에 대해 시각용 액터를 따로 소환하는 것은 비용이 클 수 있으므로 우선 리슨 서버측의 부자연스러움은 감수하고 추후 방안 모색 (나이아가라 분리 등)
+ * 
+ * Projectile Type:
+ * ProjectileRole이 Auth이면서 HasAuthority() == true인 경우 Server initiated projectile
+ * ProjectileRole이 Auth이면서 HasAuthority() == false인 경우 Replicated
+ * ProjectileRole이 Predicted인 경우 Client측 Local Predicted Actor (이 액터의 HasAuthority는 true)
+ */
 UCLASS()
 class PROJECTR_API APRProjectileBase : public AActor
 {

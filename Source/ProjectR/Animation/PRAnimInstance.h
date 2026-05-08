@@ -8,6 +8,7 @@
 #include "ProjectR/Weapon/Types/PRWeaponTypes.h"
 #include "PRAnimInstance.generated.h"
 
+class APRWeaponActor;
 class APRPlayerCharacter;
 class UCharacterMovementComponent;
 
@@ -30,6 +31,13 @@ public:
 	/** 평가 이후 일회성 애니메이션 요청 상태를 정리한다 */
 	virtual void NativePostEvaluateAnimation() override;
 
+protected:
+	// 왼손 IK 적용 가능 여부를 확인
+	virtual bool ShouldApplyLeftHandIK() const;
+	
+	// 현재 장착 중인 무기 Actor를 반환
+	APRWeaponActor* GetActiveWeaponActor() const;
+	
 private:
 	void UpdateVelocity();
 	void UpdateAcceleration();

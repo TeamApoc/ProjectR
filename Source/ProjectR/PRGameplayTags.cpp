@@ -19,6 +19,7 @@ namespace PRGameplayTags
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Ability_Player_Aim, "Ability.Player.Aim", "플레이어 구르기 어빌리티");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Ability_Player_Sprint, "Ability.Player.Sprint", "플레이어 질주 어빌리티");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Ability_Player_Interaction, "Ability.Player.Interaction", "플레이어 상호작용 어빌리티");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Ability_Player_Reload, "Ability.Player.Reload", "플레이어 재장전 어빌리티");
 
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Ability_Enemy_Pattern, "Ability.Enemy.Pattern", "일반 적 패턴 공통 루트");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Ability_Boss_Pattern, "Ability.Boss.Pattern", "보스 패턴 공통 루트");
@@ -56,6 +57,7 @@ namespace PRGameplayTags
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(State_Crouching, "State.Crouching", "앉기 상태");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(State_Aiming, "State.Aiming", "에이밍 상태");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(State_Sprinting, "State.Sprinting", "질주 상태");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(State_Reloading, "State.Reloading", "재장전 진행 상태");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(State_Channeling, "State.Channeling", "캐스팅 또는 채널링 상태");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(State_PhaseTransitioning, "State.PhaseTransitioning", "보스 페이즈 전환 상태");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(State_Boss_WeakpointOpen_Core, "State.Boss.WeakpointOpen.Core", "보스 코어 약점 오픈 상태");
@@ -77,6 +79,7 @@ namespace PRGameplayTags
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Event_Player_Aim_Start, "Event.Player.Aim.Start", "에이밍 진입");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Event_Player_Aim_End, "Event.Player.Aim.End", "에이밍 해제");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Event_Player_ChangeCrosshair, "Event.Player.ChangeCrosshair", "크로스헤어 Config 교체");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Event_Player_ReloadCommit, "Event.Player.ReloadCommit", "재장전 자원 이동 트리거");
 
 	// ===== Cue.* =====
 
@@ -92,6 +95,7 @@ namespace PRGameplayTags
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Input_Ability_Aim, "Input.Ability.Aim", "에이밍 입력 태그");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Input_Ability_Sprint, "Input.Ability.Sprint", "질주 입력 태그");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Input_Ability_Mod, "Input.Ability.Mod", "모드 스킬 입력 태그");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Input_Ability_Reload, "Input.Ability.Reload", "재장전 입력 태그");
 
 	// ===== Input.Locomotion.* =====
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Input_Locomotion_Walk, "Input.Locomotion.Walk", "Walk 토글 입력 태그");

@@ -179,12 +179,25 @@ void UPRGA_Fire::FireHitScan()
 		return;
 	}
 
-	// 몽타쥬 재생
+	// 클라이언트 예측 cost 적용 (호스트는 ServerConfirmShot에서 단일 auth commit 처리하므로 제외)
+	// 예측 cost가 실패하면 발사 시도 자체를 차단하고 어빌리티 종료
+	const AActor* AvatarActor = Info.AvatarActor.Get();
+	const bool bHasAuthority = IsValid(AvatarActor) && AvatarActor->HasAuthority();
+	if (!bHasAuthority)
+	{
+		if (!CommitAbilityCost(CurrentSpecHandle, CurrentActorInfo, CurrentActivationInfo))
+		{
+			UE_LOG(LogFire, Verbose, TEXT("Client predicted cost failed (탄약 부족). 사격 차단."));
+			EndAbility(CurrentSpecHandle, CurrentActorInfo, CurrentActivationInfo, /*bReplicateEndAbility=*/true, /*bWasCancelled=*/true);
+			return;
+		}
+	}
+
+	// 몽타쥬 재생. 무기 메시 애니메이션은 몽타주 노티파이가 각 머신에서 로컬로 트리거한다
 	if (UPRWeaponDataAsset* WeaponData = GetActiveWeaponData())
 	{
 		PlayWeaponMontage(WeaponData->ShootMontage, WeaponData->ShootMontagePlayRate);
 	}
-	RequestCurrentWeaponShootAnimation();
 
 	// 페이로드 구성
 	FPRFireShotPayload Payload;
@@ -244,13 +257,11 @@ void UPRGA_Fire::FireHitScan()
 	}
 
 	// 권위가 있는 로컬(Standalone/ListenServer 호스트)은 RPC 없이 직접 확정
-	const AActor* AvatarActor = GetAvatarActorFromActorInfo();
-	const bool bHasAuthority = IsValid(AvatarActor) && AvatarActor->HasAuthority();
-
 	if (bHasAuthority)
 	{
 		ServerConfirmShot(Payload);
 	}
+	// 권위가 없는 클라는 서버에 보고
 	else
 	{
 		Server_ReportShot(Payload);
@@ -359,7 +370,15 @@ void UPRGA_Fire::ServerConfirmShot(const FPRFireShotPayload& Payload)
 {
 	UE_LOG(LogFire, Warning, TEXT("Server Confirm Shot. ShotID: %u"), Payload.ShotID);
 
-	// TODO: Cost GE 적용 (탄약 소모)
+	// GA의 CostGameplayEffectClass(MMC_AmmoCost 기반)를 적용해 슬롯 raw 탄창에서 cost × scale 차감
+	// CheckCost 실패 시 탄약 부족으로 간주해 데미지를 적용하지 않고 어빌리티 종료
+	if (!CommitAbilityCost(CurrentSpecHandle, CurrentActorInfo, CurrentActivationInfo))
+	{
+		UE_LOG(LogFire, Warning, TEXT("Cost commit failed (탄약 부족). ShotID: %u"), Payload.ShotID);
+		EndAbility(CurrentSpecHandle, CurrentActorInfo, CurrentActivationInfo, /*bReplicateEndAbility=*/true, /*bWasCancelled=*/true);
+		return;
+	}
+
 	// TODO: Tolerance 검증 + ShotId gap 감지
 
 	if (Payload.HasValidHitResult())
@@ -458,10 +477,3 @@ void UPRGA_Fire::PlayWeaponMontage(UAnimMontage* Montage, float PlayRate)
 	}
 }
 
-void UPRGA_Fire::RequestCurrentWeaponShootAnimation() const
-{
-	if (CurrentWeapon.IsValid())
-	{
-		CurrentWeapon->RequestShootAnimation();
-	}
-}

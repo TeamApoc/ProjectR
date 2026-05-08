@@ -18,6 +18,7 @@
 #include "ProjectR/Weapon/Components/PRWeaponManagerComponent.h"
 #include "ProjectR/Player/Components/PRActionInputRouterComponent.h"
 #include "ProjectR/Player/Components/PRSpringArmComponent.h"
+#include "ProjectR/Weapon/Actors/PRWeaponActor.h"
 
 
 // Sets default values
@@ -200,11 +201,22 @@ void APRPlayerCharacter::HandleGameplayTagUpdated(const FGameplayTag& ChangedTag
 	{
 		bIsAiming = bTagExists;
 		UpdateMaxWalkSpeed();
+		
+		if (APRWeaponActor* Weapon = WeaponManagerComponent->GetActiveWeaponActor())
+		{
+			Weapon->SetIsIKSuppressed(!bTagExists);
+		}
 	}
-
 	if (ChangedTag.MatchesTagExact(PRGameplayTags::State_Sprinting))
 	{
 		SetSprintingFromAbility(bTagExists);
+	}
+	if (ChangedTag.MatchesTagExact(PRGameplayTags::State_Armed))
+	{
+		if (APRWeaponActor* Weapon = WeaponManagerComponent->GetActiveWeaponActor())
+		{
+			Weapon->SetIsIKSuppressed(bTagExists);
+		}
 	}
 }
 

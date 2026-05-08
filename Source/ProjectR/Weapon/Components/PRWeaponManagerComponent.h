@@ -258,11 +258,11 @@ private:
 	TObjectPtr<APRWeaponActor> SecondaryWeaponActor;
 
 	// 현재 PlayerState에 연결된 ASC 캐시
-	TObjectPtr<UPRAbilitySystemComponent> CachedASC = nullptr;
+	TWeakObjectPtr<UPRAbilitySystemComponent> CachedASC = nullptr;
 
 	// 현재 PlayerState에 연결된 무기 슬롯 자원 캐시
-	TObjectPtr<UPRAttributeSet_Weapon> CachedWeaponSet = nullptr;
+	TWeakObjectPtr<UPRAttributeSet_Weapon> CachedWeaponSet = nullptr;
 
 	// 현재 PlayerState에 연결된 인벤토리 캐시
-	TObjectPtr<UPRInventoryComponent> CachedInventory = nullptr;
+	TWeakObjectPtr<UPRInventoryComponent> CachedInventory = nullptr;
 };

@@ -16,7 +16,7 @@ class UPRInputConfigDataAsset;
 class UPRAbilitySystemComponent;
 struct FInputActionValue;
 class UInputAction;
-class UPRUIManagerComponent;
+class UPRUIControllerComponent;
 class UPRInteractionSensor;
 
 // 플레이어 입력·UI 소유. Join 시 캐릭터 페이로드를 서버로 전송하고,
@@ -96,7 +96,7 @@ private:
     // ====== UI =====
 	// 로컬 플레이어 UI 표시 흐름을 담당하는 컴포넌트
 	UPROPERTY(VisibleAnywhere, Category = "ProjectR|UI")
-	TObjectPtr<UPRUIManagerComponent> UIManagerComponent;
+	TObjectPtr<UPRUIControllerComponent> UIControllerComponent;
 
 	// 주변 Interactable 감지, 포커스 후보 선정을 담당하는 컴포넌트 (로컬 컨트롤러 전용 동작)
 	UPROPERTY(VisibleAnywhere, Category = "ProjectR|Interaction")

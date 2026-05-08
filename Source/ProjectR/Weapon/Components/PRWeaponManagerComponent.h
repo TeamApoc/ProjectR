@@ -16,7 +16,10 @@ class UPRAttributeSet_Weapon;
 class UPRInventoryComponent;
 class UPRItemInstance_Weapon;
 class UPRWeaponDataAsset;
+class UPRWeaponManagerComponent;
 class UPRWeaponModDataAsset;
+
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FPRWeaponEquipmentChangedSignature, UPRWeaponManagerComponent*, WeaponManagerComponent, EPRWeaponSlotType, ChangedSlot);
 
 // 캐릭터 기준 무기 장착 공개 상태와 슬롯별 로컬 Actor 생명주기를 관리하는 허브다.
 UCLASS(ClassGroup = (ProjectR), meta = (BlueprintSpawnableComponent))
@@ -105,6 +108,9 @@ public:
 	UFUNCTION(NetMulticast, Unreliable)
 	void Multicast_PlayWeaponNiagaraEffect(EPRWeaponEffectType EffectType, UNiagaraSystem* InNiagaraSystem = nullptr);
 
+	// 무기 장착 변경 델리게이트를 반환한다
+	FPRWeaponEquipmentChangedSignature& GetOnWeaponEquipmentChanged() { return OnWeaponEquipmentChanged; }
+  
 	// 활성 슬롯 무기 메시 애니메이션 상태 요청. 각 머신의 로컬 WeaponActor에서 실행
 	void RequestWeaponAnimation(EPRWeaponAnimationState AnimationState);
 
@@ -156,6 +162,14 @@ protected:
 	// 새로 복제된 무장 상태를 기준으로 로컬 부착 상태를 갱신한다
 	UFUNCTION()
 	void OnRep_ArmedState(EPRArmedState OldArmedState);
+
+	// 새로 복제된 주무기 원본 Item 상태를 기준으로 UI 갱신 신호를 발행한다
+	UFUNCTION()
+	void OnRep_PrimaryWeaponInstance();
+
+	// 새로 복제된 보조무기 원본 Item 상태를 기준으로 UI 갱신 신호를 발행한다
+	UFUNCTION()
+	void OnRep_SecondaryWeaponInstance();
 
 	// 클라이언트 Item 장착 요청을 서버 권위 경로로 전달한다
 	UFUNCTION(Server, Reliable)
@@ -237,11 +251,11 @@ protected:
 	FPRWeaponVisualInfo SecondaryVisualInfo;
 
 	// 주무기 슬롯에 연결된 무기 Item 원본
-	UPROPERTY(Replicated, VisibleInstanceOnly, BlueprintReadOnly, Category = "ProjectR|Weapon", meta = (AllowPrivateAccess = "true"))
+	UPROPERTY(ReplicatedUsing = OnRep_PrimaryWeaponInstance, VisibleInstanceOnly, BlueprintReadOnly, Category = "ProjectR|Weapon", meta = (AllowPrivateAccess = "true"))
 	TObjectPtr<UPRItemInstance_Weapon> PrimaryWeaponInstance;
 
 	// 보조무기 슬롯에 연결된 무기 Item 원본
-	UPROPERTY(Replicated, VisibleInstanceOnly, BlueprintReadOnly, Category = "ProjectR|Weapon", meta = (AllowPrivateAccess = "true"))
+	UPROPERTY(ReplicatedUsing = OnRep_SecondaryWeaponInstance, VisibleInstanceOnly, BlueprintReadOnly, Category = "ProjectR|Weapon", meta = (AllowPrivateAccess = "true"))
 	TObjectPtr<UPRItemInstance_Weapon> SecondaryWeaponInstance;
 
 	// 현재 캐릭터 메시와 연결된 무기 애니메이션 레이어 클래스
@@ -265,4 +279,7 @@ private:
 
 	// 현재 PlayerState에 연결된 인벤토리 캐시
 	TObjectPtr<UPRInventoryComponent> CachedInventory = nullptr;
+
+	// 무기 슬롯 장착 상태가 변경되었을 때 알린다
+	FPRWeaponEquipmentChangedSignature OnWeaponEquipmentChanged;
 };

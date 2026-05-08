@@ -3,6 +3,8 @@
 
 #include "PRInventoryWidget.h"
 
+#include "GameFramework/PlayerController.h"
+#include "ProjectR/Character/PRPlayerCharacter.h"
 #include "ProjectR/Inventory/Components/PRInventoryComponent.h"
 #include "ProjectR/Inventory/Data/PRItemDataAsset.h"
 #include "ProjectR/Weapon/Components/PRWeaponManagerComponent.h"
@@ -12,6 +14,7 @@
 #include "ProjectR/Weapon/Items/PRItemInstance_Weapon.h"
 #include "ProjectR/UI/Inventory/PRInventoryItemListWidget.h"
 #include "ProjectR/UI/Inventory/PRItemSlotWidget.h"
+#include "ProjectR/UI/Preview/PRCharacterPreviewWidget.h"
 
 void UPRInventoryWidget::SetInventorySources(UPRInventoryComponent* InInventoryComponent, UPRWeaponManagerComponent* InWeaponManagerComponent)
 {
@@ -22,6 +25,7 @@ void UPRInventoryWidget::SetInventorySources(UPRInventoryComponent* InInventoryC
 
 	BindInventorySourceEvents();
 	RefreshInventoryView();
+	RefreshCharacterPreviewWidget();
 }
 
 /*~ UUserWidget Interface ~*/
@@ -38,6 +42,8 @@ void UPRInventoryWidget::NativeConstruct()
 	CloseItemList();
 	// 인벤토리 화면 갱신
 	RefreshInventoryView();
+	// 캐릭터 프리뷰 갱신
+	RefreshCharacterPreviewWidget();
 }
 
 void UPRInventoryWidget::NativeDestruct()
@@ -218,6 +224,7 @@ void UPRInventoryWidget::HandleInventoryChanged(UPRInventoryComponent* ChangedIn
 	}
 
 	RefreshInventoryView();
+	RefreshCharacterPreviewWidget();
 }
 
 void UPRInventoryWidget::HandleWeaponEquipmentChanged(UPRWeaponManagerComponent* ChangedWeaponManagerComponent, EPRWeaponSlotType ChangedSlot)
@@ -230,6 +237,7 @@ void UPRInventoryWidget::HandleWeaponEquipmentChanged(UPRWeaponManagerComponent*
 	}
 
 	RefreshInventoryView();
+	RefreshCharacterPreviewWidget();
 }
 
 void UPRInventoryWidget::OpenWeaponList(EPRWeaponSlotType TargetSlot)
@@ -372,6 +380,28 @@ void UPRInventoryWidget::RefreshInventoryView()
 	{
 		OpenModList(PendingModTargetWeaponItem);
 	}
+}
+
+void UPRInventoryWidget::RefreshCharacterPreviewWidget()
+{
+	if (!IsValid(CharacterPreviewWidget))
+	{
+		return;
+	}
+
+	APRPlayerCharacter* SourceCharacter = GetPreviewSourceCharacter();
+	CharacterPreviewWidget->SetPreviewSources(SourceCharacter, WeaponManagerComponent);
+}
+
+APRPlayerCharacter* UPRInventoryWidget::GetPreviewSourceCharacter() const
+{
+	APlayerController* OwningPlayerController = GetOwningPlayer();
+	if (!IsValid(OwningPlayerController))
+	{
+		return nullptr;
+	}
+
+	return Cast<APRPlayerCharacter>(OwningPlayerController->GetPawn());
 }
 
 FPRInventoryItemSlotViewData UPRInventoryWidget::BuildWeaponSlotViewData(EPRWeaponSlotType SlotType) const

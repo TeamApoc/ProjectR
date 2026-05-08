@@ -15,7 +15,9 @@ class UPRInventoryComponent;
 class UPRInventoryItemListWidget;
 class UPRItemInstance_Weapon;
 class UPRItemSlotWidget;
+class UPRCharacterPreviewWidget;
 class UPRWeaponManagerComponent;
+class APRPlayerCharacter;
 
 // 인벤토리 화면의 무기 슬롯과 아이템 선택 목록을 연결하는 최상위 위젯이다
 UCLASS(Abstract, BlueprintType)
@@ -112,6 +114,12 @@ private:
 	// 장착 슬롯과 열린 리스트를 현재 데이터 기준으로 갱신한다
 	void RefreshInventoryView();
 
+	// 캐릭터 프리뷰 위젯에 현재 플레이어 외형과 무기 상태 소스를 전달한다
+	void RefreshCharacterPreviewWidget();
+
+	// 프리뷰 기준이 되는 플레이어 캐릭터를 조회한다
+	APRPlayerCharacter* GetPreviewSourceCharacter() const;
+
 	// 무기 슬롯 뷰 데이터를 만든다
 	FPRInventoryItemSlotViewData BuildWeaponSlotViewData(EPRWeaponSlotType SlotType) const;
 
@@ -139,6 +147,10 @@ protected:
 	// UMG에서 바인딩할 아이템 리스트 위젯
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "ProjectR|Inventory")
 	TObjectPtr<UPRInventoryItemListWidget> ItemListWidget;
+
+	// UMG에서 바인딩할 캐릭터 프리뷰 위젯
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "ProjectR|Inventory")
+	TObjectPtr<UPRCharacterPreviewWidget> CharacterPreviewWidget;
 
 private:
 	// 아이템 보유 인벤토리 컴포넌트

@@ -35,6 +35,8 @@ void UPRItemSlotWidget::NativeOnInitialized()
 	RefreshNativeDisplay();
 	// 현재 표시 데이터로 툴팁 위젯을 갱신한다
 	RefreshTooltipWidget();
+	
+	EquippedIndicatorImage->SetVisibility(ESlateVisibility::Hidden);
 }
 
 FReply UPRItemSlotWidget::NativeOnMouseButtonDown(const FGeometry& InGeometry, const FPointerEvent& InMouseEvent)

@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "Engine/EngineTypes.h"
 #include "Engine/HitResult.h"
+#include "ProjectR/ProjectR.h"
 #include "PRProjectileTypes.generated.h"
 
 class APRProjectileBase;
@@ -87,13 +88,14 @@ enum class EPRPreviewEndReason : uint8
 	DistanceExceeded,
 };
 
-// 투사체 예측 경로 산출에 필요한 발사 파라미터 묶음. 무기/어빌리티가 채워서 컴포넌트에 주입
+// 투사체 예측 경로 산출에 필요한 발사 파라미터 묶음. 무기/어빌리티가 채워서 컴포넌트에 주입.
+// 기점 무기 액터는 본 구조체에 포함되지 않으며 컴포넌트의 별도 Setter로 주입됨
 USTRUCT(BlueprintType)
 struct FPRProjectilePreviewParams
 {
 	GENERATED_BODY()
 
-	// 초기 속력(cm/s). 기준 컴포넌트의 ForwardVector에 곱해져 초기 속도 벡터 구성
+	// 초기 속력(cm/s). 무기 머즐 트랜스폼의 ForwardVector에 곱해져 초기 속도 벡터 구성
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "ProjectR|Projectile|Preview", meta = (ClampMin = "0.0"))
 	float InitialSpeed = 3000.f;
 
@@ -109,9 +111,10 @@ struct FPRProjectilePreviewParams
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "ProjectR|Projectile|Preview", meta = (ClampMin = "0.0"))
 	float MaxDistance = 5000.f;
 
-	// 시뮬레이션 스텝 주기(초). 작을수록 정밀도 상승, 비용 증가. 권장 0.016 ~ 0.033
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "ProjectR|Projectile|Preview", meta = (ClampMin = "0.001"))
-	float SimFrequency = 0.0166f;
+	// 시뮬레이션 스텝 빈도(Hz). 클수록 정밀도 상승, 비용 증가. 권장 30 ~ 60.
+	// PredictProjectilePath 내부에서 SubstepDeltaTime = 1.f / SimFrequency 로 사용되므로 단위는 Hz임
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "ProjectR|Projectile|Preview", meta = (ClampMin = "1.0"))
+	float SimFrequency = 30.f;
 
 	// 충돌 검사 반지름(cm). 0이면 라인 트레이스, 양수면 스피어 트레이스
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "ProjectR|Projectile|Preview", meta = (ClampMin = "0.0"))
@@ -125,9 +128,10 @@ struct FPRProjectilePreviewParams
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "ProjectR|Projectile|Preview", meta = (ClampMin = "0"))
 	int32 MaxSamplePoints = 64;
 
-	// 충돌 채널. 무기 투사체 채널과 일치시켜 실제 비행과 동일한 대상에 충돌 처리
+	// 충돌 채널. 기본값은 프로젝트 Projectile 채널로, Projectile 콜리전 프로필을 가진 실제 투사체와 동일한 블록 대응을 따름.
+	// Visibility 채널은 Projectile 프로필이 무시하는 객체까지 막아 시각/실제 궤적이 어긋나므로 사용 금지
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "ProjectR|Projectile|Preview")
-	TEnumAsByte<ECollisionChannel> TraceChannel = ECC_Visibility;
+	TEnumAsByte<ECollisionChannel> TraceChannel = PRCollisionChannels::ECC_Projectile;
 };
 
 // 매 틱 산출되는 궤적 결과 캐시. 외부에서 조회 가능

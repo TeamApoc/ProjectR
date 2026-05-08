@@ -140,17 +140,6 @@ void APRProjectileBase::HandleRepCorrection()
 		HandleRepSpawn();
 	}
 	
-	// 링크된 예측 투사체가 아직 남아 있는 경우
-	if (LinkedCounterpart.IsValid())
-	{
-		// 예측 투사체 파괴
-		LinkedCounterpart->Destroy();
-		
-		// 가시성 복구
-		SetActorHiddenInGame(false);
-		SetActorEnableCollision(true);
-	}
-	
 	// Location, Rotation, Velocity를 서버 기준으로 동기화
 	SetActorLocation(RepMovement.Location);
 	SetActorRotation(RepMovement.Rotation);
@@ -162,6 +151,17 @@ void APRProjectileBase::HandleRepCorrection()
 
 	if (RepMovement.Event == EPRRepMovementEvent::Detonation)
 	{
+		// 링크된 예측 투사체가 아직 남아 있는 경우
+		if (LinkedCounterpart.IsValid())
+		{
+			// 예측 투사체 파괴
+			LinkedCounterpart->Destroy();
+		
+			// 가시성 복구
+			SetActorHiddenInGame(false);
+			SetActorEnableCollision(true);
+		}
+		
 		DestroyProjectile();
 	}
 }
@@ -220,11 +220,6 @@ void APRProjectileBase::BeginPlay()
 			}
 		}
 		return;
-	}
-	else if (!HasAuthority() && GetProjectileRole() == EPRProjectileRole::Auth)
-	{
-		// 예측 클라측은 감춤
-		SetActorHiddenInGame(true);
 	}
 
 #if WITH_EDITOR
@@ -359,6 +354,12 @@ void APRProjectileBase::LinkCounterpart(APRProjectileBase* InCounterpart)
 		InCounterpart->LinkCounterpart(this);
 	}
 	bIsLinked = true;
+	
+	if (GetProjectileRole() == EPRProjectileRole::Auth && LinkedCounterpart.IsValid())
+	{
+		// 예측 클라측은 감춤
+		SetActorHiddenInGame(true);	
+	}
 }
 
 void APRProjectileBase::TryLinkToPredictedOnClient()
@@ -396,11 +397,10 @@ void APRProjectileBase::OnSphereHit(UPrimitiveComponent* HitComponent, AActor* O
 	
 	if (GetProjectileRole() == EPRProjectileRole::Predicted)
 	{
-		// 예측 투사체가 먼저 Hit에 성공한 경우
-		if (LinkedCounterpart.IsValid())
+		if (!ProjectileMovementComponent->ShouldBounce(Hit))
 		{
-			// Bounce가 아닌 경우 (파괴 이벤트인 경우) 권위 투사체로 가시성을 전환
-			if (!ProjectileMovementComponent->ShouldBounce(Hit))
+			// 예측 투사체가 먼저 Hit에 성공한 경우
+			if (LinkedCounterpart.IsValid())
 			{
 				LinkedCounterpart->SetActorHiddenInGame(false);
 				Destroy();

@@ -119,7 +119,7 @@ protected:
 	float DebugDrawDuration = 1.0f;
 	
 	// 활성 무기 캐시 (활성화 시 1회 획득)
-	TWeakObjectPtr<APRWeaponActor> CurrentWeapon;
+	mutable TWeakObjectPtr<APRWeaponActor> CurrentWeapon;
 
 	// 로컬 단조 증가 ShotID (1부터)
 	uint32 NextShotId = 0;

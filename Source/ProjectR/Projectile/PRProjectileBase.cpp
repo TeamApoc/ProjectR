@@ -140,6 +140,17 @@ void APRProjectileBase::HandleRepCorrection()
 		HandleRepSpawn();
 	}
 	
+	// 링크된 예측 투사체가 아직 남아 있는 경우
+	if (LinkedCounterpart.IsValid())
+	{
+		// 예측 투사체 파괴
+		LinkedCounterpart->Destroy();
+		
+		// 가시성 복구
+		SetActorHiddenInGame(false);
+		SetActorEnableCollision(true);
+	}
+	
 	// Location, Rotation, Velocity를 서버 기준으로 동기화
 	SetActorLocation(RepMovement.Location);
 	SetActorRotation(RepMovement.Rotation);
@@ -148,7 +159,7 @@ void APRProjectileBase::HandleRepCorrection()
 	{
 		ProjectileMovementComponent->Velocity = RepMovement.Velocity;
 	}
-	
+
 	if (RepMovement.Event == EPRRepMovementEvent::Detonation)
 	{
 		DestroyProjectile();
@@ -383,43 +394,57 @@ void APRProjectileBase::OnSphereHit(UPrimitiveComponent* HitComponent, AActor* O
 		return;
 	}
 	
-	if (HitActors.Contains(OtherActor))
-	{
-		return;
-	}
-	HitActors.Add(OtherActor);
-	
 	if (GetProjectileRole() == EPRProjectileRole::Predicted)
 	{
 		// 예측 투사체가 먼저 Hit에 성공한 경우
 		if (LinkedCounterpart.IsValid())
 		{
-			// 권위 투사체로 가시성을 전환
-			LinkedCounterpart->SetActorHiddenInGame(false);
-			Destroy();
-			return;
+			// Bounce가 아닌 경우 (파괴 이벤트인 경우) 권위 투사체로 가시성을 전환
+			if (!ProjectileMovementComponent->ShouldBounce(Hit))
+			{
+				LinkedCounterpart->SetActorHiddenInGame(false);
+				Destroy();
+			}
 		}
 	}
-	
-	if (GetProjectileRole() == EPRProjectileRole::Auth)
+	else if (GetProjectileRole() == EPRProjectileRole::Auth)
 	{
-		// 권위 투사체가 먼저 Hit에 성공한 경우
-		if (LinkedCounterpart.IsValid())
+		if (!ProjectileMovementComponent->ShouldBounce(Hit))
 		{
-			// 예측 투사체를 즉시 파괴
-			LinkedCounterpart->Destroy();
+			// 예측 투사체가 존재하고, 권위 투사체가 먼저 Hit에 성공한 경우
+			if (LinkedCounterpart.IsValid())
+			{
+				// 가시성 복구
+				SetActorHiddenInGame(false);
+				SetActorEnableCollision(true);
+			
+				// 예측 투사체를 즉시 파괴
+				LinkedCounterpart->Destroy();
+			}
+		}
+		
+		// Replicate된 투사체인 경우
+		if (HasAuthority())
+		{
+			if (!HitActors.Contains(OtherActor))
+			{
+				HandleHit(HitComponent,OtherActor, OtherComp, NormalImpulse, Hit);
+			}
+			HitActors.Add(OtherActor);
+			
+			if (!ProjectileMovementComponent->ShouldBounce(Hit))
+			{
+				DestroyProjectile();	
+			}
+			// TODO: 권위 투사체의 첫 복제 전 바로 파괴되어 버린 경우 Remote의 파괴 이펙트 보장 필요
 		}
 	}
-	
-	HandleHit(HitComponent,OtherActor, OtherComp, NormalImpulse, Hit);
-	
-	// TODO: 권위 투사체의 첫 복제 전 바로 파괴되어 버린 경우 Remote의 파괴 이펙트 보장 필요
 }
 
 void APRProjectileBase::HandleHit_Implementation(UPrimitiveComponent* HitComponent, AActor* OtherActor,
 	UPrimitiveComponent* OtherComp, FVector NormalImpulse, const FHitResult& Hit)
 {
-	DestroyProjectile();
+	
 }
 
 void APRProjectileBase::DrawDebugs(float DeltaSeconds)

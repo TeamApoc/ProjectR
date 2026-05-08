@@ -578,6 +578,7 @@ bool UPRWeaponManagerComponent::EquipWeaponInternal(UPRItemInstance_Weapon* Weap
 		*UEnum::GetValueAsString(CurrentWeaponSlot));
 
 	// 장착 성공. 원본 슬롯, 활성 슬롯, 공개 비주얼, 로컬 Actor 갱신 마침
+	OnWeaponEquipmentChanged.Broadcast(this, WeaponSlot);
 	return true;
 }
 
@@ -696,6 +697,7 @@ bool UPRWeaponManagerComponent::UnequipWeaponFromSlotInternal(EPRWeaponSlotType 
 		*UEnum::GetValueAsString(CurrentWeaponSlot));
 	
 	// 해제 성공. 원본 슬롯, 활성 슬롯, 공개 비주얼, 로컬 Actor 갱신 마침
+	OnWeaponEquipmentChanged.Broadcast(this, TargetSlot);
 	return true;
 }
 
@@ -1086,6 +1088,16 @@ void UPRWeaponManagerComponent::OnRep_ArmedState(EPRArmedState OldArmedState)
 
 	// 무장 상태 변화에 맞춰 두 슬롯의 Actor와 부착 상태 갱신
 	RefreshAllWeaponActors();
+}
+
+void UPRWeaponManagerComponent::OnRep_PrimaryWeaponInstance()
+{
+	OnWeaponEquipmentChanged.Broadcast(this, EPRWeaponSlotType::Primary);
+}
+
+void UPRWeaponManagerComponent::OnRep_SecondaryWeaponInstance()
+{
+	OnWeaponEquipmentChanged.Broadcast(this, EPRWeaponSlotType::Secondary);
 }
 
 void UPRWeaponManagerComponent::Server_EquipWeapon_Implementation(UPRItemInstance_Weapon* WeaponItem)

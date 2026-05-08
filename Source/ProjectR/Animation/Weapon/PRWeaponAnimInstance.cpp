@@ -50,7 +50,7 @@ void UPRWeaponAnimInstance::PlayShoot()
 		
 		if (IsValid(WeaponActor))
 		{
-			WeaponActor->SetIsIKSuppressed(true);
+			WeaponActor->SetIsIKSuppressed(false);
 		}
 	}
 }

@@ -34,10 +34,6 @@ UPRGA_Fire::UPRGA_Fire()
 void UPRGA_Fire::ActivateAbility(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo,
 	const FGameplayAbilityActivationInfo ActivationInfo, const FGameplayEventData* TriggerEventData)
 {
-	Super::ActivateAbility(Handle, ActorInfo, ActivationInfo, TriggerEventData);
-
-	ResetConsecutiveShots();
-
 	if (APRPlayerCharacter* PlayerCharacter = GetPRCharacter<APRPlayerCharacter>())
 	{
 		if (UPRWeaponManagerComponent* WeaponManager = PlayerCharacter->GetWeaponManager())
@@ -45,7 +41,9 @@ void UPRGA_Fire::ActivateAbility(const FGameplayAbilitySpecHandle Handle, const 
 			CurrentWeapon = WeaponManager->GetActiveWeaponActor();
 		}
 	}
-
+	
+	Super::ActivateAbility(Handle, ActorInfo, ActivationInfo, TriggerEventData);
+	ResetConsecutiveShots();
 	NextShotId = 0;
 }
 
@@ -61,6 +59,17 @@ void UPRGA_Fire::EndAbility(const FGameplayAbilitySpecHandle Handle, const FGame
 FVector UPRGA_Fire::GetMuzzleLocation() const
 {
 	// !!! 임시 코드 !!!
+	if (!CurrentWeapon.IsValid())
+	{
+		if (APRPlayerCharacter* PlayerCharacter = GetPRCharacter<APRPlayerCharacter>())
+		{
+			if (UPRWeaponManagerComponent* WeaponManager = PlayerCharacter->GetWeaponManager())
+			{
+				CurrentWeapon = WeaponManager->GetActiveWeaponActor();
+			}
+		}
+	}
+	
 	if (CurrentWeapon.IsValid())
 	{
 		return CurrentWeapon->GetMuzzleTransform().GetLocation();

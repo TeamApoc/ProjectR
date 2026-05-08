@@ -19,6 +19,8 @@ struct FInputActionValue;
 //무기 테스트용
 class UPRWeaponDataAsset;
 
+DECLARE_MULTICAST_DELEGATE_OneParam(FPRPlayerLandedSignature, const FHitResult&);
+
 UCLASS()
 class PROJECTR_API APRPlayerCharacter : public APRCharacterBase
 {
@@ -63,6 +65,9 @@ public:
 protected:
 	virtual void BeginPlay() override;
 	virtual void SetupPlayerInputComponent(class UInputComponent* PlayerInputComponent) override;
+
+	/*~ ACharacter Interface ~*/
+	virtual void Landed(const FHitResult& Hit) override;
 	
 	/*~ APRCharacterBase Interface ~*/
 	virtual void HandleGameplayTagUpdated(const FGameplayTag& ChangedTag, bool bTagExists) override;
@@ -87,6 +92,9 @@ private:
     void OnRep_IsSprinting();
 
 public:
+	/** 플레이어 착지 이벤트를 C++ 시스템에 전달한다 */
+	FPRPlayerLandedSignature OnPlayerLanded;
+
 	/** 컴포넌트 */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Camera")
 	TObjectPtr<UPRSpringArmComponent> CameraBoom;

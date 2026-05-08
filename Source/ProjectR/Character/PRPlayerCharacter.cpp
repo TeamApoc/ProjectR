@@ -191,6 +191,13 @@ void APRPlayerCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputC
 	// NOTE: PRPlayerController의 SetupInputComponent 에서 Ability Input을 바인딩함
 }
 
+void APRPlayerCharacter::Landed(const FHitResult& Hit)
+{
+	Super::Landed(Hit);
+
+	OnPlayerLanded.Broadcast(Hit);
+}
+
 void APRPlayerCharacter::HandleGameplayTagUpdated(const FGameplayTag& ChangedTag, bool bTagExists)
 {
 	Super::HandleGameplayTagUpdated(ChangedTag, bTagExists);

@@ -21,7 +21,7 @@ namespace
 		return FMath::Clamp(Threshold, MinThreshold, MaxThreshold);
 	}
 
-	FGameplayTag ResolveHitReactEventTag(float OldPoiseDamage, float NewPoiseDamage,
+	FGameplayTag ResolveHitReactEventTag(float OldPoiseDamage, float NewPoiseDamage, float IncomingPoiseDamage,
 		float WeakHitReactThreshold, float StrongHitReactThreshold, float DownHitReactThreshold)
 	{
 		if (OldPoiseDamage < DownHitReactThreshold && NewPoiseDamage >= DownHitReactThreshold)
@@ -34,7 +34,7 @@ namespace
 			return PRGameplayTags::Event_Ability_PlayerHitReact_Strong;
 		}
 
-		if (OldPoiseDamage < WeakHitReactThreshold && NewPoiseDamage >= WeakHitReactThreshold)
+		if (IncomingPoiseDamage < WeakHitReactThreshold)
 		{
 			return PRGameplayTags::Event_Ability_PlayerHitReact_Weak;
 		}
@@ -60,6 +60,7 @@ namespace
 		const FGameplayTag EventTag = ResolveHitReactEventTag(
 			OldPoiseDamage,
 			NewPoiseDamage,
+			IncomingPoiseDamage,
 			WeakHitReactThreshold,
 			StrongHitReactThreshold,
 			DownHitReactThreshold);

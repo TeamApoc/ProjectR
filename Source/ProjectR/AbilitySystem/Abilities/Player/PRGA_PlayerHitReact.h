@@ -58,9 +58,6 @@ protected:
 	UFUNCTION()
 	void HandleHitReactMontageInterrupted();
 
-	// 플레이어가 다운 중 착지했을 때 Land 섹션 진입을 예약하거나 실행한다.
-	void HandlePlayerLanded(const FHitResult& Hit);
-
 	// 다운 몽타주의 섹션 전환을 감지하고 착지 여부에 따라 다음 섹션을 결정한다.
 	void HandleDownMontageSectionChanged(UAnimMontage* Montage, FName SectionName, bool bLooped);
 
@@ -79,17 +76,35 @@ protected:
 	// 리액션 타입에 맞춰 기존 플레이어 행동을 취소한다.
 	void CancelActionsForHitReact(EPRPlayerHitReactType HitReactType);
 
-	// 다운 리액션의 착지 이벤트 구독과 초기 상태를 설정한다.
-	void StartDownHitReact(APRPlayerCharacter* PlayerCharacter);
+	// 다운 리액션의 초기 상태를 설정한다.
+	void StartDownHitReact();
 
 	// 다운 리액션에서 사용하는 몽타주 섹션 연결과 전환 콜백을 설정한다.
 	void ConfigureDownMontageFlow();
 
+	// 다운 낙하 반복 섹션이 착지 전까지 유지되도록 섹션 연결을 갱신한다.
+	void RefreshDownMontageSectionFlow();
+
+	// 다운 몽타주가 재생 중일 때 바닥 감지를 시작한다.
+	void StartDownGroundCheck();
+
+	// 다운 바닥 감지를 중지한다.
+	void StopDownGroundCheck();
+
+	// 다운 몽타주가 재생 중이면 바닥 감지를 갱신한다.
+	void CheckDownGround();
+
+	// 다운 몽타주가 현재 재생 중인지 반환한다.
+	bool IsDownMontagePlaying() const;
+
+	// 캡슐 아래에 착지할 바닥이 있는지 반환한다.
+	bool HasGroundBelowForDownHitReact() const;
+
+	// 다운 착지 섹션 진입을 요청한다.
+	void RequestDownLand();
+
 	// 다운 리액션 상태와 이벤트 구독을 정리한다.
 	void ClearDownHitReact();
-
-	// 현재 플레이어가 지면 위에 있는지 반환한다.
-	bool IsPlayerMovingOnGround() const;
 
 	// 다운 몽타주의 지정 섹션으로 이동한다.
 	void JumpToDownSection(FName SectionName);
@@ -152,23 +167,32 @@ protected:
 	float MontageStopBlendOutTime = 0.15f;
 
 private:
+	// 현재 재생 중인 피격 리액션 몽타주 태스크다.
 	UPROPERTY(Transient)
 	TObjectPtr<UAbilityTask_PlayMontageAndWait> ActiveMontageTask;
 
+	// 섹션 제어와 종료 정리에 사용할 현재 피격 리액션 몽타주다.
 	UPROPERTY(Transient)
 	TObjectPtr<UAnimMontage> ActiveHitReactMontage;
 
+	// 몽타주, 무기 상태, 캡슐 바닥 감지에 접근할 플레이어 캐릭터다.
 	TWeakObjectPtr<APRPlayerCharacter> ActivePlayerCharacter;
 
-	FDelegateHandle PlayerLandedDelegateHandle;
+	// 다운 FallLoop 구간에서 바닥 감지를 반복하는 타이머다.
+	FTimerHandle DownGroundCheckTimerHandle;
 
+	// 현재 처리 중인 피격 리액션 타입이다.
 	EPRPlayerHitReactType ActiveHitReactType = EPRPlayerHitReactType::None;
 
+	// 다운 몽타주 안에서 현재 머무는 섹션 단계다.
 	EPRPlayerDownHitReactPhase DownHitReactPhase = EPRPlayerDownHitReactPhase::None;
 
+	// 몽타주 콜백과 Ability 종료가 중복 실행되는 것을 막는다.
 	bool bHitReactFinished = false;
 
+	// FallLoop에서 Land 섹션으로 넘어가야 하는지 나타낸다.
 	bool bDownLandRequested = false;
 
+	// Strong, Down 행동불능 태그를 이 Ability가 직접 부여했는지 나타낸다.
 	bool bActionLockTagAdded = false;
 };

@@ -6,20 +6,39 @@
 #include "Abilities/Tasks/AbilityTask_PlayMontageAndWait.h"
 #include "Animation/AnimInstance.h"
 #include "Animation/AnimMontage.h"
+#include "Components/CapsuleComponent.h"
 #include "Components/SkeletalMeshComponent.h"
+#include "Engine/World.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "ProjectR/Character/PRPlayerCharacter.h"
 #include "ProjectR/PRGameplayTags.h"
 #include "ProjectR/Weapon/Components/PRWeaponManagerComponent.h"
 #include "ProjectR/Weapon/Data/PRWeaponDataAsset.h"
+#include "TimerManager.h"
 
+namespace
+{
+	// 다운 FallLoop에 들어간 뒤 바닥을 확인하는 주기다.
+	constexpr float DownGroundCheckInterval = 0.05f;
+
+	// 캡슐 하단에서 이 거리만큼 아래를 훑어 착지 가능한 바닥을 찾는다.
+	constexpr float DownGroundCheckDistance = 20.0f;
+
+	// 너무 가파른 면을 바닥으로 처리하지 않기 위한 최소 법선 Z 값이다.
+	constexpr float DownGroundWalkableNormalZ = 0.5f;
+}
+
+// 피격 리액션 Ability의 태그, 트리거, 실행 정책을 초기화한다.
 UPRGA_PlayerHitReact::UPRGA_PlayerHitReact()
 {
+	// AttributeSet에서 발행한 피격 리액션 이벤트만 이 Ability를 깨운다.
 	FGameplayTagContainer DefaultAbilityTags;
 	DefaultAbilityTags.AddTag(PRGameplayTags::Ability_Player_HitReact);
 	SetAssetTags(DefaultAbilityTags);
 	ActivationBlockedTags.AddTag(PRGameplayTags::State_Dead);
+	ActivationOwnedTags.AddTag(PRGameplayTags::State_PlayerInputLocked);
 
+	// 피격 리액션 중 새 액션이 끼어들지 않도록 기본 차단 태그를 둔다.
 	BlockAbilitiesWithTag.AddTag(PRGameplayTags::Ability_Player_Weapon_Fire_Primary);
 	BlockAbilitiesWithTag.AddTag(PRGameplayTags::Ability_Player_Aim);
 	BlockAbilitiesWithTag.AddTag(PRGameplayTags::Ability_Player_Crouch);
@@ -49,6 +68,7 @@ UPRGA_PlayerHitReact::UPRGA_PlayerHitReact()
 	bRetriggerInstancedAbility = true;
 }
 
+// 피격 리액션 이벤트를 해석하고, 행동 취소와 몽타주 재생을 시작한다.
 void UPRGA_PlayerHitReact::ActivateAbility(const FGameplayAbilitySpecHandle Handle,
 	const FGameplayAbilityActorInfo* ActorInfo,
 	const FGameplayAbilityActivationInfo ActivationInfo,
@@ -74,6 +94,7 @@ void UPRGA_PlayerHitReact::ActivateAbility(const FGameplayAbilitySpecHandle Hand
 	ActivePlayerCharacter = Cast<APRPlayerCharacter>(GetAvatarActorFromActorInfo());
 	CancelActionsForHitReact(HitReactType);
 
+	// 이벤트 타입을 실제 재생할 몽타주로 변환한다.
 	UAnimMontage* HitReactMontage = SelectHitReactMontage(HitReactType);
 	if (!IsValid(HitReactMontage))
 	{
@@ -102,7 +123,8 @@ void UPRGA_PlayerHitReact::ActivateAbility(const FGameplayAbilitySpecHandle Hand
 	StartActionLock(HitReactType);
 	if (HitReactType == EPRPlayerHitReactType::Down)
 	{
-		StartDownHitReact(ActivePlayerCharacter.Get());
+		// 다운은 하나의 몽타주 안에서 Start, FallLoop, Land, GetUp 섹션을 직접 제어한다.
+		StartDownHitReact();
 	}
 
 	ActiveHitReactMontage = HitReactMontage;
@@ -128,10 +150,12 @@ void UPRGA_PlayerHitReact::ActivateAbility(const FGameplayAbilitySpecHandle Hand
 	ActiveMontageTask->ReadyForActivation();
 	if (HitReactType == EPRPlayerHitReactType::Down)
 	{
+		// 몽타주가 실제로 시작된 뒤 섹션 연결을 덮어써 에셋 기본 체인의 영향을 줄인다.
 		ConfigureDownMontageFlow();
 	}
 }
 
+// 피격 리액션 종료 시 태그, 타이머, 몽타주 태스크를 정리한다.
 void UPRGA_PlayerHitReact::EndAbility(const FGameplayAbilitySpecHandle Handle,
 	const FGameplayAbilityActorInfo* ActorInfo,
 	const FGameplayAbilityActivationInfo ActivationInfo,
@@ -161,32 +185,21 @@ void UPRGA_PlayerHitReact::EndAbility(const FGameplayAbilitySpecHandle Handle,
 	Super::EndAbility(Handle, ActorInfo, ActivationInfo, bReplicateEndAbility, bWasCancelled);
 }
 
+// 피격 리액션 몽타주가 정상 종료되었을 때 Ability를 마무리한다.
 void UPRGA_PlayerHitReact::HandleHitReactMontageCompleted()
 {
 	ClearActionLock();
 	FinishHitReact(false);
 }
 
+// 피격 리액션 몽타주가 취소되거나 끊겼을 때 Ability를 취소 종료한다.
 void UPRGA_PlayerHitReact::HandleHitReactMontageInterrupted()
 {
 	ClearActionLock();
 	FinishHitReact(true);
 }
 
-void UPRGA_PlayerHitReact::HandlePlayerLanded(const FHitResult&)
-{
-	if (ActiveHitReactType != EPRPlayerHitReactType::Down || bHitReactFinished)
-	{
-		return;
-	}
-
-	bDownLandRequested = true;
-	if (DownHitReactPhase == EPRPlayerDownHitReactPhase::FallLoop)
-	{
-		JumpToDownSection(DownLandSectionName);
-	}
-}
-
+// 다운 몽타주의 현재 섹션을 추적하고 착지 감지 시작과 Land 전환을 처리한다.
 void UPRGA_PlayerHitReact::HandleDownMontageSectionChanged(UAnimMontage* Montage, FName SectionName, bool)
 {
 	if (ActiveHitReactType != EPRPlayerHitReactType::Down
@@ -199,16 +212,22 @@ void UPRGA_PlayerHitReact::HandleDownMontageSectionChanged(UAnimMontage* Montage
 	if (SectionName == DownStartSectionName)
 	{
 		DownHitReactPhase = EPRPlayerDownHitReactPhase::Start;
+		RefreshDownMontageSectionFlow();
 		return;
 	}
 
 	if (SectionName == DownFallLoopSectionName)
 	{
 		DownHitReactPhase = EPRPlayerDownHitReactPhase::FallLoop;
-		if (bDownLandRequested || IsPlayerMovingOnGround())
+		RefreshDownMontageSectionFlow();
+		if (bDownLandRequested)
 		{
 			JumpToDownSection(DownLandSectionName);
+			return;
 		}
+
+		// 루트모션 중에는 CharacterMovement의 Falling 상태를 신뢰하기 어려워 여기서부터 직접 바닥을 감지한다.
+		StartDownGroundCheck();
 		return;
 	}
 
@@ -216,6 +235,7 @@ void UPRGA_PlayerHitReact::HandleDownMontageSectionChanged(UAnimMontage* Montage
 	{
 		DownHitReactPhase = EPRPlayerDownHitReactPhase::Land;
 		bDownLandRequested = false;
+		StopDownGroundCheck();
 		return;
 	}
 
@@ -225,6 +245,7 @@ void UPRGA_PlayerHitReact::HandleDownMontageSectionChanged(UAnimMontage* Montage
 	}
 }
 
+// GameplayEvent 태그를 피격 리액션 타입으로 변환한다.
 EPRPlayerHitReactType UPRGA_PlayerHitReact::ResolveHitReactType(const FGameplayEventData* TriggerEventData) const
 {
 	if (TriggerEventData == nullptr)
@@ -250,6 +271,7 @@ EPRPlayerHitReactType UPRGA_PlayerHitReact::ResolveHitReactType(const FGameplayE
 	return EPRPlayerHitReactType::None;
 }
 
+// 피격 리액션 타입에 맞는 몽타주 선택 함수로 분기한다.
 UAnimMontage* UPRGA_PlayerHitReact::SelectHitReactMontage(EPRPlayerHitReactType HitReactType) const
 {
 	if (HitReactType == EPRPlayerHitReactType::Weak)
@@ -270,6 +292,7 @@ UAnimMontage* UPRGA_PlayerHitReact::SelectHitReactMontage(EPRPlayerHitReactType 
 	return nullptr;
 }
 
+// 현재 무기 타입에 맞는 약한 경직 몽타주를 선택한다.
 UAnimMontage* UPRGA_PlayerHitReact::SelectWeakHitReactMontage() const
 {
 	const APRPlayerCharacter* PlayerCharacter = Cast<APRPlayerCharacter>(GetAvatarActorFromActorInfo());
@@ -306,6 +329,7 @@ UAnimMontage* UPRGA_PlayerHitReact::SelectWeakHitReactMontage() const
 	return UnarmedWeakHitReactMontage.Get();
 }
 
+// 현재 무기 타입에 맞는 강한 경직 몽타주를 선택한다.
 UAnimMontage* UPRGA_PlayerHitReact::SelectStrongHitReactMontage() const
 {
 	const APRPlayerCharacter* PlayerCharacter = Cast<APRPlayerCharacter>(GetAvatarActorFromActorInfo());
@@ -330,7 +354,7 @@ UAnimMontage* UPRGA_PlayerHitReact::SelectStrongHitReactMontage() const
 	}
 
 	const EPRWeaponType WeaponType = IsValid(WeaponData) ? WeaponData->WeaponType : EPRWeaponType::None;
-	if (const TObjectPtr<UAnimMontage>* FoundMontage = WeakHitReactMontages.Find(WeaponType))
+	if (const TObjectPtr<UAnimMontage>* FoundMontage = StrongHitReactMontages.Find(WeaponType))
 	{
 		UAnimMontage* SelectedMontage = FoundMontage->Get();
 		if (IsValid(SelectedMontage))
@@ -342,6 +366,7 @@ UAnimMontage* UPRGA_PlayerHitReact::SelectStrongHitReactMontage() const
 	return UnarmedStrongHitReactMontage.Get();
 }
 
+// 피격 리액션 타입에 따라 현재 진행 중인 플레이어 행동 Ability를 취소한다.
 void UPRGA_PlayerHitReact::CancelActionsForHitReact(EPRPlayerHitReactType HitReactType)
 {
 	UAbilitySystemComponent* ASC = GetAbilitySystemComponentFromActorInfo();
@@ -366,19 +391,14 @@ void UPRGA_PlayerHitReact::CancelActionsForHitReact(EPRPlayerHitReactType HitRea
 	ASC->CancelAbilities(&CancelTags, nullptr, this);
 }
 
-void UPRGA_PlayerHitReact::StartDownHitReact(APRPlayerCharacter* PlayerCharacter)
+// 다운 리액션의 섹션 상태와 착지 요청 상태를 초기화한다.
+void UPRGA_PlayerHitReact::StartDownHitReact()
 {
 	DownHitReactPhase = EPRPlayerDownHitReactPhase::Start;
-	bDownLandRequested = IsPlayerMovingOnGround();
-
-	if (IsValid(PlayerCharacter))
-	{
-		PlayerLandedDelegateHandle = PlayerCharacter->OnPlayerLanded.AddUObject(
-			this,
-			&UPRGA_PlayerHitReact::HandlePlayerLanded);
-	}
+	bDownLandRequested = false;
 }
 
+// 다운 몽타주의 섹션 연결과 섹션 변경 콜백을 설정한다.
 void UPRGA_PlayerHitReact::ConfigureDownMontageFlow()
 {
 	if (ActiveHitReactType != EPRPlayerHitReactType::Down)
@@ -404,25 +424,196 @@ void UPRGA_PlayerHitReact::ConfigureDownMontageFlow()
 		return;
 	}
 
-	AnimInstance->Montage_SetNextSection(DownStartSectionName, DownFallLoopSectionName, ActiveHitReactMontage);
-	AnimInstance->Montage_SetNextSection(DownFallLoopSectionName, DownFallLoopSectionName, ActiveHitReactMontage);
-	AnimInstance->Montage_SetNextSection(DownLandSectionName, DownGetUpSectionName, ActiveHitReactMontage);
-	AnimInstance->Montage_SetNextSection(DownGetUpSectionName, NAME_None, ActiveHitReactMontage);
+	RefreshDownMontageSectionFlow();
 
 	FOnMontageSectionChanged SectionChangedDelegate;
 	SectionChangedDelegate.BindUObject(this, &UPRGA_PlayerHitReact::HandleDownMontageSectionChanged);
 	AnimInstance->Montage_SetSectionChangedDelegate(SectionChangedDelegate, ActiveHitReactMontage);
 }
 
-void UPRGA_PlayerHitReact::ClearDownHitReact()
+// 다운 몽타주의 다음 섹션 연결을 현재 착지 요청 상태에 맞게 갱신한다.
+void UPRGA_PlayerHitReact::RefreshDownMontageSectionFlow()
 {
 	APRPlayerCharacter* PlayerCharacter = ActivePlayerCharacter.Get();
-	if (PlayerLandedDelegateHandle.IsValid() && IsValid(PlayerCharacter))
+	if (!IsValid(PlayerCharacter) || !IsValid(ActiveHitReactMontage))
 	{
-		PlayerCharacter->OnPlayerLanded.Remove(PlayerLandedDelegateHandle);
+		return;
 	}
-	PlayerLandedDelegateHandle.Reset();
 
+	USkeletalMeshComponent* MeshComponent = PlayerCharacter->GetMesh();
+	if (!IsValid(MeshComponent))
+	{
+		return;
+	}
+
+	UAnimInstance* AnimInstance = MeshComponent->GetAnimInstance();
+	if (!IsValid(AnimInstance))
+	{
+		return;
+	}
+
+	// Start는 항상 FallLoop로 보낸다. 착지 판정은 FallLoop에 들어간 뒤부터만 처리한다.
+	const FName FallLoopNextSectionName = bDownLandRequested ? DownLandSectionName : DownFallLoopSectionName;
+	AnimInstance->Montage_SetNextSection(DownStartSectionName, DownFallLoopSectionName, ActiveHitReactMontage);
+	AnimInstance->Montage_SetNextSection(DownFallLoopSectionName, FallLoopNextSectionName, ActiveHitReactMontage);
+	AnimInstance->Montage_SetNextSection(DownLandSectionName, DownGetUpSectionName, ActiveHitReactMontage);
+	AnimInstance->Montage_SetNextSection(DownGetUpSectionName, NAME_None, ActiveHitReactMontage);
+}
+
+// FallLoop 구간에서 캡슐 기준 바닥 감지 타이머를 시작한다.
+void UPRGA_PlayerHitReact::StartDownGroundCheck()
+{
+	APRPlayerCharacter* PlayerCharacter = ActivePlayerCharacter.Get();
+	if (!IsValid(PlayerCharacter))
+	{
+		return;
+	}
+
+	UWorld* World = PlayerCharacter->GetWorld();
+	if (!IsValid(World))
+	{
+		return;
+	}
+	if (World->GetTimerManager().IsTimerActive(DownGroundCheckTimerHandle))
+	{
+		return;
+	}
+
+	World->GetTimerManager().SetTimer(
+		DownGroundCheckTimerHandle,
+		this,
+		&UPRGA_PlayerHitReact::CheckDownGround,
+		DownGroundCheckInterval,
+		true);
+	CheckDownGround();
+}
+
+// 다운 바닥 감지 타이머를 중지하고 핸들을 무효화한다.
+void UPRGA_PlayerHitReact::StopDownGroundCheck()
+{
+	APRPlayerCharacter* PlayerCharacter = ActivePlayerCharacter.Get();
+	UWorld* World = IsValid(PlayerCharacter) ? PlayerCharacter->GetWorld() : GetWorld();
+	if (IsValid(World))
+	{
+		World->GetTimerManager().ClearTimer(DownGroundCheckTimerHandle);
+	}
+	DownGroundCheckTimerHandle.Invalidate();
+}
+
+// 다운 몽타주 재생 중 바닥 감지 결과에 따라 Land 진입을 요청한다.
+void UPRGA_PlayerHitReact::CheckDownGround()
+{
+	if (ActiveHitReactType != EPRPlayerHitReactType::Down || bHitReactFinished)
+	{
+		StopDownGroundCheck();
+		return;
+	}
+
+	if (DownHitReactPhase == EPRPlayerDownHitReactPhase::Land
+		|| DownHitReactPhase == EPRPlayerDownHitReactPhase::GetUp)
+	{
+		StopDownGroundCheck();
+		return;
+	}
+
+	if (!IsDownMontagePlaying())
+	{
+		return;
+	}
+
+	// 바닥이 확인되는 순간 다음 섹션 연결을 Land로 바꾸고, FallLoop 중이면 즉시 Land로 점프한다.
+	if (HasGroundBelowForDownHitReact())
+	{
+		RequestDownLand();
+	}
+}
+
+// 현재 다운 리액션 몽타주가 재생 중인지 확인한다.
+bool UPRGA_PlayerHitReact::IsDownMontagePlaying() const
+{
+	const APRPlayerCharacter* PlayerCharacter = ActivePlayerCharacter.Get();
+	if (!IsValid(PlayerCharacter) || !IsValid(ActiveHitReactMontage))
+	{
+		return false;
+	}
+
+	const USkeletalMeshComponent* MeshComponent = PlayerCharacter->GetMesh();
+	if (!IsValid(MeshComponent))
+	{
+		return false;
+	}
+
+	const UAnimInstance* AnimInstance = MeshComponent->GetAnimInstance();
+	return IsValid(AnimInstance) && AnimInstance->Montage_IsPlaying(ActiveHitReactMontage);
+}
+
+// 플레이어 캡슐 하단 기준으로 착지 가능한 바닥이 있는지 Sweep으로 확인한다.
+bool UPRGA_PlayerHitReact::HasGroundBelowForDownHitReact() const
+{
+	const APRPlayerCharacter* PlayerCharacter = ActivePlayerCharacter.Get();
+	if (!IsValid(PlayerCharacter))
+	{
+		return false;
+	}
+
+	const UCapsuleComponent* CapsuleComponent = PlayerCharacter->GetCapsuleComponent();
+	if (!IsValid(CapsuleComponent))
+	{
+		return false;
+	}
+
+	UWorld* World = PlayerCharacter->GetWorld();
+	if (!IsValid(World))
+	{
+		return false;
+	}
+
+	const float CapsuleHalfHeight = CapsuleComponent->GetScaledCapsuleHalfHeight();
+	const float CapsuleRadius = CapsuleComponent->GetScaledCapsuleRadius();
+	const float ProbeRadius = FMath::Min(FMath::Max(CapsuleRadius * 0.5f, 5.0f), CapsuleHalfHeight);
+	const FVector ProbeStart = PlayerCharacter->GetActorLocation() - FVector(0.0f, 0.0f, CapsuleHalfHeight - ProbeRadius);
+	const FVector ProbeEnd = ProbeStart - FVector(0.0f, 0.0f, DownGroundCheckDistance);
+
+	// 루트모션 중 메시 위치가 흔들려도 캡슐 하단 기준으로 바닥을 확인한다.
+	FCollisionQueryParams QueryParams(SCENE_QUERY_STAT(PRDownHitReactGroundCheck), false);
+	QueryParams.AddIgnoredActor(PlayerCharacter);
+	QueryParams.bFindInitialOverlaps = true;
+
+	FHitResult HitResult;
+	const bool bHit = World->SweepSingleByChannel(
+		HitResult,
+		ProbeStart,
+		ProbeEnd,
+		FQuat::Identity,
+		ECC_Visibility,
+		FCollisionShape::MakeSphere(ProbeRadius),
+		QueryParams);
+	return bHit && HitResult.bBlockingHit && HitResult.ImpactNormal.Z >= DownGroundWalkableNormalZ;
+}
+
+// 다운 몽타주가 Land 섹션으로 넘어가도록 요청하고 필요 시 즉시 점프한다.
+void UPRGA_PlayerHitReact::RequestDownLand()
+{
+	if (ActiveHitReactType != EPRPlayerHitReactType::Down || bHitReactFinished)
+	{
+		return;
+	}
+
+	// 요청 플래그를 먼저 세워 이후 섹션 갱신에서도 Land 연결이 유지되게 한다.
+	bDownLandRequested = true;
+	RefreshDownMontageSectionFlow();
+	if (DownHitReactPhase == EPRPlayerDownHitReactPhase::FallLoop)
+	{
+		JumpToDownSection(DownLandSectionName);
+	}
+}
+
+// 다운 리액션 전용 타이머, 섹션 콜백, 런타임 상태를 정리한다.
+void UPRGA_PlayerHitReact::ClearDownHitReact()
+{
+	StopDownGroundCheck();
+
+	APRPlayerCharacter* PlayerCharacter = ActivePlayerCharacter.Get();
 	if (IsValid(PlayerCharacter) && IsValid(ActiveHitReactMontage))
 	{
 		USkeletalMeshComponent* MeshComponent = PlayerCharacter->GetMesh();
@@ -443,18 +634,7 @@ void UPRGA_PlayerHitReact::ClearDownHitReact()
 	bDownLandRequested = false;
 }
 
-bool UPRGA_PlayerHitReact::IsPlayerMovingOnGround() const
-{
-	const APRPlayerCharacter* PlayerCharacter = ActivePlayerCharacter.Get();
-	if (!IsValid(PlayerCharacter))
-	{
-		return false;
-	}
-
-	const UCharacterMovementComponent* CharacterMovement = PlayerCharacter->GetCharacterMovement();
-	return IsValid(CharacterMovement) && CharacterMovement->IsMovingOnGround();
-}
-
+// 현재 다운 몽타주를 지정한 섹션으로 이동시킨다.
 void UPRGA_PlayerHitReact::JumpToDownSection(FName SectionName)
 {
 	APRPlayerCharacter* PlayerCharacter = ActivePlayerCharacter.Get();
@@ -476,6 +656,7 @@ void UPRGA_PlayerHitReact::JumpToDownSection(FName SectionName)
 	}
 }
 
+// 다운 몽타주가 Start, FallLoop, Land, GetUp 섹션을 모두 갖고 있는지 확인한다.
 bool UPRGA_PlayerHitReact::HasRequiredDownMontageSections(const UAnimMontage* Montage) const
 {
 	return IsValid(Montage)
@@ -485,6 +666,7 @@ bool UPRGA_PlayerHitReact::HasRequiredDownMontageSections(const UAnimMontage* Mo
 		&& Montage->GetSectionIndex(DownGetUpSectionName) != INDEX_NONE;
 }
 
+// 강한 경직과 다운 동안 행동불능 상태 태그를 부여한다.
 void UPRGA_PlayerHitReact::StartActionLock(EPRPlayerHitReactType HitReactType)
 {
 	if (HitReactType != EPRPlayerHitReactType::Strong && HitReactType != EPRPlayerHitReactType::Down)
@@ -501,6 +683,7 @@ void UPRGA_PlayerHitReact::StartActionLock(EPRPlayerHitReactType HitReactType)
 	}
 }
 
+// 이 Ability가 부여한 행동불능 상태 태그를 제거한다.
 void UPRGA_PlayerHitReact::ClearActionLock()
 {
 	if (!bActionLockTagAdded)
@@ -518,6 +701,7 @@ void UPRGA_PlayerHitReact::ClearActionLock()
 	bActionLockTagAdded = false;
 }
 
+// 피격 리액션 Ability 종료를 한 번만 실행하도록 보호한다.
 void UPRGA_PlayerHitReact::FinishHitReact(bool bWasCancelled)
 {
 	if (bHitReactFinished)

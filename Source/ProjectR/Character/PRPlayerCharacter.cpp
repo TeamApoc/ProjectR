@@ -191,13 +191,6 @@ void APRPlayerCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputC
 	// NOTE: PRPlayerController의 SetupInputComponent 에서 Ability Input을 바인딩함
 }
 
-void APRPlayerCharacter::Landed(const FHitResult& Hit)
-{
-	Super::Landed(Hit);
-
-	OnPlayerLanded.Broadcast(Hit);
-}
-
 void APRPlayerCharacter::HandleGameplayTagUpdated(const FGameplayTag& ChangedTag, bool bTagExists)
 {
 	Super::HandleGameplayTagUpdated(ChangedTag, bTagExists);
@@ -223,6 +216,11 @@ void APRPlayerCharacter::Move(const FInputActionValue& Value)
 		&& IsValid(ActionInputRouterComponent)
 		&& ActionInputRouterComponent->IsRoutingInput()
 		&& ActionInputRouterComponent->HandleRoutedInput())
+	{
+		return;
+	}
+
+	if (IsMoveInputLockedByState())
 	{
 		return;
 	}
@@ -256,6 +254,11 @@ void APRPlayerCharacter::WalkPressed()
 	if (IsValid(ActionInputRouterComponent)
 		&& ActionInputRouterComponent->IsRoutingInput()
 		&& ActionInputRouterComponent->HandleRoutedInput())
+	{
+		return;
+	}
+
+	if (IsMoveInputLockedByState())
 	{
 		return;
 	}
@@ -313,6 +316,12 @@ void APRPlayerCharacter::UpdateMaxWalkSpeed()
 		//
 		MoveComp->bAllowPhysicsRotationDuringAnimRootMotion = true;
 	}
+}
+
+bool APRPlayerCharacter::IsMoveInputLockedByState() const
+{
+	const UPRAbilitySystemComponent* ASC = GetPRAbilitySystemComponent();
+	return IsValid(ASC) && ASC->HasMatchingGameplayTag(PRGameplayTags::State_PlayerHitReactLocked);
 }
 
 /*~ 상태 변경 및 동기화 ~*/

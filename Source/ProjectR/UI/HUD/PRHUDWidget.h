@@ -6,6 +6,7 @@
 #include "ProjectR/UI/PRWidgetBase.h"
 #include "PRHUDWidget.generated.h"
 
+class UPRWeaponHUDWidget;
 class UPRCrosshairWidget;
 class UPREventManagerSubsystem;
 struct FInstancedStruct;

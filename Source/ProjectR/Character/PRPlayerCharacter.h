@@ -64,7 +64,7 @@ public:
 protected:
 	virtual void BeginPlay() override;
 	virtual void SetupPlayerInputComponent(class UInputComponent* PlayerInputComponent) override;
-	
+
 	/*~ APRCharacterBase Interface ~*/
 	virtual void HandleGameplayTagUpdated(const FGameplayTag& ChangedTag, bool bTagExists) override;
 	
@@ -86,6 +86,9 @@ private:
     /** 질주 상태가 복제되었을 때 속도를 업데이트한다 */
     UFUNCTION()
     void OnRep_IsSprinting();
+
+	/** 상태 태그 기준으로 이동 입력이 차단되는지 반환한다 */
+	bool IsMoveInputLockedByState() const;
 
 public:
 	/** 컴포넌트 */

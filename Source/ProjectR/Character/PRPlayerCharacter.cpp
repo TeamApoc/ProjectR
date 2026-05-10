@@ -254,6 +254,11 @@ void APRPlayerCharacter::Move(const FInputActionValue& Value)
 		return;
 	}
 
+	if (IsMoveInputLockedByState())
+	{
+		return;
+	}
+
 	if (IsValid(Controller))
 	{
 		const FRotator Rotation = Controller->GetControlRotation();
@@ -283,6 +288,11 @@ void APRPlayerCharacter::WalkPressed()
 	if (IsValid(ActionInputRouterComponent)
 		&& ActionInputRouterComponent->IsRoutingInput()
 		&& ActionInputRouterComponent->HandleRoutedInput())
+	{
+		return;
+	}
+
+	if (IsMoveInputLockedByState())
 	{
 		return;
 	}
@@ -340,6 +350,12 @@ void APRPlayerCharacter::UpdateMaxWalkSpeed()
 		//
 		MoveComp->bAllowPhysicsRotationDuringAnimRootMotion = true;
 	}
+}
+
+bool APRPlayerCharacter::IsMoveInputLockedByState() const
+{
+	const UPRAbilitySystemComponent* ASC = GetPRAbilitySystemComponent();
+	return IsValid(ASC) && ASC->HasMatchingGameplayTag(PRGameplayTags::State_PlayerHitReactLocked);
 }
 
 /*~ 상태 변경 및 동기화 ~*/

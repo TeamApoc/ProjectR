@@ -25,6 +25,6 @@ protected:
 	UFUNCTION(BlueprintPure, Category = "ProjectR|Combat")
 	APREnemyBaseCharacter* GetEnemyAvatarCharacter() const;
 
-	// 타겟 액터에 적 발신 데미지 GE를 적용한다. AttackPower * AttackMultiplier로 BaseDamage를 산정
-	void ApplyDamage(AActor* TargetActor, float AttackMultiplier = 1.0f, const FHitResult* HitResult = nullptr);
+	// 타겟 액터에 DataAsset 기반 피해와 강인도 피해를 적 발신 데미지 GE SetByCaller로 전달한다.
+	void ApplyDamage(AActor* TargetActor, float Damage, float GroggyDamage, float AttackMultiplier = 1.0f, const FHitResult* HitResult = nullptr);
 };

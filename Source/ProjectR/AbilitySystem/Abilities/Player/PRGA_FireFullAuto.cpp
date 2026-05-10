@@ -5,9 +5,15 @@
 
 #include "Abilities/Tasks/AbilityTask_WaitInputRelease.h"
 #include "ProjectR/AbilitySystem/Tasks/PRAT_RepeatFire.h"
+#include "ProjectR/PRGameplayTags.h"
 
 UPRGA_FireFullAuto::UPRGA_FireFullAuto()
 {
+	FGameplayTagContainer DefaultAbilityTags;
+	DefaultAbilityTags.AddTag(PRGameplayTags::Ability_Player_Weapon_Fire_Primary);
+	SetAssetTags(DefaultAbilityTags);
+
+	ActivationBlockedTags.AddTag(PRGameplayTags::State_PlayerInputLocked);
 }
 
 void UPRGA_FireFullAuto::ActivateAbility(const FGameplayAbilitySpecHandle Handle,

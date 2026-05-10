@@ -71,6 +71,9 @@ public:
 	UFUNCTION(BlueprintNativeEvent, Category = "ProjectR|Projectile")
 	void OnProjectileDestroyed();
 	
+	UFUNCTION(BlueprintPure)
+	bool HasProjectileAuthority() const;
+	
 protected:
 	/*~ AActor Interface ~*/
 	virtual void BeginPlay() override;
@@ -141,6 +144,9 @@ protected:
 	UPROPERTY(BlueprintReadOnly)
 	FGameplayEffectSpecHandle EffectSpecHandle;
 	
+	UPROPERTY(BlueprintReadOnly)
+	UAbilitySystemComponent* InstigatorASC;
+	
 private:
 	// 투사체 식별자. Auth 액터에 한해 소유 클라이언트로만 리플리케이트
 	UPROPERTY(ReplicatedUsing = OnRep_ProjectileId)
@@ -151,6 +157,7 @@ private:
 	FPRProjectileRepMovement RepMovement;
 
 	// 본 인스턴스의 역할 (네트워크 리플리케이트 대상 아님. 인스턴스 단위 결정)
+	UPROPERTY(BlueprintReadOnly, Meta = (AllowPrivateAccess = true))
 	EPRProjectileRole ProjectileRole = EPRProjectileRole::Auth; // Auth를 기본값으로 하여야 복제된 투사체 초기화시 Auth확인 가능
 
 	// 카운터파트 약참조 (Predicted-Auth 상호 링크)

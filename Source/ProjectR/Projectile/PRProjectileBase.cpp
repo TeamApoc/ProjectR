@@ -54,6 +54,10 @@ void APRProjectileBase::InitializeProjectile(EPRProjectileRole InRole, uint32 In
 void APRProjectileBase::InitGameplayEffectSpec(const FGameplayEffectSpecHandle& InEffectSpec)
 {
 	EffectSpecHandle = InEffectSpec;
+	if (EffectSpecHandle.Data)
+	{
+		InstigatorASC =  EffectSpecHandle.Data->GetEffectContext().GetInstigatorAbilitySystemComponent();	
+	}
 }
 
 void APRProjectileBase::ApplyFastForward(float ForwardSeconds)
@@ -193,6 +197,11 @@ void APRProjectileBase::DestroyProjectile()
 
 void APRProjectileBase::OnProjectileDestroyed_Implementation()
 {
+}
+
+bool APRProjectileBase::HasProjectileAuthority() const
+{
+	return ProjectileRole == EPRProjectileRole::Auth && HasAuthority();
 }
 
 void APRProjectileBase::BeginPlay()

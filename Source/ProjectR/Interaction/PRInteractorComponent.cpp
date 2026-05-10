@@ -198,9 +198,14 @@ void UPRInteractorComponent::InteractFocused()
 
 void UPRInteractorComponent::OnInteractionReleased()
 {
-	// 홀드 중인 액션이 있었을 경우 취소
-	if (HoldInfo.IsValid())
+	// 누르자마자 떼는 케이스 보호:
+	// InteractFocused 가 ServerInteract 를 보낸 직후엔 HoldTarget/HoldAction 이 아직 비어 있으므로
+	// HoldInfo.IsValid() 로 검사하면 false 가 되어 취소 RPC 가 발송되지 않는다.
+	// 대신 bIsHolding 플래그를 기준으로 한다 (ServerInteract/ServerCancelHold 모두 Reliable 이라 서버 도착 순서는 보장됨).
+	if (HoldInfo.bIsHolding)
 	{
+		// 클라 선반영: 중복 OnInteractionReleased 호출에 대한 방어
+		HoldInfo.bIsHolding = false;
 		ServerCancelHold();
 	}
 }
@@ -448,6 +453,10 @@ void UPRInteractorComponent::SetHoldInfo(UPRInteractableComponent* Target, UPRIn
 	HoldInfo.HoldTarget = Target;
 	HoldInfo.HoldAction = HoldAction;
 	HoldInfo.bIsHolding = true;
+
+	// 액션의 HoldDuration 을 복사. 서버 측 Internal_StartHold 가 이 값으로 SetTimer 를 호출하므로
+	// 누락 시 0 으로 SetTimer 가 호출되어 타이머 자체가 등록되지 않는다 (UE FTimerManager 동작상 InRate <= 0 은 무시).
+	HoldInfo.HoldDuration = IsValid(HoldAction) ? HoldAction->HoldDuration : 0.f;
 }
 
 void UPRInteractorComponent::ClearHoldInfo()

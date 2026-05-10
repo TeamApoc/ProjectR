@@ -78,6 +78,7 @@ namespace PRGameplayTags
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Event_Player_Aim_End); // 에이밍 해제
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Event_Player_ChangeCrosshair); // 크로스헤어 Config 교체 (FPRChangeCrosshairEventPayload 동반)
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Event_Player_ReloadCommit); // 재장전 몽타주 노티파이가 발행하는 자원 이동 트리거
+	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Event_Player_Interaction_Hold); // Hold 상호작용 단계 알림 (FPRInteractionHoldEventPayload 동반)
 
 	// ===== Cue.* — GameplayCue 식별 =====
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Cue_Critical_Boss_PhaseTransition); // 보스 페이즈 전환 연출 Cue

@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "ProjectR/Inventory/Components/PRInventoryComponent.h"
 #include "ProjectR/UI/Inventory/PRInventoryUITypes.h"
 #include "ProjectR/Weapon/Types/PRWeaponTypes.h"
 #include "ProjectR/UI/PRWidgetBase.h"
@@ -14,7 +15,9 @@ class UPRInventoryComponent;
 class UPRInventoryItemListWidget;
 class UPRItemInstance_Weapon;
 class UPRItemSlotWidget;
+class UPRCharacterPreviewWidget;
 class UPRWeaponManagerComponent;
+class APRPlayerCharacter;
 
 // 인벤토리 화면의 무기 슬롯과 아이템 선택 목록을 연결하는 최상위 위젯이다
 UCLASS(Abstract, BlueprintType)
@@ -59,6 +62,12 @@ private:
 	// 하위 슬롯과 리스트 이벤트 바인딩을 정리한다
 	void UnbindChildWidgetEvents();
 
+	// 인벤토리와 무기 매니저 변경 이벤트를 바인딩한다
+	void BindInventorySourceEvents();
+
+	// 인벤토리와 무기 매니저 변경 이벤트 바인딩을 정리한다
+	void UnbindInventorySourceEvents();
+
 	// ========= 이벤트 바인드 처리 함수 =========
 	// 주무기 슬롯 좌클릭을 처리한다
 	UFUNCTION()
@@ -79,6 +88,14 @@ private:
 	// 리스트에서 선택한 아이템을 장착 요청으로 변환한다
 	UFUNCTION()
 	void HandleItemListSelection(const FPRInventoryItemSlotViewData& ViewData);
+
+	// 인벤토리 변경 알림을 받아 화면을 갱신한다
+	UFUNCTION()
+	void HandleInventoryChanged(UPRInventoryComponent* ChangedInventoryComponent, EPRInventoryChangeReason ChangeReason);
+
+	// 무기 장착 변경 알림을 받아 화면을 갱신한다
+	UFUNCTION()
+	void HandleWeaponEquipmentChanged(UPRWeaponManagerComponent* ChangedWeaponManagerComponent, EPRWeaponSlotType ChangedSlot);
 	// =======================
 
 
@@ -94,6 +111,15 @@ private:
 	// 현재 장착 슬롯 위젯을 갱신한다
 	void RefreshEquippedSlotWidgets();
 
+	// 장착 슬롯과 열린 리스트를 현재 데이터 기준으로 갱신한다
+	void RefreshInventoryView();
+
+	// 캐릭터 프리뷰 위젯에 현재 플레이어 외형과 무기 상태 소스를 전달한다
+	void RefreshCharacterPreviewWidget();
+
+	// 프리뷰 기준이 되는 플레이어 캐릭터를 조회한다
+	APRPlayerCharacter* GetPreviewSourceCharacter() const;
+
 	// 무기 슬롯 뷰 데이터를 만든다
 	FPRInventoryItemSlotViewData BuildWeaponSlotViewData(EPRWeaponSlotType SlotType) const;
 
@@ -104,7 +130,7 @@ private:
 	FPRInventoryItemSlotViewData BuildModItemViewData(UPRItemInstance_Mod* ModItem, bool bEquipped) const;
 
 	// 장착 해제 항목 뷰 데이터를 만든다
-	FPRInventoryItemSlotViewData BuildUnequipViewData(EPRInventoryItemListType ListType) const;
+	FPRInventoryItemSlotViewData BuildUnequipViewData(EPRItemType ListType) const;
 
 	// 지정 무기에 Mod가 장착 가능한지 확인한다
 	bool IsModCompatibleWithWeapon(const UPRItemInstance_Mod* ModItem, const UPRItemInstance_Weapon* WeaponItem) const;
@@ -121,6 +147,10 @@ protected:
 	// UMG에서 바인딩할 아이템 리스트 위젯
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "ProjectR|Inventory")
 	TObjectPtr<UPRInventoryItemListWidget> ItemListWidget;
+
+	// UMG에서 바인딩할 캐릭터 프리뷰 위젯
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "ProjectR|Inventory")
+	TObjectPtr<UPRCharacterPreviewWidget> CharacterPreviewWidget;
 
 private:
 	// 아이템 보유 인벤토리 컴포넌트

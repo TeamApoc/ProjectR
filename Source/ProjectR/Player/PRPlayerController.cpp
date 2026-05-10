@@ -22,7 +22,7 @@ APRPlayerController::APRPlayerController()
 	
 	ProjectileManager = CreateDefaultSubobject<UPRProjectileManagerComponent>(TEXT("ProjectileManager"));
 	FloatingTextManager = CreateDefaultSubobject<UPRFloatingTextManager>(TEXT("FloatingTextManager"));
-	// 2026.05.01 이건주 | UI 매니저 컴포넌트 추가 
+	// 2026.05.01 이건주 | UI 컨트롤러 컴포넌트 추가 
 	UIControllerComponent = CreateDefaultSubobject<UPRUIControllerComponent>(TEXT("UIControllerComponent"));
 	InteractionSensor = CreateDefaultSubobject<UPRInteractionSensor>(TEXT("InteractionSensor"));
 	InteractorComponent = CreateDefaultSubobject<UPRInteractorComponent>(TEXT("InteractorComponent"));

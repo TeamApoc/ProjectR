@@ -6,6 +6,7 @@
 #include "ProjectR/PRGameplayTags.h"
 #include "ProjectR/System/PREventManagerSubsystem.h"
 #include "ProjectR/UI/Crosshair/PRCrosshairWidget.h"
+#include "ProjectR/UI/WeaponStatusHUD/PRWeaponHUDWidget.h"
 
 UPRHUDWidget::UPRHUDWidget()
 {

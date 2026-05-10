@@ -15,6 +15,7 @@
 #include "ProjectR/System/PREventManagerSubsystem.h"
 #include "ProjectR/System/PREventTypes.h"
 #include "ProjectR/UI/Crosshair/PRCrosshairTypes.h"
+#include "ProjectR/Utils/PRGameplayStatics.h"
 #include "ProjectR/Weapon/Actors/PRWeaponActor.h"
 #include "ProjectR/Weapon/Components/PRWeaponManagerComponent.h"
 #include "ProjectR/Weapon/Data/PRWeaponDataAsset.h"
@@ -93,53 +94,30 @@ FPRFireViewpoint UPRGA_Fire::GetFireViewpoint() const
 		return View;
 	}
 
-	// TPS 숄더뷰: SpringArm/카메라 오프셋이 반영된 실제 카메라 위치/회전을 사용
-	// (Pawn::GetActorEyesViewPoint는 액터 BaseEyeHeight 기준이라 TPS 카메라와 다름)
-	APlayerController* PC = Cast<APlayerController>(GetActorInfo().PlayerController.Get());
-	if (IsValid(PC) && IsValid(PC->PlayerCameraManager))
-	{
-		View.Location = PC->PlayerCameraManager->GetCameraLocation();
-		View.Rotation = PC->PlayerCameraManager->GetCameraRotation();
-		return View;
-	}
-
-	// Fallback: 컨트롤러가 없을 때 액터 눈높이 기준
-	if (APawn* OwnerPawn = Cast<APawn>(GetAvatarActorFromActorInfo()))
-	{
-		OwnerPawn->GetActorEyesViewPoint(View.Location, View.Rotation);
-	}
-
+	UPRGameplayStatics::GetPawnViewpoint(Cast<APawn>(GetAvatarActorFromActorInfo()), View.Location, View.Rotation);
 	return View;
 }
 
 FVector UPRGA_Fire::ResolveAimPoint(const FPRFireViewpoint& View, float InMaxTraceDistance) const
 {
-	const FVector CamStart = View.Location;
-	const FVector CamEnd = CamStart + View.Rotation.Vector() * InMaxTraceDistance;
-
-	UWorld* World = GetWorld();
-	if (!IsValid(World))
-	{
-		return CamEnd;
-	}
-
-	FCollisionQueryParams Params(SCENE_QUERY_STAT(PRFireAimTrace), false);
+	APawn* OwnerPawn = Cast<APawn>(GetAvatarActorFromActorInfo());
+	TArray<AActor*> IgnoredActors;
 	if (AActor* AvatarActor = GetAvatarActorFromActorInfo())
 	{
-		Params.AddIgnoredActor(AvatarActor);
+		IgnoredActors.Add(AvatarActor);
 	}
-
-	FHitResult AimHit;
-	World->LineTraceSingleByChannel(AimHit, CamStart, CamEnd, FireTraceChannel.GetValue(), Params);
+	const FVector AimPoint = UPRGameplayStatics::ResolveCameraAimPoint(OwnerPawn, InMaxTraceDistance, FireTraceChannel.GetValue(), IgnoredActors);
 
 	// 디버그: 카메라 트레이스는 시안색 (참고용)
 	if (bDrawCameraTrace)
 	{
-		const FVector AimDrawEnd = AimHit.bBlockingHit ? AimHit.ImpactPoint : CamEnd;
-		DrawDebugLine(World, CamStart, AimDrawEnd, FColor::Cyan, false, DebugDrawDuration, 0, 0.5f);
+		if (UWorld* World = GetWorld())
+		{
+			DrawDebugLine(World, View.Location, AimPoint, FColor::Cyan, false, DebugDrawDuration, 0, 0.5f);
+		}
 	}
 
-	return AimHit.bBlockingHit ? AimHit.ImpactPoint : CamEnd;
+	return AimPoint;
 }
 
 FHitResult UPRGA_Fire::PerformMuzzleTrace(const FVector& MuzzleLoc, const FVector& AimPoint) const
@@ -288,21 +266,14 @@ FTransform UPRGA_Fire::GetProjectileLaunchTransform() const
 	{
 		return FTransform();
 	}
-	
-	const FPRFireViewpoint View = GetFireViewpoint();
-	const FVector MuzzleLoc = GetMuzzleLocation();
 
-	// 1차 트레이스로 카메라가 가리키는 월드 조준점 산출 (숄더뷰 시차 보정)
-	const FVector AimPoint = ResolveAimPoint(View, MaxTraceDistance);
-
-	// 총구 -> 조준점 방향. 거리가 너무 짧으면(=조준점이 총구 바로 앞/뒤) 카메라 정면으로 폴백
-	FVector LaunchDir = AimPoint - MuzzleLoc;
-	if (!LaunchDir.Normalize(KINDA_SMALL_NUMBER))
+	APawn* OwnerPawn = Cast<APawn>(GetAvatarActorFromActorInfo());
+	TArray<AActor*> IgnoredActors;
+	if (AActor* AvatarActor = GetAvatarActorFromActorInfo())
 	{
-		LaunchDir = View.Rotation.Vector();
+		IgnoredActors.Add(AvatarActor);
 	}
-
-	return FTransform(LaunchDir.Rotation(), MuzzleLoc);
+	return UPRGameplayStatics::ResolveProjectileLaunchTransform(OwnerPawn, GetMuzzleLocation(), MaxTraceDistance, FireTraceChannel.GetValue(), IgnoredActors);
 }
 
 void UPRGA_Fire::FireProjectile(TSubclassOf<APRProjectileBase> ProjectileClass, FVector SpawnLocation, FRotator SpawnRotation)

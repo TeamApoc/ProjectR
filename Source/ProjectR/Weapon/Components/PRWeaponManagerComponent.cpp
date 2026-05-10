@@ -8,6 +8,7 @@
 #include "GameFramework/Character.h"
 #include "Logging/LogMacros.h"
 #include "Net/UnrealNetwork.h"
+#include "ProjectR/PRGameplayTags.h"
 #include "ProjectR/AbilitySystem/AttributeSets/PRAttributeSet_Player.h"
 #include "ProjectR/AbilitySystem/AttributeSets/PRAttributeSet_Weapon.h"
 #include "ProjectR/AbilitySystem/Data/PRAbilitySystemRegistry.h"
@@ -220,7 +221,7 @@ bool UPRWeaponManagerComponent::EquipInventoryWeaponAtIndex(int32 InventoryIndex
 	InitializeRuntimeLinks();
 
 	// 인벤토리 컴포넌트를 찾지 못한 경우
-	if (!IsValid(CachedInventory))
+	if (!CachedInventory.IsValid())
 	{
 		// 장착 실패. 장착 대상 조회 불가
 		return false;
@@ -510,7 +511,7 @@ bool UPRWeaponManagerComponent::EquipWeaponInternal(UPRItemInstance_Weapon* Weap
 	// 잘못된 슬롯, 비소유 Item, 무기 데이터 누락인 경우
 	if (!IsSupportedSlot(WeaponSlot)
 		|| !IsValid(WeaponItem)
-		|| !IsValid(CachedInventory)
+		|| !CachedInventory.IsValid()
 		|| !CachedInventory->OwnsWeapon(WeaponItem)
 		|| !IsValid(WeaponData))
 	{
@@ -587,7 +588,7 @@ bool UPRWeaponManagerComponent::EquipWeaponInternal(UPRItemInstance_Weapon* Weap
 
 void UPRWeaponManagerComponent::ApplyEquipAmmoGE(const UPRWeaponDataAsset* WeaponData, UObject* SourceObject)
 {
-	if (!IsValid(WeaponData) || !IsValid(CachedASC))
+	if (!IsValid(WeaponData) || !CachedASC.IsValid())
 	{
 		return;
 	}
@@ -933,6 +934,19 @@ void UPRWeaponManagerComponent::RefreshWeaponActorForSlot(EPRWeaponSlotType Slot
 
 	// 생성되었거나 재사용 가능한 Actor를 현재 carry state에 맞춰 부착
 	RefreshWeaponAttachmentForSlot(SlotType);
+	
+	// 26.05.08, Yuchan, State_Armed 추가
+	if (CachedASC.IsValid())
+	{
+		if (ArmedState == EPRArmedState::Armed)
+		{
+			CachedASC->AddLooseGameplayTag(PRGameplayTags::State_Armed);	
+		}
+		else
+		{
+			CachedASC->RemoveLooseGameplayTag(PRGameplayTags::State_Armed);
+		}
+	}
 }
 
 void UPRWeaponManagerComponent::RefreshAllWeaponActors()

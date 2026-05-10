@@ -77,20 +77,23 @@ void UPRProjectileTrajectoryPreviewComponent::Hide()
 void UPRProjectileTrajectoryPreviewComponent::DrawTrajectory(const TArray<FVector>& SamplePoints)
 {
 #if ENABLE_DRAW_DEBUG
-	UWorld* World = GetWorld();
-	if (IsValid(World) && SamplePoints.Num() > 0)
+	if (bDrawDebug)
 	{
-		const bool bImpactDetected = LastResult.EndReason == EPRPreviewEndReason::HitBlocking;
-		const int32 LastIndex = SamplePoints.Num() - 1;
-
-		for (int32 i = 0; i < SamplePoints.Num(); ++i)
+		UWorld* World = GetWorld();
+		if (IsValid(World) && SamplePoints.Num() > 0)
 		{
-			// 착탄 사유로 종료된 경우에 한해 마지막 포인트만 적색으로 강조
-			const bool bIsImpactPoint = bImpactDetected && (i == LastIndex);
-			const FColor PointColor = bIsImpactPoint ? DebugHitColor : DebugColor;
+			const bool bImpactDetected = LastResult.EndReason == EPRPreviewEndReason::HitBlocking;
+			const int32 LastIndex = SamplePoints.Num() - 1;
 
-			// 매 틱 갱신되므로 LifeTime 0(단발 프레임) 사용
-			DrawDebugSphere(World, SamplePoints[i], DebugSphereRadius, 8, PointColor, false, 0.f, 0, 0.f);
+			for (int32 i = 0; i < SamplePoints.Num(); ++i)
+			{
+				// 착탄 사유로 종료된 경우에 한해 마지막 포인트만 적색으로 강조
+				const bool bIsImpactPoint = bImpactDetected && (i == LastIndex);
+				const FColor PointColor = bIsImpactPoint ? DebugHitColor : DebugColor;
+
+				// 매 틱 갱신되므로 LifeTime 0(단발 프레임) 사용
+				DrawDebugSphere(World, SamplePoints[i], DebugSphereRadius, 8, PointColor, false, 0.f, 0, 0.f);
+			}
 		}
 	}
 #endif

@@ -81,6 +81,9 @@ protected:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|Projectile|Preview")
 	FPRProjectilePreviewParams FireParams;
 
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|Projectile|Preview|Debug")
+	bool bDrawDebug = false;
+	
 	// 임시 DrawDebugSphere 시각화의 구체 반지름(cm)
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|Projectile|Preview|Debug", meta = (ClampMin = "0.1"))
 	float DebugSphereRadius = 3.f;

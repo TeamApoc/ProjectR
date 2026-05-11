@@ -67,6 +67,36 @@ void APRBossPortalActor::SetPortalProjectileEffectSpec(const FGameplayEffectSpec
 	ProjectileEffectSpecHandle = InEffectSpec;
 }
 
+void APRBossPortalActor::StartPortalTelegraphAfterDelay(float Delay)
+{
+	if (!HasAuthority())
+	{
+		return;
+	}
+
+	if (PortalState != EPRBossPortalState::None)
+	{
+		return;
+	}
+
+	if (Delay <= 0.0f)
+	{
+		StartPortalTelegraph();
+		return;
+	}
+
+	if (UWorld* World = GetWorld())
+	{
+		World->GetTimerManager().ClearTimer(PortalTelegraphStartTimerHandle);
+		World->GetTimerManager().SetTimer(
+			PortalTelegraphStartTimerHandle,
+			this,
+			&APRBossPortalActor::StartPortalTelegraph,
+			Delay,
+			false);
+	}
+}
+
 void APRBossPortalActor::StartPortalTelegraph()
 {
 	if (!HasAuthority())
@@ -527,6 +557,7 @@ void APRBossPortalActor::ClearPortalLifecycleTimers()
 {
 	if (UWorld* World = GetWorld())
 	{
+		World->GetTimerManager().ClearTimer(PortalTelegraphStartTimerHandle);
 		World->GetTimerManager().ClearTimer(PortalActivationTimerHandle);
 		World->GetTimerManager().ClearTimer(PortalExpireTimerHandle);
 		World->GetTimerManager().ClearTimer(PortalFireTimerHandle);

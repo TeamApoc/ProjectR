@@ -128,11 +128,6 @@ bool UPRGameplayAbility_BossPortalSequence::SpawnConfiguredPortals()
 
 		SpawnedPortal->SetAndLockPortalTarget(PatternTarget);
 		SpawnedPortalRefs.Add(SpawnedPortal);
-
-		if (bStartPortalsAfterSpawn)
-		{
-			SpawnedPortal->StartPortalTelegraph();
-		}
 	}
 
 	TArray<APRBossPatternActor*> SpawnedActorsForEvent;
@@ -145,9 +140,31 @@ bool UPRGameplayAbility_BossPortalSequence::SpawnConfiguredPortals()
 		}
 	}
 
-	BP_OnPatternActorsSpawned(SpawnedActorsForEvent);
 	bPortalActorsSpawned = true;
+	StartSpawnedPortals();
+	BP_OnPatternActorsSpawned(SpawnedActorsForEvent);
 	return SpawnedActorsForEvent.Num() > 0;
+}
+
+void UPRGameplayAbility_BossPortalSequence::StartSpawnedPortals()
+{
+	if (!bStartPortalsAfterSpawn)
+	{
+		return;
+	}
+
+	int32 StartedPortalCount = 0;
+	for (APRBossPortalActor* SpawnedPortal : SpawnedPortalRefs)
+	{
+		if (!IsValid(SpawnedPortal))
+		{
+			continue;
+		}
+
+		const float StartDelay = FMath::Max(PortalStartInterval, 0.0f) * StartedPortalCount;
+		SpawnedPortal->StartPortalTelegraphAfterDelay(StartDelay);
+		++StartedPortalCount;
+	}
 }
 
 void UPRGameplayAbility_BossPortalSequence::StartPortalSequenceFinishTimer()

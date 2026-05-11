@@ -61,6 +61,10 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "ProjectR|AI|Boss|Portal")
 	void StartPortalTelegraph();
 
+	// 서버에서 지정 시간 뒤 포털 텔레그래프를 시작한다.
+	UFUNCTION(BlueprintCallable, Category = "ProjectR|AI|Boss|Portal")
+	void StartPortalTelegraphAfterDelay(UPARAM(meta = (ClampMin = "0.0")) float Delay);
+
 	// 서버에서 포털을 활성화한다.
 	UFUNCTION(BlueprintCallable, Category = "ProjectR|AI|Boss|Portal")
 	void ActivatePortal();
@@ -268,6 +272,7 @@ protected:
 	bool bPortalActive = false;
 
 private:
+	FTimerHandle PortalTelegraphStartTimerHandle;
 	FTimerHandle PortalActivationTimerHandle;
 	FTimerHandle PortalExpireTimerHandle;
 	FTimerHandle PortalFireTimerHandle;

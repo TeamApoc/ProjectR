@@ -53,6 +53,9 @@ protected:
 	// 현재 설정에 따라 포털 Actor를 생성하고 시작 처리한다.
 	bool SpawnConfiguredPortals();
 
+	// 생성된 포털들의 텔레그래프 시작을 설정값에 맞춰 예약한다.
+	void StartSpawnedPortals();
+
 	// 포털 시퀀스 유지 시간이 끝났을 때 Ability를 정상 종료한다.
 	void FinishPortalSequence();
 
@@ -115,6 +118,10 @@ protected:
 	// 포털 생성 직후 텔레그래프를 시작할지 여부다.
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Portal")
 	bool bStartPortalsAfterSpawn = true;
+
+	// 포털을 여러 개 생성할 때 각 포털 텔레그래프 시작 사이에 둘 간격이다.
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Portal", meta = (ClampMin = "0.0", EditCondition = "bStartPortalsAfterSpawn"))
+	float PortalStartInterval = 0.0f;
 
 	// Ability 종료/취소 시 생성한 포털을 만료 처리할지 여부다.
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Portal")

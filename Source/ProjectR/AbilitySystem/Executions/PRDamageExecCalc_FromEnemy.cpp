@@ -103,6 +103,12 @@ void UPRDamageExecCalc_FromEnemy::Execute_Implementation(const FGameplayEffectCu
 	{
 		OutExecutionOutput.AddOutputModifier(FGameplayModifierEvaluatedData(
 			UPRAttributeSet_Common::GetIncomingDamageAttribute(), EGameplayModOp::Additive, Outputs.FinalDamage));
+
+		if (IsValid(TargetASC->GetSet<UPRAttributeSet_Player>()))
+		{
+			OutExecutionOutput.AddOutputModifier(FGameplayModifierEvaluatedData(
+				UPRAttributeSet_Player::GetIncomingRecoverableDamageAttribute(), EGameplayModOp::Additive, Outputs.FinalDamage * 0.5f));
+		}
 	}
 
 	const bool bHasSetByCallerGroggyDamage = OwningSpec.SetByCallerTagMagnitudes.Contains(PRCombatGameplayTags::SetByCaller_GroggyDamage);

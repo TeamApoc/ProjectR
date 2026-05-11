@@ -7,10 +7,27 @@
 #include "GameplayEffectExtension.h"
 #include "Logging/LogMacros.h"
 #include "Net/UnrealNetwork.h"
+#include "ProjectR/AbilitySystem/AttributeSets/PRAttributeSet_Common.h"
 #include "ProjectR/PRGameplayTags.h"
 
 namespace
 {
+	float ResolveRecoverableHealthMax(const UAbilitySystemComponent* AbilitySystemComponent)
+	{
+		if (!IsValid(AbilitySystemComponent))
+		{
+			return 0.0f;
+		}
+
+		const UPRAttributeSet_Common* CommonSet = AbilitySystemComponent->GetSet<UPRAttributeSet_Common>();
+		if (!IsValid(CommonSet))
+		{
+			return 0.0f;
+		}
+
+		return FMath::Max(CommonSet->GetMaxHealth() - CommonSet->GetHealth(), 0.0f);
+	}
+
 	float ResolvePoiseDamageMax(float PoiseDamageMin, float PoiseDamageMax)
 	{
 		return FMath::Max(PoiseDamageMax, PoiseDamageMin);
@@ -88,6 +105,10 @@ void UPRAttributeSet_Player::PreAttributeChange(const FGameplayAttribute& Attrib
 	{
 		NewValue = FMath::Clamp(NewValue, 0.0f, GetMaxStamina());
 	}
+	else if (Attribute == GetRecoverableHealthAttribute())
+	{
+		NewValue = FMath::Clamp(NewValue, 0.0f, ResolveRecoverableHealthMax(GetOwningAbilitySystemComponent()));
+	}
 	else if (Attribute == GetAccumulatedPoiseDamageAttribute())
 	{
 		const float ClampMin = FMath::Max(GetPoiseDamageMin(), 0.0f);
@@ -96,6 +117,7 @@ void UPRAttributeSet_Player::PreAttributeChange(const FGameplayAttribute& Attrib
 	}
 	else if (Attribute == GetMaxStaminaAttribute()
 		|| Attribute == GetStaminaRegenRateAttribute()
+		|| Attribute == GetRecoverableHealthAttribute()
 		|| Attribute == GetPoiseDamageMinAttribute()
 		|| Attribute == GetPoiseWeakHitReactThresholdAttribute()
 		|| Attribute == GetPoiseStrongHitReactThresholdAttribute()
@@ -114,6 +136,51 @@ void UPRAttributeSet_Player::PostGameplayEffectExecute(const FGameplayEffectModC
 	if (Data.EvaluatedData.Attribute == GetStaminaAttribute())
 	{
 		SetStamina(FMath::Clamp(GetStamina(), 0.0f, GetMaxStamina()));
+	}
+	else if (Data.EvaluatedData.Attribute == GetRecoverableHealthAttribute())
+	{
+		SetRecoverableHealth(FMath::Clamp(
+			GetRecoverableHealth(),
+			0.0f,
+			ResolveRecoverableHealthMax(GetOwningAbilitySystemComponent())));
+	}
+	else if (Data.EvaluatedData.Attribute == GetIncomingRecoverableDamageAttribute())
+	{
+		const float LocalRecoverableDamage = GetIncomingRecoverableDamage();
+		SetIncomingRecoverableDamage(0.0f);
+		if (LocalRecoverableDamage <= 0.0f)
+		{
+			return;
+		}
+
+		const float RecoverableHealthMax = ResolveRecoverableHealthMax(GetOwningAbilitySystemComponent());
+		const float NewRecoverableHealth = FMath::Clamp(GetRecoverableHealth() + LocalRecoverableDamage, 0.0f, RecoverableHealthMax);
+		SetRecoverableHealth(NewRecoverableHealth);
+	}
+	else if (Data.EvaluatedData.Attribute == GetIncomingRecoverableHealAttribute())
+	{
+		const float LocalRecoverableHeal = GetIncomingRecoverableHeal();
+		SetIncomingRecoverableHeal(0.0f);
+		if (LocalRecoverableHeal <= 0.0f)
+		{
+			return;
+		}
+
+		UAbilitySystemComponent* AbilitySystemComponent = GetOwningAbilitySystemComponent();
+		const UPRAttributeSet_Common* CommonSet = IsValid(AbilitySystemComponent)
+			? AbilitySystemComponent->GetSet<UPRAttributeSet_Common>()
+			: nullptr;
+		if (!IsValid(CommonSet))
+		{
+			return;
+		}
+
+		UPRAttributeSet_Common* MutableCommonSet = const_cast<UPRAttributeSet_Common*>(CommonSet);
+		const float HealAmount = FMath::Min(LocalRecoverableHeal, GetRecoverableHealth());
+		const float NewHealth = FMath::Clamp(CommonSet->GetHealth() + HealAmount, 0.0f, CommonSet->GetMaxHealth());
+		const float AppliedHeal = FMath::Max(NewHealth - CommonSet->GetHealth(), 0.0f);
+		MutableCommonSet->SetHealth(NewHealth);
+		SetRecoverableHealth(FMath::Clamp(GetRecoverableHealth() - AppliedHeal, 0.0f, ResolveRecoverableHealthMax(AbilitySystemComponent)));
 	}
 	else if (Data.EvaluatedData.Attribute == GetAccumulatedPoiseDamageAttribute())
 	{
@@ -156,6 +223,7 @@ void UPRAttributeSet_Player::GetLifetimeReplicatedProps(TArray<FLifetimeProperty
 	DOREPLIFETIME_CONDITION_NOTIFY(UPRAttributeSet_Player, Stamina, COND_None, REPNOTIFY_Always);
 	DOREPLIFETIME_CONDITION_NOTIFY(UPRAttributeSet_Player, MaxStamina, COND_None, REPNOTIFY_Always);
 	DOREPLIFETIME_CONDITION_NOTIFY(UPRAttributeSet_Player, StaminaRegenRate, COND_None, REPNOTIFY_Always);
+	DOREPLIFETIME_CONDITION_NOTIFY(UPRAttributeSet_Player, RecoverableHealth, COND_OwnerOnly, REPNOTIFY_Always);
 	DOREPLIFETIME_CONDITION_NOTIFY(UPRAttributeSet_Player, AccumulatedPoiseDamage, COND_None, REPNOTIFY_Always);
 	DOREPLIFETIME_CONDITION_NOTIFY(UPRAttributeSet_Player, PoiseDamageMin, COND_None, REPNOTIFY_Always);
 	DOREPLIFETIME_CONDITION_NOTIFY(UPRAttributeSet_Player, PoiseWeakHitReactThreshold, COND_None, REPNOTIFY_Always);
@@ -180,6 +248,11 @@ void UPRAttributeSet_Player::OnRep_MaxStamina(const FGameplayAttributeData& OldV
 void UPRAttributeSet_Player::OnRep_StaminaRegenRate(const FGameplayAttributeData& OldValue)
 {
 	GAMEPLAYATTRIBUTE_REPNOTIFY(UPRAttributeSet_Player, StaminaRegenRate, OldValue);
+}
+
+void UPRAttributeSet_Player::OnRep_RecoverableHealth(const FGameplayAttributeData& OldValue)
+{
+	GAMEPLAYATTRIBUTE_REPNOTIFY(UPRAttributeSet_Player, RecoverableHealth, OldValue);
 }
 
 void UPRAttributeSet_Player::OnRep_AccumulatedPoiseDamage(const FGameplayAttributeData& OldValue)

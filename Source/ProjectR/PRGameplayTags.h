@@ -52,6 +52,7 @@ namespace PRGameplayTags
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(State_Dead); // 사망 상태.
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(State_Groggy); // 그로기 상태.
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(State_StaminaDepleted); // 스태미너 고갈 상태.
+	UE_DECLARE_GAMEPLAY_TAG_EXTERN(State_Down); // 전투불능 다운 상태.
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(State_Invulnerable); // 무적 상태.
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(State_Dodging); // 구르기 동작중
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(State_Crouching); // 구르기 동작중
@@ -60,6 +61,7 @@ namespace PRGameplayTags
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(State_Reloading); // 재장전 진행 상태
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(State_Channeling); // 캐스팅 또는 채널링 상태.
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(State_PoiseRecoveryBlocked); // 강인도 회복 차단 상태
+	UE_DECLARE_GAMEPLAY_TAG_EXTERN(State_RecoverableHealthRecoveryBlocked); // 회복 가능 체력 회복 차단 상태
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(State_PlayerInputLocked); // 플레이어 입력 차단 상태
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(State_PlayerHitReactLocked); // 피격 리액션 행동불능 상태
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(State_PhaseTransitioning); // 보스 페이즈 전환 상태.

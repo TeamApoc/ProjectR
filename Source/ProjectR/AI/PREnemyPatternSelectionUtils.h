@@ -42,6 +42,9 @@ namespace PREnemyPatternSelectionUtils
 	// 카테고리 필터와 패턴 규칙이 호환되는지 반환
 	bool MatchesPatternCategory(const FPRPatternRule& PatternRule, EPRPatternCategory CategoryFilter);
 
+	// 패턴 그룹 태그 필터와 패턴 규칙이 호환되는지 반환
+	bool MatchesPatternGroupTag(const FPRPatternRule& PatternRule, FGameplayTag PatternGroupFilter);
+
 	// BT/Blackboard/Pawn 기준으로 패턴 선택 문맥을 구성
 	bool BuildPatternQueryRuntime(
 		UBehaviorTreeComponent& OwnerComp,
@@ -56,6 +59,7 @@ namespace PREnemyPatternSelectionUtils
 	void CollectMatchingPatternRules(
 		const FPREnemyPatternQueryRuntime& Runtime,
 		EPRPatternCategory CategoryFilter,
+		FGameplayTag PatternGroupFilter,
 		bool bCheckAbilityCanActivate,
 		EPRPatternContextMatchMode MatchMode,
 		TArray<const FPRPatternRule*>& OutMatchedRules,

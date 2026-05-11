@@ -24,7 +24,11 @@ public:
 	virtual FString GetStaticDescription() const override;
 
 protected:
-	// 아래 키 이름들은 Soldier_Armored Blackboard 에셋의 키와 맞아야 한다.
+	// 현재 AI Pawn 자신을 기록하는 키다.
+	UPROPERTY(EditAnywhere, Category = "ProjectR|Blackboard")
+	FName SelfActorKey = TEXT("self_actor");
+
+	// 아래 키 이름들은 적 Blackboard 에셋의 키와 맞아야 한다.
 	UPROPERTY(EditAnywhere, Category = "ProjectR|Blackboard")
 	FName CurrentTargetKey = TEXT("current_target");
 

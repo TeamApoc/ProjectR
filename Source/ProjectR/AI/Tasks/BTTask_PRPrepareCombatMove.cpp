@@ -8,6 +8,7 @@
 #include "EnvironmentQuery/EnvQueryManager.h"
 #include "ProjectR/AI/PREnemyAIDebug.h"
 #include "ProjectR/AI/Controllers/PREnemyAIController.h"
+#include "ProjectR/AI/Data/PRBossCombatDataAsset.h"
 #include "ProjectR/AI/Data/PREnemyCombatDataAsset.h"
 #include "ProjectR/Character/Enemy/PREnemyInterface.h"
 
@@ -27,7 +28,7 @@ namespace
 	}
 
 	const FPREnemyMoveQueryConfig* GetMoveQueryConfig(
-		const UPREnemyCombatDataAsset* CombatDataAsset,
+		const UPRCombatMoveDataAsset* CombatDataAsset,
 		EPRCombatMoveQueryType SelectionMode)
 	{
 		if (!IsValid(CombatDataAsset))
@@ -35,19 +36,37 @@ namespace
 			return nullptr;
 		}
 
+		if (const UPRBossCombatDataAsset* BossCombatDataAsset = Cast<UPRBossCombatDataAsset>(CombatDataAsset))
+		{
+			if (SelectionMode == EPRCombatMoveQueryType::PatternFallbackReposition
+				|| SelectionMode == EPRCombatMoveQueryType::Strafe)
+			{
+				return &BossCombatDataAsset->PatternFallbackRepositionConfig;
+			}
+
+			return nullptr;
+		}
+
+		const UPREnemyCombatDataAsset* EnemyCombatDataAsset = Cast<UPREnemyCombatDataAsset>(CombatDataAsset);
+		if (!IsValid(EnemyCombatDataAsset))
+		{
+			return nullptr;
+		}
+
 		switch (SelectionMode)
 		{
 		case EPRCombatMoveQueryType::ApproachMeleeRange:
-			return &CombatDataAsset->ApproachMeleeRangeConfig;
+			return &EnemyCombatDataAsset->ApproachMeleeRangeConfig;
 		case EPRCombatMoveQueryType::FastApproach:
-			return &CombatDataAsset->FastApproachConfig;
+			return &EnemyCombatDataAsset->FastApproachConfig;
+		case EPRCombatMoveQueryType::PatternFallbackReposition:
 		case EPRCombatMoveQueryType::Strafe:
 		default:
-			return &CombatDataAsset->CombatStrafeConfig;
+			return &EnemyCombatDataAsset->CombatStrafeConfig;
 		}
 	}
 
-	const UPREnemyCombatDataAsset* ResolveCombatDataAsset(const APawn* ControlledPawn, const UPREnemyCombatDataAsset* OverrideAsset)
+	const UPRCombatMoveDataAsset* ResolveCombatDataAsset(const APawn* ControlledPawn, const UPRCombatMoveDataAsset* OverrideAsset)
 	{
 		if (IsValid(OverrideAsset))
 		{
@@ -240,7 +259,7 @@ EBTNodeResult::Type UBTTask_PRPrepareCombatMove::ExecuteTask(UBehaviorTreeCompon
 		return EBTNodeResult::Failed;
 	}
 
-	const UPREnemyCombatDataAsset* ResolvedCombatDataAsset = ResolveCombatDataAsset(ControlledPawn, CombatDataAsset);
+	const UPRCombatMoveDataAsset* ResolvedCombatDataAsset = ResolveCombatDataAsset(ControlledPawn, CombatDataAsset);
 	const FPREnemyMoveQueryConfig* MoveQueryConfig = GetMoveQueryConfig(ResolvedCombatDataAsset, SelectionMode);
 	if (MoveQueryConfig == nullptr || !IsValid(MoveQueryConfig->QueryTemplate))
 	{

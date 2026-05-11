@@ -8,7 +8,7 @@
 
 class UBehaviorTree;
 class UPRAbilitySystemComponent;
-class UPREnemyCombatDataAsset;
+class UPRCombatMoveDataAsset;
 class UPRPatternDataAsset;
 class UPRPerceptionConfig;
 class UPREnemyThreatComponent;
@@ -35,8 +35,8 @@ public:
 	// BT가 패턴을 고를 때 사용할 패턴 데이터 자산이다.
 	virtual UPRPatternDataAsset* GetPatternDataAsset() const = 0;
 
-	// 전투 이동, pressure, 공격 수치를 담은 전투 데이터 자산이다.
-	virtual UPREnemyCombatDataAsset* GetCombatDataAsset() const = 0;
+	// 전투 이동과 표현 문맥을 담은 데이터 자산이다. 일반 적은 enemy combat data, 보스는 boss combat data를 반환한다.
+	virtual UPRCombatMoveDataAsset* GetCombatDataAsset() const = 0;
 
 	// AI Perception 설정값을 담은 데이터 자산이다.
 	virtual UPRPerceptionConfig* GetPerceptionConfig() const = 0;

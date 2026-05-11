@@ -42,6 +42,21 @@ public:
 	FGameplayAttributeData StaminaRegenRate;
 	PR_ATTRIBUTE_ACCESSORS(UPRAttributeSet_Player, StaminaRegenRate)
 
+	// 회복 가능 체력
+	UPROPERTY(BlueprintReadOnly, ReplicatedUsing = OnRep_RecoverableHealth, Category = "ProjectR|Attributes|Player")
+	FGameplayAttributeData RecoverableHealth;
+	PR_ATTRIBUTE_ACCESSORS(UPRAttributeSet_Player, RecoverableHealth)
+
+	// 이번 피해로 적립할 회복 가능 체력
+	UPROPERTY(BlueprintReadOnly, Category = "ProjectR|Attributes|Player")
+	FGameplayAttributeData IncomingRecoverableDamage;
+	PR_ATTRIBUTE_ACCESSORS(UPRAttributeSet_Player, IncomingRecoverableDamage)
+
+	// 회복 가능 체력에서 현재 체력으로 옮길 회복량
+	UPROPERTY(BlueprintReadOnly, Category = "ProjectR|Attributes|Player")
+	FGameplayAttributeData IncomingRecoverableHeal;
+	PR_ATTRIBUTE_ACCESSORS(UPRAttributeSet_Player, IncomingRecoverableHeal)
+
 	// 누적 강인도 피해
 	UPROPERTY(BlueprintReadOnly, ReplicatedUsing = OnRep_AccumulatedPoiseDamage, Category = "ProjectR|Attributes|Player")
 	FGameplayAttributeData AccumulatedPoiseDamage;
@@ -91,6 +106,9 @@ protected:
 
 	UFUNCTION()
 	void OnRep_StaminaRegenRate(const FGameplayAttributeData& OldValue);
+
+	UFUNCTION()
+	void OnRep_RecoverableHealth(const FGameplayAttributeData& OldValue);
 
 	UFUNCTION()
 	void OnRep_AccumulatedPoiseDamage(const FGameplayAttributeData& OldValue);

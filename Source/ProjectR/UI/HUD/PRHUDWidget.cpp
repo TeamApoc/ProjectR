@@ -6,8 +6,12 @@
 #include "PRInteractionHUDWidget.h"
 #include "ProjectR/Interaction/PRInteractionAction.h"
 #include "ProjectR/PRGameplayTags.h"
+#include "ProjectR/Player/PRPlayerState.h"
 #include "ProjectR/System/PREventManagerSubsystem.h"
 #include "ProjectR/UI/Crosshair/PRCrosshairWidget.h"
+#include "ProjectR/UI/HUD/PRHealthBarWidget.h"
+#include "ProjectR/UI/HUD/PRPartyHealthListWidget.h"
+#include "ProjectR/UI/QuickSlot/PRQuickSlotWidget.h"
 #include "ProjectR/UI/WeaponStatusHUD/PRWeaponHUDWidget.h"
 
 UPRHUDWidget::UPRHUDWidget()
@@ -27,6 +31,26 @@ void UPRHUDWidget::NativeOnInitialized()
 	{
 		return;
 	}
+	
+	bool bPlayerReady = false;
+	if (APlayerController* OwningPlayerController = GetOwningPlayer())
+	{
+		if (APRPlayerState* PS = OwningPlayerController->GetPlayerState<APRPlayerState>())
+		{
+			bPlayerReady = true; 
+		}
+	}
+	
+	if (bPlayerReady)
+	{
+		OnPlayerReady();
+	}
+	else
+	{
+		EventHandles.Add(EventMgr->Listen(
+			PRGameplayTags::Player_Ready,
+			FPREventMulticast::FDelegate::CreateUObject(this, &UPRHUDWidget::HandlePlayerReady)));
+	}
 
 	// 크로스헤어가 BP 레이아웃에 포함된 경우에만 에임 이벤트를 구독한다
 	if (IsValid(CrosshairWidget))
@@ -34,13 +58,13 @@ void UPRHUDWidget::NativeOnInitialized()
 		// 초기 상태는 숨김. Aim.Start 신호를 받기 전까지 보이지 않는다
 		SetCrosshairVisible(false);
 
-		AimStartHandle = EventMgr->Listen(
+		EventHandles.Add(EventMgr->Listen(
 			PRGameplayTags::Event_Player_Aim_Start,
-			FPREventMulticast::FDelegate::CreateUObject(this, &UPRHUDWidget::HandleAimStart));
+			FPREventMulticast::FDelegate::CreateUObject(this, &UPRHUDWidget::HandleAimStart)));
 
-		AimEndHandle = EventMgr->Listen(
+		EventHandles.Add(EventMgr->Listen(
 			PRGameplayTags::Event_Player_Aim_End,
-			FPREventMulticast::FDelegate::CreateUObject(this, &UPRHUDWidget::HandleAimEnd));
+			FPREventMulticast::FDelegate::CreateUObject(this, &UPRHUDWidget::HandleAimEnd)));
 	}
 
 	// 상호작용 HUD 가 BP 레이아웃에 포함된 경우에만 Hold 이벤트를 구독한다
@@ -48,10 +72,15 @@ void UPRHUDWidget::NativeOnInitialized()
 	{
 		InteractionHUD->SetHUDVisible(false);
 
-		InteractionHoldHandle = EventMgr->Listen(
+		EventHandles.Add(EventMgr->Listen(
 			PRGameplayTags::Event_Player_Interaction_Hold,
-			FPREventMulticast::FDelegate::CreateUObject(this, &UPRHUDWidget::HandleInteractionHold));
+			FPREventMulticast::FDelegate::CreateUObject(this, &UPRHUDWidget::HandleInteractionHold)));
 	}
+}
+
+void UPRHUDWidget::NativeConstruct()
+{
+	Super::NativeConstruct();
 }
 
 void UPRHUDWidget::NativeDestruct()
@@ -73,6 +102,34 @@ void UPRHUDWidget::NativeTick(const FGeometry& MyGeometry, float InDeltaTime)
 			: 1.f;
 		InteractionHUD->SetProgress(Percent);
 	}
+}
+
+void UPRHUDWidget::OnPlayerReady()
+{
+	if (WeaponHUD)
+	{
+		WeaponHUD->InitializeWeaponHUD();
+	}
+	
+	if (IsValid(QuickSlotHUD))
+	{
+		QuickSlotHUD->InitializeQuickSlotHUD();
+	}
+
+	if (IsValid(PlayerHealthBar))
+	{
+		PlayerHealthBar->RefreshHealthFromOwner();
+	}
+
+	if (IsValid(PartyHealthList))
+	{
+		PartyHealthList->RefreshPartyMembers();
+	}
+}
+
+void UPRHUDWidget::HandlePlayerReady(FGameplayTag EventTag, const FInstancedStruct& Payload)
+{
+	OnPlayerReady();
 }
 
 void UPRHUDWidget::HandleAimStart(FGameplayTag EventTag, const FInstancedStruct& Payload)
@@ -130,22 +187,12 @@ void UPRHUDWidget::UnbindFromEventManager()
 {
 	if (UPREventManagerSubsystem* EventMgr = GetEventManager())
 	{
-		if (AimStartHandle.IsValid())
+		for (auto& Handle : EventHandles)
 		{
-			EventMgr->Unlisten(PRGameplayTags::Event_Player_Aim_Start, AimStartHandle);
-		}
-		if (AimEndHandle.IsValid())
-		{
-			EventMgr->Unlisten(PRGameplayTags::Event_Player_Aim_End, AimEndHandle);
-		}
-		if (InteractionHoldHandle.IsValid())
-		{
-			EventMgr->Unlisten(PRGameplayTags::Event_Player_Interaction_Hold, InteractionHoldHandle);
+			EventMgr->UnlistenAll(Handle);
 		}
 	}
-	AimStartHandle.Reset();
-	AimEndHandle.Reset();
-	InteractionHoldHandle.Reset();
+	EventHandles.Reset();
 }
 
 void UPRHUDWidget::SetCrosshairVisible(bool bVisible)

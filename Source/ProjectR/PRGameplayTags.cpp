@@ -9,6 +9,7 @@ namespace PRGameplayTags
 
 	// ===== Player =====
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Player, "Player", "플레이어 관련 태그");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Player_Ready, "Player.Ready", "플레이어 준비 완료 태그");
 
 	// ===== Ability.* =====
 
@@ -53,6 +54,7 @@ namespace PRGameplayTags
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(State_Dead, "State.Dead", "사망 상태");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(State_Groggy, "State.Groggy", "그로기 상태");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(State_StaminaDepleted, "State.StaminaDepleted", "스태미너 고갈 상태");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(State_Down, "State.Down", "전투불능 다운 상태");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(State_Invulnerable, "State.Invulnerable", "무적 상태 (회피 i-frame 등)");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(State_Dodging, "State.Dodging", "구르기 중 (무적이 아님)");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(State_Crouching, "State.Crouching", "앉기 상태");
@@ -61,6 +63,7 @@ namespace PRGameplayTags
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(State_Reloading, "State.Reloading", "재장전 진행 상태");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(State_Channeling, "State.Channeling", "캐스팅 또는 채널링 상태");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(State_PoiseRecoveryBlocked, "State.PoiseRecoveryBlocked", "강인도 회복 차단 상태");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(State_RecoverableHealthRecoveryBlocked, "State.RecoverableHealthRecoveryBlocked", "회복 가능 체력 회복 차단 상태");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(State_PlayerInputLocked, "State.PlayerInputLocked", "플레이어 입력 차단 상태");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(State_PlayerHitReactLocked, "State.PlayerHitReactLocked", "피격 리액션 행동불능 상태");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(State_PhaseTransitioning, "State.PhaseTransitioning", "보스 페이즈 전환 상태");
@@ -70,6 +73,7 @@ namespace PRGameplayTags
 	// ===== Cooldown.Ability.* =====
 
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Cooldown_Ability_Dodge, "Cooldown.Ability.Dodge", "구르기 쿨다운");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Cooldown_Ability_Fire, "Cooldown.Ability.Fire", "무기 발사 쿨다운");
 
 	// ===== Event.* =====
 

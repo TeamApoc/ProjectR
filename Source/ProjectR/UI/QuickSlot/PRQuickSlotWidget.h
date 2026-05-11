@@ -25,16 +25,15 @@ public:
 	// 전체 퀵슬롯 표시를 갱신한다
 	UFUNCTION(BlueprintCallable, Category = "ProjectR|QuickSlot")
 	void RefreshQuickSlots();
-
+	
+	// 소유 플레이어의 퀵슬롯 표시 소스를 초기화한다
+	void InitializeQuickSlotHUD();
 protected:
 	/*~ UUserWidget Interface ~*/
 	virtual void NativeConstruct() override;
 	virtual void NativeDestruct() override;
 
 private:
-	// 소유 플레이어의 퀵슬롯 표시 소스를 초기화한다
-	void InitializeQuickSlotHUD();
-
 	// 퀵슬롯 변경 알림을 받아 표시를 갱신한다
 	UFUNCTION()
 	void HandleQuickSlotChanged(UPRQuickSlotComponent* ChangedQuickSlotComponent, int32 ChangedSlotIndex);

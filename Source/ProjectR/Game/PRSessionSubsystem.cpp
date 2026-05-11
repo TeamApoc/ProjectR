@@ -106,7 +106,42 @@ void UPRSessionSubsystem::StartJoin(const FPRJoinSessionParams& Params)
 	SetState(EPRSessionState::Joined);
 }
 
-// ===== 종료 ===== 
+// ===== ServerTravel =====
+
+void UPRSessionSubsystem::ServerTravelToMap(TSoftObjectPtr<UWorld> MapAsset, bool bAbsolute)
+{
+	if (MapAsset.IsNull())
+	{
+		OnSessionFailed.Broadcast(EPRSessionFailReason::MapLoadFailed, TEXT("MapAsset is null"));
+		return;
+	}
+
+	UWorld* World = GetWorld();
+	if (!IsValid(World))
+	{
+		OnSessionFailed.Broadcast(EPRSessionFailReason::Unknown, TEXT("World invalid"));
+		return;
+	}
+
+	const ENetMode NetMode = World->GetNetMode();
+	if (NetMode != NM_ListenServer && NetMode != NM_DedicatedServer && NetMode != NM_Standalone)
+	{
+		OnSessionFailed.Broadcast(EPRSessionFailReason::Unknown, TEXT("ServerTravel requires server authority"));
+		return;
+	}
+
+	// 소프트 참조의 LongPackageName을 ServerTravel URL로 사용 (예: /Game/.../L_MyMap)
+	const FString PackageName = MapAsset.GetLongPackageName();
+	if (PackageName.IsEmpty())
+	{
+		OnSessionFailed.Broadcast(EPRSessionFailReason::MapLoadFailed, TEXT("MapAsset package name empty"));
+		return;
+	}
+
+	World->ServerTravel(PackageName, bAbsolute);
+}
+
+// ===== 종료 =====
 
 void UPRSessionSubsystem::EndSession()
 {

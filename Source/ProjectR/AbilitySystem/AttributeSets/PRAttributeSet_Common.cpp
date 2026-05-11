@@ -4,6 +4,7 @@
 #include "AbilitySystemBlueprintLibrary.h"
 #include "GameplayEffectExtension.h"
 #include "Net/UnrealNetwork.h"
+#include "ProjectR/AbilitySystem/AttributeSets/PRAttributeSet_Player.h"
 #include "ProjectR/PRGameplayTags.h"
 
 
@@ -27,6 +28,10 @@ void UPRAttributeSet_Common::PreAttributeChange(const FGameplayAttribute& Attrib
 	if (Attribute == GetHealthAttribute())
 	{
 		NewValue = FMath::Clamp(NewValue, 0.0f, GetMaxHealth());
+	}
+	else if (Attribute == GetMaxHealthAttribute())
+	{
+		NewValue = FMath::Max(NewValue, 0.0f);
 	}
 	// MovementSpeedMultiplier 및 Armor는 음수 금지
 	else if (Attribute == GetMovementSpeedMultiplierAttribute()
@@ -60,10 +65,27 @@ void UPRAttributeSet_Common::PostGameplayEffectExecute(const FGameplayEffectModC
 		SetHealth(FMath::Clamp(GetHealth(), 0.0f, GetMaxHealth()));
 		bHealthChanged = true;
 	}
+	else if (Data.EvaluatedData.Attribute == GetMaxHealthAttribute())
+	{
+		SetMaxHealth(FMath::Max(GetMaxHealth(), 0.0f));
+		SetHealth(FMath::Clamp(GetHealth(), 0.0f, GetMaxHealth()));
+		bHealthChanged = true;
+	}
 
 	// Health => 0 전이 시 State.Dead 부여 + OnDeath 발행
 	if (bHealthChanged)
 	{
+		if (UAbilitySystemComponent* ASC = GetOwningAbilitySystemComponent())
+		{
+			const UPRAttributeSet_Player* PlayerSet = ASC->GetSet<UPRAttributeSet_Player>();
+			if (IsValid(PlayerSet))
+			{
+				UPRAttributeSet_Player* MutablePlayerSet = const_cast<UPRAttributeSet_Player*>(PlayerSet);
+				const float RecoverableHealthMax = FMath::Max(GetMaxHealth() - GetHealth(), 0.0f);
+				MutablePlayerSet->SetRecoverableHealth(FMath::Clamp(PlayerSet->GetRecoverableHealth(), 0.0f, RecoverableHealthMax));
+			}
+		}
+
 		const float NewHealth = GetHealth();
 		if (NewHealth <= 0.0f)
 		{

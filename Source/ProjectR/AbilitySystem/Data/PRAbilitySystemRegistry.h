@@ -67,4 +67,9 @@ public:
 	// 보조무기 슬롯 어트리뷰트를 set하는 Instant GE
 	UPROPERTY(EditAnywhere, Category = "Registry|Ammo")
 	TSubclassOf<UGameplayEffect> EquipAmmoGE_Secondary;
+
+	// ==== 쿨다운 GE ====
+	// 사격 어빌리티 공통 쿨다운 GE. SetByCaller.Cooldown으로 Duration 주입. Cooldown.Ability.Fire.Primary를 Granted Tag로 부여
+	UPROPERTY(EditAnywhere, Category = "Registry|Cooldown")
+	TSubclassOf<UGameplayEffect> CooldownGE_Fire;
 };

@@ -6,6 +6,7 @@
 #include "Abilities/Tasks/AbilityTask_WaitInputRelease.h"
 #include "ProjectR/AbilitySystem/Tasks/PRAT_RepeatFire.h"
 #include "ProjectR/PRGameplayTags.h"
+#include "ProjectR/Weapon/Data/PRWeaponDataAsset.h"
 
 UPRGA_FireFullAuto::UPRGA_FireFullAuto()
 {
@@ -29,11 +30,25 @@ void UPRGA_FireFullAuto::ActivateAbility(const FGameplayAbilitySpecHandle Handle
 		return;
 	}
 
+	// 발사 간격 결정. CommitAbilityCooldown 이전에 캐싱해야 ApplyCooldown SetByCaller 주입에 반영
+	if (bOverrideFireInterval)
+	{
+		CachedFireInterval = FireIntervalOverride;
+	}
+	else if (const UPRWeaponDataAsset* WeaponData = GetActiveWeaponData())
+	{
+		CachedFireInterval = WeaponData->FireInterval;
+	}
+	else
+	{
+		CachedFireInterval = FireIntervalOverride;
+	}
+
 	// 쿨다운만 활성화 시점에 적용
 	CommitAbilityCooldown(Handle, ActorInfo, ActivationInfo, /*ForceCooldown=*/true);
 
-	// FireIntrval 주기로 FireOneShot 반복
-	if (UPRAT_RepeatFire* RepeatTask = UPRAT_RepeatFire::RepeatFire(this, FireInterval, bFireOnActivate))
+	// FireInterval 주기로 FireOneShot 반복
+	if (UPRAT_RepeatFire* RepeatTask = UPRAT_RepeatFire::RepeatFire(this, CachedFireInterval, bFireOnActivate))
 	{
 		RepeatTask->OnPerform.AddDynamic(this, &UPRGA_FireFullAuto::FireHitScan);
 		RepeatTask->ReadyForActivation();

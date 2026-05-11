@@ -64,6 +64,10 @@ struct PROJECTR_API FPRPlayerStatRow : public FTableRowBase
 	UPROPERTY(EditAnywhere, BlueprintReadOnly)
 	float Armor = 0.0f;
 
+	// 회복 가능 체력 초기값
+	UPROPERTY(EditAnywhere, BlueprintReadOnly)
+	float RecoverableHealth = 0.0f;
+
 	// 누적 강인도 피해 최소값
 	UPROPERTY(EditAnywhere, BlueprintReadOnly)
 	float PoiseDamageMin = 0.0f;

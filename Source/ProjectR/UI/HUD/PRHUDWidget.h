@@ -29,10 +29,16 @@ public:
 protected:
 	/*~ UUserWidget Interface ~*/
 	virtual void NativeOnInitialized() override;
+	virtual void NativeConstruct() override;
 	virtual void NativeDestruct() override;
 	virtual void NativeTick(const FGeometry& MyGeometry, float InDeltaTime) override;
 
+	/*~ UPRHUDWIdget Interface ~*/
+	void OnPlayerReady();
+	
 private:
+	void HandlePlayerReady(FGameplayTag EventTag, const FInstancedStruct& Payload);
+	
 	// EventManager 콜백: 에이밍 시작 - 크로스헤어 표시
 	void HandleAimStart(FGameplayTag EventTag, const FInstancedStruct& Payload);
 
@@ -61,11 +67,12 @@ protected:
 	// 없으면 Hold 이벤트 바인딩도 건너뛴다
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "HUD")
 	TObjectPtr<UPRInteractionHUDWidget> InteractionHUD;
+	
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "HUD")
+	TObjectPtr<UPRWeaponHUDWidget> WeaponHUD;
 
 private:
-	FDelegateHandle AimStartHandle;
-	FDelegateHandle AimEndHandle;
-	FDelegateHandle InteractionHoldHandle;
+	TArray<FDelegateHandle> EventHandles;
 
 	// Hold 진행 상태 추적 (NativeTick 에서 ProgressBar 갱신에 사용)
 	bool bIsHoldActive = false;

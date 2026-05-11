@@ -33,13 +33,13 @@ APRPlayerController::APRPlayerController()
 void APRPlayerController::BeginPlay()
 {
 	Super::BeginPlay();
-
-	// 로컬 클라만 서버로 캐릭터 페이로드 제출
+	
+	// TODO: 로컬 클라만 서버로 캐릭터 페이로드 제출
 	// 호스트의 경우 GameMode가 직접 LocalCharacter를 주입하므로 별도 경로로 처리
-	if (IsLocalController() && GetNetMode() == NM_Client)
-	{
-		SubmitLocalCharacterToServer();
-	}
+	// if (IsLocalController() && GetNetMode() == NM_Client)
+	// {
+	// 	SubmitLocalCharacterToServer();
+	// }
 }
 
 void APRPlayerController::AcknowledgePossession(APawn* InPawn)

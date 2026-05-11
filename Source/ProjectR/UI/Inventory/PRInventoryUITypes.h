@@ -41,6 +41,14 @@ public:
 	UPROPERTY(BlueprintReadOnly, Category = "ProjectR|Inventory")
 	bool bEquipped = false;
 
+	// 수량 표시가 필요한 아이템의 현재 보유 개수
+	UPROPERTY(BlueprintReadOnly, Category = "ProjectR|Inventory")
+	int32 StackCount = 0;
+
+	// 수량 텍스트 표시 여부
+	UPROPERTY(BlueprintReadOnly, Category = "ProjectR|Inventory")
+	bool bShowStackCount = false;
+
 	// 장착 해제 항목인지 여부
 	UPROPERTY(BlueprintReadOnly, Category = "ProjectR|Inventory")
 	bool bUnequipEntry = false;

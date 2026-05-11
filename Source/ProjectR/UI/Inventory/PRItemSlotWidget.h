@@ -70,6 +70,10 @@ protected:
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "ProjectR|Inventory")
 	TObjectPtr<UImage> EquippedIndicatorImage;
 
+	// UMG에서 바인딩할 아이템 보유 개수 텍스트
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "ProjectR|Inventory")
+	TObjectPtr<UTextBlock> StackCountText;
+
 	// UMG에서 바인딩할 클릭 버튼
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "ProjectR|Inventory")
 	TObjectPtr<UButton> ClickButton;

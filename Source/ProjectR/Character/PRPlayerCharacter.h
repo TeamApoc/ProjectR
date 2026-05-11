@@ -15,6 +15,7 @@ class UInputAction;
 class UPRWeaponManagerComponent;
 class UPRSpringArmComponent;
 class UPRActionInputRouterComponent;
+class UPRProjectileTrajectoryPreviewComponent;
 struct FInputActionValue;
 //무기 테스트용
 class UPRWeaponDataAsset;
@@ -63,7 +64,7 @@ public:
 protected:
 	virtual void BeginPlay() override;
 	virtual void SetupPlayerInputComponent(class UInputComponent* PlayerInputComponent) override;
-	
+
 	/*~ APRCharacterBase Interface ~*/
 	virtual void HandleGameplayTagUpdated(const FGameplayTag& ChangedTag, bool bTagExists) override;
 	
@@ -86,6 +87,9 @@ private:
     UFUNCTION()
     void OnRep_IsSprinting();
 
+	/** 상태 태그 기준으로 이동 입력이 차단되는지 반환한다 */
+	bool IsMoveInputLockedByState() const;
+
 public:
 	/** 컴포넌트 */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Camera")
@@ -100,6 +104,10 @@ public:
 	/** 몽타주 기반 액션 중 입력 차단과 스킵 요청을 중계하는 컴포넌트 */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Input")
 	TObjectPtr<UPRActionInputRouterComponent> ActionInputRouterComponent;
+
+	/** 투사체 발사 예측 경로 표시 컴포넌트. 로컬 시각 효과 전용 */
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Projectile")
+	TObjectPtr<UPRProjectileTrajectoryPreviewComponent> ProjectileTrajectoryPreviewComponent;
 
 protected:
 	/** Enhanced Input 에셋 (블루프린트에서 할당) */

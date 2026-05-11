@@ -8,6 +8,7 @@
 #include "GameFramework/Character.h"
 #include "Logging/LogMacros.h"
 #include "Net/UnrealNetwork.h"
+#include "ProjectR/PRGameplayTags.h"
 #include "ProjectR/AbilitySystem/AttributeSets/PRAttributeSet_Player.h"
 #include "ProjectR/AbilitySystem/AttributeSets/PRAttributeSet_Weapon.h"
 #include "ProjectR/AbilitySystem/Data/PRAbilitySystemRegistry.h"
@@ -220,7 +221,7 @@ bool UPRWeaponManagerComponent::EquipInventoryWeaponAtIndex(int32 InventoryIndex
 	InitializeRuntimeLinks();
 
 	// 인벤토리 컴포넌트를 찾지 못한 경우
-	if (!IsValid(CachedInventory))
+	if (!CachedInventory.IsValid())
 	{
 		// 장착 실패. 장착 대상 조회 불가
 		return false;
@@ -432,6 +433,9 @@ void UPRWeaponManagerComponent::HandleInventoryWeaponModChanged(UPRItemInstance_
 	// 현재 활성 무기의 애니메이션 레이어 캐시를 재확인한다
 	RefreshAnimLayer();
 
+	// 장착 중인 무기의 Mod 표시 상태가 바뀌었음을 HUD와 인벤토리 UI에 알린다
+	OnWeaponEquipmentChanged.Broadcast(this, TargetSlot);
+
 	// 서버 Mod 변경 반응이 끝난 뒤 Owner, 슬롯, Weapon Item, Mod 상태를 남겨 인벤토리 연동 흐름 추적
 	UE_LOG(
 		LogTemp,
@@ -507,7 +511,7 @@ bool UPRWeaponManagerComponent::EquipWeaponInternal(UPRItemInstance_Weapon* Weap
 	// 잘못된 슬롯, 비소유 Item, 무기 데이터 누락인 경우
 	if (!IsSupportedSlot(WeaponSlot)
 		|| !IsValid(WeaponItem)
-		|| !IsValid(CachedInventory)
+		|| !CachedInventory.IsValid()
 		|| !CachedInventory->OwnsWeapon(WeaponItem)
 		|| !IsValid(WeaponData))
 	{
@@ -584,7 +588,7 @@ bool UPRWeaponManagerComponent::EquipWeaponInternal(UPRItemInstance_Weapon* Weap
 
 void UPRWeaponManagerComponent::ApplyEquipAmmoGE(const UPRWeaponDataAsset* WeaponData, UObject* SourceObject)
 {
-	if (!IsValid(WeaponData) || !IsValid(CachedASC))
+	if (!IsValid(WeaponData) || !CachedASC.IsValid())
 	{
 		return;
 	}
@@ -750,6 +754,9 @@ bool UPRWeaponManagerComponent::AttachModToSlotInternal(EPRWeaponSlotType Target
 
 	// 현재 활성 무기의 애니메이션 레이어 캐시 재확인
 	RefreshAnimLayer();
+
+	// 슬롯의 Mod 표시 상태가 바뀌었음을 HUD와 인벤토리 UI에 알린다
+	OnWeaponEquipmentChanged.Broadcast(this, TargetSlot);
 
 	// 서버 Mod 장착 처리가 확정된 뒤 Owner, 슬롯, 무기 데이터, Mod 데이터를 남겨 Mod 변경 흐름 추적
 	UE_LOG(
@@ -927,6 +934,19 @@ void UPRWeaponManagerComponent::RefreshWeaponActorForSlot(EPRWeaponSlotType Slot
 
 	// 생성되었거나 재사용 가능한 Actor를 현재 carry state에 맞춰 부착
 	RefreshWeaponAttachmentForSlot(SlotType);
+	
+	// 26.05.08, Yuchan, State_Armed 추가
+	if (CachedASC.IsValid())
+	{
+		if (ArmedState == EPRArmedState::Armed)
+		{
+			CachedASC->AddLooseGameplayTag(PRGameplayTags::State_Armed);	
+		}
+		else
+		{
+			CachedASC->RemoveLooseGameplayTag(PRGameplayTags::State_Armed);
+		}
+	}
 }
 
 void UPRWeaponManagerComponent::RefreshAllWeaponActors()
@@ -1030,6 +1050,9 @@ void UPRWeaponManagerComponent::OnRep_PrimaryVisualInfo(FPRWeaponVisualInfo OldV
 	// 주무기 공개 비주얼 변화에 맞춰 주무기 Actor 갱신
 	RefreshWeaponActorForSlot(EPRWeaponSlotType::Primary);
 
+	// 주무기 공개 비주얼의 무기 또는 Mod 표시 상태 변경을 UI에 알린다
+	OnWeaponEquipmentChanged.Broadcast(this, EPRWeaponSlotType::Primary);
+
 	// 현재 활성 주무기 비주얼에 맞춰 애니메이션 레이어 갱신
 	if (CurrentWeaponSlot == EPRWeaponSlotType::Primary)
 	{
@@ -1059,6 +1082,9 @@ void UPRWeaponManagerComponent::OnRep_SecondaryVisualInfo(FPRWeaponVisualInfo Ol
 
 	// 보조무기 공개 비주얼 변화에 맞춰 보조무기 Actor 갱신
 	RefreshWeaponActorForSlot(EPRWeaponSlotType::Secondary);
+
+	// 보조무기 공개 비주얼의 무기 또는 Mod 표시 상태 변경을 UI에 알린다
+	OnWeaponEquipmentChanged.Broadcast(this, EPRWeaponSlotType::Secondary);
 
 	// 현재 활성 보조무기 비주얼에 맞춰 애니메이션 레이어 갱신
 	if (CurrentWeaponSlot == EPRWeaponSlotType::Secondary)

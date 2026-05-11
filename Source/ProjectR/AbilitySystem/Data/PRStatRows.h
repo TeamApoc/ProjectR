@@ -64,6 +64,22 @@ struct PROJECTR_API FPRPlayerStatRow : public FTableRowBase
 	UPROPERTY(EditAnywhere, BlueprintReadOnly)
 	float Armor = 0.0f;
 
+	// 누적 강인도 피해 최소값
+	UPROPERTY(EditAnywhere, BlueprintReadOnly)
+	float PoiseDamageMin = 0.0f;
+
+	// 약한 경직 임계값
+	UPROPERTY(EditAnywhere, BlueprintReadOnly)
+	float PoiseWeakHitReactThreshold = 33.0f;
+
+	// 강한 경직 임계값
+	UPROPERTY(EditAnywhere, BlueprintReadOnly)
+	float PoiseStrongHitReactThreshold = 66.0f;
+
+	// 누적 강인도 피해 최대값
+	UPROPERTY(EditAnywhere, BlueprintReadOnly)
+	float PoiseDamageMax = 100.0f;
+
 	// 치명타 확률 (0.0 ~ 1.0)
 	UPROPERTY(EditAnywhere, BlueprintReadOnly)
 	float CriticalHitChance = 0.05f;

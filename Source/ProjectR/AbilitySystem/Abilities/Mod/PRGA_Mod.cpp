@@ -8,6 +8,7 @@
 #include "ProjectR/Character/PRPlayerCharacter.h"
 #include "ProjectR/Combat/PRCombatGameplayTags.h"
 #include "ProjectR/System/PRAssetManager.h"
+#include "ProjectR/Utils/PRGameplayStatics.h"
 #include "ProjectR/Weapon/Actors/PRWeaponActor.h"
 #include "ProjectR/Weapon/Components/PRWeaponManagerComponent.h"
 
@@ -80,52 +81,30 @@ FPRFireViewpoint UPRGA_Mod::GetFireViewpoint() const
 		return View;
 	}
 
-	// TPS 숄더뷰: SpringArm/카메라 오프셋이 반영된 실제 카메라 위치/회전 사용
-	APlayerController* PC = Cast<APlayerController>(GetActorInfo().PlayerController.Get());
-	if (IsValid(PC) && IsValid(PC->PlayerCameraManager))
-	{
-		View.Location = PC->PlayerCameraManager->GetCameraLocation();
-		View.Rotation = PC->PlayerCameraManager->GetCameraRotation();
-		return View;
-	}
-
-	// Fallback: 컨트롤러 없을 때 액터 눈높이 기준
-	if (APawn* OwnerPawn = Cast<APawn>(GetAvatarActorFromActorInfo()))
-	{
-		OwnerPawn->GetActorEyesViewPoint(View.Location, View.Rotation);
-	}
-
+	UPRGameplayStatics::GetPawnViewpoint(Cast<APawn>(GetAvatarActorFromActorInfo()), View.Location, View.Rotation);
 	return View;
 }
 
 FVector UPRGA_Mod::ResolveAimPoint(const FPRFireViewpoint& View, float InMaxTraceDistance) const
 {
-	const FVector CamStart = View.Location;
-	const FVector CamEnd = CamStart + View.Rotation.Vector() * InMaxTraceDistance;
-
-	UWorld* World = GetWorld();
-	if (!IsValid(World))
-	{
-		return CamEnd;
-	}
-
-	FCollisionQueryParams Params(SCENE_QUERY_STAT(PRModAimTrace), false);
+	APawn* OwnerPawn = Cast<APawn>(GetAvatarActorFromActorInfo());
+	TArray<AActor*> IgnoredActors;
 	if (AActor* AvatarActor = GetAvatarActorFromActorInfo())
 	{
-		Params.AddIgnoredActor(AvatarActor);
+		IgnoredActors.Add(AvatarActor);
 	}
-
-	FHitResult AimHit;
-	World->LineTraceSingleByChannel(AimHit, CamStart, CamEnd, AimTraceChannel.GetValue(), Params);
+	const FVector AimPoint = UPRGameplayStatics::ResolveCameraAimPoint(OwnerPawn, InMaxTraceDistance, AimTraceChannel.GetValue(), IgnoredActors);
 
 	// 디버그: 카메라 트레이스 시안색
 	if (bDrawCameraTrace)
 	{
-		const FVector AimDrawEnd = AimHit.bBlockingHit ? AimHit.ImpactPoint : CamEnd;
-		DrawDebugLine(World, CamStart, AimDrawEnd, FColor::Cyan, false, DebugDrawDuration, 0, 0.5f);
+		if (UWorld* World = GetWorld())
+		{
+			DrawDebugLine(World, View.Location, AimPoint, FColor::Cyan, false, DebugDrawDuration, 0, 0.5f);
+		}
 	}
 
-	return AimHit.bBlockingHit ? AimHit.ImpactPoint : CamEnd;
+	return AimPoint;
 }
 
 /*~ 데미지 적용 ~*/

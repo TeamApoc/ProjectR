@@ -20,6 +20,7 @@ namespace PRGameplayTags
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Ability_Player_Sprint); // 플레이어 질주 어빌리티
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Ability_Player_Interaction); // 플레이어 상호작용 어빌리티
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Ability_Player_Reload); // 플레이어 재장전 어빌리티
+	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Ability_Player_HitReact); // 플레이어 피격 리액션 어빌리티
 	
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Ability_Enemy_Pattern); // 일반 적 패턴 공통 루트
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Ability_Boss_Pattern); // 보스 패턴 공통 루트
@@ -58,8 +59,12 @@ namespace PRGameplayTags
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(State_Sprinting); // 질주 상태
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(State_Reloading); // 재장전 진행 상태
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(State_Channeling); // 캐스팅 또는 채널링 상태.
+	UE_DECLARE_GAMEPLAY_TAG_EXTERN(State_PoiseRecoveryBlocked); // 강인도 회복 차단 상태
+	UE_DECLARE_GAMEPLAY_TAG_EXTERN(State_PlayerInputLocked); // 플레이어 입력 차단 상태
+	UE_DECLARE_GAMEPLAY_TAG_EXTERN(State_PlayerHitReactLocked); // 피격 리액션 행동불능 상태
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(State_PhaseTransitioning); // 보스 페이즈 전환 상태.
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(State_Boss_WeakpointOpen_Core); // 보스 코어 약점 오픈 상태.
+	UE_DECLARE_GAMEPLAY_TAG_EXTERN(State_Armed); // 플레이어 무기 장착중 상태
 
 	// ===== Cooldown.Ability.* — 쿨다운 GE가 부여 =====
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Cooldown_Ability_Dodge); // 구르기 쿨다운
@@ -69,6 +74,9 @@ namespace PRGameplayTags
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Event_Ability_Death); // 사망 이벤트.
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Event_Ability_GroggyEntered); // 그로기 진입 이벤트.
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Event_Ability_PhaseTransition); // 페이즈 전환 이벤트.
+	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Event_Ability_PlayerHitReact_Weak); // 플레이어 약한 경직 이벤트
+	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Event_Ability_PlayerHitReact_Strong); // 플레이어 강한 경직 이벤트
+	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Event_Ability_PlayerHitReact_Down); // 플레이어 다운 이벤트
 
 	// ===== Event.Player.* — 플레이어 액션/UI 알림용 EventManager 이벤트 키 =====
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Event_Player_HitShot); // 사격이 적중했을 때
@@ -77,6 +85,7 @@ namespace PRGameplayTags
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Event_Player_Aim_End); // 에이밍 해제
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Event_Player_ChangeCrosshair); // 크로스헤어 Config 교체 (FPRChangeCrosshairEventPayload 동반)
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Event_Player_ReloadCommit); // 재장전 몽타주 노티파이가 발행하는 자원 이동 트리거
+	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Event_Player_Interaction_Hold); // Hold 상호작용 단계 알림 (FPRInteractionHoldEventPayload 동반)
 
 	// ===== Cue.* — GameplayCue 식별 =====
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Cue_Critical_Boss_PhaseTransition); // 보스 페이즈 전환 연출 Cue

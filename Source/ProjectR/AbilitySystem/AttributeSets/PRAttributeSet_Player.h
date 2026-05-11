@@ -42,6 +42,36 @@ public:
 	FGameplayAttributeData StaminaRegenRate;
 	PR_ATTRIBUTE_ACCESSORS(UPRAttributeSet_Player, StaminaRegenRate)
 
+	// 누적 강인도 피해
+	UPROPERTY(BlueprintReadOnly, ReplicatedUsing = OnRep_AccumulatedPoiseDamage, Category = "ProjectR|Attributes|Player")
+	FGameplayAttributeData AccumulatedPoiseDamage;
+	PR_ATTRIBUTE_ACCESSORS(UPRAttributeSet_Player, AccumulatedPoiseDamage)
+
+	// 이번 피격으로 들어온 강인도 피해
+	UPROPERTY(BlueprintReadOnly, Category = "ProjectR|Attributes|Player")
+	FGameplayAttributeData IncomingPoiseDamage;
+	PR_ATTRIBUTE_ACCESSORS(UPRAttributeSet_Player, IncomingPoiseDamage)
+
+	// 누적 강인도 피해 최소값
+	UPROPERTY(BlueprintReadOnly, ReplicatedUsing = OnRep_PoiseDamageMin, Category = "ProjectR|Attributes|Player")
+	FGameplayAttributeData PoiseDamageMin;
+	PR_ATTRIBUTE_ACCESSORS(UPRAttributeSet_Player, PoiseDamageMin)
+
+	// 약한 경직 임계값
+	UPROPERTY(BlueprintReadOnly, ReplicatedUsing = OnRep_PoiseWeakHitReactThreshold, Category = "ProjectR|Attributes|Player")
+	FGameplayAttributeData PoiseWeakHitReactThreshold;
+	PR_ATTRIBUTE_ACCESSORS(UPRAttributeSet_Player, PoiseWeakHitReactThreshold)
+
+	// 강한 경직 임계값
+	UPROPERTY(BlueprintReadOnly, ReplicatedUsing = OnRep_PoiseStrongHitReactThreshold, Category = "ProjectR|Attributes|Player")
+	FGameplayAttributeData PoiseStrongHitReactThreshold;
+	PR_ATTRIBUTE_ACCESSORS(UPRAttributeSet_Player, PoiseStrongHitReactThreshold)
+
+	// 누적 강인도 피해 최대값
+	UPROPERTY(BlueprintReadOnly, ReplicatedUsing = OnRep_PoiseDamageMax, Category = "ProjectR|Attributes|Player")
+	FGameplayAttributeData PoiseDamageMax;
+	PR_ATTRIBUTE_ACCESSORS(UPRAttributeSet_Player, PoiseDamageMax)
+
 	// 치명타 확률
 	UPROPERTY(BlueprintReadOnly, ReplicatedUsing = OnRep_CriticalHitChance, Category = "ProjectR|Attributes|Player")
 	FGameplayAttributeData CriticalHitChance;
@@ -61,6 +91,21 @@ protected:
 
 	UFUNCTION()
 	void OnRep_StaminaRegenRate(const FGameplayAttributeData& OldValue);
+
+	UFUNCTION()
+	void OnRep_AccumulatedPoiseDamage(const FGameplayAttributeData& OldValue);
+
+	UFUNCTION()
+	void OnRep_PoiseDamageMin(const FGameplayAttributeData& OldValue);
+
+	UFUNCTION()
+	void OnRep_PoiseWeakHitReactThreshold(const FGameplayAttributeData& OldValue);
+
+	UFUNCTION()
+	void OnRep_PoiseStrongHitReactThreshold(const FGameplayAttributeData& OldValue);
+
+	UFUNCTION()
+	void OnRep_PoiseDamageMax(const FGameplayAttributeData& OldValue);
 
 	UFUNCTION()
 	void OnRep_CriticalHitChance(const FGameplayAttributeData& OldValue);

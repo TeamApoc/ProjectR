@@ -20,7 +20,7 @@ APREnemyBaseCharacter* UPRGameplayAbility_EnemyBase::GetEnemyAvatarCharacter() c
 	return Cast<APREnemyBaseCharacter>(GetAvatarActorFromActorInfo());
 }
 
-void UPRGameplayAbility_EnemyBase::ApplyDamage(AActor* TargetActor, float AttackMultiplier, const FHitResult* HitResult)
+void UPRGameplayAbility_EnemyBase::ApplyDamage(AActor* TargetActor, float Damage, float GroggyDamage, float AttackMultiplier, const FHitResult* HitResult)
 {
 	if (!IsValid(TargetActor))
 	{
@@ -50,7 +50,11 @@ void UPRGameplayAbility_EnemyBase::ApplyDamage(AActor* TargetActor, float Attack
 		return;
 	}
 
-	// AttackMultiplier를 SetByCaller로 전달한다
+	// DataAsset에서 정한 체력 피해와 강인도 피해 값을 SetByCaller로 전달한다.
+	SpecHandle.Data->SetSetByCallerMagnitude(PRCombatGameplayTags::SetByCaller_Damage, Damage);
+	SpecHandle.Data->SetSetByCallerMagnitude(PRCombatGameplayTags::SetByCaller_GroggyDamage, GroggyDamage);
+
+	// AttackMultiplier를 SetByCaller로 전달한다.
 	SpecHandle.Data->SetSetByCallerMagnitude(PRCombatGameplayTags::SetByCaller_AttackMultiplier, AttackMultiplier);
 
 	// HitResult가 있으면 EffectContext에 포함시켜 ExecCalc에서 부위 판정에 활용한다

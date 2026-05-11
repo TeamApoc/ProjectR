@@ -14,6 +14,11 @@
 
 UPRGA_Reload::UPRGA_Reload()
 {
+	FGameplayTagContainer DefaultAbilityTags;
+	DefaultAbilityTags.AddTag(PRGameplayTags::Ability_Player_Reload);
+	SetAssetTags(DefaultAbilityTags);
+	InputTag = PRGameplayTags::Input_Ability_Reload;
+
 	ReplicationPolicy = EGameplayAbilityReplicationPolicy::ReplicateYes;
 	InstancingPolicy = EGameplayAbilityInstancingPolicy::InstancedPerActor;
 	NetExecutionPolicy = EGameplayAbilityNetExecutionPolicy::LocalPredicted;

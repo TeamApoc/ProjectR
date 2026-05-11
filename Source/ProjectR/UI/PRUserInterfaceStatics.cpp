@@ -13,3 +13,21 @@ TSubclassOf<UUserWidget> UPRUserInterfaceStatics::GetCrosshairWidgetClass(const 
 	}
 	return nullptr;
 }
+
+FText UPRUserInterfaceStatics::ConvertFloatToText(float Value, int32 MaximumFractionalDigits)
+{
+	FNumberFormattingOptions FormattingOptions;
+	FormattingOptions.MaximumFractionalDigits = FMath::Max(MaximumFractionalDigits, 0);
+	FormattingOptions.MinimumFractionalDigits = 0;
+	return FText::AsNumber(Value, &FormattingOptions);
+}
+
+float UPRUserInterfaceStatics::ConvertMinMaxToPercent(float CurrentValue, float MaxValue, float MinValue)
+{
+	if (MaxValue <= MinValue)
+	{
+		return 0.0f;
+	}
+
+	return FMath::Clamp((CurrentValue - MinValue) / (MaxValue - MinValue), 0.0f, 1.0f);
+}

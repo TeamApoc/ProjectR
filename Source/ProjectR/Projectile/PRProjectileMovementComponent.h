@@ -1,4 +1,4 @@
-﻿// Copyright (c) 2026 TeamApoc. All Rights Reserved.
+// Copyright (c) 2026 TeamApoc. All Rights Reserved.
 
 #pragma once
 
@@ -14,4 +14,17 @@ class PROJECTR_API UPRProjectileMovementComponent : public UProjectileMovementCo
 
 public:
 	UPRProjectileMovementComponent();
+	
+	virtual bool ShouldBounce(const FHitResult& Hit);
+
+protected:
+	virtual void HandleImpact(const FHitResult& Hit, float TimeSlice, const FVector& MoveDelta) override;
+
+	// 최대 바운스 허용 횟수. 0이면 바운스 불가
+	UPROPERTY(EditDefaultsOnly, Category=ProjectileBounces, meta = (ClampMin = "0"))
+	int32 MaxBounceCount = 1;
+
+private:
+	// 현재까지 바운스 된 횟수
+	int32 CurrentBounceCount = 0;
 };

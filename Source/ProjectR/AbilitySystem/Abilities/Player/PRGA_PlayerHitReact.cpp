@@ -38,6 +38,9 @@ UPRGA_PlayerHitReact::UPRGA_PlayerHitReact()
 	ActivationBlockedTags.AddTag(PRGameplayTags::State_Dead);
 	ActivationOwnedTags.AddTag(PRGameplayTags::State_PlayerInputLocked);
 
+	// 사격 취소
+	CancelAbilitiesWithTag.AddTag(PRGameplayTags::Ability_Player_Weapon_Fire_Primary);
+	
 	// 피격 리액션 중 새 액션이 끼어들지 않도록 기본 차단 태그를 둔다.
 	BlockAbilitiesWithTag.AddTag(PRGameplayTags::Ability_Player_Weapon_Fire_Primary);
 	BlockAbilitiesWithTag.AddTag(PRGameplayTags::Ability_Player_Aim);

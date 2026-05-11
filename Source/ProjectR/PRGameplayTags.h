@@ -41,8 +41,22 @@ namespace PRGameplayTags
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Ability_Boss_Faerin_PhaseTransition); // Faerin 페이즈 전환
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Ability_Boss_Faerin_MeleeQuickCombo); // Faerin 빠른 근접 콤보
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Ability_Boss_Faerin_PortalPairSequence); // Faerin 포털 연계
+	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Ability_Boss_Faerin_PortalMissileSequence); // Faerin 원작형 미사일 포털 소환
+	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Ability_Boss_Faerin_TeleportLungeSequence); // Faerin 원작형 텔레포트 런지
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Ability_Boss_Faerin_TeleportDash); // Faerin 텔레포트 대시
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Ability_Boss_Faerin_EnergyRain); // Faerin 범위 압박
+
+	// ===== Pattern.* — 패턴 그룹 식별 =====
+	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Pattern_Boss_Faerin); // Faerin 패턴 그룹 루트
+	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Pattern_Boss_Faerin_Portal); // Faerin 포털 계열 패턴
+	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Pattern_Boss_Faerin_Lunge); // Faerin 런지 계열 패턴
+	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Pattern_Boss_Faerin_Godfall); // Faerin Godfall 계열 패턴
+	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Pattern_Boss_Faerin_Shift); // Faerin Shift 계열 패턴
+	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Pattern_Boss_Faerin_TeleportDown); // Faerin TeleportDown 계열 패턴
+	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Pattern_Boss_Faerin_Sword); // Faerin 검 근접 계열 패턴
+	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Pattern_Boss_Faerin_Crash); // Faerin Crash 계열 패턴
+	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Pattern_Boss_Faerin_Throw); // Faerin Throw 계열 패턴
+	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Pattern_Boss_Faerin_Fallback); // Faerin 패턴 실패 시 보조 이동 식별
 
 	// ===== State.* — 캐릭터 상태 =====
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(State_Dead); // 사망 상태.
@@ -57,8 +71,10 @@ namespace PRGameplayTags
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(State_PhaseTransitioning); // 보스 페이즈 전환 상태.
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(State_Boss_WeakpointOpen_Core); // 보스 코어 약점 오픈 상태.
 
-	// ===== Cooldown.Ability.* — 쿨다운 GE가 부여 =====
+	// ===== Cooldown.* — 쿨다운 GE가 부여 =====
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Cooldown_Ability_Dodge); // 구르기 쿨다운
+	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Cooldown_Boss_Faerin_PortalMissile); // Faerin 포털 미사일 패턴 쿨다운
+	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Cooldown_Boss_Faerin_TeleportLunge); // Faerin Teleport Lunge 패턴 쿨다운
 
 	// ===== Event.* — SendGameplayEventToActor 이벤트 키 =====
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Event_Hit); // 피격 이벤트.

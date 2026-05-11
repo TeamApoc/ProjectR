@@ -28,6 +28,7 @@ bool UBTDecorator_PRHasEnemyPatternCandidate::CalculateRawConditionValue(UBehavi
 	PREnemyPatternSelectionUtils::CollectMatchingPatternRules(
 		PatternRuntime,
 		PatternCategoryFilter,
+		PatternGroupFilter,
 		bCheckAbilityCanActivate,
 		MatchMode,
 		MatchedRules);
@@ -38,8 +39,9 @@ bool UBTDecorator_PRHasEnemyPatternCandidate::CalculateRawConditionValue(UBehavi
 FString UBTDecorator_PRHasEnemyPatternCandidate::GetStaticDescription() const
 {
 	return FString::Printf(
-		TEXT("%s\nCategory: %s\nMatchMode: %s"),
+		TEXT("%s\nCategory: %s\nGroup: %s\nMatchMode: %s"),
 		*Super::GetStaticDescription(),
 		*StaticEnum<EPRPatternCategory>()->GetNameStringByValue(static_cast<int64>(PatternCategoryFilter)),
+		PatternGroupFilter.IsValid() ? *PatternGroupFilter.ToString() : TEXT("None"),
 		*StaticEnum<EPRPatternContextMatchMode>()->GetNameStringByValue(static_cast<int64>(MatchMode)));
 }

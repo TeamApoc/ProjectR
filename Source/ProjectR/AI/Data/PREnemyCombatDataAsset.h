@@ -188,9 +188,9 @@ struct PROJECTR_API FPREnemyAttackPressureConfig
 	}
 };
 
-// 일반 적이 공용으로 사용하는 전투 데이터 자산
+// 적/보스가 공통으로 사용하는 이동 표현 데이터 자산
 UCLASS(Abstract, BlueprintType)
-class PROJECTR_API UPREnemyCombatDataAsset : public UPrimaryDataAsset
+class PROJECTR_API UPRCombatMoveDataAsset : public UPrimaryDataAsset
 {
 	GENERATED_BODY()
 
@@ -199,6 +199,28 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|Presentation")
 	TArray<FPREnemyTacticalModePresentationRule> TacticalModePresentationRules;
 
+	// tactical_mode에 해당하는 전투 표현 규칙 반환
+	const FPREnemyMovePresentationConfig* FindTacticalModePresentationConfig(EPRTacticalMode TacticalMode) const
+	{
+		for (const FPREnemyTacticalModePresentationRule& PresentationRule : TacticalModePresentationRules)
+		{
+			if (PresentationRule.TacticalMode == TacticalMode)
+			{
+				return &PresentationRule.PresentationConfig;
+			}
+		}
+
+		return nullptr;
+	}
+};
+
+// 일반 적이 공용으로 사용하는 전투 데이터 자산
+UCLASS(Abstract, BlueprintType)
+class PROJECTR_API UPREnemyCombatDataAsset : public UPRCombatMoveDataAsset
+{
+	GENERATED_BODY()
+
+public:
 	// 플레이어 주변 공격 각도 확보용 Strafe 쿼리 설정
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|Movement")
 	FPREnemyMoveQueryConfig CombatStrafeConfig;
@@ -214,18 +236,4 @@ public:
 	// attack_pressure 누적 및 리셋 설정
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|Pressure")
 	FPREnemyAttackPressureConfig AttackPressureConfig;
-
-	// tactical_mode에 해당하는 전투 표현 규칙 반환
-	const FPREnemyMovePresentationConfig* FindTacticalModePresentationConfig(EPRTacticalMode TacticalMode) const
-	{
-		for (const FPREnemyTacticalModePresentationRule& PresentationRule : TacticalModePresentationRules)
-		{
-			if (PresentationRule.TacticalMode == TacticalMode)
-			{
-				return &PresentationRule.PresentationConfig;
-			}
-		}
-
-		return nullptr;
-	}
 };

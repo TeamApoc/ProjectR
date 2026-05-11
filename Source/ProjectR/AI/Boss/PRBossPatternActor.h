@@ -43,6 +43,7 @@ public:
 
 protected:
 	virtual void BeginPlay() override;
+	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 
 	// 복제된 초기화 상태가 클라이언트에 도착했을 때 연출 연결점을 호출한다.
 	UFUNCTION()
@@ -76,6 +77,10 @@ protected:
 	// 0보다 크면 BeginPlay 후 지정 시간 뒤 자동 제거한다.
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "ProjectR|AI|Boss", meta = (ClampMin = "0.0"))
 	float PatternLifeSpan = 0.0f;
+
+private:
+	// OwnerBoss의 활성 패턴 목록에서 이 Actor를 안전하게 제거한다.
+	void UnregisterFromOwnerBoss();
 
 private:
 	// 초기화 완료 상태다. 클라이언트가 BP 초기화 이벤트를 놓치지 않도록 복제한다.

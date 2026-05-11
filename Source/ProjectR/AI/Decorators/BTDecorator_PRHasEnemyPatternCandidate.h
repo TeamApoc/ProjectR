@@ -50,6 +50,10 @@ protected:
 	UPROPERTY(EditAnywhere, Category = "ProjectR|Pattern")
 	EPRPatternCategory PatternCategoryFilter = EPRPatternCategory::Any;
 
+	// 비어 있지 않으면 해당 원작 패턴군 태그와 맞는 후보만 검사한다.
+	UPROPERTY(EditAnywhere, Category = "ProjectR|Pattern")
+	FGameplayTag PatternGroupFilter;
+
 	// Ability 활성화 가능 여부까지 함께 검사할지 여부
 	UPROPERTY(EditAnywhere, Category = "ProjectR|Pattern")
 	bool bCheckAbilityCanActivate = true;

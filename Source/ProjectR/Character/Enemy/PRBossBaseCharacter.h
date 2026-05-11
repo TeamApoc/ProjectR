@@ -10,6 +10,7 @@
 #include "PRBossBaseCharacter.generated.h"
 
 class UPRAbilitySet;
+class APRBossPatternActor;
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FPRPhaseChangedSignature, EPRBossPhase, OldPhase, EPRBossPhase, NewPhase);
 
@@ -23,8 +24,14 @@ class PROJECTR_API APRBossBaseCharacter : public APREnemyBaseCharacter
 public:
 	APRBossBaseCharacter();
 
-	virtual void PossessedBy(AController* NewController) override;
+	/*~ AActor Interface ~*/
+	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
+
+	/*~ APawn Interface ~*/
+	virtual void PossessedBy(AController* NewController) override;
+
+	/*~ APRCharacterBase Interface ~*/
 	virtual EPRCharacterRole GetCharacterRole() const override { return EPRCharacterRole::Boss; }
 
 	/*~ IPRCombatInterface ~*/
@@ -44,11 +51,26 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "ProjectR|AI|Boss")
 	void CommitPhaseTransition(EPRBossPhase NewPhase);
 
+	// 보스가 생성한 지속형 패턴 Actor를 활성 목록에 등록한다.
+	UFUNCTION(BlueprintCallable, Category = "ProjectR|AI|Boss")
+	void RegisterBossPatternActor(APRBossPatternActor* Actor);
+
+	// 지속형 패턴 Actor가 만료/파괴될 때 활성 목록에서 제거한다.
+	UFUNCTION(BlueprintCallable, Category = "ProjectR|AI|Boss")
+	void UnregisterBossPatternActor(APRBossPatternActor* Actor);
+
+	// 페이즈 전환/사망/그로기 등 보스 상태 전환 시 살아 있는 패턴 Actor를 모두 취소한다.
+	UFUNCTION(BlueprintCallable, Category = "ProjectR|AI|Boss")
+	void CancelAllBossPatternActors();
+
 public:
 	UPROPERTY(BlueprintAssignable, Category = "ProjectR|AI|Boss")
 	FPRPhaseChangedSignature OnPhaseChanged;
 
 protected:
+	/*~ APRCharacterBase Interface ~*/
+	virtual void HandleGameplayTagUpdated(const FGameplayTag& ChangedTag, bool TagExists) override;
+
 	UFUNCTION()
 	void OnRep_CurrentPhase(EPRBossPhase OldPhase);
 
@@ -71,4 +93,8 @@ protected:
 
 	// 전환 연출 중 목표 페이즈를 보관한다.
 	EPRBossPhase PendingPhase = EPRBossPhase::Phase1;
+
+	// Portal/Godfall/Shift처럼 Ability 종료 후에도 남을 수 있는 Helper Actor 목록이다.
+	UPROPERTY(Transient)
+	TArray<TObjectPtr<APRBossPatternActor>> ActivePatternActors;
 };

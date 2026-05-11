@@ -8,6 +8,8 @@
 #include "BehaviorTree/BlackboardComponent.h"
 #include "BehaviorTree/BlackboardData.h"
 #include "BehaviorTree/BehaviorTreeComponent.h"
+#include "Engine/World.h"
+#include "TimerManager.h"
 #include "ProjectR/AI/PREnemyAIDebug.h"
 #include "ProjectR/AbilitySystem/PRAbilitySystemComponent.h"
 #include "ProjectR/AI/Controllers/PREnemyAIController.h"
@@ -32,6 +34,7 @@ UBTTask_PRActivateEnemyAbility::UBTTask_PRActivateEnemyAbility()
 
 EBTNodeResult::Type UBTTask_PRActivateEnemyAbility::ExecuteTask(UBehaviorTreeComponent& OwnerComp, uint8* NodeMemory)
 {
+	ClearPostAbilityEndDelay();
 	ClearAbilityEndDelegate();
 	ActiveAbilityHandle = FGameplayAbilitySpecHandle();
 	bAbortRequested = false;
@@ -134,11 +137,22 @@ EBTNodeResult::Type UBTTask_PRActivateEnemyAbility::ExecuteTask(UBehaviorTreeCom
 
 	ClearAbilityEndDelegate();
 	ApplyPostAbilityCombatStateUpdates(OwnerComp);
+	if (StartPostAbilityEndDelay(OwnerComp, EBTNodeResult::Succeeded))
+	{
+		return EBTNodeResult::InProgress;
+	}
 	return EBTNodeResult::Succeeded;
 }
 
 EBTNodeResult::Type UBTTask_PRActivateEnemyAbility::AbortTask(UBehaviorTreeComponent& OwnerComp, uint8* NodeMemory)
 {
+	if (bWaitingPostAbilityEndDelay)
+	{
+		ClearPostAbilityEndDelay();
+		ClearAbilityEndDelegate();
+		return EBTNodeResult::Aborted;
+	}
+
 	if (bDelayAbortUntilAbilityEnds && IsObservedAbilityActive())
 	{
 		bAbortRequested = true;
@@ -151,6 +165,11 @@ EBTNodeResult::Type UBTTask_PRActivateEnemyAbility::AbortTask(UBehaviorTreeCompo
 
 void UBTTask_PRActivateEnemyAbility::TickTask(UBehaviorTreeComponent& OwnerComp, uint8* NodeMemory, float DeltaSeconds)
 {
+	if (bWaitingPostAbilityEndDelay)
+	{
+		return;
+	}
+
 	if (!IsValid(ActiveAbilitySystemComponent) || !ActiveAbilityHandle.IsValid())
 	{
 		FinishObservedAbilityWait(OwnerComp, EBTNodeResult::Failed);
@@ -188,7 +207,83 @@ void UBTTask_PRActivateEnemyAbility::FinishObservedAbilityWait(UBehaviorTreeComp
 		return;
 	}
 
+	if (TaskResult == EBTNodeResult::Succeeded && StartPostAbilityEndDelay(OwnerComp, TaskResult))
+	{
+		return;
+	}
+
 	FinishLatentTask(OwnerComp, TaskResult);
+}
+
+bool UBTTask_PRActivateEnemyAbility::StartPostAbilityEndDelay(UBehaviorTreeComponent& OwnerComp, EBTNodeResult::Type TaskResult)
+{
+	if (PostAbilityEndDelay <= 0.0f)
+	{
+		return false;
+	}
+
+	UWorld* World = OwnerComp.GetWorld();
+	if (!IsValid(World))
+	{
+		return false;
+	}
+
+	ActiveBehaviorTreeComponent = &OwnerComp;
+	PendingPostAbilityTaskResult = TaskResult;
+	bWaitingPostAbilityEndDelay = true;
+
+	World->GetTimerManager().SetTimer(
+		PostAbilityEndDelayTimerHandle,
+		this,
+		&UBTTask_PRActivateEnemyAbility::HandlePostAbilityEndDelayElapsed,
+		PostAbilityEndDelay,
+		false);
+
+	return true;
+}
+
+void UBTTask_PRActivateEnemyAbility::ClearPostAbilityEndDelay()
+{
+	if (!bWaitingPostAbilityEndDelay)
+	{
+		return;
+	}
+
+	if (UBehaviorTreeComponent* OwnerComp = ActiveBehaviorTreeComponent.Get())
+	{
+		if (UWorld* World = OwnerComp->GetWorld())
+		{
+			World->GetTimerManager().ClearTimer(PostAbilityEndDelayTimerHandle);
+		}
+	}
+
+	PostAbilityEndDelayTimerHandle.Invalidate();
+	PendingPostAbilityTaskResult = EBTNodeResult::Succeeded;
+	bWaitingPostAbilityEndDelay = false;
+	ActiveBehaviorTreeComponent = nullptr;
+}
+
+void UBTTask_PRActivateEnemyAbility::HandlePostAbilityEndDelayElapsed()
+{
+	UBehaviorTreeComponent* OwnerComp = ActiveBehaviorTreeComponent.Get();
+	const EBTNodeResult::Type TaskResult = PendingPostAbilityTaskResult;
+	const bool bShouldFinishAbort = bAbortRequested;
+
+	ClearPostAbilityEndDelay();
+	bAbortRequested = false;
+
+	if (!IsValid(OwnerComp))
+	{
+		return;
+	}
+
+	if (bShouldFinishAbort)
+	{
+		FinishLatentAbort(*OwnerComp);
+		return;
+	}
+
+	FinishLatentTask(*OwnerComp, TaskResult);
 }
 
 void UBTTask_PRActivateEnemyAbility::ApplyTacticalModeOnAbilityActivated(UBehaviorTreeComponent& OwnerComp)
@@ -298,7 +393,7 @@ void UBTTask_PRActivateEnemyAbility::HandleObservedAbilityEnded(const FAbilityEn
 
 FString UBTTask_PRActivateEnemyAbility::GetStaticDescription() const
 {
-	return FString::Printf(TEXT("%s\nAbilityTag: %s\nActivated Mode: %s\nWait: %s\nPost Mode: %s"),
+	return FString::Printf(TEXT("%s\nAbilityTag: %s\nActivated Mode: %s\nWait: %s\nPost Mode: %s\nPost Delay: %.2f"),
 		*Super::GetStaticDescription(),
 		AbilityTag.IsValid() ? *AbilityTag.ToString() : *FString::Printf(TEXT("BB:%s"), *AbilityTagBlackboardKey.ToString()),
 		bSetTacticalModeOnAbilityActivated
@@ -307,5 +402,6 @@ FString UBTTask_PRActivateEnemyAbility::GetStaticDescription() const
 		bWaitUntilAbilityEnds ? TEXT("true") : TEXT("false"),
 		bSetTacticalModeAfterAbilityEnds
 			? *StaticEnum<EPRTacticalMode>()->GetNameStringByValue(static_cast<int64>(TacticalModeAfterAbilityEnds))
-			: TEXT("None"));
+			: TEXT("None"),
+		PostAbilityEndDelay);
 }

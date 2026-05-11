@@ -79,11 +79,19 @@ private:
 	void HandleRecoverableHealthChanged(const FOnAttributeChangeData& ChangeData);
 	void HandleBindRetryTimer();
 	void StartDelayedLayer(float InStartPercent);
+	void ApplyBackBorderWidth();
+	void ApplyFillWidth(USizeBox* FillSizeBox, float InWidth);
+	float GetBackBorderWidth() const;
+	float GetMaxFillWidth() const;
 	USizeBox* GetCurrentFillSizeBox() const;
 	USizeBox* GetRecoverableFillSizeBox() const;
 	USizeBox* GetDelayedFillSizeBox() const;
 
 private:
+	// 전체 체력 바 프레임 기준 SizeBox
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional, AllowPrivateAccess = "true"), Category = "HUD")
+	TObjectPtr<USizeBox> BackBorderSizeBox;
+
 	// 현재 체력 Fill 폭을 조정할 SizeBox
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional, AllowPrivateAccess = "true"), Category = "HUD")
 	TObjectPtr<USizeBox> HealthFillSizeBox;
@@ -104,9 +112,13 @@ private:
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional, AllowPrivateAccess = "true"), Category = "HUD")
 	TObjectPtr<USizeBox> FillClipBox;
 
-	// 체력 100퍼센트일 때 Fill 영역 기준 폭
+	// 플레이어 본인 체력 바 전체 프레임 기준 폭
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, meta = (AllowPrivateAccess = "true", ClampMin = "1.0"), Category = "HUD")
-	float MaxBarWidth = 360.0f;
+	float MaxBarWidth = 500.0f;
+
+	// 파티원 체력 바 전체 프레임 기준 폭
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, meta = (AllowPrivateAccess = "true", ClampMin = "1.0"), Category = "HUD")
+	float PartyMemberMaxBarWidth = 300.0f;
 
 	// 위험 체력 상태로 취급할 현재 체력 비율
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, meta = (AllowPrivateAccess = "true", ClampMin = "0.0", ClampMax = "1.0"), Category = "HUD")

@@ -9,6 +9,7 @@
 
 class UAbilityTask_PlayMontageAndWait;
 class UAnimMontage;
+class UGameplayEffect;
 class APRPlayerCharacter;
 
 UENUM(BlueprintType)
@@ -75,6 +76,9 @@ protected:
 
 	// 리액션 타입에 맞춰 기존 플레이어 행동을 취소한다.
 	void CancelActionsForHitReact(EPRPlayerHitReactType HitReactType);
+
+	// 회복 가능 체력 회복 딜레이 GameplayEffect를 적용한다.
+	void ApplyRecoverableHealthRecoveryDelay(const FGameplayEventData* TriggerEventData);
 
 	// 다운 리액션의 초기 상태를 설정한다.
 	void StartDownHitReact();
@@ -165,6 +169,11 @@ protected:
 	// Ability 종료나 외부 취소 시 몽타주를 정지할 블렌드 시간이다.
 	UPROPERTY(EditDefaultsOnly, Category = "ProjectR|HitReact|Montage", meta = (ClampMin = "0.0"))
 	float MontageStopBlendOutTime = 0.15f;
+
+	// 유효 피격 시 회복 가능 체력 자동 회복을 지연시킬 GameplayEffect 클래스다.
+	// TODO: 당장은 PlayerHitreact가 발동시, 지연 이펙트도  넣으나 피해를 입어도 경직이 발생하지 않을 경우 이 로직을 다른곳으로 분리해야함
+	UPROPERTY(EditDefaultsOnly, Category = "ProjectR|HitReact|RecoverableHealth")
+	TSubclassOf<UGameplayEffect> RecoverableHealthRecoveryDelayEffectClass;
 
 private:
 	// 현재 재생 중인 피격 리액션 몽타주 태스크다.

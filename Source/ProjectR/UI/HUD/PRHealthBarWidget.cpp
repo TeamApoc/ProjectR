@@ -3,6 +3,7 @@
 #include "ProjectR/UI/HUD/PRHealthBarWidget.h"
 
 #include "AbilitySystemComponent.h"
+#include "Components/OverlaySlot.h"
 #include "Components/SizeBox.h"
 #include "GameFramework/PlayerController.h"
 #include "GameplayEffectTypes.h"
@@ -48,7 +49,7 @@ void UPRHealthBarWidget::NativeTick(const FGeometry& MyGeometry, float InDeltaTi
 {
 	Super::NativeTick(MyGeometry, InDeltaTime);
 
-	if (!bIsDelayedLayerActive)
+	if (PresentationMode == EPRHealthBarPresentationMode::PartyMember || !bIsDelayedLayerActive)
 	{
 		return;
 	}
@@ -101,6 +102,9 @@ void UPRHealthBarWidget::SetPresentationMode(EPRHealthBarPresentationMode InMode
 	if (PresentationMode == EPRHealthBarPresentationMode::PartyMember)
 	{
 		CurrentRecoverableHealth = 0.0f;
+		RecoverableEndPercent = CurrentPercent;
+		DelayedPercent = CurrentPercent;
+		bIsDelayedLayerActive = false;
 		RefreshLayerPercents(true);
 	}
 }
@@ -236,10 +240,12 @@ void UPRHealthBarWidget::RefreshLayerPercents(bool bForceDelayedPercent)
 
 	if (PresentationMode == EPRHealthBarPresentationMode::PartyMember)
 	{
+		CurrentRecoverableHealth = 0.0f;
 		RecoverableEndPercent = CurrentPercent;
+		DelayedPercent = RecoverableEndPercent;
+		bIsDelayedLayerActive = false;
 	}
-
-	if (bForceDelayedPercent)
+	else if (bForceDelayedPercent)
 	{
 		DelayedPercent = RecoverableEndPercent;
 		bIsDelayedLayerActive = false;
@@ -262,19 +268,29 @@ void UPRHealthBarWidget::RefreshLayerPercents(bool bForceDelayedPercent)
 
 void UPRHealthBarWidget::ApplyDisplayedPercentsToFill()
 {
+	ApplyBackBorderWidth();
+
+	const float MaxFillWidth = GetMaxFillWidth();
+	const float RecoverableFillPercent = PresentationMode == EPRHealthBarPresentationMode::PartyMember
+		? 0.0f
+		: RecoverableEndPercent;
+	const float DelayedFillPercent = PresentationMode == EPRHealthBarPresentationMode::PartyMember
+		? 0.0f
+		: DelayedPercent;
+
 	if (USizeBox* FillSizeBox = GetCurrentFillSizeBox())
 	{
-		FillSizeBox->SetWidthOverride(MaxBarWidth * CurrentPercent);
+		ApplyFillWidth(FillSizeBox, MaxFillWidth * CurrentPercent);
 	}
 
 	if (USizeBox* FillSizeBox = GetRecoverableFillSizeBox())
 	{
-		FillSizeBox->SetWidthOverride(MaxBarWidth * RecoverableEndPercent);
+		ApplyFillWidth(FillSizeBox, MaxFillWidth * RecoverableFillPercent);
 	}
 
 	if (USizeBox* FillSizeBox = GetDelayedFillSizeBox())
 	{
-		FillSizeBox->SetWidthOverride(MaxBarWidth * DelayedPercent);
+		ApplyFillWidth(FillSizeBox, MaxFillWidth * DelayedFillPercent);
 	}
 }
 
@@ -340,6 +356,62 @@ void UPRHealthBarWidget::StartDelayedLayer(float InStartPercent)
 	DelayedPercent = DelayedStartPercent;
 	DelayedElapsed = 0.0f;
 	bIsDelayedLayerActive = true;
+}
+
+void UPRHealthBarWidget::ApplyBackBorderWidth()
+{
+	if (IsValid(BackBorderSizeBox))
+	{
+		if (UOverlaySlot* OverlaySlot = Cast<UOverlaySlot>(BackBorderSizeBox->Slot))
+		{
+			OverlaySlot->SetHorizontalAlignment(HAlign_Left);
+		}
+
+		BackBorderSizeBox->SetWidthOverride(GetBackBorderWidth());
+	}
+}
+
+void UPRHealthBarWidget::ApplyFillWidth(USizeBox* FillSizeBox, float InWidth)
+{
+	if (!IsValid(FillSizeBox))
+	{
+		return;
+	}
+
+	if (UOverlaySlot* OverlaySlot = Cast<UOverlaySlot>(FillSizeBox->Slot))
+	{
+		OverlaySlot->SetHorizontalAlignment(HAlign_Left);
+	}
+
+	FillSizeBox->SetWidthOverride(InWidth);
+}
+
+float UPRHealthBarWidget::GetBackBorderWidth() const
+{
+	return PresentationMode == EPRHealthBarPresentationMode::PartyMember ? PartyMemberMaxBarWidth : MaxBarWidth;
+}
+
+float UPRHealthBarWidget::GetMaxFillWidth() const
+{
+	const USizeBox* FillSizeBox = GetCurrentFillSizeBox();
+	const float BackBorderWidth = GetBackBorderWidth();
+	if (IsValid(FillSizeBox))
+	{
+		float HorizontalPadding = 0.0f;
+		if (const UOverlaySlot* OverlaySlot = Cast<UOverlaySlot>(FillSizeBox->Slot))
+		{
+			const FMargin SlotPadding = OverlaySlot->GetPadding();
+			HorizontalPadding = SlotPadding.Left + SlotPadding.Right;
+		}
+
+		const float FillWidth = BackBorderWidth - HorizontalPadding;
+		if (FillWidth > 0.0f)
+		{
+			return FillWidth;
+		}
+	}
+
+	return BackBorderWidth;
 }
 
 USizeBox* UPRHealthBarWidget::GetCurrentFillSizeBox() const

@@ -209,6 +209,29 @@ FHitResult UPRGA_Fire::PerformMuzzleTrace(const FVector& MuzzleLoc, const FVecto
 	return Hit;
 }
 
+void UPRGA_Fire::SendRecoilEvent()
+{
+	// UI/카메라 알림: 반동은 매 발사 시, 적중 신호는 적중 시에만 발송
+	// 현재 활성 슬롯의 WeaponData를 가져오고, 그 안에 들어 있는 RecoilProfile을 그대로 사용
+	if (UWorld* World = GetWorld())
+	{
+		if (UPREventManagerSubsystem* EventMgr = World->GetSubsystem<UPREventManagerSubsystem>())
+		{
+			FPRRecoilEventPayload RecoilPayload;
+			if (UPRWeaponDataAsset* WeaponData = GetActiveWeaponData())   
+			{
+				RecoilPayload.RecoilProfile = WeaponData->RecoilProfile;
+			}                                                                                                                                                   
+			RecoilPayload.ConsecutiveShots = ConsecutiveShots;
+			RecoilPayload.bIsAiming = GetActorInfo().AbilitySystemComponent.IsValid()
+				&& GetActorInfo().AbilitySystemComponent->HasMatchingGameplayTag(PRGameplayTags::State_Aiming);
+			RecoilPayload.Speed = RecoilPayload.RecoilProfile.RecoilRecoverySpeed;
+			RecoilPayload.Strength = RecoilPayload.RecoilProfile.CrosshairSpreadIncrease;
+			EventMgr->BroadcastTyped(PRGameplayTags::Event_Player_Recoil, RecoilPayload);
+		}
+	}
+}
+
 void UPRGA_Fire::FireHitScan()
 {
 	const FGameplayAbilityActorInfo& Info = GetActorInfo();
@@ -271,30 +294,19 @@ void UPRGA_Fire::FireHitScan()
 
 	++ConsecutiveShots;
 
-	// UI/카메라 알림: 반동은 매 발사 시, 적중 신호는 적중 시에만 발송
-	// 현재 활성 슬롯의 WeaponData를 가져오고, 그 안에 들어 있는 RecoilProfile을 그대로 사용
+	SendRecoilEvent();
+	
 	if (UWorld* World = GetWorld())
 	{
 		if (UPREventManagerSubsystem* EventMgr = World->GetSubsystem<UPREventManagerSubsystem>())
 		{
-			FPRRecoilEventPayload RecoilPayload;
-			if (UPRWeaponDataAsset* WeaponData = GetActiveWeaponData())   
-			{
-				RecoilPayload.RecoilProfile = WeaponData->RecoilProfile;
-			}                                                                                                                                                   
-			RecoilPayload.ConsecutiveShots = ConsecutiveShots;
-			RecoilPayload.bIsAiming = Info.AbilitySystemComponent.IsValid()
-				&& Info.AbilitySystemComponent->HasMatchingGameplayTag(PRGameplayTags::State_Aiming);
-			RecoilPayload.Speed = RecoilPayload.RecoilProfile.RecoilRecoverySpeed;
-			RecoilPayload.Strength = RecoilPayload.RecoilProfile.CrosshairSpreadIncrease;
-			EventMgr->BroadcastTyped(PRGameplayTags::Event_Player_Recoil, RecoilPayload);
-
 			if (Hit.bBlockingHit && IsValid(Hit.GetActor()))
 			{
 				EventMgr->BroadcastEmpty(PRGameplayTags::Event_Player_HitShot);
 			}
 		}
 	}
+	
 
 	// 권위가 있는 로컬(Standalone/ListenServer 호스트)은 RPC 없이 직접 확정
 	if (bHasAuthority)
@@ -354,6 +366,15 @@ void UPRGA_Fire::FireProjectile(TSubclassOf<APRProjectileBase> ProjectileClass, 
 
 	// ReadyForActivation 호출 시 AT::Activate가 실행되어 클라/서버 각자의 스폰 흐름이 진행됨
 	Task->ReadyForActivation();
+	
+	// 몽타쥬 재생. 무기 메시 애니메이션은 몽타주 노티파이가 각 머신에서 로컬로 트리거한다
+	if (UPRWeaponDataAsset* WeaponData = GetActiveWeaponData())
+	{
+		PlayWeaponMontage(WeaponData->ShootMontage, WeaponData->ShootMontagePlayRate);
+	}
+	
+	// 반동 이벤트 전송
+	SendRecoilEvent();
 }
 
 void UPRGA_Fire::OnProjectileSpawnSuccess(APRProjectileBase* SpawnedProjectile)
@@ -449,10 +470,25 @@ void UPRGA_Fire::ApplyDamage(AActor* TargetActor, const FHitResult* HitResult)
 		return;
 	}
 
+	const FGameplayEffectSpecHandle SpecHandle = MakeWeaponEffectSpec(HitResult);
+	if (!SpecHandle.IsValid())
+	{
+		return;
+	}
+
+	UAbilitySystemComponent* TargetASC = UAbilitySystemBlueprintLibrary::GetAbilitySystemComponent(TargetActor);
+	if (IsValid(TargetASC))
+	{
+		SourceASC->ApplyGameplayEffectSpecToTarget(*SpecHandle.Data.Get(), TargetASC);
+	}
+}
+
+FGameplayEffectSpecHandle UPRGA_Fire::MakeWeaponEffectSpec(const FHitResult* HitResult) const
+{
 	const UPRAbilitySystemRegistry* Registry = UPRAssetManager::Get().GetAbilitySystemRegistry();
 	if (!IsValid(Registry) || !IsValid(Registry->DamageGE_FromWeapon))
 	{
-		return;
+		return FGameplayEffectSpecHandle();
 	}
 
 	const FGameplayEffectSpecHandle SpecHandle = MakeOutgoingGameplayEffectSpec(
@@ -463,7 +499,7 @@ void UPRGA_Fire::ApplyDamage(AActor* TargetActor, const FHitResult* HitResult)
 
 	if (!SpecHandle.IsValid())
 	{
-		return;
+		return FGameplayEffectSpecHandle();
 	}
 
 	// HitResult가 있으면 EffectContext에 포함시켜 ExecCalc에서 부위 판정에 활용한다
@@ -472,11 +508,7 @@ void UPRGA_Fire::ApplyDamage(AActor* TargetActor, const FHitResult* HitResult)
 		SpecHandle.Data->GetContext().AddHitResult(*HitResult, true);
 	}
 
-	UAbilitySystemComponent* TargetASC = UAbilitySystemBlueprintLibrary::GetAbilitySystemComponent(TargetActor);
-	if (IsValid(TargetASC))
-	{
-		SourceASC->ApplyGameplayEffectSpecToTarget(*SpecHandle.Data.Get(), TargetASC);
-	}
+	return SpecHandle;
 }
 
 UPRWeaponDataAsset* UPRGA_Fire::GetActiveWeaponData() const                                                            

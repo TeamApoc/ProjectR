@@ -12,12 +12,21 @@
 #include "Kismet/GameplayStatics.h"
 #include "ProjectR/Utils/PRGameplayStatics.h"
 #include "ProjectR/Weapon/Actors/PRWeaponActor.h"
+#include "UObject/ConstructorHelpers.h"
 
 UPRProjectileTrajectoryPreviewComponent::UPRProjectileTrajectoryPreviewComponent()
 {
 	PrimaryComponentTick.bCanEverTick = true;
 	PrimaryComponentTick.TickInterval = 0.016f;
 	PrimaryComponentTick.bStartWithTickEnabled = false;
+
+	// CDO 단계에서 기본 메시 바인딩. BP에서 슬롯이 비워져도 폴백 동작 보장
+	static ConstructorHelpers::FObjectFinder<UStaticMesh> DefaultPreviewMeshFinder(
+		TEXT("/Game/3_Effects/PathPreview/SM_PreviewPoint.SM_PreviewPoint"));
+	if (DefaultPreviewMeshFinder.Succeeded())
+	{
+		PreviewMesh = DefaultPreviewMeshFinder.Object;
+	}
 }
 
 void UPRProjectileTrajectoryPreviewComponent::SetPreviewEnabled(bool bInEnabled)

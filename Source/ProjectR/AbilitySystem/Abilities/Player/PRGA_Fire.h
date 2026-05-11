@@ -49,6 +49,7 @@ public:
 
 	// 2차 트레이스: 총구에서 조준 끝점으로 트레이스해 실제 발사 히트 결과를 산출한다
 	virtual FHitResult PerformMuzzleTrace(const FVector& MuzzleLoc, const FVector& AimPoint) const;
+	void SendRecoilEvent();
 
 	// per-shot 서버 보고 (unreliable). 유실 허용
 	UFUNCTION(Server, Unreliable)
@@ -87,6 +88,9 @@ protected:
 
 	// 플레이어 무기 데미지 GE를 타겟에 적용한다. HitResult를 EffectContext에 포함시킨다
 	void ApplyDamage(AActor* TargetActor, const FHitResult* HitResult = nullptr);
+
+	// 무기 데미지 EffectSpec 반환. 기본은 Registry의 DamageGE_FromWeapon 사용. 파생 클래스에서 다른 GE로 교체 가능
+	virtual FGameplayEffectSpecHandle MakeWeaponEffectSpec(const FHitResult* HitResult = nullptr) const;
 
 	// AbilityTask가 투사체 스폰 성공 시 호출. 파생 클래스에서 추가 처리(VFX/SFX 등) 오버라이드 용도
 	UFUNCTION()

@@ -85,10 +85,10 @@ protected:
 	TMap<EPRAmmoType, TSubclassOf<UGameplayEffect>> AmmoGEMap;
 
 	// 픽업이 적립할 탄약 슬롯 종류
-	UPROPERTY(ReplicatedUsing = "OnRep_AmmoType")
+	UPROPERTY(EditAnywhere, ReplicatedUsing = "OnRep_AmmoType")
 	EPRAmmoType AmmoType = EPRAmmoType::Primary;
 
 	// 픽업의 raw 자원량. 무기 효율 단가에 따라 환산된 발수가 적립된다
-	UPROPERTY(ReplicatedUsing = "OnRep_AmmoAmount")
+	UPROPERTY(EditAnywhere, ReplicatedUsing = "OnRep_AmmoAmount")
 	float AmmoAmount = 10.f;
 };

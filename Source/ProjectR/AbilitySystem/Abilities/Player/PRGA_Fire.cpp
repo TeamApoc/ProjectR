@@ -6,6 +6,8 @@
 #include "AbilitySystemComponent.h"
 #include "AbilitySystemBlueprintLibrary.h"
 #include "DrawDebugHelpers.h"
+#include "GameplayEffect.h"
+#include "ProjectR/Combat/PRCombatGameplayTags.h"
 #include "ProjectR/AbilitySystem/Data/PRAbilitySystemRegistry.h"
 #include "ProjectR/AbilitySystem/Tasks/PRAT_SpawnPredictedProjectile.h"
 #include "ProjectR/PRGameplayTags.h"
@@ -30,6 +32,9 @@ UPRGA_Fire::UPRGA_Fire()
 
 	// 기본적으로 발사 어빌리티는 Aiming일 때만 활성화
 	ActivationRequiredTags.AddTag(PRGameplayTags::State_Aiming);
+
+	// GetCooldownTags가 반환할 컨테이너 1회 초기화
+	CooldownTagsContainer.AddTag(PRGameplayTags::Cooldown_Ability_Fire);
 }
 
 void UPRGA_Fire::ActivateAbility(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo,
@@ -54,6 +59,54 @@ void UPRGA_Fire::EndAbility(const FGameplayAbilitySpecHandle Handle, const FGame
 	NextShotId = 0;
 	ResetConsecutiveShots();
 	Super::EndAbility(Handle, ActorInfo, ActivationInfo, bReplicateEndAbility, bWasCancelled);
+}
+
+void UPRGA_Fire::OnRemoveAbility(const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilitySpec& Spec)
+{
+	// 무기 교체시 쿨다운 효과 제거
+	if (ActorInfo->AbilitySystemComponent.IsValid() && CooldownHandle.IsValid())
+	{
+		ActorInfo->AbilitySystemComponent->RemoveActiveGameplayEffect(CooldownHandle);
+	}
+	
+	Super::OnRemoveAbility(ActorInfo, Spec);
+}
+
+/*~ 쿨다운 오버라이드 ~*/
+
+UGameplayEffect* UPRGA_Fire::GetCooldownGameplayEffect() const
+{
+	const UPRAbilitySystemRegistry* Registry = UPRAssetManager::Get().GetAbilitySystemRegistry();
+	if (!IsValid(Registry) || !IsValid(Registry->CooldownGE_Fire))
+	{
+		return nullptr;
+	}
+	return Registry->CooldownGE_Fire.GetDefaultObject();
+}
+
+const FGameplayTagContainer* UPRGA_Fire::GetCooldownTags() const
+{
+	return &CooldownTagsContainer;
+}
+
+void UPRGA_Fire::ApplyCooldown(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilityActivationInfo ActivationInfo) const
+{
+	UGameplayEffect* CooldownGE = GetCooldownGameplayEffect();
+	if (CooldownGE == nullptr)
+	{
+		return;
+	}
+
+	const FGameplayEffectSpecHandle SpecHandle = MakeOutgoingGameplayEffectSpec(
+		Handle, ActorInfo, ActivationInfo, CooldownGE->GetClass());
+	if (!SpecHandle.IsValid())
+	{
+		return;
+	}
+
+	// 무기 데이터에서 캐싱한 발사 간격을 GE Duration으로 주입
+	SpecHandle.Data->SetSetByCallerMagnitude(PRCombatGameplayTags::SetByCaller_Cooldown, CachedFireInterval);
+	CooldownHandle = ApplyGameplayEffectSpecToOwner(Handle, ActorInfo, ActivationInfo, SpecHandle);
 }
 
 

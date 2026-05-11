@@ -35,6 +35,7 @@ EBTNodeResult::Type UBTTask_PRSelectEnemyPattern::ExecuteTask(UBehaviorTreeCompo
 	PREnemyPatternSelectionUtils::CollectMatchingPatternRules(
 		PatternRuntime,
 		PatternCategoryFilter,
+		PatternGroupFilter,
 		bCheckAbilityCanActivate,
 		EPRPatternContextMatchMode::FullMatch,
 		MatchedRules,
@@ -47,8 +48,9 @@ EBTNodeResult::Type UBTTask_PRSelectEnemyPattern::ExecuteTask(UBehaviorTreeCompo
 			UE_LOG(
 				LogPREnemyAI,
 				Verbose,
-				TEXT("[Pattern] NoCandidate Category=%s Distance=%.1f Pressure=%.2f Pawn=%s"),
+				TEXT("[Pattern] NoCandidate Category=%s Group=%s Distance=%.1f Pressure=%.2f Pawn=%s"),
 				*StaticEnum<EPRPatternCategory>()->GetNameStringByValue(static_cast<int64>(PatternCategoryFilter)),
+				PatternGroupFilter.IsValid() ? *PatternGroupFilter.ToString() : TEXT("None"),
 				PatternRuntime.PatternContext.DistanceToTarget,
 				PatternRuntime.PatternContext.CurrentAttackPressure,
 				*GetNameSafe(PatternRuntime.ControlledPawn));
@@ -69,8 +71,9 @@ EBTNodeResult::Type UBTTask_PRSelectEnemyPattern::ExecuteTask(UBehaviorTreeCompo
 				UE_LOG(
 					LogPREnemyAI,
 					Verbose,
-					TEXT("[Pattern] Selected Category=%s Tag=%s Distance=%.1f Pressure=%.2f Pawn=%s"),
+					TEXT("[Pattern] Selected Category=%s Group=%s Tag=%s Distance=%.1f Pressure=%.2f Pawn=%s"),
 					*StaticEnum<EPRPatternCategory>()->GetNameStringByValue(static_cast<int64>(PatternCategoryFilter)),
+					PatternGroupFilter.IsValid() ? *PatternGroupFilter.ToString() : TEXT("None"),
 					*PatternRule->AbilityTag.ToString(),
 					PatternRuntime.PatternContext.DistanceToTarget,
 					PatternRuntime.PatternContext.CurrentAttackPressure,
@@ -99,8 +102,9 @@ EBTNodeResult::Type UBTTask_PRSelectEnemyPattern::ExecuteTask(UBehaviorTreeCompo
 		UE_LOG(
 			LogPREnemyAI,
 			Verbose,
-			TEXT("[Pattern] SelectedFallback Category=%s Tag=%s Distance=%.1f Pressure=%.2f Pawn=%s"),
+			TEXT("[Pattern] SelectedFallback Category=%s Group=%s Tag=%s Distance=%.1f Pressure=%.2f Pawn=%s"),
 			*StaticEnum<EPRPatternCategory>()->GetNameStringByValue(static_cast<int64>(PatternCategoryFilter)),
+			PatternGroupFilter.IsValid() ? *PatternGroupFilter.ToString() : TEXT("None"),
 			*MatchedRules.Last()->AbilityTag.ToString(),
 			PatternRuntime.PatternContext.DistanceToTarget,
 			PatternRuntime.PatternContext.CurrentAttackPressure,
@@ -124,8 +128,9 @@ EBTNodeResult::Type UBTTask_PRSelectEnemyPattern::ExecuteTask(UBehaviorTreeCompo
 
 FString UBTTask_PRSelectEnemyPattern::GetStaticDescription() const
 {
-	return FString::Printf(TEXT("%s\nCategory: %s\nWrite Key: %s"),
+	return FString::Printf(TEXT("%s\nCategory: %s\nGroup: %s\nWrite Key: %s"),
 		*Super::GetStaticDescription(),
 		*StaticEnum<EPRPatternCategory>()->GetNameStringByValue(static_cast<int64>(PatternCategoryFilter)),
+		PatternGroupFilter.IsValid() ? *PatternGroupFilter.ToString() : TEXT("None"),
 		*SelectedAbilityTagKey.ToString());
 }

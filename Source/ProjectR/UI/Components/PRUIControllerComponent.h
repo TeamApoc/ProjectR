@@ -9,6 +9,7 @@
 class APlayerController;
 class UPRInventoryComponent;
 class UPRInventoryWidget;
+class UPRQuickSlotComponent;
 class UPRUIManagerSubsystem;
 class UPRWeaponManagerComponent;
 
@@ -48,6 +49,9 @@ private:
 
 	// 현재 폰의 무기 매니저 컴포넌트를 조회한다
 	UPRWeaponManagerComponent* GetWeaponManagerComponent() const;
+
+	// 플레이어 퀵슬롯 컴포넌트를 조회한다
+	UPRQuickSlotComponent* GetQuickSlotComponent() const;
 
 	// 로컬 플레이어 UI 매니저 서브시스템을 조회한다
 	UPRUIManagerSubsystem* GetUIManager() const;

@@ -6,7 +6,10 @@
 #include "GameFramework/PlayerController.h"
 #include "ProjectR/Character/PRPlayerCharacter.h"
 #include "ProjectR/Inventory/Components/PRInventoryComponent.h"
+#include "ProjectR/Inventory/Data/PRConsumableDataAsset.h"
 #include "ProjectR/Inventory/Data/PRItemDataAsset.h"
+#include "ProjectR/Inventory/Items/PRItemInstance_Consumable.h"
+#include "ProjectR/QuickSlot/Coponents/PRQuickSlotComponent.h"
 #include "ProjectR/Weapon/Components/PRWeaponManagerComponent.h"
 #include "ProjectR/Weapon/Data/PRWeaponDataAsset.h"
 #include "ProjectR/Weapon/Data/PRWeaponModDataAsset.h"
@@ -16,12 +19,13 @@
 #include "ProjectR/UI/Inventory/PRItemSlotWidget.h"
 #include "ProjectR/UI/Preview/PRCharacterPreviewWidget.h"
 
-void UPRInventoryWidget::SetInventorySources(UPRInventoryComponent* InInventoryComponent, UPRWeaponManagerComponent* InWeaponManagerComponent)
+void UPRInventoryWidget::SetInventorySources(UPRInventoryComponent* InInventoryComponent, UPRWeaponManagerComponent* InWeaponManagerComponent, UPRQuickSlotComponent* InQuickSlotComponent)
 {
 	UnbindInventorySourceEvents();
 
 	InventoryComponent = InInventoryComponent;
 	WeaponManagerComponent = InWeaponManagerComponent;
+	QuickSlotComponent = InQuickSlotComponent;
 
 	BindInventorySourceEvents();
 	RefreshInventoryView();
@@ -77,6 +81,26 @@ void UPRInventoryWidget::BindChildWidgetEvents()
 		SecondaryWeaponSlotWidget->OnRightClicked.AddDynamic(this, &UPRInventoryWidget::HandleSecondaryWeaponSlotRightClicked);
 	}
 
+	if (IsValid(QuickSlotItemSlotWidget0))
+	{
+		QuickSlotItemSlotWidget0->OnLeftClicked.AddDynamic(this, &UPRInventoryWidget::HandleQuickSlot0LeftClicked);
+	}
+
+	if (IsValid(QuickSlotItemSlotWidget1))
+	{
+		QuickSlotItemSlotWidget1->OnLeftClicked.AddDynamic(this, &UPRInventoryWidget::HandleQuickSlot1LeftClicked);
+	}
+
+	if (IsValid(QuickSlotItemSlotWidget2))
+	{
+		QuickSlotItemSlotWidget2->OnLeftClicked.AddDynamic(this, &UPRInventoryWidget::HandleQuickSlot2LeftClicked);
+	}
+
+	if (IsValid(QuickSlotItemSlotWidget3))
+	{
+		QuickSlotItemSlotWidget3->OnLeftClicked.AddDynamic(this, &UPRInventoryWidget::HandleQuickSlot3LeftClicked);
+	}
+
 	// 아이템 리스트 위젯 이벤트 바인드
 	if (IsValid(ItemListWidget))
 	{
@@ -100,6 +124,26 @@ void UPRInventoryWidget::UnbindChildWidgetEvents()
 		SecondaryWeaponSlotWidget->OnRightClicked.RemoveDynamic(this, &UPRInventoryWidget::HandleSecondaryWeaponSlotRightClicked);
 	}
 
+	if (IsValid(QuickSlotItemSlotWidget0))
+	{
+		QuickSlotItemSlotWidget0->OnLeftClicked.RemoveDynamic(this, &UPRInventoryWidget::HandleQuickSlot0LeftClicked);
+	}
+
+	if (IsValid(QuickSlotItemSlotWidget1))
+	{
+		QuickSlotItemSlotWidget1->OnLeftClicked.RemoveDynamic(this, &UPRInventoryWidget::HandleQuickSlot1LeftClicked);
+	}
+
+	if (IsValid(QuickSlotItemSlotWidget2))
+	{
+		QuickSlotItemSlotWidget2->OnLeftClicked.RemoveDynamic(this, &UPRInventoryWidget::HandleQuickSlot2LeftClicked);
+	}
+
+	if (IsValid(QuickSlotItemSlotWidget3))
+	{
+		QuickSlotItemSlotWidget3->OnLeftClicked.RemoveDynamic(this, &UPRInventoryWidget::HandleQuickSlot3LeftClicked);
+	}
+
 	// 아이템 리스트 이벤트 언바인드
 	if (IsValid(ItemListWidget))
 	{
@@ -120,6 +164,12 @@ void UPRInventoryWidget::BindInventorySourceEvents()
 		WeaponManagerComponent->GetOnWeaponEquipmentChanged().RemoveDynamic(this, &UPRInventoryWidget::HandleWeaponEquipmentChanged);
 		WeaponManagerComponent->GetOnWeaponEquipmentChanged().AddDynamic(this, &UPRInventoryWidget::HandleWeaponEquipmentChanged);
 	}
+
+	if (IsValid(QuickSlotComponent))
+	{
+		QuickSlotComponent->GetOnQuickSlotChanged().RemoveDynamic(this, &UPRInventoryWidget::HandleQuickSlotChanged);
+		QuickSlotComponent->GetOnQuickSlotChanged().AddDynamic(this, &UPRInventoryWidget::HandleQuickSlotChanged);
+	}
 }
 
 void UPRInventoryWidget::UnbindInventorySourceEvents()
@@ -132,6 +182,11 @@ void UPRInventoryWidget::UnbindInventorySourceEvents()
 	if (IsValid(WeaponManagerComponent))
 	{
 		WeaponManagerComponent->GetOnWeaponEquipmentChanged().RemoveDynamic(this, &UPRInventoryWidget::HandleWeaponEquipmentChanged);
+	}
+
+	if (IsValid(QuickSlotComponent))
+	{
+		QuickSlotComponent->GetOnQuickSlotChanged().RemoveDynamic(this, &UPRInventoryWidget::HandleQuickSlotChanged);
 	}
 }
 
@@ -166,6 +221,26 @@ void UPRInventoryWidget::HandleSecondaryWeaponSlotRightClicked(const FPRInventor
 		: nullptr;
 
 	OpenModList(WeaponItem);
+}
+
+void UPRInventoryWidget::HandleQuickSlot0LeftClicked(const FPRInventoryItemSlotViewData& ViewData)
+{
+	OpenConsumableListForQuickSlot(0);
+}
+
+void UPRInventoryWidget::HandleQuickSlot1LeftClicked(const FPRInventoryItemSlotViewData& ViewData)
+{
+	OpenConsumableListForQuickSlot(1);
+}
+
+void UPRInventoryWidget::HandleQuickSlot2LeftClicked(const FPRInventoryItemSlotViewData& ViewData)
+{
+	OpenConsumableListForQuickSlot(2);
+}
+
+void UPRInventoryWidget::HandleQuickSlot3LeftClicked(const FPRInventoryItemSlotViewData& ViewData)
+{
+	OpenConsumableListForQuickSlot(3);
 }
 
 void UPRInventoryWidget::HandleItemListSelection(const FPRInventoryItemSlotViewData& ViewData)
@@ -210,6 +285,19 @@ void UPRInventoryWidget::HandleItemListSelection(const FPRInventoryItemSlotViewD
 			InventoryComponent->RequestEquipModItemToWeapon(ModItem, PendingModTargetWeaponItem);
 		}
 	}
+	else if (CurrentListType == EPRItemType::Consumable)
+	{
+		if (!IsValid(QuickSlotComponent) || PendingQuickSlotIndex == INDEX_NONE)
+		{
+			return;
+		}
+
+		UPRConsumableDataAsset* ConsumableData = Cast<UPRConsumableDataAsset>(ViewData.ItemData.Get());
+		if (IsValid(ConsumableData))
+		{
+			QuickSlotComponent->RequestRegisterQuickSlotItem(PendingQuickSlotIndex, ConsumableData);
+		}
+	}
 
 	CloseItemList();
 }
@@ -238,6 +326,18 @@ void UPRInventoryWidget::HandleWeaponEquipmentChanged(UPRWeaponManagerComponent*
 
 	RefreshInventoryView();
 	RefreshCharacterPreviewWidget();
+}
+
+void UPRInventoryWidget::HandleQuickSlotChanged(UPRQuickSlotComponent* ChangedQuickSlotComponent, int32 ChangedSlotIndex)
+{
+	static_cast<void>(ChangedSlotIndex);
+
+	if (ChangedQuickSlotComponent != QuickSlotComponent)
+	{
+		return;
+	}
+
+	RefreshQuickSlotWidgets();
 }
 
 void UPRInventoryWidget::OpenWeaponList(EPRWeaponSlotType TargetSlot)
@@ -324,6 +424,33 @@ void UPRInventoryWidget::OpenModList(UPRItemInstance_Weapon* TargetWeaponItem)
 	ItemListWidget->SetVisibility(ESlateVisibility::Visible);
 }
 
+void UPRInventoryWidget::OpenConsumableListForQuickSlot(int32 SlotIndex)
+{
+	if (!IsValid(ItemListWidget) || !IsValid(InventoryComponent) || !IsValid(QuickSlotComponent))
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[InventoryWidget] 소비 아이템 리스트 열기 실패. OpenConsumableListForQuickSlot()"));
+		return;
+	}
+
+	PendingWeaponListSlot = EPRWeaponSlotType::None;
+	PendingModTargetWeaponItem = nullptr;
+	PendingQuickSlotIndex = SlotIndex;
+
+	TArray<FPRInventoryItemSlotViewData> ListItems;
+	for (UPRItemInstance_Consumable* ConsumableItem : InventoryComponent->InventoryConsumableItems)
+	{
+		if (!IsValid(ConsumableItem))
+		{
+			continue;
+		}
+
+		ListItems.Add(BuildConsumableItemViewData(ConsumableItem));
+	}
+
+	ItemListWidget->SetItemList(EPRItemType::Consumable, ListItems);
+	ItemListWidget->SetVisibility(ESlateVisibility::Visible);
+}
+
 void UPRInventoryWidget::CloseItemList()
 {
 	//아이템 리스트 위젯이 유효하면
@@ -337,6 +464,7 @@ void UPRInventoryWidget::CloseItemList()
 
 	PendingWeaponListSlot = EPRWeaponSlotType::None;
 	PendingModTargetWeaponItem = nullptr;
+	PendingQuickSlotIndex = INDEX_NONE;
 }
 
 void UPRInventoryWidget::RefreshEquippedSlotWidgets()
@@ -356,10 +484,34 @@ void UPRInventoryWidget::RefreshEquippedSlotWidgets()
 	}
 }
 
+void UPRInventoryWidget::RefreshQuickSlotWidgets()
+{
+	if (IsValid(QuickSlotItemSlotWidget0))
+	{
+		QuickSlotItemSlotWidget0->SetSlotViewData(BuildQuickSlotViewData(0));
+	}
+
+	if (IsValid(QuickSlotItemSlotWidget1))
+	{
+		QuickSlotItemSlotWidget1->SetSlotViewData(BuildQuickSlotViewData(1));
+	}
+
+	if (IsValid(QuickSlotItemSlotWidget2))
+	{
+		QuickSlotItemSlotWidget2->SetSlotViewData(BuildQuickSlotViewData(2));
+	}
+
+	if (IsValid(QuickSlotItemSlotWidget3))
+	{
+		QuickSlotItemSlotWidget3->SetSlotViewData(BuildQuickSlotViewData(3));
+	}
+}
+
 void UPRInventoryWidget::RefreshInventoryView()
 {
 	// 장착 슬롯은 리스트 표시 여부와 관계없이 항상 최신 상태로 맞춘다
 	RefreshEquippedSlotWidgets();
+	RefreshQuickSlotWidgets();
 
 	if (!IsValid(ItemListWidget) || !ItemListWidget->IsVisible())
 	{
@@ -379,6 +531,10 @@ void UPRInventoryWidget::RefreshInventoryView()
 	else if (CurrentListType == EPRItemType::Mod && IsValid(PendingModTargetWeaponItem))
 	{
 		OpenModList(PendingModTargetWeaponItem);
+	}
+	else if (CurrentListType == EPRItemType::Consumable && PendingQuickSlotIndex != INDEX_NONE)
+	{
+		OpenConsumableListForQuickSlot(PendingQuickSlotIndex);
 	}
 }
 
@@ -474,6 +630,61 @@ FPRInventoryItemSlotViewData UPRInventoryWidget::BuildModItemViewData(UPRItemIns
 	{
 		ViewData.DisplayName = ModData->GetDisplayName();
 		ViewData.Icon = ModData->GetIcon();
+	}
+
+	return ViewData;
+}
+
+FPRInventoryItemSlotViewData UPRInventoryWidget::BuildConsumableItemViewData(UPRItemInstance_Consumable* ConsumableItem) const
+{
+	FPRInventoryItemSlotViewData ViewData;
+	if (!IsValid(ConsumableItem))
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[InventoryWidget] 소비 아이템 없음. BuildConsumableItemViewData()"));
+		return ViewData;
+	}
+
+	UPRConsumableDataAsset* ConsumableData = ConsumableItem->GetConsumableData();
+	ViewData.ItemData = ConsumableData;
+	ViewData.ItemInstance = ConsumableItem;
+	ViewData.ItemType = EPRItemType::Consumable;
+	ViewData.StackCount = ConsumableItem->GetStackCount();
+	ViewData.bShowStackCount = true;
+
+	if (IsValid(ConsumableData))
+	{
+		ViewData.DisplayName = ConsumableData->GetDisplayName();
+		ViewData.Icon = ConsumableData->GetIcon();
+	}
+
+	return ViewData;
+}
+
+FPRInventoryItemSlotViewData UPRInventoryWidget::BuildQuickSlotViewData(int32 SlotIndex) const
+{
+	FPRInventoryItemSlotViewData ViewData;
+	ViewData.ItemType = EPRItemType::Consumable;
+
+	if (!IsValid(QuickSlotComponent))
+	{
+		ViewData.DisplayName = FText::FromString(TEXT("퀵슬롯 비어 있음"));
+		return ViewData;
+	}
+
+	const FPRQuickSlotViewData QuickSlotViewData = QuickSlotComponent->BuildQuickSlotViewData(SlotIndex);
+	ViewData.ItemData = QuickSlotViewData.ConsumableData;
+	ViewData.ItemInstance = QuickSlotViewData.ConsumableItem;
+	ViewData.Icon = QuickSlotViewData.Icon;
+	ViewData.StackCount = QuickSlotViewData.StackCount;
+	ViewData.bShowStackCount = QuickSlotViewData.bHasRegisteredItem;
+
+	if (IsValid(QuickSlotViewData.ConsumableData))
+	{
+		ViewData.DisplayName = QuickSlotViewData.ConsumableData->GetDisplayName();
+	}
+	else
+	{
+		ViewData.DisplayName = FText::FromString(TEXT("퀵슬롯 비어 있음"));
 	}
 
 	return ViewData;

@@ -7,14 +7,15 @@
 #include "ProjectR/AI/PREnemyAITypes.h"
 #include "BTTask_PRPrepareCombatMove.generated.h"
 
-class UPREnemyCombatDataAsset;
+class UPRCombatMoveDataAsset;
 
 UENUM(BlueprintType)
 enum class EPRCombatMoveQueryType : uint8
 {
 	Strafe				UMETA(DisplayName = "Strafe"),
 	ApproachMeleeRange	UMETA(DisplayName = "ApproachMeleeRange"),
-	FastApproach		UMETA(DisplayName = "FastApproach")
+	FastApproach		UMETA(DisplayName = "FastApproach"),
+	PatternFallbackReposition UMETA(DisplayName = "PatternFallbackReposition")
 };
 
 // EQS 기반 전투 이동 목표 선택 및 전투 표현 문맥 준비 Task
@@ -44,7 +45,7 @@ protected:
 
 	// 공용 전투 데이터 자산 override
 	UPROPERTY(EditAnywhere, Category = "ProjectR|Combat")
-	TObjectPtr<UPREnemyCombatDataAsset> CombatDataAsset = nullptr;
+	TObjectPtr<UPRCombatMoveDataAsset> CombatDataAsset = nullptr;
 
 	// 실행할 전투 이동 쿼리 종류
 	UPROPERTY(EditAnywhere, Category = "ProjectR|Combat")

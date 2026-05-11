@@ -6,6 +6,7 @@
 #include "ProjectR/UI/PRWidgetBase.h"
 #include "PRHUDWidget.generated.h"
 
+class UPRQuickSlotWidget;
 class UPRWeaponHUDWidget;
 class UPRCrosshairWidget;
 class UPRInteractionHUDWidget;
@@ -72,6 +73,19 @@ protected:
 	
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "HUD")
 	TObjectPtr<UPRWeaponHUDWidget> WeaponHUD;
+	
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "HUD")
+	TObjectPtr<UPRQuickSlotWidget> QuickSlotHUD;
+
+	// UMG 트리에서 동일 이름("PlayerHealthBar")의 자식이 있을 때 자동 바인딩.
+	// PlayerReady 이후 ASC 기준으로 현재 체력, 회복 가능 체력, 지연 체력 표시를 갱신한다
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "HUD")
+	TObjectPtr<UPRHealthBarWidget> PlayerHealthBar;
+
+	// UMG 트리에서 동일 이름("PartyHealthList")의 자식이 있을 때 자동 바인딩.
+	// PlayerReady 이후 GameState PlayerArray 기준으로 파티원 체력 슬롯을 갱신한다
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "HUD")
+	TObjectPtr<UPRPartyHealthListWidget> PartyHealthList;
 
 	// UMG 트리에서 동일 이름("PlayerHealthBar")의 자식이 있을 때 자동 바인딩.
 	// PlayerReady 이후 ASC 기준으로 현재 체력, 회복 가능 체력, 지연 체력 표시를 갱신한다

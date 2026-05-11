@@ -14,7 +14,7 @@ class UAISenseConfig_Sight;
 class UBlackboardComponent;
 class UBehaviorTree;
 class UPRPerceptionConfig;
-class UPREnemyCombatDataAsset;
+class UPRCombatMoveDataAsset;
 class UPREnemyThreatComponent;
 struct FPREnemyMovePresentationConfig;
 
@@ -67,7 +67,7 @@ protected:
 	void SetBlackboardTacticalMode(EPRTacticalMode NewMode);
 
 	// 현재 소유 Pawn 기준 전투 데이터 자산 반환
-	const UPREnemyCombatDataAsset* GetCurrentCombatDataAsset() const;
+	const UPRCombatMoveDataAsset* GetCurrentCombatDataAsset() const;
 
 	// tactical_mode 규칙 또는 override 기반 전투 표현 적용 또는 해제
 	void ApplyPresentationForTacticalMode(

@@ -69,6 +69,7 @@ namespace PRGameplayTags
 
 	// ===== Cooldown.Ability.* — 쿨다운 GE가 부여 =====
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Cooldown_Ability_Dodge); // 구르기 쿨다운
+	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Cooldown_Ability_Fire); // 무기 발사 쿨다운
 
 	// ===== Event.* — SendGameplayEventToActor 이벤트 키 =====
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Event_Hit); // 피격 이벤트.

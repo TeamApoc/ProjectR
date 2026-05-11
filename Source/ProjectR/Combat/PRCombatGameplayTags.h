@@ -15,6 +15,7 @@ namespace PRCombatGameplayTags
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(SetByCaller_AmmoScale); // 무기 장착 시 슬롯 효율 단가
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(SetByCaller_ReserveAmmoRatio); // 무기 장착 시 슬롯 보유 한도 비율
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(SetByCaller_AmmoCost); // 사격 시 displayed 발사 수 (raw 차감 = cost × scale)
+	UE_DECLARE_GAMEPLAY_TAG_EXTERN(SetByCaller_Cooldown); // 쿨다운 GE Duration SetByCaller 키
 
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Event_Ability_EnemyMeleeHit);
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Event_Ability_EnemyMeleeWindowBegin);

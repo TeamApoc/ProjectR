@@ -9,6 +9,9 @@
 #include "ProjectR/Player/PRPlayerState.h"
 #include "ProjectR/System/PREventManagerSubsystem.h"
 #include "ProjectR/UI/Crosshair/PRCrosshairWidget.h"
+#include "ProjectR/UI/HUD/PRHealthBarWidget.h"
+#include "ProjectR/UI/HUD/PRPartyHealthListWidget.h"
+#include "ProjectR/UI/QuickSlot/PRQuickSlotWidget.h"
 #include "ProjectR/UI/WeaponStatusHUD/PRWeaponHUDWidget.h"
 
 UPRHUDWidget::UPRHUDWidget()
@@ -106,6 +109,21 @@ void UPRHUDWidget::OnPlayerReady()
 	if (WeaponHUD)
 	{
 		WeaponHUD->InitializeWeaponHUD();
+	}
+	
+	if (IsValid(QuickSlotHUD))
+	{
+		QuickSlotHUD->InitializeQuickSlotHUD();
+	}
+
+	if (IsValid(PlayerHealthBar))
+	{
+		PlayerHealthBar->RefreshHealthFromOwner();
+	}
+
+	if (IsValid(PartyHealthList))
+	{
+		PartyHealthList->RefreshPartyMembers();
 	}
 }
 

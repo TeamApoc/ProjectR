@@ -6,6 +6,8 @@
 #include "GameFramework/Controller.h"
 #include "GameFramework/Pawn.h"
 #include "Net/UnrealNetwork.h"
+#include "ProjectR/Inventory/Data/PRConsumableDataAsset.h"
+#include "ProjectR/Inventory/Items/PRItemInstance_Consumable.h"
 #include "ProjectR/Weapon/Components/PRWeaponManagerComponent.h"
 #include "ProjectR/Weapon/Data/PRWeaponDataAsset.h"
 #include "ProjectR/Weapon/Data/PRWeaponModDataAsset.h"
@@ -51,6 +53,7 @@ void UPRInventoryComponent::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>
 
 	DOREPLIFETIME_CONDITION(UPRInventoryComponent, InventoryWeaponItems, COND_OwnerOnly);
 	DOREPLIFETIME_CONDITION(UPRInventoryComponent, InventoryModItems, COND_OwnerOnly);
+	DOREPLIFETIME_CONDITION(UPRInventoryComponent, InventoryConsumableItems, COND_OwnerOnly);
 }
 
 bool UPRInventoryComponent::ReplicateSubobjects(UActorChannel* Channel, FOutBunch* Bunch, FReplicationFlags* RepFlags)
@@ -80,6 +83,16 @@ bool UPRInventoryComponent::ReplicateSubobjects(UActorChannel* Channel, FOutBunc
 		}
 
 		bWroteSomething |= Channel->ReplicateSubobject(ModItem, *Bunch, *RepFlags);
+	}
+
+	for (UPRItemInstance_Consumable* ConsumableItem : InventoryConsumableItems)
+	{
+		if (!IsValid(ConsumableItem))
+		{
+			continue;
+		}
+
+		bWroteSomething |= Channel->ReplicateSubobject(ConsumableItem, *Bunch, *RepFlags);
 	}
 
 	return bWroteSomething;
@@ -182,6 +195,218 @@ UPRItemInstance_Mod* UPRInventoryComponent::AddModItem(UPRWeaponModDataAsset* Mo
 	}
 
 	return NewModItem;
+}
+
+void UPRInventoryComponent::RequestAddConsumableItem(UPRConsumableDataAsset* ConsumableData, int32 AddCount)
+{
+	// 데이터가 없거나 수량이 잘못된 요청은 서버 RPC를 보내기 전에 중단한다
+	if (!IsValid(ConsumableData) || AddCount <= 0)
+	{
+		return;
+	}
+
+	if (IsValid(GetOwner()) && GetOwner()->HasAuthority())
+	{
+		AddConsumableItem(ConsumableData, AddCount);
+		return;
+	}
+
+	Server_RequestAddConsumableItem(ConsumableData, AddCount);
+}
+
+UPRItemInstance_Consumable* UPRInventoryComponent::AddConsumableItem(UPRConsumableDataAsset* ConsumableData, int32 AddCount)
+{
+	// 소비 Item 정적 데이터가 없거나 수량이 잘못되면 Item 생성을 진행하지 않는다
+	if (!IsValid(ConsumableData) || AddCount <= 0)
+	{
+		return nullptr;
+	}
+
+	if (UPRItemInstance_Consumable* ExistingItem = FindConsumableItemByData(ConsumableData))
+	{
+		ExistingItem->AddStack(AddCount);
+
+		if (IsValid(GetOwner()) && GetOwner()->HasAuthority())
+		{
+			UE_LOG(
+				LogTemp,
+				Log,
+				TEXT("[Inventory][Server] AddConsumableStack. Owner = %s | Item = %s | Consumable = %s | StackCount = %d"),
+				*GetNameSafe(GetOwner()),
+				*GetNameSafe(ExistingItem),
+				*GetNameSafe(ConsumableData),
+				ExistingItem->GetStackCount());
+		}
+
+		return ExistingItem;
+	}
+
+	UPRItemInstance_Consumable* NewConsumableItem = NewObject<UPRItemInstance_Consumable>(this);
+	if (!IsValid(NewConsumableItem))
+	{
+		return nullptr;
+	}
+
+	NewConsumableItem->InitializeConsumableItem(ConsumableData, AddCount);
+	RegisterInventoryConsumableItem(NewConsumableItem);
+
+	if (IsValid(GetOwner()) && GetOwner()->HasAuthority())
+	{
+		UE_LOG(
+			LogTemp,
+			Log,
+			TEXT("[Inventory][Server] AddConsumableItem. Owner = %s | Item = %s | Consumable = %s | StackCount = %d | Count = %d"),
+			*GetNameSafe(GetOwner()),
+			*GetNameSafe(NewConsumableItem),
+			*GetNameSafe(ConsumableData),
+			NewConsumableItem->GetStackCount(),
+			InventoryConsumableItems.Num());
+	}
+
+	return NewConsumableItem;
+}
+
+void UPRInventoryComponent::RequestRemoveConsumableItem(UPRItemInstance_Consumable* ConsumableItem, int32 RemoveCount)
+{
+	// 잘못된 소비 Item 제거 요청은 서버 RPC를 보내기 전에 중단한다
+	if (!IsValid(ConsumableItem) || RemoveCount <= 0)
+	{
+		return;
+	}
+
+	if (IsValid(GetOwner()) && GetOwner()->HasAuthority())
+	{
+		RemoveConsumableItemInternal(ConsumableItem, RemoveCount);
+		return;
+	}
+
+	Server_RequestRemoveConsumableItem(ConsumableItem, RemoveCount);
+}
+
+void UPRInventoryComponent::RequestRemoveConsumableItemByData(UPRConsumableDataAsset* ConsumableData, int32 RemoveCount)
+{
+	// 잘못된 소비 Item 데이터 제거 요청은 서버 RPC를 보내기 전에 중단한다
+	if (!IsValid(ConsumableData) || RemoveCount <= 0)
+	{
+		return;
+	}
+
+	if (IsValid(GetOwner()) && GetOwner()->HasAuthority())
+	{
+		RemoveConsumableItemByDataInternal(ConsumableData, RemoveCount);
+		return;
+	}
+
+	Server_RequestRemoveConsumableItemByData(ConsumableData, RemoveCount);
+}
+
+void UPRInventoryComponent::RequestUseConsumableItem(UPRItemInstance_Consumable* ConsumableItem, AActor* UserActor)
+{
+	// 잘못된 소비 Item 사용 요청은 서버 RPC를 보내기 전에 중단한다
+	if (!IsValid(ConsumableItem) || !IsValid(UserActor))
+	{
+		return;
+	}
+
+	if (IsValid(GetOwner()) && GetOwner()->HasAuthority())
+	{
+		UseConsumableItemInternal(ConsumableItem, UserActor);
+		return;
+	}
+
+	Server_RequestUseConsumableItem(ConsumableItem, UserActor);
+}
+
+void UPRInventoryComponent::RequestUseConsumableItemByData(UPRConsumableDataAsset* ConsumableData, AActor* UserActor)
+{
+	// 잘못된 소비 Item 데이터 사용 요청은 서버 RPC를 보내기 전에 중단한다
+	if (!IsValid(ConsumableData) || !IsValid(UserActor))
+	{
+		return;
+	}
+
+	if (IsValid(GetOwner()) && GetOwner()->HasAuthority())
+	{
+		UseConsumableItemByDataInternal(ConsumableData, UserActor);
+		return;
+	}
+
+	Server_RequestUseConsumableItemByData(ConsumableData, UserActor);
+}
+
+bool UPRInventoryComponent::RemoveConsumableItemInternal(UPRItemInstance_Consumable* ConsumableItem, int32 RemoveCount)
+{
+	// 소비 Item 제거는 인벤토리가 소유한 인스턴스만 대상으로 처리한다
+	if (!IsValid(GetOwner()) || !GetOwner()->HasAuthority() || !IsValid(ConsumableItem) || !OwnsConsumable(ConsumableItem) || RemoveCount <= 0)
+	{
+		return false;
+	}
+
+	const int32 PreviousStackCount = ConsumableItem->GetStackCount();
+	if (!ConsumableItem->RemoveStack(RemoveCount))
+	{
+		return false;
+	}
+
+	UE_LOG(
+		LogTemp,
+		Log,
+		TEXT("[Inventory][Server] RemoveConsumableItem. Owner = %s | Item = %s | Consumable = %s | BeforeStackCount = %d | AfterStackCount = %d"),
+		*GetNameSafe(GetOwner()),
+		*GetNameSafe(ConsumableItem),
+		*GetNameSafe(ConsumableItem->GetConsumableData()),
+		PreviousStackCount,
+		ConsumableItem->GetStackCount());
+
+	if (ConsumableItem->GetStackCount() <= 0)
+	{
+		UnregisterConsumableItemInstance(ConsumableItem);
+	}
+
+	return true;
+}
+
+bool UPRInventoryComponent::RemoveConsumableItemByDataInternal(UPRConsumableDataAsset* ConsumableData, int32 RemoveCount)
+{
+	// 데이터 기반 제거는 현재 인벤토리의 소비 Item 인스턴스를 먼저 찾는다
+	if (!IsValid(ConsumableData))
+	{
+		return false;
+	}
+
+	return RemoveConsumableItemInternal(FindConsumableItemByData(ConsumableData), RemoveCount);
+}
+
+bool UPRInventoryComponent::UseConsumableItemInternal(UPRItemInstance_Consumable* ConsumableItem, AActor* UserActor)
+{
+	// 소비 Item 사용은 인벤토리가 소유한 인스턴스만 대상으로 처리한다
+	if (!IsValid(GetOwner()) || !GetOwner()->HasAuthority() || !IsValid(ConsumableItem) || !OwnsConsumable(ConsumableItem) || !IsValid(UserActor))
+	{
+		return false;
+	}
+
+	if (!ConsumableItem->UseItem(UserActor))
+	{
+		return false;
+	}
+
+	if (ConsumableItem->GetStackCount() <= 0)
+	{
+		UnregisterConsumableItemInstance(ConsumableItem);
+	}
+
+	return true;
+}
+
+bool UPRInventoryComponent::UseConsumableItemByDataInternal(UPRConsumableDataAsset* ConsumableData, AActor* UserActor)
+{
+	// 데이터 기반 사용은 현재 인벤토리의 소비 Item 인스턴스를 먼저 찾는다
+	if (!IsValid(ConsumableData))
+	{
+		return false;
+	}
+
+	return UseConsumableItemInternal(FindConsumableItemByData(ConsumableData), UserActor);
 }
 
 void UPRInventoryComponent::RequestEquipModItemToWeapon(UPRItemInstance_Mod* ModItem, UPRItemInstance_Weapon* TargetWeaponItem)
@@ -420,6 +645,16 @@ UPRItemInstance_Mod* UPRInventoryComponent::GetModItemAtIndex(int32 ItemIndex) c
 	return InventoryModItems[ItemIndex];
 }
 
+UPRItemInstance_Consumable* UPRInventoryComponent::GetConsumableItemAtIndex(int32 ItemIndex) const
+{
+	if (!InventoryConsumableItems.IsValidIndex(ItemIndex))
+	{
+		return nullptr;
+	}
+
+	return InventoryConsumableItems[ItemIndex];
+}
+
 bool UPRInventoryComponent::OwnsWeapon(const UPRItemInstance_Weapon* WeaponItem) const
 {
 	// 유효하지 않은 Item은 소유권 검사에서 즉시 실패한다
@@ -440,6 +675,41 @@ bool UPRInventoryComponent::OwnsMod(const UPRItemInstance_Mod* ModItem) const
 	}
 
 	return InventoryModItems.Contains(ModItem);
+}
+
+bool UPRInventoryComponent::OwnsConsumable(const UPRItemInstance_Consumable* ConsumableItem) const
+{
+	// 유효하지 않은 Item은 소유권 검사에서 즉시 실패한다
+	if (!IsValid(ConsumableItem))
+	{
+		return false;
+	}
+
+	return InventoryConsumableItems.Contains(ConsumableItem);
+}
+
+UPRItemInstance_Consumable* UPRInventoryComponent::FindConsumableItemByData(const UPRConsumableDataAsset* ConsumableData) const
+{
+	// 유효하지 않은 데이터는 조회 대상이 아니다
+	if (!IsValid(ConsumableData))
+	{
+		return nullptr;
+	}
+
+	for (UPRItemInstance_Consumable* ConsumableItem : InventoryConsumableItems)
+	{
+		if (!IsValid(ConsumableItem))
+		{
+			continue;
+		}
+
+		if (ConsumableItem->GetConsumableData() == ConsumableData)
+		{
+			return ConsumableItem;
+		}
+	}
+
+	return nullptr;
 }
 
 void UPRInventoryComponent::OnInventoryChanged(EPRInventoryChangeReason ChangeReason)
@@ -527,6 +797,44 @@ void UPRInventoryComponent::OnRep_InventoryModItems()
 	OnInventoryChanged(EPRInventoryChangeReason::ItemListChanged);
 }
 
+void UPRInventoryComponent::OnRep_InventoryConsumableItems()
+{
+	// 클라이언트에서 소비 Item 목록과 보유 개수 복제 결과를 추적
+	UE_LOG(
+		LogTemp,
+		Log,
+		TEXT("[Inventory][Client] InventoryConsumableItems replicated. Owner = %s | Count = %d"),
+		*GetNameSafe(GetOwner()),
+		InventoryConsumableItems.Num());
+
+	for (int32 ItemIndex = 0; ItemIndex < InventoryConsumableItems.Num(); ++ItemIndex)
+	{
+		const UPRItemInstance_Consumable* ConsumableItem = InventoryConsumableItems[ItemIndex];
+		if (!IsValid(ConsumableItem))
+		{
+			// 복제 배열에 비어 있는 소비 Item 항목이 포함된 상황을 인덱스 기준으로 추적
+			UE_LOG(
+				LogTemp,
+				Log,
+				TEXT("[Inventory][Client] ConsumableItem[%d] Item=None"),
+				ItemIndex);
+			continue;
+		}
+
+		// 소비 Item별 데이터와 보유 개수를 인덱스 기준으로 추적
+		UE_LOG(
+			LogTemp,
+			Log,
+			TEXT("[Inventory][Client] ConsumableItem[%d] Item = %s | Consumable = %s | StackCount = %d"),
+			ItemIndex,
+			*GetNameSafe(ConsumableItem),
+			*GetNameSafe(ConsumableItem->GetConsumableData()),
+			ConsumableItem->GetStackCount());
+	}
+
+	OnInventoryChanged(EPRInventoryChangeReason::ItemListChanged);
+}
+
 void UPRInventoryComponent::RegisterInventoryWeaponItem(UPRItemInstance_Weapon* WeaponItem)
 {
 	// 인벤토리에 실제로 들어갈 무기 Item만 목록에 등록한다
@@ -599,6 +907,42 @@ void UPRInventoryComponent::UnregisterInventoryModItem(UPRItemInstance_Mod* ModI
 	OnInventoryChanged(EPRInventoryChangeReason::ItemListChanged);
 }
 
+void UPRInventoryComponent::RegisterInventoryConsumableItem(UPRItemInstance_Consumable* ConsumableItem)
+{
+	// 인벤토리에 실제로 들어갈 소비 Item만 목록에 등록한다
+	if (!IsValid(ConsumableItem))
+	{
+		return;
+	}
+
+	InventoryConsumableItems.AddUnique(ConsumableItem);
+
+	if (IsValid(GetOwner()))
+	{
+		GetOwner()->ForceNetUpdate();
+	}
+
+	OnInventoryChanged(EPRInventoryChangeReason::ItemListChanged);
+}
+
+void UPRInventoryComponent::UnregisterConsumableItemInstance(UPRItemInstance_Consumable* ConsumableItem)
+{
+	// 잘못된 소비 Item 요청이면 등록 해제를 시도하지 않는다
+	if (!IsValid(ConsumableItem))
+	{
+		return;
+	}
+
+	InventoryConsumableItems.Remove(ConsumableItem);
+
+	if (IsValid(GetOwner()))
+	{
+		GetOwner()->ForceNetUpdate();
+	}
+
+	OnInventoryChanged(EPRInventoryChangeReason::ItemListChanged);
+}
+
 UPRWeaponManagerComponent* UPRInventoryComponent::ResolveOwnerWeaponManager() const
 {
 	AActor* OwnerActor = GetOwner();
@@ -648,6 +992,31 @@ void UPRInventoryComponent::Server_RequestAddWeaponItem_Implementation(UPRWeapon
 void UPRInventoryComponent::Server_RequestAddModItem_Implementation(UPRWeaponModDataAsset* ModData)
 {
 	AddModItem(ModData);
+}
+
+void UPRInventoryComponent::Server_RequestAddConsumableItem_Implementation(UPRConsumableDataAsset* ConsumableData, int32 AddCount)
+{
+	AddConsumableItem(ConsumableData, AddCount);
+}
+
+void UPRInventoryComponent::Server_RequestRemoveConsumableItem_Implementation(UPRItemInstance_Consumable* ConsumableItem, int32 RemoveCount)
+{
+	RemoveConsumableItemInternal(ConsumableItem, RemoveCount);
+}
+
+void UPRInventoryComponent::Server_RequestRemoveConsumableItemByData_Implementation(UPRConsumableDataAsset* ConsumableData, int32 RemoveCount)
+{
+	RemoveConsumableItemByDataInternal(ConsumableData, RemoveCount);
+}
+
+void UPRInventoryComponent::Server_RequestUseConsumableItem_Implementation(UPRItemInstance_Consumable* ConsumableItem, AActor* UserActor)
+{
+	UseConsumableItemInternal(ConsumableItem, UserActor);
+}
+
+void UPRInventoryComponent::Server_RequestUseConsumableItemByData_Implementation(UPRConsumableDataAsset* ConsumableData, AActor* UserActor)
+{
+	UseConsumableItemByDataInternal(ConsumableData, UserActor);
 }
 
 void UPRInventoryComponent::Server_RequestEquipModItemToWeapon_Implementation(UPRItemInstance_Mod* ModItem, UPRItemInstance_Weapon* TargetWeaponItem)

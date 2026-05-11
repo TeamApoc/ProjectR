@@ -3,6 +3,7 @@
 
 #include "PRGA_FireProjectile.h"
 
+#include "AbilitySystemComponent.h"
 #include "Components/SphereComponent.h"
 #include "GameFramework/ProjectileMovementComponent.h"
 #include "ProjectR/Character/PRPlayerCharacter.h"
@@ -81,4 +82,54 @@ void UPRGA_FireProjectile::OnRemoveAbility(const FGameplayAbilityActorInfo* Acto
 		
 		Preview->SetPreviewEnabled(false);
 	}
+}
+
+/*~ EffectSpec 오버라이드 ~*/
+
+FGameplayEffectSpecHandle UPRGA_FireProjectile::MakeWeaponEffectSpec(const FHitResult* HitResult) const
+{
+	// Override가 비어있으면 베이스 흐름(Registry의 DamageGE_FromWeapon) 사용
+	if (!IsValid(ProjectileEffectOverride))
+	{
+		return Super::MakeWeaponEffectSpec(HitResult);
+	}
+
+	const FGameplayEffectSpecHandle SpecHandle = MakeOutgoingGameplayEffectSpec(
+		GetCurrentAbilitySpecHandle(),
+		GetCurrentActorInfo(),
+		GetCurrentActivationInfo(),
+		ProjectileEffectOverride);
+
+	if (!SpecHandle.IsValid())
+	{
+		return FGameplayEffectSpecHandle();
+	}
+
+	if (HitResult != nullptr && HitResult->bBlockingHit)
+	{
+		SpecHandle.Data->GetContext().AddHitResult(*HitResult, true);
+	}
+
+	return SpecHandle;
+}
+
+void UPRGA_FireProjectile::OnProjectileSpawnSuccess(APRProjectileBase* SpawnedProjectile)
+{
+	if (!IsValid(SpawnedProjectile))
+	{
+		return;
+	}
+
+	// 서버 권위에 한해 무기 데미지 GE Spec 부여. Predicted 클라이언트는 데미지 적용 책임 없음
+	if (HasAuthority(&CurrentActivationInfo))
+	{
+		const FGameplayEffectSpecHandle SpecHandle = MakeWeaponEffectSpec();
+		if (SpecHandle.IsValid())
+		{
+			SpawnedProjectile->InitGameplayEffectSpec(SpecHandle);
+		}
+	}
+	
+	Super::OnProjectileSpawnSuccess(SpawnedProjectile);
+
 }

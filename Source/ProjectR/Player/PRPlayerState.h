@@ -14,6 +14,7 @@ class UPRAttributeSet_Player;
 class UPRAttributeSet_Weapon;
 class UPRInventoryComponent;
 class UPREquipmentManagerComponent;
+class UPRQuickSlotComponent;
 
 // 플레이어별 복제 데이터 소유. Player ASC + AttributeSet의 소유자
 // Inventory/Equipment 컴포넌트는 각 시스템 구현 시 본 클래스에 부착 예정
@@ -53,6 +54,10 @@ public:
 	UFUNCTION(BlueprintPure, Category = "ProjectR|Equipment")
 	UPREquipmentManagerComponent* GetEquipmentManagerComponent() const { return EquipmentManagerComponent; }
 
+	// 플레이어 퀵슬롯 컴포넌트를 반환
+	UFUNCTION(BlueprintPure, Category = "ProjectR|QuickSlot")
+	UPRQuickSlotComponent* GetQuickSlotComponent() const { return QuickSlotComponent; }
+
 	// 표시명 조회
 	const FString& GetDisplayName() const { return DisplayName; }
 
@@ -89,6 +94,10 @@ protected:
 	// 플레이어 장비 상태 확장용 컴포넌트
 	UPROPERTY(VisibleAnywhere, Category = "ProjectR|Equipment")
 	TObjectPtr<UPREquipmentManagerComponent> EquipmentManagerComponent;
+
+	// 플레이어 소비 아이템 퀵슬롯 상태 컴포넌트
+	UPROPERTY(VisibleAnywhere, Category = "ProjectR|QuickSlot")
+	TObjectPtr<UPRQuickSlotComponent> QuickSlotComponent;
 
 	// 표시명. 모든 클라에게 복제 (타 플레이어 HUD 표시)
 	UPROPERTY(Replicated)

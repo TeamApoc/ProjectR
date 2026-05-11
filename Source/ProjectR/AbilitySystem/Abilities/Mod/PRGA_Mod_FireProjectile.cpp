@@ -2,9 +2,11 @@
 
 #include "PRGA_Mod_FireProjectile.h"
 
+#include "AbilitySystemComponent.h"
 #include "NiagaraFunctionLibrary.h"
 #include "NiagaraSystem.h"
 #include "ProjectR/AbilitySystem/Tasks/PRAT_SpawnPredictedProjectile.h"
+#include "ProjectR/Combat/PRCombatGameplayTags.h"
 #include "ProjectR/Projectile/PRProjectileBase.h"
 #include "ProjectR/Weapon/Components/PRWeaponManagerComponent.h"
 
@@ -114,4 +116,43 @@ void UPRGA_Mod_FireProjectile::OnProjectileSpawnFailed(APRProjectileBase* Spawne
 {
 	K2_OnProjectileSpawnFailed(SpawnedProjectile);
 	K2_EndAbility();
+}
+
+/*~ EffectSpec 오버라이드 ~*/
+
+FGameplayEffectSpecHandle UPRGA_Mod_FireProjectile::MakeModEffectSpec(float InDamage, float InGroggyDamage, const FHitResult* HitResult) const
+{
+	// Override가 비어있으면 베이스 흐름(Registry의 DamageGE_FromMod) 사용
+	if (!IsValid(ProjectileEffectOverride))
+	{
+		return Super::MakeModEffectSpec(InDamage, InGroggyDamage, HitResult);
+	}
+
+	const FGameplayEffectSpecHandle SpecHandle = MakeOutgoingGameplayEffectSpec(
+		GetCurrentAbilitySpecHandle(),
+		GetCurrentActorInfo(),
+		GetCurrentActivationInfo(),
+		ProjectileEffectOverride);
+
+	if (!SpecHandle.IsValid())
+	{
+		return FGameplayEffectSpecHandle();
+	}
+
+	if (InDamage > 0.0f)
+	{
+		SpecHandle.Data->SetSetByCallerMagnitude(PRCombatGameplayTags::SetByCaller_Damage, InDamage);
+	}
+
+	if (InGroggyDamage > 0.0f)
+	{
+		SpecHandle.Data->SetSetByCallerMagnitude(PRCombatGameplayTags::SetByCaller_GroggyDamage, InGroggyDamage);
+	}
+
+	if (HitResult != nullptr && HitResult->bBlockingHit)
+	{
+		SpecHandle.Data->GetContext().AddHitResult(*HitResult, true);
+	}
+
+	return SpecHandle;
 }

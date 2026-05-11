@@ -96,6 +96,7 @@ void UPRGA_PlayerHitReact::ActivateAbility(const FGameplayAbilitySpecHandle Hand
 	ActiveHitReactType = HitReactType;
 	ActivePlayerCharacter = Cast<APRPlayerCharacter>(GetAvatarActorFromActorInfo());
 	CancelActionsForHitReact(HitReactType);
+	ApplyRecoverableHealthRecoveryDelay(TriggerEventData);
 
 	// 이벤트 타입을 실제 재생할 몽타주로 변환한다.
 	UAnimMontage* HitReactMontage = SelectHitReactMontage(HitReactType);
@@ -392,6 +393,26 @@ void UPRGA_PlayerHitReact::CancelActionsForHitReact(EPRPlayerHitReactType HitRea
 	}
 
 	ASC->CancelAbilities(&CancelTags, nullptr, this);
+}
+
+// 회복 가능 체력 자동 회복 딜레이 GameplayEffect를 적용한다.
+void UPRGA_PlayerHitReact::ApplyRecoverableHealthRecoveryDelay(const FGameplayEventData* TriggerEventData)
+{
+	if (!IsValid(RecoverableHealthRecoveryDelayEffectClass))
+	{
+		return;
+	}
+
+	if (TriggerEventData == nullptr || TriggerEventData->EventMagnitude <= 0.0f)
+	{
+		return;
+	}
+
+	const FGameplayEffectSpecHandle SpecHandle = MakeOutgoingGameplayEffectSpec(RecoverableHealthRecoveryDelayEffectClass);
+	if (SpecHandle.IsValid())
+	{
+		ApplyGameplayEffectSpecToOwner(CurrentSpecHandle, CurrentActorInfo, CurrentActivationInfo, SpecHandle);
+	}
 }
 
 // 다운 리액션의 섹션 상태와 착지 요청 상태를 초기화한다.

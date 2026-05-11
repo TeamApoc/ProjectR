@@ -44,6 +44,10 @@ protected:
 	UPROPERTY(EditAnywhere, Category = "ProjectR|Pattern")
 	EPRPatternCategory PatternCategoryFilter = EPRPatternCategory::Any;
 
+	// 비어 있지 않으면 해당 원작 패턴군 태그와 맞는 후보만 선택한다.
+	UPROPERTY(EditAnywhere, Category = "ProjectR|Pattern")
+	FGameplayTag PatternGroupFilter;
+
 	// true면 ASC가 쿨다운/차단 상태 때문에 실행할 수 없는 패턴은 후보에서 제외한다.
 	UPROPERTY(EditAnywhere, Category = "ProjectR|Pattern")
 	bool bCheckAbilityCanActivate = true;

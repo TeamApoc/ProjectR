@@ -36,7 +36,10 @@ void UPRItemSlotWidget::NativeOnInitialized()
 	// 현재 표시 데이터로 툴팁 위젯을 갱신한다
 	RefreshTooltipWidget();
 	
-	EquippedIndicatorImage->SetVisibility(ESlateVisibility::Hidden);
+	if (IsValid(EquippedIndicatorImage))
+	{
+		EquippedIndicatorImage->SetVisibility(ESlateVisibility::Hidden);
+	}
 }
 
 FReply UPRItemSlotWidget::NativeOnMouseButtonDown(const FGeometry& InGeometry, const FPointerEvent& InMouseEvent)
@@ -90,6 +93,13 @@ void UPRItemSlotWidget::RefreshNativeDisplay()
 			? ESlateVisibility::Visible
 			: ESlateVisibility::Hidden;
 		EquippedIndicatorImage->SetVisibility(EquippedIndicatorVisibility);
+	}
+
+	if (IsValid(StackCountText))
+	{
+		const bool bShowStackCount = ViewData.bShowStackCount && IsValid(ViewData.ItemData.Get());
+		StackCountText->SetVisibility(bShowStackCount ? ESlateVisibility::Visible : ESlateVisibility::Hidden);
+		StackCountText->SetText(FText::AsNumber(ViewData.StackCount));
 	}
 }
 

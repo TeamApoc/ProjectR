@@ -18,7 +18,7 @@ class UPRAttributeSet_Common;
 class UPRAttributeSet_Enemy;
 class UPRPatternDataAsset;
 class UPRPerceptionConfig;
-class UPREnemyCombatDataAsset;
+class UPRCombatMoveDataAsset;
 class UPREnemyCombatEventRelayComponent;
 class UPREnemyThreatComponent;
 struct FPREnemyMovePresentationConfig;
@@ -48,7 +48,7 @@ public:
 	virtual UPRAbilitySystemComponent* GetEnemyAbilitySystemComponent() const override;
 	virtual UPREnemyThreatComponent* GetEnemyThreatComponent() const override;
 	virtual UPRPatternDataAsset* GetPatternDataAsset() const override;
-	virtual UPREnemyCombatDataAsset* GetCombatDataAsset() const override;
+	virtual UPRCombatMoveDataAsset* GetCombatDataAsset() const override;
 	virtual UPRPerceptionConfig* GetPerceptionConfig() const override;
 	virtual UBehaviorTree* GetBehaviorTreeAsset() const override;
 	virtual FVector GetHomeLocation() const override;
@@ -126,9 +126,9 @@ protected:
 	UPROPERTY(EditDefaultsOnly, Category = "ProjectR|AI")
 	TObjectPtr<UPRPatternDataAsset> PatternDataAsset;
 
-	// 적 전투 흐름과 공격 데이터를 담은 자산이다.
+	// 적/보스 전투 이동과 표현 데이터를 담은 자산이다.
 	UPROPERTY(EditDefaultsOnly, Category = "ProjectR|AI")
-	TObjectPtr<UPREnemyCombatDataAsset> CombatDataAsset;
+	TObjectPtr<UPRCombatMoveDataAsset> CombatDataAsset;
 
 	// 시야/청각 감지 설정 데이터다.
 	UPROPERTY(EditDefaultsOnly, Category = "ProjectR|AI")

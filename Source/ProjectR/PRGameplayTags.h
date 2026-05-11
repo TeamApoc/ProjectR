@@ -46,13 +46,29 @@ namespace PRGameplayTags
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Ability_Boss_Faerin_PhaseTransition); // Faerin 페이즈 전환
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Ability_Boss_Faerin_MeleeQuickCombo); // Faerin 빠른 근접 콤보
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Ability_Boss_Faerin_PortalPairSequence); // Faerin 포털 연계
+	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Ability_Boss_Faerin_PortalMissileSequence); // Faerin 원작형 미사일 포털 소환
+	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Ability_Boss_Faerin_PortalBarrageSequence); // Faerin 포털 연속 포격
+	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Ability_Boss_Faerin_TeleportLungeSequence); // Faerin 원작형 텔레포트 런지
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Ability_Boss_Faerin_TeleportDash); // Faerin 텔레포트 대시
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Ability_Boss_Faerin_EnergyRain); // Faerin 범위 압박
+
+	// ===== Pattern.* — 패턴 그룹 식별 =====
+	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Pattern_Boss_Faerin); // Faerin 패턴 그룹 루트
+	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Pattern_Boss_Faerin_Portal); // Faerin 포털 계열 패턴
+	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Pattern_Boss_Faerin_Lunge); // Faerin 런지 계열 패턴
+	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Pattern_Boss_Faerin_Godfall); // Faerin Godfall 계열 패턴
+	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Pattern_Boss_Faerin_Shift); // Faerin Shift 계열 패턴
+	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Pattern_Boss_Faerin_TeleportDown); // Faerin TeleportDown 계열 패턴
+	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Pattern_Boss_Faerin_Sword); // Faerin 검 근접 계열 패턴
+	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Pattern_Boss_Faerin_Crash); // Faerin Crash 계열 패턴
+	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Pattern_Boss_Faerin_Throw); // Faerin Throw 계열 패턴
+	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Pattern_Boss_Faerin_Fallback); // Faerin 패턴 실패 시 보조 이동 식별
 
 	// ===== State.* — 캐릭터 상태 =====
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(State_Dead); // 사망 상태.
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(State_Groggy); // 그로기 상태.
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(State_StaminaDepleted); // 스태미너 고갈 상태.
+	UE_DECLARE_GAMEPLAY_TAG_EXTERN(State_Down); // 전투불능 다운 상태.
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(State_Invulnerable); // 무적 상태.
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(State_Dodging); // 구르기 동작중
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(State_Crouching); // 구르기 동작중
@@ -61,14 +77,18 @@ namespace PRGameplayTags
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(State_Reloading); // 재장전 진행 상태
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(State_Channeling); // 캐스팅 또는 채널링 상태.
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(State_PoiseRecoveryBlocked); // 강인도 회복 차단 상태
+	UE_DECLARE_GAMEPLAY_TAG_EXTERN(State_RecoverableHealthRecoveryBlocked); // 회복 가능 체력 회복 차단 상태
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(State_PlayerInputLocked); // 플레이어 입력 차단 상태
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(State_PlayerHitReactLocked); // 피격 리액션 행동불능 상태
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(State_PhaseTransitioning); // 보스 페이즈 전환 상태.
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(State_Boss_WeakpointOpen_Core); // 보스 코어 약점 오픈 상태.
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(State_Armed); // 플레이어 무기 장착중 상태
 
-	// ===== Cooldown.Ability.* — 쿨다운 GE가 부여 =====
+	// ===== Cooldown.* — 쿨다운 GE가 부여 =====
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Cooldown_Ability_Dodge); // 구르기 쿨다운
+	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Cooldown_Boss_Faerin_PortalMissile); // Faerin 포털 미사일 패턴 쿨다운
+	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Cooldown_Boss_Faerin_PortalBarrage); // Faerin 포털 연속 포격 패턴 쿨다운
+	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Cooldown_Boss_Faerin_TeleportLunge); // Faerin Teleport Lunge 패턴 쿨다운
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Cooldown_Ability_Fire); // 무기 발사 쿨다운
 
 	// ===== Event.* — SendGameplayEventToActor 이벤트 키 =====

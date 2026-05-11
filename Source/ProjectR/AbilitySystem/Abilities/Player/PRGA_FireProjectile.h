@@ -8,6 +8,7 @@
 #include "PRGA_FireProjectile.generated.h"
 
 class APRProjectileBase;
+class UGameplayEffect;
 
 /**
  * 투사체 발사 어빌리티.
@@ -22,10 +23,15 @@ public:
 	/*~ UGameplayAbility Interface ~*/
 	virtual void OnGiveAbility(const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilitySpec& Spec) override;
 	virtual void OnRemoveAbility(const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilitySpec& Spec) override;
-	
+
+protected:
+	/*~ UPRGA_Fire Interface ~*/
+	virtual FGameplayEffectSpecHandle MakeWeaponEffectSpec(const FHitResult* HitResult = nullptr) const override;
+	virtual void OnProjectileSpawnSuccess(APRProjectileBase* SpawnedProjectile) override;
+
 protected:
 	// 본 어빌리티가 발사할 투사체 클래스. CDO의 ProjectileMovement/Sphere 컴포넌트에서 속력/중력/반지름을 추출하여 PreviewParams로 합성
-	UPROPERTY(EditDefaultsOnly, Category = "ProjectR|Fire|Projectile")
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "ProjectR|Fire|Projectile")
 	TSubclassOf<APRProjectileBase> ProjectileClass;
 
 	// 궤적 표시 여부
@@ -37,4 +43,8 @@ protected:
 	// 그 외 시뮬레이션/샘플링 파라미터는 본 값을 그대로 사용. WeaponActor는 OnGive에서 활성 무기로 바인딩
 	UPROPERTY(EditDefaultsOnly, Category = "ProjectR|Fire|Projectile")
 	FPRProjectilePreviewParams PreviewParams;
+
+	// 투사체에 부여할 GE 오버라이드. 비워두면 Registry의 DamageGE_FromWeapon 사용
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "ProjectR|Fire|Projectile")
+	TSubclassOf<UGameplayEffect> ProjectileEffectOverride;
 };

@@ -14,6 +14,7 @@ class UPRFloatingTextManager;
 class UAbilitySystemComponent;
 class UPRInputConfigDataAsset;
 class UPRAbilitySystemComponent;
+class UPRQuickSlotComponent;
 struct FInputActionValue;
 class UInputAction;
 class UPRUIControllerComponent;
@@ -80,6 +81,16 @@ protected:
 	// 인벤토리 열기 입력 액션
 	UPROPERTY(EditDefaultsOnly, Category = "ProjectR|Input")
 	TObjectPtr<const UInputAction> InventoryAction;
+
+	// 퀵슬롯 입력 액션 목록. 배열 인덱스가 퀵슬롯 인덱스와 일치한다
+	UPROPERTY(EditDefaultsOnly, Category = "ProjectR|Input")
+	TArray<TObjectPtr<const UInputAction>> QuickSlotActions;
+
+	// 퀵슬롯 입력 시작을 처리
+	void OnQuickSlotInputStarted(int32 SlotIndex);
+
+	// 플레이어 퀵슬롯 컴포넌트를 조회
+	UPRQuickSlotComponent* GetQuickSlotComponent() const;
 	
 private:
 	// 캐릭터 페이로드를 이미 제출했는지 여부. 중복 제출 방지

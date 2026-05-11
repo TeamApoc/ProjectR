@@ -3,11 +3,18 @@
 #include "PRBossBaseCharacter.h"
 
 #include "ProjectR/AbilitySystem/PRAbilitySystemComponent.h"
+#include "ProjectR/AI/Boss/PRBossPatternActor.h"
 #include "ProjectR/PRGameplayTags.h"
 
 APRBossBaseCharacter::APRBossBaseCharacter()
 {
 	// 페이즈 임계값은 보스 BP/데이터에서 설정한다. C++ 기본값을 두면 몬스터별 튜닝이 하드코딩된다.
+}
+
+void APRBossBaseCharacter::EndPlay(const EEndPlayReason::Type EndPlayReason)
+{
+	CancelAllBossPatternActors();
+	Super::EndPlay(EndPlayReason);
 }
 
 void APRBossBaseCharacter::PossessedBy(AController* NewController)
@@ -104,6 +111,7 @@ void APRBossBaseCharacter::BeginPhaseTransition(EPRBossPhase NewPhase)
 	FGameplayTagContainer PatternCancelTags;
 	PatternCancelTags.AddTag(PRGameplayTags::Ability_Boss_Pattern);
 	AbilitySystemComponent->CancelAbilities(&PatternCancelTags);
+	CancelAllBossPatternActors();
 
 	FGameplayEventData Payload;
 	Payload.EventTag = PRGameplayTags::Event_Ability_PhaseTransition;
@@ -157,6 +165,69 @@ void APRBossBaseCharacter::CommitPhaseTransition(EPRBossPhase NewPhase)
 	AbilitySystemComponent->RemoveReplicatedLooseGameplayTag(PRGameplayTags::State_PhaseTransitioning);
 
 	OnPhaseChanged.Broadcast(OldPhase, NewPhase);
+}
+
+void APRBossBaseCharacter::RegisterBossPatternActor(APRBossPatternActor* Actor)
+{
+	if (!HasAuthority() || !IsValid(Actor))
+	{
+		return;
+	}
+
+	ActivePatternActors.RemoveAll([](const APRBossPatternActor* RegisteredActor)
+	{
+		return !IsValid(RegisteredActor);
+	});
+
+	ActivePatternActors.AddUnique(Actor);
+}
+
+void APRBossBaseCharacter::UnregisterBossPatternActor(APRBossPatternActor* Actor)
+{
+	if (!HasAuthority())
+	{
+		return;
+	}
+
+	ActivePatternActors.RemoveAll([Actor](const APRBossPatternActor* RegisteredActor)
+	{
+		return !IsValid(RegisteredActor) || RegisteredActor == Actor;
+	});
+}
+
+void APRBossBaseCharacter::CancelAllBossPatternActors()
+{
+	if (!HasAuthority())
+	{
+		return;
+	}
+
+	TArray<TObjectPtr<APRBossPatternActor>> PatternActorsToCancel = ActivePatternActors;
+	ActivePatternActors.Reset();
+
+	for (APRBossPatternActor* PatternActor : PatternActorsToCancel)
+	{
+		if (IsValid(PatternActor))
+		{
+			PatternActor->CancelPatternActor();
+		}
+	}
+}
+
+void APRBossBaseCharacter::HandleGameplayTagUpdated(const FGameplayTag& ChangedTag, bool TagExists)
+{
+	Super::HandleGameplayTagUpdated(ChangedTag, TagExists);
+
+	if (!TagExists)
+	{
+		return;
+	}
+
+	if (ChangedTag.MatchesTag(PRGameplayTags::State_Dead)
+		|| ChangedTag.MatchesTag(PRGameplayTags::State_Groggy))
+	{
+		CancelAllBossPatternActors();
+	}
 }
 
 void APRBossBaseCharacter::OnRep_CurrentPhase(EPRBossPhase OldPhase)

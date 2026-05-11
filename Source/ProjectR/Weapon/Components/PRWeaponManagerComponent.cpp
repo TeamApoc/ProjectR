@@ -13,6 +13,7 @@
 #include "ProjectR/AbilitySystem/AttributeSets/PRAttributeSet_Weapon.h"
 #include "ProjectR/AbilitySystem/Data/PRAbilitySystemRegistry.h"
 #include "ProjectR/AbilitySystem/PRAbilitySystemComponent.h"
+#include "ProjectR/Character/PRCharacterBase.h"
 #include "ProjectR/Combat/PRCombatGameplayTags.h"
 #include "ProjectR/Inventory/Components/PRInventoryComponent.h"
 #include "ProjectR/System/PRAssetManager.h"
@@ -1300,6 +1301,15 @@ void UPRWeaponManagerComponent::RefreshAnimLayer()
 		TargetAnimLayerClass = CurrentWeaponVisualInfo.WeaponData->WeaponAnimLayerClass;
 	}
 
+	// 무기 레이어가 지정되지 않은 상태(무기 미장착 또는 무기에 레이어 미지정)면 캐릭터 기본 레이어로 폴백
+	if (!IsValid(TargetAnimLayerClass))
+	{
+		if (const APRCharacterBase* PRCharacter = Cast<APRCharacterBase>(OwnerCharacter))
+		{
+			TargetAnimLayerClass = PRCharacter->GetDefaultAnimLayerClass();
+		}
+	}
+
 	// 이미 목표 레이어가 연결된 경우
 	if (CurrentLinkedAnimLayerClass == TargetAnimLayerClass)
 	{
@@ -1314,7 +1324,7 @@ void UPRWeaponManagerComponent::RefreshAnimLayer()
 		CurrentLinkedAnimLayerClass = nullptr;
 	}
 
-	// 새로운 무기 레이어가 지정된 경우 메시 컴포넌트에 연결
+	// 새 목표 레이어(무기 레이어 또는 기본 레이어)가 있으면 메시 컴포넌트에 연결
 	if (IsValid(TargetAnimLayerClass))
 	{
 		MeshComp->LinkAnimClassLayers(TargetAnimLayerClass);

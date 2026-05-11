@@ -50,6 +50,17 @@ void UPRGameInstance::LeaveSession()
 	Session->EndSession();
 }
 
+void UPRGameInstance::ServerTravelToMap(TSoftObjectPtr<UWorld> MapAsset, bool bAbsolute)
+{
+	UPRSessionSubsystem* Session = GetSubsystem<UPRSessionSubsystem>();
+	if (!IsValid(Session))
+	{
+		return;
+	}
+
+	Session->ServerTravelToMap(MapAsset, bAbsolute);
+}
+
 // ===== 세이브 연동 (스켈레톤) =====
 
 bool UPRGameInstance::LoadLocalCharacter(FName SlotName)

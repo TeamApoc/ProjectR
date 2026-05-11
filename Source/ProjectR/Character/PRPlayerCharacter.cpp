@@ -19,6 +19,7 @@
 #include "ProjectR/Player/Components/PRActionInputRouterComponent.h"
 #include "ProjectR/Player/Components/PRSpringArmComponent.h"
 #include "ProjectR/Projectile/PRProjectileTrajectoryPreviewComponent.h"
+#include "ProjectR/System/PREventManagerSubsystem.h"
 #include "ProjectR/Weapon/Actors/PRWeaponActor.h"
 
 
@@ -116,6 +117,11 @@ void APRPlayerCharacter::PossessedBy(AController* NewController)
 			WeaponManagerComponent->InitializeRuntimeLinks();
 		}
 	}
+	
+	if (UPREventManagerSubsystem* EventManager = GetWorld()->GetSubsystem<UPREventManagerSubsystem>())
+	{
+		EventManager->BroadcastEmpty(PRGameplayTags::Player_Ready);
+	}
 }
 
 void APRPlayerCharacter::OnRep_PlayerState()
@@ -135,6 +141,11 @@ void APRPlayerCharacter::OnRep_PlayerState()
 		{
 			WeaponManagerComponent->InitializeRuntimeLinks();
 		}
+	}
+	
+	if (UPREventManagerSubsystem* EventManager = GetWorld()->GetSubsystem<UPREventManagerSubsystem>())
+	{
+		EventManager->BroadcastEmpty(PRGameplayTags::Player_Ready);
 	}
 }
 

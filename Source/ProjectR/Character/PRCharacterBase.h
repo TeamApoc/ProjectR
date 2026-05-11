@@ -9,6 +9,7 @@
 #include "PRCharacterBase.generated.h"
 
 struct FGameplayTag;
+class UAnimInstance;
 class UPRAbilitySet;
 class UAbilitySystemComponent;
 class UPRAbilitySystemComponent;
@@ -36,6 +37,9 @@ public:
 	// 프로젝트 ASC 타입으로 반환
 	virtual UPRAbilitySystemComponent* GetPRAbilitySystemComponent() const;
 
+	// 무기 미장착 상태에서 사용할 기본 애니메이션 레이어 클래스 반환
+	TSubclassOf<UAnimInstance> GetDefaultAnimLayerClass() const { return DefaultAnimLayerClass; }
+
 protected:
 	/*~ AActor Interface ~*/
 	virtual void BeginPlay() override;
@@ -49,7 +53,11 @@ protected:
 protected:
 	UPROPERTY(EditAnywhere, Category = "PR Config|Character")
 	FName CharacterID;
-	
+
 	UPROPERTY(EditAnywhere, Category = "PR Config|Ability")
 	TObjectPtr<UPRAbilitySet> AbilitySet;
+
+	// 무기 미장착 상태에서 적용할 기본 애니메이션 레이어 (맨손 등)
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "PR Config|Animation")
+	TSubclassOf<UAnimInstance> DefaultAnimLayerClass;
 };

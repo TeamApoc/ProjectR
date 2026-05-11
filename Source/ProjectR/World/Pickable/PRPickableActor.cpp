@@ -16,6 +16,4 @@ APRPickableActor::APRPickableActor()
 	InteractionCollision->SetCollisionProfileName(FName("Interactable"));
 	InteractionCollision->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
 	SetRootComponent(InteractionCollision);
-	
-	InteractableComponent->InteractionActions.Add(CreateDefaultSubobject<UPRInteraction_PickUpAmmo>(TEXT("PickUpAction")));
 }

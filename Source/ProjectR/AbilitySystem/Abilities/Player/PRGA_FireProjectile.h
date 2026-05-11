@@ -1,16 +1,40 @@
-﻿// Copyright (c) 2026 TeamApoc. All Rights Reserved.
+// Copyright (c) 2026 TeamApoc. All Rights Reserved.
 
 #pragma once
 
 #include "CoreMinimal.h"
 #include "PRGA_Fire.h"
+#include "ProjectR/Projectile/PRProjectileTypes.h"
 #include "PRGA_FireProjectile.generated.h"
 
+class APRProjectileBase;
+
 /**
- * TODO: 투사체 발사 예측 및 동기화
+ * 투사체 발사 어빌리티.
+ * OnGiveAbility 시점에 ProjectileClass CDO의 발사 기본값을 추출해 플레이어의 예측 경로 표시 컴포넌트에 PreviewParams 주입.
  */
 UCLASS()
 class PROJECTR_API UPRGA_FireProjectile : public UPRGA_Fire
 {
 	GENERATED_BODY()
+
+public:
+	/*~ UGameplayAbility Interface ~*/
+	virtual void OnGiveAbility(const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilitySpec& Spec) override;
+	virtual void OnRemoveAbility(const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilitySpec& Spec) override;
+	
+protected:
+	// 본 어빌리티가 발사할 투사체 클래스. CDO의 ProjectileMovement/Sphere 컴포넌트에서 속력/중력/반지름을 추출하여 PreviewParams로 합성
+	UPROPERTY(EditDefaultsOnly, Category = "ProjectR|Fire|Projectile")
+	TSubclassOf<APRProjectileBase> ProjectileClass;
+
+	// 궤적 표시 여부
+	UPROPERTY(EditDefaultsOnly, Category = "ProjectR|Fire|Projectile")
+	bool bShouldPreviewPath = false;
+	
+	// 예측 경로 표시 컴포넌트에 주입할 기본 파라미터.
+	// InitialSpeed/GravityScale/CollisionRadius는 OnGive에서 ProjectileClass CDO 값으로 덮어쓰며,
+	// 그 외 시뮬레이션/샘플링 파라미터는 본 값을 그대로 사용. WeaponActor는 OnGive에서 활성 무기로 바인딩
+	UPROPERTY(EditDefaultsOnly, Category = "ProjectR|Fire|Projectile")
+	FPRProjectilePreviewParams PreviewParams;
 };

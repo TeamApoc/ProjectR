@@ -1,0 +1,82 @@
+﻿// Copyright (c) 2026 TeamApoc. All Rights Reserved.
+
+#pragma once
+
+#include "CoreMinimal.h"
+#include "ProjectR/UI/WeaponStatusHUD/FPRWeaponStatusViewData.h"
+#include "ProjectR/UI/PRWidgetBase.h"
+#include "PRWeaponHUDWidget.generated.h"
+
+class UPRAttributeSet_Weapon;
+class UPRWeaponManagerComponent;
+class UPRWeaponStatusWidget;
+struct FOnAttributeChangeData;
+
+// 주무기와 보조무기 상태 표시 위젯을 묶는 HUD 전용 컨테이너다
+UCLASS(Abstract, BlueprintType)
+class PROJECTR_API UPRWeaponHUDWidget : public UPRWidgetBase
+{
+	GENERATED_BODY()
+
+public:
+	// PlayerState, WeaponManager, WeaponSet 연결 후 이벤트 구독을 시작한다
+	UFUNCTION(BlueprintCallable, Category = "ProjectR|HUD|Weapon")
+	void InitializeWeaponHUD();
+
+	// 외부에서 명시적으로 표시 소스를 주입할 때 사용한다
+	UFUNCTION(BlueprintCallable, Category = "ProjectR|HUD|Weapon")
+	void SetWeaponHUDSources(UPRWeaponManagerComponent* InWeaponManagerComponent, UPRAttributeSet_Weapon* InWeaponSet);
+
+	// 주무기와 보조무기 상태 표시를 모두 새로 만든다
+	UFUNCTION(BlueprintCallable, Category = "ProjectR|HUD|Weapon")
+	void RefreshAllWeaponStatus();
+
+	// 지정 슬롯의 표시 데이터만 다시 만들고 하위 위젯에 반영한다
+	UFUNCTION(BlueprintCallable, Category = "ProjectR|HUD|Weapon")
+	void RefreshWeaponStatus(EPRWeaponSlotType SlotType);
+
+	// 지정 슬롯의 현재 표시 데이터를 구성한다
+	UFUNCTION(BlueprintPure, Category = "ProjectR|HUD|Weapon")
+	FPRWeaponStatusViewData BuildWeaponStatusViewData(EPRWeaponSlotType SlotType) const;
+
+protected:
+	/*~ UUserWidget Interface ~*/
+	
+	virtual void NativeConstruct() override;
+	
+	// 제거 시점에 도메인 이벤트 구독을 해제한다
+	virtual void NativeDestruct() override;
+
+private:
+	// WeaponManager 장착 변경 신호를 받아 해당 슬롯을 갱신한다
+	UFUNCTION()
+	void HandleWeaponEquipmentChanged(UPRWeaponManagerComponent* ChangedWeaponManagerComponent, EPRWeaponSlotType ChangedSlot);
+
+	// 주무기 자원 Attribute 변화 신호를 받아 주무기 슬롯을 갱신한다
+	void HandlePrimaryWeaponAttributeChanged(const FOnAttributeChangeData& ChangeData);
+
+	// 보조무기 자원 Attribute 변화 신호를 받아 보조무기 슬롯을 갱신한다
+	void HandleSecondaryWeaponAttributeChanged(const FOnAttributeChangeData& ChangeData);
+
+	// 장착 변경과 Attribute 변화 이벤트 구독을 해제한다
+	void UnbindWeaponHUDSources();
+
+protected:
+	// UMG에서 바인딩할 주무기 슬롯 상태 위젯
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "ProjectR|HUD|Weapon")
+	TObjectPtr<UPRWeaponStatusWidget> PrimaryWeaponStatusWidget;
+
+	// UMG에서 바인딩할 보조무기 슬롯 상태 위젯
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "ProjectR|HUD|Weapon")
+	TObjectPtr<UPRWeaponStatusWidget> SecondaryWeaponStatusWidget;
+
+private:
+	// 장착 상태와 슬롯별 무기 데이터를 읽기 위한 약한 참조
+	TWeakObjectPtr<UPRWeaponManagerComponent> WeaponManagerComponent;
+
+	// 탄약과 Mod 자원을 읽기 위한 약한 참조
+	TWeakObjectPtr<UPRAttributeSet_Weapon> WeaponSet;
+
+	// ASC Attribute 변화 이벤트를 해제하기 위한 핸들 묶음
+	TArray<FDelegateHandle> AttributeChangeHandles;
+};

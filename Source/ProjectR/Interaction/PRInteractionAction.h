@@ -3,12 +3,43 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "ProjectR/System/PREventTypes.h"
 #include "UObject/Object.h"
 #include "PRInteractionAction.generated.h"
 
 class UPRInteractableComponent;
 class AController;
 class APawn;
+
+/**
+ * Hold 상호작용 단계.
+ * Start: 입력 유지 시작 / Canceled: 도중 해제·중단 / Finished: 게이트 완료
+ */
+UENUM(BlueprintType)
+enum class EPRInteractionHoldPhase : uint8
+{
+	Start,
+	Canceled,
+	Finished,
+};
+
+/**
+ * Hold 상호작용 이벤트 페이로드.
+ * Event.Player.Interaction.Hold 발송 시 동반되며, Phase 로 단계 구분.
+ */
+USTRUCT(BlueprintType)
+struct PROJECTR_API FPRInteractionHoldEventPayload : public FPREventPayload
+{
+	GENERATED_BODY()
+
+	// 현재 단계 (Start/Canceled/Finished)
+	UPROPERTY(BlueprintReadWrite)
+	EPRInteractionHoldPhase Phase = EPRInteractionHoldPhase::Start;
+
+	// Hold 완료까지 필요한 시간 (초). Start 단계에서만 의미가 있다
+	UPROPERTY(BlueprintReadWrite)
+	float HoldDuration = 0.f;
+};
 
 /**
  * 상호작용 유형.
@@ -129,6 +160,10 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Interaction",
 	          meta = (EditCondition = "TriggerType == EPRTriggerType::Hold", ClampMin = "0.0"))
 	float HoldDuration = 1.f;
+
+private:
+	// EventManager 로 Hold 이벤트(Phase + HoldDuration) 브로드캐스트
+	void BroadcastHoldEvent(EPRInteractionHoldPhase Phase) const;
 
 protected:
 	// 현재 상호작용 활성 상태 (유지형 전용)

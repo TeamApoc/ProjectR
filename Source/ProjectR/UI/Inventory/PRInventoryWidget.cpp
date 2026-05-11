@@ -316,7 +316,7 @@ void UPRInventoryWidget::OpenModList(UPRItemInstance_Weapon* TargetWeaponItem)
 			continue;
 		}
 
-		const bool bEquipped = TargetWeaponItem->GetEquippedModItem() == ModItem;
+		const bool bEquipped = ModItem->IsEquipped();
 		ListItems.Add(BuildModItemViewData(ModItem, bEquipped));
 	}
 

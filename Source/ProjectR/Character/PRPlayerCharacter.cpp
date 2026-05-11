@@ -18,6 +18,8 @@
 #include "ProjectR/Weapon/Components/PRWeaponManagerComponent.h"
 #include "ProjectR/Player/Components/PRActionInputRouterComponent.h"
 #include "ProjectR/Player/Components/PRSpringArmComponent.h"
+#include "ProjectR/Projectile/PRProjectileTrajectoryPreviewComponent.h"
+#include "ProjectR/Weapon/Actors/PRWeaponActor.h"
 
 
 // Sets default values
@@ -51,6 +53,7 @@ APRPlayerCharacter::APRPlayerCharacter()
 
 	WeaponManagerComponent = CreateDefaultSubobject<UPRWeaponManagerComponent>(TEXT("WeaponManagerComponent"));
 	ActionInputRouterComponent = CreateDefaultSubobject<UPRActionInputRouterComponent>(TEXT("ActionInputRouterComponent"));
+	ProjectileTrajectoryPreviewComponent = CreateDefaultSubobject<UPRProjectileTrajectoryPreviewComponent>(TEXT("ProjectileTrajectoryPreviewComponent"));
 	
 	// 캡슐 설정
 	USkeletalMeshComponent* MeshComp = GetMesh();
@@ -200,11 +203,42 @@ void APRPlayerCharacter::HandleGameplayTagUpdated(const FGameplayTag& ChangedTag
 	{
 		bIsAiming = bTagExists;
 		UpdateMaxWalkSpeed();
-	}
 
+		if (APRWeaponActor* Weapon = WeaponManagerComponent->GetActiveWeaponActor())
+		{
+			Weapon->SetIsIKSuppressed(!bTagExists);
+		}
+
+		// 조준 ON/OFF에 맞춰 투사체 예측 경로 표시 토글
+		if (IsValid(ProjectileTrajectoryPreviewComponent))
+		{
+			if (bTagExists)
+			{
+				ProjectileTrajectoryPreviewComponent->Show();
+			}
+			else
+			{
+				ProjectileTrajectoryPreviewComponent->Hide();
+			}
+		}
+	}
 	if (ChangedTag.MatchesTagExact(PRGameplayTags::State_Sprinting))
 	{
 		SetSprintingFromAbility(bTagExists);
+	}
+	if (ChangedTag.MatchesTagExact(PRGameplayTags::State_Armed))
+	{
+		APRWeaponActor* ActiveWeapon = IsValid(WeaponManagerComponent) ? WeaponManagerComponent->GetActiveWeaponActor() : nullptr;
+		if (IsValid(ActiveWeapon))
+		{
+			ActiveWeapon->SetIsIKSuppressed(bTagExists);
+		}
+
+		// 무기 장착/해제에 맞춰 투사체 예측 경로 표시 컴포넌트의 기점 무기 액터 동기화
+		if (IsValid(ProjectileTrajectoryPreviewComponent))
+		{
+			ProjectileTrajectoryPreviewComponent->SetWeaponActor(bTagExists ? ActiveWeapon : nullptr);
+		}
 	}
 }
 

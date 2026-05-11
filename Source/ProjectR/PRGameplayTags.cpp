@@ -73,6 +73,7 @@ namespace PRGameplayTags
 	// ===== Cooldown.Ability.* =====
 
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Cooldown_Ability_Dodge, "Cooldown.Ability.Dodge", "구르기 쿨다운");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Cooldown_Ability_Fire, "Cooldown.Ability.Fire", "무기 발사 쿨다운");
 
 	// ===== Event.* =====
 

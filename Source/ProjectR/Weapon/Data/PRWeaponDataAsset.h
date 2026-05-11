@@ -102,7 +102,11 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|01_Weapon|Animation") 
 	float ShootMontagePlayRate = 1.0f;                                                 
                                                                                    
-	// 재장전 몽타주 재생 속도                                                         
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|01_Weapon|Animation") 
-	float ReloadMontagePlayRate = 1.0f;                                                
+	// 재장전 몽타주 재생 속도
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|01_Weapon|Animation")
+	float ReloadMontagePlayRate = 1.0f;
+
+	// 발사 간격(초). RPM = 60 / FireInterval. 0.1 = 600 RPM
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|01_Weapon|Fire", meta = (ClampMin = "0.01"))
+	float FireInterval = 0.1f;
 };

@@ -31,6 +31,10 @@ public:
 	/*~ UGameplayAbility Interface ~*/
 	virtual void ActivateAbility(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilityActivationInfo ActivationInfo, const FGameplayEventData* TriggerEventData) override;
 	virtual void EndAbility(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilityActivationInfo ActivationInfo, bool bReplicateEndAbility, bool bWasCancelled) override;
+	virtual void OnRemoveAbility(const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilitySpec& Spec) override;
+	virtual UGameplayEffect* GetCooldownGameplayEffect() const override;
+	virtual const FGameplayTagContainer* GetCooldownTags() const override;
+	virtual void ApplyCooldown(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilityActivationInfo ActivationInfo) const override;
 
 public:
 	// 총구 위치 
@@ -97,6 +101,7 @@ protected:
 	
 	UFUNCTION(BlueprintImplementableEvent)
 	void K2_OnProjectileSpawnFailed(APRProjectileBase* SpawnedProjectile);
+	
 protected:
 	// 트레이스 최대 거리
 	UPROPERTY(EditDefaultsOnly, Category = "ProjectR|Fire")
@@ -121,9 +126,17 @@ protected:
 	// 활성 무기 캐시 (활성화 시 1회 획득)
 	mutable TWeakObjectPtr<APRWeaponActor> CurrentWeapon;
 
+	// 자식 어빌리티가 ActivateAbility 진입 시 무기 데이터 또는 Override로 캐싱. ApplyCooldown에서 SetByCaller로 주입
+	mutable float CachedFireInterval = 0.1f;
+
+	// GetCooldownTags가 반환할 컨테이너. 생성자에서 Cooldown.Ability.Fire.Primary 채움
+	FGameplayTagContainer CooldownTagsContainer;
+
 	// 로컬 단조 증가 ShotID (1부터)
 	uint32 NextShotId = 0;
 
 	// 현재 입력 유지 중 누적된 연속 발사 횟수
 	int32 ConsecutiveShots = 0;
+	
+	mutable FActiveGameplayEffectHandle CooldownHandle;
 };

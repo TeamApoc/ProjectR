@@ -19,7 +19,7 @@ namespace
 			&& BlackboardComponent->GetKeyID(KeyName) != FBlackboard::InvalidKey;
 	}
 
-	const UPREnemyCombatDataAsset* ResolveCombatDataAsset(const APawn* ControlledPawn)
+	const UPREnemyCombatDataAsset* ResolveEnemyCombatDataAsset(const APawn* ControlledPawn)
 	{
 		const IPREnemyInterface* EnemyInterface = Cast<IPREnemyInterface>(ControlledPawn);
 		if (EnemyInterface == nullptr)
@@ -27,7 +27,7 @@ namespace
 			return nullptr;
 		}
 
-		return EnemyInterface->GetCombatDataAsset();
+		return Cast<UPREnemyCombatDataAsset>(EnemyInterface->GetCombatDataAsset());
 	}
 
 	bool IsEnemyDisabled(const APawn* ControlledPawn)
@@ -199,17 +199,22 @@ void UBTService_PRUpdateEnemyCombatBlackboard::TickNode(UBehaviorTreeComponent& 
 
 	UBlackboardComponent* BlackboardComponent = OwnerComp.GetBlackboardComponent();
 	const AAIController* AIController = OwnerComp.GetAIOwner();
-	const APawn* ControlledPawn = IsValid(AIController) ? AIController->GetPawn() : nullptr;
+	APawn* ControlledPawn = IsValid(AIController) ? AIController->GetPawn() : nullptr;
 	if (!IsValid(BlackboardComponent) || !IsValid(ControlledPawn))
 	{
 		return;
+	}
+
+	if (HasCombatBlackboardKey(BlackboardComponent, SelfActorKey))
+	{
+		BlackboardComponent->SetValueAsObject(SelfActorKey, ControlledPawn);
 	}
 
 	AActor* CurrentTarget = Cast<AActor>(BlackboardComponent->GetValueAsObject(CurrentTargetKey));
 	const bool bHasValidTarget = IsValid(CurrentTarget);
 	BlackboardComponent->SetValueAsBool(HasValidTargetKey, bHasValidTarget);
 
-	const UPREnemyCombatDataAsset* CombatDataAsset = ResolveCombatDataAsset(ControlledPawn);
+	const UPREnemyCombatDataAsset* CombatDataAsset = ResolveEnemyCombatDataAsset(ControlledPawn);
 	UpdateAttackPressureValue(
 		BlackboardComponent,
 		ControlledPawn,
@@ -234,8 +239,9 @@ void UBTService_PRUpdateEnemyCombatBlackboard::TickNode(UBehaviorTreeComponent& 
 
 FString UBTService_PRUpdateEnemyCombatBlackboard::GetStaticDescription() const
 {
-	return FString::Printf(TEXT("%s\nTarget Key: %s\nDistance Key: %s\nPressure Key: %s"),
+	return FString::Printf(TEXT("%s\nSelf Key: %s\nTarget Key: %s\nDistance Key: %s\nPressure Key: %s"),
 		*Super::GetStaticDescription(),
+		*SelfActorKey.ToString(),
 		*CurrentTargetKey.ToString(),
 		*DistanceToTargetKey.ToString(),
 		*AttackPressureKey.ToString());

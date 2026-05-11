@@ -116,7 +116,7 @@ UPRPatternDataAsset* APREnemyBaseCharacter::GetPatternDataAsset() const
 	return PatternDataAsset;
 }
 
-UPREnemyCombatDataAsset* APREnemyBaseCharacter::GetCombatDataAsset() const
+UPRCombatMoveDataAsset* APREnemyBaseCharacter::GetCombatDataAsset() const
 {
 	return CombatDataAsset;
 }

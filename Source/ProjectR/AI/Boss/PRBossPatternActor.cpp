@@ -39,10 +39,31 @@ void APRBossPatternActor::InitializeBossPatternActor(APRBossBaseCharacter* InOwn
 	{
 		SetOwner(OwnerBoss);
 		SetInstigator(OwnerBoss);
+		OwnerBoss->RegisterBossPatternActor(this);
 	}
 
 	bPatternActorInitialized = true;
 	BP_OnPatternActorInitialized();
+}
+
+void APRBossPatternActor::RequestPatternActorExpire()
+{
+	if (!HasAuthority())
+	{
+		return;
+	}
+
+	ExpirePatternActor();
+}
+
+void APRBossPatternActor::CancelPatternActor()
+{
+	if (!HasAuthority())
+	{
+		return;
+	}
+
+	ExpirePatternActor();
 }
 
 void APRBossPatternActor::BeginPlay()
@@ -55,6 +76,12 @@ void APRBossPatternActor::BeginPlay()
 	}
 }
 
+void APRBossPatternActor::EndPlay(const EEndPlayReason::Type EndPlayReason)
+{
+	UnregisterFromOwnerBoss();
+	Super::EndPlay(EndPlayReason);
+}
+
 void APRBossPatternActor::OnRep_PatternActorInitialized()
 {
 	if (bPatternActorInitialized)
@@ -65,10 +92,19 @@ void APRBossPatternActor::OnRep_PatternActorInitialized()
 
 void APRBossPatternActor::ExpirePatternActor()
 {
+	UnregisterFromOwnerBoss();
 	BP_OnPatternActorExpired();
 
 	if (HasAuthority())
 	{
 		Destroy();
+	}
+}
+
+void APRBossPatternActor::UnregisterFromOwnerBoss()
+{
+	if (HasAuthority() && IsValid(OwnerBoss))
+	{
+		OwnerBoss->UnregisterBossPatternActor(this);
 	}
 }

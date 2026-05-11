@@ -8,6 +8,7 @@
 #include "ProjectR/AbilitySystem/AttributeSets/PRAttributeSet_Weapon.h"
 #include "ProjectR/Equipment/Components/PREquipmentManagerComponent.h"
 #include "ProjectR/Inventory/Components/PRInventoryComponent.h"
+#include "ProjectR/QuickSlot/Coponents/PRQuickSlotComponent.h"
 
 APRPlayerState::APRPlayerState()
 {
@@ -21,6 +22,7 @@ APRPlayerState::APRPlayerState()
 	WeaponSet = CreateDefaultSubobject<UPRAttributeSet_Weapon>(TEXT("WeaponSet"));
 	InventoryComponent = CreateDefaultSubobject<UPRInventoryComponent>(TEXT("InventoryComponent"));
 	EquipmentManagerComponent = CreateDefaultSubobject<UPREquipmentManagerComponent>(TEXT("EquipmentManagerComponent"));
+	QuickSlotComponent = CreateDefaultSubobject<UPRQuickSlotComponent>(TEXT("QuickSlotComponent"));
 
 	// PlayerState는 NetUpdate가 낮음. GAS 예측 응답성 확보를 위해 인상
 	SetNetUpdateFrequency(100.0f);

@@ -3,8 +3,126 @@
 #include "PRGameplayAbility_BossSpawnPatternActors.h"
 
 #include "Engine/World.h"
+#include "EnvironmentQuery/EnvQuery.h"
+#include "EnvironmentQuery/EnvQueryManager.h"
 #include "ProjectR/AI/Boss/PRBossPatternActor.h"
 #include "ProjectR/Character/Enemy/PRBossBaseCharacter.h"
+
+DEFINE_LOG_CATEGORY_STATIC(LogPRBossSpawnPatternActors, Log, All);
+
+namespace
+{
+	struct FPRBossSpawnQueryCandidate
+	{
+		int32 ItemIndex = INDEX_NONE;
+		float Score = 0.0f;
+	};
+
+	EEnvQueryRunMode::Type ResolveSpawnQueryRunMode(const FPRBossPatternActorSpawnConfig& SpawnConfig)
+	{
+		if (SpawnConfig.CandidateSelectionMode == EPREnemyQueryCandidateSelectionMode::BestScore)
+		{
+			return SpawnConfig.SpawnQueryRunMode;
+		}
+
+		return EEnvQueryRunMode::AllMatching;
+	}
+
+	void BuildSortedCandidates(const FEnvQueryResult& QueryResult, TArray<FPRBossSpawnQueryCandidate>& OutCandidates)
+	{
+		for (int32 ItemIndex = 0; ItemIndex < QueryResult.Items.Num(); ++ItemIndex)
+		{
+			if (!QueryResult.Items[ItemIndex].IsValid())
+			{
+				continue;
+			}
+
+			FPRBossSpawnQueryCandidate Candidate;
+			Candidate.ItemIndex = ItemIndex;
+			Candidate.Score = QueryResult.GetItemScore(ItemIndex);
+			OutCandidates.Add(Candidate);
+		}
+
+		OutCandidates.Sort([](const FPRBossSpawnQueryCandidate& Left, const FPRBossSpawnQueryCandidate& Right)
+		{
+			return Left.Score > Right.Score;
+		});
+	}
+
+	void FilterTopCandidates(const FPRBossPatternActorSpawnConfig& SpawnConfig, TArray<FPRBossSpawnQueryCandidate>& Candidates)
+	{
+		if (Candidates.IsEmpty())
+		{
+			return;
+		}
+
+		const float MaxScore = Candidates[0].Score;
+		const float MinAllowedScore = MaxScore * FMath::Clamp(SpawnConfig.TopScoreCandidateRatio, 0.0f, 1.0f);
+		Candidates.RemoveAll([MinAllowedScore](const FPRBossSpawnQueryCandidate& Candidate)
+		{
+			return Candidate.Score < MinAllowedScore;
+		});
+
+		if (SpawnConfig.TopCandidateCount > 0 && Candidates.Num() > SpawnConfig.TopCandidateCount)
+		{
+			Candidates.SetNum(SpawnConfig.TopCandidateCount);
+		}
+	}
+
+	bool SelectCandidateIndex(
+		const FPRBossPatternActorSpawnConfig& SpawnConfig,
+		const TArray<FPRBossSpawnQueryCandidate>& Candidates,
+		int32& OutItemIndex)
+	{
+		if (Candidates.IsEmpty())
+		{
+			return false;
+		}
+
+		switch (SpawnConfig.CandidateSelectionMode)
+		{
+		case EPREnemyQueryCandidateSelectionMode::RandomTopCandidates:
+		{
+			const int32 PickIndex = FMath::RandRange(0, Candidates.Num() - 1);
+			OutItemIndex = Candidates[PickIndex].ItemIndex;
+			return true;
+		}
+		case EPREnemyQueryCandidateSelectionMode::WeightedRandomTopCandidates:
+		{
+			float TotalWeight = 0.0f;
+			for (const FPRBossSpawnQueryCandidate& Candidate : Candidates)
+			{
+				TotalWeight += FMath::Max(Candidate.Score, KINDA_SMALL_NUMBER);
+			}
+
+			if (TotalWeight <= 0.0f)
+			{
+				OutItemIndex = Candidates[0].ItemIndex;
+				return true;
+			}
+
+			const float PickWeight = FMath::FRandRange(0.0f, TotalWeight);
+			float AccumulatedWeight = 0.0f;
+			for (const FPRBossSpawnQueryCandidate& Candidate : Candidates)
+			{
+				AccumulatedWeight += FMath::Max(Candidate.Score, KINDA_SMALL_NUMBER);
+				if (PickWeight <= AccumulatedWeight)
+				{
+					OutItemIndex = Candidate.ItemIndex;
+					return true;
+				}
+			}
+
+			OutItemIndex = Candidates.Last().ItemIndex;
+			return true;
+		}
+		case EPREnemyQueryCandidateSelectionMode::BestScore:
+		default:
+			OutItemIndex = Candidates[0].ItemIndex;
+			return true;
+		}
+	}
+}
 
 UPRGameplayAbility_BossSpawnPatternActors::UPRGameplayAbility_BossSpawnPatternActors()
 {
@@ -49,6 +167,52 @@ bool UPRGameplayAbility_BossSpawnPatternActors::BuildPatternActorSpawnTransform(
 	const FPRBossPatternActorSpawnConfig& SpawnConfig,
 	FTransform& OutSpawnTransform) const
 {
+	if (SpawnConfig.SpawnLocationMode != EPRBossPatternSpawnLocationMode::EnvQuery)
+	{
+		return BuildOriginOffsetSpawnTransform(SpawnConfig, OutSpawnTransform);
+	}
+
+	FVector SpawnLocation = FVector::ZeroVector;
+	if (!RunSpawnLocationQuery(SpawnConfig, SpawnLocation))
+	{
+		if (SpawnConfig.bFallbackToOriginOffsetWhenQueryFails)
+		{
+			return BuildOriginOffsetSpawnTransform(SpawnConfig, OutSpawnTransform);
+		}
+
+		return false;
+	}
+
+	const APRBossBaseCharacter* BossCharacter = GetBossAvatarCharacter();
+	AActor* PatternTarget = GetBossPatternTarget();
+	if (!IsValid(BossCharacter))
+	{
+		return false;
+	}
+
+	FRotator SpawnRotation = BossCharacter->GetActorRotation();
+	if (SpawnConfig.bFaceTarget && IsValid(PatternTarget))
+	{
+		const FVector DirectionToTarget = PatternTarget->GetActorLocation() - SpawnLocation;
+		if (!DirectionToTarget.IsNearlyZero())
+		{
+			SpawnRotation = FRotationMatrix::MakeFromX(DirectionToTarget).Rotator();
+			if (SpawnConfig.bUseYawOnlyFacing)
+			{
+				SpawnRotation.Pitch = 0.0f;
+				SpawnRotation.Roll = 0.0f;
+			}
+		}
+	}
+
+	OutSpawnTransform = FTransform(SpawnRotation + SpawnConfig.RotationOffset, SpawnLocation);
+	return true;
+}
+
+bool UPRGameplayAbility_BossSpawnPatternActors::BuildOriginOffsetSpawnTransform(
+	const FPRBossPatternActorSpawnConfig& SpawnConfig,
+	FTransform& OutSpawnTransform) const
+{
 	const APRBossBaseCharacter* BossCharacter = GetBossAvatarCharacter();
 	AActor* PatternTarget = GetBossPatternTarget();
 
@@ -82,6 +246,65 @@ bool UPRGameplayAbility_BossSpawnPatternActors::BuildPatternActorSpawnTransform(
 	}
 
 	OutSpawnTransform = FTransform(SpawnRotation + SpawnConfig.RotationOffset, SpawnLocation);
+	return true;
+}
+
+bool UPRGameplayAbility_BossSpawnPatternActors::RunSpawnLocationQuery(
+	const FPRBossPatternActorSpawnConfig& SpawnConfig,
+	FVector& OutSpawnLocation) const
+{
+	APRBossBaseCharacter* BossCharacter = GetBossAvatarCharacter();
+	if (!IsValid(BossCharacter) || !IsValid(SpawnConfig.SpawnQueryTemplate))
+	{
+		return false;
+	}
+
+	UWorld* World = BossCharacter->GetWorld();
+	if (!IsValid(World))
+	{
+		return false;
+	}
+
+	UEnvQueryManager* QueryManager = UEnvQueryManager::GetCurrent(World);
+	if (!IsValid(QueryManager))
+	{
+		return false;
+	}
+
+	FEnvQueryRequest QueryRequest(SpawnConfig.SpawnQueryTemplate, BossCharacter);
+	for (const FPREnemyEQSFloatParam& FloatParam : SpawnConfig.FloatParams)
+	{
+		if (FloatParam.ParamName == NAME_None)
+		{
+			continue;
+		}
+
+		QueryRequest.SetFloatParam(FloatParam.ParamName, FloatParam.Value);
+	}
+
+	const TSharedPtr<FEnvQueryResult> QueryResult = QueryManager->RunInstantQuery(
+		QueryRequest,
+		ResolveSpawnQueryRunMode(SpawnConfig));
+	if (!QueryResult.IsValid() || !QueryResult->IsSuccessful() || QueryResult->Items.Num() <= 0)
+	{
+		UE_LOG(LogPRBossSpawnPatternActors, Verbose,
+			TEXT("Boss pattern spawn EQS failed. Ability=%s, Query=%s"),
+			*GetNameSafe(this),
+			*GetNameSafe(SpawnConfig.SpawnQueryTemplate.Get()));
+		return false;
+	}
+
+	TArray<FPRBossSpawnQueryCandidate> Candidates;
+	BuildSortedCandidates(*QueryResult, Candidates);
+	FilterTopCandidates(SpawnConfig, Candidates);
+
+	int32 SelectedItemIndex = INDEX_NONE;
+	if (!SelectCandidateIndex(SpawnConfig, Candidates, SelectedItemIndex) || SelectedItemIndex == INDEX_NONE)
+	{
+		return false;
+	}
+
+	OutSpawnLocation = QueryResult->GetItemAsLocation(SelectedItemIndex);
 	return true;
 }
 

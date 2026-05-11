@@ -15,7 +15,7 @@
 
 namespace
 {
-	const UPREnemyCombatDataAsset* ResolveCombatDataAssetFromPawn(const APawn* ControlledPawn)
+	const UPRCombatMoveDataAsset* ResolveCombatDataAssetFromPawn(const APawn* ControlledPawn)
 	{
 		const IPREnemyInterface* EnemyInterface = Cast<IPREnemyInterface>(ControlledPawn);
 		if (EnemyInterface == nullptr)
@@ -320,7 +320,7 @@ void APREnemyAIController::SetBlackboardTacticalMode(EPRTacticalMode NewMode)
 	CachedBlackboardComponent->SetValueAsEnum(TacticalModeKey, static_cast<uint8>(NewMode));
 }
 
-const UPREnemyCombatDataAsset* APREnemyAIController::GetCurrentCombatDataAsset() const
+const UPRCombatMoveDataAsset* APREnemyAIController::GetCurrentCombatDataAsset() const
 {
 	return ResolveCombatDataAssetFromPawn(GetPawn());
 }
@@ -342,7 +342,7 @@ void APREnemyAIController::ApplyPresentationForTacticalMode(
 		return;
 	}
 
-	const UPREnemyCombatDataAsset* CombatDataAsset = GetCurrentCombatDataAsset();
+	const UPRCombatMoveDataAsset* CombatDataAsset = GetCurrentCombatDataAsset();
 	if (!IsValid(CombatDataAsset))
 	{
 		ClearCombatMovePresentationContext(true);
@@ -366,7 +366,7 @@ void APREnemyAIController::ApplyInitialAttackPressureOnAlert()
 		return;
 	}
 
-	const UPREnemyCombatDataAsset* CombatDataAsset = GetCurrentCombatDataAsset();
+	const UPREnemyCombatDataAsset* CombatDataAsset = Cast<UPREnemyCombatDataAsset>(GetCurrentCombatDataAsset());
 	if (!IsValid(CombatDataAsset) || AttackPressureKey == NAME_None)
 	{
 		return;

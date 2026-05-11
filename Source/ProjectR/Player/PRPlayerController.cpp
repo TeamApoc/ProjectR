@@ -9,7 +9,9 @@
 #include "InputAction.h"
 #include "ProjectR/Game/PRCameraManager.h"
 #include "ProjectR/Input/PRInputConfigDataAsset.h"
+#include "ProjectR/Player/PRPlayerState.h"
 #include "ProjectR/Projectile/PRProjectileManagerComponent.h"
+#include "ProjectR/QuickSlot/Coponents/PRQuickSlotComponent.h"
 #include "ProjectR/UI/Components/PRUIControllerComponent.h"
 #include "ProjectR/UI/FloatingText/PRFloatingTextManager.h"
 #include "ProjectR/Interaction/PRInteractionSensor.h"
@@ -60,6 +62,16 @@ void APRPlayerController::SetupInputComponent()
 	if (IsValid(InventoryAction.Get()))
 	{
 		EIC->BindAction(InventoryAction.Get(), ETriggerEvent::Started, this, &APRPlayerController::OnInventoryInputStarted);
+	}
+
+	for (int32 SlotIndex = 0; SlotIndex < QuickSlotActions.Num(); ++SlotIndex)
+	{
+		if (!IsValid(QuickSlotActions[SlotIndex].Get()))
+		{
+			continue;
+		}
+
+		EIC->BindAction(QuickSlotActions[SlotIndex].Get(), ETriggerEvent::Started, this, &APRPlayerController::OnQuickSlotInputStarted, SlotIndex);
 	}
 
 	if (!IsValid(InputConfig))
@@ -206,4 +218,23 @@ void APRPlayerController::OnInventoryInputStarted()
 	}
     // 인벤토리 UI 토글 
 	UIControllerComponent->ToggleInventory();
+}
+
+void APRPlayerController::OnQuickSlotInputStarted(int32 SlotIndex)
+{
+	if (UPRQuickSlotComponent* QuickSlotComponent = GetQuickSlotComponent())
+	{
+		QuickSlotComponent->RequestUseQuickSlot(SlotIndex);
+	}
+}
+
+UPRQuickSlotComponent* APRPlayerController::GetQuickSlotComponent() const
+{
+	const APRPlayerState* PRPlayerState = GetPlayerState<APRPlayerState>();
+	if (!IsValid(PRPlayerState))
+	{
+		return nullptr;
+	}
+
+	return PRPlayerState->GetQuickSlotComponent();
 }

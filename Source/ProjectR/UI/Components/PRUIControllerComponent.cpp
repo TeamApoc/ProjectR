@@ -7,6 +7,7 @@
 #include "GameFramework/PlayerController.h"
 #include "ProjectR/Inventory/Components/PRInventoryComponent.h"
 #include "ProjectR/Player/PRPlayerState.h"
+#include "ProjectR/QuickSlot/Coponents/PRQuickSlotComponent.h"
 #include "ProjectR/UI/Inventory/PRInventoryWidget.h"
 #include "ProjectR/UI/PRUIManagerSubsystem.h"
 #include "ProjectR/Weapon/Components/PRWeaponManagerComponent.h"
@@ -44,12 +45,13 @@ void UPRUIControllerComponent::ToggleInventory()
 
 	UPRInventoryComponent* InventoryComponent = GetInventoryComponent();
 	UPRWeaponManagerComponent* WeaponManagerComponent = GetWeaponManagerComponent();
-	if (!IsValid(InventoryComponent) || !IsValid(WeaponManagerComponent))
+	UPRQuickSlotComponent* QuickSlotComponent = GetQuickSlotComponent();
+	if (!IsValid(InventoryComponent) || !IsValid(WeaponManagerComponent) || !IsValid(QuickSlotComponent))
 	{
 		return;
 	}
 
-	CreatedInventoryWidget->SetInventorySources(InventoryComponent, WeaponManagerComponent);
+	CreatedInventoryWidget->SetInventorySources(InventoryComponent, WeaponManagerComponent, QuickSlotComponent);
 	UIManager->PushUIInstance(CreatedInventoryWidget);
 }
 
@@ -116,6 +118,23 @@ UPRWeaponManagerComponent* UPRUIControllerComponent::GetWeaponManagerComponent()
 	}
 
 	return ControlledPawn->FindComponentByClass<UPRWeaponManagerComponent>();
+}
+
+UPRQuickSlotComponent* UPRUIControllerComponent::GetQuickSlotComponent() const
+{
+	const APlayerController* PlayerController = GetOwningPlayerController();
+	if (!IsValid(PlayerController))
+	{
+		return nullptr;
+	}
+
+	APRPlayerState* PRPlayerState = PlayerController->GetPlayerState<APRPlayerState>();
+	if (!IsValid(PRPlayerState))
+	{
+		return nullptr;
+	}
+
+	return PRPlayerState->GetQuickSlotComponent();
 }
 
 UPRUIManagerSubsystem* UPRUIControllerComponent::GetUIManager() const

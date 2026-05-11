@@ -79,9 +79,9 @@ private:
 	void HandleRecoverableHealthChanged(const FOnAttributeChangeData& ChangeData);
 	void HandleBindRetryTimer();
 	void StartDelayedLayer(float InStartPercent);
-	void ApplyBackBorderWidth();
-	void ApplyFillWidth(USizeBox* FillSizeBox, float InWidth);
+	void ApplyBarLayoutWidths();
 	float GetBackBorderWidth() const;
+	float GetFillAreaWidth() const;
 	float GetMaxFillWidth() const;
 	USizeBox* GetCurrentFillSizeBox() const;
 	USizeBox* GetRecoverableFillSizeBox() const;
@@ -91,6 +91,10 @@ private:
 	// 전체 체력 바 프레임 기준 SizeBox
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional, AllowPrivateAccess = "true"), Category = "HUD")
 	TObjectPtr<USizeBox> BackBorderSizeBox;
+
+	// 실제 체력 Fill이 배치되는 기준 영역 SizeBox
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional, AllowPrivateAccess = "true"), Category = "HUD")
+	TObjectPtr<USizeBox> FillAreaSizeBox;
 
 	// 현재 체력 Fill 폭을 조정할 SizeBox
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional, AllowPrivateAccess = "true"), Category = "HUD")

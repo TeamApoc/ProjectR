@@ -252,7 +252,7 @@ void UPRHealthBarWidget::RefreshLayerPercents(bool bForceDelayedPercent)
 	}
 	else if (!bIsDelayedLayerActive)
 	{
-		DelayedPercent = FMath::Max(DelayedPercent, RecoverableEndPercent);
+		DelayedPercent = RecoverableEndPercent;
 	}
 
 	const bool bNewCriticalHealth = CurrentPercent <= CriticalHealthThreshold;
@@ -268,7 +268,7 @@ void UPRHealthBarWidget::RefreshLayerPercents(bool bForceDelayedPercent)
 
 void UPRHealthBarWidget::ApplyDisplayedPercentsToFill()
 {
-	ApplyBackBorderWidth();
+	ApplyBarLayoutWidths();
 
 	const float MaxFillWidth = GetMaxFillWidth();
 	const float RecoverableFillPercent = PresentationMode == EPRHealthBarPresentationMode::PartyMember
@@ -280,17 +280,17 @@ void UPRHealthBarWidget::ApplyDisplayedPercentsToFill()
 
 	if (USizeBox* FillSizeBox = GetCurrentFillSizeBox())
 	{
-		ApplyFillWidth(FillSizeBox, MaxFillWidth * CurrentPercent);
+		FillSizeBox->SetWidthOverride(MaxFillWidth * CurrentPercent);
 	}
 
 	if (USizeBox* FillSizeBox = GetRecoverableFillSizeBox())
 	{
-		ApplyFillWidth(FillSizeBox, MaxFillWidth * RecoverableFillPercent);
+		FillSizeBox->SetWidthOverride(MaxFillWidth * RecoverableFillPercent);
 	}
 
 	if (USizeBox* FillSizeBox = GetDelayedFillSizeBox())
 	{
-		ApplyFillWidth(FillSizeBox, MaxFillWidth * DelayedFillPercent);
+		FillSizeBox->SetWidthOverride(MaxFillWidth * DelayedFillPercent);
 	}
 }
 
@@ -308,6 +308,12 @@ void UPRHealthBarWidget::HandleHealthChanged(const FOnAttributeChangeData& Chang
 	}
 	else if (ChangeData.NewValue > OldHealth)
 	{
+		if (PresentationMode == EPRHealthBarPresentationMode::LocalPlayer)
+		{
+			const float HealAmount = FMath::Max(ChangeData.NewValue - OldHealth, 0.0f);
+			CurrentRecoverableHealth = FMath::Max(CurrentRecoverableHealth - HealAmount, 0.0f);
+		}
+
 		RefreshLayerPercents(true);
 		bIsDelayedLayerActive = false;
 		return;
@@ -358,32 +364,17 @@ void UPRHealthBarWidget::StartDelayedLayer(float InStartPercent)
 	bIsDelayedLayerActive = true;
 }
 
-void UPRHealthBarWidget::ApplyBackBorderWidth()
+void UPRHealthBarWidget::ApplyBarLayoutWidths()
 {
 	if (IsValid(BackBorderSizeBox))
 	{
-		if (UOverlaySlot* OverlaySlot = Cast<UOverlaySlot>(BackBorderSizeBox->Slot))
-		{
-			OverlaySlot->SetHorizontalAlignment(HAlign_Left);
-		}
-
 		BackBorderSizeBox->SetWidthOverride(GetBackBorderWidth());
 	}
-}
 
-void UPRHealthBarWidget::ApplyFillWidth(USizeBox* FillSizeBox, float InWidth)
-{
-	if (!IsValid(FillSizeBox))
+	if (IsValid(FillAreaSizeBox))
 	{
-		return;
+		FillAreaSizeBox->SetWidthOverride(GetFillAreaWidth());
 	}
-
-	if (UOverlaySlot* OverlaySlot = Cast<UOverlaySlot>(FillSizeBox->Slot))
-	{
-		OverlaySlot->SetHorizontalAlignment(HAlign_Left);
-	}
-
-	FillSizeBox->SetWidthOverride(InWidth);
 }
 
 float UPRHealthBarWidget::GetBackBorderWidth() const
@@ -391,27 +382,37 @@ float UPRHealthBarWidget::GetBackBorderWidth() const
 	return PresentationMode == EPRHealthBarPresentationMode::PartyMember ? PartyMemberMaxBarWidth : MaxBarWidth;
 }
 
+float UPRHealthBarWidget::GetFillAreaWidth() const
+{
+	const float BackBorderWidth = GetBackBorderWidth();
+	if (!IsValid(FillAreaSizeBox))
+	{
+		return BackBorderWidth;
+	}
+
+	float HorizontalPadding = 0.0f;
+	if (const UOverlaySlot* OverlaySlot = Cast<UOverlaySlot>(FillAreaSizeBox->Slot))
+	{
+		const FMargin SlotPadding = OverlaySlot->GetPadding();
+		HorizontalPadding = SlotPadding.Left + SlotPadding.Right;
+	}
+
+	const float FillAreaWidth = BackBorderWidth - HorizontalPadding;
+	return FillAreaWidth > 0.0f ? FillAreaWidth : BackBorderWidth;
+}
+
 float UPRHealthBarWidget::GetMaxFillWidth() const
 {
-	const USizeBox* FillSizeBox = GetCurrentFillSizeBox();
-	const float BackBorderWidth = GetBackBorderWidth();
-	if (IsValid(FillSizeBox))
+	if (IsValid(FillAreaSizeBox) && FillAreaSizeBox->IsWidthOverride())
 	{
-		float HorizontalPadding = 0.0f;
-		if (const UOverlaySlot* OverlaySlot = Cast<UOverlaySlot>(FillSizeBox->Slot))
-		{
-			const FMargin SlotPadding = OverlaySlot->GetPadding();
-			HorizontalPadding = SlotPadding.Left + SlotPadding.Right;
-		}
-
-		const float FillWidth = BackBorderWidth - HorizontalPadding;
+		const float FillWidth = FillAreaSizeBox->GetWidthOverride();
 		if (FillWidth > 0.0f)
 		{
 			return FillWidth;
 		}
 	}
 
-	return BackBorderWidth;
+	return GetFillAreaWidth();
 }
 
 USizeBox* UPRHealthBarWidget::GetCurrentFillSizeBox() const

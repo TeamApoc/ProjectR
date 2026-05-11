@@ -110,6 +110,16 @@ void UPRHUDWidget::OnPlayerReady()
 	{
 		WeaponHUD->InitializeWeaponHUD();
 	}
+
+	if (IsValid(PlayerHealthBar))
+	{
+		PlayerHealthBar->RefreshHealthFromOwner();
+	}
+
+	if (IsValid(PartyHealthList))
+	{
+		PartyHealthList->RefreshPartyMembers();
+	}
 	
 	if (IsValid(QuickSlotHUD))
 	{

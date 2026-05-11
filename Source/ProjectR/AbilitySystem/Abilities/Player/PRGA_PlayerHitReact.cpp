@@ -67,7 +67,7 @@ UPRGA_PlayerHitReact::UPRGA_PlayerHitReact()
 
 	ReplicationPolicy = EGameplayAbilityReplicationPolicy::ReplicateYes;
 	InstancingPolicy = EGameplayAbilityInstancingPolicy::InstancedPerActor;
-	NetExecutionPolicy = EGameplayAbilityNetExecutionPolicy::ServerOnly;
+	NetExecutionPolicy = EGameplayAbilityNetExecutionPolicy::ServerInitiated;
 	bRetriggerInstancedAbility = true;
 }
 
@@ -398,6 +398,12 @@ void UPRGA_PlayerHitReact::CancelActionsForHitReact(EPRPlayerHitReactType HitRea
 // 회복 가능 체력 자동 회복 딜레이 GameplayEffect를 적용한다.
 void UPRGA_PlayerHitReact::ApplyRecoverableHealthRecoveryDelay(const FGameplayEventData* TriggerEventData)
 {
+	const AActor* AvatarActor = GetAvatarActorFromActorInfo();
+	if (!IsValid(AvatarActor) || !AvatarActor->HasAuthority())
+	{
+		return;
+	}
+
 	if (!IsValid(RecoverableHealthRecoveryDelayEffectClass))
 	{
 		return;
@@ -702,7 +708,12 @@ void UPRGA_PlayerHitReact::StartActionLock(EPRPlayerHitReactType HitReactType)
 	if (IsValid(ASC))
 	{
 		ASC->AddLooseGameplayTag(PRGameplayTags::State_PlayerHitReactLocked);
-		ASC->AddReplicatedLooseGameplayTag(PRGameplayTags::State_PlayerHitReactLocked);
+
+		const AActor* AvatarActor = GetAvatarActorFromActorInfo();
+		if (IsValid(AvatarActor) && AvatarActor->HasAuthority())
+		{
+			ASC->AddReplicatedLooseGameplayTag(PRGameplayTags::State_PlayerHitReactLocked);
+		}
 		bActionLockTagAdded = true;
 	}
 }
@@ -719,7 +730,12 @@ void UPRGA_PlayerHitReact::ClearActionLock()
 	if (IsValid(ASC))
 	{
 		ASC->RemoveLooseGameplayTag(PRGameplayTags::State_PlayerHitReactLocked);
-		ASC->RemoveReplicatedLooseGameplayTag(PRGameplayTags::State_PlayerHitReactLocked);
+
+		const AActor* AvatarActor = GetAvatarActorFromActorInfo();
+		if (IsValid(AvatarActor) && AvatarActor->HasAuthority())
+		{
+			ASC->RemoveReplicatedLooseGameplayTag(PRGameplayTags::State_PlayerHitReactLocked);
+		}
 	}
 
 	bActionLockTagAdded = false;

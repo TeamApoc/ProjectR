@@ -2,11 +2,12 @@
 
 #include "ProjectR/UI/HUD/PRStaminaBarWidget.h"
 
-#include "AbilitySystemBlueprintLibrary.h"
 #include "AbilitySystemComponent.h"
 #include "Components/SizeBox.h"
+#include "GameFramework/PlayerController.h"
 #include "GameplayEffectTypes.h"
 #include "ProjectR/AbilitySystem/AttributeSets/PRAttributeSet_Player.h"
+#include "ProjectR/Player/PRPlayerState.h"
 #include "TimerManager.h"
 
 UPRStaminaBarWidget::UPRStaminaBarWidget(const FObjectInitializer& ObjectInitializer)
@@ -99,15 +100,15 @@ void UPRStaminaBarWidget::TryBindToOwnerAbilitySystem()
 		return;
 	}
 
-	APawn* OwningPawn = GetOwningPlayerPawn();
-	if (!IsValid(OwningPawn))
+	APlayerController* OwningPlayer = GetOwningPlayer();
+	APRPlayerState* PlayerState = IsValid(OwningPlayer) ? OwningPlayer->GetPlayerState<APRPlayerState>() : nullptr;
+	if (!IsValid(PlayerState))
 	{
 		HandleBindRetryTimer();
 		return;
 	}
 
-	UAbilitySystemComponent* AbilitySystemComponent =
-		UAbilitySystemBlueprintLibrary::GetAbilitySystemComponent(OwningPawn);
+	UAbilitySystemComponent* AbilitySystemComponent = PlayerState->GetAbilitySystemComponent();
 	if (!IsValid(AbilitySystemComponent))
 	{
 		HandleBindRetryTimer();

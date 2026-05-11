@@ -11,6 +11,7 @@
 #include "ProjectR/UI/Crosshair/PRCrosshairWidget.h"
 #include "ProjectR/UI/HUD/PRHealthBarWidget.h"
 #include "ProjectR/UI/HUD/PRPartyHealthListWidget.h"
+#include "ProjectR/UI/HUD/PRStaminaBarWidget.h"
 #include "ProjectR/UI/QuickSlot/PRQuickSlotWidget.h"
 #include "ProjectR/UI/WeaponStatusHUD/PRWeaponHUDWidget.h"
 
@@ -114,6 +115,11 @@ void UPRHUDWidget::OnPlayerReady()
 	if (IsValid(PlayerHealthBar))
 	{
 		PlayerHealthBar->RefreshHealthFromOwner();
+	}
+
+	if (IsValid(PlayerStaminaBar))
+	{
+		PlayerStaminaBar->RefreshStaminaFromOwner();
 	}
 
 	if (IsValid(PartyHealthList))

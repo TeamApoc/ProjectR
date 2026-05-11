@@ -6,7 +6,12 @@
 #include "ProjectR/UI/PRWidgetBase.h"
 #include "PRHUDWidget.generated.h"
 
+class UPRQuickSlotWidget;
+class UPRWeaponHUDWidget;
 class UPRCrosshairWidget;
+class UPRInteractionHUDWidget;
+class UPRHealthBarWidget;
+class UPRPartyHealthListWidget;
 class UPREventManagerSubsystem;
 struct FInstancedStruct;
 struct FGameplayTag;
@@ -27,14 +32,24 @@ public:
 protected:
 	/*~ UUserWidget Interface ~*/
 	virtual void NativeOnInitialized() override;
+	virtual void NativeConstruct() override;
 	virtual void NativeDestruct() override;
+	virtual void NativeTick(const FGeometry& MyGeometry, float InDeltaTime) override;
 
+	/*~ UPRHUDWIdget Interface ~*/
+	void OnPlayerReady();
+	
 private:
+	void HandlePlayerReady(FGameplayTag EventTag, const FInstancedStruct& Payload);
+	
 	// EventManager 콜백: 에이밍 시작 - 크로스헤어 표시
 	void HandleAimStart(FGameplayTag EventTag, const FInstancedStruct& Payload);
 
 	// EventManager 콜백: 에이밍 종료 - 크로스헤어 숨김
 	void HandleAimEnd(FGameplayTag EventTag, const FInstancedStruct& Payload);
+
+	// EventManager 콜백: Hold 상호작용 단계 알림 - InteractionHUD 갱신
+	void HandleInteractionHold(FGameplayTag EventTag, const FInstancedStruct& Payload);
 
 	// 등록된 EventManager 핸들 정리
 	void UnbindFromEventManager();
@@ -51,7 +66,32 @@ protected:
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "HUD")
 	TObjectPtr<UPRCrosshairWidget> CrosshairWidget;
 
+	// UMG 트리에서 동일 이름("InteractionHUD")의 자식이 있을 때 자동 바인딩.
+	// 없으면 Hold 이벤트 바인딩도 건너뛴다
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "HUD")
+	TObjectPtr<UPRInteractionHUDWidget> InteractionHUD;
+	
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "HUD")
+	TObjectPtr<UPRWeaponHUDWidget> WeaponHUD;
+	
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "HUD")
+	TObjectPtr<UPRQuickSlotWidget> QuickSlotHUD;
+
+	// UMG 트리에서 동일 이름("PlayerHealthBar")의 자식이 있을 때 자동 바인딩.
+	// PlayerReady 이후 ASC 기준으로 현재 체력, 회복 가능 체력, 지연 체력 표시를 갱신한다
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "HUD")
+	TObjectPtr<UPRHealthBarWidget> PlayerHealthBar;
+
+	// UMG 트리에서 동일 이름("PartyHealthList")의 자식이 있을 때 자동 바인딩.
+	// PlayerReady 이후 GameState PlayerArray 기준으로 파티원 체력 슬롯을 갱신한다
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "HUD")
+	TObjectPtr<UPRPartyHealthListWidget> PartyHealthList;
+
 private:
-	FDelegateHandle AimStartHandle;
-	FDelegateHandle AimEndHandle;
+	TArray<FDelegateHandle> EventHandles;
+
+	// Hold 진행 상태 추적 (NativeTick 에서 ProgressBar 갱신에 사용)
+	bool bIsHoldActive = false;
+	float HoldElapsed = 0.f;
+	float HoldDuration = 0.f;
 };

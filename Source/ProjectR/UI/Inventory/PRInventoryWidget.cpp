@@ -3,8 +3,13 @@
 
 #include "PRInventoryWidget.h"
 
+#include "GameFramework/PlayerController.h"
+#include "ProjectR/Character/PRPlayerCharacter.h"
 #include "ProjectR/Inventory/Components/PRInventoryComponent.h"
+#include "ProjectR/Inventory/Data/PRConsumableDataAsset.h"
 #include "ProjectR/Inventory/Data/PRItemDataAsset.h"
+#include "ProjectR/Inventory/Items/PRItemInstance_Consumable.h"
+#include "ProjectR/QuickSlot/Coponents/PRQuickSlotComponent.h"
 #include "ProjectR/Weapon/Components/PRWeaponManagerComponent.h"
 #include "ProjectR/Weapon/Data/PRWeaponDataAsset.h"
 #include "ProjectR/Weapon/Data/PRWeaponModDataAsset.h"
@@ -12,14 +17,19 @@
 #include "ProjectR/Weapon/Items/PRItemInstance_Weapon.h"
 #include "ProjectR/UI/Inventory/PRInventoryItemListWidget.h"
 #include "ProjectR/UI/Inventory/PRItemSlotWidget.h"
+#include "ProjectR/UI/Preview/PRCharacterPreviewWidget.h"
 
-void UPRInventoryWidget::SetInventorySources(UPRInventoryComponent* InInventoryComponent, UPRWeaponManagerComponent* InWeaponManagerComponent)
+void UPRInventoryWidget::SetInventorySources(UPRInventoryComponent* InInventoryComponent, UPRWeaponManagerComponent* InWeaponManagerComponent, UPRQuickSlotComponent* InQuickSlotComponent)
 {
+	UnbindInventorySourceEvents();
+
 	InventoryComponent = InInventoryComponent;
 	WeaponManagerComponent = InWeaponManagerComponent;
+	QuickSlotComponent = InQuickSlotComponent;
 
-	// 아이템 장착 슬롯 갱신
-	RefreshEquippedSlotWidgets();
+	BindInventorySourceEvents();
+	RefreshInventoryView();
+	RefreshCharacterPreviewWidget();
 }
 
 /*~ UUserWidget Interface ~*/
@@ -30,10 +40,14 @@ void UPRInventoryWidget::NativeConstruct()
 
 	// 하위 슬롯 이벤트 바인드
 	BindChildWidgetEvents();
+	// 인벤토리 소스 이벤트 바인드
+	BindInventorySourceEvents();
 	// 아이템 리스트 숨기기
 	CloseItemList();
-	// 아이템 장착 슬롯 갱신
-	RefreshEquippedSlotWidgets();
+	// 인벤토리 화면 갱신
+	RefreshInventoryView();
+	// 캐릭터 프리뷰 갱신
+	RefreshCharacterPreviewWidget();
 }
 
 void UPRInventoryWidget::NativeDestruct()
@@ -42,6 +56,8 @@ void UPRInventoryWidget::NativeDestruct()
 	CloseItemList();
 	// 하위 위젯 이벤트 바인딩 정리
 	UnbindChildWidgetEvents();
+	// 인벤토리 소스 이벤트 바인딩 정리
+	UnbindInventorySourceEvents();
 
 	Super::NativeDestruct();
 }
@@ -63,6 +79,26 @@ void UPRInventoryWidget::BindChildWidgetEvents()
 	{
 		SecondaryWeaponSlotWidget->OnLeftClicked.AddDynamic(this, &UPRInventoryWidget::HandleSecondaryWeaponSlotLeftClicked);
 		SecondaryWeaponSlotWidget->OnRightClicked.AddDynamic(this, &UPRInventoryWidget::HandleSecondaryWeaponSlotRightClicked);
+	}
+
+	if (IsValid(QuickSlotItemSlotWidget0))
+	{
+		QuickSlotItemSlotWidget0->OnLeftClicked.AddDynamic(this, &UPRInventoryWidget::HandleQuickSlot0LeftClicked);
+	}
+
+	if (IsValid(QuickSlotItemSlotWidget1))
+	{
+		QuickSlotItemSlotWidget1->OnLeftClicked.AddDynamic(this, &UPRInventoryWidget::HandleQuickSlot1LeftClicked);
+	}
+
+	if (IsValid(QuickSlotItemSlotWidget2))
+	{
+		QuickSlotItemSlotWidget2->OnLeftClicked.AddDynamic(this, &UPRInventoryWidget::HandleQuickSlot2LeftClicked);
+	}
+
+	if (IsValid(QuickSlotItemSlotWidget3))
+	{
+		QuickSlotItemSlotWidget3->OnLeftClicked.AddDynamic(this, &UPRInventoryWidget::HandleQuickSlot3LeftClicked);
 	}
 
 	// 아이템 리스트 위젯 이벤트 바인드
@@ -88,10 +124,69 @@ void UPRInventoryWidget::UnbindChildWidgetEvents()
 		SecondaryWeaponSlotWidget->OnRightClicked.RemoveDynamic(this, &UPRInventoryWidget::HandleSecondaryWeaponSlotRightClicked);
 	}
 
+	if (IsValid(QuickSlotItemSlotWidget0))
+	{
+		QuickSlotItemSlotWidget0->OnLeftClicked.RemoveDynamic(this, &UPRInventoryWidget::HandleQuickSlot0LeftClicked);
+	}
+
+	if (IsValid(QuickSlotItemSlotWidget1))
+	{
+		QuickSlotItemSlotWidget1->OnLeftClicked.RemoveDynamic(this, &UPRInventoryWidget::HandleQuickSlot1LeftClicked);
+	}
+
+	if (IsValid(QuickSlotItemSlotWidget2))
+	{
+		QuickSlotItemSlotWidget2->OnLeftClicked.RemoveDynamic(this, &UPRInventoryWidget::HandleQuickSlot2LeftClicked);
+	}
+
+	if (IsValid(QuickSlotItemSlotWidget3))
+	{
+		QuickSlotItemSlotWidget3->OnLeftClicked.RemoveDynamic(this, &UPRInventoryWidget::HandleQuickSlot3LeftClicked);
+	}
+
 	// 아이템 리스트 이벤트 언바인드
 	if (IsValid(ItemListWidget))
 	{
 		ItemListWidget->OnItemSelected.RemoveDynamic(this, &UPRInventoryWidget::HandleItemListSelection);
+	}
+}
+
+void UPRInventoryWidget::BindInventorySourceEvents()
+{
+	if (IsValid(InventoryComponent))
+	{
+		InventoryComponent->GetOnInventoryChanged().RemoveDynamic(this, &UPRInventoryWidget::HandleInventoryChanged);
+		InventoryComponent->GetOnInventoryChanged().AddDynamic(this, &UPRInventoryWidget::HandleInventoryChanged);
+	}
+
+	if (IsValid(WeaponManagerComponent))
+	{
+		WeaponManagerComponent->GetOnWeaponEquipmentChanged().RemoveDynamic(this, &UPRInventoryWidget::HandleWeaponEquipmentChanged);
+		WeaponManagerComponent->GetOnWeaponEquipmentChanged().AddDynamic(this, &UPRInventoryWidget::HandleWeaponEquipmentChanged);
+	}
+
+	if (IsValid(QuickSlotComponent))
+	{
+		QuickSlotComponent->GetOnQuickSlotChanged().RemoveDynamic(this, &UPRInventoryWidget::HandleQuickSlotChanged);
+		QuickSlotComponent->GetOnQuickSlotChanged().AddDynamic(this, &UPRInventoryWidget::HandleQuickSlotChanged);
+	}
+}
+
+void UPRInventoryWidget::UnbindInventorySourceEvents()
+{
+	if (IsValid(InventoryComponent))
+	{
+		InventoryComponent->GetOnInventoryChanged().RemoveDynamic(this, &UPRInventoryWidget::HandleInventoryChanged);
+	}
+
+	if (IsValid(WeaponManagerComponent))
+	{
+		WeaponManagerComponent->GetOnWeaponEquipmentChanged().RemoveDynamic(this, &UPRInventoryWidget::HandleWeaponEquipmentChanged);
+	}
+
+	if (IsValid(QuickSlotComponent))
+	{
+		QuickSlotComponent->GetOnQuickSlotChanged().RemoveDynamic(this, &UPRInventoryWidget::HandleQuickSlotChanged);
 	}
 }
 
@@ -128,6 +223,26 @@ void UPRInventoryWidget::HandleSecondaryWeaponSlotRightClicked(const FPRInventor
 	OpenModList(WeaponItem);
 }
 
+void UPRInventoryWidget::HandleQuickSlot0LeftClicked(const FPRInventoryItemSlotViewData& ViewData)
+{
+	OpenConsumableListForQuickSlot(0);
+}
+
+void UPRInventoryWidget::HandleQuickSlot1LeftClicked(const FPRInventoryItemSlotViewData& ViewData)
+{
+	OpenConsumableListForQuickSlot(1);
+}
+
+void UPRInventoryWidget::HandleQuickSlot2LeftClicked(const FPRInventoryItemSlotViewData& ViewData)
+{
+	OpenConsumableListForQuickSlot(2);
+}
+
+void UPRInventoryWidget::HandleQuickSlot3LeftClicked(const FPRInventoryItemSlotViewData& ViewData)
+{
+	OpenConsumableListForQuickSlot(3);
+}
+
 void UPRInventoryWidget::HandleItemListSelection(const FPRInventoryItemSlotViewData& ViewData)
 {
 	if (!IsValid(ItemListWidget))
@@ -135,8 +250,10 @@ void UPRInventoryWidget::HandleItemListSelection(const FPRInventoryItemSlotViewD
 		return;
 	}
 
-	const EPRInventoryItemListType CurrentListType = ItemListWidget->GetListType();
-	if (CurrentListType == EPRInventoryItemListType::Weapon)
+	const EPRItemType CurrentListType = ItemListWidget->GetListType();
+	if (CurrentListType == EPRItemType::Weapon
+		|| CurrentListType == EPRItemType::PrimaryWeapon
+		|| CurrentListType == EPRItemType::SecondaryWeapon)
 	{
 		if (!IsValid(WeaponManagerComponent))
 		{
@@ -152,7 +269,7 @@ void UPRInventoryWidget::HandleItemListSelection(const FPRInventoryItemSlotViewD
 			WeaponManagerComponent->EquipWeapon(WeaponItem);
 		}
 	}
-	else if (CurrentListType == EPRInventoryItemListType::Mod)
+	else if (CurrentListType == EPRItemType::Mod)
 	{
 		if (!IsValid(InventoryComponent) || !IsValid(PendingModTargetWeaponItem))
 		{
@@ -168,10 +285,59 @@ void UPRInventoryWidget::HandleItemListSelection(const FPRInventoryItemSlotViewD
 			InventoryComponent->RequestEquipModItemToWeapon(ModItem, PendingModTargetWeaponItem);
 		}
 	}
+	else if (CurrentListType == EPRItemType::Consumable)
+	{
+		if (!IsValid(QuickSlotComponent) || PendingQuickSlotIndex == INDEX_NONE)
+		{
+			return;
+		}
+
+		UPRConsumableDataAsset* ConsumableData = Cast<UPRConsumableDataAsset>(ViewData.ItemData.Get());
+		if (IsValid(ConsumableData))
+		{
+			QuickSlotComponent->RequestRegisterQuickSlotItem(PendingQuickSlotIndex, ConsumableData);
+		}
+	}
 
 	CloseItemList();
-	// 아이템 장착 슬롯 갱신
-	RefreshEquippedSlotWidgets();
+}
+
+void UPRInventoryWidget::HandleInventoryChanged(UPRInventoryComponent* ChangedInventoryComponent, EPRInventoryChangeReason ChangeReason)
+{
+	static_cast<void>(ChangeReason);
+
+	if (ChangedInventoryComponent != InventoryComponent)
+	{
+		return;
+	}
+
+	RefreshInventoryView();
+	RefreshCharacterPreviewWidget();
+}
+
+void UPRInventoryWidget::HandleWeaponEquipmentChanged(UPRWeaponManagerComponent* ChangedWeaponManagerComponent, EPRWeaponSlotType ChangedSlot)
+{
+	static_cast<void>(ChangedSlot);
+
+	if (ChangedWeaponManagerComponent != WeaponManagerComponent)
+	{
+		return;
+	}
+
+	RefreshInventoryView();
+	RefreshCharacterPreviewWidget();
+}
+
+void UPRInventoryWidget::HandleQuickSlotChanged(UPRQuickSlotComponent* ChangedQuickSlotComponent, int32 ChangedSlotIndex)
+{
+	static_cast<void>(ChangedSlotIndex);
+
+	if (ChangedQuickSlotComponent != QuickSlotComponent)
+	{
+		return;
+	}
+
+	RefreshQuickSlotWidgets();
 }
 
 void UPRInventoryWidget::OpenWeaponList(EPRWeaponSlotType TargetSlot)
@@ -185,13 +351,24 @@ void UPRInventoryWidget::OpenWeaponList(EPRWeaponSlotType TargetSlot)
 
 	// 무기 리스트 팝업 위젯에 띄울 아이템의 무기 슬롯
 	PendingWeaponListSlot = TargetSlot;
+
+	EPRItemType ItemListType = EPRItemType::Weapon;
+	if (PendingWeaponListSlot == EPRWeaponSlotType::Primary)
+	{
+		ItemListType = EPRItemType::PrimaryWeapon;
+	}
+	else if (PendingWeaponListSlot == EPRWeaponSlotType::Secondary)
+	{
+		ItemListType = EPRItemType::SecondaryWeapon;
+	}
+
 	// Mod 장착 타겟 무기 Item
 	PendingModTargetWeaponItem = nullptr;
 
 	TArray<FPRInventoryItemSlotViewData> ListItems;
 	if (IsValid(WeaponManagerComponent->GetWeaponInstanceBySlotType(TargetSlot)))
 	{
-		ListItems.Add(BuildUnequipViewData(EPRInventoryItemListType::Weapon));
+		ListItems.Add(BuildUnequipViewData(ItemListType));
 	}
 
 	for (UPRItemInstance_Weapon* WeaponItem : InventoryComponent->InventoryWeaponItems)
@@ -210,7 +387,7 @@ void UPRInventoryWidget::OpenWeaponList(EPRWeaponSlotType TargetSlot)
 		ListItems.Add(BuildWeaponItemViewData(WeaponItem, bEquipped));
 	}
 
-	ItemListWidget->SetItemList(EPRInventoryItemListType::Weapon, ListItems);
+	ItemListWidget->SetItemList(ItemListType, ListItems);
 	ItemListWidget->SetVisibility(ESlateVisibility::Visible);
 }
 
@@ -229,7 +406,7 @@ void UPRInventoryWidget::OpenModList(UPRItemInstance_Weapon* TargetWeaponItem)
 	TArray<FPRInventoryItemSlotViewData> ListItems;
 	if (IsValid(TargetWeaponItem->GetEquippedModItem()) || IsValid(TargetWeaponItem->GetModData()))
 	{
-		ListItems.Add(BuildUnequipViewData(EPRInventoryItemListType::Mod));
+		ListItems.Add(BuildUnequipViewData(EPRItemType::Mod));
 	}
 
 	for (UPRItemInstance_Mod* ModItem : InventoryComponent->InventoryModItems)
@@ -239,11 +416,38 @@ void UPRInventoryWidget::OpenModList(UPRItemInstance_Weapon* TargetWeaponItem)
 			continue;
 		}
 
-		const bool bEquipped = TargetWeaponItem->GetEquippedModItem() == ModItem;
+		const bool bEquipped = ModItem->IsEquipped();
 		ListItems.Add(BuildModItemViewData(ModItem, bEquipped));
 	}
 
-	ItemListWidget->SetItemList(EPRInventoryItemListType::Mod, ListItems);
+	ItemListWidget->SetItemList(EPRItemType::Mod, ListItems);
+	ItemListWidget->SetVisibility(ESlateVisibility::Visible);
+}
+
+void UPRInventoryWidget::OpenConsumableListForQuickSlot(int32 SlotIndex)
+{
+	if (!IsValid(ItemListWidget) || !IsValid(InventoryComponent) || !IsValid(QuickSlotComponent))
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[InventoryWidget] 소비 아이템 리스트 열기 실패. OpenConsumableListForQuickSlot()"));
+		return;
+	}
+
+	PendingWeaponListSlot = EPRWeaponSlotType::None;
+	PendingModTargetWeaponItem = nullptr;
+	PendingQuickSlotIndex = SlotIndex;
+
+	TArray<FPRInventoryItemSlotViewData> ListItems;
+	for (UPRItemInstance_Consumable* ConsumableItem : InventoryComponent->InventoryConsumableItems)
+	{
+		if (!IsValid(ConsumableItem))
+		{
+			continue;
+		}
+
+		ListItems.Add(BuildConsumableItemViewData(ConsumableItem));
+	}
+
+	ItemListWidget->SetItemList(EPRItemType::Consumable, ListItems);
 	ItemListWidget->SetVisibility(ESlateVisibility::Visible);
 }
 
@@ -254,12 +458,13 @@ void UPRInventoryWidget::CloseItemList()
 	{
 		// 빈 아이템 뷰 데이터 목록 설정
 		TArray<FPRInventoryItemSlotViewData> EmptyItems;
-		ItemListWidget->SetItemList(EPRInventoryItemListType::None, EmptyItems);
+		ItemListWidget->SetItemList(EPRItemType::None, EmptyItems);
 		ItemListWidget->SetVisibility(ESlateVisibility::Collapsed);
 	}
 
 	PendingWeaponListSlot = EPRWeaponSlotType::None;
 	PendingModTargetWeaponItem = nullptr;
+	PendingQuickSlotIndex = INDEX_NONE;
 }
 
 void UPRInventoryWidget::RefreshEquippedSlotWidgets()
@@ -277,6 +482,82 @@ void UPRInventoryWidget::RefreshEquippedSlotWidgets()
 		// 보조무기 슬롯 갱신
 		SecondaryWeaponSlotWidget->SetSlotViewData(BuildWeaponSlotViewData(EPRWeaponSlotType::Secondary));
 	}
+}
+
+void UPRInventoryWidget::RefreshQuickSlotWidgets()
+{
+	if (IsValid(QuickSlotItemSlotWidget0))
+	{
+		QuickSlotItemSlotWidget0->SetSlotViewData(BuildQuickSlotViewData(0));
+	}
+
+	if (IsValid(QuickSlotItemSlotWidget1))
+	{
+		QuickSlotItemSlotWidget1->SetSlotViewData(BuildQuickSlotViewData(1));
+	}
+
+	if (IsValid(QuickSlotItemSlotWidget2))
+	{
+		QuickSlotItemSlotWidget2->SetSlotViewData(BuildQuickSlotViewData(2));
+	}
+
+	if (IsValid(QuickSlotItemSlotWidget3))
+	{
+		QuickSlotItemSlotWidget3->SetSlotViewData(BuildQuickSlotViewData(3));
+	}
+}
+
+void UPRInventoryWidget::RefreshInventoryView()
+{
+	// 장착 슬롯은 리스트 표시 여부와 관계없이 항상 최신 상태로 맞춘다
+	RefreshEquippedSlotWidgets();
+	RefreshQuickSlotWidgets();
+
+	if (!IsValid(ItemListWidget) || !ItemListWidget->IsVisible())
+	{
+		return;
+	}
+
+	const EPRItemType CurrentListType = ItemListWidget->GetListType();
+	if (CurrentListType == EPRItemType::Weapon
+		|| CurrentListType == EPRItemType::PrimaryWeapon
+		|| CurrentListType == EPRItemType::SecondaryWeapon)
+	{
+		if (PendingWeaponListSlot != EPRWeaponSlotType::None)
+		{
+			OpenWeaponList(PendingWeaponListSlot);
+		}
+	}
+	else if (CurrentListType == EPRItemType::Mod && IsValid(PendingModTargetWeaponItem))
+	{
+		OpenModList(PendingModTargetWeaponItem);
+	}
+	else if (CurrentListType == EPRItemType::Consumable && PendingQuickSlotIndex != INDEX_NONE)
+	{
+		OpenConsumableListForQuickSlot(PendingQuickSlotIndex);
+	}
+}
+
+void UPRInventoryWidget::RefreshCharacterPreviewWidget()
+{
+	if (!IsValid(CharacterPreviewWidget))
+	{
+		return;
+	}
+
+	APRPlayerCharacter* SourceCharacter = GetPreviewSourceCharacter();
+	CharacterPreviewWidget->SetPreviewSources(SourceCharacter, WeaponManagerComponent);
+}
+
+APRPlayerCharacter* UPRInventoryWidget::GetPreviewSourceCharacter() const
+{
+	APlayerController* OwningPlayerController = GetOwningPlayer();
+	if (!IsValid(OwningPlayerController))
+	{
+		return nullptr;
+	}
+
+	return Cast<APRPlayerCharacter>(OwningPlayerController->GetPawn());
 }
 
 FPRInventoryItemSlotViewData UPRInventoryWidget::BuildWeaponSlotViewData(EPRWeaponSlotType SlotType) const
@@ -354,17 +635,74 @@ FPRInventoryItemSlotViewData UPRInventoryWidget::BuildModItemViewData(UPRItemIns
 	return ViewData;
 }
 
-FPRInventoryItemSlotViewData UPRInventoryWidget::BuildUnequipViewData(EPRInventoryItemListType ListType) const
+FPRInventoryItemSlotViewData UPRInventoryWidget::BuildConsumableItemViewData(UPRItemInstance_Consumable* ConsumableItem) const
+{
+	FPRInventoryItemSlotViewData ViewData;
+	if (!IsValid(ConsumableItem))
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[InventoryWidget] 소비 아이템 없음. BuildConsumableItemViewData()"));
+		return ViewData;
+	}
+
+	UPRConsumableDataAsset* ConsumableData = ConsumableItem->GetConsumableData();
+	ViewData.ItemData = ConsumableData;
+	ViewData.ItemInstance = ConsumableItem;
+	ViewData.ItemType = EPRItemType::Consumable;
+	ViewData.StackCount = ConsumableItem->GetStackCount();
+	ViewData.bShowStackCount = true;
+
+	if (IsValid(ConsumableData))
+	{
+		ViewData.DisplayName = ConsumableData->GetDisplayName();
+		ViewData.Icon = ConsumableData->GetIcon();
+	}
+
+	return ViewData;
+}
+
+FPRInventoryItemSlotViewData UPRInventoryWidget::BuildQuickSlotViewData(int32 SlotIndex) const
+{
+	FPRInventoryItemSlotViewData ViewData;
+	ViewData.ItemType = EPRItemType::Consumable;
+
+	if (!IsValid(QuickSlotComponent))
+	{
+		ViewData.DisplayName = FText::FromString(TEXT("퀵슬롯 비어 있음"));
+		return ViewData;
+	}
+
+	const FPRQuickSlotViewData QuickSlotViewData = QuickSlotComponent->BuildQuickSlotViewData(SlotIndex);
+	ViewData.ItemData = QuickSlotViewData.ConsumableData;
+	ViewData.ItemInstance = QuickSlotViewData.ConsumableItem;
+	ViewData.Icon = QuickSlotViewData.Icon;
+	ViewData.StackCount = QuickSlotViewData.StackCount;
+	ViewData.bShowStackCount = QuickSlotViewData.bHasRegisteredItem;
+
+	if (IsValid(QuickSlotViewData.ConsumableData))
+	{
+		ViewData.DisplayName = QuickSlotViewData.ConsumableData->GetDisplayName();
+	}
+	else
+	{
+		ViewData.DisplayName = FText::FromString(TEXT("퀵슬롯 비어 있음"));
+	}
+
+	return ViewData;
+}
+
+FPRInventoryItemSlotViewData UPRInventoryWidget::BuildUnequipViewData(EPRItemType ListType) const
 {
 	FPRInventoryItemSlotViewData ViewData;
 	ViewData.bUnequipEntry = true;
 
-	if (ListType == EPRInventoryItemListType::Weapon)
+	if (ListType == EPRItemType::Weapon
+		|| ListType == EPRItemType::PrimaryWeapon
+		|| ListType == EPRItemType::SecondaryWeapon)
 	{
 		ViewData.ItemType = EPRItemType::Weapon;
 		ViewData.DisplayName = FText::FromString(TEXT("무기 해제"));
 	}
-	else if (ListType == EPRInventoryItemListType::Mod)
+	else if (ListType == EPRItemType::Mod)
 	{
 		ViewData.ItemType = EPRItemType::Mod;
 		ViewData.DisplayName = FText::FromString(TEXT("Mod 해제"));

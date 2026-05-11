@@ -568,7 +568,7 @@ void UPRGameplayAbility_EnemyMeleeAttack::ExecuteMeleeTraceWithRadius(const FVec
 		// 	DamagedActors.Add(HitActor);
 		// }
 		
-		ApplyDamage(HitActor, 1.0f, &HitResult); // TODO: 각 모션 별 AttackMultiplier 실제 값 전달이 필요 
+		ApplyDamage(HitActor, Damage, GroggyDamage, 1.0f, &HitResult);
 		DamagedActors.Add(HitActor);
 	}
 }

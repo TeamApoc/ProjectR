@@ -3,6 +3,9 @@
 
 #include "PRProjectileMovementComponent.h"
 
+#include "PRProjectileBase.h"
+#include "GameFramework/Character.h"
+
 
 UPRProjectileMovementComponent::UPRProjectileMovementComponent()
 {
@@ -29,4 +32,79 @@ UPRProjectileMovementComponent::UPRProjectileMovementComponent()
 
 	// 이동 리플리케이션 비활성. 폭발 시점에만 위치 동기화
 	SetIsReplicated(false);
+}
+
+bool UPRProjectileMovementComponent::ShouldBounce(const FHitResult& Hit)
+{
+	if (!bShouldBounce)
+	{
+		return false;
+	}
+
+	if (CurrentBounceCount >= MaxBounceCount)
+	{
+		return false;
+	}
+
+	return true;
+}
+
+void UPRProjectileMovementComponent::HandleImpact(const FHitResult& Hit, float TimeSlice, const FVector& MoveDelta)
+{
+	AActor* HitActor = Hit.GetActor();
+	bool bStopSimulating = false;
+
+	if (ShouldBounce(Hit))
+	{
+		const FVector OldVelocity = Velocity;
+		Velocity = ComputeBounceResult(Hit, TimeSlice, MoveDelta);
+
+		// 바운스 이벤트 브로드캐스트
+		OnProjectileBounce.Broadcast(Hit, OldVelocity);
+
+		// 이벤트에서 속도를 변경했을 수 있으므로 임계값 재검사
+		Velocity = LimitVelocity(Velocity);
+		if (IsVelocityUnderSimulationThreshold())
+		{
+			bStopSimulating = true;
+		}
+		
+		
+		const bool bIsCharacter = Cast<ACharacter>(HitActor) != nullptr;
+		if (bIsCharacter)
+		{
+			// 캐릭터에 바운스 한 경우 속력을 작게 보정 (앞에 떨어지도록)
+			double VelX = Velocity.X * 0.3f;
+			double VelY = Velocity.Y * 0.3f;
+			double VelZ = Velocity.Z > 0 ? Velocity.Z * 0.1f : Velocity.Z;
+			Velocity = LimitVelocity(FVector(VelX, VelY, VelZ));
+
+			// [임시방편] 복잡한 메시와 연속 충돌하여 공중에서 멈추는 현상 방지. 1회 바운스 후 해당 액터 콜리전 무시
+			if (UPrimitiveComponent* UpdatedPrim = Cast<UPrimitiveComponent>(UpdatedComponent))
+			{
+				UpdatedPrim->IgnoreActorWhenMoving(HitActor, true);
+			}
+		}
+		else
+		{
+			// 캐릭터에 바운스 하지 않은 경우만 남은 바운스 횟수 차감
+			++CurrentBounceCount;
+		}
+		
+		// 서버 권위 투사체인 경우 바운스 시점 위치/속도를 클라이언트에 동기화
+		APRProjectileBase* OwnerProjectile = Cast<APRProjectileBase>(GetOwner());
+		if (IsValid(OwnerProjectile) && OwnerProjectile->HasAuthority())
+		{
+			OwnerProjectile->PushRepMovement(EPRRepMovementEvent::Bounce);
+		}
+	}
+	else
+	{
+		bStopSimulating = true;
+	}
+
+	if (bStopSimulating)
+	{
+		StopSimulating(Hit);
+	}
 }

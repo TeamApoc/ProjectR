@@ -5,6 +5,7 @@
 #include "AbilitySystemComponent.h"
 #include "ProjectR/AbilitySystem/AttributeSets/PRAttributeSet_Common.h"
 #include "ProjectR/AbilitySystem/AttributeSets/PRAttributeSet_Enemy.h"
+#include "ProjectR/AbilitySystem/AttributeSets/PRAttributeSet_Player.h"
 #include "ProjectR/Combat/PRCombatGameplayTags.h"
 #include "ProjectR/Combat/PRCombatStatics.h"
 #include "ProjectR/PRGameplayTags.h"
@@ -78,11 +79,17 @@ void UPRDamageExecCalc_FromEnemy::Execute_Implementation(const FGameplayEffectCu
 	Inputs.bIsFromFriendly = UPRCombatStatics::IsFriendly(SourceActor, TargetActor);
 	Inputs.TargetArmor = TargetArmor;
 	
-	// 적의 공격력은 BaseDamage에 합성한다.
-	// AttackPower(Attribute) * AttackMultiplier(SetByCaller)
 	const float AttackMultiplier = OwningSpec.GetSetByCallerMagnitude(PRCombatGameplayTags::SetByCaller_AttackMultiplier, false, 1.0f);
-	if (AttackPower > 0.0f)
+	const bool bHasSetByCallerDamage = OwningSpec.SetByCallerTagMagnitudes.Contains(PRCombatGameplayTags::SetByCaller_Damage);
+	const float RawDamage = OwningSpec.GetSetByCallerMagnitude(PRCombatGameplayTags::SetByCaller_Damage, false, 0.0f);
+	if (bHasSetByCallerDamage)
 	{
+		// 적 패턴 DataAsset에서 전달된 피해가 있으면 Attribute AttackPower보다 우선한다.
+		Inputs.BaseDamage = FMath::Max(RawDamage, 0.0f) * AttackMultiplier;
+	}
+	else if (AttackPower > 0.0f)
+	{
+		// 기존 적 공격은 AttackPower(Attribute) * AttackMultiplier(SetByCaller)를 유지한다.
 		Inputs.BaseDamage = AttackPower * AttackMultiplier;
 	}
 
@@ -96,6 +103,26 @@ void UPRDamageExecCalc_FromEnemy::Execute_Implementation(const FGameplayEffectCu
 	{
 		OutExecutionOutput.AddOutputModifier(FGameplayModifierEvaluatedData(
 			UPRAttributeSet_Common::GetIncomingDamageAttribute(), EGameplayModOp::Additive, Outputs.FinalDamage));
+
+		if (IsValid(TargetASC->GetSet<UPRAttributeSet_Player>()))
+		{
+			OutExecutionOutput.AddOutputModifier(FGameplayModifierEvaluatedData(
+				UPRAttributeSet_Player::GetIncomingRecoverableDamageAttribute(), EGameplayModOp::Additive, Outputs.FinalDamage * 0.5f));
+		}
+	}
+
+	const bool bHasSetByCallerGroggyDamage = OwningSpec.SetByCallerTagMagnitudes.Contains(PRCombatGameplayTags::SetByCaller_GroggyDamage);
+	const UPRAttributeSet_Player* PlayerSet = TargetASC->GetSet<UPRAttributeSet_Player>();
+	if (bHasSetByCallerGroggyDamage && IsValid(PlayerSet))
+	{
+		// 플레이어 강인도 피해는 방어력 경감 없이 DataAsset 수치와 공격 배수만 적용한다.
+		const float RawGroggyDamage = OwningSpec.GetSetByCallerMagnitude(PRCombatGameplayTags::SetByCaller_GroggyDamage, false, 0.0f);
+		const float FinalPoiseDamage = FMath::Max(RawGroggyDamage * AttackMultiplier, 0.0f);
+		if (FinalPoiseDamage > 0.0f)
+		{
+			OutExecutionOutput.AddOutputModifier(FGameplayModifierEvaluatedData(
+				UPRAttributeSet_Player::GetIncomingPoiseDamageAttribute(), EGameplayModOp::Additive, FinalPoiseDamage));
+		}
 	}
 
 	DispatchPostDamageApplied(TargetActor, OwningSpec, Outputs, EffectiveHitResult, CurrentHealth, MaxHealth);

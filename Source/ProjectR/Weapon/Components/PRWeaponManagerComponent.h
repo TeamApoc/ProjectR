@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "Components/ActorComponent.h"
+#include "ProjectR/Weapon/Types/PRWeaponAnimationTypes.h"
 #include "ProjectR/Weapon/Types/PRWeaponTypes.h"
 #include "PRWeaponManagerComponent.generated.h"
 
@@ -15,7 +16,10 @@ class UPRAttributeSet_Weapon;
 class UPRInventoryComponent;
 class UPRItemInstance_Weapon;
 class UPRWeaponDataAsset;
+class UPRWeaponManagerComponent;
 class UPRWeaponModDataAsset;
+
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FPRWeaponEquipmentChangedSignature, UPRWeaponManagerComponent*, WeaponManagerComponent, EPRWeaponSlotType, ChangedSlot);
 
 // 캐릭터 기준 무기 장착 공개 상태와 슬롯별 로컬 Actor 생명주기를 관리하는 허브다.
 UCLASS(ClassGroup = (ProjectR), meta = (BlueprintSpawnableComponent))
@@ -97,11 +101,26 @@ public:
 	// 인벤토리에서 변경된 Mod 상태를 현재 관리 중인 무기 슬롯에 반영한다
 	void HandleInventoryWeaponModChanged(UPRItemInstance_Weapon* WeaponItem);
 
-	// 26.05.04, Yuchan, rpc 이펙트 재생 추가
+	// 26.05.04, Yuchan, rpc 이펙트 재생 추가 (AnimNotify에서 호출)
 	void PlayWeaponNiagaraEffect(EPRWeaponEffectType EffectType, UNiagaraSystem* InNiagaraSystem = nullptr);
-	
+
+	// Multicast 이펙트 재생 함수는 특수한 케이스에서 예외적으로 사용하고, 가급적 각자의 AnimNotify에서 로컬 버전 PlayWeaponNiagaraEffect 함수 호출
 	UFUNCTION(NetMulticast, Unreliable)
 	void Multicast_PlayWeaponNiagaraEffect(EPRWeaponEffectType EffectType, UNiagaraSystem* InNiagaraSystem = nullptr);
+
+	// 무기 장착 변경 델리게이트를 반환한다
+	FPRWeaponEquipmentChangedSignature& GetOnWeaponEquipmentChanged() { return OnWeaponEquipmentChanged; }
+  
+	// 활성 슬롯 무기 메시 애니메이션 상태 요청. 각 머신의 로컬 WeaponActor에서 실행
+	void RequestWeaponAnimation(EPRWeaponAnimationState AnimationState);
+
+	// 신뢰 멀티캐스트. 상태 전이가 누락되면 안 되는 케이스(Reload/Idle 복귀 등)에 사용
+	UFUNCTION(NetMulticast, Reliable)
+	void Multicast_RequestWeaponAnimation_Reliable(EPRWeaponAnimationState AnimationState);
+
+	// 비신뢰 멀티캐스트. 빈도 높고 누락 허용되는 케이스에 사용
+	UFUNCTION(NetMulticast, Unreliable)
+	void Multicast_RequestWeaponAnimation_Unreliable(EPRWeaponAnimationState AnimationState);
 	
 protected:
 	// 서버 권위에서 슬롯 원본과 공개 상태를 갱신한다
@@ -143,6 +162,14 @@ protected:
 	// 새로 복제된 무장 상태를 기준으로 로컬 부착 상태를 갱신한다
 	UFUNCTION()
 	void OnRep_ArmedState(EPRArmedState OldArmedState);
+
+	// 새로 복제된 주무기 원본 Item 상태를 기준으로 UI 갱신 신호를 발행한다
+	UFUNCTION()
+	void OnRep_PrimaryWeaponInstance();
+
+	// 새로 복제된 보조무기 원본 Item 상태를 기준으로 UI 갱신 신호를 발행한다
+	UFUNCTION()
+	void OnRep_SecondaryWeaponInstance();
 
 	// 클라이언트 Item 장착 요청을 서버 권위 경로로 전달한다
 	UFUNCTION(Server, Reliable)
@@ -186,6 +213,10 @@ protected:
 	// 현재 활성 무기 데이터를 기준으로 캐릭터 애니메이션 레이어를 갱신한다
 	void RefreshAnimLayer();
 
+	// 무기 데이터의 EquipAmmoGE를 SetByCaller 자력값과 함께 ASC에 적용한다
+	// 슬롯의 AmmoScale·ReserveAmmoRatio 비율만 갱신하며, 탄창·예비탄 raw 자원은 보존한다
+	void ApplyEquipAmmoGE(const UPRWeaponDataAsset* WeaponData, UObject* SourceObject);
+
 private:
 	// 대상 슬롯 원본을 수정 가능한 참조로 반환한다
 	TObjectPtr<UPRItemInstance_Weapon>& GetMutableWeaponInstanceBySlot(EPRWeaponSlotType SlotType);
@@ -220,11 +251,11 @@ protected:
 	FPRWeaponVisualInfo SecondaryVisualInfo;
 
 	// 주무기 슬롯에 연결된 무기 Item 원본
-	UPROPERTY(Replicated, VisibleInstanceOnly, BlueprintReadOnly, Category = "ProjectR|Weapon", meta = (AllowPrivateAccess = "true"))
+	UPROPERTY(ReplicatedUsing = OnRep_PrimaryWeaponInstance, VisibleInstanceOnly, BlueprintReadOnly, Category = "ProjectR|Weapon", meta = (AllowPrivateAccess = "true"))
 	TObjectPtr<UPRItemInstance_Weapon> PrimaryWeaponInstance;
 
 	// 보조무기 슬롯에 연결된 무기 Item 원본
-	UPROPERTY(Replicated, VisibleInstanceOnly, BlueprintReadOnly, Category = "ProjectR|Weapon", meta = (AllowPrivateAccess = "true"))
+	UPROPERTY(ReplicatedUsing = OnRep_SecondaryWeaponInstance, VisibleInstanceOnly, BlueprintReadOnly, Category = "ProjectR|Weapon", meta = (AllowPrivateAccess = "true"))
 	TObjectPtr<UPRItemInstance_Weapon> SecondaryWeaponInstance;
 
 	// 현재 캐릭터 메시와 연결된 무기 애니메이션 레이어 클래스
@@ -241,11 +272,14 @@ private:
 	TObjectPtr<APRWeaponActor> SecondaryWeaponActor;
 
 	// 현재 PlayerState에 연결된 ASC 캐시
-	TObjectPtr<UPRAbilitySystemComponent> CachedASC = nullptr;
+	TWeakObjectPtr<UPRAbilitySystemComponent> CachedASC = nullptr;
 
 	// 현재 PlayerState에 연결된 무기 슬롯 자원 캐시
-	TObjectPtr<UPRAttributeSet_Weapon> CachedWeaponSet = nullptr;
+	TWeakObjectPtr<UPRAttributeSet_Weapon> CachedWeaponSet = nullptr;
 
 	// 현재 PlayerState에 연결된 인벤토리 캐시
-	TObjectPtr<UPRInventoryComponent> CachedInventory = nullptr;
+	TWeakObjectPtr<UPRInventoryComponent> CachedInventory = nullptr;
+
+	// 무기 슬롯 장착 상태가 변경되었을 때 알린다
+	FPRWeaponEquipmentChangedSignature OnWeaponEquipmentChanged;
 };

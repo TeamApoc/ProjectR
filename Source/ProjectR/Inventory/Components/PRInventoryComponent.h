@@ -6,14 +6,32 @@
 #include "Components/ActorComponent.h"
 #include "PRInventoryComponent.generated.h"
 
+class UPRItemDataAsset;
+class UPRConsumableDataAsset;
 class UPRItemInstance_Mod;
 class UPRItemInstance_Weapon;
+class UPRItemInstance_Consumable;
+class UPRInventoryComponent;
 class UPRWeaponManagerComponent;
 class UPRWeaponDataAsset;
 class UPRWeaponModDataAsset;
+class AActor;
 class UActorChannel;
 class FOutBunch;
 struct FReplicationFlags;
+
+// 인벤토리 변경 신호의 원인이다
+UENUM(BlueprintType)
+enum class EPRInventoryChangeReason : uint8
+{
+	// 아이템 목록이 변경되었다
+	ItemListChanged,
+
+	// Mod 장착 상태가 변경되었다
+	ModEquipChanged
+};
+
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FPRInventoryChangedSignature, UPRInventoryComponent*, InventoryComponent, EPRInventoryChangeReason, ChangeReason);
 
 // 플레이어가 소유한 Item 인스턴스의 정본 컨테이너다
 UCLASS(ClassGroup = (ProjectR), meta = (BlueprintSpawnableComponent))
@@ -44,6 +62,29 @@ public:
 	// 새 무기 Mod Item을 생성해 인벤토리에 추가한다
 	UPRItemInstance_Mod* AddModItem(UPRWeaponModDataAsset* ModData);
 
+	// 소비 Item 추가를 서버 권위 경로로 요청한다
+	UFUNCTION(BlueprintCallable, Category = "ProjectR|Inventory")
+	void RequestAddConsumableItem(UPRConsumableDataAsset* ConsumableData, int32 AddCount);
+
+	// 새 소비 Item을 생성하거나 기존 소비 Item의 보유 개수를 증가시킨다
+	UPRItemInstance_Consumable* AddConsumableItem(UPRConsumableDataAsset* ConsumableData, int32 AddCount);
+
+	// 소비 Item 제거를 서버 권위 경로로 요청한다
+	UFUNCTION(BlueprintCallable, Category = "ProjectR|Inventory")
+	void RequestRemoveConsumableItem(UPRItemInstance_Consumable* ConsumableItem, int32 RemoveCount);
+
+	// 소비 Item 데이터 기반 제거를 서버 권위 경로로 요청한다
+	UFUNCTION(BlueprintCallable, Category = "ProjectR|Inventory")
+	void RequestRemoveConsumableItemByData(UPRConsumableDataAsset* ConsumableData, int32 RemoveCount);
+
+	// 소비 Item 사용을 서버 권위 경로로 요청한다
+	UFUNCTION(BlueprintCallable, Category = "ProjectR|Inventory")
+	void RequestUseConsumableItem(UPRItemInstance_Consumable* ConsumableItem, AActor* UserActor);
+
+	// 소비 Item 데이터 기반 사용을 서버 권위 경로로 요청한다
+	UFUNCTION(BlueprintCallable, Category = "ProjectR|Inventory")
+	void RequestUseConsumableItemByData(UPRConsumableDataAsset* ConsumableData, AActor* UserActor);
+
 	// Mod Item을 지정 무기 Item에 장착하도록 서버 권위 경로로 요청한다
 	UFUNCTION(BlueprintCallable, Category = "ProjectR|Inventory")
 	void RequestEquipModItemToWeapon(UPRItemInstance_Mod* ModItem, UPRItemInstance_Weapon* TargetWeaponItem);
@@ -66,11 +107,27 @@ public:
 	UFUNCTION(BlueprintPure, Category = "ProjectR|Inventory")
 	UPRItemInstance_Mod* GetModItemAtIndex(int32 ItemIndex) const;
 
+	// 인벤토리 인덱스로 소비 Item을 조회한다
+	UFUNCTION(BlueprintPure, Category = "ProjectR|Inventory")
+	UPRItemInstance_Consumable* GetConsumableItemAtIndex(int32 ItemIndex) const;
+
 	// 인자로 받은 무기 Item을 현재 인벤토리가 소유하는지 확인한다
 	bool OwnsWeapon(const UPRItemInstance_Weapon* WeaponItem) const;
 
 	// 인자로 받은 무기 Mod Item을 현재 인벤토리가 소유하는지 확인한다
 	bool OwnsMod(const UPRItemInstance_Mod* ModItem) const;
+
+	// 인자로 받은 소비 Item을 현재 인벤토리가 소유하는지 확인한다
+	bool OwnsConsumable(const UPRItemInstance_Consumable* ConsumableItem) const;
+
+	// 소비 Item 데이터로 인벤토리 내 소비 Item을 조회한다
+	UPRItemInstance_Consumable* FindConsumableItemByData(const UPRConsumableDataAsset* ConsumableData) const;
+
+	// 인벤토리 변경 이벤트를 발행한다
+	void OnInventoryChanged(EPRInventoryChangeReason ChangeReason);
+
+	// 인벤토리 변경 델리게이트를 반환한다
+	FPRInventoryChangedSignature& GetOnInventoryChanged() { return OnInventoryChangedDelegate; }
 
 protected:
 	// 클라이언트에서 무기 Item 목록 복제 결과를 확인한다
@@ -80,6 +137,10 @@ protected:
 	// 클라이언트에서 무기 Mod Item 목록 복제 결과를 확인한다
 	UFUNCTION()
 	void OnRep_InventoryModItems();
+
+	// 클라이언트에서 소비 Item 목록 복제 결과를 확인한다
+	UFUNCTION()
+	void OnRep_InventoryConsumableItems();
 
 	// 현재 인벤토리에 무기 Item을 등록한다
 	void RegisterInventoryWeaponItem(UPRItemInstance_Weapon* WeaponItem);
@@ -93,6 +154,24 @@ protected:
 	// 현재 인벤토리에서 무기 Mod Item 등록을 해제한다
 	void UnregisterInventoryModItem(UPRItemInstance_Mod* ModItem);
 
+	// 현재 인벤토리에 소비 Item을 등록한다
+	void RegisterInventoryConsumableItem(UPRItemInstance_Consumable* ConsumableItem);
+
+	// 현재 인벤토리에서 소비 Item 등록을 해제한다
+	void UnregisterConsumableItemInstance(UPRItemInstance_Consumable* ConsumableItem);
+
+	// 소비 Item의 보유 개수를 감소시키고 0개가 되면 인벤토리에서 제거한다
+	bool RemoveConsumableItemInternal(UPRItemInstance_Consumable* ConsumableItem, int32 RemoveCount);
+
+	// 소비 Item 데이터로 보유 개수를 감소시키고 0개가 되면 인벤토리에서 제거한다
+	bool RemoveConsumableItemByDataInternal(UPRConsumableDataAsset* ConsumableData, int32 RemoveCount);
+
+	// 소비 Item을 사용하고 0개가 되면 인벤토리에서 제거한다
+	bool UseConsumableItemInternal(UPRItemInstance_Consumable* ConsumableItem, AActor* UserActor);
+
+	// 소비 Item 데이터로 인스턴스를 찾아 사용한다
+	bool UseConsumableItemByDataInternal(UPRConsumableDataAsset* ConsumableData, AActor* UserActor);
+
 	// 클라이언트 요청을 서버의 Item 추가 처리로 전달한다
 	UFUNCTION(Server, Reliable)
 	void Server_RequestAddWeaponItem(UPRWeaponDataAsset* WeaponData);
@@ -100,6 +179,26 @@ protected:
 	// 클라이언트 요청을 서버의 무기 Mod Item 추가 처리로 전달한다
 	UFUNCTION(Server, Reliable)
 	void Server_RequestAddModItem(UPRWeaponModDataAsset* ModData);
+
+	// 클라이언트 요청을 서버의 소비 Item 추가 처리로 전달한다
+	UFUNCTION(Server, Reliable)
+	void Server_RequestAddConsumableItem(UPRConsumableDataAsset* ConsumableData, int32 AddCount);
+
+	// 클라이언트 요청을 서버의 소비 Item 제거 처리로 전달한다
+	UFUNCTION(Server, Reliable)
+	void Server_RequestRemoveConsumableItem(UPRItemInstance_Consumable* ConsumableItem, int32 RemoveCount);
+
+	// 클라이언트 요청을 서버의 소비 Item 데이터 기반 제거 처리로 전달한다
+	UFUNCTION(Server, Reliable)
+	void Server_RequestRemoveConsumableItemByData(UPRConsumableDataAsset* ConsumableData, int32 RemoveCount);
+
+	// 클라이언트 요청을 서버의 소비 Item 사용 처리로 전달한다
+	UFUNCTION(Server, Reliable)
+	void Server_RequestUseConsumableItem(UPRItemInstance_Consumable* ConsumableItem, AActor* UserActor);
+
+	// 클라이언트 요청을 서버의 소비 Item 데이터 기반 사용 처리로 전달한다
+	UFUNCTION(Server, Reliable)
+	void Server_RequestUseConsumableItemByData(UPRConsumableDataAsset* ConsumableData, AActor* UserActor);
 
 	// 클라이언트 Mod 장착 요청을 서버의 인벤토리 장착 처리로 전달한다
 	UFUNCTION(Server, Reliable)
@@ -124,4 +223,12 @@ public:
 	// 현재 인벤토리가 소유한 무기 Mod Item 목록
 	UPROPERTY(ReplicatedUsing = OnRep_InventoryModItems, VisibleInstanceOnly, BlueprintReadOnly, Category = "ProjectR|Inventory")
 	TArray<TObjectPtr<UPRItemInstance_Mod>> InventoryModItems;
+
+	// 현재 인벤토리가 소유한 소비 Item 목록
+	UPROPERTY(ReplicatedUsing = OnRep_InventoryConsumableItems, VisibleInstanceOnly, BlueprintReadOnly, Category = "ProjectR|Inventory")
+	TArray<TObjectPtr<UPRItemInstance_Consumable>> InventoryConsumableItems;
+
+private:
+	// 인벤토리 목록 또는 Item 장착 상태가 변경되었을 때 알린다
+	FPRInventoryChangedSignature OnInventoryChangedDelegate;
 };

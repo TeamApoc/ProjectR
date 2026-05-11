@@ -8,11 +8,14 @@
 #include "EnhancedInputComponent.h"
 #include "InputAction.h"
 #include "ProjectR/Game/PRCameraManager.h"
-#include "ProjectR/Character/PRPlayerCharacter.h"
 #include "ProjectR/Input/PRInputConfigDataAsset.h"
+#include "ProjectR/Player/PRPlayerState.h"
 #include "ProjectR/Projectile/PRProjectileManagerComponent.h"
-#include "ProjectR/UI/Components/PRUIManagerComponent.h"
+#include "ProjectR/QuickSlot/Coponents/PRQuickSlotComponent.h"
+#include "ProjectR/UI/Components/PRUIControllerComponent.h"
 #include "ProjectR/UI/FloatingText/PRFloatingTextManager.h"
+#include "ProjectR/Interaction/PRInteractionSensor.h"
+#include "ProjectR/Interaction/PRInteractorComponent.h"
 
 
 APRPlayerController::APRPlayerController()
@@ -21,8 +24,10 @@ APRPlayerController::APRPlayerController()
 	
 	ProjectileManager = CreateDefaultSubobject<UPRProjectileManagerComponent>(TEXT("ProjectileManager"));
 	FloatingTextManager = CreateDefaultSubobject<UPRFloatingTextManager>(TEXT("FloatingTextManager"));
-	// 2026.05.01 이건주 | UI 매니저 컴포넌트 추가 
-	UIManagerComponent = CreateDefaultSubobject<UPRUIManagerComponent>(TEXT("UIManagerComponent"));
+	// 2026.05.01 이건주 | UI 컨트롤러 컴포넌트 추가 
+	UIControllerComponent = CreateDefaultSubobject<UPRUIControllerComponent>(TEXT("UIControllerComponent"));
+	InteractionSensor = CreateDefaultSubobject<UPRInteractionSensor>(TEXT("InteractionSensor"));
+	InteractorComponent = CreateDefaultSubobject<UPRInteractorComponent>(TEXT("InteractorComponent"));
 }
 
 // =====  APlayerController Interface =====
@@ -30,13 +35,13 @@ APRPlayerController::APRPlayerController()
 void APRPlayerController::BeginPlay()
 {
 	Super::BeginPlay();
-
-	// 로컬 클라만 서버로 캐릭터 페이로드 제출
+	
+	// TODO: 로컬 클라만 서버로 캐릭터 페이로드 제출
 	// 호스트의 경우 GameMode가 직접 LocalCharacter를 주입하므로 별도 경로로 처리
-	if (IsLocalController() && GetNetMode() == NM_Client)
-	{
-		SubmitLocalCharacterToServer();
-	}
+	// if (IsLocalController() && GetNetMode() == NM_Client)
+	// {
+	// 	SubmitLocalCharacterToServer();
+	// }
 }
 
 void APRPlayerController::AcknowledgePossession(APawn* InPawn)
@@ -57,6 +62,16 @@ void APRPlayerController::SetupInputComponent()
 	if (IsValid(InventoryAction.Get()))
 	{
 		EIC->BindAction(InventoryAction.Get(), ETriggerEvent::Started, this, &APRPlayerController::OnInventoryInputStarted);
+	}
+
+	for (int32 SlotIndex = 0; SlotIndex < QuickSlotActions.Num(); ++SlotIndex)
+	{
+		if (!IsValid(QuickSlotActions[SlotIndex].Get()))
+		{
+			continue;
+		}
+
+		EIC->BindAction(QuickSlotActions[SlotIndex].Get(), ETriggerEvent::Started, this, &APRPlayerController::OnQuickSlotInputStarted, SlotIndex);
 	}
 
 	if (!IsValid(InputConfig))
@@ -197,10 +212,29 @@ void APRPlayerController::ClientGrantReward_Implementation(const FPRRewardGrant&
 // ===== UI =====
 void APRPlayerController::OnInventoryInputStarted()
 {
-	if (!IsValid(UIManagerComponent))
+	if (!IsValid(UIControllerComponent))
 	{
 		return;
 	}
     // 인벤토리 UI 토글 
-	UIManagerComponent->ToggleInventory();
+	UIControllerComponent->ToggleInventory();
+}
+
+void APRPlayerController::OnQuickSlotInputStarted(int32 SlotIndex)
+{
+	if (UPRQuickSlotComponent* QuickSlotComponent = GetQuickSlotComponent())
+	{
+		QuickSlotComponent->RequestUseQuickSlot(SlotIndex);
+	}
+}
+
+UPRQuickSlotComponent* APRPlayerController::GetQuickSlotComponent() const
+{
+	const APRPlayerState* PRPlayerState = GetPlayerState<APRPlayerState>();
+	if (!IsValid(PRPlayerState))
+	{
+		return nullptr;
+	}
+
+	return PRPlayerState->GetQuickSlotComponent();
 }

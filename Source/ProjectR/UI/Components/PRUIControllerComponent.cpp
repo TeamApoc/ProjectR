@@ -1,22 +1,23 @@
 // Copyright (c) 2026 TeamApoc. All Rights Reserved.
 
-#include "PRUIManagerComponent.h"
+#include "PRUIControllerComponent.h"
 
 #include "Blueprint/UserWidget.h"
 #include "Engine/LocalPlayer.h"
 #include "GameFramework/PlayerController.h"
 #include "ProjectR/Inventory/Components/PRInventoryComponent.h"
 #include "ProjectR/Player/PRPlayerState.h"
+#include "ProjectR/QuickSlot/Coponents/PRQuickSlotComponent.h"
 #include "ProjectR/UI/Inventory/PRInventoryWidget.h"
 #include "ProjectR/UI/PRUIManagerSubsystem.h"
 #include "ProjectR/Weapon/Components/PRWeaponManagerComponent.h"
 
-UPRUIManagerComponent::UPRUIManagerComponent()
+UPRUIControllerComponent::UPRUIControllerComponent()
 {
 	PrimaryComponentTick.bCanEverTick = false;
 }
 
-void UPRUIManagerComponent::ToggleInventory()
+void UPRUIControllerComponent::ToggleInventory()
 {
 	APlayerController* PlayerController = GetOwningPlayerController();
 	if (!IsValid(PlayerController) || !PlayerController->IsLocalController())
@@ -44,16 +45,17 @@ void UPRUIManagerComponent::ToggleInventory()
 
 	UPRInventoryComponent* InventoryComponent = GetInventoryComponent();
 	UPRWeaponManagerComponent* WeaponManagerComponent = GetWeaponManagerComponent();
-	if (!IsValid(InventoryComponent) || !IsValid(WeaponManagerComponent))
+	UPRQuickSlotComponent* QuickSlotComponent = GetQuickSlotComponent();
+	if (!IsValid(InventoryComponent) || !IsValid(WeaponManagerComponent) || !IsValid(QuickSlotComponent))
 	{
 		return;
 	}
 
-	CreatedInventoryWidget->SetInventorySources(InventoryComponent, WeaponManagerComponent);
+	CreatedInventoryWidget->SetInventorySources(InventoryComponent, WeaponManagerComponent, QuickSlotComponent);
 	UIManager->PushUIInstance(CreatedInventoryWidget);
 }
 
-void UPRUIManagerComponent::CloseInventory()
+void UPRUIControllerComponent::CloseInventory()
 {
 	if (!IsValid(InventoryWidget) || !InventoryWidget->IsInViewport())
 	{
@@ -71,7 +73,7 @@ void UPRUIManagerComponent::CloseInventory()
 	}
 }
 
-void UPRUIManagerComponent::EndPlay(const EEndPlayReason::Type EndPlayReason)
+void UPRUIControllerComponent::EndPlay(const EEndPlayReason::Type EndPlayReason)
 {
 	CloseInventory();
 	InventoryWidget = nullptr;
@@ -79,12 +81,12 @@ void UPRUIManagerComponent::EndPlay(const EEndPlayReason::Type EndPlayReason)
 	Super::EndPlay(EndPlayReason);
 }
 
-APlayerController* UPRUIManagerComponent::GetOwningPlayerController() const
+APlayerController* UPRUIControllerComponent::GetOwningPlayerController() const
 {
 	return Cast<APlayerController>(GetOwner());
 }
 
-UPRInventoryComponent* UPRUIManagerComponent::GetInventoryComponent() const
+UPRInventoryComponent* UPRUIControllerComponent::GetInventoryComponent() const
 {
 	const APlayerController* PlayerController = GetOwningPlayerController();
 	if (!IsValid(PlayerController))
@@ -101,7 +103,7 @@ UPRInventoryComponent* UPRUIManagerComponent::GetInventoryComponent() const
 	return PRPlayerState->GetInventoryComponent();
 }
 
-UPRWeaponManagerComponent* UPRUIManagerComponent::GetWeaponManagerComponent() const
+UPRWeaponManagerComponent* UPRUIControllerComponent::GetWeaponManagerComponent() const
 {
 	const APlayerController* PlayerController = GetOwningPlayerController();
 	if (!IsValid(PlayerController))
@@ -118,7 +120,24 @@ UPRWeaponManagerComponent* UPRUIManagerComponent::GetWeaponManagerComponent() co
 	return ControlledPawn->FindComponentByClass<UPRWeaponManagerComponent>();
 }
 
-UPRUIManagerSubsystem* UPRUIManagerComponent::GetUIManager() const
+UPRQuickSlotComponent* UPRUIControllerComponent::GetQuickSlotComponent() const
+{
+	const APlayerController* PlayerController = GetOwningPlayerController();
+	if (!IsValid(PlayerController))
+	{
+		return nullptr;
+	}
+
+	APRPlayerState* PRPlayerState = PlayerController->GetPlayerState<APRPlayerState>();
+	if (!IsValid(PRPlayerState))
+	{
+		return nullptr;
+	}
+
+	return PRPlayerState->GetQuickSlotComponent();
+}
+
+UPRUIManagerSubsystem* UPRUIControllerComponent::GetUIManager() const
 {
 	const APlayerController* PlayerController = GetOwningPlayerController();
 	if (!IsValid(PlayerController))
@@ -135,7 +154,7 @@ UPRUIManagerSubsystem* UPRUIManagerComponent::GetUIManager() const
 	return LocalPlayer->GetSubsystem<UPRUIManagerSubsystem>();
 }
 
-UPRInventoryWidget* UPRUIManagerComponent::GetOrCreateInventoryWidget()
+UPRInventoryWidget* UPRUIControllerComponent::GetOrCreateInventoryWidget()
 {
 	if (IsValid(InventoryWidget))
 	{

@@ -6,6 +6,8 @@
 #include "AbilitySystemComponent.h"
 #include "AbilitySystemBlueprintLibrary.h"
 #include "DrawDebugHelpers.h"
+#include "GameplayEffect.h"
+#include "ProjectR/Combat/PRCombatGameplayTags.h"
 #include "ProjectR/AbilitySystem/Data/PRAbilitySystemRegistry.h"
 #include "ProjectR/AbilitySystem/Tasks/PRAT_SpawnPredictedProjectile.h"
 #include "ProjectR/PRGameplayTags.h"
@@ -15,6 +17,7 @@
 #include "ProjectR/System/PREventManagerSubsystem.h"
 #include "ProjectR/System/PREventTypes.h"
 #include "ProjectR/UI/Crosshair/PRCrosshairTypes.h"
+#include "ProjectR/Utils/PRGameplayStatics.h"
 #include "ProjectR/Weapon/Actors/PRWeaponActor.h"
 #include "ProjectR/Weapon/Components/PRWeaponManagerComponent.h"
 #include "ProjectR/Weapon/Data/PRWeaponDataAsset.h"
@@ -29,15 +32,14 @@ UPRGA_Fire::UPRGA_Fire()
 
 	// 기본적으로 발사 어빌리티는 Aiming일 때만 활성화
 	ActivationRequiredTags.AddTag(PRGameplayTags::State_Aiming);
+
+	// GetCooldownTags가 반환할 컨테이너 1회 초기화
+	CooldownTagsContainer.AddTag(PRGameplayTags::Cooldown_Ability_Fire);
 }
 
 void UPRGA_Fire::ActivateAbility(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo,
 	const FGameplayAbilityActivationInfo ActivationInfo, const FGameplayEventData* TriggerEventData)
 {
-	Super::ActivateAbility(Handle, ActorInfo, ActivationInfo, TriggerEventData);
-
-	ResetConsecutiveShots();
-
 	if (APRPlayerCharacter* PlayerCharacter = GetPRCharacter<APRPlayerCharacter>())
 	{
 		if (UPRWeaponManagerComponent* WeaponManager = PlayerCharacter->GetWeaponManager())
@@ -45,7 +47,9 @@ void UPRGA_Fire::ActivateAbility(const FGameplayAbilitySpecHandle Handle, const 
 			CurrentWeapon = WeaponManager->GetActiveWeaponActor();
 		}
 	}
-
+	
+	Super::ActivateAbility(Handle, ActorInfo, ActivationInfo, TriggerEventData);
+	ResetConsecutiveShots();
 	NextShotId = 0;
 }
 
@@ -57,10 +61,69 @@ void UPRGA_Fire::EndAbility(const FGameplayAbilitySpecHandle Handle, const FGame
 	Super::EndAbility(Handle, ActorInfo, ActivationInfo, bReplicateEndAbility, bWasCancelled);
 }
 
+void UPRGA_Fire::OnRemoveAbility(const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilitySpec& Spec)
+{
+	// 무기 교체시 쿨다운 효과 제거
+	if (ActorInfo->AbilitySystemComponent.IsValid() && CooldownHandle.IsValid())
+	{
+		ActorInfo->AbilitySystemComponent->RemoveActiveGameplayEffect(CooldownHandle);
+	}
+	
+	Super::OnRemoveAbility(ActorInfo, Spec);
+}
+
+/*~ 쿨다운 오버라이드 ~*/
+
+UGameplayEffect* UPRGA_Fire::GetCooldownGameplayEffect() const
+{
+	const UPRAbilitySystemRegistry* Registry = UPRAssetManager::Get().GetAbilitySystemRegistry();
+	if (!IsValid(Registry) || !IsValid(Registry->CooldownGE_Fire))
+	{
+		return nullptr;
+	}
+	return Registry->CooldownGE_Fire.GetDefaultObject();
+}
+
+const FGameplayTagContainer* UPRGA_Fire::GetCooldownTags() const
+{
+	return &CooldownTagsContainer;
+}
+
+void UPRGA_Fire::ApplyCooldown(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilityActivationInfo ActivationInfo) const
+{
+	UGameplayEffect* CooldownGE = GetCooldownGameplayEffect();
+	if (CooldownGE == nullptr)
+	{
+		return;
+	}
+
+	const FGameplayEffectSpecHandle SpecHandle = MakeOutgoingGameplayEffectSpec(
+		Handle, ActorInfo, ActivationInfo, CooldownGE->GetClass());
+	if (!SpecHandle.IsValid())
+	{
+		return;
+	}
+
+	// 무기 데이터에서 캐싱한 발사 간격을 GE Duration으로 주입
+	SpecHandle.Data->SetSetByCallerMagnitude(PRCombatGameplayTags::SetByCaller_Cooldown, CachedFireInterval);
+	CooldownHandle = ApplyGameplayEffectSpecToOwner(Handle, ActorInfo, ActivationInfo, SpecHandle);
+}
+
 
 FVector UPRGA_Fire::GetMuzzleLocation() const
 {
 	// !!! 임시 코드 !!!
+	if (!CurrentWeapon.IsValid())
+	{
+		if (APRPlayerCharacter* PlayerCharacter = GetPRCharacter<APRPlayerCharacter>())
+		{
+			if (UPRWeaponManagerComponent* WeaponManager = PlayerCharacter->GetWeaponManager())
+			{
+				CurrentWeapon = WeaponManager->GetActiveWeaponActor();
+			}
+		}
+	}
+	
 	if (CurrentWeapon.IsValid())
 	{
 		return CurrentWeapon->GetMuzzleTransform().GetLocation();
@@ -84,53 +147,30 @@ FPRFireViewpoint UPRGA_Fire::GetFireViewpoint() const
 		return View;
 	}
 
-	// TPS 숄더뷰: SpringArm/카메라 오프셋이 반영된 실제 카메라 위치/회전을 사용
-	// (Pawn::GetActorEyesViewPoint는 액터 BaseEyeHeight 기준이라 TPS 카메라와 다름)
-	APlayerController* PC = Cast<APlayerController>(GetActorInfo().PlayerController.Get());
-	if (IsValid(PC) && IsValid(PC->PlayerCameraManager))
-	{
-		View.Location = PC->PlayerCameraManager->GetCameraLocation();
-		View.Rotation = PC->PlayerCameraManager->GetCameraRotation();
-		return View;
-	}
-
-	// Fallback: 컨트롤러가 없을 때 액터 눈높이 기준
-	if (APawn* OwnerPawn = Cast<APawn>(GetAvatarActorFromActorInfo()))
-	{
-		OwnerPawn->GetActorEyesViewPoint(View.Location, View.Rotation);
-	}
-
+	UPRGameplayStatics::GetPawnViewpoint(Cast<APawn>(GetAvatarActorFromActorInfo()), View.Location, View.Rotation);
 	return View;
 }
 
 FVector UPRGA_Fire::ResolveAimPoint(const FPRFireViewpoint& View, float InMaxTraceDistance) const
 {
-	const FVector CamStart = View.Location;
-	const FVector CamEnd = CamStart + View.Rotation.Vector() * InMaxTraceDistance;
-
-	UWorld* World = GetWorld();
-	if (!IsValid(World))
-	{
-		return CamEnd;
-	}
-
-	FCollisionQueryParams Params(SCENE_QUERY_STAT(PRFireAimTrace), false);
+	APawn* OwnerPawn = Cast<APawn>(GetAvatarActorFromActorInfo());
+	TArray<AActor*> IgnoredActors;
 	if (AActor* AvatarActor = GetAvatarActorFromActorInfo())
 	{
-		Params.AddIgnoredActor(AvatarActor);
+		IgnoredActors.Add(AvatarActor);
 	}
-
-	FHitResult AimHit;
-	World->LineTraceSingleByChannel(AimHit, CamStart, CamEnd, FireTraceChannel.GetValue(), Params);
+	const FVector AimPoint = UPRGameplayStatics::ResolveCameraAimPoint(OwnerPawn, InMaxTraceDistance, FireTraceChannel.GetValue(), IgnoredActors);
 
 	// 디버그: 카메라 트레이스는 시안색 (참고용)
 	if (bDrawCameraTrace)
 	{
-		const FVector AimDrawEnd = AimHit.bBlockingHit ? AimHit.ImpactPoint : CamEnd;
-		DrawDebugLine(World, CamStart, AimDrawEnd, FColor::Cyan, false, DebugDrawDuration, 0, 0.5f);
+		if (UWorld* World = GetWorld())
+		{
+			DrawDebugLine(World, View.Location, AimPoint, FColor::Cyan, false, DebugDrawDuration, 0, 0.5f);
+		}
 	}
 
-	return AimHit.bBlockingHit ? AimHit.ImpactPoint : CamEnd;
+	return AimPoint;
 }
 
 FHitResult UPRGA_Fire::PerformMuzzleTrace(const FVector& MuzzleLoc, const FVector& AimPoint) const
@@ -179,12 +219,25 @@ void UPRGA_Fire::FireHitScan()
 		return;
 	}
 
-	// 몽타쥬 재생
+	// 클라이언트 예측 cost 적용 (호스트는 ServerConfirmShot에서 단일 auth commit 처리하므로 제외)
+	// 예측 cost가 실패하면 발사 시도 자체를 차단하고 어빌리티 종료
+	const AActor* AvatarActor = Info.AvatarActor.Get();
+	const bool bHasAuthority = IsValid(AvatarActor) && AvatarActor->HasAuthority();
+	if (!bHasAuthority)
+	{
+		if (!CommitAbilityCost(CurrentSpecHandle, CurrentActorInfo, CurrentActivationInfo))
+		{
+			UE_LOG(LogFire, Verbose, TEXT("Client predicted cost failed (탄약 부족). 사격 차단."));
+			EndAbility(CurrentSpecHandle, CurrentActorInfo, CurrentActivationInfo, /*bReplicateEndAbility=*/true, /*bWasCancelled=*/true);
+			return;
+		}
+	}
+
+	// 몽타쥬 재생. 무기 메시 애니메이션은 몽타주 노티파이가 각 머신에서 로컬로 트리거한다
 	if (UPRWeaponDataAsset* WeaponData = GetActiveWeaponData())
 	{
 		PlayWeaponMontage(WeaponData->ShootMontage, WeaponData->ShootMontagePlayRate);
 	}
-	RequestCurrentWeaponShootAnimation();
 
 	// 페이로드 구성
 	FPRFireShotPayload Payload;
@@ -244,13 +297,11 @@ void UPRGA_Fire::FireHitScan()
 	}
 
 	// 권위가 있는 로컬(Standalone/ListenServer 호스트)은 RPC 없이 직접 확정
-	const AActor* AvatarActor = GetAvatarActorFromActorInfo();
-	const bool bHasAuthority = IsValid(AvatarActor) && AvatarActor->HasAuthority();
-
 	if (bHasAuthority)
 	{
 		ServerConfirmShot(Payload);
 	}
+	// 권위가 없는 클라는 서버에 보고
 	else
 	{
 		Server_ReportShot(Payload);
@@ -268,21 +319,14 @@ FTransform UPRGA_Fire::GetProjectileLaunchTransform() const
 	{
 		return FTransform();
 	}
-	
-	const FPRFireViewpoint View = GetFireViewpoint();
-	const FVector MuzzleLoc = GetMuzzleLocation();
 
-	// 1차 트레이스로 카메라가 가리키는 월드 조준점 산출 (숄더뷰 시차 보정)
-	const FVector AimPoint = ResolveAimPoint(View, MaxTraceDistance);
-
-	// 총구 -> 조준점 방향. 거리가 너무 짧으면(=조준점이 총구 바로 앞/뒤) 카메라 정면으로 폴백
-	FVector LaunchDir = AimPoint - MuzzleLoc;
-	if (!LaunchDir.Normalize(KINDA_SMALL_NUMBER))
+	APawn* OwnerPawn = Cast<APawn>(GetAvatarActorFromActorInfo());
+	TArray<AActor*> IgnoredActors;
+	if (AActor* AvatarActor = GetAvatarActorFromActorInfo())
 	{
-		LaunchDir = View.Rotation.Vector();
+		IgnoredActors.Add(AvatarActor);
 	}
-
-	return FTransform(LaunchDir.Rotation(), MuzzleLoc);
+	return UPRGameplayStatics::ResolveProjectileLaunchTransform(OwnerPawn, GetMuzzleLocation(), MaxTraceDistance, FireTraceChannel.GetValue(), IgnoredActors);
 }
 
 void UPRGA_Fire::FireProjectile(TSubclassOf<APRProjectileBase> ProjectileClass, FVector SpawnLocation, FRotator SpawnRotation)
@@ -359,7 +403,15 @@ void UPRGA_Fire::ServerConfirmShot(const FPRFireShotPayload& Payload)
 {
 	UE_LOG(LogFire, Warning, TEXT("Server Confirm Shot. ShotID: %u"), Payload.ShotID);
 
-	// TODO: Cost GE 적용 (탄약 소모)
+	// GA의 CostGameplayEffectClass(MMC_AmmoCost 기반)를 적용해 슬롯 raw 탄창에서 cost × scale 차감
+	// CheckCost 실패 시 탄약 부족으로 간주해 데미지를 적용하지 않고 어빌리티 종료
+	if (!CommitAbilityCost(CurrentSpecHandle, CurrentActorInfo, CurrentActivationInfo))
+	{
+		UE_LOG(LogFire, Warning, TEXT("Cost commit failed (탄약 부족). ShotID: %u"), Payload.ShotID);
+		EndAbility(CurrentSpecHandle, CurrentActorInfo, CurrentActivationInfo, /*bReplicateEndAbility=*/true, /*bWasCancelled=*/true);
+		return;
+	}
+
 	// TODO: Tolerance 검증 + ShotId gap 감지
 
 	if (Payload.HasValidHitResult())
@@ -458,10 +510,3 @@ void UPRGA_Fire::PlayWeaponMontage(UAnimMontage* Montage, float PlayRate)
 	}
 }
 
-void UPRGA_Fire::RequestCurrentWeaponShootAnimation() const
-{
-	if (CurrentWeapon.IsValid())
-	{
-		CurrentWeapon->RequestShootAnimation();
-	}
-}

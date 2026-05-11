@@ -35,6 +35,11 @@ void UPRItemSlotWidget::NativeOnInitialized()
 	RefreshNativeDisplay();
 	// 현재 표시 데이터로 툴팁 위젯을 갱신한다
 	RefreshTooltipWidget();
+	
+	if (IsValid(EquippedIndicatorImage))
+	{
+		EquippedIndicatorImage->SetVisibility(ESlateVisibility::Hidden);
+	}
 }
 
 FReply UPRItemSlotWidget::NativeOnMouseButtonDown(const FGeometry& InGeometry, const FPointerEvent& InMouseEvent)
@@ -68,7 +73,33 @@ void UPRItemSlotWidget::RefreshNativeDisplay()
 
 	if (IsValid(ItemIconImage))
 	{
-		ItemIconImage->SetBrushFromTexture(ViewData.Icon.Get());
+		UTexture2D* ItemIcon = ViewData.Icon.Get();
+		if (!IsValid(ItemIcon))
+		{
+			// 아이템 아이콘이 없으면 아이템 아이콘 이미지 숨김
+			ItemIconImage->SetVisibility(ESlateVisibility::Hidden);
+		}
+		else
+		{
+			ItemIconImage->SetVisibility(ESlateVisibility::Visible);
+			ItemIconImage->SetBrushFromTexture(ItemIcon);
+		}
+	}
+
+	if (IsValid(EquippedIndicatorImage))
+	{
+		// 아이템 장착중 여부에 따라 이미지 숨김/표시
+		const ESlateVisibility EquippedIndicatorVisibility = ViewData.bEquipped
+			? ESlateVisibility::Visible
+			: ESlateVisibility::Hidden;
+		EquippedIndicatorImage->SetVisibility(EquippedIndicatorVisibility);
+	}
+
+	if (IsValid(StackCountText))
+	{
+		const bool bShowStackCount = ViewData.bShowStackCount && IsValid(ViewData.ItemData.Get());
+		StackCountText->SetVisibility(bShowStackCount ? ESlateVisibility::Visible : ESlateVisibility::Hidden);
+		StackCountText->SetText(FText::AsNumber(ViewData.StackCount));
 	}
 }
 

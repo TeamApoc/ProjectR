@@ -8,14 +8,17 @@
 #include "ProjectR/Game/PRGameTypes.h"
 #include "PRPlayerController.generated.h"
 
+class UPRInteractorComponent;
 class UPRProjectileManagerComponent;
 class UPRFloatingTextManager;
 class UAbilitySystemComponent;
 class UPRInputConfigDataAsset;
 class UPRAbilitySystemComponent;
+class UPRQuickSlotComponent;
 struct FInputActionValue;
 class UInputAction;
-class UPRUIManagerComponent;
+class UPRUIControllerComponent;
+class UPRInteractionSensor;
 
 // 플레이어 입력·UI 소유. Join 시 캐릭터 페이로드를 서버로 전송하고,
 // 인게임 중 발생한 보상 Grant를 연결이 살아있는 동안 즉시 수령하여 GameInstance에 반영한다
@@ -78,6 +81,16 @@ protected:
 	// 인벤토리 열기 입력 액션
 	UPROPERTY(EditDefaultsOnly, Category = "ProjectR|Input")
 	TObjectPtr<const UInputAction> InventoryAction;
+
+	// 퀵슬롯 입력 액션 목록. 배열 인덱스가 퀵슬롯 인덱스와 일치한다
+	UPROPERTY(EditDefaultsOnly, Category = "ProjectR|Input")
+	TArray<TObjectPtr<const UInputAction>> QuickSlotActions;
+
+	// 퀵슬롯 입력 시작을 처리
+	void OnQuickSlotInputStarted(int32 SlotIndex);
+
+	// 플레이어 퀵슬롯 컴포넌트를 조회
+	UPRQuickSlotComponent* GetQuickSlotComponent() const;
 	
 private:
 	// 캐릭터 페이로드를 이미 제출했는지 여부. 중복 제출 방지
@@ -94,5 +107,13 @@ private:
     // ====== UI =====
 	// 로컬 플레이어 UI 표시 흐름을 담당하는 컴포넌트
 	UPROPERTY(VisibleAnywhere, Category = "ProjectR|UI")
-	TObjectPtr<UPRUIManagerComponent> UIManagerComponent;
+	TObjectPtr<UPRUIControllerComponent> UIControllerComponent;
+
+	// 주변 Interactable 감지, 포커스 후보 선정을 담당하는 컴포넌트 (로컬 컨트롤러 전용 동작)
+	UPROPERTY(VisibleAnywhere, Category = "ProjectR|Interaction")
+	TObjectPtr<UPRInteractionSensor> InteractionSensor;
+	
+	// 상호작용 매니저 컴포넌트
+	UPROPERTY(VisibleAnywhere, Category = "ProjectR|Interaction")
+	TObjectPtr<UPRInteractorComponent> InteractorComponent;
 };

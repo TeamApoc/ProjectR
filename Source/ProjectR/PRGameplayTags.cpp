@@ -9,6 +9,7 @@ namespace PRGameplayTags
 
 	// ===== Player =====
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Player, "Player", "플레이어 관련 태그");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Player_Ready, "Player.Ready", "플레이어 준비 완료 태그");
 
 	// ===== Ability.* =====
 
@@ -18,6 +19,9 @@ namespace PRGameplayTags
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Ability_Player_Crouch, "Ability.Player.Crouch", "플레이어 에임 어빌리티");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Ability_Player_Aim, "Ability.Player.Aim", "플레이어 구르기 어빌리티");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Ability_Player_Sprint, "Ability.Player.Sprint", "플레이어 질주 어빌리티");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Ability_Player_Interaction, "Ability.Player.Interaction", "플레이어 상호작용 어빌리티");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Ability_Player_Reload, "Ability.Player.Reload", "플레이어 재장전 어빌리티");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Ability_Player_HitReact, "Ability.Player.HitReact", "플레이어 피격 리액션 어빌리티");
 
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Ability_Enemy_Pattern, "Ability.Enemy.Pattern", "일반 적 패턴 공통 루트");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Ability_Boss_Pattern, "Ability.Boss.Pattern", "보스 패턴 공통 루트");
@@ -66,18 +70,26 @@ namespace PRGameplayTags
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(State_Dead, "State.Dead", "사망 상태");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(State_Groggy, "State.Groggy", "그로기 상태");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(State_StaminaDepleted, "State.StaminaDepleted", "스태미너 고갈 상태");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(State_Down, "State.Down", "전투불능 다운 상태");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(State_Invulnerable, "State.Invulnerable", "무적 상태 (회피 i-frame 등)");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(State_Dodging, "State.Dodging", "구르기 중 (무적이 아님)");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(State_Crouching, "State.Crouching", "앉기 상태");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(State_Aiming, "State.Aiming", "에이밍 상태");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(State_Sprinting, "State.Sprinting", "질주 상태");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(State_Reloading, "State.Reloading", "재장전 진행 상태");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(State_Channeling, "State.Channeling", "캐스팅 또는 채널링 상태");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(State_PoiseRecoveryBlocked, "State.PoiseRecoveryBlocked", "강인도 회복 차단 상태");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(State_RecoverableHealthRecoveryBlocked, "State.RecoverableHealthRecoveryBlocked", "회복 가능 체력 회복 차단 상태");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(State_PlayerInputLocked, "State.PlayerInputLocked", "플레이어 입력 차단 상태");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(State_PlayerHitReactLocked, "State.PlayerHitReactLocked", "피격 리액션 행동불능 상태");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(State_PhaseTransitioning, "State.PhaseTransitioning", "보스 페이즈 전환 상태");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(State_Boss_WeakpointOpen_Core, "State.Boss.WeakpointOpen.Core", "보스 코어 약점 오픈 상태");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(State_Armed, "State.Armed", "플레이어 무기 장착중 상태");
 
 	// ===== Cooldown.* =====
 
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Cooldown_Ability_Dodge, "Cooldown.Ability.Dodge", "구르기 쿨다운");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Cooldown_Ability_Fire, "Cooldown.Ability.Fire", "무기 발사 쿨다운");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Cooldown_Boss_Faerin_PortalMissile, "Cooldown.Boss.Faerin.PortalMissile", "Faerin 포털 미사일 패턴 쿨다운");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Cooldown_Boss_Faerin_PortalBarrage, "Cooldown.Boss.Faerin.PortalBarrage", "Faerin 포털 연속 포격 패턴 쿨다운");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Cooldown_Boss_Faerin_TeleportLunge, "Cooldown.Boss.Faerin.TeleportLunge", "Faerin Teleport Lunge 패턴 쿨다운");
@@ -88,6 +100,9 @@ namespace PRGameplayTags
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Event_Ability_Death, "Event.Ability.Death", "사망 이벤트");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Event_Ability_GroggyEntered, "Event.Ability.GroggyEntered", "그로기 진입 이벤트");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Event_Ability_PhaseTransition, "Event.Ability.PhaseTransition", "페이즈 전환 이벤트");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Event_Ability_PlayerHitReact_Weak, "Event.Ability.PlayerHitReact.Weak", "플레이어 약한 경직 이벤트");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Event_Ability_PlayerHitReact_Strong, "Event.Ability.PlayerHitReact.Strong", "플레이어 강한 경직 이벤트");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Event_Ability_PlayerHitReact_Down, "Event.Ability.PlayerHitReact.Down", "플레이어 다운 이벤트");
 
 	// ===== Event.Player.* =====
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Event_Player_HitShot, "Event.Player.HitShot", "사격이 적중했을 때");
@@ -95,6 +110,8 @@ namespace PRGameplayTags
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Event_Player_Aim_Start, "Event.Player.Aim.Start", "에이밍 진입");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Event_Player_Aim_End, "Event.Player.Aim.End", "에이밍 해제");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Event_Player_ChangeCrosshair, "Event.Player.ChangeCrosshair", "크로스헤어 Config 교체");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Event_Player_ReloadCommit, "Event.Player.ReloadCommit", "재장전 자원 이동 트리거");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Event_Player_Interaction_Hold, "Event.Player.Interaction.Hold", "Hold 상호작용 단계 알림");
 
 	// ===== Cue.* =====
 
@@ -110,6 +127,7 @@ namespace PRGameplayTags
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Input_Ability_Aim, "Input.Ability.Aim", "에이밍 입력 태그");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Input_Ability_Sprint, "Input.Ability.Sprint", "질주 입력 태그");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Input_Ability_Mod, "Input.Ability.Mod", "모드 스킬 입력 태그");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Input_Ability_Reload, "Input.Ability.Reload", "재장전 입력 태그");
 
 	// ===== Input.Locomotion.* =====
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Input_Locomotion_Walk, "Input.Locomotion.Walk", "Walk 토글 입력 태그");

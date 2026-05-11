@@ -4,23 +4,24 @@
 
 #include "CoreMinimal.h"
 #include "Components/ActorComponent.h"
-#include "PRUIManagerComponent.generated.h"
+#include "PRUIControllerComponent.generated.h"
 
 class APlayerController;
 class UPRInventoryComponent;
 class UPRInventoryWidget;
+class UPRQuickSlotComponent;
 class UPRUIManagerSubsystem;
 class UPRWeaponManagerComponent;
 
 // 플레이어 컨트롤러에 부착되어 로컬 플레이어 UI 표시 흐름을 관리한다
 UCLASS(ClassGroup=(UI), meta=(BlueprintSpawnableComponent))
-class PROJECTR_API UPRUIManagerComponent : public UActorComponent
+class PROJECTR_API UPRUIControllerComponent : public UActorComponent
 {
 	GENERATED_BODY()
 
 public:
 	// UI 매니저 컴포넌트 기본 설정을 초기화한다
-	UPRUIManagerComponent();
+	UPRUIControllerComponent();
 
 	// 인벤토리 위젯을 열거나 닫는다
 	UFUNCTION(BlueprintCallable, Category = "ProjectR|UI")
@@ -48,6 +49,9 @@ private:
 
 	// 현재 폰의 무기 매니저 컴포넌트를 조회한다
 	UPRWeaponManagerComponent* GetWeaponManagerComponent() const;
+
+	// 플레이어 퀵슬롯 컴포넌트를 조회한다
+	UPRQuickSlotComponent* GetQuickSlotComponent() const;
 
 	// 로컬 플레이어 UI 매니저 서브시스템을 조회한다
 	UPRUIManagerSubsystem* GetUIManager() const;

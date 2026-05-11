@@ -150,8 +150,6 @@ FPRWeaponStatusViewData UPRWeaponHUDWidget::BuildWeaponStatusViewData(EPRWeaponS
 void UPRWeaponHUDWidget::NativeConstruct()
 {
 	Super::NativeConstruct();
-	
-	InitializeWeaponHUD();
 }
 
 void UPRWeaponHUDWidget::NativeDestruct()

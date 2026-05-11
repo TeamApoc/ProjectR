@@ -9,6 +9,7 @@ namespace PRGameplayTags
 
 	// ===== Player =====
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Player, "Player", "플레이어 관련 태그");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Player_Ready, "Player.Ready", "플레이어 준비 완료 태그");
 
 	// ===== Ability.* =====
 

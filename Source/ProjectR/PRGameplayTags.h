@@ -11,6 +11,7 @@ namespace PRGameplayTags
 
 	// ===== Player =====
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Player); // 플레이어 관련 루트
+	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Player_Ready); // 플레이어 관련 루트
 
 	// ===== Ability.* — 어빌리티 식별 =====
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Ability_Player_Weapon_Fire_Primary); // 플레이어 주무기 발사 어빌리티

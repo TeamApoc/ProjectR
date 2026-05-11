@@ -38,6 +38,11 @@ public:
 	// 현재 세션 종료 처리. 호스트/게스트 공통 진입점
 	void EndSession();
 
+	// 소프트 참조된 맵으로 ServerTravel을 수행한다. 호스트(리슨/데디케이티드/스탠드얼론)에서만 동작
+	// bAbsolute=true 이면 URL 옵션을 보존하지 않고 새 맵으로 절대 이동
+	UFUNCTION(BlueprintCallable, Category = "ProjectR|Session")
+	void ServerTravelToMap(TSoftObjectPtr<UWorld> MapAsset, bool bAbsolute = true);
+
 	// 현재 세션 상태 조회
 	EPRSessionState GetState() const { return CurrentState; }
 

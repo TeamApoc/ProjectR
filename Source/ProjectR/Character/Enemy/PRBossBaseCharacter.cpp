@@ -9,6 +9,7 @@
 APRBossBaseCharacter::APRBossBaseCharacter()
 {
 	// 페이즈 임계값은 보스 BP/데이터에서 설정한다. C++ 기본값을 두면 몬스터별 튜닝이 하드코딩된다.
+	bUseWorldHealthBar = false;
 }
 
 void APRBossBaseCharacter::EndPlay(const EEndPlayReason::Type EndPlayReason)
@@ -212,6 +213,26 @@ void APRBossBaseCharacter::CancelAllBossPatternActors()
 			PatternActor->CancelPatternActor();
 		}
 	}
+}
+
+FText APRBossBaseCharacter::GetBossDisplayName() const
+{
+	return FText::FromName(CharacterID);
+}
+
+void APRBossBaseCharacter::GetPhaseThresholdRatios(TArray<float>& OutRatios) const
+{
+	OutRatios.Reset();
+
+	for (const TPair<EPRBossPhase, float>& ThresholdPair : PhaseThresholdRatios)
+	{
+		OutRatios.Add(FMath::Clamp(ThresholdPair.Value, 0.0f, 1.0f));
+	}
+
+	OutRatios.Sort([](float Left, float Right)
+	{
+		return Left > Right;
+	});
 }
 
 void APRBossBaseCharacter::HandleGameplayTagUpdated(const FGameplayTag& ChangedTag, bool TagExists)

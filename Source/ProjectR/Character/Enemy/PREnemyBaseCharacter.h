@@ -11,8 +11,6 @@
 #include "PREnemyBaseCharacter.generated.h"
 
 class UBehaviorTree;
-class UBoxComponent;
-class USphereComponent;
 class UPRAbilitySystemComponent;
 class UPRAttributeSet_Common;
 class UPRAttributeSet_Enemy;
@@ -75,8 +73,6 @@ public:
 
 	const UPRAttributeSet_Common* GetCommonSet() const { return CommonSet; }
 	const UPRAttributeSet_Enemy* GetEnemySet() const { return EnemySet; }
-	const UBoxComponent* GetArmorCollision() const { return ArmorCollision; }
-	const USphereComponent* GetWeakpointCollision() const { return WeakpointCollision; }
 
 protected:
 	/*~ APRCharacterBase Interface ~*/
@@ -133,14 +129,6 @@ protected:
 	// 시야/청각 감지 설정 데이터다.
 	UPROPERTY(EditDefaultsOnly, Category = "ProjectR|AI")
 	TObjectPtr<UPRPerceptionConfig> PerceptionConfig;
-
-	// Armor.* ComponentTag를 가진 피격 영역이다.
-	UPROPERTY(VisibleAnywhere, Category = "ProjectR|Combat")
-	TObjectPtr<UBoxComponent> ArmorCollision;
-
-	// Weakpoint.* ComponentTag를 가진 피격 영역이다. 몬스터별로 필요 없으면 비활성화한다.
-	UPROPERTY(VisibleAnywhere, Category = "ProjectR|Combat")
-	TObjectPtr<USphereComponent> WeakpointCollision;
 
 	// AI 복귀 기준 위치다. BeginPlay에서 현재 위치로 저장한다.
 	UPROPERTY(VisibleInstanceOnly, Category = "ProjectR|AI")

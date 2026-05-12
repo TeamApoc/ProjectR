@@ -15,6 +15,7 @@ UPRGameplayAbility_SoldierArmoredHammerFamily::UPRGameplayAbility_SoldierArmored
 	SetAssetTags(PRSoldierArmoredAbility::MakePatternAssetTags(PRSoldierArmoredGameplayTags::Ability_Enemy_SoldierArmored_HammerFamily));
 	AbilityTag = PRSoldierArmoredGameplayTags::Ability_Enemy_SoldierArmored_HammerFamily;
 	bAllowMultipleMeleeHits = true;
+	bUseDefaultHitConfig = false;
 }
 
 void UPRGameplayAbility_SoldierArmoredHammerFamily::ActivateAbility(const FGameplayAbilitySpecHandle Handle,
@@ -157,9 +158,9 @@ float UPRGameplayAbility_SoldierArmoredHammerFamily::GetDistanceToCurrentTarget(
 	return FVector::Dist(AvatarActor->GetActorLocation(), TargetActor->GetActorLocation());
 }
 
-const FPRSoldierArmoredAttackHitConfig& UPRGameplayAbility_SoldierArmoredHammerFamily::GetCurrentHitConfig() const
+const FPREnemyAttackHitConfig& UPRGameplayAbility_SoldierArmoredHammerFamily::GetCurrentHitConfig() const
 {
-	static const FPRSoldierArmoredAttackHitConfig EmptyHitConfig;
+	static const FPREnemyAttackHitConfig EmptyHitConfig;
 	if (!IsValid(CombatDataAsset))
 	{
 		return EmptyHitConfig;
@@ -184,11 +185,5 @@ const FPRSoldierArmoredAttackHitConfig& UPRGameplayAbility_SoldierArmoredHammerF
 
 void UPRGameplayAbility_SoldierArmoredHammerFamily::ApplyCurrentHitConfig()
 {
-	const FPRSoldierArmoredAttackHitConfig& HitConfig = GetCurrentHitConfig();
-	Damage = HitConfig.Damage;
-	GroggyDamage = HitConfig.GroggyDamage;
-	AttackRange = HitConfig.AttackRange;
-	AttackRadius = HitConfig.AttackRadius;
-	AttackTraceSourceName = HitConfig.AttackTraceSourceName;
-	AttackTraceSourceOffset = HitConfig.AttackTraceSourceOffset;
+	ApplyEnemyAttackHitConfig(GetCurrentHitConfig());
 }

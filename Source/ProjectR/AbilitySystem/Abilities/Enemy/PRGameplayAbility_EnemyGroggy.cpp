@@ -8,6 +8,7 @@
 #include "Animation/AnimMontage.h"
 #include "GameFramework/Character.h"
 #include "GameFramework/CharacterMovementComponent.h"
+#include "ProjectR/AbilitySystem/AttributeSets/PRAttributeSet_Enemy.h"
 #include "ProjectR/PRGameplayTags.h"
 
 UPRGameplayAbility_EnemyGroggy::UPRGameplayAbility_EnemyGroggy()
@@ -20,8 +21,11 @@ UPRGameplayAbility_EnemyGroggy::UPRGameplayAbility_EnemyGroggy()
 	AbilityTriggers.Add(TriggerData);
 
 	// 그로기에 들어가면 현재 공격/패턴 Ability를 먼저 끊는다.
-	CancelAbilityTags.AddTag(PRGameplayTags::Ability_Enemy_Pattern);
-	CancelAbilityTags.AddTag(PRGameplayTags::Ability_Boss_Pattern);
+	CancelAbilitiesWithTag.AddTag(PRGameplayTags::Ability_Enemy_Pattern);
+	CancelAbilitiesWithTag.AddTag(PRGameplayTags::Ability_Boss_Pattern);
+	BlockAbilitiesWithTag.AddTag(PRGameplayTags::Ability_Enemy_Pattern);
+	BlockAbilitiesWithTag.AddTag(PRGameplayTags::Ability_Boss_Pattern);
+	ActivationOwnedTags.AddTag(PRGameplayTags::State_Groggy);
 }
 
 void UPRGameplayAbility_EnemyGroggy::ActivateAbility(const FGameplayAbilitySpecHandle Handle,
@@ -36,11 +40,6 @@ void UPRGameplayAbility_EnemyGroggy::ActivateAbility(const FGameplayAbilitySpecH
 	}
 
 	bGroggyFinished = false;
-
-	if (UAbilitySystemComponent* ASC = GetAbilitySystemComponentFromActorInfo())
-	{
-		ASC->CancelAbilities(&CancelAbilityTags, nullptr, this);
-	}
 
 	if (ACharacter* Character = Cast<ACharacter>(GetAvatarActorFromActorInfo()))
 	{
@@ -108,11 +107,7 @@ void UPRGameplayAbility_EnemyGroggy::EndAbility(const FGameplayAbilitySpecHandle
 		ActiveMontageTask = nullptr;
 	}
 
-	if (UAbilitySystemComponent* ASC = GetAbilitySystemComponentFromActorInfo())
-	{
-		// 그로기 Ability가 끝나는 시점에 State.Groggy를 제거해 BT/Ability 차단 상태를 해제한다.
-		ASC->RemoveLooseGameplayTag(PRGameplayTags::State_Groggy);
-	}
+	ResetGroggyState();
 
 	Super::EndAbility(Handle, ActorInfo, ActivationInfo, bReplicateEndAbility, bWasCancelled);
 }
@@ -128,6 +123,27 @@ void UPRGameplayAbility_EnemyGroggy::HandleGroggyMontageCompleted()
 void UPRGameplayAbility_EnemyGroggy::HandleGroggyMontageInterrupted()
 {
 	FinishGroggy(true);
+}
+
+void UPRGameplayAbility_EnemyGroggy::ResetGroggyState()
+{
+	UAbilitySystemComponent* ASC = GetAbilitySystemComponentFromActorInfo();
+	if (!IsValid(ASC))
+	{
+		return;
+	}
+
+	if (const UPRAttributeSet_Enemy* EnemySet = ASC->GetSet<UPRAttributeSet_Enemy>())
+	{
+		// 다음 그로기 진입이 가능하도록 게이지를 회복한다.
+		ASC->SetNumericAttributeBase(
+			UPRAttributeSet_Enemy::GetGroggyGaugeAttribute(),
+			EnemySet->GetMaxGroggyGauge());
+	}
+
+	// AttributeSet이 서버에서 두 종류의 Loose Tag를 함께 부여하므로 종료 시에도 둘 다 제거한다.
+	ASC->RemoveLooseGameplayTag(PRGameplayTags::State_Groggy);
+	ASC->RemoveReplicatedLooseGameplayTag(PRGameplayTags::State_Groggy);
 }
 
 void UPRGameplayAbility_EnemyGroggy::FinishGroggy(bool bWasCancelled)

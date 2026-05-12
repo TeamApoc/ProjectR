@@ -6,8 +6,6 @@
 #include "AIController.h"
 #include "BrainComponent.h"
 #include "BehaviorTree/BehaviorTree.h"
-#include "Components/BoxComponent.h"
-#include "Components/SphereComponent.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "ProjectR/AI/Components/PREnemyCombatEventRelayComponent.h"
 #include "ProjectR/AI/Components/PREnemyThreatComponent.h"
@@ -51,16 +49,6 @@ APREnemyBaseCharacter::APREnemyBaseCharacter()
 	ThreatComponent = CreateDefaultSubobject<UPREnemyThreatComponent>(TEXT("ThreatComponent"));
 	CombatEventRelayComponent = CreateDefaultSubobject<UPREnemyCombatEventRelayComponent>(TEXT("CombatEventRelayComponent"));
 
-	ArmorCollision = CreateDefaultSubobject<UBoxComponent>(TEXT("ArmorCollision"));
-	ArmorCollision->SetupAttachment(GetMesh());
-	ArmorCollision->SetCollisionEnabled(ECollisionEnabled::NoCollision);
-	// 데미지 계산은 ComponentTag 접두사로 Armor/Weakpoint를 구분한다.
-	ArmorCollision->ComponentTags.Add(TEXT("Armor.Torso"));
-
-	WeakpointCollision = CreateDefaultSubobject<USphereComponent>(TEXT("WeakpointCollision"));
-	WeakpointCollision->SetupAttachment(GetMesh());
-	WeakpointCollision->SetCollisionEnabled(ECollisionEnabled::NoCollision);
-	WeakpointCollision->ComponentTags.Add(TEXT("Weakpoint.Head"));
 }
 
 void APREnemyBaseCharacter::BeginPlay()
@@ -344,7 +332,7 @@ void APREnemyBaseCharacter::HandleDeadTagChanged(bool bEntered)
 	if (bEntered)
 	{
 		ClearCombatMovePresentationContext();
-		GetCharacterMovement()->DisableMovement();
+		HandleDeath(nullptr);
 	}
 }
 

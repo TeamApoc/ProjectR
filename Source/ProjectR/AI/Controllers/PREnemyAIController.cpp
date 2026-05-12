@@ -12,6 +12,7 @@
 #include "ProjectR/AI/Data/PREnemyCombatDataAsset.h"
 #include "ProjectR/AI/Data/PRPerceptionConfig.h"
 #include "ProjectR/Character/Enemy/PREnemyInterface.h"
+#include "ProjectR/Combat/PRCombatStatics.h"
 
 namespace
 {
@@ -111,6 +112,11 @@ void APREnemyAIController::ApplyTacticalModeState(
 void APREnemyAIController::HandleTargetPerceptionUpdated(AActor* Actor, FAIStimulus Stimulus)
 {
 	if (!HasAuthority() || !IsValid(Actor))
+	{
+		return;
+	}
+
+	if (UPRCombatStatics::GetActorTeam(Actor) != EPRTeam::Player)
 	{
 		return;
 	}

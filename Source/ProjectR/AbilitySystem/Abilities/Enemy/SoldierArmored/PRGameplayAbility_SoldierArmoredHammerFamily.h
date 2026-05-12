@@ -44,7 +44,7 @@ private:
 	void BindComboWindowEvent();
 	void JumpToSection(FName SectionName, EPRSoldierArmoredHammerSection NewSection);
 	float GetDistanceToCurrentTarget() const;
-	const FPRSoldierArmoredAttackHitConfig& GetCurrentHitConfig() const;
+	const FPREnemyAttackHitConfig& GetCurrentHitConfig() const;
 	void ApplyCurrentHitConfig();
 
 protected:

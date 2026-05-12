@@ -21,7 +21,7 @@ APREnemyBaseCharacter* UPRGameplayAbility_EnemyBase::GetEnemyAvatarCharacter() c
 	return Cast<APREnemyBaseCharacter>(GetAvatarActorFromActorInfo());
 }
 
-void UPRGameplayAbility_EnemyBase::ApplyAttackPowerDamage(AActor* TargetActor, float DamageMultiplier, float GroggyDamageMultiplier, const FHitResult* HitResult)
+void UPRGameplayAbility_EnemyBase::ApplyAttackPowerDamage(AActor* TargetActor, float DamageMultiplier, float PoiseDamage, const FHitResult* HitResult)
 {
 	if (!IsValid(TargetActor))
 	{
@@ -62,8 +62,8 @@ void UPRGameplayAbility_EnemyBase::ApplyAttackPowerDamage(AActor* TargetActor, f
 		FMath::Max(DamageMultiplier, 0.0f));
 
 	SpecHandle.Data->SetSetByCallerMagnitude(
-		PRCombatGameplayTags::SetByCaller_GroggyDamageMultiplier,
-		FMath::Max(GroggyDamageMultiplier, 0.0f));
+		PRCombatGameplayTags::SetByCaller_PoiseDamage,
+		FMath::Max(PoiseDamage, 0.0f));
 
 	// HitResult가 있으면 EffectContext에 포함시켜 ExecCalc에서 부위 판정에 활용한다
 	if (HitResult != nullptr && HitResult->bBlockingHit)

@@ -204,8 +204,8 @@ protected:
 	// 현재 공격의 체력 피해 배율이다.
 	float DamageMultiplier = 1.0f;
 
-	// 현재 공격의 그로기 피해 배율이다.
-	float GroggyDamageMultiplier = 1.0f;
+	// 현재 공격의 고정 강인도 피해다.
+	float PoiseDamage = 0.0f;
 
 	// 소켓 미사용 시 정면 Sweep 거리다.
 	float AttackRange = 220.0f;

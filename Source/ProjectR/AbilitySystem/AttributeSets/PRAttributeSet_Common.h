@@ -23,10 +23,6 @@ public:
 	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
 
 public:
-	// 사망이벤트. Instigator는 최종 타격 소스 액터
-	UPROPERTY(BlueprintAssignable)
-	FPRDeathSignature OnDeath;
-
 	// 현재 체력. 0 도달 시 State.Dead 부여 + OnDeath 발행
 	UPROPERTY(BlueprintReadOnly, ReplicatedUsing = OnRep_Health, Category = "ProjectR|Attributes|Common")
 	FGameplayAttributeData Health;

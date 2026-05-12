@@ -84,20 +84,12 @@ void UPRAttributeSet_Common::PostGameplayEffectExecute(const FGameplayEffectModC
 				const float RecoverableHealthMax = FMath::Max(GetMaxHealth() - GetHealth(), 0.0f);
 				MutablePlayerSet->SetRecoverableHealth(FMath::Clamp(PlayerSet->GetRecoverableHealth(), 0.0f, RecoverableHealthMax));
 			}
-		}
-
-		const float NewHealth = GetHealth();
-		if (NewHealth <= 0.0f)
-		{
-			UAbilitySystemComponent* ASC = GetOwningAbilitySystemComponent();
-			if (IsValid(ASC))
+			
+			const float NewHealth = GetHealth();
+			if (NewHealth <= 0.0f)
 			{
-				const FGameplayTag DeadTag = PRGameplayTags::State_Dead;
-				if (!ASC->HasMatchingGameplayTag(DeadTag))
+				if (!ASC->HasMatchingGameplayTag( PRGameplayTags::State_Dead))
 				{
-					ASC->AddLooseGameplayTag(DeadTag);
-					ASC->AddReplicatedLooseGameplayTag(DeadTag);
-
 					AActor* Instigator = Data.EffectSpec.GetContext().GetOriginalInstigator();
 					AActor* AvatarActor = ASC->GetAvatarActor();
 					if (IsValid(AvatarActor) && AvatarActor->HasAuthority())
@@ -106,15 +98,15 @@ void UPRAttributeSet_Common::PostGameplayEffectExecute(const FGameplayEffectModC
 						Payload.EventTag = PRGameplayTags::Event_Ability_Death;
 						Payload.Instigator = Instigator;
 						Payload.Target = AvatarActor;
+						Payload.ContextHandle = Data.EffectSpec.GetContext();
 
-						// 사망 이벤트는 AttributeSet에서 직접 발행해 별도 릴레이 컴포넌트 의존을 줄인다.
+						// 사망 이벤트 전송
 						UAbilitySystemBlueprintLibrary::SendGameplayEventToActor(
 							AvatarActor,
 							PRGameplayTags::Event_Ability_Death,
 							Payload);
+						// 캐릭터들은 Event_Ability_Death를 트리거로 하는 Dead 어빌리티가 부여되어 있어야함
 					}
-
-					OnDeath.Broadcast(Instigator);
 				}
 			}
 		}

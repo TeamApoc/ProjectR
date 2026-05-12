@@ -50,14 +50,15 @@ public:
 	float GetJogSpeed() const { return JogSpeed; }
 	float GetSprintSpeed() const { return SprintSpeed; }
 	bool IsAiming() const;
-
-	/** Sprint Ability가 질주 상태를 캐릭터 이동 상태에 반영한다 */
+	bool IsMovementBlocked() const {return bBlockMove;}
+	
+	/** Sprint Ability가 질주 상태를 캐릭터 이동 상태에 반영 */
 	void SetSprintingFromAbility(bool bNewSprinting);
-
-	/** 액션 입력 라우터 컴포넌트를 반환한다 */
-	UPRActionInputRouterComponent* GetActionInputRouter() const { return ActionInputRouterComponent; }
 	
 	// ===== Component getters =====
+	
+	/** 액션 입력 라우터 컴포넌트를 반환 */
+	UPRActionInputRouterComponent* GetActionInputRouter() const { return ActionInputRouterComponent; }
 	UPRWeaponManagerComponent* GetWeaponManager() const {return WeaponManagerComponent;}
 
 	
@@ -147,4 +148,6 @@ private:
 	bool bIsWalking = false;
 
 	FPRAbilitySetHandles AbilitySetHandles;
+	
+	bool bBlockMove = false;
 };

@@ -23,6 +23,7 @@
 #include "ProjectR/System/PRAssetManager.h"
 #include "ProjectR/Player/PRPlayerController.h"
 #include "ProjectR/UI/FloatingText/PRFloatingTextManager.h"
+#include "ProjectR/UI/HUD/PREnemyWorldHealthBarComponent.h"
 #include "Net/UnrealNetwork.h"
 
 APREnemyBaseCharacter::APREnemyBaseCharacter()
@@ -50,6 +51,8 @@ APREnemyBaseCharacter::APREnemyBaseCharacter()
 	EnemySet = CreateDefaultSubobject<UPRAttributeSet_Enemy>(TEXT("EnemySet"));
 	ThreatComponent = CreateDefaultSubobject<UPREnemyThreatComponent>(TEXT("ThreatComponent"));
 	CombatEventRelayComponent = CreateDefaultSubobject<UPREnemyCombatEventRelayComponent>(TEXT("CombatEventRelayComponent"));
+	EnemyWorldHealthBarComponent = CreateDefaultSubobject<UPREnemyWorldHealthBarComponent>(TEXT("EnemyWorldHealthBarComponent"));
+	EnemyWorldHealthBarComponent->SetupAttachment(GetRootComponent());
 
 	ArmorCollision = CreateDefaultSubobject<UBoxComponent>(TEXT("ArmorCollision"));
 	ArmorCollision->SetupAttachment(GetMesh());
@@ -71,6 +74,7 @@ void APREnemyBaseCharacter::BeginPlay()
 	
 	// 배치된 위치를 복귀 기준점으로 저장한다.
 	HomeLocation = GetActorLocation();
+	InitializeEnemyWorldHealthBar();
 
 	if (IsValid(CommonSet))
 	{
@@ -320,6 +324,26 @@ void APREnemyBaseCharacter::InitializeEnemyAbilitySystem()
 	{
 		AbilitySystemComponent->GiveAbilitySet(AbilitySet, GrantedAbilitySetHandles);
 	}
+
+	InitializeEnemyWorldHealthBar();
+}
+
+void APREnemyBaseCharacter::InitializeEnemyWorldHealthBar()
+{
+	if (!IsValid(EnemyWorldHealthBarComponent))
+	{
+		return;
+	}
+
+	if (!bUseWorldHealthBar)
+	{
+		EnemyWorldHealthBarComponent->HideHealthBar();
+		EnemyWorldHealthBarComponent->SetComponentTickEnabled(false);
+		return;
+	}
+
+	EnemyWorldHealthBarComponent->SetComponentTickEnabled(true);
+	EnemyWorldHealthBarComponent->InitializeFromAbilitySystem(AbilitySystemComponent);
 }
 
 void APREnemyBaseCharacter::HandleDeath(AActor* InstigatorActor)

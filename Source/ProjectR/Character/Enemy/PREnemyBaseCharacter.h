@@ -16,6 +16,7 @@ class USphereComponent;
 class UPRAbilitySystemComponent;
 class UPRAttributeSet_Common;
 class UPRAttributeSet_Enemy;
+class UPREnemyWorldHealthBarComponent;
 class UPRPatternDataAsset;
 class UPRPerceptionConfig;
 class UPRCombatMoveDataAsset;
@@ -77,6 +78,7 @@ public:
 	const UPRAttributeSet_Enemy* GetEnemySet() const { return EnemySet; }
 	const UBoxComponent* GetArmorCollision() const { return ArmorCollision; }
 	const USphereComponent* GetWeakpointCollision() const { return WeakpointCollision; }
+	UPREnemyWorldHealthBarComponent* GetEnemyWorldHealthBarComponent() const { return EnemyWorldHealthBarComponent; }
 
 protected:
 	/*~ APRCharacterBase Interface ~*/
@@ -100,6 +102,9 @@ protected:
 	// 캐시해 둔 기존 이동 설정을 복구한다.
 	void RestoreMovementPresentationDefaults();
 
+	// 월드 HP 바 컴포넌트를 현재 ASC에 연결한다.
+	void InitializeEnemyWorldHealthBar();
+
 protected:
 	// 적은 PlayerState가 아니라 캐릭터 자신이 ASC를 소유한다.
 	UPROPERTY(VisibleAnywhere, Category = "ProjectR|Ability")
@@ -117,6 +122,14 @@ protected:
 	// 기존 BP 서브컴포넌트 참조 보호용 컴포넌트다. 상태 이벤트는 AttributeSet/BossBase가 직접 발행한다.
 	UPROPERTY(VisibleAnywhere, Category = "ProjectR|AI")
 	TObjectPtr<UPREnemyCombatEventRelayComponent> CombatEventRelayComponent;
+
+	// 일반 몬스터 머리 위 HP 바 표시를 담당한다.
+	UPROPERTY(VisibleAnywhere, Category = "ProjectR|UI")
+	TObjectPtr<UPREnemyWorldHealthBarComponent> EnemyWorldHealthBarComponent;
+
+	// 월드 HP 바 사용 여부다. 보스나 특수 적은 비활성화할 수 있다.
+	UPROPERTY(EditDefaultsOnly, Category = "ProjectR|UI")
+	bool bUseWorldHealthBar = true;
 
 	// 이 몬스터가 Possess될 때 실행할 BT
 	UPROPERTY(EditDefaultsOnly, Category = "ProjectR|AI")

@@ -23,7 +23,7 @@ public:
 	TObjectPtr<UPRItemDataAsset> ItemData;
 	
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|Inventory")
-	int32 Amount;
+	int32 Amount = 1;
 	
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|Inventory")
 	bool bDestroyOnPickUp = true;

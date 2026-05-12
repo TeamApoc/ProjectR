@@ -81,6 +81,152 @@ struct PROJECTR_API FPRThreatEntry
 	float LastUpdatedTime = 0.0f;
 };
 
+// 몬스터가 전투 대상으로 유지할 수 있는 플레이어 후보 정보다.
+// Perception, 피해 이벤트, 거리 기반 유지 조건, 점수 기반 타겟 선택을 한 항목에서 관리한다.
+USTRUCT(BlueprintType)
+struct PROJECTR_API FPREnemyTargetCandidate
+{
+	GENERATED_BODY()
+
+	// 후보 플레이어 액터다.
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "ProjectR|AI")
+	TObjectPtr<AActor> Target = nullptr;
+
+	// 현재 Perception이 감지 중인지 여부다.
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "ProjectR|AI")
+	bool bCurrentlyPerceived = false;
+
+	// 현재 후보와 직접 시야선이 이어져 있는지 여부다.
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "ProjectR|AI")
+	bool bHasLOS = false;
+
+	// 마지막으로 확인한 후보 위치다.
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "ProjectR|AI")
+	FVector LastKnownLocation = FVector::ZeroVector;
+
+	// 마지막으로 감지된 월드 시간이다.
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "ProjectR|AI")
+	float LastSensedTime = 0.0f;
+
+	// 마지막으로 피해나 위협 이벤트가 들어온 월드 시간이다.
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "ProjectR|AI")
+	float LastThreatTime = 0.0f;
+
+	// 모든 후보에게 기본으로 주는 선택 점수다.
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "ProjectR|AI")
+	float BaseScore = 1.0f;
+
+	// 최근 점수 창 안에서 피해량으로 누적한 점수다.
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "ProjectR|AI")
+	float DamageScore = 0.0f;
+
+	// 재평가 시 거리로 계산되는 임시 점수다.
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "ProjectR|AI")
+	float DistanceScore = 0.0f;
+
+	// 현재 타겟을 너무 자주 바꾸지 않기 위한 유지 보정 점수다.
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "ProjectR|AI")
+	float StickinessScore = 0.0f;
+
+	// 마지막으로 후보 상태가 갱신된 월드 시간이다.
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "ProjectR|AI")
+	float LastUpdatedTime = 0.0f;
+
+	// 현재 점수 창에서 누적한 피해량이다.
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "ProjectR|AI")
+	float DamageInCurrentWindow = 0.0f;
+
+	// 최종 선택 계산에 사용한 점수다.
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "ProjectR|AI")
+	float FinalSelectionScore = 0.0f;
+
+	// 기존 최고 Threat 선택 로직을 유지하기 위한 1차 호환 점수다.
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "ProjectR|AI")
+	float ThreatValue = 0.0f;
+};
+
+// 몬스터 개체별 타겟 후보 유지와 선택 정책이다.
+USTRUCT(BlueprintType)
+struct PROJECTR_API FPREnemyTargetingConfig
+{
+	GENERATED_BODY()
+
+	// 피해 기반 점수를 모았다가 초기화하는 시간 창이다.
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "ProjectR|AI", meta = (ClampMin = "0.1"))
+	float ScoreWindowDuration = 10.0f;
+
+	// 모든 공격 후보에게 기본으로 주는 점수다.
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "ProjectR|AI", meta = (ClampMin = "0.0"))
+	float BaseCandidateScore = 1.0f;
+
+	// 피해량을 선택 점수로 바꿀 때 곱하는 값이다.
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "ProjectR|AI", meta = (ClampMin = "0.0"))
+	float DamageScoreScale = 0.05f;
+
+	// 피해 기반 점수의 최대값이다.
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "ProjectR|AI", meta = (ClampMin = "0.0"))
+	float MaxDamageScore = 5.0f;
+
+	// 가까운 후보에게 줄 수 있는 최대 거리 점수다.
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "ProjectR|AI", meta = (ClampMin = "0.0"))
+	float DistanceScoreMax = 3.0f;
+
+	// 거리 점수가 0에 가까워지는 기준 거리다.
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "ProjectR|AI", meta = (ClampMin = "1.0"))
+	float DistanceScoreMaxRange = 1200.0f;
+
+	// LOS가 있는 후보에게 주는 보정 점수다.
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "ProjectR|AI", meta = (ClampMin = "0.0"))
+	float LOSScore = 0.5f;
+
+	// 현재 타겟을 유지하기 위해 더하는 보정 점수다.
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "ProjectR|AI", meta = (ClampMin = "0.0"))
+	float CurrentTargetStickinessScore = 1.0f;
+
+	// 새 타겟이 현재 타겟보다 이 비율 이상 높을 때 전환을 허용한다.
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "ProjectR|AI", meta = (ClampMin = "1.0"))
+	float SwitchScoreRatio = 1.3f;
+
+	// 타겟이 너무 자주 바뀌지 않도록 전환 후 잠그는 시간이다.
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "ProjectR|AI", meta = (ClampMin = "0.0"))
+	float SwitchCooldown = 3.0f;
+
+	// LOS 상실 후에도 공격 후보를 유지할 수 있는 전투 유지 반경이다.
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "ProjectR|AI", meta = (ClampMin = "0.0"))
+	float EngagementRetainRadius = 2500.0f;
+
+	// 갱신되지 않은 후보를 잊어버리는 시간이다.
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "ProjectR|AI", meta = (ClampMin = "0.0"))
+	float CandidateForgetTime = 10.0f;
+};
+
+// 공격 하나가 시작된 뒤 타겟이 중간에 바뀌지 않도록 잠그는 런타임 상태다.
+USTRUCT(BlueprintType)
+struct PROJECTR_API FPREnemyAttackCommitState
+{
+	GENERATED_BODY()
+
+	// 현재 실행 중인 공격이 참조하는 고정 타겟이다.
+	UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Category = "ProjectR|AI")
+	TObjectPtr<AActor> ActiveAttackTarget = nullptr;
+
+	// 공격 시작 시점에 고정한 타겟 위치 또는 MotionWarp 기준점이다.
+	UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Category = "ProjectR|AI")
+	FVector ActiveAttackTargetLocation = FVector::ZeroVector;
+
+	// 공격 하나가 커밋되어 타겟 교체를 막아야 하는지 여부다.
+	UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Category = "ProjectR|AI")
+	bool bIsAttackCommitted = false;
+
+	// 공격 중 타겟 전환이 보류된 후보다.
+	UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Category = "ProjectR|AI")
+	TObjectPtr<AActor> PendingTargetCandidate = nullptr;
+
+	// 보류 후보의 마지막 계산 점수다.
+	UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Category = "ProjectR|AI")
+	float PendingTargetScore = 0.0f;
+};
+
 // 패턴 선택 시점에 필요한 상황값만 모아둔 구조체다.
 // BTTask가 Blackboard와 Pawn 상태를 읽어 채운 뒤 FPRPatternRule과 비교한다.
 USTRUCT(BlueprintType)

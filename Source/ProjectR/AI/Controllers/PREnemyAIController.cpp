@@ -26,6 +26,21 @@ namespace
 
 		return EnemyInterface->GetCombatDataAsset();
 	}
+
+	FVector ResolveStimulusLocation(const AActor* Actor, const FAIStimulus& Stimulus)
+	{
+		if (!Stimulus.StimulusLocation.IsNearlyZero())
+		{
+			return Stimulus.StimulusLocation;
+		}
+
+		return IsValid(Actor) ? Actor->GetActorLocation() : FVector::ZeroVector;
+	}
+
+	bool IsSightStimulus(const UAISenseConfig_Sight* SightConfig, const FAIStimulus& Stimulus)
+	{
+		return IsValid(SightConfig) && Stimulus.Type == SightConfig->GetSenseID();
+	}
 }
 
 APREnemyAIController::APREnemyAIController()
@@ -121,9 +136,11 @@ void APREnemyAIController::HandleTargetPerceptionUpdated(AActor* Actor, FAIStimu
 		return;
 	}
 
+	const FVector StimulusLocation = ResolveStimulusLocation(Actor, Stimulus);
+
 	if (IsValid(CachedBlackboardComponent))
 	{
-		CachedBlackboardComponent->SetValueAsVector(TargetLocationKey, Stimulus.StimulusLocation);
+		CachedBlackboardComponent->SetValueAsVector(TargetLocationKey, StimulusLocation);
 	}
 
 	if (!IsValid(CachedThreatComponent))
@@ -133,12 +150,13 @@ void APREnemyAIController::HandleTargetPerceptionUpdated(AActor* Actor, FAIStimu
 
 	if (Stimulus.WasSuccessfullySensed())
 	{
-		CachedThreatComponent->AddThreat(Actor, 1.0f);
+		const bool bHasLOS = IsSightStimulus(SightConfig, Stimulus);
+		CachedThreatComponent->UpdatePerceivedTarget(Actor, StimulusLocation, bHasLOS);
 
 		if (IsValid(CachedBlackboardComponent))
 		{
-			CachedBlackboardComponent->SetValueAsVector(LastKnownTargetLocationKey, Stimulus.StimulusLocation);
-			CachedBlackboardComponent->SetValueAsBool(HasLOSKey, true);
+			CachedBlackboardComponent->SetValueAsVector(LastKnownTargetLocationKey, StimulusLocation);
+			CachedBlackboardComponent->SetValueAsBool(HasLOSKey, bHasLOS);
 		}
 
 		bPreserveAlertOnNextTargetClear = false;
@@ -147,7 +165,7 @@ void APREnemyAIController::HandleTargetPerceptionUpdated(AActor* Actor, FAIStimu
 	{
 		if (IsValid(CachedBlackboardComponent))
 		{
-			CachedBlackboardComponent->SetValueAsVector(LastKnownTargetLocationKey, Stimulus.StimulusLocation);
+			CachedBlackboardComponent->SetValueAsVector(LastKnownTargetLocationKey, StimulusLocation);
 			CachedBlackboardComponent->SetValueAsBool(HasLOSKey, false);
 		}
 
@@ -155,7 +173,7 @@ void APREnemyAIController::HandleTargetPerceptionUpdated(AActor* Actor, FAIStimu
 		{
 		case EPRTargetLostPolicy::ClearCurrentTarget:
 			bPreserveAlertOnNextTargetClear = true;
-			CachedThreatComponent->ReleaseCurrentTargetForSearch(Actor);
+			CachedThreatComponent->MarkTargetPerceptionLost(Actor, StimulusLocation);
 			break;
 		case EPRTargetLostPolicy::RemoveThreatEntry:
 			bPreserveAlertOnNextTargetClear = false;
@@ -168,6 +186,7 @@ void APREnemyAIController::HandleTargetPerceptionUpdated(AActor* Actor, FAIStimu
 		case EPRTargetLostPolicy::KeepCurrentTarget:
 		default:
 			bPreserveAlertOnNextTargetClear = false;
+			CachedThreatComponent->MarkTargetPerceptionLost(Actor, StimulusLocation);
 			break;
 		}
 	}
@@ -185,9 +204,16 @@ void APREnemyAIController::HandleThreatTargetChanged(AActor* OldTarget, AActor* 
 	if (IsValid(NewTarget))
 	{
 		const bool bHasPreviousTarget = IsValid(OldTarget);
+		FPREnemyTargetCandidate TargetCandidate;
+		const bool bHasCandidateInfo = IsValid(CachedThreatComponent)
+			&& CachedThreatComponent->GetTargetCandidate(NewTarget, TargetCandidate);
+		const bool bHasLOS = bHasCandidateInfo ? TargetCandidate.bHasLOS : true;
+		const FVector TargetLocation = bHasCandidateInfo && !TargetCandidate.LastKnownLocation.IsNearlyZero()
+			? TargetCandidate.LastKnownLocation
+			: NewTarget->GetActorLocation();
 
-		CachedBlackboardComponent->SetValueAsVector(TargetLocationKey, NewTarget->GetActorLocation());
-		CachedBlackboardComponent->SetValueAsBool(HasLOSKey, true);
+		CachedBlackboardComponent->SetValueAsVector(TargetLocationKey, TargetLocation);
+		CachedBlackboardComponent->SetValueAsBool(HasLOSKey, bHasLOS);
 		if (!bHasPreviousTarget)
 		{
 			ApplyTacticalModeState(EPRTacticalMode::Alert, NewTarget);

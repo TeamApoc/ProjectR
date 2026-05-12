@@ -358,8 +358,11 @@ void UPRWeaponManagerComponent::SetWeaponArmedState(EPRArmedState NewArmedState)
 		// 함수 조기 종료. 서버 무장 상태 변경 마침
 		return;
 	}
+	
+	// 26.05.12, Yuchan, 권위가 없어도 먼저 상태 변경을 예측.
+	SetWeaponArmedStateInternal(NewArmedState);
 
-	// 클라이언트 요청은 서버 권위에서 무장 상태를 변경하도록 RPC 전송
+	// 서버 권위에서 무장 상태를 변경하도록 RPC 전송
 	Server_SetWeaponArmedState(NewArmedState);
 }
 

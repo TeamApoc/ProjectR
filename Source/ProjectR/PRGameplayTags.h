@@ -14,6 +14,8 @@ namespace PRGameplayTags
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Player_Ready); // 플레이어 관련 루트
 
 	// ===== Ability.* — 어빌리티 식별 =====
+	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Ability_Common_Die); // 사망 어빌리티
+	
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Ability_Player_Weapon_Fire_Primary); // 플레이어 주무기 발사 어빌리티
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Ability_Player_Dodge); // 플레이어 구르기(회피) 어빌리티
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Ability_Player_Crouch); // 플레이어 앉기 어빌리티
@@ -84,6 +86,7 @@ namespace PRGameplayTags
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(State_PhaseTransitioning); // 보스 페이즈 전환 상태.
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(State_Boss_WeakpointOpen_Core); // 보스 코어 약점 오픈 상태.
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(State_Armed); // 플레이어 무기 장착중 상태
+	UE_DECLARE_GAMEPLAY_TAG_EXTERN(State_Block_Move); // 움직임 비활성화 상태
 
 	// ===== Cooldown.* — 쿨다운 상태에서 부여 =====
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Cooldown_Ability_Dodge); // 구르기 쿨다운

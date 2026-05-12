@@ -22,6 +22,10 @@ class PROJECTR_API APRPlayHUD : public AHUD
 public:
 	APRPlayHUD();
 
+	// 현재 생성된 인게임 HUD 위젯을 반환한다.
+	UFUNCTION(BlueprintPure, Category = "ProjectR|HUD")
+	UPRHUDWidget* GetHUDWidget() const { return HUDWidget; }
+
 protected:
 	/*~ AActor Interface ~*/
 	virtual void BeginPlay() override;

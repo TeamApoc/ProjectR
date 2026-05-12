@@ -36,6 +36,8 @@ UPRAttributeSet_Weapon::UPRAttributeSet_Weapon()
 	InitGroggyDamageMultiplier(1.0f);
 	InitPrimaryAmmoScale(1.0f);
 	InitSecondaryAmmoScale(1.0f);
+	InitPrimaryReserveAmmoRatio(5.0f);
+	InitSecondaryReserveAmmoRatio(5.0f);
 }
 
 // =====  UPRAttributeSet_Weapon Interface =====

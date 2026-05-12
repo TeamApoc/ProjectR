@@ -69,14 +69,18 @@ void UPRInteraction_EquipWeapon::Execute_Implementation(AActor* Interactor)
 	{
 		return;
 	}
-
-	UPRItemInstance_Weapon* NewWeaponItem = InventoryComponent->AddWeaponItem(WeaponData);
-	if (!IsValid(NewWeaponItem))
+	
+	UPRItemInstance_Weapon* Item = InventoryComponent->FindWeaponItemByData(WeaponData);
+	if (!IsValid(Item))
+	{
+		Item = InventoryComponent->AddWeaponItem(WeaponData);
+	}
+	if (!IsValid(Item))
 	{
 		return;
 	}
 
-	WeaponManager->EquipWeapon(NewWeaponItem);
+	WeaponManager->EquipWeapon(Item);
 
 	// 장착 완료 후 액터 정리 옵션 처리
 	if (PickableWeapon->ShouldDestroyOnPickup())

@@ -4,10 +4,13 @@
 #include "PRGameplayStatics.h"
 
 #include "AbilitySystemBlueprintLibrary.h"
+#include "AbilitySystemComponent.h"
 #include "Camera/PlayerCameraManager.h"
 #include "Engine/World.h"
 #include "GameFramework/Pawn.h"
 #include "GameFramework/PlayerController.h"
+#include "ProjectR/AbilitySystem/AttributeSets/PRAttributeSet_Weapon.h"
+#include "ProjectR/Combat/PRCombatGameplayTags.h"
 #include "ProjectR/Player/PRPlayerState.h"
 
 void UPRGameplayStatics::GetAllMeshComponents(AActor* Actor, TArray<UMeshComponent*>& OutMeshes)
@@ -89,6 +92,30 @@ UAbilitySystemComponent* UPRGameplayStatics::GetAbilitySystemComponent(AActor* A
 
 	return UAbilitySystemBlueprintLibrary::GetAbilitySystemComponent(Actor);
 }
+
+void UPRGameplayStatics::GrantAmmo(AActor* TargetActor, TSubclassOf<UGameplayEffect> AmmoEffect,
+	float AmmoAmount)
+{
+	if (!IsValid(TargetActor) || !IsValid(AmmoEffect) || !TargetActor->HasAuthority() || AmmoAmount <= 0.f)
+	{
+		return;
+	}
+	
+	UAbilitySystemComponent* TargetASC = GetAbilitySystemComponent(TargetActor);
+	
+	const UPRAttributeSet_Weapon* WeaponSet = TargetASC->GetSet<UPRAttributeSet_Weapon>();
+	if (!IsValid(WeaponSet))
+	{
+		return;
+	}
+
+	// SetByCaller로 raw 자원량을 GE Spec에 전달
+	FGameplayEffectContextHandle Context = TargetASC->MakeEffectContext();
+	const FGameplayEffectSpecHandle SpecHandle = TargetASC->MakeOutgoingSpec(AmmoEffect, 1.f, Context);
+	SpecHandle.Data->SetSetByCallerMagnitude(PRCombatGameplayTags::SetByCaller_AmmoMagnitude, AmmoAmount);
+	TargetASC->ApplyGameplayEffectSpecToSelf(*SpecHandle.Data);
+}
+
 
 bool UPRGameplayStatics::GetPawnViewpoint(const APawn* Pawn, FVector& OutLocation, FRotator& OutRotation)
 {

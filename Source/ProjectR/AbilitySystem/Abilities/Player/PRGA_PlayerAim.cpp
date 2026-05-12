@@ -10,6 +10,7 @@
 #include "ProjectR/System/PREventManagerSubsystem.h"
 #include "ProjectR/System/PREventTypes.h"
 #include "ProjectR/UI/Crosshair/PRCrosshairConfig.h"
+#include "ProjectR/Weapon/Components/PRWeaponManagerComponent.h"
 
 UPRGA_PlayerAim::UPRGA_PlayerAim()
 {
@@ -40,6 +41,18 @@ void UPRGA_PlayerAim::ActivateAbility(const FGameplayAbilitySpecHandle Handle,
 	{
 		EndAbility(Handle, ActorInfo, ActivationInfo, true, true);
 		return;
+	}
+
+	// 비무장 상태에서 조준 진입 시 무기 장착 상태로 먼저 전환
+	if (APRPlayerCharacter* AvatarCharacter = Cast<APRPlayerCharacter>(GetAvatarActorFromActorInfo()))
+	{
+		if (UPRWeaponManagerComponent* WeaponManager = AvatarCharacter->GetWeaponManager())
+		{
+			if (WeaponManager->GetArmedState() != EPRArmedState::Armed)
+			{
+				WeaponManager->SetWeaponArmedState(EPRArmedState::Armed);
+			}
+		}
 	}
 	//----
 	// 내 조준 세팅값을 카메라 컴포넌트들에게 전달 (로컬 플레이어만 적용)

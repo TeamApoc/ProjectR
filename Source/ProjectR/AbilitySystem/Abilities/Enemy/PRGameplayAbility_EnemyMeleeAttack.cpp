@@ -24,7 +24,7 @@ UPRGameplayAbility_EnemyMeleeAttack::UPRGameplayAbility_EnemyMeleeAttack()
 	ActivationBlockedTags.AddTag(PRGameplayTags::State_PhaseTransitioning);
 
 	DefaultHitConfig.DamageMultiplier = 1.0f;
-	DefaultHitConfig.GroggyDamageMultiplier = 1.0f;
+	DefaultHitConfig.PoiseDamage = 0.0f;
 	DefaultHitConfig.CollisionConfig.CollisionSource = EPREnemyAttackCollisionSource::SocketOrBone;
 	DefaultHitConfig.CollisionConfig.AttackRange = 220.0f;
 	DefaultHitConfig.CollisionConfig.AttackRadius = 75.0f;
@@ -370,7 +370,7 @@ void UPRGameplayAbility_EnemyMeleeAttack::ExecuteMeleeHit()
 void UPRGameplayAbility_EnemyMeleeAttack::ApplyEnemyAttackHitConfig(const FPREnemyAttackHitConfig& HitConfig)
 {
 	DamageMultiplier = HitConfig.DamageMultiplier;
-	GroggyDamageMultiplier = HitConfig.GroggyDamageMultiplier;
+	PoiseDamage = HitConfig.PoiseDamage;
 	CollisionSource = HitConfig.CollisionConfig.CollisionSource;
 	AttackRange = HitConfig.CollisionConfig.AttackRange;
 	AttackRadius = HitConfig.CollisionConfig.AttackRadius;
@@ -577,7 +577,7 @@ void UPRGameplayAbility_EnemyMeleeAttack::ExecuteMeleeTraceWithRadius(const FVec
 		{
 			continue;
 		}
-		ApplyAttackPowerDamage(HitActor, DamageMultiplier, GroggyDamageMultiplier, &HitResult);
+		ApplyAttackPowerDamage(HitActor, DamageMultiplier, PoiseDamage, &HitResult);
 		DamagedActors.Add(HitActor);
 	}
 }

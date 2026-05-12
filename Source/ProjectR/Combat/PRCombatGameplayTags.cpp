@@ -7,7 +7,7 @@ namespace PRCombatGameplayTags
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(SetByCaller_Damage, "SetByCaller.Damage", "피해 SetByCaller 키");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(SetByCaller_GroggyDamage, "SetByCaller.GroggyDamage", "그로기 피해 SetByCaller 키");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(SetByCaller_AttackMultiplier, "SetByCaller.AttackMultiplier", "피해배수 SetByCaller 키");
-	UE_DEFINE_GAMEPLAY_TAG_COMMENT(SetByCaller_GroggyDamageMultiplier, "SetByCaller.GroggyDamageMultiplier", "그로기 피해배수 SetByCaller 키");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(SetByCaller_PoiseDamage, "SetByCaller.PoiseDamage", "강인도 피해 SetByCaller 키");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(SetByCaller_AmmoMagnitude, "SetByCaller.AmmoMagnitude", "탄약 픽업 raw 자원량");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(SetByCaller_AmmoScale, "SetByCaller.AmmoScale", "무기 장착 시 슬롯 효율 단가");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(SetByCaller_ReserveAmmoRatio, "SetByCaller.ReserveAmmoRatio", "무기 장착 시 슬롯 보유 한도 비율");

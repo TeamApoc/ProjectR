@@ -64,9 +64,9 @@ struct PROJECTR_API FPREnemyAttackHitConfig
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|Combat", meta = (ClampMin = "0.0"))
 	float DamageMultiplier = 1.0f;
 
-	// Health 피해에서 산출한 기본 그로기 피해에 곱하는 배율이다.
+	// 플레이어에게 적용할 고정 강인도 피해다.
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|Combat", meta = (ClampMin = "0.0"))
-	float GroggyDamageMultiplier = 1.0f;
+	float PoiseDamage = 0.0f;
 
 	// 이 공격이 사용할 판정 설정이다.
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|Combat")

@@ -22,6 +22,13 @@ UPRGameplayAbility_EnemyMeleeAttack::UPRGameplayAbility_EnemyMeleeAttack()
 	ActivationBlockedTags.AddTag(PRGameplayTags::State_Dead);
 	ActivationBlockedTags.AddTag(PRGameplayTags::State_Groggy);
 	ActivationBlockedTags.AddTag(PRGameplayTags::State_PhaseTransitioning);
+
+	DefaultHitConfig.DamageMultiplier = 1.0f;
+	DefaultHitConfig.GroggyDamageMultiplier = 1.0f;
+	DefaultHitConfig.CollisionConfig.CollisionSource = EPREnemyAttackCollisionSource::SocketOrBone;
+	DefaultHitConfig.CollisionConfig.AttackRange = 220.0f;
+	DefaultHitConfig.CollisionConfig.AttackRadius = 75.0f;
+	DefaultHitConfig.CollisionConfig.TraceChannel = ECC_Pawn;
 }
 
 void UPRGameplayAbility_EnemyMeleeAttack::ActivateAbility(const FGameplayAbilitySpecHandle Handle,
@@ -43,6 +50,11 @@ void UPRGameplayAbility_EnemyMeleeAttack::ActivateAbility(const FGameplayAbility
 	bHasPreviousMeleeWindowTracePoint = false;
 	PreviousMeleeWindowTracePoint = FVector::ZeroVector;
 	PreviousMeleeWindowPhysicsBodyTracePoints.Reset();
+
+	if (bUseDefaultHitConfig)
+	{
+		ApplyEnemyAttackHitConfig(DefaultHitConfig);
+	}
 
 	if (ACharacter* SourceCharacter = Cast<ACharacter>(AvatarActor))
 	{
@@ -355,6 +367,20 @@ void UPRGameplayAbility_EnemyMeleeAttack::ExecuteMeleeHit()
 	ExecuteMeleeTrace(TraceStart, TraceEnd);
 }
 
+void UPRGameplayAbility_EnemyMeleeAttack::ApplyEnemyAttackHitConfig(const FPREnemyAttackHitConfig& HitConfig)
+{
+	DamageMultiplier = HitConfig.DamageMultiplier;
+	GroggyDamageMultiplier = HitConfig.GroggyDamageMultiplier;
+	CollisionSource = HitConfig.CollisionConfig.CollisionSource;
+	AttackRange = HitConfig.CollisionConfig.AttackRange;
+	AttackRadius = HitConfig.CollisionConfig.AttackRadius;
+	AttackTraceSourceName = HitConfig.CollisionConfig.AttackTraceSourceName;
+	AttackTraceSourceOffset = HitConfig.CollisionConfig.AttackTraceSourceOffset;
+	AttackPhysicsBodyNames = HitConfig.CollisionConfig.AttackPhysicsBodyNames;
+	PhysicsBodyScale = HitConfig.CollisionConfig.PhysicsBodyScale;
+	TraceChannel = HitConfig.CollisionConfig.TraceChannel;
+}
+
 void UPRGameplayAbility_EnemyMeleeAttack::BeginMeleeHitWindow()
 {
 	if (bMeleeAttackFinished)
@@ -551,24 +577,7 @@ void UPRGameplayAbility_EnemyMeleeAttack::ExecuteMeleeTraceWithRadius(const FVec
 		{
 			continue;
 		}
-		// 26.04.29, Yuchan, 아래 데미지 적용 코드는 ApplyDamage 함수로 대체됨.
-		// FPRDamageContext DamageContext;
-		// DamageContext.SourceActor = SourceCharacter;
-		// DamageContext.TargetActor = HitActor;
-		// DamageContext.EffectCauser = SourceCharacter;
-		// DamageContext.SourceObject = this;
-		// DamageContext.HitResult = HitResult;
-		// DamageContext.SourceAbilityTag = AbilityTag;
-		// DamageContext.Damage = Damage;
-		// DamageContext.GroggyDamage = GroggyDamage;
-		// DamageContext.AbilityLevel = GetAbilityLevel();
-		//
-		// if (ApplyDamageContext(DamageContext))
-		// {
-		// 	DamagedActors.Add(HitActor);
-		// }
-		
-		ApplyDamage(HitActor, Damage, GroggyDamage, 1.0f, &HitResult);
+		ApplyAttackPowerDamage(HitActor, DamageMultiplier, GroggyDamageMultiplier, &HitResult);
 		DamagedActors.Add(HitActor);
 	}
 }
@@ -673,6 +682,11 @@ bool UPRGameplayAbility_EnemyMeleeAttack::ShouldDamageActor(const AActor* Candid
 	}
 
 	if (!IsValid(UPRCombatStatics::FindAbilitySystemComponent(CandidateActor)))
+	{
+		return false;
+	}
+
+	if (UPRCombatStatics::GetActorTeam(CandidateActor) == EPRTeam::Enemy)
 	{
 		return false;
 	}

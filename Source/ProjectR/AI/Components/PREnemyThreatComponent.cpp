@@ -2,6 +2,8 @@
 
 #include "PREnemyThreatComponent.h"
 
+#include "ProjectR/Combat/PRCombatStatics.h"
+
 UPREnemyThreatComponent::UPREnemyThreatComponent()
 {
 	PrimaryComponentTick.bCanEverTick = false;
@@ -11,7 +13,7 @@ UPREnemyThreatComponent::UPREnemyThreatComponent()
 void UPREnemyThreatComponent::AddThreat(AActor* Target, float Amount)
 {
 	// 타겟 선택은 서버에서만 결정한다. 클라이언트는 결과를 Blackboard/복제로 따라간다.
-	if (!GetOwner() || !GetOwner()->HasAuthority() || !IsValid(Target) || Amount <= 0.0f)
+	if (!GetOwner() || !GetOwner()->HasAuthority() || !IsValidThreatTarget(Target) || Amount <= 0.0f)
 	{
 		return;
 	}
@@ -111,7 +113,7 @@ void UPREnemyThreatComponent::ReevaluateTarget()
 
 	for (const FPRThreatEntry& Entry : ThreatList)
 	{
-		if (!IsValid(Entry.Target))
+		if (!IsValidThreatTarget(Entry.Target))
 		{
 			continue;
 		}
@@ -157,6 +159,17 @@ void UPREnemyThreatComponent::ReevaluateTarget()
 	}
 }
 
+bool UPREnemyThreatComponent::IsValidThreatTarget(const AActor* Target) const
+{
+	if (!IsValid(Target) || Target == GetOwner())
+	{
+		return false;
+	}
+
+	// 일반 몬스터 AI는 플레이어만 공격 대상으로 추적한다.
+	return UPRCombatStatics::GetActorTeam(Target) == EPRTeam::Player;
+}
+
 void UPREnemyThreatComponent::SetCurrentTarget(AActor* NewTarget)
 {
 	if (CurrentTarget == NewTarget)
@@ -177,7 +190,7 @@ void UPREnemyThreatComponent::CleanupInvalidEntries()
 
 	for (int32 Index = ThreatList.Num() - 1; Index >= 0; --Index)
 	{
-		const bool bInvalidTarget = !IsValid(ThreatList[Index].Target);
+		const bool bInvalidTarget = !IsValidThreatTarget(ThreatList[Index].Target);
 		const bool bExpired = (CurrentTime - ThreatList[Index].LastUpdatedTime) > ThreatForgetTime;
 
 		if (bInvalidTarget || bExpired)

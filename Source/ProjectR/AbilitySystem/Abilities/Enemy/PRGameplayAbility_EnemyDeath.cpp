@@ -5,8 +5,10 @@
 #include "Abilities/Tasks/AbilityTask_PlayMontageAndWait.h"
 #include "AIController.h"
 #include "Animation/AnimMontage.h"
+#include "Components/CapsuleComponent.h"
 #include "GameFramework/Character.h"
 #include "GameFramework/CharacterMovementComponent.h"
+#include "TimerManager.h"
 #include "ProjectR/PRGameplayTags.h"
 
 UPRGameplayAbility_EnemyDeath::UPRGameplayAbility_EnemyDeath()
@@ -19,6 +21,9 @@ UPRGameplayAbility_EnemyDeath::UPRGameplayAbility_EnemyDeath()
 	// 사망 Ability 활성화 시 GAS 내장 태그 취소 규약으로 진행 중인 패턴을 중단한다.
 	CancelAbilitiesWithTag.AddTag(PRGameplayTags::Ability_Enemy_Pattern);
 	CancelAbilitiesWithTag.AddTag(PRGameplayTags::Ability_Boss_Pattern);
+	BlockAbilitiesWithTag.AddTag(PRGameplayTags::Ability_Enemy_Pattern);
+	BlockAbilitiesWithTag.AddTag(PRGameplayTags::Ability_Boss_Pattern);
+	ActivationOwnedTags.AddTag(PRGameplayTags::State_Dead);
 }
 
 void UPRGameplayAbility_EnemyDeath::ActivateAbility(const FGameplayAbilitySpecHandle Handle,
@@ -50,6 +55,12 @@ void UPRGameplayAbility_EnemyDeath::ActivateAbility(const FGameplayAbilitySpecHa
 		{
 			AIController->StopMovement();
 		}
+
+		if (UCapsuleComponent* CapsuleComponent = Character->GetCapsuleComponent())
+		{
+			// 삭제 전 사망 연출 중에도 길막/피격 판정이 남지 않도록 Pawn 충돌을 끈다.
+			CapsuleComponent->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+		}
 	}
 
 	if (IsValid(DeathMontage))
@@ -71,6 +82,19 @@ void UPRGameplayAbility_EnemyDeath::ActivateAbility(const FGameplayAbilitySpecHa
 			ActiveMontageTask->ReadyForActivation();
 		}
 	}
+
+	if (bDestroyActorOnDeath)
+	{
+		if (UWorld* World = GetWorld())
+		{
+			World->GetTimerManager().SetTimer(
+				DeathDestroyTimerHandle,
+				this,
+				&UPRGameplayAbility_EnemyDeath::DestroyDeathAvatar,
+				FMath::Max(DeathDestroyDelay, 0.0f),
+				false);
+		}
+	}
 }
 
 void UPRGameplayAbility_EnemyDeath::EndAbility(const FGameplayAbilitySpecHandle Handle,
@@ -79,6 +103,11 @@ void UPRGameplayAbility_EnemyDeath::EndAbility(const FGameplayAbilitySpecHandle 
 	bool bReplicateEndAbility,
 	bool bWasCancelled)
 {
+	if (UWorld* World = GetWorld())
+	{
+		World->GetTimerManager().ClearTimer(DeathDestroyTimerHandle);
+	}
+
 	if (IsValid(ActiveMontageTask))
 	{
 		ActiveMontageTask->EndTask();
@@ -104,6 +133,17 @@ void UPRGameplayAbility_EnemyDeath::HandleDeathMontageInterrupted()
 	}
 }
 
+void UPRGameplayAbility_EnemyDeath::DestroyDeathAvatar()
+{
+	AActor* AvatarActor = GetAvatarActorFromActorInfo();
+	if (!IsValid(AvatarActor) || !AvatarActor->HasAuthority())
+	{
+		return;
+	}
+
+	AvatarActor->Destroy();
+}
+
 void UPRGameplayAbility_EnemyDeath::FinishDeath(bool bWasCancelled)
 {
 	if (bDeathFinished)
@@ -112,5 +152,4 @@ void UPRGameplayAbility_EnemyDeath::FinishDeath(bool bWasCancelled)
 	}
 
 	bDeathFinished = true;
-	EndAbility(CurrentSpecHandle, CurrentActorInfo, CurrentActivationInfo, true, bWasCancelled);
 }

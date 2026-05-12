@@ -65,8 +65,8 @@ protected:
 	UPROPERTY(EditDefaultsOnly, Category = "ProjectR|Mod|Debug")
 	float DebugDrawDuration = 1.0f;
 
-	// 활성 무기 캐시 (활성화 시 1회 획득)
-	TWeakObjectPtr<APRWeaponActor> CurrentWeapon;
+	// 활성 무기 캐시
+	mutable TWeakObjectPtr<APRWeaponActor> CurrentWeapon;
 	
 	// 무기 매니저 캐시
 	TWeakObjectPtr<UPRWeaponManagerComponent> CachedWeaponManager;

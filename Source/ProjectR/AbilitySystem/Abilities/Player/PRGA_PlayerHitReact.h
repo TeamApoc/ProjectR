@@ -83,6 +83,12 @@ protected:
 	// 다운 리액션의 초기 상태를 설정한다.
 	void StartDownHitReact();
 
+	// 다운 몽타주가 끝날 때까지 HitReact 재발동을 막는 쿨다운 태그를 부여한다.
+	void StartDownHitReactCooldown();
+
+	// 다운 몽타주 재생 중 부여한 HitReact 쿨다운 태그를 제거한다.
+	void ClearDownHitReactCooldown();
+
 	// 다운 리액션에서 사용하는 몽타주 섹션 연결과 전환 콜백을 설정한다.
 	void ConfigureDownMontageFlow();
 
@@ -204,4 +210,7 @@ private:
 
 	// Strong, Down 행동불능 태그를 이 Ability가 직접 부여했는지 나타낸다.
 	bool bActionLockTagAdded = false;
+
+	// 다운 리액션 재발동 방지 태그를 이 Ability가 부여했는지 나타낸다.
+	bool bDownHitReactCooldownTagAdded = false;
 };

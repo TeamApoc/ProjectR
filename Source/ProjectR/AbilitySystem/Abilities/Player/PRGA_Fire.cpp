@@ -374,7 +374,10 @@ void UPRGA_Fire::FireProjectile(TSubclassOf<APRProjectileBase> ProjectileClass, 
 	}
 	
 	// 반동 이벤트 전송
-	SendRecoilEvent();
+	if (GetActorInfo().IsLocallyControlled())
+	{
+		SendRecoilEvent();
+	}
 }
 
 void UPRGA_Fire::OnProjectileSpawnSuccess(APRProjectileBase* SpawnedProjectile)

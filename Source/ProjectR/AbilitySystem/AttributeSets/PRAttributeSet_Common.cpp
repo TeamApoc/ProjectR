@@ -95,6 +95,7 @@ void UPRAttributeSet_Common::PostGameplayEffectExecute(const FGameplayEffectModC
 				const FGameplayTag DeadTag = PRGameplayTags::State_Dead;
 				if (!ASC->HasMatchingGameplayTag(DeadTag))
 				{
+					ASC->AddLooseGameplayTag(DeadTag);
 					ASC->AddReplicatedLooseGameplayTag(DeadTag);
 
 					AActor* Instigator = Data.EffectSpec.GetContext().GetOriginalInstigator();

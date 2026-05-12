@@ -10,6 +10,7 @@ UPRGameplayAbility_SoldierArmoredSprintHammer::UPRGameplayAbility_SoldierArmored
 {
 	SetAssetTags(PRSoldierArmoredAbility::MakePatternAssetTags(PRSoldierArmoredGameplayTags::Ability_Enemy_SoldierArmored_SprintHammer));
 	AbilityTag = PRSoldierArmoredGameplayTags::Ability_Enemy_SoldierArmored_SprintHammer;
+	bUseDefaultHitConfig = false;
 }
 
 void UPRGameplayAbility_SoldierArmoredSprintHammer::ActivateAbility(const FGameplayAbilitySpecHandle Handle,
@@ -24,13 +25,8 @@ void UPRGameplayAbility_SoldierArmoredSprintHammer::ActivateAbility(const FGamep
 	}
 
 	// 타이밍/몽타주는 Ability BP, 타격 수치는 공용 전투 DataAsset 책임
-	const FPRSoldierArmoredAttackHitConfig& HitConfig = CombatDataAsset->SprintHammerHitConfig;
-	Damage = HitConfig.Damage;
-	GroggyDamage = HitConfig.GroggyDamage;
-	AttackRange = HitConfig.AttackRange;
-	AttackRadius = HitConfig.AttackRadius;
-	AttackTraceSourceName = HitConfig.AttackTraceSourceName;
-	AttackTraceSourceOffset = HitConfig.AttackTraceSourceOffset;
+	const FPREnemyAttackHitConfig& HitConfig = CombatDataAsset->SprintHammerHitConfig;
+	ApplyEnemyAttackHitConfig(HitConfig);
 
 	Super::ActivateAbility(Handle, ActorInfo, ActivationInfo, TriggerEventData);
 }

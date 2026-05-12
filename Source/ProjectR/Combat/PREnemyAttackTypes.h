@@ -54,19 +54,19 @@ struct PROJECTR_API FPREnemyAttackCollisionConfig
 	TEnumAsByte<ECollisionChannel> TraceChannel = ECC_Pawn;
 };
 
-// 적 공격의 피해 수치와 충돌 설정을 함께 묶은 공용 데이터다.
+// 적 공격의 피해 배율과 충돌 설정을 함께 묶은 공용 데이터다.
 USTRUCT(BlueprintType)
 struct PROJECTR_API FPREnemyAttackHitConfig
 {
 	GENERATED_BODY()
 
-	// Health에 적용할 피해값이다.
+	// EnemyStatRow AttackPower에 곱해 Health 피해를 산출하는 배율이다.
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|Combat", meta = (ClampMin = "0.0"))
-	float Damage = 0.0f;
+	float DamageMultiplier = 1.0f;
 
-	// GroggyGauge에 적용할 피해값이다.
+	// Health 피해에서 산출한 기본 그로기 피해에 곱하는 배율이다.
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|Combat", meta = (ClampMin = "0.0"))
-	float GroggyDamage = 0.0f;
+	float GroggyDamageMultiplier = 1.0f;
 
 	// 이 공격이 사용할 판정 설정이다.
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|Combat")

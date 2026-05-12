@@ -11,6 +11,7 @@ namespace PRCombatGameplayTags
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(SetByCaller_Damage); // 모드 데미지에 활용
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(SetByCaller_GroggyDamage); // 모드 그로기 데미지에 활용
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(SetByCaller_AttackMultiplier); // 적 어빌리티 공격 배수
+	UE_DECLARE_GAMEPLAY_TAG_EXTERN(SetByCaller_GroggyDamageMultiplier); // 적 어빌리티 그로기 배수
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(SetByCaller_AmmoMagnitude); // 탄약 픽업 raw 자원량 (GE 자력값)
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(SetByCaller_AmmoScale); // 무기 장착 시 슬롯 효율 단가
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(SetByCaller_ReserveAmmoRatio); // 무기 장착 시 슬롯 보유 한도 비율

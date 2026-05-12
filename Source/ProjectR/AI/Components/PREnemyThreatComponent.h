@@ -41,6 +41,7 @@ public:
 	FPRTargetChangedSignature OnTargetChanged;
 
 protected:
+	bool IsValidThreatTarget(const AActor* Target) const;
 	void ReevaluateTarget();
 	void SetCurrentTarget(AActor* NewTarget);
 	void CleanupInvalidEntries();

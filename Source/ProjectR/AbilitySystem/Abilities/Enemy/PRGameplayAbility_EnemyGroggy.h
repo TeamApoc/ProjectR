@@ -37,13 +37,12 @@ protected:
 	UFUNCTION()
 	void HandleGroggyMontageInterrupted();
 
+	// 그로기 종료 시 태그와 게이지를 함께 복구한다.
+	void ResetGroggyState();
+
 	void FinishGroggy(bool bWasCancelled);
 
 protected:
-	// 그로기 진입 시 취소할 공격/패턴 Ability 태그 목록이다.
-	UPROPERTY(EditDefaultsOnly, Category = "ProjectR|Combat")
-	FGameplayTagContainer CancelAbilityTags;
-
 	// 그로기 중 재생할 몽타주다.
 	UPROPERTY(EditDefaultsOnly, Category = "ProjectR|Animation")
 	TObjectPtr<UAnimMontage> GroggyMontage;

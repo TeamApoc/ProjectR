@@ -55,6 +55,15 @@ private:
 	/** 스태미너가 고갈되면 질주를 종료한다 */
 	void HandleStaminaChanged(const FOnAttributeChangeData& ChangeData);
 
+	/** 질주 중 이동 입력 상실을 감시하는 타이머를 시작한다 */
+	void StartMovementInputCheck();
+
+	/** 질주 중 이동 입력 상실 감시 타이머를 정리한다 */
+	void StopMovementInputCheck();
+
+	/** 이동 입력이 사라졌는지 확인하고 질주를 종료한다 */
+	void HandleMovementInputCheck();
+
 protected:
 	/** 질주 종료 후 회복 딜레이를 부여할 GameplayEffect 클래스 */
 	UPROPERTY(EditDefaultsOnly, Category = "PR|Sprint|Stamina")
@@ -64,9 +73,16 @@ protected:
 	UPROPERTY(EditDefaultsOnly, Category = "PR|Sprint|Stamina")
 	float SprintStaminaEndThreshold = 0.0f;
 
+	/** 질주 중 이동 입력 상실 여부를 확인하는 간격 */
+	UPROPERTY(EditDefaultsOnly, Category = "PR|Sprint|Movement", meta = (ClampMin = "0.01"))
+	float MovementInputCheckInterval = 0.05f;
+
 private:
 	/** 스태미너 변경 델리게이트 핸들 */
 	FDelegateHandle StaminaChangedDelegateHandle;
+
+	/** 이동 입력 상실 감시 타이머 핸들 */
+	FTimerHandle MovementInputCheckTimerHandle;
 
 	/** 이번 활성화에서 질주가 실제로 시작되었는지 추적한다 */
 	bool bSprintStarted = false;

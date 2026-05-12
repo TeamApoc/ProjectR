@@ -7,6 +7,7 @@
 #include "ProjectR/AbilitySystem/AttributeSets/PRAttributeSet_Player.h"
 #include "ProjectR/Character/PRPlayerCharacter.h"
 #include "ProjectR/PRGameplayTags.h"
+#include "TimerManager.h"
 
 UPRGA_Sprint::UPRGA_Sprint()
 {
@@ -96,6 +97,7 @@ void UPRGA_Sprint::EndAbility(const FGameplayAbilitySpecHandle Handle,
 	bool bWasCancelled)
 {
 	UnregisterStaminaChangeDelegate();
+	StopMovementInputCheck();
 
 	if (bSprintStarted)
 	{
@@ -133,6 +135,7 @@ void UPRGA_Sprint::StartSprint()
 	PlayerCharacter->SetSprintingFromAbility(true);
 	bSprintStarted = true;
 	RegisterStaminaChangeDelegate();
+	StartMovementInputCheck();
 
 	if (!HasEnoughStaminaToSprint(CurrentActorInfo))
 	{
@@ -224,6 +227,56 @@ void UPRGA_Sprint::HandleStaminaChanged(const FOnAttributeChangeData& ChangeData
 
 	if (ChangeData.NewValue <= SprintStaminaEndThreshold)
 	{
+		EndAbility(CurrentSpecHandle, CurrentActorInfo, CurrentActivationInfo, true, false);
+	}
+}
+
+/*~ 이동 입력 감시 ~*/
+
+void UPRGA_Sprint::StartMovementInputCheck()
+{
+	UWorld* World = GetWorld();
+	if (!IsValid(World) || World->GetTimerManager().IsTimerActive(MovementInputCheckTimerHandle))
+	{
+		return;
+	}
+
+	World->GetTimerManager().SetTimer(
+		MovementInputCheckTimerHandle,
+		this,
+		&UPRGA_Sprint::HandleMovementInputCheck,
+		MovementInputCheckInterval,
+		true);
+}
+
+void UPRGA_Sprint::StopMovementInputCheck()
+{
+	UWorld* World = GetWorld();
+	if (IsValid(World))
+	{
+		World->GetTimerManager().ClearTimer(MovementInputCheckTimerHandle);
+	}
+	MovementInputCheckTimerHandle.Invalidate();
+}
+
+void UPRGA_Sprint::HandleMovementInputCheck()
+{
+	if (!IsActive() || !bSprintStarted)
+	{
+		StopMovementInputCheck();
+		return;
+	}
+
+	APRPlayerCharacter* PlayerCharacter = Cast<APRPlayerCharacter>(GetAvatarActorFromActorInfo());
+	if (!IsValid(PlayerCharacter) || !IsValid(PlayerCharacter->GetCharacterMovement()))
+	{
+		EndAbility(CurrentSpecHandle, CurrentActorInfo, CurrentActivationInfo, true, true);
+		return;
+	}
+
+	if (PlayerCharacter->GetCharacterMovement()->GetCurrentAcceleration().IsNearlyZero())
+	{
+		// 토글 질주 중 방향 입력이 사라지면 Sprint 상태와 Ability를 함께 종료한다.
 		EndAbility(CurrentSpecHandle, CurrentActorInfo, CurrentActivationInfo, true, false);
 	}
 }

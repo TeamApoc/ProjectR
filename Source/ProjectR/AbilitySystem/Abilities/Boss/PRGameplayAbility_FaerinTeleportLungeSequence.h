@@ -190,17 +190,13 @@ protected:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Faerin|Hit")
 	bool bOnlyDamageThreatTarget = true;
 
-	// 적 피해 GE에 전달할 기본 체력 피해다.
+	// BossStatRow AttackPower에 곱해 Health 피해를 산출하는 배율이다.
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Faerin|Hit", meta = (ClampMin = "0.0"))
-	float Damage = 10.0f;
+	float DamageMultiplier = 1.0f;
 
-	// 적 피해 GE에 전달할 기본 그로기 피해다.
+	// Health 피해에서 산출한 기본 그로기 피해에 곱하는 배율이다.
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Faerin|Hit", meta = (ClampMin = "0.0"))
-	float GroggyDamage = 10.0f;
-
-	// 적 피해 GE에 전달할 AttackMultiplier다.
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Faerin|Hit", meta = (ClampMin = "0.0"))
-	float AttackMultiplier = 1.0f;
+	float GroggyDamageMultiplier = 1.0f;
 
 	// 런지 Sweep 디버그 표시 여부다.
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Faerin|Debug")

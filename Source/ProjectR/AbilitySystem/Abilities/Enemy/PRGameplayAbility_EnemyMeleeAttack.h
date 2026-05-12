@@ -72,6 +72,9 @@ protected:
 	// 실제 Sweep 판정과 피해 적용을 수행한다.
 	virtual void ExecuteMeleeHit();
 
+	// DataAsset에서 읽은 공용 공격 판정/피해 설정을 Ability 실행값에 반영한다.
+	void ApplyEnemyAttackHitConfig(const FPREnemyAttackHitConfig& HitConfig);
+
 	// 단발 히트 입력을 한 번만 처리한다.
 	void TriggerMeleeHitOnce();
 
@@ -126,13 +129,13 @@ protected:
 	UPROPERTY(EditDefaultsOnly, Category = "ProjectR|Combat")
 	FGameplayTag AbilityTag;
 
-	// 체력 피해량
-	UPROPERTY(EditDefaultsOnly, Category = "ProjectR|Combat", meta = (ClampMin = "0.0"))
-	float Damage = 10.0f;
+	// CombatDataAsset을 쓰지 않는 적이 사용할 기본 공격 설정이다.
+	UPROPERTY(EditDefaultsOnly, Category = "ProjectR|Combat")
+	bool bUseDefaultHitConfig = true;
 
-	// 그로기 게이지 피해량
-	UPROPERTY(EditDefaultsOnly, Category = "ProjectR|Combat", meta = (ClampMin = "0.0"))
-	float GroggyDamage = 10.0f;
+	// 기본 공격 설정이다. CombatDataAsset 기반 적은 파생 Ability에서 실행 직전에 덮어쓴다.
+	UPROPERTY(EditDefaultsOnly, Category = "ProjectR|Combat", meta = (EditCondition = "bUseDefaultHitConfig", EditConditionHides))
+	FPREnemyAttackHitConfig DefaultHitConfig;
 
 	// 타이머 기반 판정 fallback용 선딜 시간
 	UPROPERTY(EditDefaultsOnly, Category = "ProjectR|Combat", meta = (ClampMin = "0.0"))
@@ -170,42 +173,9 @@ protected:
 	UPROPERTY(EditDefaultsOnly, Category = "ProjectR|Animation")
 	bool bAllowTimedHitFallbackWhenMontagePlays = false;
 
-	// 소켓 미사용 시 정면 Sweep 거리
-	UPROPERTY(EditDefaultsOnly, Category = "ProjectR|Combat", meta = (ClampMin = "0.0"))
-	float AttackRange = 220.0f;
-
-	// 공격 판정 기준 소스
-	UPROPERTY(EditDefaultsOnly, Category = "ProjectR|Combat")
-	EPREnemyAttackCollisionSource CollisionSource = EPREnemyAttackCollisionSource::SocketOrBone;
-
-	// Sweep 구체 반경
-	UPROPERTY(EditDefaultsOnly, Category = "ProjectR|Combat", meta = (ClampMin = "0.0"))
-	float AttackRadius = 75.0f;
-
-	// 공격 판정 기준 소켓 또는 본 이름
-	// None이면 캐릭터 정면 Sweep을 사용한다.
-	UPROPERTY(EditDefaultsOnly, Category = "ProjectR|Combat")
-	FName AttackTraceSourceName = NAME_None;
-
-	// 소켓 또는 본 기준 근접 판정 중심점 오프셋
-	UPROPERTY(EditDefaultsOnly, Category = "ProjectR|Combat")
-	FVector AttackTraceSourceOffset = FVector::ZeroVector;
-
-	// PhysicsAsset Body 기반 판정에서 사용할 공격 전용 Body 이름 목록
-	UPROPERTY(EditDefaultsOnly, Category = "ProjectR|Combat", meta = (EditCondition = "CollisionSource == EPREnemyAttackCollisionSource::PhysicsAssetBody"))
-	TArray<FName> AttackPhysicsBodyNames;
-
-	// PhysicsAsset Body 기반 판정에서 Body별 Sweep 반경에 곱할 보정값
-	UPROPERTY(EditDefaultsOnly, Category = "ProjectR|Combat", meta = (ClampMin = "0.0", EditCondition = "CollisionSource == EPREnemyAttackCollisionSource::PhysicsAssetBody"))
-	float PhysicsBodyScale = 1.0f;
-
 	// 소켓 미지정 시 정면 Sweep 시작점 높이 오프셋
 	UPROPERTY(EditDefaultsOnly, Category = "ProjectR|Combat")
 	float TraceHeightOffset = 50.0f;
-
-	// 근접 Sweep 충돌 채널
-	UPROPERTY(EditDefaultsOnly, Category = "ProjectR|Combat")
-	TEnumAsByte<ECollisionChannel> TraceChannel = ECC_Pawn;
 
 	// 현재 ThreatTarget만 피해 대상으로 제한할지 여부
 	UPROPERTY(EditDefaultsOnly, Category = "ProjectR|Combat")
@@ -230,6 +200,36 @@ protected:
 	// 근접 판정 디버그 표시 여부
 	UPROPERTY(EditDefaultsOnly, Category = "ProjectR|Debug")
 	bool bDrawDebug = false;
+
+	// 현재 공격의 체력 피해 배율이다.
+	float DamageMultiplier = 1.0f;
+
+	// 현재 공격의 그로기 피해 배율이다.
+	float GroggyDamageMultiplier = 1.0f;
+
+	// 소켓 미사용 시 정면 Sweep 거리다.
+	float AttackRange = 220.0f;
+
+	// 공격 판정 기준 소스다.
+	EPREnemyAttackCollisionSource CollisionSource = EPREnemyAttackCollisionSource::SocketOrBone;
+
+	// Sweep 구체 반경이다.
+	float AttackRadius = 75.0f;
+
+	// 공격 판정 기준 소켓 또는 본 이름이다.
+	FName AttackTraceSourceName = NAME_None;
+
+	// 소켓 또는 본 기준 근접 판정 중심점 오프셋이다.
+	FVector AttackTraceSourceOffset = FVector::ZeroVector;
+
+	// PhysicsAsset Body 기반 판정에서 사용할 공격 전용 Body 이름 목록이다.
+	TArray<FName> AttackPhysicsBodyNames;
+
+	// PhysicsAsset Body 기반 판정에서 Body별 Sweep 반경에 곱할 보정값이다.
+	float PhysicsBodyScale = 1.0f;
+
+	// 근접 Sweep 충돌 채널이다.
+	TEnumAsByte<ECollisionChannel> TraceChannel = ECC_Pawn;
 
 private:
 	FTimerHandle HitTimerHandle;

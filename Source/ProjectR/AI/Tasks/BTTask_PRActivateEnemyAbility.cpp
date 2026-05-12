@@ -14,6 +14,7 @@
 #include "ProjectR/AbilitySystem/PRAbilitySystemComponent.h"
 #include "ProjectR/AI/Controllers/PREnemyAIController.h"
 #include "ProjectR/Character/Enemy/PREnemyInterface.h"
+#include "ProjectR/PRGameplayTags.h"
 
 namespace
 {
@@ -69,6 +70,23 @@ EBTNodeResult::Type UBTTask_PRActivateEnemyAbility::ExecuteTask(UBehaviorTreeCom
 	UPRAbilitySystemComponent* ASC = EnemyInterface->GetEnemyAbilitySystemComponent();
 	if (!IsValid(ASC) || !ControlledPawn->HasAuthority())
 	{
+		return EBTNodeResult::Failed;
+	}
+
+	if (ASC->HasMatchingGameplayTag(PRGameplayTags::State_Dead)
+		|| ASC->HasMatchingGameplayTag(PRGameplayTags::State_Groggy))
+	{
+		if (PREnemyAIDebug::IsPatternLogEnabled())
+		{
+			UE_LOG(
+				LogPREnemyAI,
+				Verbose,
+				TEXT("[Ability] BlockedByDisabledState Tag=%s Pawn=%s Dead=%s Groggy=%s"),
+				*ResolvedAbilityTag.ToString(),
+				*GetNameSafe(ControlledPawn),
+				ASC->HasMatchingGameplayTag(PRGameplayTags::State_Dead) ? TEXT("true") : TEXT("false"),
+				ASC->HasMatchingGameplayTag(PRGameplayTags::State_Groggy) ? TEXT("true") : TEXT("false"));
+		}
 		return EBTNodeResult::Failed;
 	}
 

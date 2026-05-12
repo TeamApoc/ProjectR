@@ -473,7 +473,7 @@ void UPRGameplayAbility_FaerinTeleportLungeSequence::ApplyLungeDamageTrace(
 			continue;
 		}
 
-		ApplyDamage(HitActor, Damage, GroggyDamage, AttackMultiplier, &HitResult);
+		ApplyAttackPowerDamage(HitActor, DamageMultiplier, GroggyDamageMultiplier, &HitResult);
 		DamagedActors.Add(HitActor);
 	}
 }

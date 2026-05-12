@@ -22,6 +22,7 @@ namespace PRGameplayTags
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Ability_Player_Interaction); // 플레이어 상호작용 어빌리티
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Ability_Player_Reload); // 플레이어 재장전 어빌리티
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Ability_Player_HitReact); // 플레이어 피격 리액션 어빌리티
+	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Ability_Player_SwapWeapon); // 플레이어 주무기/보조무기 교체 어빌리티
 	
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Ability_Enemy_Pattern); // 일반 적 패턴 공통 루트
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Ability_Boss_Pattern); // 보스 패턴 공통 루트
@@ -86,10 +87,12 @@ namespace PRGameplayTags
 
 	// ===== Cooldown.* — 쿨다운 GE가 부여 =====
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Cooldown_Ability_Dodge); // 구르기 쿨다운
+	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Cooldown_Ability_Fire); // 무기 발사 쿨다운
+	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Cooldown_Ability_SwapWeapon); // 무기 교체 쿨다운
+	
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Cooldown_Boss_Faerin_PortalMissile); // Faerin 포털 미사일 패턴 쿨다운
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Cooldown_Boss_Faerin_PortalBarrage); // Faerin 포털 연속 포격 패턴 쿨다운
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Cooldown_Boss_Faerin_TeleportLunge); // Faerin Teleport Lunge 패턴 쿨다운
-	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Cooldown_Ability_Fire); // 무기 발사 쿨다운
 
 	// ===== Event.* — SendGameplayEventToActor 이벤트 키 =====
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Event_Hit); // 피격 이벤트.
@@ -122,6 +125,7 @@ namespace PRGameplayTags
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Input_Ability_Sprint); // 질주 입력 태그
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Input_Ability_Mod); // 모드 스킬 입력 태그
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Input_Ability_Reload); // 재장전 입력 태그
+	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Input_Ability_SwapWeapon); // 주무기/보조무기 교체 입력 태그
 	
 	// ===== Input.Locomotion.* — 플레이어 InputTag (Ability에 해당하지 않는 Input 키) =====
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Input_Locomotion_Walk)

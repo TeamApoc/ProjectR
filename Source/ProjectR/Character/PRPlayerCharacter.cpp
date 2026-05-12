@@ -181,7 +181,8 @@ void APRPlayerCharacter::BeginPlay()
 			Subsystem->AddMappingContext(DefaultMappingContext, 0);
 		}
 	}
-	
+
+	// 무기 미장착 상태에서 사용할 기본 애니메이션 레이어 연결. WeaponManager가 무기 장착 시 교체
 	if (IsValid(DefaultAnimLayerClass) && IsValid(GetMesh()))
 	{
 		GetMesh()->LinkAnimClassLayers(DefaultAnimLayerClass);

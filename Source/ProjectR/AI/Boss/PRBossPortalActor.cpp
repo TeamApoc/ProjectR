@@ -617,8 +617,8 @@ FGameplayEffectSpecHandle APRBossPortalActor::BuildProjectileEffectSpec() const
 			ProjectileDamageMultiplier);
 
 		SpecHandle.Data->SetSetByCallerMagnitude(
-			PRCombatGameplayTags::SetByCaller_GroggyDamageMultiplier,
-			ProjectileGroggyDamageMultiplier);
+			PRCombatGameplayTags::SetByCaller_PoiseDamage,
+			ProjectilePoiseDamage);
 	}
 
 	return SpecHandle;

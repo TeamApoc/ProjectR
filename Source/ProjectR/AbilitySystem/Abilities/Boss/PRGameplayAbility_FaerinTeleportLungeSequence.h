@@ -194,9 +194,9 @@ protected:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Faerin|Hit", meta = (ClampMin = "0.0"))
 	float DamageMultiplier = 1.0f;
 
-	// Health 피해에서 산출한 기본 그로기 피해에 곱하는 배율이다.
+	// 플레이어에게 적용할 고정 강인도 피해다.
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Faerin|Hit", meta = (ClampMin = "0.0"))
-	float GroggyDamageMultiplier = 1.0f;
+	float PoiseDamage = 0.0f;
 
 	// 런지 Sweep 디버그 표시 여부다.
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Faerin|Debug")

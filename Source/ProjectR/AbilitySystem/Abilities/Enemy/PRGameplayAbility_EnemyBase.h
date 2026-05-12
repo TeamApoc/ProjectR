@@ -25,6 +25,6 @@ protected:
 	UFUNCTION(BlueprintPure, Category = "ProjectR|Combat")
 	APREnemyBaseCharacter* GetEnemyAvatarCharacter() const;
 
-	// EnemyStatRow AttackPower와 공격별 배율을 사용해 대상에게 피해를 적용한다.
-	void ApplyAttackPowerDamage(AActor* TargetActor, float DamageMultiplier, float GroggyDamageMultiplier = 1.0f, const FHitResult* HitResult = nullptr);
+	// EnemyStatRow AttackPower 기반 체력 피해와 공격별 고정 강인도 피해를 대상에게 적용한다.
+	void ApplyAttackPowerDamage(AActor* TargetActor, float DamageMultiplier, float PoiseDamage = 0.0f, const FHitResult* HitResult = nullptr);
 };

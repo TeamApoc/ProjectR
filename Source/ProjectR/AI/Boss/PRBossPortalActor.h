@@ -259,9 +259,9 @@ protected:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Portal|Damage", meta = (ClampMin = "0.0"))
 	float ProjectileDamageMultiplier = 1.0f;
 
-	// 포털 투사체 그로기 피해 배율이다.
+	// 포털 투사체가 플레이어에게 적용할 고정 강인도 피해다.
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Portal|Damage", meta = (ClampMin = "0.0"))
-	float ProjectileGroggyDamageMultiplier = 1.0f;
+	float ProjectilePoiseDamage = 0.0f;
 
 	// 현재 포털 내부 생명주기 상태다.
 	UPROPERTY(Replicated, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Portal")

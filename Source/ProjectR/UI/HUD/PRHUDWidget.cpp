@@ -9,6 +9,7 @@
 #include "ProjectR/Player/PRPlayerState.h"
 #include "ProjectR/System/PREventManagerSubsystem.h"
 #include "ProjectR/UI/Crosshair/PRCrosshairWidget.h"
+#include "ProjectR/UI/HUD/PRBossHealthBarWidget.h"
 #include "ProjectR/UI/HUD/PRHealthBarWidget.h"
 #include "ProjectR/UI/HUD/PRPartyHealthListWidget.h"
 #include "ProjectR/UI/HUD/PRStaminaBarWidget.h"
@@ -21,6 +22,28 @@ UPRHUDWidget::UPRHUDWidget()
 	Layer = EPRUILayer::HUD;
 	InputMode = EPBUIInputMode::None;
 	bShowMouseCursor = false;
+}
+
+/*~ Public API ~*/
+
+void UPRHUDWidget::BindBossHealthBar(APRBossBaseCharacter* InBoss)
+{
+	if (!IsValid(BossHealthBar))
+	{
+		return;
+	}
+
+	BossHealthBar->BindBoss(InBoss);
+}
+
+void UPRHUDWidget::ClearBossHealthBar()
+{
+	if (!IsValid(BossHealthBar))
+	{
+		return;
+	}
+
+	BossHealthBar->ClearBoss();
 }
 
 void UPRHUDWidget::NativeOnInitialized()

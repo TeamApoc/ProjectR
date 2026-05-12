@@ -63,6 +63,14 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "ProjectR|AI|Boss")
 	void CancelAllBossPatternActors();
 
+	// 보스 HUD에 표시할 이름을 반환한다.
+	UFUNCTION(BlueprintPure, Category = "ProjectR|AI|Boss")
+	FText GetBossDisplayName() const;
+
+	// 보스 HUD 페이즈 마커에 사용할 HP 임계값 비율 목록을 반환한다.
+	UFUNCTION(BlueprintCallable, Category = "ProjectR|AI|Boss")
+	void GetPhaseThresholdRatios(TArray<float>& OutRatios) const;
+
 public:
 	UPROPERTY(BlueprintAssignable, Category = "ProjectR|AI|Boss")
 	FPRPhaseChangedSignature OnPhaseChanged;

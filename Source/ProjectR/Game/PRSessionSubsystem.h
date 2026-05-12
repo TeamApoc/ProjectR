@@ -74,4 +74,7 @@ protected:
 
 	// 메뉴 복귀 시 사용할 맵 이름. 프로젝트 설정에서 주입
 	FName MenuMapName = TEXT("MainMenu");
+
+	// 호스트 리슨 포트와 클라 접속 포트 통일값. 프로젝트 단일 진입점 고정
+	static constexpr int32 SessionPort = 7777;
 };

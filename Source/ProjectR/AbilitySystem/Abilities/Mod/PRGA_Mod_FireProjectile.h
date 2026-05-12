@@ -34,6 +34,9 @@ protected:
 	UFUNCTION(BlueprintCallable, Category = "ProjectR|Mod|Projectile")
 	void FireProjectile(FVector SpawnLocation, FRotator SpawnRotation);
 
+	UFUNCTION(BlueprintCallable, BlueprintPure)
+	virtual FTransform GetProjectileLaunchTransform() const;
+	
 	// AbilityTask가 투사체 스폰 성공 시 호출. 서버 권위에 한해 모드 데미지 GE Spec 부여
 	UFUNCTION()
 	virtual void OnProjectileSpawnSuccess(APRProjectileBase* SpawnedProjectile);
@@ -54,6 +57,10 @@ protected:
 	// 발사할 투사체 클래스
 	UPROPERTY(EditDefaultsOnly, Category = "ProjectR|Mod|Projectile")
 	TSubclassOf<APRProjectileBase> ProjectileClass;
+	
+	// 사격 트레이스에 사용할 충돌 채널
+	UPROPERTY(EditDefaultsOnly, Category = "ProjectR|Fire")
+	TEnumAsByte<ECollisionChannel> FireTraceChannel = PRCollisionChannels::ECC_Combat;
 	
 	// 총구 이펙트 (Optional)
 	UPROPERTY(EditDefaultsOnly, Category = "ProjectR|Mod|Projectile")

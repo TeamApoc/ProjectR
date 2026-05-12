@@ -38,6 +38,7 @@ UPRAttributeSet_Weapon::UPRAttributeSet_Weapon()
 	InitSecondaryAmmoScale(1.0f);
 	InitPrimaryReserveAmmoRatio(5.0f);
 	InitSecondaryReserveAmmoRatio(5.0f);
+	InitWeakpointMultiplier(1.0f);
 }
 
 // =====  UPRAttributeSet_Weapon Interface =====

@@ -23,8 +23,6 @@ UPRGA_Mod::UPRGA_Mod()
 void UPRGA_Mod::ActivateAbility(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo,
 	const FGameplayAbilityActivationInfo ActivationInfo, const FGameplayEventData* TriggerEventData)
 {
-	Super::ActivateAbility(Handle, ActorInfo, ActivationInfo, TriggerEventData);
-
 	// 활성 무기 캐싱. PRGA_Fire와 동일 패턴
 	if (APRPlayerCharacter* PlayerCharacter = GetPRCharacter<APRPlayerCharacter>())
 	{
@@ -34,17 +32,30 @@ void UPRGA_Mod::ActivateAbility(const FGameplayAbilitySpecHandle Handle, const F
 			CurrentWeapon = WeaponManager->GetActiveWeaponActor();
 		}
 	}
+	
+	Super::ActivateAbility(Handle, ActorInfo, ActivationInfo, TriggerEventData);
 }
 
 /*~ 조준/총구 헬퍼 ~*/
 
 FVector UPRGA_Mod::GetMuzzleLocation() const
 {
+	if (!CurrentWeapon.IsValid())
+	{
+		if (APRPlayerCharacter* PlayerCharacter = GetPRCharacter<APRPlayerCharacter>())
+		{
+			if (UPRWeaponManagerComponent* WeaponManager = PlayerCharacter->GetWeaponManager())
+			{
+				CurrentWeapon = WeaponManager->GetActiveWeaponActor();
+			}
+		}
+	}
+	
 	if (CurrentWeapon.IsValid())
 	{
 		return CurrentWeapon->GetMuzzleTransform().GetLocation();
 	}
-
+	
 	// Fallback: 무기 캐시가 없으면 아바타 정면 50cm 지점
 	if (AActor* AvatarActor = GetAvatarActorFromActorInfo())
 	{
@@ -56,6 +67,17 @@ FVector UPRGA_Mod::GetMuzzleLocation() const
 
 FTransform UPRGA_Mod::GetMuzzleTransform() const
 {
+	if (!CurrentWeapon.IsValid())
+	{
+		if (APRPlayerCharacter* PlayerCharacter = GetPRCharacter<APRPlayerCharacter>())
+		{
+			if (UPRWeaponManagerComponent* WeaponManager = PlayerCharacter->GetWeaponManager())
+			{
+				CurrentWeapon = WeaponManager->GetActiveWeaponActor();
+			}
+		}
+	}
+	
 	if (CurrentWeapon.IsValid())
 	{
 		return CurrentWeapon->GetMuzzleTransform();

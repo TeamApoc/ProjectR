@@ -51,6 +51,10 @@ public:
 	UFUNCTION(Client, Reliable)
 	void ClientGrantReward(const FPRRewardGrant& Grant);
 
+	// 서버 -> 본인 클라. 현재 Pawn에 생존 상태 전환 Gameplay Event를 발행한다.
+	UFUNCTION(Client, Reliable)
+	void ClientDispatchSurvivalGameplayEvent(FGameplayTag EventTag);
+
 	UPRProjectileManagerComponent* GetProjectileManagerComponent() const {return ProjectileManager;}
 
 	// 플로팅 텍스트 매니저 컴포넌트를 반환한다

@@ -34,7 +34,8 @@ enum class EPRMovementMode : uint8
 	Idle,
 	Walking,
 	Jogging,
-	Sprinting
+	Sprinting,
+	Down
 };
 
 // 캐릭터 턴 각도

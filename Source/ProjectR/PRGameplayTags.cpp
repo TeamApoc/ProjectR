@@ -24,6 +24,8 @@ namespace PRGameplayTags
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Ability_Player_Reload, "Ability.Player.Reload", "플레이어 재장전 어빌리티");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Ability_Player_HitReact, "Ability.Player.HitReact", "플레이어 피격 리액션 어빌리티");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Ability_Player_SwapWeapon, "Ability.Player.SwapWeapon", "플레이어 주무기/보조무기 교체 어빌리티");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Ability_Player_Death, "Ability.Player.Death", "플레이어 사망 어빌리티");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Ability_Player_Down, "Ability.Player.Down", "플레이어 다운 어빌리티");
 
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Ability_Enemy_Pattern, "Ability.Enemy.Pattern", "일반 적 패턴 공통 루트");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Ability_Boss_Pattern, "Ability.Boss.Pattern", "보스 패턴 공통 루트");
@@ -105,11 +107,13 @@ namespace PRGameplayTags
 
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Event_Hit, "Event.Hit", "피격 이벤트");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Event_Ability_Death, "Event.Ability.Death", "사망 이벤트");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Event_Ability_Down, "Event.Ability.Down", "다운 이벤트");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Event_Ability_GroggyEntered, "Event.Ability.GroggyEntered", "그로기 진입 이벤트");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Event_Ability_PhaseTransition, "Event.Ability.PhaseTransition", "페이즈 전환 이벤트");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Event_Ability_PlayerHitReact_Weak, "Event.Ability.PlayerHitReact.Weak", "플레이어 약한 경직 이벤트");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Event_Ability_PlayerHitReact_Strong, "Event.Ability.PlayerHitReact.Strong", "플레이어 강한 경직 이벤트");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Event_Ability_PlayerHitReact_Down, "Event.Ability.PlayerHitReact.Down", "플레이어 다운 이벤트");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Event_Ability_PlayerDeathConfirmed, "Event.Ability.Player.DeathConfirmed", "플레이어 다운 사망 전환 확정 이벤트");
 
 	// ===== Event.Player.* =====
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Event_Player_HitShot, "Event.Player.HitShot", "사격이 적중했을 때");

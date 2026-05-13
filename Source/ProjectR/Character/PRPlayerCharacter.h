@@ -49,7 +49,9 @@ public:
 	float GetWalkSpeed() const { return WalkSpeed; }
 	float GetJogSpeed() const { return JogSpeed; }
 	float GetSprintSpeed() const { return SprintSpeed; }
+	float GetDownSpeed() const { return DownSpeed; }
 	bool IsAiming() const;
+	bool IsDown() const;
 	bool IsMovementBlocked() const {return bBlockMove;}
 	
 	/** Sprint Ability가 질주 상태를 캐릭터 이동 상태에 반영 */
@@ -135,6 +137,10 @@ protected:
 	/** 질주 속도 (cm/s) */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "PR|Locomotion")
 	float SprintSpeed = 600.0f;
+
+	/** 다운 상태 기어가기 속도 (cm/s) */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "PR|Locomotion")
+	float DownSpeed = 50.0f;
 
 private:
 	/** 복제되는 상태 변수 */

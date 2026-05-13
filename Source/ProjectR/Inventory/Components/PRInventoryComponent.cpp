@@ -100,22 +100,23 @@ bool UPRInventoryComponent::ReplicateSubobjects(UActorChannel* Channel, FOutBunc
 
 void UPRInventoryComponent::RequestAddItem(UPRItemDataAsset* InItemData, int32 Amount)
 {
+	// 데이터가 없는 요청은 타입별 서버 요청으로 전달하지 않는다
 	if (!IsValid(InItemData))
 	{
 		return;
 	}
-	
-	if (UPRWeaponDataAsset* Weapon = Cast<UPRWeaponDataAsset>(InItemData))
+
+	if (UPRWeaponDataAsset* WeaponData = Cast<UPRWeaponDataAsset>(InItemData))
 	{
-		RequestAddWeaponItem(Weapon);
+		RequestAddWeaponItem(WeaponData);
 	}
-	else if (UPRWeaponModDataAsset* Mod = Cast<UPRWeaponModDataAsset>(InItemData))
+	else if (UPRWeaponModDataAsset* ModData = Cast<UPRWeaponModDataAsset>(InItemData))
 	{
-		RequestAddModItem(Mod);
+		RequestAddModItem(ModData);
 	}
-	else if (UPRConsumableDataAsset* Consumable = Cast<UPRConsumableDataAsset>(InItemData))
+	else if (UPRConsumableDataAsset* ConsumableData = Cast<UPRConsumableDataAsset>(InItemData))
 	{
-		RequestAddConsumableItem(Consumable,Amount);
+		RequestAddConsumableItem(ConsumableData, Amount);
 	}
 }
 
@@ -138,24 +139,25 @@ void UPRInventoryComponent::RequestAddWeaponItem(UPRWeaponDataAsset* WeaponData)
 
 UPRItemInstance* UPRInventoryComponent::AddItem(UPRItemDataAsset* InItemData, int32 Amount)
 {
+	// 데이터가 없는 요청은 Item 생성 대상으로 처리하지 않는다
 	if (!IsValid(InItemData))
 	{
 		return nullptr;
 	}
-	
-	if (UPRWeaponDataAsset* Weapon = Cast<UPRWeaponDataAsset>(InItemData))
+
+	if (UPRWeaponDataAsset* WeaponData = Cast<UPRWeaponDataAsset>(InItemData))
 	{
-		return AddWeaponItem(Weapon);
+		return AddWeaponItem(WeaponData);
 	}
-	else if (UPRWeaponModDataAsset* Mod = Cast<UPRWeaponModDataAsset>(InItemData))
+	else if (UPRWeaponModDataAsset* ModData = Cast<UPRWeaponModDataAsset>(InItemData))
 	{
-		return AddModItem(Mod);
+		return AddModItem(ModData);
 	}
-	else if (UPRConsumableDataAsset* Consumable = Cast<UPRConsumableDataAsset>(InItemData))
+	else if (UPRConsumableDataAsset* ConsumableData = Cast<UPRConsumableDataAsset>(InItemData))
 	{
-		return AddConsumableItem(Consumable,Amount);
+		return AddConsumableItem(ConsumableData, Amount);
 	}
-	
+
 	return nullptr;
 }
 
@@ -764,16 +766,16 @@ UPRItemInstance_Weapon* UPRInventoryComponent::FindWeaponItemByData(const UPRWea
 		return nullptr;
 	}
 
-	for (UPRItemInstance_Weapon* Item : InventoryWeaponItems)
+	for (UPRItemInstance_Weapon* WeaponItem : InventoryWeaponItems)
 	{
-		if (!IsValid(Item))
+		if (!IsValid(WeaponItem))
 		{
 			continue;
 		}
 
-		if (Item->GetWeaponData() == WeaponData)
+		if (WeaponItem->GetWeaponData() == WeaponData)
 		{
-			return Item;
+			return WeaponItem;
 		}
 	}
 
@@ -788,16 +790,16 @@ UPRItemInstance_Mod* UPRInventoryComponent::FindModItemByData(const UPRWeaponMod
 		return nullptr;
 	}
 
-	for (UPRItemInstance_Mod* Item : InventoryModItems)
+	for (UPRItemInstance_Mod* ModItem : InventoryModItems)
 	{
-		if (!IsValid(Item))
+		if (!IsValid(ModItem))
 		{
 			continue;
 		}
 
-		if (Item->GetModData() == ItemData)
+		if (ModItem->GetModData() == ItemData)
 		{
-			return Item;
+			return ModItem;
 		}
 	}
 

@@ -47,9 +47,6 @@ protected:
 	// 사용 가능한 상태인지 확인한다
 	virtual bool CanUseItem(AActor* UserActor) const;
 
-	// 데이터 에셋의 GE를 적용한다
-	virtual bool ApplyUseItemEffects(AActor* UserActor);
-
 private:
 	// 보유 개수 복제 결과로 인벤토리 UI 갱신 신호를 발행한다
 	UFUNCTION()

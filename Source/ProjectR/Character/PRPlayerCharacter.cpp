@@ -282,6 +282,16 @@ void APRPlayerCharacter::HandleGameplayTagUpdated(const FGameplayTag& ChangedTag
 
 		UpdateMaxWalkSpeed();
 	}
+	
+	// 소비템 사용중에 무기 숨기기
+	if (ChangedTag.MatchesTagExact(PRGameplayTags::State_UsingConsumable))
+	{
+		APRWeaponActor* ActiveWeapon = IsValid(WeaponManagerComponent) ? WeaponManagerComponent->GetActiveWeaponActor() : nullptr;
+		if (IsValid(ActiveWeapon))
+		{
+			ActiveWeapon->SetActorHiddenInGame(bTagExists);
+		}
+	}
 }
 
 void APRPlayerCharacter::Move(const FInputActionValue& Value)

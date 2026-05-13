@@ -4,6 +4,8 @@
 #include "PRHUDWidget.h"
 
 #include "PRInteractionHUDWidget.h"
+#include "EngineUtils.h"
+#include "ProjectR/Character/Enemy/PRBossBaseCharacter.h"
 #include "ProjectR/Interaction/PRInteractionAction.h"
 #include "ProjectR/PRGameplayTags.h"
 #include "ProjectR/Player/PRPlayerState.h"
@@ -99,6 +101,21 @@ void UPRHUDWidget::NativeOnInitialized()
 		EventHandles.Add(EventMgr->Listen(
 			PRGameplayTags::Event_Player_Interaction_Hold,
 			FPREventMulticast::FDelegate::CreateUObject(this, &UPRHUDWidget::HandleInteractionHold)));
+	}
+
+	// 보스 HP 바가 BP 레이아웃에 포함된 경우에만 보스 조우 이벤트를 구독한다
+	if (IsValid(BossHealthBar))
+	{
+		EventHandles.Add(EventMgr->Listen(
+			PRGameplayTags::Event_Boss_Encounter_Begin,
+			FPREventMulticast::FDelegate::CreateUObject(this, &UPRHUDWidget::HandleBossEncounterBegin)));
+
+		EventHandles.Add(EventMgr->Listen(
+			PRGameplayTags::Event_Boss_Encounter_End,
+			FPREventMulticast::FDelegate::CreateUObject(this, &UPRHUDWidget::HandleBossEncounterEnd)));
+
+		// 위젯 생성 이전에 이미 스폰된 보스가 있을 수 있으므로 즉시 디스커버리
+		DiscoverActiveBossInWorld();
 	}
 }
 
@@ -208,6 +225,47 @@ void UPRHUDWidget::HandleInteractionHold(FGameplayTag EventTag, const FInstanced
 		HoldElapsed = 0.f;
 		HoldDuration = 0.f;
 		break;
+	}
+}
+
+void UPRHUDWidget::HandleBossEncounterBegin(FGameplayTag EventTag, const FInstancedStruct& Payload)
+{
+	if (!IsValid(BossHealthBar))
+	{
+		return;
+	}
+
+	const FPRBossEncounterEventPayload* Data = Payload.GetPtr<FPRBossEncounterEventPayload>();
+	if (Data == nullptr || !IsValid(Data->Boss))
+	{
+		return;
+	}
+
+	BindBossHealthBar(Data->Boss);
+}
+
+void UPRHUDWidget::HandleBossEncounterEnd(FGameplayTag EventTag, const FInstancedStruct& Payload)
+{
+	ClearBossHealthBar();
+}
+
+void UPRHUDWidget::DiscoverActiveBossInWorld()
+{
+	UWorld* World = GetWorld();
+	if (!IsValid(World))
+	{
+		return;
+	}
+
+	// 월드에 이미 존재하는 첫 번째 보스를 바인딩. 후속 보스 등장은 Event_Boss_Encounter_Begin 이벤트로 갱신됨
+	for (TActorIterator<APRBossBaseCharacter> It(World); It; ++It)
+	{
+		APRBossBaseCharacter* Boss = *It;
+		if (IsValid(Boss))
+		{
+			BindBossHealthBar(Boss);
+			return;
+		}
 	}
 }
 

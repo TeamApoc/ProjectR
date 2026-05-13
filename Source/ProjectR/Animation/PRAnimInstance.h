@@ -135,6 +135,9 @@ public:
 	bool bIsWalking;
 
 	UPROPERTY(BlueprintReadOnly, Category = "Movement")
+	bool bIsDown = false;
+
+	UPROPERTY(BlueprintReadOnly, Category = "Movement")
 	ELandState LandState;
 
 	UPROPERTY(BlueprintReadOnly, Category = "Movement|Aiming")

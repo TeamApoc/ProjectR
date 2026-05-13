@@ -7,12 +7,28 @@
 #include "ProjectR/AbilitySystem/Data/PRAbilitySet.h"
 #include "ProjectR/AI/PREnemyAITypes.h"
 #include "ProjectR/Character/Enemy/PREnemyBaseCharacter.h"
+#include "ProjectR/System/PREventTypes.h"
 #include "PRBossBaseCharacter.generated.h"
 
 class UPRAbilitySet;
 class APRBossPatternActor;
+class APRBossBaseCharacter;
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FPRPhaseChangedSignature, EPRBossPhase, OldPhase, EPRBossPhase, NewPhase);
+
+/**
+ * 보스 조우 이벤트 페이로드.
+ * Event.Boss.Encounter.Begin 발송 시 동반된다.
+ */
+USTRUCT(BlueprintType)
+struct PROJECTR_API FPRBossEncounterEventPayload : public FPREventPayload
+{
+	GENERATED_BODY()
+
+	// 조우 대상 보스 인스턴스
+	UPROPERTY(BlueprintReadWrite)
+	TObjectPtr<APRBossBaseCharacter> Boss = nullptr;
+};
 
 // 보스 몬스터 공통 베이스다.
 // 일반 적 베이스 위에 페이즈 상태, 페이즈별 AbilitySet, 체력 비율 기반 전환을 얹는다.

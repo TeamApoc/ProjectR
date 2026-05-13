@@ -5,7 +5,7 @@
 #include "AbilitySystemComponent.h"
 #include "GameFramework/Actor.h"
 #include "Net/UnrealNetwork.h"
-#include "ProjectR/AbilitySystem/Data/PRAbilitySet.h"
+#include "ProjectR/AbilitySystem/Abilities/Player/Consumable/PRGA_UseConsumable.h"
 #include "ProjectR/Character/PRCharacterBase.h"
 #include "ProjectR/Inventory/Components/PRInventoryComponent.h"
 #include "ProjectR/Inventory/Data/PRConsumableDataAsset.h"
@@ -72,12 +72,13 @@ bool UPRItemInstance_Consumable::UseItem(AActor* UserActor)
 		return false;
 	}
 
-	if (!ApplyUseItemEffects(UserActor))
+	UAbilitySystemComponent* ASC = ResolveUseTargetAbilitySystem(UserActor);
+	if (!IsValid(ASC) || !IsValid(ConsumableData->UseAbilityClass))
 	{
 		UE_LOG(
 			LogTemp,
 			Warning,
-			TEXT("[ConsumableItem][Server] 사용 실패. UseItem() | Owner = %s | User = %s | Item = %s | Count = %d | Reason = EffectFailed"),
+			TEXT("[ConsumableItem][Server] 사용 실패. UseItem() | Owner = %s | User = %s | Item = %s | Count = %d | Reason = InvalidAbility"),
 			*GetNameSafe(GetTypedOuter<UPRInventoryComponent>()),
 			*GetNameSafe(UserActor),
 			*GetNameSafe(ConsumableData),
@@ -85,23 +86,35 @@ bool UPRItemInstance_Consumable::UseItem(AActor* UserActor)
 		return false;
 	}
 
-	const int32 PreviousStackCount = StackCount;
-	--StackCount;
+	FGameplayEventData EventData;
+	EventData.Instigator = UserActor;
+	EventData.Target = UserActor;
+	EventData.OptionalObject = this;
+
+	FGameplayAbilitySpec AbilitySpec(ConsumableData->UseAbilityClass, 1, INDEX_NONE, this);
+	const FGameplayAbilitySpecHandle AbilityHandle = ASC->GiveAbilityAndActivateOnce(AbilitySpec, &EventData);
+	if (!AbilityHandle.IsValid())
+	{
+		UE_LOG(
+			LogTemp,
+			Warning,
+			TEXT("[ConsumableItem][Server] 사용 실패. UseItem() | Owner = %s | User = %s | Item = %s | Count = %d | Reason = ActivateAbilityFailed"),
+			*GetNameSafe(GetTypedOuter<UPRInventoryComponent>()),
+			*GetNameSafe(UserActor),
+			*GetNameSafe(ConsumableData),
+			StackCount);
+		return false;
+	}
 
 	UE_LOG(
 		LogTemp,
 		Log,
-		TEXT("[ConsumableItem][Server] 사용 성공. UseItem() | Owner = %s | User = %s | Item = %s | BeforeCount = %d | AfterCount = %d"),
+		TEXT("[ConsumableItem][Server] 사용 요청 성공. UseItem() | Owner = %s | User = %s | Item = %s | Count = %d | Ability = %s"),
 		*GetNameSafe(GetTypedOuter<UPRInventoryComponent>()),
 		*GetNameSafe(UserActor),
 		*GetNameSafe(ConsumableData),
-		PreviousStackCount,
-		StackCount);
-
-	if (StackCount > 0)
-	{
-		NotifyInventoryChanged(EPRInventoryChangeReason::ItemListChanged);
-	}
+		StackCount,
+		*GetNameSafe(ConsumableData->UseAbilityClass));
 
 	return true;
 }
@@ -144,50 +157,7 @@ bool UPRItemInstance_Consumable::RemoveStack(int32 RemoveCount)
 
 bool UPRItemInstance_Consumable::CanUseItem(AActor* UserActor) const
 {
-	return IsValid(UserActor) && IsValid(ConsumableData) && StackCount > 0;
-}
-
-bool UPRItemInstance_Consumable::ApplyUseItemEffects(AActor* UserActor)
-{
-	if (!IsValid(ConsumableData))
-	{
-		return false;
-	}
-
-	if (ConsumableData->UseItemEffects.IsEmpty())
-	{
-		return true;
-	}
-
-	UAbilitySystemComponent* ASC = ResolveUseTargetAbilitySystem(UserActor);
-	if (!IsValid(ASC))
-	{
-		return false;
-	}
-
-	bool bAppliedAnyEffect = false;
-	for (const FPREffectEntry& EffectEntry : ConsumableData->UseItemEffects)
-	{
-		if (!EffectEntry.IsValid())
-		{
-			continue;
-		}
-
-		FGameplayEffectContextHandle Context = ASC->MakeEffectContext();
-		Context.AddSourceObject(this);
-
-		const FGameplayEffectSpecHandle SpecHandle = ASC->MakeOutgoingSpec(EffectEntry.EffectClass, EffectEntry.Level, Context);
-		if (!SpecHandle.IsValid() || !SpecHandle.Data.IsValid())
-		{
-			continue;
-		}
-
-		SpecHandle.Data->DynamicGrantedTags.AppendTags(EffectEntry.DynamicTags);
-		ASC->ApplyGameplayEffectSpecToSelf(*SpecHandle.Data);
-		bAppliedAnyEffect = true;
-	}
-
-	return bAppliedAnyEffect;
+	return IsValid(UserActor) && IsValid(ConsumableData) && IsValid(ConsumableData->UseAbilityClass) && StackCount > 0;
 }
 
 void UPRItemInstance_Consumable::OnRep_StackCount()

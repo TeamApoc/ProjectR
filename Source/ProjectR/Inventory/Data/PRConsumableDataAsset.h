@@ -4,9 +4,10 @@
 
 #include "CoreMinimal.h"
 #include "ProjectR/Inventory/Types/PRItemTypes.h"
-#include "ProjectR/AbilitySystem/Data/PRAbilitySet.h"
 #include "PRItemDataAsset.h"
 #include "PRConsumableDataAsset.generated.h"
+
+class UPRGA_UseConsumable;
 
 /**
  * 
@@ -20,9 +21,9 @@ public:
 	UPRConsumableDataAsset();
 	
 public:
-	// 아이템 사용 시 적용하는 GE 목록
-	UPROPERTY(EditAnywhere, Category = "ProjectR|01_Consumable")
-	TArray<FPREffectEntry> UseItemEffects;
+	// 소비 아이템 사용 시 실행할 어빌리티 클래스
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|01_Consumable")
+	TSubclassOf<UPRGA_UseConsumable> UseAbilityClass;
 	
 	// 아이템 최대 보유 개수
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|01_Consumable", meta = (ClampMin = "1"))

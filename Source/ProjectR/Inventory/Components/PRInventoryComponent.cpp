@@ -98,27 +98,6 @@ bool UPRInventoryComponent::ReplicateSubobjects(UActorChannel* Channel, FOutBunc
 	return bWroteSomething;
 }
 
-void UPRInventoryComponent::RequestAddItem(UPRItemDataAsset* InItemData, int32 Amount)
-{
-	if (!IsValid(InItemData))
-	{
-		return;
-	}
-	
-	if (UPRWeaponDataAsset* Weapon = Cast<UPRWeaponDataAsset>(InItemData))
-	{
-		RequestAddWeaponItem(Weapon);
-	}
-	else if (UPRWeaponModDataAsset* Mod = Cast<UPRWeaponModDataAsset>(InItemData))
-	{
-		RequestAddModItem(Mod);
-	}
-	else if (UPRConsumableDataAsset* Consumable = Cast<UPRConsumableDataAsset>(InItemData))
-	{
-		RequestAddConsumableItem(Consumable,Amount);
-	}
-}
-
 void UPRInventoryComponent::RequestAddWeaponItem(UPRWeaponDataAsset* WeaponData)
 {
 	// 데이터가 없는 요청은 서버 RPC를 보내기 전에 중단한다
@@ -134,29 +113,6 @@ void UPRInventoryComponent::RequestAddWeaponItem(UPRWeaponDataAsset* WeaponData)
 	}
 
 	Server_RequestAddWeaponItem(WeaponData);
-}
-
-UPRItemInstance* UPRInventoryComponent::AddItem(UPRItemDataAsset* InItemData, int32 Amount)
-{
-	if (!IsValid(InItemData))
-	{
-		return nullptr;
-	}
-	
-	if (UPRWeaponDataAsset* Weapon = Cast<UPRWeaponDataAsset>(InItemData))
-	{
-		return AddWeaponItem(Weapon);
-	}
-	else if (UPRWeaponModDataAsset* Mod = Cast<UPRWeaponModDataAsset>(InItemData))
-	{
-		return AddModItem(Mod);
-	}
-	else if (UPRConsumableDataAsset* Consumable = Cast<UPRConsumableDataAsset>(InItemData))
-	{
-		return AddConsumableItem(Consumable,Amount);
-	}
-	
-	return nullptr;
 }
 
 UPRItemInstance_Weapon* UPRInventoryComponent::AddWeaponItem(UPRWeaponDataAsset* WeaponData)
@@ -750,54 +706,6 @@ UPRItemInstance_Consumable* UPRInventoryComponent::FindConsumableItemByData(cons
 		if (ConsumableItem->GetConsumableData() == ConsumableData)
 		{
 			return ConsumableItem;
-		}
-	}
-
-	return nullptr;
-}
-
-UPRItemInstance_Weapon* UPRInventoryComponent::FindWeaponItemByData(const UPRWeaponDataAsset* WeaponData)
-{
-	// 유효하지 않은 데이터는 조회 대상이 아니다
-	if (!IsValid(WeaponData))
-	{
-		return nullptr;
-	}
-
-	for (UPRItemInstance_Weapon* Item : InventoryWeaponItems)
-	{
-		if (!IsValid(Item))
-		{
-			continue;
-		}
-
-		if (Item->GetWeaponData() == WeaponData)
-		{
-			return Item;
-		}
-	}
-
-	return nullptr;
-}
-
-UPRItemInstance_Mod* UPRInventoryComponent::FindModItemByData(const UPRWeaponModDataAsset* ItemData)
-{
-	// 유효하지 않은 데이터는 조회 대상이 아니다
-	if (!IsValid(ItemData))
-	{
-		return nullptr;
-	}
-
-	for (UPRItemInstance_Mod* Item : InventoryModItems)
-	{
-		if (!IsValid(Item))
-		{
-			continue;
-		}
-
-		if (Item->GetModData() == ItemData)
-		{
-			return Item;
 		}
 	}
 

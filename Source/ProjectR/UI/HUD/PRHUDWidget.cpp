@@ -130,11 +130,6 @@ void UPRHUDWidget::NativeTick(const FGeometry& MyGeometry, float InDeltaTime)
 
 void UPRHUDWidget::OnPlayerReady()
 {
-	if (WeaponHUD)
-	{
-		WeaponHUD->InitializeWeaponHUD();
-	}
-
 	if (IsValid(PlayerHealthBar))
 	{
 		PlayerHealthBar->RefreshHealthFromOwner();
@@ -150,19 +145,13 @@ void UPRHUDWidget::OnPlayerReady()
 		PartyHealthList->RefreshPartyMembers();
 	}
 	
+	if (IsValid(WeaponHUD))
+	{
+		WeaponHUD->InitializeWeaponHUD();
+	}
 	if (IsValid(QuickSlotHUD))
 	{
 		QuickSlotHUD->InitializeQuickSlotHUD();
-	}
-
-	if (IsValid(PlayerHealthBar))
-	{
-		PlayerHealthBar->RefreshHealthFromOwner();
-	}
-
-	if (IsValid(PartyHealthList))
-	{
-		PartyHealthList->RefreshPartyMembers();
 	}
 }
 

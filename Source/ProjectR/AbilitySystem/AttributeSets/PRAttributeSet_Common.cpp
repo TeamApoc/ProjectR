@@ -5,8 +5,8 @@
 #include "GameplayEffectExtension.h"
 #include "Net/UnrealNetwork.h"
 #include "ProjectR/AbilitySystem/AttributeSets/PRAttributeSet_Player.h"
+#include "ProjectR/Player/PRPlayerState.h"
 #include "ProjectR/PRGameplayTags.h"
-
 
 void UPRAttributeSet_Common::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const
 {
@@ -88,14 +88,20 @@ void UPRAttributeSet_Common::PostGameplayEffectExecute(const FGameplayEffectModC
 			const float NewHealth = GetHealth();
 			if (NewHealth <= 0.0f)
 			{
-				if (!ASC->HasMatchingGameplayTag( PRGameplayTags::State_Dead))
+				if (!ASC->HasMatchingGameplayTag(PRGameplayTags::State_Dead)
+					&& !ASC->HasMatchingGameplayTag(PRGameplayTags::State_Down))
 				{
 					AActor* Instigator = Data.EffectSpec.GetContext().GetOriginalInstigator();
 					AActor* AvatarActor = ASC->GetAvatarActor();
 					if (IsValid(AvatarActor) && AvatarActor->HasAuthority())
 					{
+						const APRPlayerState* OwnerPlayerState = Cast<APRPlayerState>(ASC->GetOwnerActor());
+						const FGameplayTag EventTag = IsValid(OwnerPlayerState) && OwnerPlayerState->HasFightCapableAllyExceptSelf()
+							? PRGameplayTags::Event_Ability_Down
+							: PRGameplayTags::Event_Ability_Death;
+
 						FGameplayEventData Payload;
-						Payload.EventTag = PRGameplayTags::Event_Ability_Death;
+						Payload.EventTag = EventTag;
 						Payload.Instigator = Instigator;
 						Payload.Target = AvatarActor;
 						Payload.ContextHandle = Data.EffectSpec.GetContext();
@@ -103,7 +109,7 @@ void UPRAttributeSet_Common::PostGameplayEffectExecute(const FGameplayEffectModC
 						// 사망 이벤트 전송
 						UAbilitySystemBlueprintLibrary::SendGameplayEventToActor(
 							AvatarActor,
-							PRGameplayTags::Event_Ability_Death,
+							EventTag,
 							Payload);
 						// 캐릭터들은 Event_Ability_Death를 트리거로 하는 Dead 어빌리티가 부여되어 있어야함
 					}

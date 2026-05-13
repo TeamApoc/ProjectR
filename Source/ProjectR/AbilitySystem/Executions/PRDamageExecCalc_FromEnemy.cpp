@@ -52,6 +52,7 @@ void UPRDamageExecCalc_FromEnemy::Execute_Implementation(const FGameplayEffectCu
 	}
 
 	if (TargetASC->HasMatchingGameplayTag(PRGameplayTags::State_Dead)
+		|| TargetASC->HasMatchingGameplayTag(PRGameplayTags::State_Down)
 		|| TargetASC->HasMatchingGameplayTag(PRGameplayTags::State_Invulnerable))
 	{
 		return;

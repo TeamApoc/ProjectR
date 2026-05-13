@@ -1,7 +1,9 @@
 // Copyright ProjectR. All Rights Reserved.
 
 #include "PRPlayGameMode.h"
+#include "GameFramework/GameStateBase.h"
 #include "PRGameStateBase.h"
+#include "ProjectR/PRGameplayTags.h"
 #include "ProjectR/Player/PRPlayerController.h"
 #include "ProjectR/Player/PRPlayerState.h"
 
@@ -129,4 +131,83 @@ void APRPlayGameMode::GrantRewardTo(APRPlayerController* Target, const FPRReward
 
 	// 오너 클라에게만 푸시. 수신 측에서 GameInstance에 즉시 반영
 	Target->ClientGrantReward(Grant);
+}
+
+void APRPlayGameMode::NotifyPlayerSurvivalStateChanged(APRPlayerState* PlayerState)
+{
+	if (!HasAuthority() || !IsValid(PlayerState) || !PlayerState->IsCombatParticipant())
+	{
+		return;
+	}
+
+	EvaluatePartyWipe();
+}
+
+void APRPlayGameMode::EvaluatePartyWipe()
+{
+	if (!HasAuthority() || bPartyWipeInProgress)
+	{
+		return;
+	}
+
+	const AGameStateBase* CurrentGameState = GameState;
+	if (!IsValid(CurrentGameState))
+	{
+		return;
+	}
+
+	int32 ParticipantCount = 0;
+	int32 OutOfFightCount = 0;
+	for (APlayerState* PlayerState : CurrentGameState->PlayerArray)
+	{
+		const APRPlayerState* PRPlayerState = Cast<APRPlayerState>(PlayerState);
+		if (!IsValid(PRPlayerState) || !PRPlayerState->IsCombatParticipant())
+		{
+			continue;
+		}
+
+		++ParticipantCount;
+		if (PRPlayerState->IsOutOfFight())
+		{
+			++OutOfFightCount;
+		}
+	}
+
+	if (ParticipantCount > 0 && ParticipantCount == OutOfFightCount)
+	{
+		ConfirmPartyWipe();
+	}
+}
+
+void APRPlayGameMode::ConfirmPartyWipe()
+{
+	if (!HasAuthority() || bPartyWipeInProgress)
+	{
+		return;
+	}
+
+	AGameStateBase* CurrentGameState = GameState;
+	if (!IsValid(CurrentGameState))
+	{
+		return;
+	}
+
+	bPartyWipeInProgress = true;
+	for (APlayerState* PlayerState : CurrentGameState->PlayerArray)
+	{
+		APRPlayerState* PRPlayerState = Cast<APRPlayerState>(PlayerState);
+		if (!IsValid(PRPlayerState) || !PRPlayerState->IsCombatParticipant())
+		{
+			continue;
+		}
+
+		if (PRPlayerState->IsDown())
+		{
+			PRPlayerState->SendSurvivalGameplayEvent(PRGameplayTags::Event_Ability_PlayerDeathConfirmed);
+		}
+		else if (!PRPlayerState->IsDead())
+		{
+			PRPlayerState->SendSurvivalGameplayEvent(PRGameplayTags::Event_Ability_Death);
+		}
+	}
 }

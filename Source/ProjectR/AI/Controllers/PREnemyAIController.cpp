@@ -12,10 +12,11 @@
 #include "ProjectR/AI/Data/PREnemyCombatDataAsset.h"
 #include "ProjectR/AI/Data/PRPerceptionConfig.h"
 #include "ProjectR/Character/Enemy/PREnemyInterface.h"
+#include "ProjectR/Combat/PRCombatStatics.h"
 
 namespace
 {
-	const UPREnemyCombatDataAsset* ResolveCombatDataAssetFromPawn(const APawn* ControlledPawn)
+	const UPRCombatMoveDataAsset* ResolveCombatDataAssetFromPawn(const APawn* ControlledPawn)
 	{
 		const IPREnemyInterface* EnemyInterface = Cast<IPREnemyInterface>(ControlledPawn);
 		if (EnemyInterface == nullptr)
@@ -111,6 +112,11 @@ void APREnemyAIController::ApplyTacticalModeState(
 void APREnemyAIController::HandleTargetPerceptionUpdated(AActor* Actor, FAIStimulus Stimulus)
 {
 	if (!HasAuthority() || !IsValid(Actor))
+	{
+		return;
+	}
+
+	if (UPRCombatStatics::GetActorTeam(Actor) != EPRTeam::Player)
 	{
 		return;
 	}
@@ -320,7 +326,7 @@ void APREnemyAIController::SetBlackboardTacticalMode(EPRTacticalMode NewMode)
 	CachedBlackboardComponent->SetValueAsEnum(TacticalModeKey, static_cast<uint8>(NewMode));
 }
 
-const UPREnemyCombatDataAsset* APREnemyAIController::GetCurrentCombatDataAsset() const
+const UPRCombatMoveDataAsset* APREnemyAIController::GetCurrentCombatDataAsset() const
 {
 	return ResolveCombatDataAssetFromPawn(GetPawn());
 }
@@ -342,7 +348,7 @@ void APREnemyAIController::ApplyPresentationForTacticalMode(
 		return;
 	}
 
-	const UPREnemyCombatDataAsset* CombatDataAsset = GetCurrentCombatDataAsset();
+	const UPRCombatMoveDataAsset* CombatDataAsset = GetCurrentCombatDataAsset();
 	if (!IsValid(CombatDataAsset))
 	{
 		ClearCombatMovePresentationContext(true);
@@ -366,7 +372,7 @@ void APREnemyAIController::ApplyInitialAttackPressureOnAlert()
 		return;
 	}
 
-	const UPREnemyCombatDataAsset* CombatDataAsset = GetCurrentCombatDataAsset();
+	const UPREnemyCombatDataAsset* CombatDataAsset = Cast<UPREnemyCombatDataAsset>(GetCurrentCombatDataAsset());
 	if (!IsValid(CombatDataAsset) || AttackPressureKey == NAME_None)
 	{
 		return;

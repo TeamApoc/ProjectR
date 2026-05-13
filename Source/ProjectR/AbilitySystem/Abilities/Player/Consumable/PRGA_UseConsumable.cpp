@@ -13,6 +13,19 @@ UPRGA_UseConsumable::UPRGA_UseConsumable()
 {
 	FGameplayTagContainer DefaultAbilityTags;
 	DefaultAbilityTags.AddTag(PRGameplayTags::Ability_Player_UseConsumable);
+	
+	// 소비템 사용중 태그 부여
+	ActivationOwnedTags.AddTag(PRGameplayTags::State_UsingConsumable);
+	
+	// 아래의 행동을 차단한다
+	BlockAbilitiesWithTag.AddTag(PRGameplayTags::Ability_Player_Aim);
+	BlockAbilitiesWithTag.AddTag(PRGameplayTags::Ability_Player_Crouch);
+	BlockAbilitiesWithTag.AddTag(PRGameplayTags::Ability_Player_SwapWeapon);
+	BlockAbilitiesWithTag.AddTag(PRGameplayTags::Ability_Player_Weapon_Fire_Primary);
+	BlockAbilitiesWithTag.AddTag(PRGameplayTags::Ability_Player_Reload);
+	BlockAbilitiesWithTag.AddTag(PRGameplayTags::Ability_Player_Sprint);
+	BlockAbilitiesWithTag.AddTag(PRGameplayTags::Ability_Player_UseConsumable);
+	
 	SetAssetTags(DefaultAbilityTags);
 
 	ReplicationPolicy = EGameplayAbilityReplicationPolicy::ReplicateYes;

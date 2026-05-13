@@ -11,14 +11,13 @@
 #include "PREnemyBaseCharacter.generated.h"
 
 class UBehaviorTree;
-class UBoxComponent;
-class USphereComponent;
 class UPRAbilitySystemComponent;
 class UPRAttributeSet_Common;
 class UPRAttributeSet_Enemy;
+class UPREnemyWorldHealthBarComponent;
 class UPRPatternDataAsset;
 class UPRPerceptionConfig;
-class UPREnemyCombatDataAsset;
+class UPRCombatMoveDataAsset;
 class UPREnemyCombatEventRelayComponent;
 class UPREnemyThreatComponent;
 struct FPREnemyMovePresentationConfig;
@@ -48,7 +47,7 @@ public:
 	virtual UPRAbilitySystemComponent* GetEnemyAbilitySystemComponent() const override;
 	virtual UPREnemyThreatComponent* GetEnemyThreatComponent() const override;
 	virtual UPRPatternDataAsset* GetPatternDataAsset() const override;
-	virtual UPREnemyCombatDataAsset* GetCombatDataAsset() const override;
+	virtual UPRCombatMoveDataAsset* GetCombatDataAsset() const override;
 	virtual UPRPerceptionConfig* GetPerceptionConfig() const override;
 	virtual UBehaviorTree* GetBehaviorTreeAsset() const override;
 	virtual FVector GetHomeLocation() const override;
@@ -75,8 +74,7 @@ public:
 
 	const UPRAttributeSet_Common* GetCommonSet() const { return CommonSet; }
 	const UPRAttributeSet_Enemy* GetEnemySet() const { return EnemySet; }
-	const UBoxComponent* GetArmorCollision() const { return ArmorCollision; }
-	const USphereComponent* GetWeakpointCollision() const { return WeakpointCollision; }
+	UPREnemyWorldHealthBarComponent* GetEnemyWorldHealthBarComponent() const { return EnemyWorldHealthBarComponent; }
 
 protected:
 	/*~ APRCharacterBase Interface ~*/
@@ -100,6 +98,9 @@ protected:
 	// 캐시해 둔 기존 이동 설정을 복구한다.
 	void RestoreMovementPresentationDefaults();
 
+	// 월드 HP 바 컴포넌트를 현재 ASC에 연결한다.
+	void InitializeEnemyWorldHealthBar();
+
 protected:
 	// 적은 PlayerState가 아니라 캐릭터 자신이 ASC를 소유한다.
 	UPROPERTY(VisibleAnywhere, Category = "ProjectR|Ability")
@@ -118,6 +119,14 @@ protected:
 	UPROPERTY(VisibleAnywhere, Category = "ProjectR|AI")
 	TObjectPtr<UPREnemyCombatEventRelayComponent> CombatEventRelayComponent;
 
+	// 일반 몬스터 머리 위 HP 바 표시를 담당한다.
+	UPROPERTY(VisibleAnywhere, Category = "ProjectR|UI")
+	TObjectPtr<UPREnemyWorldHealthBarComponent> EnemyWorldHealthBarComponent;
+
+	// 월드 HP 바 사용 여부다. 보스나 특수 적은 비활성화할 수 있다.
+	UPROPERTY(EditDefaultsOnly, Category = "ProjectR|UI")
+	bool bUseWorldHealthBar = true;
+
 	// 이 몬스터가 Possess될 때 실행할 BT
 	UPROPERTY(EditDefaultsOnly, Category = "ProjectR|AI")
 	TObjectPtr<UBehaviorTree> BehaviorTreeAsset;
@@ -126,21 +135,13 @@ protected:
 	UPROPERTY(EditDefaultsOnly, Category = "ProjectR|AI")
 	TObjectPtr<UPRPatternDataAsset> PatternDataAsset;
 
-	// 적 전투 흐름과 공격 데이터를 담은 자산이다.
+	// 적/보스 전투 이동과 표현 데이터를 담은 자산이다.
 	UPROPERTY(EditDefaultsOnly, Category = "ProjectR|AI")
-	TObjectPtr<UPREnemyCombatDataAsset> CombatDataAsset;
+	TObjectPtr<UPRCombatMoveDataAsset> CombatDataAsset;
 
 	// 시야/청각 감지 설정 데이터다.
 	UPROPERTY(EditDefaultsOnly, Category = "ProjectR|AI")
 	TObjectPtr<UPRPerceptionConfig> PerceptionConfig;
-
-	// Armor.* ComponentTag를 가진 피격 영역이다.
-	UPROPERTY(VisibleAnywhere, Category = "ProjectR|Combat")
-	TObjectPtr<UBoxComponent> ArmorCollision;
-
-	// Weakpoint.* ComponentTag를 가진 피격 영역이다. 몬스터별로 필요 없으면 비활성화한다.
-	UPROPERTY(VisibleAnywhere, Category = "ProjectR|Combat")
-	TObjectPtr<USphereComponent> WeakpointCollision;
 
 	// AI 복귀 기준 위치다. BeginPlay에서 현재 위치로 저장한다.
 	UPROPERTY(VisibleInstanceOnly, Category = "ProjectR|AI")

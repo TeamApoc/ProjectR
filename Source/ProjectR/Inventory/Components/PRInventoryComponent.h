@@ -6,6 +6,7 @@
 #include "Components/ActorComponent.h"
 #include "PRInventoryComponent.generated.h"
 
+class UPRItemInstance;
 class UPRItemDataAsset;
 class UPRConsumableDataAsset;
 class UPRItemInstance_Mod;
@@ -48,9 +49,16 @@ public:
 	virtual bool ReplicateSubobjects(UActorChannel* Channel, FOutBunch* Bunch, FReplicationFlags* RepFlags) override;
 
 public:
+	// Item 데이터 타입에 맞는 추가 요청을 서버 권위 경로로 전달한다
+	UFUNCTION(BlueprintCallable, Category = "ProjectR|Inventory")
+	void RequestAddItem(UPRItemDataAsset* InItemData, int32 Amount = 1);
+
 	// 무기 Item 추가를 서버 권위 경로로 요청한다
 	UFUNCTION(BlueprintCallable, Category = "ProjectR|Inventory")
 	void RequestAddWeaponItem(UPRWeaponDataAsset* WeaponData);
+
+	// Item 데이터 타입에 맞는 인벤토리 Item을 추가한다
+	UPRItemInstance* AddItem(UPRItemDataAsset* InItemData, int32 Amount = 1);
 
 	// 새 무기 Item을 생성해 인벤토리에 추가한다
 	UPRItemInstance_Weapon* AddWeaponItem(UPRWeaponDataAsset* WeaponData);
@@ -121,7 +129,16 @@ public:
 	bool OwnsConsumable(const UPRItemInstance_Consumable* ConsumableItem) const;
 
 	// 소비 Item 데이터로 인벤토리 내 소비 Item을 조회한다
+	UFUNCTION(BlueprintCallable, Category = "ProjectR|Inventory")
 	UPRItemInstance_Consumable* FindConsumableItemByData(const UPRConsumableDataAsset* ConsumableData) const;
+
+	// 무기 Item 데이터로 인벤토리 내 무기 Item을 조회한다
+	UFUNCTION(BlueprintCallable, Category = "ProjectR|Inventory")
+	UPRItemInstance_Weapon* FindWeaponItemByData(const UPRWeaponDataAsset* WeaponData);
+
+	// 무기 Mod Item 데이터로 인벤토리 내 Mod Item을 조회한다
+	UFUNCTION(BlueprintCallable, Category = "ProjectR|Inventory")
+	UPRItemInstance_Mod* FindModItemByData(const UPRWeaponModDataAsset* ItemData);
 
 	// 인벤토리 변경 이벤트를 발행한다
 	void OnInventoryChanged(EPRInventoryChangeReason ChangeReason);

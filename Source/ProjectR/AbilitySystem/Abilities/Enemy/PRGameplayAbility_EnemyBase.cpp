@@ -6,6 +6,7 @@
 #include "ProjectR/AbilitySystem/Data/PRAbilitySystemRegistry.h"
 #include "ProjectR/Character/Enemy/PREnemyBaseCharacter.h"
 #include "ProjectR/Combat/PRCombatGameplayTags.h"
+#include "ProjectR/Combat/PRCombatStatics.h"
 #include "ProjectR/System/PRAssetManager.h"
 
 UPRGameplayAbility_EnemyBase::UPRGameplayAbility_EnemyBase()
@@ -20,9 +21,14 @@ APREnemyBaseCharacter* UPRGameplayAbility_EnemyBase::GetEnemyAvatarCharacter() c
 	return Cast<APREnemyBaseCharacter>(GetAvatarActorFromActorInfo());
 }
 
-void UPRGameplayAbility_EnemyBase::ApplyDamage(AActor* TargetActor, float Damage, float GroggyDamage, float AttackMultiplier, const FHitResult* HitResult)
+void UPRGameplayAbility_EnemyBase::ApplyAttackPowerDamage(AActor* TargetActor, float DamageMultiplier, float PoiseDamage, const FHitResult* HitResult)
 {
 	if (!IsValid(TargetActor))
+	{
+		return;
+	}
+
+	if (UPRCombatStatics::GetActorTeam(TargetActor) == EPRTeam::Enemy)
 	{
 		return;
 	}
@@ -50,12 +56,14 @@ void UPRGameplayAbility_EnemyBase::ApplyDamage(AActor* TargetActor, float Damage
 		return;
 	}
 
-	// DataAsset에서 정한 체력 피해와 강인도 피해 값을 SetByCaller로 전달한다.
-	SpecHandle.Data->SetSetByCallerMagnitude(PRCombatGameplayTags::SetByCaller_Damage, Damage);
-	SpecHandle.Data->SetSetByCallerMagnitude(PRCombatGameplayTags::SetByCaller_GroggyDamage, GroggyDamage);
+	// 적/보스 공격 피해는 EnemyStatRow AttackPower에 공격별 배율을 곱해 산출한다.
+	SpecHandle.Data->SetSetByCallerMagnitude(
+		PRCombatGameplayTags::SetByCaller_AttackMultiplier,
+		FMath::Max(DamageMultiplier, 0.0f));
 
-	// AttackMultiplier를 SetByCaller로 전달한다.
-	SpecHandle.Data->SetSetByCallerMagnitude(PRCombatGameplayTags::SetByCaller_AttackMultiplier, AttackMultiplier);
+	SpecHandle.Data->SetSetByCallerMagnitude(
+		PRCombatGameplayTags::SetByCaller_PoiseDamage,
+		FMath::Max(PoiseDamage, 0.0f));
 
 	// HitResult가 있으면 EffectContext에 포함시켜 ExecCalc에서 부위 판정에 활용한다
 	if (HitResult != nullptr && HitResult->bBlockingHit)

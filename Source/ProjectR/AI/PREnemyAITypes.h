@@ -132,6 +132,10 @@ struct PROJECTR_API FPRPatternRule
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|AI")
 	EPRPatternCategory PatternCategory = EPRPatternCategory::Any;
 
+	// 원작 패턴군 또는 보스별 세부 패턴 그룹을 구분하는 태그다.
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|AI")
+	FGameplayTag PatternGroupTag;
+
 	// 이 패턴이 유효한 최소 거리다.
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|AI", meta = (ClampMin = "0.0"))
 	float MinRange = 0.0f;

@@ -213,6 +213,10 @@ void UPRAttributeSet_Player::PostGameplayEffectExecute(const FGameplayEffectModC
 			WeakHitReactThreshold,
 			StrongHitReactThreshold,
 			ClampMax);
+		if (NewPoiseDamage >= ClampMax)
+		{
+			SetAccumulatedPoiseDamage(0.0f);
+		}
 	}
 }
 

@@ -4,9 +4,12 @@
 #include "Engine/Engine.h"
 #include "Engine/World.h"
 #include "Engine/GameInstance.h"
+#include "Engine/NetDriver.h"
 #include "GameFramework/PlayerController.h"
 #include "Kismet/GameplayStatics.h"
 #include "Internationalization/Regex.h"
+
+DEFINE_LOG_CATEGORY_STATIC(LogPRSession, Log, All);
 
 // ===== 초기화 ===== 
 
@@ -57,8 +60,9 @@ void UPRSessionSubsystem::StartHost(const FPRHostSessionParams& Params)
 	PendingHostParams = Params;
 	SetState(EPRSessionState::Hosting);
 
-	// listen 옵션으로 리슨 서버 개시
-	const FString Options = FString::Printf(TEXT("listen?MaxPlayers=%d"), Params.MaxPlayers);
+	// listen 옵션으로 리슨 서버 개시. SessionPort 명시로 PIE/Standalone 포트 통일
+	const FString Options = FString::Printf(TEXT("listen?MaxPlayers=%d?Port=%d"), Params.MaxPlayers, SessionPort);
+	UE_LOG(LogPRSession, Log, TEXT("[StartHost] OpenLevel Map=%s, Options=%s"), *Params.MapName.ToString(), *Options);
 	UGameplayStatics::OpenLevel(this, Params.MapName, true, Options);
 
 	// OpenLevel은 비동기이므로 Hosted 전이는 맵 로드 완료 시 GameMode에서 확정한다
@@ -79,6 +83,7 @@ void UPRSessionSubsystem::StartJoin(const FPRJoinSessionParams& Params)
 {
 	if (!ValidateAddress(Params.Address))
 	{
+		UE_LOG(LogPRSession, Warning, TEXT("[StartJoin] InvalidAddress=%s"), *Params.Address);
 		OnSessionFailed.Broadcast(EPRSessionFailReason::InvalidAddress, Params.Address);
 		return;
 	}
@@ -97,13 +102,31 @@ void UPRSessionSubsystem::StartJoin(const FPRJoinSessionParams& Params)
 		return;
 	}
 
+	// 같은 프로세스가 이미 리슨 서버이거나 호스트 상태이면 자기 자신으로 ClientTravel 불가
+	UWorld* World = GetWorld();
+	const ENetMode NetMode = IsValid(World) ? World->GetNetMode() : NM_Standalone;
+	if (NetMode == NM_ListenServer || NetMode == NM_DedicatedServer)
+	{
+		UE_LOG(LogPRSession, Warning, TEXT("[StartJoin] 호스트 프로세스에서 Join 시도 차단 NetMode=%d"), static_cast<int32>(NetMode));
+		OnSessionFailed.Broadcast(EPRSessionFailReason::Unknown, TEXT("Cannot join from a hosting instance"));
+		return;
+	}
+
+	// 메뉴에서 포트 미입력 시 SessionPort로 보정. 호스트와 동일 포트 강제
+	FString TravelAddress = Params.Address;
+	if (!TravelAddress.Contains(TEXT(":")))
+	{
+		TravelAddress += FString::Printf(TEXT(":%d"), SessionPort);
+	}
+
+	UE_LOG(LogPRSession, Log, TEXT("[StartJoin] ClientTravel Address=%s NetMode=%d PC=%s"),
+		*TravelAddress, static_cast<int32>(NetMode), *PC->GetName());
+
 	SetState(EPRSessionState::Joining);
 
 	// 접속 시도. 실패는 HandleNetworkFailure로 통지됨
-	PC->ClientTravel(Params.Address, TRAVEL_Absolute);
-
-	// Joined 전이는 접속 완료 후 PlayerController가 PostLogin 처리할 때 확정한다
-	SetState(EPRSessionState::Joined);
+	// ClientTravel은 비동기. 실제 Joined 전이는 새 맵에서 PostLogin/WelcomeReceived 시점에 확정해야 함
+	PC->ClientTravel(TravelAddress, TRAVEL_Absolute);
 }
 
 // ===== ServerTravel =====
@@ -174,6 +197,9 @@ void UPRSessionSubsystem::EndSession()
 
 void UPRSessionSubsystem::HandleNetworkFailure(UWorld* World, UNetDriver* NetDriver, ENetworkFailure::Type FailureType, const FString& ErrorString)
 {
+	UE_LOG(LogPRSession, Warning, TEXT("[HandleNetworkFailure] FailureType=%d, Error=%s"),
+		static_cast<int32>(FailureType), *ErrorString);
+
 	OnSessionFailed.Broadcast(EPRSessionFailReason::NetworkFailure, ErrorString);
 	SetState(EPRSessionState::None);
 }

@@ -9,8 +9,10 @@
 #include "ProjectR/Player/PRPlayerState.h"
 #include "ProjectR/System/PREventManagerSubsystem.h"
 #include "ProjectR/UI/Crosshair/PRCrosshairWidget.h"
+#include "ProjectR/UI/HUD/PRBossHealthBarWidget.h"
 #include "ProjectR/UI/HUD/PRHealthBarWidget.h"
 #include "ProjectR/UI/HUD/PRPartyHealthListWidget.h"
+#include "ProjectR/UI/HUD/PRStaminaBarWidget.h"
 #include "ProjectR/UI/QuickSlot/PRQuickSlotWidget.h"
 #include "ProjectR/UI/WeaponStatusHUD/PRWeaponHUDWidget.h"
 
@@ -20,6 +22,28 @@ UPRHUDWidget::UPRHUDWidget()
 	Layer = EPRUILayer::HUD;
 	InputMode = EPBUIInputMode::None;
 	bShowMouseCursor = false;
+}
+
+/*~ Public API ~*/
+
+void UPRHUDWidget::BindBossHealthBar(APRBossBaseCharacter* InBoss)
+{
+	if (!IsValid(BossHealthBar))
+	{
+		return;
+	}
+
+	BossHealthBar->BindBoss(InBoss);
+}
+
+void UPRHUDWidget::ClearBossHealthBar()
+{
+	if (!IsValid(BossHealthBar))
+	{
+		return;
+	}
+
+	BossHealthBar->ClearBoss();
 }
 
 void UPRHUDWidget::NativeOnInitialized()
@@ -106,24 +130,28 @@ void UPRHUDWidget::NativeTick(const FGeometry& MyGeometry, float InDeltaTime)
 
 void UPRHUDWidget::OnPlayerReady()
 {
-	if (WeaponHUD)
-	{
-		WeaponHUD->InitializeWeaponHUD();
-	}
-	
-	if (IsValid(QuickSlotHUD))
-	{
-		QuickSlotHUD->InitializeQuickSlotHUD();
-	}
-
 	if (IsValid(PlayerHealthBar))
 	{
 		PlayerHealthBar->RefreshHealthFromOwner();
 	}
 
+	if (IsValid(PlayerStaminaBar))
+	{
+		PlayerStaminaBar->RefreshStaminaFromOwner();
+	}
+
 	if (IsValid(PartyHealthList))
 	{
 		PartyHealthList->RefreshPartyMembers();
+	}
+	
+	if (IsValid(WeaponHUD))
+	{
+		WeaponHUD->InitializeWeaponHUD();
+	}
+	if (IsValid(QuickSlotHUD))
+	{
+		QuickSlotHUD->InitializeQuickSlotHUD();
 	}
 }
 

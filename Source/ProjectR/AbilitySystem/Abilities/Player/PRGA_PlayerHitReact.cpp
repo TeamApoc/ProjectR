@@ -36,6 +36,7 @@ UPRGA_PlayerHitReact::UPRGA_PlayerHitReact()
 	DefaultAbilityTags.AddTag(PRGameplayTags::Ability_Player_HitReact);
 	SetAssetTags(DefaultAbilityTags);
 	ActivationBlockedTags.AddTag(PRGameplayTags::State_Dead);
+	ActivationBlockedTags.AddTag(PRGameplayTags::Cooldown_Ability_PlayerHitReact);
 	ActivationOwnedTags.AddTag(PRGameplayTags::State_PlayerInputLocked);
 
 	// 사격 취소
@@ -67,7 +68,7 @@ UPRGA_PlayerHitReact::UPRGA_PlayerHitReact()
 
 	ReplicationPolicy = EGameplayAbilityReplicationPolicy::ReplicateYes;
 	InstancingPolicy = EGameplayAbilityInstancingPolicy::InstancedPerActor;
-	NetExecutionPolicy = EGameplayAbilityNetExecutionPolicy::ServerOnly;
+	NetExecutionPolicy = EGameplayAbilityNetExecutionPolicy::ServerInitiated;
 	bRetriggerInstancedAbility = true;
 }
 
@@ -168,6 +169,7 @@ void UPRGA_PlayerHitReact::EndAbility(const FGameplayAbilitySpecHandle Handle,
 {
 	bHitReactFinished = true;
 	ClearDownHitReact();
+	ClearDownHitReactCooldown();
 	ClearActionLock();
 
 	if (IsValid(ActiveMontageTask))
@@ -398,6 +400,12 @@ void UPRGA_PlayerHitReact::CancelActionsForHitReact(EPRPlayerHitReactType HitRea
 // 회복 가능 체력 자동 회복 딜레이 GameplayEffect를 적용한다.
 void UPRGA_PlayerHitReact::ApplyRecoverableHealthRecoveryDelay(const FGameplayEventData* TriggerEventData)
 {
+	const AActor* AvatarActor = GetAvatarActorFromActorInfo();
+	if (!IsValid(AvatarActor) || !AvatarActor->HasAuthority())
+	{
+		return;
+	}
+
 	if (!IsValid(RecoverableHealthRecoveryDelayEffectClass))
 	{
 		return;
@@ -420,6 +428,40 @@ void UPRGA_PlayerHitReact::StartDownHitReact()
 {
 	DownHitReactPhase = EPRPlayerDownHitReactPhase::Start;
 	bDownLandRequested = false;
+	StartDownHitReactCooldown();
+}
+
+// 다운 리액션이 이미 재생 중일 때 같은 Ability가 다시 발동하지 않도록 쿨다운 태그를 부여한다.
+void UPRGA_PlayerHitReact::StartDownHitReactCooldown()
+{
+	if (bDownHitReactCooldownTagAdded)
+	{
+		return;
+	}
+
+	UAbilitySystemComponent* ASC = GetAbilitySystemComponentFromActorInfo();
+	if (IsValid(ASC))
+	{
+		ASC->AddLooseGameplayTag(PRGameplayTags::Cooldown_Ability_PlayerHitReact);
+		bDownHitReactCooldownTagAdded = true;
+	}
+}
+
+// 다운 리액션 몽타주가 끝나거나 취소되면 HitReact 쿨다운 태그를 제거한다.
+void UPRGA_PlayerHitReact::ClearDownHitReactCooldown()
+{
+	if (!bDownHitReactCooldownTagAdded)
+	{
+		return;
+	}
+
+	UAbilitySystemComponent* ASC = GetAbilitySystemComponentFromActorInfo();
+	if (IsValid(ASC))
+	{
+		ASC->RemoveLooseGameplayTag(PRGameplayTags::Cooldown_Ability_PlayerHitReact);
+	}
+
+	bDownHitReactCooldownTagAdded = false;
 }
 
 // 다운 몽타주의 섹션 연결과 섹션 변경 콜백을 설정한다.
@@ -702,7 +744,12 @@ void UPRGA_PlayerHitReact::StartActionLock(EPRPlayerHitReactType HitReactType)
 	if (IsValid(ASC))
 	{
 		ASC->AddLooseGameplayTag(PRGameplayTags::State_PlayerHitReactLocked);
-		ASC->AddReplicatedLooseGameplayTag(PRGameplayTags::State_PlayerHitReactLocked);
+
+		const AActor* AvatarActor = GetAvatarActorFromActorInfo();
+		if (IsValid(AvatarActor) && AvatarActor->HasAuthority())
+		{
+			ASC->AddReplicatedLooseGameplayTag(PRGameplayTags::State_PlayerHitReactLocked);
+		}
 		bActionLockTagAdded = true;
 	}
 }
@@ -719,7 +766,12 @@ void UPRGA_PlayerHitReact::ClearActionLock()
 	if (IsValid(ASC))
 	{
 		ASC->RemoveLooseGameplayTag(PRGameplayTags::State_PlayerHitReactLocked);
-		ASC->RemoveReplicatedLooseGameplayTag(PRGameplayTags::State_PlayerHitReactLocked);
+
+		const AActor* AvatarActor = GetAvatarActorFromActorInfo();
+		if (IsValid(AvatarActor) && AvatarActor->HasAuthority())
+		{
+			ASC->RemoveReplicatedLooseGameplayTag(PRGameplayTags::State_PlayerHitReactLocked);
+		}
 	}
 
 	bActionLockTagAdded = false;

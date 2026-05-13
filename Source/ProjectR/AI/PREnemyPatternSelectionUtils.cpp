@@ -28,6 +28,12 @@ namespace PREnemyPatternSelectionUtils
 			|| PatternRule.PatternCategory == CategoryFilter;
 	}
 
+	bool MatchesPatternGroupTag(const FPRPatternRule& PatternRule, const FGameplayTag PatternGroupFilter)
+	{
+		return !PatternGroupFilter.IsValid()
+			|| PatternRule.PatternGroupTag.MatchesTag(PatternGroupFilter);
+	}
+
 	bool BuildPatternQueryRuntime(
 		UBehaviorTreeComponent& OwnerComp,
 		const FName CurrentTargetKey,
@@ -83,6 +89,7 @@ namespace PREnemyPatternSelectionUtils
 	void CollectMatchingPatternRules(
 		const FPREnemyPatternQueryRuntime& Runtime,
 		EPRPatternCategory CategoryFilter,
+		FGameplayTag PatternGroupFilter,
 		bool bCheckAbilityCanActivate,
 		EPRPatternContextMatchMode MatchMode,
 		TArray<const FPRPatternRule*>& OutMatchedRules,
@@ -102,6 +109,11 @@ namespace PREnemyPatternSelectionUtils
 		for (const FPRPatternRule& PatternRule : Runtime.PatternDataAsset->PatternRules)
 		{
 			if (!MatchesPatternCategory(PatternRule, CategoryFilter))
+			{
+				continue;
+			}
+
+			if (!MatchesPatternGroupTag(PatternRule, PatternGroupFilter))
 			{
 				continue;
 			}

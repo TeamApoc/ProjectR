@@ -8,6 +8,7 @@
 
 class UNiagaraSystem;
 class APRProjectileBase;
+class UGameplayEffect;
 
 // 투사체를 발사하는 모드 스킬 어빌리티 베이스.
 // Activate 시점에 카메라 조준 방향으로 총구에서 투사체를 1발 스폰.
@@ -25,10 +26,17 @@ public:
 	virtual void ActivateAbility(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilityActivationInfo ActivationInfo, const FGameplayEventData* TriggerEventData) override;
 
 protected:
+	/*~ UPRGA_Mod Interface ~*/
+	virtual FGameplayEffectSpecHandle MakeModEffectSpec(float Damage, float GroggyDamage = 0.0f, const FHitResult* HitResult = nullptr) const override;
+
+protected:
 	// 투사체 1발 발사. AbilityTask 통해 예측 클라이언트/권위 서버 스폰 흐름 진행
 	UFUNCTION(BlueprintCallable, Category = "ProjectR|Mod|Projectile")
 	void FireProjectile(FVector SpawnLocation, FRotator SpawnRotation);
 
+	UFUNCTION(BlueprintCallable, BlueprintPure)
+	virtual FTransform GetProjectileLaunchTransform() const;
+	
 	// AbilityTask가 투사체 스폰 성공 시 호출. 서버 권위에 한해 모드 데미지 GE Spec 부여
 	UFUNCTION()
 	virtual void OnProjectileSpawnSuccess(APRProjectileBase* SpawnedProjectile);
@@ -50,6 +58,10 @@ protected:
 	UPROPERTY(EditDefaultsOnly, Category = "ProjectR|Mod|Projectile")
 	TSubclassOf<APRProjectileBase> ProjectileClass;
 	
+	// 사격 트레이스에 사용할 충돌 채널
+	UPROPERTY(EditDefaultsOnly, Category = "ProjectR|Fire")
+	TEnumAsByte<ECollisionChannel> FireTraceChannel = PRCollisionChannels::ECC_Combat;
+	
 	// 총구 이펙트 (Optional)
 	UPROPERTY(EditDefaultsOnly, Category = "ProjectR|Mod|Projectile")
 	TObjectPtr<UNiagaraSystem> MuzzleVFX;
@@ -61,4 +73,8 @@ protected:
 	// 모드 스킬 그로기 데미지. SetByCaller로 GE Spec에 전달
 	UPROPERTY(EditDefaultsOnly, Category = "ProjectR|Mod|Projectile", meta = (ClampMin = "0.0"))
 	float GroggyDamage = 0.f;
+
+	// 투사체에 부여할 GE 오버라이드. 비워두면 Registry의 DamageGE_FromMod 사용
+	UPROPERTY(EditDefaultsOnly, Category = "ProjectR|Mod|Projectile")
+	TSubclassOf<UGameplayEffect> ProjectileEffectOverride;
 };

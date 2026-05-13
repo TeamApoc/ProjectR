@@ -50,14 +50,15 @@ public:
 	float GetJogSpeed() const { return JogSpeed; }
 	float GetSprintSpeed() const { return SprintSpeed; }
 	bool IsAiming() const;
-
-	/** Sprint Ability가 질주 상태를 캐릭터 이동 상태에 반영한다 */
+	bool IsMovementBlocked() const {return bBlockMove;}
+	
+	/** Sprint Ability가 질주 상태를 캐릭터 이동 상태에 반영 */
 	void SetSprintingFromAbility(bool bNewSprinting);
-
-	/** 액션 입력 라우터 컴포넌트를 반환한다 */
-	UPRActionInputRouterComponent* GetActionInputRouter() const { return ActionInputRouterComponent; }
 	
 	// ===== Component getters =====
+	
+	/** 액션 입력 라우터 컴포넌트를 반환 */
+	UPRActionInputRouterComponent* GetActionInputRouter() const { return ActionInputRouterComponent; }
 	UPRWeaponManagerComponent* GetWeaponManager() const {return WeaponManagerComponent;}
 
 	
@@ -134,10 +135,7 @@ protected:
 	/** 질주 속도 (cm/s) */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "PR|Locomotion")
 	float SprintSpeed = 600.0f;
-	
-	// 게임 시작 시 기본으로 연결할 애니메이션 레이어 (맨손 레이어)
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "PR|Animation")
-	TSubclassOf<UAnimInstance> DefaultAnimLayerClass;
+
 private:
 	/** 복제되는 상태 변수 */
 	UPROPERTY(ReplicatedUsing = OnRep_IsSprinting, VisibleInstanceOnly, BlueprintReadOnly, Category = "Locomotion", meta = (AllowPrivateAccess = "true"))
@@ -150,4 +148,6 @@ private:
 	bool bIsWalking = false;
 
 	FPRAbilitySetHandles AbilitySetHandles;
+	
+	bool bBlockMove = false;
 };

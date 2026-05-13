@@ -6,6 +6,7 @@
 #include "BehaviorTree/BTTaskNode.h"
 #include "GameplayAbilitySpec.h"
 #include "GameplayTagContainer.h"
+#include "TimerManager.h"
 #include "ProjectR/AI/PREnemyAITypes.h"
 #include "BTTask_PRActivateEnemyAbility.generated.h"
 
@@ -73,6 +74,10 @@ protected:
 	UPROPERTY(EditAnywhere, Category = "ProjectR|Ability")
 	bool bResetAttackPressureOnAbilityActivated = true;
 
+	// Ability 종료 후 다음 패턴 재평가 전까지 유지할 회복 시간이다.
+	UPROPERTY(EditAnywhere, Category = "ProjectR|Ability", meta = (ClampMin = "0.0", EditCondition = "bWaitUntilAbilityEnds"))
+	float PostAbilityEndDelay = 0.0f;
+
 private:
 	void ApplyTacticalModeOnAbilityActivated(UBehaviorTreeComponent& OwnerComp);
 	void ApplyPostAbilityCombatStateUpdates(UBehaviorTreeComponent& OwnerComp);
@@ -81,6 +86,9 @@ private:
 	void HandleObservedAbilityEnded(const FAbilityEndedData& EndedData);
 	bool IsObservedAbilityActive() const;
 	void FinishObservedAbilityWait(UBehaviorTreeComponent& OwnerComp, EBTNodeResult::Type TaskResult);
+	bool StartPostAbilityEndDelay(UBehaviorTreeComponent& OwnerComp, EBTNodeResult::Type TaskResult);
+	void ClearPostAbilityEndDelay();
+	void HandlePostAbilityEndDelayElapsed();
 
 	// 대기 중인 Ability가 끝났을 때 BT를 바로 깨우기 위해 캐시한다.
 	UPROPERTY()
@@ -91,5 +99,8 @@ private:
 
 	FGameplayAbilitySpecHandle ActiveAbilityHandle;
 	FDelegateHandle AbilityEndedDelegateHandle;
+	FTimerHandle PostAbilityEndDelayTimerHandle;
+	EBTNodeResult::Type PendingPostAbilityTaskResult = EBTNodeResult::Succeeded;
 	bool bAbortRequested = false;
+	bool bWaitingPostAbilityEndDelay = false;
 };

@@ -6,8 +6,6 @@
 #include "AIController.h"
 #include "BrainComponent.h"
 #include "BehaviorTree/BehaviorTree.h"
-#include "Components/BoxComponent.h"
-#include "Components/SphereComponent.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "ProjectR/AI/Components/PREnemyCombatEventRelayComponent.h"
 #include "ProjectR/AI/Components/PREnemyThreatComponent.h"
@@ -23,6 +21,7 @@
 #include "ProjectR/System/PRAssetManager.h"
 #include "ProjectR/Player/PRPlayerController.h"
 #include "ProjectR/UI/FloatingText/PRFloatingTextManager.h"
+#include "ProjectR/UI/HUD/PREnemyWorldHealthBarComponent.h"
 #include "Net/UnrealNetwork.h"
 
 APREnemyBaseCharacter::APREnemyBaseCharacter()
@@ -50,17 +49,9 @@ APREnemyBaseCharacter::APREnemyBaseCharacter()
 	EnemySet = CreateDefaultSubobject<UPRAttributeSet_Enemy>(TEXT("EnemySet"));
 	ThreatComponent = CreateDefaultSubobject<UPREnemyThreatComponent>(TEXT("ThreatComponent"));
 	CombatEventRelayComponent = CreateDefaultSubobject<UPREnemyCombatEventRelayComponent>(TEXT("CombatEventRelayComponent"));
+	EnemyWorldHealthBarComponent = CreateDefaultSubobject<UPREnemyWorldHealthBarComponent>(TEXT("EnemyWorldHealthBarComponent"));
+	EnemyWorldHealthBarComponent->SetupAttachment(GetRootComponent());
 
-	ArmorCollision = CreateDefaultSubobject<UBoxComponent>(TEXT("ArmorCollision"));
-	ArmorCollision->SetupAttachment(GetMesh());
-	ArmorCollision->SetCollisionEnabled(ECollisionEnabled::NoCollision);
-	// 데미지 계산은 ComponentTag 접두사로 Armor/Weakpoint를 구분한다.
-	ArmorCollision->ComponentTags.Add(TEXT("Armor.Torso"));
-
-	WeakpointCollision = CreateDefaultSubobject<USphereComponent>(TEXT("WeakpointCollision"));
-	WeakpointCollision->SetupAttachment(GetMesh());
-	WeakpointCollision->SetCollisionEnabled(ECollisionEnabled::NoCollision);
-	WeakpointCollision->ComponentTags.Add(TEXT("Weakpoint.Head"));
 }
 
 void APREnemyBaseCharacter::BeginPlay()
@@ -71,6 +62,7 @@ void APREnemyBaseCharacter::BeginPlay()
 	
 	// 배치된 위치를 복귀 기준점으로 저장한다.
 	HomeLocation = GetActorLocation();
+	InitializeEnemyWorldHealthBar();
 
 	if (IsValid(CommonSet))
 	{
@@ -116,7 +108,7 @@ UPRPatternDataAsset* APREnemyBaseCharacter::GetPatternDataAsset() const
 	return PatternDataAsset;
 }
 
-UPREnemyCombatDataAsset* APREnemyBaseCharacter::GetCombatDataAsset() const
+UPRCombatMoveDataAsset* APREnemyBaseCharacter::GetCombatDataAsset() const
 {
 	return CombatDataAsset;
 }
@@ -320,6 +312,26 @@ void APREnemyBaseCharacter::InitializeEnemyAbilitySystem()
 	{
 		AbilitySystemComponent->GiveAbilitySet(AbilitySet, GrantedAbilitySetHandles);
 	}
+
+	InitializeEnemyWorldHealthBar();
+}
+
+void APREnemyBaseCharacter::InitializeEnemyWorldHealthBar()
+{
+	if (!IsValid(EnemyWorldHealthBarComponent))
+	{
+		return;
+	}
+
+	if (!bUseWorldHealthBar)
+	{
+		EnemyWorldHealthBarComponent->HideHealthBar();
+		EnemyWorldHealthBarComponent->SetComponentTickEnabled(false);
+		return;
+	}
+
+	EnemyWorldHealthBarComponent->SetComponentTickEnabled(true);
+	EnemyWorldHealthBarComponent->InitializeFromAbilitySystem(AbilitySystemComponent);
 }
 
 void APREnemyBaseCharacter::HandleDeath(AActor* InstigatorActor)
@@ -344,7 +356,7 @@ void APREnemyBaseCharacter::HandleDeadTagChanged(bool bEntered)
 	if (bEntered)
 	{
 		ClearCombatMovePresentationContext();
-		GetCharacterMovement()->DisableMovement();
+		HandleDeath(nullptr);
 	}
 }
 

@@ -37,6 +37,9 @@ protected:
 	UFUNCTION()
 	void HandleDeathMontageInterrupted();
 
+	// 사망 연출 이후 Avatar Actor를 제거한다.
+	void DestroyDeathAvatar();
+
 	void FinishDeath(bool bWasCancelled);
 
 protected:
@@ -54,7 +57,17 @@ protected:
 	UPROPERTY(EditDefaultsOnly, Category = "ProjectR|Death")
 	bool bDisableMovementOnDeath = true;
 
+	// true면 사망 후 지정 시간 뒤 Actor를 제거한다.
+	UPROPERTY(EditDefaultsOnly, Category = "ProjectR|Death")
+	bool bDestroyActorOnDeath = true;
+
+	// 사망 후 Actor 제거까지 대기할 시간이다.
+	UPROPERTY(EditDefaultsOnly, Category = "ProjectR|Death", meta = (ClampMin = "0.0"))
+	float DeathDestroyDelay = 3.0f;
+
 private:
+	FTimerHandle DeathDestroyTimerHandle;
+
 	UPROPERTY(Transient)
 	TObjectPtr<UAbilityTask_PlayMontageAndWait> ActiveMontageTask;
 

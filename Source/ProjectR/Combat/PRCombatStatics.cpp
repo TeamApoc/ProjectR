@@ -44,6 +44,11 @@ FPRDamageOutputs UPRCombatStatics::ComputeDamage(const FPRDamageInputs& Inputs, 
 	float DamageMultiplier = 1.0f;
 	float ArmorBonus = 0.0f;
 
+	if (Outputs.Region.RegionDamageMultiplier > 0.f)
+	{
+		DamageMultiplier *= Outputs.Region.RegionDamageMultiplier;
+	}
+	
 	if (Outputs.Region.IsWeakpoint())
 	{
 		DamageMultiplier *= FMath::Max(Inputs.WeakpointMultiplier, 0.0f);

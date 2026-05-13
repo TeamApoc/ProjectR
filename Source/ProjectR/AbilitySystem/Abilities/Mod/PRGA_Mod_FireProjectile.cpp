@@ -2,10 +2,12 @@
 
 #include "PRGA_Mod_FireProjectile.h"
 
-#include "NiagaraFunctionLibrary.h"
+#include "AbilitySystemComponent.h"
 #include "NiagaraSystem.h"
 #include "ProjectR/AbilitySystem/Tasks/PRAT_SpawnPredictedProjectile.h"
+#include "ProjectR/Combat/PRCombatGameplayTags.h"
 #include "ProjectR/Projectile/PRProjectileBase.h"
+#include "ProjectR/Utils/PRGameplayStatics.h"
 #include "ProjectR/Weapon/Components/PRWeaponManagerComponent.h"
 
 UPRGA_Mod_FireProjectile::UPRGA_Mod_FireProjectile()
@@ -25,28 +27,6 @@ void UPRGA_Mod_FireProjectile::ActivateAbility(const FGameplayAbilitySpecHandle 
 		EndAbility(Handle, ActorInfo, ActivationInfo, /*bReplicateEndAbility=*/true, /*bWasCancelled=*/true);
 		return;
 	}
-
-	// 발사 트랜스폼 계산은 로컬 컨트롤러에서만 수행. 원격 서버는 AbilityTask가 클라 TargetData 수신
-	FVector SpawnLocation = FVector::ZeroVector;
-	FRotator SpawnRotation = FRotator::ZeroRotator;
-
-	if (GetActorInfo().IsLocallyControlled())
-	{
-		const FPRFireViewpoint View = GetFireViewpoint();
-		const FTransform MuzzleTransform = GetMuzzleTransform();
-		SpawnLocation = MuzzleTransform.GetLocation();
-
-		// 1차 카메라 트레이스로 조준 끝점 산출, 조준점 방향을 발사 회전으로 환산
-		const FVector AimPoint = ResolveAimPoint(View, MaxTraceDistance);
-		FVector LaunchDir = AimPoint - SpawnLocation;
-		if (!LaunchDir.Normalize(KINDA_SMALL_NUMBER))
-		{
-			// 조준점이 총구 바로 앞/뒤 등 거리 0인 경우 카메라 정면 방향으로 폴백
-			LaunchDir = View.Rotation.Vector();
-		}
-
-		SpawnRotation = LaunchDir.Rotation();
-	}
 	
 	// 총구 이펙트 스폰. unreliable multicast
 	if (IsValid(MuzzleVFX) && CachedWeaponManager.IsValid())
@@ -59,7 +39,8 @@ void UPRGA_Mod_FireProjectile::ActivateAbility(const FGameplayAbilitySpecHandle 
 		}
 	}
 
-	FireProjectile(SpawnLocation, SpawnRotation);
+	FTransform LaunchTransform = GetProjectileLaunchTransform();
+	FireProjectile(LaunchTransform.GetLocation(), LaunchTransform.Rotator());
 }
 
 /*~ 투사체 발사 ~*/
@@ -84,6 +65,22 @@ void UPRGA_Mod_FireProjectile::FireProjectile(FVector SpawnLocation, FRotator Sp
 
 	// ReadyForActivation 호출 시 AT::Activate 실행, 클라/서버 각자의 스폰 흐름 진행
 	Task->ReadyForActivation();
+}
+
+FTransform UPRGA_Mod_FireProjectile::GetProjectileLaunchTransform() const
+{
+	if (!GetActorInfo().IsLocallyControlled())
+	{
+		return FTransform();
+	}
+
+	APawn* OwnerPawn = Cast<APawn>(GetAvatarActorFromActorInfo());
+	TArray<AActor*> IgnoredActors;
+	if (AActor* AvatarActor = GetAvatarActorFromActorInfo())
+	{
+		IgnoredActors.Add(AvatarActor);
+	}
+	return UPRGameplayStatics::ResolveProjectileLaunchTransform(OwnerPawn, GetMuzzleLocation(), MaxTraceDistance, FireTraceChannel.GetValue(), IgnoredActors);
 }
 
 /*~ 스폰 결과 콜백 ~*/
@@ -114,4 +111,42 @@ void UPRGA_Mod_FireProjectile::OnProjectileSpawnFailed(APRProjectileBase* Spawne
 {
 	K2_OnProjectileSpawnFailed(SpawnedProjectile);
 	K2_EndAbility();
+}
+/*~ EffectSpec 오버라이드 ~*/
+
+FGameplayEffectSpecHandle UPRGA_Mod_FireProjectile::MakeModEffectSpec(float InDamage, float InGroggyDamage, const FHitResult* HitResult) const
+{
+	// Override가 비어있으면 베이스 흐름(Registry의 DamageGE_FromMod) 사용
+	if (!IsValid(ProjectileEffectOverride))
+	{
+		return Super::MakeModEffectSpec(InDamage, InGroggyDamage, HitResult);
+	}
+
+	const FGameplayEffectSpecHandle SpecHandle = MakeOutgoingGameplayEffectSpec(
+		GetCurrentAbilitySpecHandle(),
+		GetCurrentActorInfo(),
+		GetCurrentActivationInfo(),
+		ProjectileEffectOverride);
+
+	if (!SpecHandle.IsValid())
+	{
+		return FGameplayEffectSpecHandle();
+	}
+
+	if (InDamage > 0.0f)
+	{
+		SpecHandle.Data->SetSetByCallerMagnitude(PRCombatGameplayTags::SetByCaller_Damage, InDamage);
+	}
+
+	if (InGroggyDamage > 0.0f)
+	{
+		SpecHandle.Data->SetSetByCallerMagnitude(PRCombatGameplayTags::SetByCaller_GroggyDamage, InGroggyDamage);
+	}
+
+	if (HitResult != nullptr && HitResult->bBlockingHit)
+	{
+		SpecHandle.Data->GetContext().AddHitResult(*HitResult, true);
+	}
+
+	return SpecHandle;
 }

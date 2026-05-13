@@ -26,11 +26,15 @@ struct PROJECTR_API FPRDamageRegionInfo
 	GENERATED_BODY()
 
 	// 일반 부위, 갑옷, 약점 중 어디에 맞았는지 나타낸다.
-	UPROPERTY(BlueprintReadOnly, Category = "ProjectR|Combat")
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|Combat")
 	EPRDamageRegionType RegionType = EPRDamageRegionType::None;
 
-	// 실제 컴포넌트 태그 이름이다. 예: Armor.Torso, Weakpoint.Head
-	UPROPERTY(BlueprintReadOnly, Category = "ProjectR|Combat")
+	// 약점 대미지 배율 (대미지 = 무기의 WeakPointDamageMultiplier * RegionDamageMultiplier * BaseDamage, 방어력 계산 제외한 경우) 
+	UPROPERTY(EditAnywhere,BlueprintReadOnly, Category = "ProjectR|Combat")
+	float RegionDamageMultiplier = 1.0f;
+	
+	// Optional Context Tag (예: Armor.Torso, Weakpoint.Head)
+	UPROPERTY(EditAnywhere,BlueprintReadOnly, Category = "ProjectR|Combat")
 	FName RegionTag = NAME_None;
 
 	bool IsArmor() const

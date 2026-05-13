@@ -25,6 +25,6 @@ protected:
 	UFUNCTION(BlueprintPure, Category = "ProjectR|Combat")
 	APREnemyBaseCharacter* GetEnemyAvatarCharacter() const;
 
-	// 타겟 액터에 DataAsset 기반 피해와 강인도 피해를 적 발신 데미지 GE SetByCaller로 전달한다.
-	void ApplyDamage(AActor* TargetActor, float Damage, float GroggyDamage, float AttackMultiplier = 1.0f, const FHitResult* HitResult = nullptr);
+	// EnemyStatRow AttackPower 기반 체력 피해와 공격별 고정 강인도 피해를 대상에게 적용한다.
+	void ApplyAttackPowerDamage(AActor* TargetActor, float DamageMultiplier, float PoiseDamage = 0.0f, const FHitResult* HitResult = nullptr);
 };

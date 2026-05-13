@@ -12,6 +12,7 @@ namespace PRGameplayTags
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Player_Ready, "Player.Ready", "플레이어 준비 완료 태그");
 
 	// ===== Ability.* =====
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Ability_Common_Die, "Ability.Common.Die", "사망 어빌리티"); // 사망 어빌리티
 
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Ability_Player_Weapon_Fire_Primary, "Ability.Player.Weapon.Fire.Primary",
 	                               "플레이어 주무기 발사 어빌리티");
@@ -23,6 +24,7 @@ namespace PRGameplayTags
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Ability_Player_Reload, "Ability.Player.Reload", "플레이어 재장전 어빌리티");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Ability_Player_UseConsumable, "Ability.Player.UseConsumable", "플레이어 소비 아이템 사용 어빌리티");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Ability_Player_HitReact, "Ability.Player.HitReact", "플레이어 피격 리액션 어빌리티");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Ability_Player_SwapWeapon, "Ability.Player.SwapWeapon", "플레이어 주무기/보조무기 교체 어빌리티");
 
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Ability_Enemy_Pattern, "Ability.Enemy.Pattern", "일반 적 패턴 공통 루트");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Ability_Boss_Pattern, "Ability.Boss.Pattern", "보스 패턴 공통 루트");
@@ -47,8 +49,24 @@ namespace PRGameplayTags
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Ability_Boss_Faerin_PhaseTransition, "Ability.Boss.Faerin.PhaseTransition", "Faerin 페이즈 전환");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Ability_Boss_Faerin_MeleeQuickCombo, "Ability.Boss.Faerin.MeleeQuickCombo", "Faerin 빠른 근접 콤보");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Ability_Boss_Faerin_PortalPairSequence, "Ability.Boss.Faerin.PortalPairSequence", "Faerin 포털 연계");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Ability_Boss_Faerin_PortalMissileSequence, "Ability.Boss.Faerin.PortalMissileSequence", "Faerin 원작형 미사일 포털 소환");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Ability_Boss_Faerin_PortalBarrageSequence, "Ability.Boss.Faerin.PortalBarrageSequence", "Faerin 포털 연속 포격");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Ability_Boss_Faerin_TeleportLungeSequence, "Ability.Boss.Faerin.TeleportLungeSequence", "Faerin 원작형 텔레포트 런지");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Ability_Boss_Faerin_TeleportDash, "Ability.Boss.Faerin.TeleportDash", "Faerin 텔레포트 대시");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Ability_Boss_Faerin_EnergyRain, "Ability.Boss.Faerin.EnergyRain", "Faerin 범위 압박");
+
+	// ===== Pattern.* =====
+
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Pattern_Boss_Faerin, "Pattern.Boss.Faerin", "Faerin 패턴 그룹 루트");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Pattern_Boss_Faerin_Portal, "Pattern.Boss.Faerin.Portal", "Faerin 포털 계열 패턴");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Pattern_Boss_Faerin_Lunge, "Pattern.Boss.Faerin.Lunge", "Faerin 런지 계열 패턴");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Pattern_Boss_Faerin_Godfall, "Pattern.Boss.Faerin.Godfall", "Faerin Godfall 계열 패턴");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Pattern_Boss_Faerin_Shift, "Pattern.Boss.Faerin.Shift", "Faerin Shift 계열 패턴");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Pattern_Boss_Faerin_TeleportDown, "Pattern.Boss.Faerin.TeleportDown", "Faerin TeleportDown 계열 패턴");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Pattern_Boss_Faerin_Sword, "Pattern.Boss.Faerin.Sword", "Faerin 검 근접 계열 패턴");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Pattern_Boss_Faerin_Crash, "Pattern.Boss.Faerin.Crash", "Faerin Crash 계열 패턴");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Pattern_Boss_Faerin_Throw, "Pattern.Boss.Faerin.Throw", "Faerin Throw 계열 패턴");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Pattern_Boss_Faerin_Fallback, "Pattern.Boss.Faerin.Fallback", "Faerin 패턴 실패 시 보조 이동 식별");
 
 	// ===== State.* =====
 
@@ -70,11 +88,22 @@ namespace PRGameplayTags
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(State_PhaseTransitioning, "State.PhaseTransitioning", "보스 페이즈 전환 상태");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(State_Boss_WeakpointOpen_Core, "State.Boss.WeakpointOpen.Core", "보스 코어 약점 오픈 상태");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(State_Armed, "State.Armed", "플레이어 무기 장착중 상태");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(State_Block_Move, "State.Block.Move", "움직임 비활성화 상태");
+	
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(State_UsingConsumable, "State.UsingConsumable", "플레이어 소비템 사용중 상테");
+	
 
-	// ===== Cooldown.Ability.* =====
+	// ===== Cooldown.* =====
 
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Cooldown_Ability_Dodge, "Cooldown.Ability.Dodge", "구르기 쿨다운");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Cooldown_Ability_Fire, "Cooldown.Ability.Fire", "무기 발사 쿨다운");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Cooldown_Ability_PlayerHitReact, "Cooldown.Ability.PlayerHitReact", "플레이어 피격 리액션 쿨다운");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Cooldown_Ability_SwapWeapon, "Cooldown.Ability.SwapWeapon", "무기 교체 쿨다운");
+	
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Cooldown_Boss_Faerin_TeleportLunge, "Cooldown.Boss.Faerin.TeleportLunge", "Faerin Teleport Lunge 패턴 쿨다운");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Cooldown_Boss_Faerin_PortalMissile, "Cooldown.Boss.Faerin.PortalMissile", "Faerin 포털 미사일 패턴 쿨다운");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Cooldown_Boss_Faerin_PortalBarrage, "Cooldown.Boss.Faerin.PortalBarrage", "Faerin 포털 연속 포격 패턴 쿨다운");
+
 
 	// ===== Event.* =====
 
@@ -111,6 +140,7 @@ namespace PRGameplayTags
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Input_Ability_Sprint, "Input.Ability.Sprint", "질주 입력 태그");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Input_Ability_Mod, "Input.Ability.Mod", "모드 스킬 입력 태그");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Input_Ability_Reload, "Input.Ability.Reload", "재장전 입력 태그");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Input_Ability_SwapWeapon, "Input.Ability.SwapWeapon", "주무기/보조무기 교체 입력 태그");
 
 	// ===== Input.Locomotion.* =====
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Input_Locomotion_Walk, "Input.Locomotion.Walk", "Walk 토글 입력 태그");

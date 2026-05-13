@@ -181,7 +181,8 @@ void APRPlayerCharacter::BeginPlay()
 			Subsystem->AddMappingContext(DefaultMappingContext, 0);
 		}
 	}
-	
+
+	// 무기 미장착 상태에서 사용할 기본 애니메이션 레이어 연결. WeaponManager가 무기 장착 시 교체
 	if (IsValid(DefaultAnimLayerClass) && IsValid(GetMesh()))
 	{
 		GetMesh()->LinkAnimClassLayers(DefaultAnimLayerClass);
@@ -251,10 +252,30 @@ void APRPlayerCharacter::HandleGameplayTagUpdated(const FGameplayTag& ChangedTag
 			ProjectileTrajectoryPreviewComponent->SetWeaponActor(bTagExists ? ActiveWeapon : nullptr);
 		}
 	}
+	if (ChangedTag.MatchesTagExact(PRGameplayTags::State_Block_Move))
+	{
+		bBlockMove = bTagExists;
+	}
+	
+	// 소비템 사용중에 무기 숨기기
+	if (ChangedTag.MatchesTagExact(PRGameplayTags::State_UsingConsumable))
+	{
+		APRWeaponActor* ActiveWeapon = IsValid(WeaponManagerComponent) ? WeaponManagerComponent->GetActiveWeaponActor() : nullptr;
+		if (IsValid(ActiveWeapon))
+		{
+			ActiveWeapon->SetActorHiddenInGame(bTagExists);
+		}
+	}
 }
 
 void APRPlayerCharacter::Move(const FInputActionValue& Value)
 {
+	// 사망 상태 등 움직임 비활성화시 움직임 수신 안함
+	if (IsMovementBlocked())
+	{
+		return;
+	}
+	
 	FVector2D MovementVector = Value.Get<FVector2D>();
 
 	if (!MovementVector.IsNearlyZero()

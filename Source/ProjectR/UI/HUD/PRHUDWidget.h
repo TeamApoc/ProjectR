@@ -10,9 +10,12 @@ class UPRQuickSlotWidget;
 class UPRWeaponHUDWidget;
 class UPRCrosshairWidget;
 class UPRInteractionHUDWidget;
+class UPRBossHealthBarWidget;
 class UPRHealthBarWidget;
 class UPRPartyHealthListWidget;
+class UPRStaminaBarWidget;
 class UPREventManagerSubsystem;
+class APRBossBaseCharacter;
 struct FInstancedStruct;
 struct FGameplayTag;
 
@@ -28,6 +31,14 @@ class PROJECTR_API UPRHUDWidget : public UPRWidgetBase
 
 public:
 	UPRHUDWidget();
+
+	// 보스 HP 바를 지정한 보스 캐릭터에 바인딩한다.
+	UFUNCTION(BlueprintCallable, Category = "ProjectR|HUD|Boss")
+	void BindBossHealthBar(APRBossBaseCharacter* InBoss);
+
+	// 보스 HP 바 바인딩을 해제하고 숨긴다.
+	UFUNCTION(BlueprintCallable, Category = "ProjectR|HUD|Boss")
+	void ClearBossHealthBar();
 
 protected:
 	/*~ UUserWidget Interface ~*/
@@ -82,10 +93,19 @@ protected:
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "HUD")
 	TObjectPtr<UPRHealthBarWidget> PlayerHealthBar;
 
+	// PlayerReady 이후 ASC 기준으로 현재 스태미나 표시를 갱신한다
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "HUD")
+	TObjectPtr<UPRStaminaBarWidget> PlayerStaminaBar;
+
 	// UMG 트리에서 동일 이름("PartyHealthList")의 자식이 있을 때 자동 바인딩.
 	// PlayerReady 이후 GameState PlayerArray 기준으로 파티원 체력 슬롯을 갱신한다
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "HUD")
 	TObjectPtr<UPRPartyHealthListWidget> PartyHealthList;
+
+	// UMG 트리에서 동일 이름("BossHealthBar")의 자식이 있을 때 자동 바인딩.
+	// 보스 조우 흐름에서 BindBossHealthBar 호출 시 화면 상단 보스 HP를 표시한다
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "HUD")
+	TObjectPtr<UPRBossHealthBarWidget> BossHealthBar;
 
 private:
 	TArray<FDelegateHandle> EventHandles;

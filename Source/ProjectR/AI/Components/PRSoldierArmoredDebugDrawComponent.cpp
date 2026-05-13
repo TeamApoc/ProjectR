@@ -123,7 +123,7 @@ void UPRSoldierArmoredDebugDrawComponent::DrawCombatRanges() const
 	{
 		DrawMaxRange(TEXT("Combo2"), Center, CombatDataAsset->HammerFlow.Combo2MaxRange, DistanceToTarget);
 		DrawMaxRange(TEXT("Finisher"), Center, CombatDataAsset->HammerFlow.FinisherMaxRange, DistanceToTarget);
-		DrawMaxRange(TEXT("SprintHit"), Center, CombatDataAsset->SprintHammerHitConfig.AttackRange, DistanceToTarget);
+		DrawMaxRange(TEXT("SprintHit"), Center, CombatDataAsset->SprintHammerHitConfig.CollisionConfig.AttackRange, DistanceToTarget);
 	}
 
 	const FPRPatternRule* SprintHammerRule = FindSprintHammerRule(GetPatternDataAsset());

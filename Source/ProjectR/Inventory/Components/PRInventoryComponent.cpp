@@ -98,6 +98,28 @@ bool UPRInventoryComponent::ReplicateSubobjects(UActorChannel* Channel, FOutBunc
 	return bWroteSomething;
 }
 
+void UPRInventoryComponent::RequestAddItem(UPRItemDataAsset* InItemData, int32 Amount)
+{
+	// 데이터가 없는 요청은 타입별 서버 요청으로 전달하지 않는다
+	if (!IsValid(InItemData))
+	{
+		return;
+	}
+
+	if (UPRWeaponDataAsset* WeaponData = Cast<UPRWeaponDataAsset>(InItemData))
+	{
+		RequestAddWeaponItem(WeaponData);
+	}
+	else if (UPRWeaponModDataAsset* ModData = Cast<UPRWeaponModDataAsset>(InItemData))
+	{
+		RequestAddModItem(ModData);
+	}
+	else if (UPRConsumableDataAsset* ConsumableData = Cast<UPRConsumableDataAsset>(InItemData))
+	{
+		RequestAddConsumableItem(ConsumableData, Amount);
+	}
+}
+
 void UPRInventoryComponent::RequestAddWeaponItem(UPRWeaponDataAsset* WeaponData)
 {
 	// 데이터가 없는 요청은 서버 RPC를 보내기 전에 중단한다
@@ -113,6 +135,30 @@ void UPRInventoryComponent::RequestAddWeaponItem(UPRWeaponDataAsset* WeaponData)
 	}
 
 	Server_RequestAddWeaponItem(WeaponData);
+}
+
+UPRItemInstance* UPRInventoryComponent::AddItem(UPRItemDataAsset* InItemData, int32 Amount)
+{
+	// 데이터가 없는 요청은 Item 생성 대상으로 처리하지 않는다
+	if (!IsValid(InItemData))
+	{
+		return nullptr;
+	}
+
+	if (UPRWeaponDataAsset* WeaponData = Cast<UPRWeaponDataAsset>(InItemData))
+	{
+		return AddWeaponItem(WeaponData);
+	}
+	else if (UPRWeaponModDataAsset* ModData = Cast<UPRWeaponModDataAsset>(InItemData))
+	{
+		return AddModItem(ModData);
+	}
+	else if (UPRConsumableDataAsset* ConsumableData = Cast<UPRConsumableDataAsset>(InItemData))
+	{
+		return AddConsumableItem(ConsumableData, Amount);
+	}
+
+	return nullptr;
 }
 
 UPRItemInstance_Weapon* UPRInventoryComponent::AddWeaponItem(UPRWeaponDataAsset* WeaponData)
@@ -706,6 +752,54 @@ UPRItemInstance_Consumable* UPRInventoryComponent::FindConsumableItemByData(cons
 		if (ConsumableItem->GetConsumableData() == ConsumableData)
 		{
 			return ConsumableItem;
+		}
+	}
+
+	return nullptr;
+}
+
+UPRItemInstance_Weapon* UPRInventoryComponent::FindWeaponItemByData(const UPRWeaponDataAsset* WeaponData)
+{
+	// 유효하지 않은 데이터는 조회 대상이 아니다
+	if (!IsValid(WeaponData))
+	{
+		return nullptr;
+	}
+
+	for (UPRItemInstance_Weapon* WeaponItem : InventoryWeaponItems)
+	{
+		if (!IsValid(WeaponItem))
+		{
+			continue;
+		}
+
+		if (WeaponItem->GetWeaponData() == WeaponData)
+		{
+			return WeaponItem;
+		}
+	}
+
+	return nullptr;
+}
+
+UPRItemInstance_Mod* UPRInventoryComponent::FindModItemByData(const UPRWeaponModDataAsset* ItemData)
+{
+	// 유효하지 않은 데이터는 조회 대상이 아니다
+	if (!IsValid(ItemData))
+	{
+		return nullptr;
+	}
+
+	for (UPRItemInstance_Mod* ModItem : InventoryModItems)
+	{
+		if (!IsValid(ModItem))
+		{
+			continue;
+		}
+
+		if (ModItem->GetModData() == ItemData)
+		{
+			return ModItem;
 		}
 	}
 

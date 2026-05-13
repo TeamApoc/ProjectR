@@ -89,6 +89,9 @@ namespace PRGameplayTags
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(State_Boss_WeakpointOpen_Core, "State.Boss.WeakpointOpen.Core", "보스 코어 약점 오픈 상태");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(State_Armed, "State.Armed", "플레이어 무기 장착중 상태");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(State_Block_Move, "State.Block.Move", "움직임 비활성화 상태");
+	
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(State_UsingConsumable, "State.UsingConsumable", "플레이어 소비템 사용중 상테");
+	
 
 	// ===== Cooldown.* =====
 

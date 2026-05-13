@@ -146,7 +146,7 @@ float UPRGameplayAbility_SoldierArmoredHammerFamily::GetDistanceToCurrentTarget(
 		? EnemyCharacter->GetEnemyThreatComponent()
 		: nullptr;
 	const AActor* TargetActor = IsValid(ThreatComponent)
-		? ThreatComponent->GetCurrentTarget()
+		? ThreatComponent->GetAttackTarget()
 		: nullptr;
 
 	const AActor* AvatarActor = GetAvatarActorFromActorInfo();

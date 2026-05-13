@@ -4,6 +4,11 @@
 
 #include "ProjectR/Combat/PRCombatStatics.h"
 
+namespace
+{
+	constexpr float MinTargetSelectionScore = UE_SMALL_NUMBER;
+}
+
 UPREnemyThreatComponent::UPREnemyThreatComponent()
 {
 	PrimaryComponentTick.bCanEverTick = false;
@@ -34,16 +39,57 @@ void UPREnemyThreatComponent::AddThreat(AActor* Target, float Amount)
 	}
 
 	const float CurrentTime = GetWorld()->GetTimeSeconds();
+	ResetScoreWindowIfNeeded(CurrentTime);
 	FPREnemyTargetCandidate& Candidate = FindOrAddTargetCandidate(Target, CurrentTime);
 
 	// 기존 Threat 선택 동작을 보존하면서 이후 점수 기반 Targeting으로 확장할 수 있게 후보 값을 함께 갱신한다.
 	Candidate.ThreatValue += Amount;
-	Candidate.FinalSelectionScore = Candidate.ThreatValue;
+	Candidate.DamageInCurrentWindow += Amount;
 	Candidate.LastThreatTime = CurrentTime;
 	Candidate.LastUpdatedTime = CurrentTime;
 	Candidate.LastKnownLocation = Target->GetActorLocation();
+	UpdateCandidateSelectionScore(Candidate);
 
 	ReevaluateTarget();
+}
+
+void UPREnemyThreatComponent::AddDamageThreat(AActor* Target, float DamageAmount)
+{
+	if (!GetOwner() || !GetOwner()->HasAuthority() || !IsValidThreatTarget(Target) || DamageAmount <= 0.0f)
+	{
+		return;
+	}
+
+	const float CurrentTime = GetWorld()->GetTimeSeconds();
+	ResetScoreWindowIfNeeded(CurrentTime);
+	FPREnemyTargetCandidate& Candidate = FindOrAddTargetCandidate(Target, CurrentTime);
+
+	Candidate.DamageInCurrentWindow += DamageAmount;
+	Candidate.ThreatValue += DamageAmount;
+	Candidate.LastThreatTime = CurrentTime;
+	Candidate.LastUpdatedTime = CurrentTime;
+	Candidate.LastKnownLocation = Target->GetActorLocation();
+	UpdateCandidateSelectionScore(Candidate);
+
+	ForceCurrentTarget(Target);
+}
+
+void UPREnemyThreatComponent::ForceCurrentTarget(AActor* NewTarget)
+{
+	if (!GetOwner() || !GetOwner()->HasAuthority() || !IsValidThreatTarget(NewTarget))
+	{
+		return;
+	}
+
+	const float CurrentTime = GetWorld()->GetTimeSeconds();
+	ResetScoreWindowIfNeeded(CurrentTime);
+	FPREnemyTargetCandidate& Candidate = FindOrAddTargetCandidate(NewTarget, CurrentTime);
+
+	Candidate.LastKnownLocation = NewTarget->GetActorLocation();
+	Candidate.LastUpdatedTime = CurrentTime;
+	const float CandidateScore = UpdateCandidateSelectionScore(Candidate);
+
+	SetCurrentTarget(NewTarget, CandidateScore);
 }
 
 void UPREnemyThreatComponent::UpdatePerceivedTarget(AActor* Target, FVector SensedLocation, bool bHasLOS)
@@ -54,6 +100,7 @@ void UPREnemyThreatComponent::UpdatePerceivedTarget(AActor* Target, FVector Sens
 	}
 
 	const float CurrentTime = GetWorld()->GetTimeSeconds();
+	ResetScoreWindowIfNeeded(CurrentTime);
 	FPREnemyTargetCandidate& Candidate = FindOrAddTargetCandidate(Target, CurrentTime);
 	const FVector ResolvedLocation = SensedLocation.IsNearlyZero() ? Target->GetActorLocation() : SensedLocation;
 
@@ -64,7 +111,7 @@ void UPREnemyThreatComponent::UpdatePerceivedTarget(AActor* Target, FVector Sens
 	Candidate.LastUpdatedTime = CurrentTime;
 	Candidate.BaseScore = TargetingConfig.BaseCandidateScore;
 	Candidate.ThreatValue = FMath::Max(Candidate.ThreatValue, TargetingConfig.BaseCandidateScore);
-	Candidate.FinalSelectionScore = Candidate.ThreatValue;
+	UpdateCandidateSelectionScore(Candidate);
 
 	ReevaluateTarget();
 }
@@ -77,6 +124,7 @@ void UPREnemyThreatComponent::MarkTargetPerceptionLost(AActor* LostTarget, FVect
 	}
 
 	const float CurrentTime = GetWorld()->GetTimeSeconds();
+	ResetScoreWindowIfNeeded(CurrentTime);
 	FPREnemyTargetCandidate& Candidate = FindOrAddTargetCandidate(LostTarget, CurrentTime);
 	const FVector ResolvedLocation = LastKnownLocation.IsNearlyZero() ? LostTarget->GetActorLocation() : LastKnownLocation;
 
@@ -107,7 +155,24 @@ void UPREnemyThreatComponent::RefreshTargetCandidates()
 		return;
 	}
 
-	ReevaluateTarget();
+	const float CurrentTime = GetWorld()->GetTimeSeconds();
+	const bool bScoreWindowReset = ResetScoreWindowIfNeeded(CurrentTime);
+	CleanupInvalidEntries();
+
+	for (FPREnemyTargetCandidate& Candidate : TargetCandidates)
+	{
+		UpdateCandidateSelectionScore(Candidate);
+	}
+
+	if (IsValid(CurrentTarget) && FindTargetCandidate(CurrentTarget) == nullptr)
+	{
+		SetCurrentTarget(nullptr);
+	}
+
+	if (bScoreWindowReset || !IsValid(CurrentTarget))
+	{
+		ReevaluateTarget();
+	}
 }
 
 void UPREnemyThreatComponent::BeginAttackCommit(AActor* InTarget, FVector InTargetLocation)
@@ -132,6 +197,11 @@ void UPREnemyThreatComponent::BeginAttackCommit(AActor* InTarget, FVector InTarg
 void UPREnemyThreatComponent::EndAttackCommit()
 {
 	if (!GetOwner() || !GetOwner()->HasAuthority())
+	{
+		return;
+	}
+
+	if (!AttackCommitState.bIsAttackCommitted && !IsValid(AttackCommitState.PendingTargetCandidate))
 	{
 		return;
 	}
@@ -233,6 +303,8 @@ void UPREnemyThreatComponent::ReevaluateTarget()
 		return;
 	}
 
+	const float CurrentTime = GetWorld()->GetTimeSeconds();
+	ResetScoreWindowIfNeeded(CurrentTime);
 	CleanupInvalidEntries();
 
 	if (IsValid(CurrentTarget) && FindTargetCandidate(CurrentTarget) == nullptr)
@@ -240,27 +312,17 @@ void UPREnemyThreatComponent::ReevaluateTarget()
 		SetCurrentTarget(nullptr);
 	}
 
+	for (FPREnemyTargetCandidate& Candidate : TargetCandidates)
+	{
+		UpdateCandidateSelectionScore(Candidate);
+	}
+
 	AActor* BestTarget = nullptr;
 	float BestThreat = 0.0f;
-	float CurrentThreat = 0.0f;
-
-	for (const FPREnemyTargetCandidate& Entry : TargetCandidates)
+	if (!SelectWeightedTarget(BestTarget, BestThreat))
 	{
-		if (!IsValidThreatTarget(Entry.Target))
-		{
-			continue;
-		}
-
-		if (Entry.Target == CurrentTarget)
-		{
-			CurrentThreat = Entry.ThreatValue;
-		}
-
-		if (Entry.ThreatValue > BestThreat)
-		{
-			BestThreat = Entry.ThreatValue;
-			BestTarget = Entry.Target;
-		}
+		SetCurrentTarget(nullptr);
+		return;
 	}
 
 	if (!IsValid(BestTarget))
@@ -282,11 +344,15 @@ void UPREnemyThreatComponent::ReevaluateTarget()
 
 	// 현재 타겟을 너무 쉽게 바꾸면 몬스터가 산만해지므로,
 	// 위협 차이와 최소 전환 간격을 동시에 만족할 때만 교체한다.
-	const float CurrentTime = GetWorld()->GetTimeSeconds();
-	const bool bCanSwitchByRatio = BestThreat >= (CurrentThreat * TargetingConfig.SwitchScoreRatio);
 	const bool bCanSwitchByTime = (CurrentTime - LastSwitchTime) >= TargetingConfig.SwitchCooldown;
 
-	if (bCanSwitchByRatio && bCanSwitchByTime)
+	if (AttackCommitState.bIsAttackCommitted)
+	{
+		SetCurrentTarget(BestTarget, BestThreat);
+		return;
+	}
+
+	if (bCanSwitchByTime)
 	{
 		SetCurrentTarget(BestTarget, BestThreat);
 	}
@@ -341,6 +407,99 @@ void UPREnemyThreatComponent::CleanupInvalidEntries()
 	}
 }
 
+bool UPREnemyThreatComponent::ResetScoreWindowIfNeeded(float CurrentTime)
+{
+	if (LastScoreWindowResetTime < 0.0f)
+	{
+		LastScoreWindowResetTime = CurrentTime;
+		return false;
+	}
+
+	if ((CurrentTime - LastScoreWindowResetTime) < TargetingConfig.ScoreWindowDuration)
+	{
+		return false;
+	}
+
+	LastScoreWindowResetTime = CurrentTime;
+	for (FPREnemyTargetCandidate& Candidate : TargetCandidates)
+	{
+		Candidate.DamageInCurrentWindow = 0.0f;
+		Candidate.DamageScore = 0.0f;
+	}
+
+	return true;
+}
+
+float UPREnemyThreatComponent::UpdateCandidateSelectionScore(FPREnemyTargetCandidate& Candidate) const
+{
+	Candidate.BaseScore = FMath::Max(TargetingConfig.BaseCandidateScore, 0.0f);
+	Candidate.DamageScore = FMath::Clamp(
+		Candidate.DamageInCurrentWindow * TargetingConfig.DamageScoreScale,
+		0.0f,
+		TargetingConfig.MaxDamageScore);
+
+	Candidate.DistanceScore = 0.0f;
+	const AActor* OwnerActor = GetOwner();
+	if (IsValid(OwnerActor) && IsValid(Candidate.Target) && TargetingConfig.DistanceScoreMaxRange > 0.0f)
+	{
+		const float DistanceToTarget = FVector::Dist(OwnerActor->GetActorLocation(), Candidate.Target->GetActorLocation());
+		const float DistanceAlpha = 1.0f - FMath::Clamp(DistanceToTarget / TargetingConfig.DistanceScoreMaxRange, 0.0f, 1.0f);
+		Candidate.DistanceScore = DistanceAlpha * FMath::Max(TargetingConfig.DistanceScoreMax, 0.0f);
+	}
+
+	Candidate.StickinessScore = Candidate.Target == CurrentTarget
+		? FMath::Max(TargetingConfig.CurrentTargetStickinessScore, 0.0f)
+		: 0.0f;
+
+	const float LOSScore = Candidate.bHasLOS ? FMath::Max(TargetingConfig.LOSScore, 0.0f) : 0.0f;
+	Candidate.FinalSelectionScore = FMath::Max(
+		Candidate.BaseScore + Candidate.DamageScore + Candidate.DistanceScore + Candidate.StickinessScore + LOSScore,
+		0.0f);
+	Candidate.ThreatValue = Candidate.FinalSelectionScore;
+	return Candidate.FinalSelectionScore;
+}
+
+bool UPREnemyThreatComponent::SelectWeightedTarget(AActor*& OutTarget, float& OutScore) const
+{
+	OutTarget = nullptr;
+	OutScore = 0.0f;
+
+	float TotalScore = 0.0f;
+	for (const FPREnemyTargetCandidate& Candidate : TargetCandidates)
+	{
+		if (!IsValidThreatTarget(Candidate.Target) || Candidate.FinalSelectionScore <= MinTargetSelectionScore)
+		{
+			continue;
+		}
+
+		TotalScore += Candidate.FinalSelectionScore;
+	}
+
+	if (TotalScore <= MinTargetSelectionScore)
+	{
+		return false;
+	}
+
+	float Pick = FMath::FRandRange(0.0f, TotalScore);
+	for (const FPREnemyTargetCandidate& Candidate : TargetCandidates)
+	{
+		if (!IsValidThreatTarget(Candidate.Target) || Candidate.FinalSelectionScore <= MinTargetSelectionScore)
+		{
+			continue;
+		}
+
+		Pick -= Candidate.FinalSelectionScore;
+		if (Pick <= 0.0f)
+		{
+			OutTarget = Candidate.Target;
+			OutScore = Candidate.FinalSelectionScore;
+			return true;
+		}
+	}
+
+	return false;
+}
+
 FPREnemyTargetCandidate* UPREnemyThreatComponent::FindTargetCandidate(AActor* Target)
 {
 	if (!IsValid(Target))
@@ -392,6 +551,7 @@ FPREnemyTargetCandidate& UPREnemyThreatComponent::FindOrAddTargetCandidate(AActo
 	NewCandidate.LastThreatTime = CurrentTime;
 	NewCandidate.LastUpdatedTime = CurrentTime;
 	NewCandidate.FinalSelectionScore = TargetingConfig.BaseCandidateScore;
+	NewCandidate.ThreatValue = TargetingConfig.BaseCandidateScore;
 	return NewCandidate;
 }
 

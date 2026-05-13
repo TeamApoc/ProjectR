@@ -42,6 +42,14 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "ProjectR|AI")
 	void AddThreat(AActor* Target, float Amount);
 
+	// 피해를 준 플레이어를 공격 후보에 등록하고 현재 공격 대상 전환을 요청한다.
+	UFUNCTION(BlueprintCallable, Category = "ProjectR|AI")
+	void AddDamageThreat(AActor* Target, float DamageAmount);
+
+	// 지정한 후보를 현재 공격 대상으로 강제 선택한다. 공격 커밋 중이면 보류 후보로 저장된다.
+	UFUNCTION(BlueprintCallable, Category = "ProjectR|AI")
+	void ForceCurrentTarget(AActor* NewTarget);
+
 	// Perception이 플레이어를 감지했을 때 공격 후보 상태를 갱신한다.
 	UFUNCTION(BlueprintCallable, Category = "ProjectR|AI")
 	void UpdatePerceivedTarget(AActor* Target, FVector SensedLocation, bool bHasLOS);
@@ -91,6 +99,12 @@ protected:
 	void ReevaluateTarget();
 	void SetCurrentTarget(AActor* NewTarget, float CandidateScore = 0.0f);
 	void CleanupInvalidEntries();
+	// 10초 점수 창이 만료되었으면 피해 누적 점수를 초기화한다.
+	bool ResetScoreWindowIfNeeded(float CurrentTime);
+	// 후보의 피해/거리/LOS/현재 타겟 유지 점수를 다시 계산한다.
+	float UpdateCandidateSelectionScore(FPREnemyTargetCandidate& Candidate) const;
+	// 최종 선택 점수를 가중치로 사용해 다음 공격 대상을 확률 선택한다.
+	bool SelectWeightedTarget(AActor*& OutTarget, float& OutScore) const;
 	FPREnemyTargetCandidate* FindTargetCandidate(AActor* Target);
 	const FPREnemyTargetCandidate* FindTargetCandidate(AActor* Target) const;
 	FPREnemyTargetCandidate& FindOrAddTargetCandidate(AActor* Target, float CurrentTime);
@@ -116,4 +130,6 @@ protected:
 	FPREnemyAttackCommitState AttackCommitState;
 
 	float LastSwitchTime = -1000.0f;
+
+	float LastScoreWindowResetTime = -1000.0f;
 };

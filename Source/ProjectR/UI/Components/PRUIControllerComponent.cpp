@@ -8,6 +8,7 @@
 #include "ProjectR/Inventory/Components/PRInventoryComponent.h"
 #include "ProjectR/Player/PRPlayerState.h"
 #include "ProjectR/QuickSlot/Coponents/PRQuickSlotComponent.h"
+#include "ProjectR/UI/HUD/PRHUDWidget.h"
 #include "ProjectR/UI/Inventory/PRInventoryWidget.h"
 #include "ProjectR/UI/PRUIManagerSubsystem.h"
 #include "ProjectR/Weapon/Components/PRWeaponManagerComponent.h"
@@ -19,8 +20,7 @@ UPRUIControllerComponent::UPRUIControllerComponent()
 
 void UPRUIControllerComponent::ToggleInventory()
 {
-	APlayerController* PlayerController = GetOwningPlayerController();
-	if (!IsValid(PlayerController) || !PlayerController->IsLocalController())
+	if (!IsLocalPlayer())
 	{
 		return;
 	}
@@ -57,6 +57,11 @@ void UPRUIControllerComponent::ToggleInventory()
 
 void UPRUIControllerComponent::CloseInventory()
 {
+	if (!IsLocalPlayer())
+	{
+		return;
+	}
+
 	if (!IsValid(InventoryWidget) || !InventoryWidget->IsInViewport())
 	{
 		return;
@@ -78,7 +83,34 @@ void UPRUIControllerComponent::EndPlay(const EEndPlayReason::Type EndPlayReason)
 	CloseInventory();
 	InventoryWidget = nullptr;
 
+	TearDownHUDWidget();
+
 	Super::EndPlay(EndPlayReason);
+}
+
+void UPRUIControllerComponent::RefreshForPawn(APawn* InPawn)
+{
+	if (!IsLocalPlayer())
+	{
+		return;
+	}
+
+	// 새 폰이 없으면 HUD 위젯만 정리하고 종료
+	if (!IsValid(InPawn))
+	{
+		TearDownHUDWidget();
+		return;
+	}
+
+	// 기존 HUD 위젯 정리 후 새 인스턴스 생성. EventManager 바인딩이 새 위젯 NativeOnInitialized에서 다시 등록됨
+	TearDownHUDWidget();
+	CreateHUDWidget();
+}
+
+bool UPRUIControllerComponent::IsLocalPlayer() const
+{
+	const APlayerController* PlayerController = GetOwningPlayerController();
+	return IsValid(PlayerController) && PlayerController->IsLocalController();
 }
 
 APlayerController* UPRUIControllerComponent::GetOwningPlayerController() const
@@ -169,4 +201,48 @@ UPRInventoryWidget* UPRUIControllerComponent::GetOrCreateInventoryWidget()
 
 	InventoryWidget = CreateWidget<UPRInventoryWidget>(PlayerController, InventoryWidgetClass);
 	return InventoryWidget;
+}
+
+void UPRUIControllerComponent::TearDownHUDWidget()
+{
+	if (!IsValid(HUDWidget))
+	{
+		return;
+	}
+
+	if (UPRUIManagerSubsystem* UIManager = GetUIManager())
+	{
+		UIManager->PopUI(HUDWidget);
+	}
+	else if (HUDWidget->IsInViewport())
+	{
+		HUDWidget->RemoveFromParent();
+	}
+
+	HUDWidget = nullptr;
+}
+
+void UPRUIControllerComponent::CreateHUDWidget()
+{
+	APlayerController* PlayerController = GetOwningPlayerController();
+	if (!IsValid(PlayerController) || !IsValid(HUDWidgetClass.Get()))
+	{
+		return;
+	}
+
+	HUDWidget = CreateWidget<UPRHUDWidget>(PlayerController, HUDWidgetClass);
+	if (!IsValid(HUDWidget))
+	{
+		return;
+	}
+
+	if (UPRUIManagerSubsystem* UIManager = GetUIManager())
+	{
+		UIManager->PushUIInstance(HUDWidget);
+	}
+	else
+	{
+		// UIManager가 없는 예외 케이스에 대한 폴백
+		HUDWidget->AddToViewport();
+	}
 }

@@ -115,7 +115,7 @@ bool APRPlayGameMode::AcceptGuestCharacter(APRPlayerController* From, const FPRC
 	// PlayerState에 주입. 이후 복제로 모든 클라에 전파
 	if (APRPlayerState* PS = From->GetPlayerState<APRPlayerState>())
 	{
-		PS->InitializeFromSaveData(Payload);
+		PS->InitializePrimaryInfoFromSaveData(Payload);
 		return true;
 	}
 

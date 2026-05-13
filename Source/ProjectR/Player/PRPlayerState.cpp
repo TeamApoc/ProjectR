@@ -50,6 +50,18 @@ void APRPlayerState::BeginPlay()
 	Super::BeginPlay();
 }
 
+void APRPlayerState::CopyProperties(APlayerState* PlayerState)
+{
+	Super::CopyProperties(PlayerState);
+	
+	if (APRPlayerState* NewPS = Cast<APRPlayerState>(PlayerState))
+	{
+		// TODO: ASC 상태 보존, 인벤토리 등 상태 컴포넌트 값 보존
+		FPRCharacterSaveData SaveData = MakeSaveData();
+		NewPS->InitializePrimaryInfoFromSaveData(SaveData);
+	}
+}
+
 // =====  IAbilitySystemInterface =====
 
 UAbilitySystemComponent* APRPlayerState::GetAbilitySystemComponent() const
@@ -59,17 +71,25 @@ UAbilitySystemComponent* APRPlayerState::GetAbilitySystemComponent() const
 
 // =====  초기화 =====
 
-void APRPlayerState::InitializeFromSaveData(const FPRCharacterSaveData& SaveData)
+void APRPlayerState::InitializePrimaryInfoFromSaveData(const FPRCharacterSaveData& InSaveData)
 {
 	if (!HasAuthority())
 	{
 		return;
 	}
 
-	DisplayName    = SaveData.DisplayName;
-	CharacterLevel = SaveData.Level;
-	Experience     = SaveData.Experience;
-	StatUpgradeInfo          = SaveData.Stats;
+	CurrentSaveData = InSaveData;
+	DisplayName    = InSaveData.DisplayName;
+}
+
+void APRPlayerState::ApplySaveData(const FPRCharacterSaveData& InSaveData)
+{
+	
+}
+
+FPRCharacterSaveData APRPlayerState::MakeSaveData() const
+{
+	return FPRCharacterSaveData();
 }
 
 // =====  생존 상태 =====

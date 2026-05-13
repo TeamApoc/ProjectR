@@ -19,24 +19,12 @@ public:
 protected:
 	/*~ AActor Interface ~*/
 	virtual void BeginPlay() override;
+	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 
 private:
-	// 테스트용 보스 HUD 바인딩을 시도한다.
-	void TryBindBossHealthBar();
+	// EventManager로 보스 조우 시작 알림 브로드캐스트
+	void BroadcastBossEncounterBegin();
 
-	// 테스트용 보스 HUD 바인딩 재시도 타이머를 처리한다.
-	void HandleBossHealthBarBindRetry();
-
-private:
-	// 테스트용 보스 HUD 바인딩 재시도 간격
-	UPROPERTY(EditDefaultsOnly, Category = "ProjectR|HUD|Boss")
-	float BossHealthBarBindRetryInterval = 0.1f;
-
-	// 테스트용 보스 HUD 바인딩 최대 재시도 횟수
-	UPROPERTY(EditDefaultsOnly, Category = "ProjectR|HUD|Boss")
-	int32 MaxBossHealthBarBindRetryCount = 20;
-
-	FTimerHandle BossHealthBarBindRetryTimerHandle;
-	int32 CurrentBossHealthBarBindRetryCount = 0;
-	bool bBossHealthBarBound = false;
+	// EventManager로 보스 조우 종료 알림 브로드캐스트
+	void BroadcastBossEncounterEnd();
 };

@@ -7,6 +7,7 @@
 #include "PRUIControllerComponent.generated.h"
 
 class APlayerController;
+class UPRHUDWidget;
 class UPRInventoryComponent;
 class UPRInventoryWidget;
 class UPRQuickSlotComponent;
@@ -35,12 +36,22 @@ public:
 	UFUNCTION(BlueprintPure, Category = "ProjectR|UI")
 	UPRInventoryWidget* GetInventoryWidget() const { return InventoryWidget; }
 
+	// 현재 HUD 위젯 반환
+	UFUNCTION(BlueprintPure, Category = "ProjectR|UI")
+	UPRHUDWidget* GetHUDWidget() const { return HUDWidget; }
+
+	// 새 폰 possession 시점에 폰 의존 위젯을 재초기화. 초기 possession과 리스폰 양쪽에서 호출 가능
+	void RefreshForPawn(APawn* InPawn);
+
 protected:
 	/*~ UActorComponent Interface ~*/
 	// 컴포넌트 종료 시 생성한 위젯 참조를 정리한다
 	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 
 private:
+	// 소유 플레이어 컨트롤러가 로컬 컨트롤러인지 확인. PlayerController 유효성과 IsLocalController 검사를 묶음
+	bool IsLocalPlayer() const;
+
 	// 소유 플레이어 컨트롤러를 조회한다
 	APlayerController* GetOwningPlayerController() const;
 
@@ -59,6 +70,12 @@ private:
 	// 인벤토리 위젯 인스턴스를 생성하거나 캐시된 인스턴스를 반환한다
 	UPRInventoryWidget* GetOrCreateInventoryWidget();
 
+	// 현재 HUD 위젯을 UIManager에서 Pop하고 참조 정리
+	void TearDownHUDWidget();
+
+	// HUDWidgetClass로 HUD 위젯을 새로 생성하여 UIManager에 Push
+	void CreateHUDWidget();
+
 private:
 	// 인벤토리 위젯 클래스
 	UPROPERTY(EditDefaultsOnly, Category = "ProjectR|Inventory")
@@ -67,4 +84,12 @@ private:
 	// 생성 후 재사용할 인벤토리 위젯
 	UPROPERTY(Transient)
 	TObjectPtr<UPRInventoryWidget> InventoryWidget;
+
+	// HUD 위젯 클래스. BP에서 지정
+	UPROPERTY(EditDefaultsOnly, Category = "ProjectR|HUD")
+	TSubclassOf<UPRHUDWidget> HUDWidgetClass;
+
+	// 현재 활성 HUD 위젯 인스턴스
+	UPROPERTY(Transient)
+	TObjectPtr<UPRHUDWidget> HUDWidget;
 };

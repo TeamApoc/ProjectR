@@ -12,6 +12,7 @@
 #include "ProjectR/AbilitySystem/AttributeSets/PRAttributeSet_Weapon.h"
 #include "ProjectR/Combat/PRCombatGameplayTags.h"
 #include "ProjectR/Player/PRPlayerState.h"
+#include "ProjectR/Game/PRGameInstance.h"
 
 void UPRGameplayStatics::GetAllMeshComponents(AActor* Actor, TArray<UMeshComponent*>& OutMeshes)
 {
@@ -114,6 +115,18 @@ void UPRGameplayStatics::GrantAmmo(AActor* TargetActor, TSubclassOf<UGameplayEff
 	const FGameplayEffectSpecHandle SpecHandle = TargetASC->MakeOutgoingSpec(AmmoEffect, 1.f, Context);
 	SpecHandle.Data->SetSetByCallerMagnitude(PRCombatGameplayTags::SetByCaller_AmmoMagnitude, AmmoAmount);
 	TargetASC->ApplyGameplayEffectSpecToSelf(*SpecHandle.Data);
+}
+
+UPRGameInstance* UPRGameplayStatics::GetPRGameInstance(const UObject* WorldContext)
+{
+	if (IsValid(WorldContext))
+	{
+		if (auto World = WorldContext->GetWorld())
+		{
+			return World->GetGameInstance<UPRGameInstance>();
+		}
+	}
+	return nullptr;
 }
 
 

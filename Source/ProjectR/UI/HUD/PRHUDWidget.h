@@ -62,6 +62,15 @@ private:
 	// EventManager 콜백: Hold 상호작용 단계 알림 - InteractionHUD 갱신
 	void HandleInteractionHold(FGameplayTag EventTag, const FInstancedStruct& Payload);
 
+	// EventManager 콜백: 보스 조우 시작 - BossHealthBar에 대상 보스 바인딩
+	void HandleBossEncounterBegin(FGameplayTag EventTag, const FInstancedStruct& Payload);
+
+	// EventManager 콜백: 보스 조우 종료 - BossHealthBar 해제
+	void HandleBossEncounterEnd(FGameplayTag EventTag, const FInstancedStruct& Payload);
+
+	// 위젯 생성 시점에 월드에 이미 존재하는 보스를 BossHealthBar에 바인딩
+	void DiscoverActiveBossInWorld();
+
 	// 등록된 EventManager 핸들 정리
 	void UnbindFromEventManager();
 

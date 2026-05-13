@@ -3,10 +3,8 @@
 #include "PRFaerinCharacter.h"
 
 #include "Engine/World.h"
-#include "GameFramework/PlayerController.h"
-#include "ProjectR/Game/PRPlayHUD.h"
-#include "ProjectR/UI/HUD/PRHUDWidget.h"
-#include "TimerManager.h"
+#include "ProjectR/PRGameplayTags.h"
+#include "ProjectR/System/PREventManagerSubsystem.h"
 
 APRFaerinCharacter::APRFaerinCharacter()
 {
@@ -21,71 +19,50 @@ void APRFaerinCharacter::BeginPlay()
 {
 	Super::BeginPlay();
 
-	CurrentBossHealthBarBindRetryCount = 0;
-	bBossHealthBarBound = false;
-	TryBindBossHealthBar();
+	BroadcastBossEncounterBegin();
 }
 
-void APRFaerinCharacter::TryBindBossHealthBar()
+void APRFaerinCharacter::EndPlay(const EEndPlayReason::Type EndPlayReason)
 {
-	if (bBossHealthBarBound)
-	{
-		return;
-	}
+	BroadcastBossEncounterEnd();
 
+	Super::EndPlay(EndPlayReason);
+}
+
+/*~ 보스 조우 이벤트 브로드캐스트 ~*/
+
+void APRFaerinCharacter::BroadcastBossEncounterBegin()
+{
 	UWorld* World = GetWorld();
 	if (!IsValid(World))
 	{
 		return;
 	}
 
-	for (FConstPlayerControllerIterator It = World->GetPlayerControllerIterator(); It; ++It)
+	UPREventManagerSubsystem* EventMgr = World->GetSubsystem<UPREventManagerSubsystem>();
+	if (!IsValid(EventMgr))
 	{
-		APlayerController* PlayerController = It->Get();
-		if (!IsValid(PlayerController) || !PlayerController->IsLocalController())
-		{
-			continue;
-		}
-
-		APRPlayHUD* PlayHUD = Cast<APRPlayHUD>(PlayerController->GetHUD());
-		if (!IsValid(PlayHUD))
-		{
-			continue;
-		}
-
-		UPRHUDWidget* HUDWidget = PlayHUD->GetHUDWidget();
-		if (!IsValid(HUDWidget))
-		{
-			continue;
-		}
-
-		HUDWidget->BindBossHealthBar(this);
-		bBossHealthBarBound = true;
-		World->GetTimerManager().ClearTimer(BossHealthBarBindRetryTimerHandle);
 		return;
 	}
 
-	HandleBossHealthBarBindRetry();
+	FPRBossEncounterEventPayload Payload;
+	Payload.Boss = this;
+	EventMgr->BroadcastTyped(PRGameplayTags::Event_Boss_Encounter_Begin, Payload);
 }
 
-void APRFaerinCharacter::HandleBossHealthBarBindRetry()
+void APRFaerinCharacter::BroadcastBossEncounterEnd()
 {
-	if (bBossHealthBarBound || CurrentBossHealthBarBindRetryCount >= MaxBossHealthBarBindRetryCount)
-	{
-		return;
-	}
-
 	UWorld* World = GetWorld();
-	if (!IsValid(World) || World->GetTimerManager().IsTimerActive(BossHealthBarBindRetryTimerHandle))
+	if (!IsValid(World))
 	{
 		return;
 	}
 
-	++CurrentBossHealthBarBindRetryCount;
-	World->GetTimerManager().SetTimer(
-		BossHealthBarBindRetryTimerHandle,
-		this,
-		&APRFaerinCharacter::TryBindBossHealthBar,
-		BossHealthBarBindRetryInterval,
-		false);
+	UPREventManagerSubsystem* EventMgr = World->GetSubsystem<UPREventManagerSubsystem>();
+	if (!IsValid(EventMgr))
+	{
+		return;
+	}
+
+	EventMgr->BroadcastEmpty(PRGameplayTags::Event_Boss_Encounter_End);
 }

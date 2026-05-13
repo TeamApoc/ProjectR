@@ -168,6 +168,15 @@ bool APRPlayerCharacter::IsAiming() const
 	return false;
 }
 
+bool APRPlayerCharacter::IsDown() const
+{
+	if (const UPRAbilitySystemComponent* ASC = GetPRAbilitySystemComponent())
+	{
+		return ASC->HasMatchingGameplayTag(PRGameplayTags::State_Down);
+	}
+	return false;
+}
+
 // Called when the game starts or when spawned
 void APRPlayerCharacter::BeginPlay()
 {
@@ -256,6 +265,23 @@ void APRPlayerCharacter::HandleGameplayTagUpdated(const FGameplayTag& ChangedTag
 	{
 		bBlockMove = bTagExists;
 	}
+	if (ChangedTag.MatchesTagExact(PRGameplayTags::State_Down))
+	{
+		if (bTagExists)
+		{
+			bIsSprinting = false;
+			bIsWalking = false;
+			bIsAiming = false;
+
+			UCharacterMovementComponent* MoveComp = GetCharacterMovement();
+			if (IsValid(MoveComp))
+			{
+				MoveComp->StopMovementImmediately();
+			}
+		}
+
+		UpdateMaxWalkSpeed();
+	}
 	
 	// 소비템 사용중에 무기 숨기기
 	if (ChangedTag.MatchesTagExact(PRGameplayTags::State_UsingConsumable))
@@ -329,6 +355,11 @@ void APRPlayerCharacter::WalkPressed()
 		return;
 	}
 
+	if (IsDown())
+	{
+		return;
+	}
+
 	bIsWalking = !bIsWalking;
 	UpdateMaxWalkSpeed();
 	
@@ -340,17 +371,21 @@ void APRPlayerCharacter::WalkPressed()
 
 void APRPlayerCharacter::UpdateMaxWalkSpeed()
 {
-    // 클라이언트 예측과 서버 보정 오차를 줄이기 위해 양측 동시 수행
-    float BaseSpeed = JogSpeed;
+	// 클라이언트 예측과 서버 보정 오차를 줄이기 위해 양측 동시 수행
+	float BaseSpeed = JogSpeed;
 
-    if (bIsSprinting)
-    {
-        BaseSpeed = SprintSpeed;
-    }
-    else if (bIsAiming || bIsWalking)
-    {
-        BaseSpeed = WalkSpeed;
-    }
+	if (IsDown())
+	{
+		BaseSpeed = DownSpeed;
+	}
+	else if (bIsSprinting)
+	{
+		BaseSpeed = SprintSpeed;
+	}
+	else if (bIsAiming || bIsWalking)
+	{
+		BaseSpeed = WalkSpeed;
+	}
 
 	float CurrentMultiplier = 1.0f;
 
@@ -360,7 +395,8 @@ void APRPlayerCharacter::UpdateMaxWalkSpeed()
 	}
 	
 	// 3. 최종 속도를 CharacterMovementComponent에 적용 
-	if (UCharacterMovementComponent* MoveComp = GetCharacterMovement())
+	UCharacterMovementComponent* MoveComp = GetCharacterMovement();
+	if (IsValid(MoveComp))
 	{
 		MoveComp->MaxWalkSpeed = BaseSpeed * CurrentMultiplier;
 	}
@@ -371,7 +407,7 @@ void APRPlayerCharacter::UpdateMaxWalkSpeed()
 	bUseControllerRotationYaw = bIsAiming;
 	
 	// Strafe 모드에서도 bUseControllerRotationYaw를 꺼야 제자리 회전이 동작합니다.
-	if (UCharacterMovementComponent* MoveComp = GetCharacterMovement())
+	if (IsValid(MoveComp))
 	{
 		MoveComp->bOrientRotationToMovement = !bIsStrafeMode;
 		// 26.04.27, Yuchan, 아래 코드가 플레이어 Strafe 모드를 해제하지 않도록 막아 주석처리

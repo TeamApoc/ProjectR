@@ -190,6 +190,7 @@ void UPRAnimInstance::UpdateFlags()
 	bIsSprint = PlayerCharacter->IsSprinting();
 	bIsAiming = PlayerCharacter->IsAiming();
 	bIsWalking = PlayerCharacter->IsWalking();
+	bIsDown = PlayerCharacter->IsDown();
 	bIsStrafeMode = bIsAiming || bIsWalking;
 
 	// DodgeAbility가 소유한 재생 상태는 AnimInstance에서 직접 관리하지 않고 ASC 태그로 관찰한다.
@@ -214,6 +215,12 @@ void UPRAnimInstance::UpdateFlags()
 
 void UPRAnimInstance::UpdateMovementMode()
 {
+	if (bIsDown)
+	{
+		MovementMode = EPRMovementMode::Down;
+		return;
+	}
+
 	if (!bShouldMove)
 	{
 		MovementMode = EPRMovementMode::Idle;

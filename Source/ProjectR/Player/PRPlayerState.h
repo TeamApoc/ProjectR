@@ -66,6 +66,24 @@ public:
 
 	// 캐릭터 업그레이드 정보 조회
 	FPRCharacterStatUpgradeInfo GetStatUpgradeInfo() const { return StatUpgradeInfo; }
+
+	// 현재 플레이어가 전멸 판정에 포함되는 전투 참여자인지 확인한다.
+	bool IsCombatParticipant() const;
+
+	// 현재 플레이어가 다운 상태인지 확인한다.
+	bool IsDown() const;
+
+	// 현재 플레이어가 최종 사망 상태인지 확인한다.
+	bool IsDead() const;
+
+	// 현재 플레이어가 다운 또는 사망으로 전투에서 이탈했는지 확인한다.
+	bool IsOutOfFight() const;
+
+	// 자신을 제외한 전투 참여자 중 아직 전투 가능한 플레이어가 있는지 확인한다.
+	bool HasFightCapableAllyExceptSelf() const;
+
+	// 현재 플레이어 Pawn에게 생존 상태 전환 이벤트를 보낸다.
+	void SendSurvivalGameplayEvent(const FGameplayTag& EventTag) const;
 	
 	// 서버 전용. GameMode가 검증 통과한 캐릭터 페이로드를 주입. 복제는 자동
 	void InitializeFromSaveData(const FPRCharacterSaveData& SaveData);

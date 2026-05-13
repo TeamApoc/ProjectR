@@ -209,6 +209,29 @@ void APRPlayerController::ClientGrantReward_Implementation(const FPRRewardGrant&
 	GI->ApplyRewardGrant(Grant);
 }
 
+void APRPlayerController::ClientDispatchSurvivalGameplayEvent_Implementation(FGameplayTag EventTag)
+{
+	if (!EventTag.IsValid())
+	{
+		return;
+	}
+
+	APawn* ControlledPawn = GetPawn();
+	if (!IsValid(ControlledPawn))
+	{
+		return;
+	}
+
+	FGameplayEventData Payload;
+	Payload.EventTag = EventTag;
+	Payload.Target = ControlledPawn;
+
+	UAbilitySystemBlueprintLibrary::SendGameplayEventToActor(
+		ControlledPawn,
+		EventTag,
+		Payload);
+}
+
 // ===== UI =====
 void APRPlayerController::OnInventoryInputStarted()
 {

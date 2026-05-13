@@ -52,6 +52,7 @@ void UPRDamageExecCalc_FromEnemy::Execute_Implementation(const FGameplayEffectCu
 	}
 
 	if (TargetASC->HasMatchingGameplayTag(PRGameplayTags::State_Dead)
+		|| TargetASC->HasMatchingGameplayTag(PRGameplayTags::State_Down)
 		|| TargetASC->HasMatchingGameplayTag(PRGameplayTags::State_Invulnerable))
 	{
 		return;
@@ -121,6 +122,14 @@ void UPRDamageExecCalc_FromEnemy::Execute_Implementation(const FGameplayEffectCu
 			OutExecutionOutput.AddOutputModifier(FGameplayModifierEvaluatedData(
 				UPRAttributeSet_Player::GetIncomingPoiseDamageAttribute(), EGameplayModOp::Additive, FinalPoiseDamage));
 		}
+	}
+	
+	// 사망한 경우 회복 가능 체력을 0으로 override
+	float HealthAfterDamage = FMath::Clamp(CurrentHealth - Outputs.FinalDamage, 0.0f, MaxHealth);
+	if (FMath::IsNearlyZero(HealthAfterDamage))
+	{
+		OutExecutionOutput.AddOutputModifier(FGameplayModifierEvaluatedData(
+			UPRAttributeSet_Player::GetRecoverableHealthAttribute(),EGameplayModOp::Override,0.0f));
 	}
 
 	DispatchPostDamageApplied(TargetActor, OwningSpec, Outputs, EffectiveHitResult, CurrentHealth, MaxHealth);

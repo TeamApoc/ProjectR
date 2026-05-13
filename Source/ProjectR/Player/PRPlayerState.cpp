@@ -1,6 +1,9 @@
 // Copyright ProjectR. All Rights Reserved.
 
 #include "PRPlayerState.h"
+#include "AbilitySystemBlueprintLibrary.h"
+#include "AbilitySystemComponent.h"
+#include "GameFramework/GameStateBase.h"
 #include "Net/UnrealNetwork.h"
 #include "ProjectR/AbilitySystem/PRAbilitySystemComponent.h"
 #include "ProjectR/AbilitySystem/AttributeSets/PRAttributeSet_Common.h"
@@ -8,6 +11,8 @@
 #include "ProjectR/AbilitySystem/AttributeSets/PRAttributeSet_Weapon.h"
 #include "ProjectR/Equipment/Components/PREquipmentManagerComponent.h"
 #include "ProjectR/Inventory/Components/PRInventoryComponent.h"
+#include "ProjectR/Player/PRPlayerController.h"
+#include "ProjectR/PRGameplayTags.h"
 #include "ProjectR/QuickSlot/Coponents/PRQuickSlotComponent.h"
 
 APRPlayerState::APRPlayerState()
@@ -65,4 +70,87 @@ void APRPlayerState::InitializeFromSaveData(const FPRCharacterSaveData& SaveData
 	CharacterLevel = SaveData.Level;
 	Experience     = SaveData.Experience;
 	StatUpgradeInfo          = SaveData.Stats;
+}
+
+// =====  생존 상태 =====
+
+bool APRPlayerState::IsCombatParticipant() const
+{
+	return !IsOnlyASpectator() && IsValid(AbilitySystemComponent);
+}
+
+bool APRPlayerState::IsDown() const
+{
+	const UAbilitySystemComponent* ASC = GetAbilitySystemComponent();
+	return IsValid(ASC) && ASC->HasMatchingGameplayTag(PRGameplayTags::State_Down);
+}
+
+bool APRPlayerState::IsDead() const
+{
+	const UAbilitySystemComponent* ASC = GetAbilitySystemComponent();
+	return IsValid(ASC) && ASC->HasMatchingGameplayTag(PRGameplayTags::State_Dead);
+}
+
+bool APRPlayerState::IsOutOfFight() const
+{
+	return IsDown() || IsDead();
+}
+
+bool APRPlayerState::HasFightCapableAllyExceptSelf() const
+{
+	const UWorld* World = GetWorld();
+	const AGameStateBase* CurrentGameState = IsValid(World) ? World->GetGameState<AGameStateBase>() : nullptr;
+	if (!IsValid(CurrentGameState))
+	{
+		return false;
+	}
+
+	for (APlayerState* PlayerState : CurrentGameState->PlayerArray)
+	{
+		const APRPlayerState* OtherPlayerState = Cast<APRPlayerState>(PlayerState);
+		if (!IsValid(OtherPlayerState) || OtherPlayerState == this || !OtherPlayerState->IsCombatParticipant())
+		{
+			continue;
+		}
+
+		if (!OtherPlayerState->IsOutOfFight())
+		{
+			return true;
+		}
+	}
+
+	return false;
+}
+
+void APRPlayerState::SendSurvivalGameplayEvent(const FGameplayTag& EventTag) const
+{
+	if (!HasAuthority() || !EventTag.IsValid())
+	{
+		return;
+	}
+
+	const UAbilitySystemComponent* ASC = GetAbilitySystemComponent();
+	AActor* AvatarActor = IsValid(ASC) ? ASC->GetAvatarActor() : nullptr;
+	if (!IsValid(AvatarActor))
+	{
+		return;
+	}
+
+	FGameplayEventData Payload;
+	Payload.EventTag = EventTag;
+	Payload.Target = AvatarActor;
+
+	UAbilitySystemBlueprintLibrary::SendGameplayEventToActor(
+		AvatarActor,
+		EventTag,
+		Payload);
+
+	if (EventTag.MatchesTagExact(PRGameplayTags::Event_Ability_PlayerDeathConfirmed))
+	{
+		APRPlayerController* PlayerController = Cast<APRPlayerController>(GetOwner());
+		if (IsValid(PlayerController))
+		{
+			PlayerController->ClientDispatchSurvivalGameplayEvent(EventTag);
+		}
+	}
 }

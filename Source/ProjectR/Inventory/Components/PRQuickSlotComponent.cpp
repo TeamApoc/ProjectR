@@ -13,7 +13,7 @@ UPRQuickSlotComponent::UPRQuickSlotComponent()
 {
 	PrimaryComponentTick.bCanEverTick = false;
 	SetIsReplicatedByDefault(true);
-	QuickSlots.SetNum(QuickSlotCount);
+	QuickSlots.SetNum(MaxQuickSlotCount);
 }
 
 void UPRQuickSlotComponent::BeginPlay()
@@ -32,23 +32,21 @@ void UPRQuickSlotComponent::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>
 
 void UPRQuickSlotComponent::InitializeQuickSlots(UPRInventoryComponent* InInventoryComponent)
 {
-	if (CachedInventoryComponent == InInventoryComponent)
+	int32 PrimaryIndex = 0;
+	for (UPRConsumableDataAsset* PrimaryItem : PrimaryItems)
 	{
-		RefreshAllCachedConsumableItems();
-		OnQuickSlotChanged.Broadcast(this, INDEX_NONE);
-		return;
+		if (IsValid(PrimaryItem))
+		{
+			RegisterQuickSlotItemInternal(PrimaryIndex, PrimaryItem);
+			PrimaryIndex++;
+		}
 	}
-
-	if (IsValid(CachedInventoryComponent))
-	{
-		CachedInventoryComponent->GetOnInventoryChanged().RemoveDynamic(this, &UPRQuickSlotComponent::HandleInventoryChanged);
-	}
-
+	
 	CachedInventoryComponent = InInventoryComponent;
 
-	if (QuickSlots.Num() != QuickSlotCount)
+	if (QuickSlots.Num() != MaxQuickSlotCount)
 	{
-		QuickSlots.SetNum(QuickSlotCount);
+		QuickSlots.SetNum(MaxQuickSlotCount);
 	}
 
 	if (IsValid(CachedInventoryComponent))
@@ -144,9 +142,9 @@ FPRQuickSlotViewData UPRQuickSlotComponent::BuildQuickSlotViewData(int32 SlotInd
 TArray<FPRQuickSlotViewData> UPRQuickSlotComponent::BuildQuickSlotViewDataList() const
 {
 	TArray<FPRQuickSlotViewData> ViewDataList;
-	ViewDataList.Reserve(QuickSlotCount);
+	ViewDataList.Reserve(MaxQuickSlotCount);
 
-	for (int32 SlotIndex = 0; SlotIndex < QuickSlotCount; ++SlotIndex)
+	for (int32 SlotIndex = 0; SlotIndex < MaxQuickSlotCount; ++SlotIndex)
 	{
 		ViewDataList.Add(BuildQuickSlotViewData(SlotIndex));
 	}
@@ -154,15 +152,41 @@ TArray<FPRQuickSlotViewData> UPRQuickSlotComponent::BuildQuickSlotViewDataList()
 	return ViewDataList;
 }
 
+int32 UPRQuickSlotComponent::GetUsingQuickSlotCount() const
+{
+	int32 Ret = 0;
+	
+	for (int32 SlotIndex = 0; SlotIndex < MaxQuickSlotCount; ++SlotIndex)
+	{
+		if (IsValid(QuickSlots[SlotIndex].ConsumableData))
+		{
+			Ret++;
+		}
+	}
+	
+	return Ret;
+}
+
+bool UPRQuickSlotComponent::IsRegisteredItem(UPRConsumableDataAsset* InConsumableData)
+{
+	for (auto& QuickSlotItem : QuickSlots)
+	{
+		if (QuickSlotItem.ConsumableData == InConsumableData)
+		{
+			return true;
+		}
+	}
+	return false;
+}
+
 void UPRQuickSlotComponent::OnRep_QuickSlots()
 {
 	InitializeQuickSlots(ResolveInventoryComponent());
 }
 
-void UPRQuickSlotComponent::HandleInventoryChanged(UPRInventoryComponent* ChangedInventoryComponent, EPRInventoryChangeReason ChangeReason)
+void UPRQuickSlotComponent::HandleInventoryChanged(UPRInventoryComponent* ChangedInventoryComponent,
+	const FPRInventoryChangeEventData& EventData)
 {
-	static_cast<void>(ChangeReason);
-
 	if (ChangedInventoryComponent != CachedInventoryComponent)
 	{
 		return;
@@ -171,7 +195,6 @@ void UPRQuickSlotComponent::HandleInventoryChanged(UPRInventoryComponent* Change
 	RefreshAllCachedConsumableItems();
 	OnQuickSlotChanged.Broadcast(this, INDEX_NONE);
 }
-
 bool UPRQuickSlotComponent::RegisterQuickSlotItemInternal(int32 SlotIndex, UPRConsumableDataAsset* ConsumableData)
 {
 	if (!IsValid(GetOwner()) || !GetOwner()->HasAuthority() || !IsValidSlotIndex(SlotIndex) || !IsValid(ConsumableData))
@@ -265,7 +288,7 @@ void UPRQuickSlotComponent::RefreshCachedConsumableItem(int32 SlotIndex)
 
 void UPRQuickSlotComponent::RefreshAllCachedConsumableItems()
 {
-	for (int32 SlotIndex = 0; SlotIndex < QuickSlotCount; ++SlotIndex)
+	for (int32 SlotIndex = 0; SlotIndex < MaxQuickSlotCount; ++SlotIndex)
 	{
 		RefreshCachedConsumableItem(SlotIndex);
 	}
@@ -301,7 +324,7 @@ AActor* UPRQuickSlotComponent::ResolveUseActor() const
 
 bool UPRQuickSlotComponent::IsValidSlotIndex(int32 SlotIndex) const
 {
-	return SlotIndex >= 0 && SlotIndex < QuickSlotCount;
+	return SlotIndex >= 0 && SlotIndex < MaxQuickSlotCount;
 }
 
 void UPRQuickSlotComponent::Server_RequestRegisterQuickSlotItem_Implementation(int32 SlotIndex, UPRConsumableDataAsset* ConsumableData)

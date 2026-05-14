@@ -35,7 +35,7 @@ protected:
 	// 파생 데이터 에셋 생성자에서 아이템 타입을 고정한다
 	void SetItemType(EPRItemType NewItemType);
 
-protected:
+public:
 	// UI에 표시할 아이템 이름
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|00_Item")
 	FText DisplayName;
@@ -43,6 +43,10 @@ protected:
 	// UI에 표시할 아이템 아이콘
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|00_Item")
 	TObjectPtr<UTexture2D> Icon = nullptr;
+	
+	// 아이템 최대 보유 개수
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|01_Consumable", meta = (ClampMin = "1"))
+	int32 MaxStackCount = 1;
 
 private:
 	// 아이템 타입

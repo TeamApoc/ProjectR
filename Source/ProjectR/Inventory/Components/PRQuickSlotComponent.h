@@ -5,7 +5,7 @@
 #include "CoreMinimal.h"
 #include "Components/ActorComponent.h"
 #include "ProjectR/Inventory/Components/PRInventoryComponent.h"
-#include "ProjectR/QuickSlot/Types/PRQuickSlotTypes.h"
+#include "ProjectR/Inventory/Types/PRQuickSlotTypes.h"
 #include "PRQuickSlotComponent.generated.h"
 
 class UPRConsumableDataAsset;
@@ -55,6 +55,15 @@ public:
 	// 퀵슬롯 변경 델리게이트를 반환한다
 	FPRQuickSlotChangedSignature& GetOnQuickSlotChanged() { return OnQuickSlotChanged; }
 
+	// 지정 슬롯의 소비 아이템 인스턴스 캐시를 갱신한다
+	void RefreshCachedConsumableItem(int32 SlotIndex);
+
+	// 전체 슬롯의 소비 아이템 인스턴스 캐시를 갱신한다
+	void RefreshAllCachedConsumableItems();
+	
+	int32 GetMaxQuickSlotCount() const {return MaxQuickSlotCount;}
+	int32 GetUsingQuickSlotCount() const;
+	bool IsRegisteredItem(UPRConsumableDataAsset* InConsumableData);
 protected:
 	// 퀵슬롯 복제 결과를 로컬 UI에 알린다
 	UFUNCTION()
@@ -62,7 +71,7 @@ protected:
 
 	// 인벤토리 변경 시 캐시를 다시 맞춘다
 	UFUNCTION()
-	void HandleInventoryChanged(UPRInventoryComponent* ChangedInventoryComponent, EPRInventoryChangeReason ChangeReason);
+	void HandleInventoryChanged(UPRInventoryComponent* ChangedInventoryComponent, const FPRInventoryChangeEventData& EventData);
 
 	// 지정 슬롯에 소비 아이템 종류를 등록한다
 	bool RegisterQuickSlotItemInternal(int32 SlotIndex, UPRConsumableDataAsset* ConsumableData);
@@ -72,12 +81,6 @@ protected:
 
 	// 지정 슬롯의 소비 아이템을 사용한다
 	bool UseQuickSlotInternal(int32 SlotIndex);
-
-	// 지정 슬롯의 소비 아이템 인스턴스 캐시를 갱신한다
-	void RefreshCachedConsumableItem(int32 SlotIndex);
-
-	// 전체 슬롯의 소비 아이템 인스턴스 캐시를 갱신한다
-	void RefreshAllCachedConsumableItems();
 
 	// 현재 소유자의 인벤토리 컴포넌트를 조회한다
 	UPRInventoryComponent* ResolveInventoryComponent() const;
@@ -102,13 +105,17 @@ protected:
 
 public:
 	// 퀵슬롯 칸 수
-	static constexpr int32 QuickSlotCount = 4;
+	static constexpr int32 MaxQuickSlotCount = 4;
 
 protected:
 	// 등록된 퀵슬롯 목록이다
 	UPROPERTY(ReplicatedUsing=OnRep_QuickSlots, VisibleInstanceOnly, BlueprintReadOnly, Category = "ProjectR|QuickSlot")
 	TArray<FPRQuickSlotEntry> QuickSlots;
-
+	
+	// 초기 고정 퀵슬롯
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "ProjectR|QuickSlot")
+	TArray<UPRConsumableDataAsset*> PrimaryItems;
+	
 private:
 	// 현재 연결된 인벤토리 컴포넌트
 	UPROPERTY(Transient)

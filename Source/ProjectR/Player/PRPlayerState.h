@@ -8,6 +8,8 @@
 #include "ProjectR/Game/PRGameTypes.h"
 #include "PRPlayerState.generated.h"
 
+struct FPRInventoryChangeEventData;
+enum class EPRInventoryChangeReason : uint8;
 class UPRAbilitySystemComponent;
 class UPRAttributeSet_Common;
 class UPRAttributeSet_Player;
@@ -29,6 +31,9 @@ public:
 	/*~ AActor Interface ~*/
 	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
 	virtual void BeginPlay() override;
+	
+	/*~ APlayerState Interface ~*/
+	virtual void CopyProperties(APlayerState* PlayerState) override;
 
 	/*~ IAbilitySystemInterface ~*/
 	virtual UAbilitySystemComponent* GetAbilitySystemComponent() const override;
@@ -85,10 +90,44 @@ public:
 	// 현재 플레이어 Pawn에게 생존 상태 전환 이벤트를 보낸다.
 	void SendSurvivalGameplayEvent(const FGameplayTag& EventTag) const;
 	
-	// 서버 전용. GameMode가 검증 통과한 캐릭터 페이로드를 주입. 복제는 자동
-	void InitializeFromSaveData(const FPRCharacterSaveData& SaveData);
+	// 기본 정보 적용 (맵 전환시 유지하기 위해)
+	void InitializePrimaryInfoFromSaveData(const FPRCharacterSaveData& InSaveData);
 
+	// 서버 전용. AbilitySystem, Inventory등의 상태를 SaveData에서 복원. (Character의 PossessedBy에서 AbilitySystem 초기화 후 호출) 
+	void ApplySaveData(const FPRCharacterSaveData& InSaveData);
+	
+	// TODO: 플레이어 각종 상태 값 (인벤토리 포함) 기록하여 반환
+	FPRCharacterSaveData MakeSaveData() const;
+	
 protected:
+	void BindAutoRegisterQuickSlotEvent();
+	
+	UFUNCTION()
+	void OnInventoryChanged(UPRInventoryComponent* InInventory, const FPRInventoryChangeEventData& EventData);
+	
+protected:
+	// ===== Configs ======
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "ProjectR|Player")
+	TArray<FPRItemSaveEntry> StartUpItems;
+	
+	// ===== Information =====
+	// 표시명. 모든 클라에게 복제 (타 플레이어 HUD 표시)
+	UPROPERTY(Replicated)
+	FString DisplayName;
+
+	// 캐릭터 레벨. 타 클라에도 표시될 수 있으므로 전체 복제
+	UPROPERTY(Replicated)
+	int32 CharacterLevel = 1;
+
+	// 캐릭터 누적 경험치. 게스트 보상 커밋 경로에서 누적
+	UPROPERTY(Replicated)
+	int64 Experience = 0;
+
+	// 스탯 업그레이드 정보
+	UPROPERTY(Replicated)
+	FPRCharacterStatUpgradeInfo StatUpgradeInfo;
+	
+	// ===== Components =====
 	// 플레이어 ASC. PlayerState에 부착
 	UPROPERTY(VisibleAnywhere, Category = "ProjectR|Ability")
 	TObjectPtr<UPRAbilitySystemComponent> AbilitySystemComponent;
@@ -116,20 +155,8 @@ protected:
 	// 플레이어 소비 아이템 퀵슬롯 상태 컴포넌트
 	UPROPERTY(VisibleAnywhere, Category = "ProjectR|QuickSlot")
 	TObjectPtr<UPRQuickSlotComponent> QuickSlotComponent;
-
-	// 표시명. 모든 클라에게 복제 (타 플레이어 HUD 표시)
-	UPROPERTY(Replicated)
-	FString DisplayName;
-
-	// 캐릭터 레벨. 타 클라에도 표시될 수 있으므로 전체 복제
-	UPROPERTY(Replicated)
-	int32 CharacterLevel = 1;
-
-	// 캐릭터 누적 경험치. 게스트 보상 커밋 경로에서 누적
-	UPROPERTY(Replicated)
-	int64 Experience = 0;
-
-	// 스탯 업그레이드 정보
-	UPROPERTY(Replicated)
-	FPRCharacterStatUpgradeInfo StatUpgradeInfo;
+	
+private:
+	UPROPERTY()
+	FPRCharacterSaveData CurrentSaveData;
 };

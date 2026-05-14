@@ -39,18 +39,6 @@ protected:
 	UFUNCTION()
 	void HandleDownMontageInterrupted();
 
-	// 다운 상태에서 사망 전환 확정 이벤트를 받았을 때 전환 몽타주를 시작한다.
-	UFUNCTION()
-	void HandleDownDeathEvent(FGameplayEventData EventData);
-
-	// 다운에서 사망 전환 몽타주가 정상 종료되었을 때 최종 사망 처리를 완료한다.
-	UFUNCTION()
-	void HandleDownToDeathMontageCompleted();
-
-	// 다운에서 사망 전환 몽타주가 중단되었을 때 최종 사망 처리를 완료한다.
-	UFUNCTION()
-	void HandleDownToDeathMontageInterrupted();
-
 	// 다운 상태 제한 시간을 서버 타이머로 시작한다.
 	void StartDownTimer();
 
@@ -62,24 +50,6 @@ protected:
 
 	// 현재 Avatar에게 다운 사망 전환 확정 이벤트를 보낸다.
 	void SendDownDeathConfirmedEvent() const;
-
-	// 다운 상태에서 수신할 사망 전환 확정 이벤트를 대기한다.
-	void StartDownDeathEventWait();
-
-	// 다운 상태에서 수신할 사망 전환 확정 이벤트 대기를 정리한다.
-	void StopDownDeathEventWait();
-
-	// 다운에서 사망으로 전환되는 몽타주 흐름을 시작한다.
-	void StartDownToDeath();
-
-	// 다운 사망 전환 몽타주 길이에 맞춰 서버 최종 사망 타이머를 시작한다.
-	void StartDownToDeathFinalizeTimer();
-
-	// 다운 사망 전환 최종 사망 타이머를 정리한다.
-	void StopDownToDeathFinalizeTimer();
-
-	// 다운 사망 전환 몽타주 완료 콜백이 누락되었을 때 서버에서 최종 사망을 확정한다.
-	void HandleDownToDeathFinalizeTimeout();
 
 	// 다운 진입 몽타주 재생 중 이동 차단 태그를 서버에서 추가하거나 제거한다.
 	void SetDownEnterMovementBlocked(bool bBlocked);

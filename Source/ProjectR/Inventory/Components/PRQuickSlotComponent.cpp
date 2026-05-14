@@ -42,18 +42,6 @@ void UPRQuickSlotComponent::InitializeQuickSlots(UPRInventoryComponent* InInvent
 		}
 	}
 	
-	if (CachedInventoryComponent == InInventoryComponent)
-	{
-		RefreshAllCachedConsumableItems();
-		OnQuickSlotChanged.Broadcast(this, INDEX_NONE);
-		return;
-	}
-
-	if (IsValid(CachedInventoryComponent))
-	{
-		CachedInventoryComponent->GetOnInventoryChanged().RemoveDynamic(this, &UPRQuickSlotComponent::HandleInventoryChanged);
-	}
-
 	CachedInventoryComponent = InInventoryComponent;
 
 	if (QuickSlots.Num() != MaxQuickSlotCount)
@@ -177,6 +165,18 @@ int32 UPRQuickSlotComponent::GetUsingQuickSlotCount() const
 	}
 	
 	return Ret;
+}
+
+bool UPRQuickSlotComponent::IsRegisteredItem(UPRConsumableDataAsset* InConsumableData)
+{
+	for (auto& QuickSlotItem : QuickSlots)
+	{
+		if (QuickSlotItem.ConsumableData == InConsumableData)
+		{
+			return true;
+		}
+	}
+	return false;
 }
 
 void UPRQuickSlotComponent::OnRep_QuickSlots()

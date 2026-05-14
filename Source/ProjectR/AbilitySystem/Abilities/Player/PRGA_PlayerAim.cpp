@@ -52,6 +52,7 @@ void UPRGA_PlayerAim::ActivateAbility(const FGameplayAbilitySpecHandle Handle,
 			{
 				EndAbility(Handle, ActorInfo, ActivationInfo, true, true);
 				return;
+				// TODO: 위 로직 CanActivate로 이동
 			}
 			if (WeaponManager->GetArmedState() != EPRArmedState::Armed)
 			{

@@ -111,7 +111,7 @@ FPRCharacterSaveData APRPlayerState::MakeSaveData() const
 
 void APRPlayerState::BindAutoRegisterQuickSlotEvent()
 {
-	InventoryComponent->GetOnInventoryChanged().RemoveAll(this);
+	InventoryComponent->GetOnInventoryChanged().RemoveDynamic(this,&ThisClass::OnInventoryChanged);
 	InventoryComponent->GetOnInventoryChanged().AddDynamic(this,&ThisClass::OnInventoryChanged);
 }
 
@@ -130,6 +130,11 @@ void APRPlayerState::OnInventoryChanged(UPRInventoryComponent* InInventory,
 
 	UPRItemInstance_Consumable* AsConsumable = Cast<UPRItemInstance_Consumable>(EventData.ItemInstance);
 	if (!IsValid(AsConsumable))
+	{
+		return;
+	}
+	
+	if (QuickSlotComponent->IsRegisteredItem(AsConsumable->GetConsumableData()))
 	{
 		return;
 	}

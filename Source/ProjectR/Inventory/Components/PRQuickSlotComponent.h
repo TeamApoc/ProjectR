@@ -63,7 +63,7 @@ public:
 	
 	int32 GetMaxQuickSlotCount() const {return MaxQuickSlotCount;}
 	int32 GetUsingQuickSlotCount() const;
-	
+	bool IsRegisteredItem(UPRConsumableDataAsset* InConsumableData);
 protected:
 	// 퀵슬롯 복제 결과를 로컬 UI에 알린다
 	UFUNCTION()

@@ -320,12 +320,6 @@ void UPRInventoryComponent::RequestRemoveConsumableItem(UPRItemInstance_Consumab
 		return;
 	}
 
-	if (IsValid(GetOwner()) && GetOwner()->HasAuthority())
-	{
-		RemoveConsumableItemInternal(ConsumableItem, RemoveCount);
-		return;
-	}
-
 	Server_RequestRemoveConsumableItem(ConsumableItem, RemoveCount);
 }
 

@@ -6,6 +6,7 @@
 #include "ProjectR/Interaction/PRInteractionAction.h"
 #include "PRInteraction_Revive.generated.h"
 
+class UPRConsumableDataAsset;
 /**
  * 
  */
@@ -23,4 +24,8 @@ public:
 	
 private:
 	void FinishReviveAbility(AActor* Interactor);
+	
+public:
+	UPROPERTY(EditAnywhere,BlueprintReadWrite)
+	TObjectPtr<UPRConsumableDataAsset> CostItem;
 };

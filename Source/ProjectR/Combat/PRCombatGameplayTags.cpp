@@ -13,6 +13,8 @@ namespace PRCombatGameplayTags
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(SetByCaller_ReserveAmmoRatio, "SetByCaller.ReserveAmmoRatio", "무기 장착 시 슬롯 보유 한도 비율");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(SetByCaller_AmmoCost, "SetByCaller.AmmoCost", "사격 시 displayed 발사 수");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(SetByCaller_Cooldown, "SetByCaller.Cooldown", "쿨다운 GE Duration SetByCaller 키");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(SetByCaller_ModDuration, "SetByCaller.Mod.Duration", "지속시간형 Mod 유지 시간");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(SetByCaller_ModMaxGauge, "SetByCaller.Mod.MaxGauge", "지속시간형 Mod 게이지 총 소모량");
 
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Event_Ability_EnemyMeleeHit, "Event.Ability.EnemyMeleeHit", "적 근접 공격 타격 프레임 이벤트");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Event_Ability_EnemyMeleeWindowBegin, "Event.Ability.EnemyMeleeWindowBegin", "적 근접 공격 판정 구간 시작 이벤트");

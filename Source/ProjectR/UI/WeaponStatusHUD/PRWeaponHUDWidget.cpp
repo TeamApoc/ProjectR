@@ -67,12 +67,16 @@ void UPRWeaponHUDWidget::SetWeaponHUDSources(UPRWeaponManagerComponent* InWeapon
 			AttributeChangeHandles.Add(ASC->GetGameplayAttributeValueChangeDelegate(UPRAttributeSet_Weapon::GetPrimaryReserveAmmoAttribute()).AddUObject(this, &UPRWeaponHUDWidget::HandlePrimaryWeaponAttributeChanged));
 			AttributeChangeHandles.Add(ASC->GetGameplayAttributeValueChangeDelegate(UPRAttributeSet_Weapon::GetPrimaryAmmoScaleAttribute()).AddUObject(this, &UPRWeaponHUDWidget::HandlePrimaryWeaponAttributeChanged));
 			AttributeChangeHandles.Add(ASC->GetGameplayAttributeValueChangeDelegate(UPRAttributeSet_Weapon::GetPrimaryModGaugeAttribute()).AddUObject(this, &UPRWeaponHUDWidget::HandlePrimaryWeaponAttributeChanged));
+			AttributeChangeHandles.Add(ASC->GetGameplayAttributeValueChangeDelegate(UPRAttributeSet_Weapon::GetPrimaryMaxModGaugeAttribute()).AddUObject(this, &UPRWeaponHUDWidget::HandlePrimaryWeaponAttributeChanged));
 			AttributeChangeHandles.Add(ASC->GetGameplayAttributeValueChangeDelegate(UPRAttributeSet_Weapon::GetPrimaryModStackAttribute()).AddUObject(this, &UPRWeaponHUDWidget::HandlePrimaryWeaponAttributeChanged));
+			AttributeChangeHandles.Add(ASC->GetGameplayAttributeValueChangeDelegate(UPRAttributeSet_Weapon::GetPrimaryMaxModStackAttribute()).AddUObject(this, &UPRWeaponHUDWidget::HandlePrimaryWeaponAttributeChanged));
 			AttributeChangeHandles.Add(ASC->GetGameplayAttributeValueChangeDelegate(UPRAttributeSet_Weapon::GetSecondaryMagazineAmmoAttribute()).AddUObject(this, &UPRWeaponHUDWidget::HandleSecondaryWeaponAttributeChanged));
 			AttributeChangeHandles.Add(ASC->GetGameplayAttributeValueChangeDelegate(UPRAttributeSet_Weapon::GetSecondaryReserveAmmoAttribute()).AddUObject(this, &UPRWeaponHUDWidget::HandleSecondaryWeaponAttributeChanged));
 			AttributeChangeHandles.Add(ASC->GetGameplayAttributeValueChangeDelegate(UPRAttributeSet_Weapon::GetSecondaryAmmoScaleAttribute()).AddUObject(this, &UPRWeaponHUDWidget::HandleSecondaryWeaponAttributeChanged));
 			AttributeChangeHandles.Add(ASC->GetGameplayAttributeValueChangeDelegate(UPRAttributeSet_Weapon::GetSecondaryModGaugeAttribute()).AddUObject(this, &UPRWeaponHUDWidget::HandleSecondaryWeaponAttributeChanged));
+			AttributeChangeHandles.Add(ASC->GetGameplayAttributeValueChangeDelegate(UPRAttributeSet_Weapon::GetSecondaryMaxModGaugeAttribute()).AddUObject(this, &UPRWeaponHUDWidget::HandleSecondaryWeaponAttributeChanged));
 			AttributeChangeHandles.Add(ASC->GetGameplayAttributeValueChangeDelegate(UPRAttributeSet_Weapon::GetSecondaryModStackAttribute()).AddUObject(this, &UPRWeaponHUDWidget::HandleSecondaryWeaponAttributeChanged));
+			AttributeChangeHandles.Add(ASC->GetGameplayAttributeValueChangeDelegate(UPRAttributeSet_Weapon::GetSecondaryMaxModStackAttribute()).AddUObject(this, &UPRWeaponHUDWidget::HandleSecondaryWeaponAttributeChanged));
 		}
 	}
 
@@ -128,6 +132,9 @@ FPRWeaponStatusViewData UPRWeaponHUDWidget::BuildWeaponStatusViewData(EPRWeaponS
 	const float ModGauge = SlotType == EPRWeaponSlotType::Primary
 		? CurrentWeaponSet->GetPrimaryModGauge()
 		: CurrentWeaponSet->GetSecondaryModGauge();
+	const float MaxModGauge = SlotType == EPRWeaponSlotType::Primary
+		? CurrentWeaponSet->GetPrimaryMaxModGauge()
+		: CurrentWeaponSet->GetSecondaryMaxModGauge();
 	const float ModStack = SlotType == EPRWeaponSlotType::Primary
 		? CurrentWeaponSet->GetPrimaryModStack()
 		: CurrentWeaponSet->GetSecondaryModStack();
@@ -140,7 +147,7 @@ FPRWeaponStatusViewData UPRWeaponHUDWidget::BuildWeaponStatusViewData(EPRWeaponS
 	ViewData.bHasMod = IsValid(ModData);
 	ViewData.ModIcon = IsValid(ModData) ? ModData->GetIcon() : nullptr;
 	ViewData.ModGaugePercent = IsValid(ModData)
-		? UPRUserInterfaceStatics::ConvertMinMaxToPercent(ModGauge, ModData->MaxGauge)
+		? UPRUserInterfaceStatics::ConvertMinMaxToPercent(ModGauge, MaxModGauge)
 		: 0.0f;
 	ViewData.ModStackCount = ModStack;
 
@@ -199,12 +206,16 @@ void UPRWeaponHUDWidget::UnbindWeaponHUDSources()
 			ASC->GetGameplayAttributeValueChangeDelegate(UPRAttributeSet_Weapon::GetPrimaryReserveAmmoAttribute()).RemoveAll(this);
 			ASC->GetGameplayAttributeValueChangeDelegate(UPRAttributeSet_Weapon::GetPrimaryAmmoScaleAttribute()).RemoveAll(this);
 			ASC->GetGameplayAttributeValueChangeDelegate(UPRAttributeSet_Weapon::GetPrimaryModGaugeAttribute()).RemoveAll(this);
+			ASC->GetGameplayAttributeValueChangeDelegate(UPRAttributeSet_Weapon::GetPrimaryMaxModGaugeAttribute()).RemoveAll(this);
 			ASC->GetGameplayAttributeValueChangeDelegate(UPRAttributeSet_Weapon::GetPrimaryModStackAttribute()).RemoveAll(this);
+			ASC->GetGameplayAttributeValueChangeDelegate(UPRAttributeSet_Weapon::GetPrimaryMaxModStackAttribute()).RemoveAll(this);
 			ASC->GetGameplayAttributeValueChangeDelegate(UPRAttributeSet_Weapon::GetSecondaryMagazineAmmoAttribute()).RemoveAll(this);
 			ASC->GetGameplayAttributeValueChangeDelegate(UPRAttributeSet_Weapon::GetSecondaryReserveAmmoAttribute()).RemoveAll(this);
 			ASC->GetGameplayAttributeValueChangeDelegate(UPRAttributeSet_Weapon::GetSecondaryAmmoScaleAttribute()).RemoveAll(this);
 			ASC->GetGameplayAttributeValueChangeDelegate(UPRAttributeSet_Weapon::GetSecondaryModGaugeAttribute()).RemoveAll(this);
+			ASC->GetGameplayAttributeValueChangeDelegate(UPRAttributeSet_Weapon::GetSecondaryMaxModGaugeAttribute()).RemoveAll(this);
 			ASC->GetGameplayAttributeValueChangeDelegate(UPRAttributeSet_Weapon::GetSecondaryModStackAttribute()).RemoveAll(this);
+			ASC->GetGameplayAttributeValueChangeDelegate(UPRAttributeSet_Weapon::GetSecondaryMaxModStackAttribute()).RemoveAll(this);
 		}
 	}
 

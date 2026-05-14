@@ -27,6 +27,7 @@ public:
 
 	/*~ UAttributeSet Interface ~*/
 	virtual void PreAttributeChange(const FGameplayAttribute& Attribute, float& NewValue) override;
+	virtual void PostGameplayEffectExecute(const FGameplayEffectModCallbackData& Data) override;
 
 	/*~ UPRAttributeSet_Weapon Interface ~*/
 	// 탄약 타입에 대응하는 raw 탄창 어트리뷰트 핸들 반환
@@ -79,7 +80,13 @@ protected:
 	void OnRep_PrimaryModGauge(const FGameplayAttributeData& OldValue);
 
 	UFUNCTION()
+	void OnRep_PrimaryMaxModGauge(const FGameplayAttributeData& OldValue);
+
+	UFUNCTION()
 	void OnRep_PrimaryModStack(const FGameplayAttributeData& OldValue);
+
+	UFUNCTION()
+	void OnRep_PrimaryMaxModStack(const FGameplayAttributeData& OldValue);
 
 	UFUNCTION()
 	void OnRep_SecondaryMagazineAmmo(const FGameplayAttributeData& OldValue);
@@ -97,7 +104,13 @@ protected:
 	void OnRep_SecondaryModGauge(const FGameplayAttributeData& OldValue);
 
 	UFUNCTION()
+	void OnRep_SecondaryMaxModGauge(const FGameplayAttributeData& OldValue);
+
+	UFUNCTION()
 	void OnRep_SecondaryModStack(const FGameplayAttributeData& OldValue);
+
+	UFUNCTION()
+	void OnRep_SecondaryMaxModStack(const FGameplayAttributeData& OldValue);
 
 	UFUNCTION()
 	void OnRep_BaseDamage(const FGameplayAttributeData& OldValue);
@@ -143,10 +156,20 @@ public:
 	FGameplayAttributeData PrimaryModGauge;
 	PR_ATTRIBUTE_ACCESSORS(UPRAttributeSet_Weapon, PrimaryModGauge)
 
+	// 주무기 슬롯 Mod 최대 게이지
+	UPROPERTY(BlueprintReadOnly, ReplicatedUsing = OnRep_PrimaryMaxModGauge, Category = "ProjectR|Attributes|Weapon")
+	FGameplayAttributeData PrimaryMaxModGauge;
+	PR_ATTRIBUTE_ACCESSORS(UPRAttributeSet_Weapon, PrimaryMaxModGauge)
+
 	// 주무기 슬롯 Mod 스택
 	UPROPERTY(BlueprintReadOnly, ReplicatedUsing = OnRep_PrimaryModStack, Category = "ProjectR|Attributes|Weapon")
 	FGameplayAttributeData PrimaryModStack;
 	PR_ATTRIBUTE_ACCESSORS(UPRAttributeSet_Weapon, PrimaryModStack)
+
+	// 주무기 슬롯 Mod 최대 스택
+	UPROPERTY(BlueprintReadOnly, ReplicatedUsing = OnRep_PrimaryMaxModStack, Category = "ProjectR|Attributes|Weapon")
+	FGameplayAttributeData PrimaryMaxModStack;
+	PR_ATTRIBUTE_ACCESSORS(UPRAttributeSet_Weapon, PrimaryMaxModStack)
 
 	// 보조무기 슬롯 raw 탄창 잔탄
 	UPROPERTY(BlueprintReadOnly, ReplicatedUsing = OnRep_SecondaryMagazineAmmo, Category = "ProjectR|Attributes|Weapon")
@@ -173,10 +196,20 @@ public:
 	FGameplayAttributeData SecondaryModGauge;
 	PR_ATTRIBUTE_ACCESSORS(UPRAttributeSet_Weapon, SecondaryModGauge)
 
+	// 보조무기 슬롯 Mod 최대 게이지
+	UPROPERTY(BlueprintReadOnly, ReplicatedUsing = OnRep_SecondaryMaxModGauge, Category = "ProjectR|Attributes|Weapon")
+	FGameplayAttributeData SecondaryMaxModGauge;
+	PR_ATTRIBUTE_ACCESSORS(UPRAttributeSet_Weapon, SecondaryMaxModGauge)
+
 	// 보조무기 슬롯 Mod 스택
 	UPROPERTY(BlueprintReadOnly, ReplicatedUsing = OnRep_SecondaryModStack, Category = "ProjectR|Attributes|Weapon")
 	FGameplayAttributeData SecondaryModStack;
 	PR_ATTRIBUTE_ACCESSORS(UPRAttributeSet_Weapon, SecondaryModStack)
+
+	// 보조무기 슬롯 Mod 최대 스택
+	UPROPERTY(BlueprintReadOnly, ReplicatedUsing = OnRep_SecondaryMaxModStack, Category = "ProjectR|Attributes|Weapon")
+	FGameplayAttributeData SecondaryMaxModStack;
+	PR_ATTRIBUTE_ACCESSORS(UPRAttributeSet_Weapon, SecondaryMaxModStack)
 
 	// 무기 기본 데미지
 	UPROPERTY(BlueprintReadOnly, ReplicatedUsing = OnRep_BaseDamage, Category = "ProjectR|Attributes|Weapon")

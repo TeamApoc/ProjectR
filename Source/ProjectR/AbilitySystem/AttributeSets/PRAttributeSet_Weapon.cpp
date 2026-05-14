@@ -1,6 +1,7 @@
 // Copyright ProjectR. All Rights Reserved.
 
 #include "PRAttributeSet_Weapon.h"
+#include "GameplayEffectExtension.h"
 #include "Logging/LogMacros.h"
 #include "Net/UnrealNetwork.h"
 
@@ -14,7 +15,9 @@ namespace
 			|| Attribute == UPRAttributeSet_Weapon::GetPrimaryAmmoScaleAttribute()
 			|| Attribute == UPRAttributeSet_Weapon::GetPrimaryReserveAmmoRatioAttribute()
 			|| Attribute == UPRAttributeSet_Weapon::GetPrimaryModGaugeAttribute()
-			|| Attribute == UPRAttributeSet_Weapon::GetPrimaryModStackAttribute();
+			|| Attribute == UPRAttributeSet_Weapon::GetPrimaryMaxModGaugeAttribute()
+			|| Attribute == UPRAttributeSet_Weapon::GetPrimaryModStackAttribute()
+			|| Attribute == UPRAttributeSet_Weapon::GetPrimaryMaxModStackAttribute();
 	}
 
 	// 보조무기 슬롯 자원 속성 판별
@@ -25,7 +28,9 @@ namespace
 			|| Attribute == UPRAttributeSet_Weapon::GetSecondaryAmmoScaleAttribute()
 			|| Attribute == UPRAttributeSet_Weapon::GetSecondaryReserveAmmoRatioAttribute()
 			|| Attribute == UPRAttributeSet_Weapon::GetSecondaryModGaugeAttribute()
-			|| Attribute == UPRAttributeSet_Weapon::GetSecondaryModStackAttribute();
+			|| Attribute == UPRAttributeSet_Weapon::GetSecondaryMaxModGaugeAttribute()
+			|| Attribute == UPRAttributeSet_Weapon::GetSecondaryModStackAttribute()
+			|| Attribute == UPRAttributeSet_Weapon::GetSecondaryMaxModStackAttribute();
 	}
 }
 
@@ -143,6 +148,39 @@ void UPRAttributeSet_Weapon::PreAttributeChange(const FGameplayAttribute& Attrib
 		NewValue = FMath::Min(NewValue, MagazineRawBaseline);
 	}
 
+	if (Attribute == GetPrimaryModGaugeAttribute())
+	{
+		const float MaxGauge = GetPrimaryMaxModGauge();
+		if (MaxGauge > 0.0f)
+		{
+			NewValue = FMath::Min(NewValue, MaxGauge);
+		}
+	}
+	else if (Attribute == GetSecondaryModGaugeAttribute())
+	{
+		const float MaxGauge = GetSecondaryMaxModGauge();
+		if (MaxGauge > 0.0f)
+		{
+			NewValue = FMath::Min(NewValue, MaxGauge);
+		}
+	}
+	else if (Attribute == GetPrimaryModStackAttribute())
+	{
+		const float MaxStack = GetPrimaryMaxModStack();
+		if (MaxStack > 0.0f)
+		{
+			NewValue = FMath::Min(NewValue, MaxStack);
+		}
+	}
+	else if (Attribute == GetSecondaryModStackAttribute())
+	{
+		const float MaxStack = GetSecondaryMaxModStack();
+		if (MaxStack > 0.0f)
+		{
+			NewValue = FMath::Min(NewValue, MaxStack);
+		}
+	}
+
 	// 예비탄 raw 값은 슬롯의 동적 max(Ratio × Scale × Baseline)로 클램프
 	if (Attribute == GetPrimaryReserveAmmoAttribute())
 	{
@@ -162,6 +200,53 @@ void UPRAttributeSet_Weapon::PreAttributeChange(const FGameplayAttribute& Attrib
 	}
 }
 
+void UPRAttributeSet_Weapon::PostGameplayEffectExecute(const FGameplayEffectModCallbackData& Data)
+{
+	Super::PostGameplayEffectExecute(Data);
+
+	const FGameplayAttribute& Attribute = Data.EvaluatedData.Attribute;
+	if (Attribute == GetPrimaryModGaugeAttribute())
+	{
+		const float MaxGauge = GetPrimaryMaxModGauge();
+		SetPrimaryModGauge(MaxGauge > 0.0f ? FMath::Clamp(GetPrimaryModGauge(), 0.0f, MaxGauge) : FMath::Max(GetPrimaryModGauge(), 0.0f));
+	}
+	else if (Attribute == GetPrimaryMaxModGaugeAttribute())
+	{
+		const float MaxGauge = GetPrimaryMaxModGauge();
+		SetPrimaryModGauge(MaxGauge > 0.0f ? FMath::Clamp(GetPrimaryModGauge(), 0.0f, MaxGauge) : 0.0f);
+	}
+	else if (Attribute == GetSecondaryModGaugeAttribute())
+	{
+		const float MaxGauge = GetSecondaryMaxModGauge();
+		SetSecondaryModGauge(MaxGauge > 0.0f ? FMath::Clamp(GetSecondaryModGauge(), 0.0f, MaxGauge) : FMath::Max(GetSecondaryModGauge(), 0.0f));
+	}
+	else if (Attribute == GetSecondaryMaxModGaugeAttribute())
+	{
+		const float MaxGauge = GetSecondaryMaxModGauge();
+		SetSecondaryModGauge(MaxGauge > 0.0f ? FMath::Clamp(GetSecondaryModGauge(), 0.0f, MaxGauge) : 0.0f);
+	}
+	else if (Attribute == GetPrimaryModStackAttribute())
+	{
+		const float MaxStack = GetPrimaryMaxModStack();
+		SetPrimaryModStack(MaxStack > 0.0f ? FMath::Clamp(GetPrimaryModStack(), 0.0f, MaxStack) : FMath::Max(GetPrimaryModStack(), 0.0f));
+	}
+	else if (Attribute == GetPrimaryMaxModStackAttribute())
+	{
+		const float MaxStack = GetPrimaryMaxModStack();
+		SetPrimaryModStack(MaxStack > 0.0f ? FMath::Clamp(GetPrimaryModStack(), 0.0f, MaxStack) : 0.0f);
+	}
+	else if (Attribute == GetSecondaryModStackAttribute())
+	{
+		const float MaxStack = GetSecondaryMaxModStack();
+		SetSecondaryModStack(MaxStack > 0.0f ? FMath::Clamp(GetSecondaryModStack(), 0.0f, MaxStack) : FMath::Max(GetSecondaryModStack(), 0.0f));
+	}
+	else if (Attribute == GetSecondaryMaxModStackAttribute())
+	{
+		const float MaxStack = GetSecondaryMaxModStack();
+		SetSecondaryModStack(MaxStack > 0.0f ? FMath::Clamp(GetSecondaryModStack(), 0.0f, MaxStack) : 0.0f);
+	}
+}
+
 void UPRAttributeSet_Weapon::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const
 {
 	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
@@ -171,13 +256,17 @@ void UPRAttributeSet_Weapon::GetLifetimeReplicatedProps(TArray<FLifetimeProperty
 	DOREPLIFETIME_CONDITION_NOTIFY(UPRAttributeSet_Weapon, PrimaryAmmoScale, COND_None, REPNOTIFY_Always);
 	DOREPLIFETIME_CONDITION_NOTIFY(UPRAttributeSet_Weapon, PrimaryReserveAmmoRatio, COND_None, REPNOTIFY_Always);
 	DOREPLIFETIME_CONDITION_NOTIFY(UPRAttributeSet_Weapon, PrimaryModGauge, COND_None, REPNOTIFY_Always);
+	DOREPLIFETIME_CONDITION_NOTIFY(UPRAttributeSet_Weapon, PrimaryMaxModGauge, COND_None, REPNOTIFY_Always);
 	DOREPLIFETIME_CONDITION_NOTIFY(UPRAttributeSet_Weapon, PrimaryModStack, COND_None, REPNOTIFY_Always);
+	DOREPLIFETIME_CONDITION_NOTIFY(UPRAttributeSet_Weapon, PrimaryMaxModStack, COND_None, REPNOTIFY_Always);
 	DOREPLIFETIME_CONDITION_NOTIFY(UPRAttributeSet_Weapon, SecondaryMagazineAmmo, COND_None, REPNOTIFY_Always);
 	DOREPLIFETIME_CONDITION_NOTIFY(UPRAttributeSet_Weapon, SecondaryReserveAmmo, COND_None, REPNOTIFY_Always);
 	DOREPLIFETIME_CONDITION_NOTIFY(UPRAttributeSet_Weapon, SecondaryAmmoScale, COND_None, REPNOTIFY_Always);
 	DOREPLIFETIME_CONDITION_NOTIFY(UPRAttributeSet_Weapon, SecondaryReserveAmmoRatio, COND_None, REPNOTIFY_Always);
 	DOREPLIFETIME_CONDITION_NOTIFY(UPRAttributeSet_Weapon, SecondaryModGauge, COND_None, REPNOTIFY_Always);
+	DOREPLIFETIME_CONDITION_NOTIFY(UPRAttributeSet_Weapon, SecondaryMaxModGauge, COND_None, REPNOTIFY_Always);
 	DOREPLIFETIME_CONDITION_NOTIFY(UPRAttributeSet_Weapon, SecondaryModStack, COND_None, REPNOTIFY_Always);
+	DOREPLIFETIME_CONDITION_NOTIFY(UPRAttributeSet_Weapon, SecondaryMaxModStack, COND_None, REPNOTIFY_Always);
 	DOREPLIFETIME_CONDITION_NOTIFY(UPRAttributeSet_Weapon, BaseDamage, COND_None, REPNOTIFY_Always);
 	DOREPLIFETIME_CONDITION_NOTIFY(UPRAttributeSet_Weapon, DamageMultiplier, COND_None, REPNOTIFY_Always);
 	DOREPLIFETIME_CONDITION_NOTIFY(UPRAttributeSet_Weapon, ArmorPenetration, COND_None, REPNOTIFY_Always);
@@ -210,9 +299,19 @@ void UPRAttributeSet_Weapon::OnRep_PrimaryModGauge(const FGameplayAttributeData&
 	GAMEPLAYATTRIBUTE_REPNOTIFY(UPRAttributeSet_Weapon, PrimaryModGauge, OldValue);
 }
 
+void UPRAttributeSet_Weapon::OnRep_PrimaryMaxModGauge(const FGameplayAttributeData& OldValue)
+{
+	GAMEPLAYATTRIBUTE_REPNOTIFY(UPRAttributeSet_Weapon, PrimaryMaxModGauge, OldValue);
+}
+
 void UPRAttributeSet_Weapon::OnRep_PrimaryModStack(const FGameplayAttributeData& OldValue)
 {
 	GAMEPLAYATTRIBUTE_REPNOTIFY(UPRAttributeSet_Weapon, PrimaryModStack, OldValue);
+}
+
+void UPRAttributeSet_Weapon::OnRep_PrimaryMaxModStack(const FGameplayAttributeData& OldValue)
+{
+	GAMEPLAYATTRIBUTE_REPNOTIFY(UPRAttributeSet_Weapon, PrimaryMaxModStack, OldValue);
 }
 
 void UPRAttributeSet_Weapon::OnRep_SecondaryMagazineAmmo(const FGameplayAttributeData& OldValue)
@@ -240,9 +339,19 @@ void UPRAttributeSet_Weapon::OnRep_SecondaryModGauge(const FGameplayAttributeDat
 	GAMEPLAYATTRIBUTE_REPNOTIFY(UPRAttributeSet_Weapon, SecondaryModGauge, OldValue);
 }
 
+void UPRAttributeSet_Weapon::OnRep_SecondaryMaxModGauge(const FGameplayAttributeData& OldValue)
+{
+	GAMEPLAYATTRIBUTE_REPNOTIFY(UPRAttributeSet_Weapon, SecondaryMaxModGauge, OldValue);
+}
+
 void UPRAttributeSet_Weapon::OnRep_SecondaryModStack(const FGameplayAttributeData& OldValue)
 {
 	GAMEPLAYATTRIBUTE_REPNOTIFY(UPRAttributeSet_Weapon, SecondaryModStack, OldValue);
+}
+
+void UPRAttributeSet_Weapon::OnRep_SecondaryMaxModStack(const FGameplayAttributeData& OldValue)
+{
+	GAMEPLAYATTRIBUTE_REPNOTIFY(UPRAttributeSet_Weapon, SecondaryMaxModStack, OldValue);
 }
 
 void UPRAttributeSet_Weapon::OnRep_BaseDamage(const FGameplayAttributeData& OldValue)

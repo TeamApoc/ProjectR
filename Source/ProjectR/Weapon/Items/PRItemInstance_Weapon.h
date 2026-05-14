@@ -25,10 +25,11 @@ public:
 
 public:
 	// 무기와 초기 Mod 데이터를 연결한다
-	void InitializeWeaponItem(UPRWeaponDataAsset* InWeaponData, UPRWeaponModDataAsset* InModData = nullptr);
+	virtual void InitializeItem(UPRItemDataAsset* InItemData, int32 InitialStackCount = 1) override;
+	virtual void InitializeMod(UPRWeaponModDataAsset* InModData = nullptr);
 
 	// 현재 연결된 무기 데이터를 반환한다
-	UPRWeaponDataAsset* GetWeaponData() const { return WeaponData; }
+	UPRWeaponDataAsset* GetWeaponData() const;
 
 	// 현재 연결된 Mod 데이터를 반환한다
 	UPRWeaponModDataAsset* GetModData() const { return ModData; }
@@ -88,11 +89,7 @@ private:
 
 	// Mod 데이터 배열로 생성한 장착 AbilitySet을 반환한다
 	UPRAbilitySet* GetModAbilitySet();
-
-	// 무기 데이터 복제 완료 시 클라이언트 확인 로그를 남긴다
-	UFUNCTION()
-	void OnRep_WeaponData();
-
+	
 	// 장착 Mod 데이터 복제 완료 시 인벤토리 UI 갱신 신호를 발행한다
 	UFUNCTION()
 	void OnRep_ModData();
@@ -102,10 +99,6 @@ private:
 	void OnRep_EquippedModItem();
 
 public:
-	// 현재 연결된 무기 데이터
-	UPROPERTY(ReplicatedUsing = OnRep_WeaponData, VisibleInstanceOnly, BlueprintReadOnly, Category = "ProjectR|Weapon")
-	TObjectPtr<UPRWeaponDataAsset> WeaponData = nullptr;
-
 	// 현재 장착된 Mod 데이터
 	UPROPERTY(ReplicatedUsing = OnRep_ModData, VisibleInstanceOnly, BlueprintReadOnly, Category = "ProjectR|Weapon")
 	TObjectPtr<UPRWeaponModDataAsset> ModData = nullptr;

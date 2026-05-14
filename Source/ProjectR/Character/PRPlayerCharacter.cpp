@@ -8,6 +8,7 @@
 #include "GameFramework/SpringArmComponent.h"
 #include "EnhancedInputComponent.h"
 #include "EnhancedInputSubsystems.h"
+#include "Components/SphereComponent.h"
 #include "Kismet/KismetMathLibrary.h"
 #include "ProjectR/ProjectR.h"
 #include "ProjectR/AbilitySystem/PRAbilitySystemComponent.h"
@@ -15,6 +16,7 @@
 #include "ProjectR/System/PRAssetManager.h"
 #include "ProjectR/PRGameplayTags.h"
 #include "ProjectR/AbilitySystem/AttributeSets/PRAttributeSet_Common.h"
+#include "ProjectR/Interaction/PRInteractableComponent.h"
 #include "ProjectR/Weapon/Components/PRWeaponManagerComponent.h"
 #include "ProjectR/Player/Components/PRActionInputRouterComponent.h"
 #include "ProjectR/Player/Components/PRSpringArmComponent.h"
@@ -78,6 +80,13 @@ APRPlayerCharacter::APRPlayerCharacter()
 	
 	// 루트모션을 통한 회전 켜기
 	GetCharacterMovement()->bAllowPhysicsRotationDuringAnimRootMotion = true;
+	
+	InteractableComponent = CreateDefaultSubobject<UPRInteractableComponent>(TEXT("InteractableComponent"));
+	InteractionSphere = CreateDefaultSubobject<USphereComponent>(TEXT("InteractionSphere"));
+	InteractionSphere->SetSphereRadius(30.f);
+	InteractionSphere->SetCollisionProfileName(TEXT("Interactable"));
+	InteractionSphere->SetCollisionEnabled(ECollisionEnabled::Type::QueryOnly);
+	InteractionSphere->SetupAttachment(RootComponent);
 }
 
 // =====  ASC 연동 =====
@@ -250,11 +259,6 @@ void APRPlayerCharacter::HandleGameplayTagUpdated(const FGameplayTag& ChangedTag
 	if (ChangedTag.MatchesTagExact(PRGameplayTags::State_Armed))
 	{
 		APRWeaponActor* ActiveWeapon = IsValid(WeaponManagerComponent) ? WeaponManagerComponent->GetActiveWeaponActor() : nullptr;
-		if (IsValid(ActiveWeapon))
-		{
-			ActiveWeapon->SetIsIKSuppressed(bTagExists);
-		}
-
 		// 무기 장착/해제에 맞춰 투사체 예측 경로 표시 컴포넌트의 기점 무기 액터 동기화
 		if (IsValid(ProjectileTrajectoryPreviewComponent))
 		{

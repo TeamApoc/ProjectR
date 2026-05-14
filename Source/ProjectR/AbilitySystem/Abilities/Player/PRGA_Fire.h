@@ -114,6 +114,9 @@ protected:
 	// 사격 트레이스에 사용할 충돌 채널
 	UPROPERTY(EditDefaultsOnly, Category = "ProjectR|Fire")
 	TEnumAsByte<ECollisionChannel> FireTraceChannel = PRCollisionChannels::ECC_Combat;
+	
+	UPROPERTY(EditDefaultsOnly, Category = "ProjectR|Fire")
+	TEnumAsByte<ECollisionChannel> CameraTraceChannel = ECC_Visibility;
 
 	// 카메라 트레이스(1차, 시안색) 디버그 표시 여부
 	UPROPERTY(EditDefaultsOnly, Category = "ProjectR|Fire|Debug")

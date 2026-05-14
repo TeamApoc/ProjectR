@@ -28,6 +28,8 @@ namespace PRGameplayTags
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Ability_Player_SwapWeapon); // 플레이어 주무기/보조무기 교체 어빌리티
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Ability_Player_Death); // 플레이어 사망 어빌리티
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Ability_Player_Down); // 플레이어 다운 어빌리티
+	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Ability_Player_GetUp); // 플레이어 기상 어빌리티
+	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Ability_Player_Revive); // 플레이어 동료 소생 어빌리티
 	
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Ability_Enemy_Pattern); // 일반 적 패턴 공통 루트
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Ability_Boss_Pattern); // 보스 패턴 공통 루트
@@ -108,6 +110,8 @@ namespace PRGameplayTags
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Event_Hit); // 피격 이벤트.
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Event_Ability_Death); // 사망 이벤트.
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Event_Ability_Down); // 다운 이벤트.
+	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Event_Ability_GetUp); // 기상 이벤트.
+	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Event_Ability_Revive); // 소생 이벤트.
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Event_Ability_GroggyEntered); // 그로기 진입 이벤트.
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Event_Ability_PhaseTransition); // 페이즈 전환 이벤트.
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Event_Ability_PlayerHitReact_Weak); // 플레이어 약한 경직 이벤트

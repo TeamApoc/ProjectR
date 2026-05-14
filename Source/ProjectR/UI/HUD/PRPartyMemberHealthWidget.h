@@ -8,7 +8,9 @@
 
 class APRPlayerState;
 class UPRHealthBarWidget;
+class UImage;
 class UTextBlock;
+class UTexture2D;
 
 // 파티원 생존 표시 상태
 UENUM(BlueprintType)
@@ -56,6 +58,8 @@ protected:
 private:
 	void RefreshDisplayName();
 	void RefreshSurvivalState();
+	void ApplySurvivalStateIcon();
+	UTexture2D* GetSurvivalStateIconTexture() const;
 
 private:
 	// 파티원 체력을 표시하는 자식 체력 바
@@ -65,6 +69,22 @@ private:
 	// 파티원 이름을 표시하는 텍스트
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional, AllowPrivateAccess = "true"), Category = "HUD")
 	TObjectPtr<UTextBlock> DisplayNameText;
+
+	// 파티원 생존 상태 아이콘을 표시하는 이미지
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional, AllowPrivateAccess = "true"), Category = "HUD")
+	TObjectPtr<UImage> SurvivalStateIconImage;
+
+	// 생존 상태일 때 표시할 아이콘
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"), Category = "HUD")
+	TObjectPtr<UTexture2D> AliveIconTexture;
+
+	// 다운 상태일 때 표시할 아이콘
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"), Category = "HUD")
+	TObjectPtr<UTexture2D> DownIconTexture;
+
+	// 사망 상태일 때 표시할 아이콘
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"), Category = "HUD")
+	TObjectPtr<UTexture2D> DeadIconTexture;
 
 	UPROPERTY(BlueprintReadOnly, meta = (AllowPrivateAccess = "true"), Category = "HUD")
 	EPRPartyMemberSurvivalState SurvivalState = EPRPartyMemberSurvivalState::Alive;

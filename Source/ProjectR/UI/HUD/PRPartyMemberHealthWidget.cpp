@@ -3,6 +3,7 @@
 #include "ProjectR/UI/HUD/PRPartyMemberHealthWidget.h"
 
 #include "AbilitySystemComponent.h"
+#include "Components/Image.h"
 #include "Components/TextBlock.h"
 #include "ProjectR/PRGameplayTags.h"
 #include "ProjectR/Player/PRPlayerState.h"
@@ -63,6 +64,7 @@ void UPRPartyMemberHealthWidget::SetPlayerState(APRPlayerState* InPlayerState)
 	SetVisibility(ESlateVisibility::HitTestInvisible);
 	RefreshDisplayName();
 	RefreshSurvivalState();
+	ApplySurvivalStateIcon();
 }
 
 void UPRPartyMemberHealthWidget::ClearPlayerState()
@@ -72,6 +74,11 @@ void UPRPartyMemberHealthWidget::ClearPlayerState()
 	if (IsValid(HealthBar))
 	{
 		HealthBar->ClearHealthSource();
+	}
+
+	if (IsValid(SurvivalStateIconImage))
+	{
+		SurvivalStateIconImage->SetVisibility(ESlateVisibility::Hidden);
 	}
 
 	SetVisibility(ESlateVisibility::Collapsed);
@@ -123,6 +130,39 @@ void UPRPartyMemberHealthWidget::RefreshSurvivalState()
 	if (SurvivalState != NewState)
 	{
 		SurvivalState = NewState;
+		ApplySurvivalStateIcon();
 		BP_OnSurvivalStateChanged(SurvivalState);
+	}
+}
+
+void UPRPartyMemberHealthWidget::ApplySurvivalStateIcon()
+{
+	if (!IsValid(SurvivalStateIconImage))
+	{
+		return;
+	}
+
+	UTexture2D* IconTexture = GetSurvivalStateIconTexture();
+	if (!IsValid(IconTexture))
+	{
+		SurvivalStateIconImage->SetVisibility(ESlateVisibility::Hidden);
+		return;
+	}
+
+	SurvivalStateIconImage->SetBrushFromTexture(IconTexture);
+	SurvivalStateIconImage->SetVisibility(ESlateVisibility::HitTestInvisible);
+}
+
+UTexture2D* UPRPartyMemberHealthWidget::GetSurvivalStateIconTexture() const
+{
+	switch (SurvivalState)
+	{
+	case EPRPartyMemberSurvivalState::Down:
+		return DownIconTexture.Get();
+	case EPRPartyMemberSurvivalState::Dead:
+		return DeadIconTexture.Get();
+	case EPRPartyMemberSurvivalState::Alive:
+	default:
+		return AliveIconTexture.Get();
 	}
 }

@@ -41,9 +41,11 @@ UPRGA_PlayerHitReact::UPRGA_PlayerHitReact()
 
 	// 사격 취소
 	CancelAbilitiesWithTag.AddTag(PRGameplayTags::Ability_Player_Weapon_Fire_Primary);
+	CancelAbilitiesWithTag.AddTag(PRGameplayTags::Ability_Player_Weapon_Zoom);
 	
 	// 피격 리액션 중 새 액션이 끼어들지 않도록 기본 차단 태그를 둔다.
 	BlockAbilitiesWithTag.AddTag(PRGameplayTags::Ability_Player_Weapon_Fire_Primary);
+	BlockAbilitiesWithTag.AddTag(PRGameplayTags::Ability_Player_Weapon_Zoom);
 	BlockAbilitiesWithTag.AddTag(PRGameplayTags::Ability_Player_Aim);
 	BlockAbilitiesWithTag.AddTag(PRGameplayTags::Ability_Player_Crouch);
 	BlockAbilitiesWithTag.AddTag(PRGameplayTags::Ability_Player_Dodge);
@@ -383,6 +385,7 @@ void UPRGA_PlayerHitReact::CancelActionsForHitReact(EPRPlayerHitReactType HitRea
 
 	FGameplayTagContainer CancelTags;
 	CancelTags.AddTag(PRGameplayTags::Ability_Player_Reload);
+	CancelTags.AddTag(PRGameplayTags::Ability_Player_Weapon_Zoom);
 
 	if (HitReactType == EPRPlayerHitReactType::Strong || HitReactType == EPRPlayerHitReactType::Down)
 	{

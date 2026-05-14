@@ -1,12 +1,11 @@
 // Copyright (c) 2026 TeamApoc. All Rights Reserved.
 
-
 #include "ProjectR/AbilitySystem/Abilities/Player/PRGA_PlayerAim.h"
 
-#include "ProjectR/PRGameplayTags.h"
 #include "ProjectR/Character/PRPlayerCharacter.h"
 #include "ProjectR/Game/PRCameraManager.h"
 #include "ProjectR/Player/Components/PRSpringArmComponent.h"
+#include "ProjectR/PRGameplayTags.h"
 #include "ProjectR/System/PREventManagerSubsystem.h"
 #include "ProjectR/System/PREventTypes.h"
 #include "ProjectR/UI/Crosshair/PRCrosshairConfig.h"
@@ -14,21 +13,17 @@
 
 UPRGA_PlayerAim::UPRGA_PlayerAim()
 {
-	// 어빌리티 식별 및 입력 태그 설정
-	AbilityTags.AddTag(PRGameplayTags::Ability_Player_Aim);
+	FGameplayTagContainer DefaultAbilityTags;
+	DefaultAbilityTags.AddTag(PRGameplayTags::Ability_Player_Aim);
+	SetAssetTags(DefaultAbilityTags);
+
 	InputTag = PRGameplayTags::Input_Ability_Aim;
 	CancelAbilitiesWithTag.AddTag(PRGameplayTags::Ability_Player_Sprint);
 
-	// [핵심] 조준 중일 때 스스로에게 State.Aiming 태그를 부여합니다.
-	// 이 태그가 켜져 있으면 캐릭터가 이를 감지하고 걷기 속도와 카메라 FOV를 자동으로 변경합니다.
 	ActivationOwnedTags.AddTag(PRGameplayTags::State_Aiming);
 
-	// 조준은 클라이언트 예측(LocalPredicted)으로 서버의 허락 없이 딜레이 없이 즉각 발동해야 합니다.
 	NetExecutionPolicy = EGameplayAbilityNetExecutionPolicy::LocalPredicted;
 	InstancingPolicy = EGameplayAbilityInstancingPolicy::InstancedPerActor;
-	
-	// 26.04.26, Yuchan, 테스트를 위해 PlayerCharacter HandleGameplayTagUpdated 함수에서 bIsAiming변수 설정
-	// ActivationOwnedTags.AddTag(PRGameplayTags::State_Aiming);
 }
 
 void UPRGA_PlayerAim::ActivateAbility(const FGameplayAbilitySpecHandle Handle,
@@ -36,14 +31,13 @@ void UPRGA_PlayerAim::ActivateAbility(const FGameplayAbilitySpecHandle Handle,
                                       const FGameplayEventData* TriggerEventData)
 {
 	Super::ActivateAbility(Handle, ActorInfo, ActivationInfo, TriggerEventData);
-	
+
 	if (!CommitAbility(Handle, ActorInfo, ActivationInfo))
 	{
 		EndAbility(Handle, ActorInfo, ActivationInfo, true, true);
 		return;
 	}
 
-	// 비무장 상태에서 조준 진입 시 무기 장착 상태로 먼저 전환
 	if (APRPlayerCharacter* AvatarCharacter = Cast<APRPlayerCharacter>(GetAvatarActorFromActorInfo()))
 	{
 		if (UPRWeaponManagerComponent* WeaponManager = AvatarCharacter->GetWeaponManager())
@@ -54,22 +48,13 @@ void UPRGA_PlayerAim::ActivateAbility(const FGameplayAbilitySpecHandle Handle,
 			}
 		}
 	}
-	//----
-	// 내 조준 세팅값을 카메라 컴포넌트들에게 전달 (로컬 플레이어만 적용)
+
 	if (IsLocallyControlled())
 	{
+		ApplyAimCameraMode();
+
 		if (APRPlayerCharacter* Character = Cast<APRPlayerCharacter>(GetAvatarActorFromActorInfo()))
 		{
-			// 1. SpringArm (물리적 거리/위치) 세팅 덮어쓰기
-			if (UPRSpringArmComponent* SpringArm = Character->CameraBoom)
-			{
-				SpringArm->bIsAimingOverride = true;
-				SpringArm->AimTargetArmLength = AimTargetArmLength;
-				SpringArm->AimTargetOffset = AimTargetOffset;
-				SpringArm->AimSocketOffset = AimSocketOffset;
-			}
-
-			// 2. CameraManager (시야각 FOV) 세팅 덮어쓰기
 			if (APlayerController* PC = Cast<APlayerController>(Character->GetController()))
 			{
 				if (APRCameraManager* CameraManager = Cast<APRCameraManager>(PC->PlayerCameraManager))
@@ -79,8 +64,6 @@ void UPRGA_PlayerAim::ActivateAbility(const FGameplayAbilitySpecHandle Handle,
 			}
 		}
 
-		// 3. 26.04.26, Yuchan,UI 알림: 크로스헤어 Config 적용 -> 에이밍 시작 순으로 발송
-		// (Config 가 먼저 들어가야 위젯 표시 직전에 비주얼이 갱신됨)
 		if (UWorld* World = GetWorld())
 		{
 			if (UPREventManagerSubsystem* EventMgr = World->GetSubsystem<UPREventManagerSubsystem>())
@@ -98,8 +81,6 @@ void UPRGA_PlayerAim::ActivateAbility(const FGameplayAbilitySpecHandle Handle,
 void UPRGA_PlayerAim::InputReleased(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo,
 	const FGameplayAbilityActivationInfo ActivationInfo)
 {
-	// 플레이어가 마우스 우클릭(조준 버튼)을 떼면 즉시 어빌리티를 종료합니다.
-	// 종료되는 순간 ActivationOwnedTags에 있던 State.Aiming 태그도 자동으로 회수됩니다.
 	EndAbility(Handle, ActorInfo, ActivationInfo, true, false);
 	Super::InputReleased(Handle, ActorInfo, ActivationInfo);
 }
@@ -107,14 +88,16 @@ void UPRGA_PlayerAim::InputReleased(const FGameplayAbilitySpecHandle Handle, con
 void UPRGA_PlayerAim::EndAbility(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo,
 	const FGameplayAbilityActivationInfo ActivationInfo, bool bReplicateEndAbility, bool bWasCancelled)
 {
-	// [추가] 조준이 끝났으므로 카메라 덮어쓰기 해제
 	if (IsLocallyControlled())
 	{
 		if (APRPlayerCharacter* Character = Cast<APRPlayerCharacter>(GetAvatarActorFromActorInfo()))
 		{
 			if (UPRSpringArmComponent* SpringArm = Character->CameraBoom)
 			{
-				SpringArm->bIsAimingOverride = false;
+				if (SpringArm->GetCameraMode() == EPRCameraMode::Aim)
+				{
+					SpringArm->SetCameraMode(EPRCameraMode::Default);
+				}
 			}
 
 			if (APlayerController* PC = Cast<APlayerController>(Character->GetController()))
@@ -126,7 +109,6 @@ void UPRGA_PlayerAim::EndAbility(const FGameplayAbilitySpecHandle Handle, const 
 			}
 		}
 
-		// 26.04.26, Yuchan, UI 알림: 에이밍 종료
 		if (UWorld* World = GetWorld())
 		{
 			if (UPREventManagerSubsystem* EventMgr = World->GetSubsystem<UPREventManagerSubsystem>())
@@ -135,6 +117,28 @@ void UPRGA_PlayerAim::EndAbility(const FGameplayAbilitySpecHandle Handle, const 
 			}
 		}
 	}
-	// -----
+
 	Super::EndAbility(Handle, ActorInfo, ActivationInfo, bReplicateEndAbility, bWasCancelled);
+}
+
+void UPRGA_PlayerAim::ApplyAimCameraMode()
+{
+	if (!IsLocallyControlled())
+	{
+		return;
+	}
+
+	APRPlayerCharacter* Character = Cast<APRPlayerCharacter>(GetAvatarActorFromActorInfo());
+	if (!IsValid(Character))
+	{
+		return;
+	}
+
+	if (UPRSpringArmComponent* SpringArm = Character->CameraBoom)
+	{
+		SpringArm->SetCameraModeSettings(
+			EPRCameraMode::Aim,
+			FPRSpringArmCameraModeSettings(AimTargetArmLength, AimTargetOffset, AimSocketOffset));
+		SpringArm->SetCameraMode(EPRCameraMode::Aim);
+	}
 }

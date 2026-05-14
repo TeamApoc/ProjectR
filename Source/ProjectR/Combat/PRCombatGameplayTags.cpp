@@ -15,6 +15,18 @@ namespace PRCombatGameplayTags
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(SetByCaller_Cooldown, "SetByCaller.Cooldown", "쿨다운 GE Duration SetByCaller 키");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(SetByCaller_ModDuration, "SetByCaller.Mod.Duration", "지속시간형 Mod 유지 시간");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(SetByCaller_ModMaxGauge, "SetByCaller.Mod.MaxGauge", "지속시간형 Mod 게이지 총 소모량");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(SetByCaller_CurrentWeapon_BaseDamage, "SetByCaller.CurrentWeapon.BaseDamage", "현재 무기 기본 피해");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(SetByCaller_CurrentWeapon_ArmorPenetration, "SetByCaller.CurrentWeapon.ArmorPenetration", "현재 무기 장갑 관통");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(SetByCaller_CurrentWeapon_WeakpointMultiplier, "SetByCaller.CurrentWeapon.WeakpointMultiplier", "현재 무기 약점 피해 배율");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(SetByCaller_CurrentWeapon_GroggyDamageMultiplier, "SetByCaller.CurrentWeapon.GroggyDamageMultiplier", "현재 무기 그로기 피해 배율");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(SetByCaller_Equip_PrimaryModGauge, "SetByCaller.Equip.Primary.ModGauge", "주무기 Mod 게이지");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(SetByCaller_Equip_PrimaryMaxModGauge, "SetByCaller.Equip.Primary.MaxModGauge", "주무기 Mod 최대 게이지");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(SetByCaller_Equip_PrimaryModStack, "SetByCaller.Equip.Primary.ModStack", "주무기 Mod 스택");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(SetByCaller_Equip_PrimaryMaxModStack, "SetByCaller.Equip.Primary.MaxModStack", "주무기 Mod 최대 스택");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(SetByCaller_Equip_SecondaryModGauge, "SetByCaller.Equip.Secondary.ModGauge", "보조무기 Mod 게이지");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(SetByCaller_Equip_SecondaryMaxModGauge, "SetByCaller.Equip.Secondary.MaxModGauge", "보조무기 Mod 최대 게이지");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(SetByCaller_Equip_SecondaryModStack, "SetByCaller.Equip.Secondary.ModStack", "보조무기 Mod 스택");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(SetByCaller_Equip_SecondaryMaxModStack, "SetByCaller.Equip.Secondary.MaxModStack", "보조무기 Mod 최대 스택");
 
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Event_Ability_EnemyMeleeHit, "Event.Ability.EnemyMeleeHit", "적 근접 공격 타격 프레임 이벤트");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Event_Ability_EnemyMeleeWindowBegin, "Event.Ability.EnemyMeleeWindowBegin", "적 근접 공격 판정 구간 시작 이벤트");

@@ -19,6 +19,18 @@ namespace PRCombatGameplayTags
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(SetByCaller_Cooldown); // 쿨다운 GE Duration SetByCaller 키
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(SetByCaller_ModDuration); // 지속시간형 Mod 유지 시간
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(SetByCaller_ModMaxGauge); // 지속시간형 Mod 게이지 총 소모량
+	UE_DECLARE_GAMEPLAY_TAG_EXTERN(SetByCaller_CurrentWeapon_BaseDamage); // 현재 무기 기본 피해
+	UE_DECLARE_GAMEPLAY_TAG_EXTERN(SetByCaller_CurrentWeapon_ArmorPenetration); // 현재 무기 장갑 관통
+	UE_DECLARE_GAMEPLAY_TAG_EXTERN(SetByCaller_CurrentWeapon_WeakpointMultiplier); // 현재 무기 약점 피해 배율
+	UE_DECLARE_GAMEPLAY_TAG_EXTERN(SetByCaller_CurrentWeapon_GroggyDamageMultiplier); // 현재 무기 그로기 피해 배율
+	UE_DECLARE_GAMEPLAY_TAG_EXTERN(SetByCaller_Equip_PrimaryModGauge); // 주무기 Mod 게이지
+	UE_DECLARE_GAMEPLAY_TAG_EXTERN(SetByCaller_Equip_PrimaryMaxModGauge); // 주무기 Mod 최대 게이지
+	UE_DECLARE_GAMEPLAY_TAG_EXTERN(SetByCaller_Equip_PrimaryModStack); // 주무기 Mod 스택
+	UE_DECLARE_GAMEPLAY_TAG_EXTERN(SetByCaller_Equip_PrimaryMaxModStack); // 주무기 Mod 최대 스택
+	UE_DECLARE_GAMEPLAY_TAG_EXTERN(SetByCaller_Equip_SecondaryModGauge); // 보조무기 Mod 게이지
+	UE_DECLARE_GAMEPLAY_TAG_EXTERN(SetByCaller_Equip_SecondaryMaxModGauge); // 보조무기 Mod 최대 게이지
+	UE_DECLARE_GAMEPLAY_TAG_EXTERN(SetByCaller_Equip_SecondaryModStack); // 보조무기 Mod 스택
+	UE_DECLARE_GAMEPLAY_TAG_EXTERN(SetByCaller_Equip_SecondaryMaxModStack); // 보조무기 Mod 최대 스택
 
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Event_Ability_EnemyMeleeHit);
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Event_Ability_EnemyMeleeWindowBegin);

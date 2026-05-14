@@ -159,7 +159,7 @@ FVector UPRGA_Fire::ResolveAimPoint(const FPRFireViewpoint& View, float InMaxTra
 	{
 		IgnoredActors.Add(AvatarActor);
 	}
-	const FVector AimPoint = UPRGameplayStatics::ResolveCameraAimPoint(OwnerPawn, InMaxTraceDistance, FireTraceChannel.GetValue(), IgnoredActors);
+	const FVector AimPoint = UPRGameplayStatics::ResolveCameraAimPoint(OwnerPawn, InMaxTraceDistance, CameraTraceChannel.GetValue(), IgnoredActors);
 
 	// 디버그: 카메라 트레이스는 시안색 (참고용)
 	if (bDrawCameraTrace)

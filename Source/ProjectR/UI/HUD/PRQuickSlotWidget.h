@@ -3,7 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "ProjectR/QuickSlot/Types/PRQuickSlotTypes.h"
+#include "ProjectR/Inventory/Types/PRQuickSlotTypes.h"
 #include "ProjectR/UI/Inventory/PRInventoryUITypes.h"
 #include "ProjectR/UI/PRWidgetBase.h"
 #include "PRQuickSlotWidget.generated.h"

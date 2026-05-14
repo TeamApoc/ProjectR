@@ -80,6 +80,7 @@ void UPRAttributeSet_Common::PostGameplayEffectExecute(const FGameplayEffectModC
 			const UPRAttributeSet_Player* PlayerSet = ASC->GetSet<UPRAttributeSet_Player>();
 			if (IsValid(PlayerSet))
 			{
+				// TODO: 아래 회복 가능량 산출 로직이 명확하지 않고, AttribteSet보다 ExecCalc에서 처리함이 좋을 듯함
 				UPRAttributeSet_Player* MutablePlayerSet = const_cast<UPRAttributeSet_Player*>(PlayerSet);
 				const float RecoverableHealthMax = FMath::Max(GetMaxHealth() - GetHealth(), 0.0f);
 				MutablePlayerSet->SetRecoverableHealth(FMath::Clamp(PlayerSet->GetRecoverableHealth(), 0.0f, RecoverableHealthMax));
@@ -95,6 +96,7 @@ void UPRAttributeSet_Common::PostGameplayEffectExecute(const FGameplayEffectModC
 					AActor* AvatarActor = ASC->GetAvatarActor();
 					if (IsValid(AvatarActor) && AvatarActor->HasAuthority())
 					{
+						// 아래 로직에서 Player가 아닌 경우 (Enemy인 경우) EventTag는 Event_Ability_Death가 됨
 						const APRPlayerState* OwnerPlayerState = Cast<APRPlayerState>(ASC->GetOwnerActor());
 						const FGameplayTag EventTag = IsValid(OwnerPlayerState) && OwnerPlayerState->HasFightCapableAllyExceptSelf()
 							? PRGameplayTags::Event_Ability_Down

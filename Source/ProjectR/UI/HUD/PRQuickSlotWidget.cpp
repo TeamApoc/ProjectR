@@ -5,7 +5,7 @@
 #include "ProjectR/Inventory/Data/PRConsumableDataAsset.h"
 #include "ProjectR/Inventory/Items/PRItemInstance_Consumable.h"
 #include "ProjectR/Player/PRPlayerState.h"
-#include "ProjectR/QuickSlot/Coponents/PRQuickSlotComponent.h"
+#include "ProjectR/Inventory/Components/PRQuickSlotComponent.h"
 #include "ProjectR/UI/Inventory/PRItemSlotWidget.h"
 
 void UPRQuickSlotWidget::SetQuickSlotComponent(UPRQuickSlotComponent* InQuickSlotComponent)
@@ -34,7 +34,7 @@ void UPRQuickSlotWidget::SetQuickSlotComponent(UPRQuickSlotComponent* InQuickSlo
 
 void UPRQuickSlotWidget::RefreshQuickSlots()
 {
-	for (int32 SlotIndex = 0; SlotIndex < UPRQuickSlotComponent::QuickSlotCount; ++SlotIndex)
+	for (int32 SlotIndex = 0; SlotIndex < UPRQuickSlotComponent::MaxQuickSlotCount; ++SlotIndex)
 	{
 		RefreshQuickSlot(SlotIndex);
 	}

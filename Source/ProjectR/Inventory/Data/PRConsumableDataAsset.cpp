@@ -3,4 +3,5 @@
 UPRConsumableDataAsset::UPRConsumableDataAsset()
 {
 	SetItemType(EPRItemType::Consumable);
+	MaxStackCount = 99;
 }

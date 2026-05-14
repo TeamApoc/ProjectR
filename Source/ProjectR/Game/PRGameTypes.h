@@ -8,6 +8,7 @@
 
 /*~ 세이브 포맷 버전 ~*/
 
+class UPRItemDataAsset;
 // 세이브 파일 포맷 버전. Join 시 호스트-게스트 간 호환성 체크에 사용
 // 불일치 시 접속 거부. 상향은 마이그레이션 구현 후에만 허용
 UENUM(BlueprintType)
@@ -75,9 +76,15 @@ enum class EPRWorldObjectState : uint8
 
 // [확장 및 이전 예정] 인벤토리 단일 슬롯 엔트리. Inventory 시스템 구현 시 필드 확정
 USTRUCT(BlueprintType)
-struct FPRItemEntry
+struct FPRItemSaveEntry
 {
 	GENERATED_BODY()
+	
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	TObjectPtr<UPRItemDataAsset> ItemData = nullptr;
+	
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	int32 Amount = 0;
 };
 
 // [확장 및 이전 예정] 세이브/네트워크 전송용 인벤토리 직렬화 DTO. Inventory 시스템 구현 시 필드 확정

@@ -12,20 +12,23 @@
 void UPRItemInstance_Mod::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const
 {
 	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
-
-	DOREPLIFETIME(UPRItemInstance_Mod, ModData);
 	DOREPLIFETIME(UPRItemInstance_Mod, EquippedWeaponItem);
 }
 
-void UPRItemInstance_Mod::InitializeModItem(UPRWeaponModDataAsset* InModData)
+void UPRItemInstance_Mod::InitializeItem(UPRItemDataAsset* InItemData, int32 InitialStackCount)
 {
-	ModData = InModData;
+	Super::InitializeItem(InItemData, InitialStackCount);
 	ClearEquippedWeaponItem();
+}
+
+UPRWeaponModDataAsset* UPRItemInstance_Mod::GetModData() const
+{
+	return Cast<UPRWeaponModDataAsset>(ItemData);
 }
 
 bool UPRItemInstance_Mod::MatchesModData(const UPRWeaponModDataAsset* InModData) const
 {
-	return ModData == InModData;
+	return GetModData() == InModData;
 }
 
 bool UPRItemInstance_Mod::IsEquipped() const
@@ -66,7 +69,7 @@ void UPRItemInstance_Mod::OnRep_ModData()
 		Log,
 		TEXT("[Inventory][Client] Mod item data replicated. Item = %s | Mod = %s"),
 		*GetNameSafe(this),
-		*GetNameSafe(ModData));
+		*GetNameSafe(GetModData()));
 }
 
 void UPRItemInstance_Mod::OnRep_EquippedWeaponItem()
@@ -77,7 +80,7 @@ void UPRItemInstance_Mod::OnRep_EquippedWeaponItem()
 		Log,
 		TEXT("[Inventory][Client] Mod item equipped weapon replicated. Item = %s | Mod = %s | EquippedWeaponItem = %s"),
 		*GetNameSafe(this),
-		*GetNameSafe(ModData),
+		*GetNameSafe(GetModData()),
 		*GetNameSafe(EquippedWeaponItem.Get()));
 
 	NotifyInventoryChanged(EPRInventoryChangeReason::ModEquipChanged);

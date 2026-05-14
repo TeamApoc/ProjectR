@@ -78,7 +78,7 @@ void UPRGA_PlayerDown::ActivateAbility(const FGameplayAbilitySpecHandle Handle,
 
 	PlayDownEnterMontage();
 	StartDownTimer();
-	StartDownDeathEventWait();
+	//StartDownDeathEventWait();
 	NotifyDownToGameMode();
 }
 
@@ -89,8 +89,6 @@ void UPRGA_PlayerDown::EndAbility(const FGameplayAbilitySpecHandle Handle,
 	bool bWasCancelled)
 {
 	StopDownTimer();
-	StopDownDeathEventWait();
-	StopDownToDeathFinalizeTimer();
 	SetDownEnterMovementBlocked(false);
 
 	if (IsValid(ActiveMontageTask))
@@ -113,25 +111,6 @@ void UPRGA_PlayerDown::HandleDownMontageInterrupted()
 {
 	ActiveMontageTask = nullptr;
 	SetDownEnterMovementBlocked(false);
-}
-
-void UPRGA_PlayerDown::HandleDownDeathEvent(FGameplayEventData EventData)
-{
-	StartDownToDeath();
-}
-
-void UPRGA_PlayerDown::HandleDownToDeathMontageCompleted()
-{
-	ActiveMontageTask = nullptr;
-	StopDownToDeathFinalizeTimer();
-	FinalizeDownDeath();
-}
-
-void UPRGA_PlayerDown::HandleDownToDeathMontageInterrupted()
-{
-	ActiveMontageTask = nullptr;
-	StopDownToDeathFinalizeTimer();
-	FinalizeDownDeath();
 }
 
 void UPRGA_PlayerDown::StartDownTimer()
@@ -183,125 +162,14 @@ void UPRGA_PlayerDown::SendDownDeathConfirmedEvent() const
 	if (IsValid(PlayerState))
 	{
 		PlayerState->SendSurvivalGameplayEvent(PRGameplayTags::Event_Ability_PlayerDeathConfirmed);
+		
+		UWorld* World = GetWorld();
+		APRPlayGameMode* PlayGameMode = IsValid(World) ? World->GetAuthGameMode<APRPlayGameMode>() : nullptr;
+		if (IsValid(PlayGameMode))
+		{
+			PlayGameMode->NotifyPlayerSurvivalStateChanged(PlayerState);
+		}
 	}
-}
-
-void UPRGA_PlayerDown::StartDownDeathEventWait()
-{
-	if (IsValid(ActiveDownDeathEventTask))
-	{
-		return;
-	}
-
-	ActiveDownDeathEventTask = UAbilityTask_WaitGameplayEvent::WaitGameplayEvent(
-		this,
-		PRGameplayTags::Event_Ability_PlayerDeathConfirmed,
-		nullptr,
-		/*OnlyTriggerOnce=*/true,
-		/*OnlyMatchExact=*/true);
-
-	if (IsValid(ActiveDownDeathEventTask))
-	{
-		ActiveDownDeathEventTask->EventReceived.AddDynamic(this, &UPRGA_PlayerDown::HandleDownDeathEvent);
-		ActiveDownDeathEventTask->ReadyForActivation();
-	}
-}
-
-void UPRGA_PlayerDown::StopDownDeathEventWait()
-{
-	if (IsValid(ActiveDownDeathEventTask))
-	{
-		ActiveDownDeathEventTask->EndTask();
-		ActiveDownDeathEventTask = nullptr;
-	}
-}
-
-void UPRGA_PlayerDown::StartDownToDeath()
-{
-	if (bDownToDeathStarted)
-	{
-		return;
-	}
-	
-	UAbilitySystemComponent* ASC = GetAbilitySystemComponentFromActorInfo();
-	if (!IsValid(ASC))
-	{
-		return;
-	}
-
-	ASC->AddLooseGameplayTag(PRGameplayTags::State_Block_Move);
-	
-	bDownToDeathStarted = true;
-	StopDownTimer();
-	StopDownDeathEventWait();
-	SetDownEnterMovementBlocked(false);
-
-	if (IsValid(ActiveMontageTask))
-	{
-		ActiveMontageTask->EndTask();
-		ActiveMontageTask = nullptr;
-	}
-
-	if (!IsValid(DownToDeathMontage))
-	{
-		FinalizeDownDeath();
-		return;
-	}
-
-	ActiveMontageTask = UAbilityTask_PlayMontageAndWait::CreatePlayMontageAndWaitProxy(
-		this,
-		NAME_None,
-		DownToDeathMontage,
-		FMath::Max(MontagePlayRate, UE_SMALL_NUMBER));
-	if (!IsValid(ActiveMontageTask))
-	{
-		FinalizeDownDeath();
-		return;
-	}
-
-	ActiveMontageTask->OnCompleted.AddDynamic(this, &UPRGA_PlayerDown::HandleDownToDeathMontageCompleted);
-	ActiveMontageTask->OnBlendOut.AddDynamic(this, &UPRGA_PlayerDown::HandleDownToDeathMontageCompleted);
-	ActiveMontageTask->OnInterrupted.AddDynamic(this, &UPRGA_PlayerDown::HandleDownToDeathMontageInterrupted);
-	ActiveMontageTask->OnCancelled.AddDynamic(this, &UPRGA_PlayerDown::HandleDownToDeathMontageInterrupted);
-	ActiveMontageTask->ReadyForActivation();
-	StartDownToDeathFinalizeTimer();
-}
-
-void UPRGA_PlayerDown::StartDownToDeathFinalizeTimer()
-{
-	const AActor* AvatarActor = GetAvatarActorFromActorInfo();
-	if (!IsValid(AvatarActor) || !AvatarActor->HasAuthority() || !IsValid(DownToDeathMontage))
-	{
-		return;
-	}
-
-	UWorld* World = GetWorld();
-	if (!IsValid(World))
-	{
-		return;
-	}
-
-	const float FinalizeDelay = DownToDeathMontage->GetPlayLength() / FMath::Max(MontagePlayRate, UE_SMALL_NUMBER);
-	World->GetTimerManager().SetTimer(
-		DownToDeathFinalizeTimerHandle,
-		this,
-		&UPRGA_PlayerDown::HandleDownToDeathFinalizeTimeout,
-		FMath::Max(FinalizeDelay, UE_SMALL_NUMBER),
-		false);
-}
-
-void UPRGA_PlayerDown::StopDownToDeathFinalizeTimer()
-{
-	UWorld* World = GetWorld();
-	if (IsValid(World))
-	{
-		World->GetTimerManager().ClearTimer(DownToDeathFinalizeTimerHandle);
-	}
-}
-
-void UPRGA_PlayerDown::HandleDownToDeathFinalizeTimeout()
-{
-	FinalizeDownDeath();
 }
 
 void UPRGA_PlayerDown::SetDownEnterMovementBlocked(bool bBlocked)

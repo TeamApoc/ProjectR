@@ -14,7 +14,7 @@
 #include "ProjectR/Input/PRInputConfigDataAsset.h"
 #include "ProjectR/Player/PRPlayerState.h"
 #include "ProjectR/Projectile/PRProjectileManagerComponent.h"
-#include "ProjectR/QuickSlot/Coponents/PRQuickSlotComponent.h"
+#include "ProjectR/Inventory/Components/PRQuickSlotComponent.h"
 #include "ProjectR/UI/Components/PRUIControllerComponent.h"
 #include "ProjectR/UI/FloatingText/PRFloatingTextManager.h"
 #include "ProjectR/Interaction/PRInteractionSensor.h"

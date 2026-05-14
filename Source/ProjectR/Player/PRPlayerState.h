@@ -8,6 +8,8 @@
 #include "ProjectR/Game/PRGameTypes.h"
 #include "PRPlayerState.generated.h"
 
+struct FPRInventoryChangeEventData;
+enum class EPRInventoryChangeReason : uint8;
 class UPRAbilitySystemComponent;
 class UPRAttributeSet_Common;
 class UPRAttributeSet_Player;
@@ -98,6 +100,34 @@ public:
 	FPRCharacterSaveData MakeSaveData() const;
 	
 protected:
+	void BindAutoRegisterQuickSlotEvent();
+	
+	UFUNCTION()
+	void OnInventoryChanged(UPRInventoryComponent* InInventory, const FPRInventoryChangeEventData& EventData);
+	
+protected:
+	// ===== Configs ======
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "ProjectR|Player")
+	TArray<FPRItemSaveEntry> StartUpItems;
+	
+	// ===== Information =====
+	// 표시명. 모든 클라에게 복제 (타 플레이어 HUD 표시)
+	UPROPERTY(Replicated)
+	FString DisplayName;
+
+	// 캐릭터 레벨. 타 클라에도 표시될 수 있으므로 전체 복제
+	UPROPERTY(Replicated)
+	int32 CharacterLevel = 1;
+
+	// 캐릭터 누적 경험치. 게스트 보상 커밋 경로에서 누적
+	UPROPERTY(Replicated)
+	int64 Experience = 0;
+
+	// 스탯 업그레이드 정보
+	UPROPERTY(Replicated)
+	FPRCharacterStatUpgradeInfo StatUpgradeInfo;
+	
+	// ===== Components =====
 	// 플레이어 ASC. PlayerState에 부착
 	UPROPERTY(VisibleAnywhere, Category = "ProjectR|Ability")
 	TObjectPtr<UPRAbilitySystemComponent> AbilitySystemComponent;
@@ -125,22 +155,6 @@ protected:
 	// 플레이어 소비 아이템 퀵슬롯 상태 컴포넌트
 	UPROPERTY(VisibleAnywhere, Category = "ProjectR|QuickSlot")
 	TObjectPtr<UPRQuickSlotComponent> QuickSlotComponent;
-
-	// 표시명. 모든 클라에게 복제 (타 플레이어 HUD 표시)
-	UPROPERTY(Replicated)
-	FString DisplayName;
-
-	// 캐릭터 레벨. 타 클라에도 표시될 수 있으므로 전체 복제
-	UPROPERTY(Replicated)
-	int32 CharacterLevel = 1;
-
-	// 캐릭터 누적 경험치. 게스트 보상 커밋 경로에서 누적
-	UPROPERTY(Replicated)
-	int64 Experience = 0;
-
-	// 스탯 업그레이드 정보
-	UPROPERTY(Replicated)
-	FPRCharacterStatUpgradeInfo StatUpgradeInfo;
 	
 private:
 	UPROPERTY()

@@ -13,7 +13,9 @@
 #include "ProjectR/Inventory/Components/PRInventoryComponent.h"
 #include "ProjectR/Player/PRPlayerController.h"
 #include "ProjectR/PRGameplayTags.h"
-#include "ProjectR/QuickSlot/Coponents/PRQuickSlotComponent.h"
+#include "ProjectR/Inventory/Components/PRQuickSlotComponent.h"
+#include "ProjectR/Inventory/Data/PRItemDataAsset.h"
+#include "ProjectR/Inventory/Items/PRItemInstance_Consumable.h"
 
 APRPlayerState::APRPlayerState()
 {
@@ -48,6 +50,21 @@ void APRPlayerState::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLi
 void APRPlayerState::BeginPlay()
 {
 	Super::BeginPlay();
+	
+	// 초기 아이템 지급
+	if (HasAuthority())
+	{
+		for (FPRItemSaveEntry& StartUpItem : StartUpItems)
+		{
+			if (IsValid(StartUpItem.ItemData) && StartUpItem.Amount > 0)
+			{
+				InventoryComponent->AddItem(StartUpItem.ItemData, StartUpItem.Amount);
+			}
+		}
+		
+		BindAutoRegisterQuickSlotEvent();
+	}
+	QuickSlotComponent->InitializeQuickSlots(InventoryComponent);
 }
 
 void APRPlayerState::CopyProperties(APlayerState* PlayerState)
@@ -90,6 +107,40 @@ void APRPlayerState::ApplySaveData(const FPRCharacterSaveData& InSaveData)
 FPRCharacterSaveData APRPlayerState::MakeSaveData() const
 {
 	return FPRCharacterSaveData();
+}
+
+void APRPlayerState::BindAutoRegisterQuickSlotEvent()
+{
+	InventoryComponent->GetOnInventoryChanged().RemoveAll(this);
+	InventoryComponent->GetOnInventoryChanged().AddDynamic(this,&ThisClass::OnInventoryChanged);
+}
+
+void APRPlayerState::OnInventoryChanged(UPRInventoryComponent* InInventory,
+	const FPRInventoryChangeEventData& EventData)
+{
+	if (!HasAuthority())
+	{
+		return;
+	}
+	
+	if (EventData.ChangeReason != EPRInventoryChangeReason::ItemAdded)
+	{
+		return;
+	}
+
+	UPRItemInstance_Consumable* AsConsumable = Cast<UPRItemInstance_Consumable>(EventData.ItemInstance);
+	if (!IsValid(AsConsumable))
+	{
+		return;
+	}
+	
+	const int32 MaxCount = QuickSlotComponent->GetMaxQuickSlotCount();
+	const int32 CurrentCount = QuickSlotComponent->GetUsingQuickSlotCount();
+
+	if (CurrentCount < MaxCount)
+	{
+		QuickSlotComponent->RequestRegisterQuickSlotItem(CurrentCount,AsConsumable->GetConsumableData());
+	}
 }
 
 // =====  생존 상태 =====
@@ -164,13 +215,14 @@ void APRPlayerState::SendSurvivalGameplayEvent(const FGameplayTag& EventTag) con
 		AvatarActor,
 		EventTag,
 		Payload);
-
-	if (EventTag.MatchesTagExact(PRGameplayTags::Event_Ability_PlayerDeathConfirmed))
-	{
-		APRPlayerController* PlayerController = Cast<APRPlayerController>(GetOwner());
-		if (IsValid(PlayerController))
-		{
-			PlayerController->ClientDispatchSurvivalGameplayEvent(EventTag);
-		}
-	}
+	
+	//
+	// if (EventTag.MatchesTagExact(PRGameplayTags::Event_Ability_PlayerDeathConfirmed))
+	// {
+	// 	APRPlayerController* PlayerController = Cast<APRPlayerController>(GetOwner());
+	// 	if (IsValid(PlayerController))
+	// 	{
+	// 		PlayerController->ClientDispatchSurvivalGameplayEvent(EventTag);
+	// 	}
+	// }
 }

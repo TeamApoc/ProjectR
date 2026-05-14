@@ -201,13 +201,18 @@ void APRPlayGameMode::ConfirmPartyWipe()
 			continue;
 		}
 
-		if (PRPlayerState->IsDown())
-		{
-			PRPlayerState->SendSurvivalGameplayEvent(PRGameplayTags::Event_Ability_PlayerDeathConfirmed);
-		}
-		else if (!PRPlayerState->IsDead())
+		if (!PRPlayerState->IsDead())
 		{
 			PRPlayerState->SendSurvivalGameplayEvent(PRGameplayTags::Event_Ability_Death);
 		}
+		
+		// if (PRPlayerState->IsDown())
+		// {
+		// 	PRPlayerState->SendSurvivalGameplayEvent(PRGameplayTags::Event_Ability_PlayerDeathConfirmed);
+		// }
+		// else if (!PRPlayerState->IsDead())
+		// {
+		// 	PRPlayerState->SendSurvivalGameplayEvent(PRGameplayTags::Event_Ability_Death);
+		// }
 	}
 }

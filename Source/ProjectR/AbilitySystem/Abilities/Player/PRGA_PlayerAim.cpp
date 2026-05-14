@@ -48,6 +48,11 @@ void UPRGA_PlayerAim::ActivateAbility(const FGameplayAbilitySpecHandle Handle,
 	{
 		if (UPRWeaponManagerComponent* WeaponManager = AvatarCharacter->GetWeaponManager())
 		{
+			if (WeaponManager->GetCurrentWeaponSlot()== EPRWeaponSlotType::None)
+			{
+				EndAbility(Handle, ActorInfo, ActivationInfo, true, true);
+				return;
+			}
 			if (WeaponManager->GetArmedState() != EPRArmedState::Armed)
 			{
 				WeaponManager->SetWeaponArmedState(EPRArmedState::Armed);

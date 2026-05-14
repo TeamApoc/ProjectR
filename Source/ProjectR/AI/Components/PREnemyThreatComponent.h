@@ -36,6 +36,12 @@ public:
 	// 현재 시점에 current_target을 즉시 교체할 수 있는지 확인한다.
 	bool CanSwitchCurrentTarget() const;
 
+	// 타겟 후보 유지와 선택 정책을 런타임 설정으로 적용한다.
+	void SetTargetingConfig(const FPREnemyTargetingConfig& InTargetingConfig);
+
+	// 현재 적용 중인 타겟 후보 유지와 선택 정책을 반환한다.
+	const FPREnemyTargetingConfig& GetTargetingConfig() const { return TargetingConfig; }
+
 	// 현재 후보 목록을 반환한다.
 	const TArray<FPREnemyTargetCandidate>& GetTargetCandidates() const { return TargetCandidates; }
 
@@ -113,8 +119,8 @@ protected:
 	void ClearPendingTarget();
 
 protected:
-	// 타겟 후보 유지와 선택 정책이다.
-	UPROPERTY(EditDefaultsOnly, Category = "ProjectR|AI")
+	// 타겟 후보 유지와 선택 정책이다. 기본값은 안전한 fallback이며, 일반 몬스터는 CombatDataAsset 값으로 덮어쓴다.
+	UPROPERTY(VisibleInstanceOnly, Category = "ProjectR|AI")
 	FPREnemyTargetingConfig TargetingConfig;
 
 	// 현재 공격 후보 목록이다.

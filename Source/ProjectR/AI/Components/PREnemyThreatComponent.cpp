@@ -7,6 +7,23 @@
 namespace
 {
 	constexpr float MinTargetSelectionScore = UE_SMALL_NUMBER;
+
+	FPREnemyTargetingConfig SanitizeTargetingConfig(FPREnemyTargetingConfig Config)
+	{
+		Config.ScoreWindowDuration = FMath::Max(Config.ScoreWindowDuration, 0.1f);
+		Config.BaseCandidateScore = FMath::Max(Config.BaseCandidateScore, 0.0f);
+		Config.DamageScoreScale = FMath::Max(Config.DamageScoreScale, 0.0f);
+		Config.MaxDamageScore = FMath::Max(Config.MaxDamageScore, 0.0f);
+		Config.DistanceScoreMax = FMath::Max(Config.DistanceScoreMax, 0.0f);
+		Config.DistanceScoreMaxRange = FMath::Max(Config.DistanceScoreMaxRange, 1.0f);
+		Config.LOSScore = FMath::Max(Config.LOSScore, 0.0f);
+		Config.CurrentTargetStickinessScore = FMath::Max(Config.CurrentTargetStickinessScore, 0.0f);
+		Config.SwitchScoreRatio = FMath::Max(Config.SwitchScoreRatio, 1.0f);
+		Config.SwitchCooldown = FMath::Max(Config.SwitchCooldown, 0.0f);
+		Config.EngagementRetainRadius = FMath::Max(Config.EngagementRetainRadius, 0.0f);
+		Config.CandidateForgetTime = FMath::Max(Config.CandidateForgetTime, 0.0f);
+		return Config;
+	}
 }
 
 UPREnemyThreatComponent::UPREnemyThreatComponent()
@@ -28,6 +45,11 @@ AActor* UPREnemyThreatComponent::GetAttackTarget() const
 bool UPREnemyThreatComponent::CanSwitchCurrentTarget() const
 {
 	return !AttackCommitState.bIsAttackCommitted;
+}
+
+void UPREnemyThreatComponent::SetTargetingConfig(const FPREnemyTargetingConfig& InTargetingConfig)
+{
+	TargetingConfig = SanitizeTargetingConfig(InTargetingConfig);
 }
 
 void UPREnemyThreatComponent::AddThreat(AActor* Target, float Amount)
@@ -343,8 +365,14 @@ void UPREnemyThreatComponent::ReevaluateTarget()
 	}
 
 	// 현재 타겟을 너무 쉽게 바꾸면 몬스터가 산만해지므로,
-	// 위협 차이와 최소 전환 간격을 동시에 만족할 때만 교체한다.
+	// 큰 점수 차이나 최소 전환 간격 중 하나를 만족할 때만 교체한다.
 	const bool bCanSwitchByTime = (CurrentTime - LastSwitchTime) >= TargetingConfig.SwitchCooldown;
+	const FPREnemyTargetCandidate* CurrentTargetCandidate = FindTargetCandidate(CurrentTarget);
+	const float CurrentTargetScore = CurrentTargetCandidate != nullptr
+		? CurrentTargetCandidate->FinalSelectionScore
+		: 0.0f;
+	const bool bCanSwitchByScore = CurrentTargetScore <= MinTargetSelectionScore
+		|| BestThreat >= CurrentTargetScore * TargetingConfig.SwitchScoreRatio;
 
 	if (AttackCommitState.bIsAttackCommitted)
 	{
@@ -352,7 +380,7 @@ void UPREnemyThreatComponent::ReevaluateTarget()
 		return;
 	}
 
-	if (bCanSwitchByTime)
+	if (bCanSwitchByTime || bCanSwitchByScore)
 	{
 		SetCurrentTarget(BestTarget, BestThreat);
 	}

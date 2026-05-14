@@ -551,8 +551,6 @@ void UPRGameplayAbility_EnemyMeleeAttack::ExecuteMeleeTraceWithRadius(const FVec
 
 	FCollisionQueryParams QueryParams(SCENE_QUERY_STAT(PREnemyMeleeAttack), false, SourceCharacter);
 	QueryParams.AddIgnoredActor(SourceCharacter);
-
-	UE_LOG(LogTemp,Warning,TEXT("[EnemyMeleeAttack] TraceStart: %s"),*TraceStart.ToString());
 	
 	TArray<FHitResult> HitResults;
 	const float ClampedTraceRadius = FMath::Max(TraceRadius, 0.0f);
@@ -703,11 +701,6 @@ bool UPRGameplayAbility_EnemyMeleeAttack::GetCurrentAttackTracePoint(FVector& Ou
 	const FTransform SourceTransform = MeshComp->GetSocketTransform(AttackTraceSourceName, RTS_World);
 	const FVector SourceLocation = SourceTransform.GetLocation();
 	const FVector WorldOffset = SourceTransform.TransformVectorNoScale(AttackTraceSourceOffset);
-
-	UE_LOG(LogTemp,Warning,TEXT("[EnemyMeleeAttack] AttackTraceSourceName: %s, BoneIndex = %d"),*AttackTraceSourceName.ToString(),MeshComp->GetBoneIndex(AttackTraceSourceName));
-	UE_LOG(LogTemp,Warning,TEXT("[EnemyMeleeAttack] SocketTransform: %s"),*SourceTransform.ToString());
-	UE_LOG(LogTemp,Warning,TEXT("[EnemyMeleeAttack] SourceLocation: %s"),*SourceLocation.ToString());
-	UE_LOG(LogTemp,Warning,TEXT("[EnemyMeleeAttack] WorldOffset: %s"),*WorldOffset.ToString());
 	
 	OutTracePoint = SourceLocation + WorldOffset;
 	return true;

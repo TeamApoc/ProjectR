@@ -16,7 +16,7 @@ struct FGameplayEventData;
 /**
  * 재장전 어빌리티.
  * 활성 무기의 ReloadMontage를 재생하고, 몽타주 노티파이가 송신하는
- * Event.Player.ReloadCommit 이벤트 시점에 슬롯 raw 자원을 예비탄에서 탄창으로 이동한다.
+ * Event.Player.ReloadCommit 이벤트 시점에 슬롯 탄약을 예비탄에서 탄창으로 이동한다.
  * 자원 이동은 서버 권위에서만 수행한다.
  */
 UCLASS()
@@ -52,7 +52,7 @@ protected:
 	UFUNCTION()
 	void OnReloadMontageInterrupted();
 
-	// 슬롯 표시 발수 단위로 raw 자원을 예비탄에서 탄창으로 이동한다
+	// 슬롯 탄약을 예비탄에서 탄창으로 이동한다
 	void ExecuteReload();
 
 	// 현재 활성 슬롯의 무기 데이터를 반환한다
@@ -62,7 +62,7 @@ protected:
 	bool TryGetActiveAmmoType(EPRAmmoType& OutAmmoType) const;
 
 protected:
-	// 주무기 슬롯 재장전 GE. PRMMC_ReloadAmount(Primary)로 raw 이동량을 산출해 탄창 += / 예비탄 -= 적용
+	// 주무기 슬롯 재장전 GE. 실행 계산으로 이동량을 산출해 탄창 가산과 예비탄 차감을 적용한다
 	UPROPERTY(EditDefaultsOnly, Category = "ProjectR|Ammo")
 	TSubclassOf<UGameplayEffect> ReloadAmmoGE_Primary;
 

@@ -12,11 +12,31 @@ namespace PRCombatGameplayTags
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(SetByCaller_GroggyDamage); // 모드 그로기 데미지에 활용
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(SetByCaller_AttackMultiplier); // 적 어빌리티 공격 배수
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(SetByCaller_PoiseDamage); // 적 어빌리티 강인도 피해
-	UE_DECLARE_GAMEPLAY_TAG_EXTERN(SetByCaller_AmmoMagnitude); // 탄약 픽업 raw 자원량 (GE 자력값)
-	UE_DECLARE_GAMEPLAY_TAG_EXTERN(SetByCaller_AmmoScale); // 무기 장착 시 슬롯 효율 단가
-	UE_DECLARE_GAMEPLAY_TAG_EXTERN(SetByCaller_ReserveAmmoRatio); // 무기 장착 시 슬롯 보유 한도 비율
-	UE_DECLARE_GAMEPLAY_TAG_EXTERN(SetByCaller_AmmoCost); // 사격 시 displayed 발사 수 (raw 차감 = cost × scale)
+	UE_DECLARE_GAMEPLAY_TAG_EXTERN(SetByCaller_AmmoMagnitude); // 탄약 획득량
+	UE_DECLARE_GAMEPLAY_TAG_EXTERN(SetByCaller_AmmoCost); // 사격 시 소모 발수
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(SetByCaller_Cooldown); // 쿨다운 GE Duration SetByCaller 키
+	UE_DECLARE_GAMEPLAY_TAG_EXTERN(SetByCaller_ModDuration); // 지속시간형 Mod 유지 시간
+	UE_DECLARE_GAMEPLAY_TAG_EXTERN(SetByCaller_ModMaxGauge); // 지속시간형 Mod 게이지 총 소모량
+	UE_DECLARE_GAMEPLAY_TAG_EXTERN(SetByCaller_CurrentWeapon_BaseDamage); // 현재 무기 기본 피해
+	UE_DECLARE_GAMEPLAY_TAG_EXTERN(SetByCaller_CurrentWeapon_ArmorPenetration); // 현재 무기 장갑 관통
+	UE_DECLARE_GAMEPLAY_TAG_EXTERN(SetByCaller_CurrentWeapon_WeakpointMultiplier); // 현재 무기 약점 피해 배율
+	UE_DECLARE_GAMEPLAY_TAG_EXTERN(SetByCaller_CurrentWeapon_GroggyDamageMultiplier); // 현재 무기 그로기 피해 배율
+	UE_DECLARE_GAMEPLAY_TAG_EXTERN(SetByCaller_Equip_PrimaryModGauge); // 주무기 Mod 게이지
+	UE_DECLARE_GAMEPLAY_TAG_EXTERN(SetByCaller_Equip_PrimaryMaxModGauge); // 주무기 Mod 최대 게이지
+	UE_DECLARE_GAMEPLAY_TAG_EXTERN(SetByCaller_Equip_PrimaryModStack); // 주무기 Mod 스택
+	UE_DECLARE_GAMEPLAY_TAG_EXTERN(SetByCaller_Equip_PrimaryMaxModStack); // 주무기 Mod 최대 스택
+	UE_DECLARE_GAMEPLAY_TAG_EXTERN(SetByCaller_Equip_PrimaryMagazineAmmo); // 주무기 탄창 현재값
+	UE_DECLARE_GAMEPLAY_TAG_EXTERN(SetByCaller_Equip_PrimaryMaxMagazineAmmo); // 주무기 탄창 최대값
+	UE_DECLARE_GAMEPLAY_TAG_EXTERN(SetByCaller_Equip_PrimaryReserveAmmo); // 주무기 예비탄 현재값
+	UE_DECLARE_GAMEPLAY_TAG_EXTERN(SetByCaller_Equip_PrimaryMaxReserveAmmo); // 주무기 예비탄 최대값
+	UE_DECLARE_GAMEPLAY_TAG_EXTERN(SetByCaller_Equip_SecondaryModGauge); // 보조무기 Mod 게이지
+	UE_DECLARE_GAMEPLAY_TAG_EXTERN(SetByCaller_Equip_SecondaryMaxModGauge); // 보조무기 Mod 최대 게이지
+	UE_DECLARE_GAMEPLAY_TAG_EXTERN(SetByCaller_Equip_SecondaryModStack); // 보조무기 Mod 스택
+	UE_DECLARE_GAMEPLAY_TAG_EXTERN(SetByCaller_Equip_SecondaryMaxModStack); // 보조무기 Mod 최대 스택
+	UE_DECLARE_GAMEPLAY_TAG_EXTERN(SetByCaller_Equip_SecondaryMagazineAmmo); // 보조무기 탄창 현재값
+	UE_DECLARE_GAMEPLAY_TAG_EXTERN(SetByCaller_Equip_SecondaryMaxMagazineAmmo); // 보조무기 탄창 최대값
+	UE_DECLARE_GAMEPLAY_TAG_EXTERN(SetByCaller_Equip_SecondaryReserveAmmo); // 보조무기 예비탄 현재값
+	UE_DECLARE_GAMEPLAY_TAG_EXTERN(SetByCaller_Equip_SecondaryMaxReserveAmmo); // 보조무기 예비탄 최대값
 
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Event_Ability_EnemyMeleeHit);
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Event_Ability_EnemyMeleeWindowBegin);

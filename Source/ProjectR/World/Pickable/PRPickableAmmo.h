@@ -39,7 +39,7 @@ public:
 	UFUNCTION(BlueprintPure)
 	EPRAmmoType GetAmmoType() const {return AmmoType;}
 
-	// 픽업의 raw 자원량 반환 (효율 단가 미적용)
+	// 픽업의 탄약량을 반환한다
 	UFUNCTION(BlueprintPure)
 	float GetAmmoAmount() const {return AmmoAmount;}
 
@@ -47,8 +47,8 @@ public:
 	UFUNCTION(BlueprintAuthorityOnly)
 	void SetAmmo(EPRAmmoType InAmmoType, float InAmmoAmount);
 
-	// 대상 ASC의 슬롯 예비탄에 raw 단위로 자원을 적립하고, 한도 초과로 적립되지 못한 raw 잔여량을 반환한다
-	// 모두 적립되면 0 반환, 캡으로 일부만 적립되면 잔여 raw 반환, 무효 입력이면 AmmoAmount 그대로 반환
+	// 대상 ASC의 슬롯 예비탄에 탄약을 적립하고, 한도 초과로 적립되지 못한 잔여량을 반환한다
+	// 모두 적립되면 0 반환, 캡으로 일부만 적립되면 잔여량 반환, 무효 입력이면 AmmoAmount 그대로 반환
 	UFUNCTION(BlueprintAuthorityOnly)
 	float GrantAmmoAndGetRemaining(UAbilitySystemComponent* TargetASC);
 
@@ -80,7 +80,7 @@ protected:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Ammo")
 	TMap<EPRAmmoType, FPRAmmoVisualInfo> AmmoTypeVisual;
 
-	// 탄약 타입별 픽업 적용 GE. 각 GE는 SetByCaller.AmmoMagnitude 키로 raw 자원량을 받아 해당 슬롯의 ReserveAmmo에 가산
+	// 탄약 타입별 픽업 적용 GE. 각 GE는 SetByCaller.AmmoMagnitude 키로 해당 슬롯의 ReserveAmmo에 가산
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Ammo")
 	TMap<EPRAmmoType, TSubclassOf<UGameplayEffect>> AmmoGEMap;
 
@@ -88,7 +88,7 @@ protected:
 	UPROPERTY(EditAnywhere, ReplicatedUsing = "OnRep_AmmoType")
 	EPRAmmoType AmmoType = EPRAmmoType::Primary;
 
-	// 픽업의 raw 자원량. 무기 효율 단가에 따라 환산된 발수가 적립된다
+	// 픽업의 탄약량
 	UPROPERTY(EditAnywhere, ReplicatedUsing = "OnRep_AmmoAmount")
 	float AmmoAmount = 10.f;
 };

@@ -107,6 +107,14 @@ protected:
 	void K2_OnProjectileSpawnFailed(APRProjectileBase* SpawnedProjectile);
 	
 protected:
+	// true이면 무기 데이터의 FireInterval 대신 FireIntervalOverride 사용
+	UPROPERTY(EditDefaultsOnly, Category = "ProjectR|Fire|FullAuto")
+	bool bOverrideFireInterval = false;
+
+	// Override가 true일 때 사용할 발사 간격(초). 0.1 = 600 RPM
+	UPROPERTY(EditDefaultsOnly, Category = "ProjectR|Fire|FullAuto")
+	float FireIntervalOverride = 0.1f;
+
 	// 트레이스 최대 거리
 	UPROPERTY(EditDefaultsOnly, Category = "ProjectR|Fire")
 	float MaxTraceDistance = 20000.f;

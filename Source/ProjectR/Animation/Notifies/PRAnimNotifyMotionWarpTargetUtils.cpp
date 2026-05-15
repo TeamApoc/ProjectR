@@ -24,7 +24,7 @@ namespace PRAnimNotifyMotionWarpTargetUtils
 		}
 
 		UPREnemyThreatComponent* ThreatComponent = EnemyCharacter->GetEnemyThreatComponent();
-		AActor* TargetActor = IsValid(ThreatComponent) ? ThreatComponent->GetCurrentTarget() : nullptr;
+		AActor* TargetActor = IsValid(ThreatComponent) ? ThreatComponent->GetAttackTarget() : nullptr;
 		if (!IsValid(TargetActor))
 		{
 			return false;

@@ -7,7 +7,6 @@
 #include "Engine/DataTable.h"
 #include "GameplayEffectTypes.h"
 #include "ProjectR/AbilitySystem/PRAbilityTypes.h"
-#include "ProjectR/Weapon/Types/PRWeaponTypes.h"
 #include "PRAbilitySystemRegistry.generated.h"
 
 class UGameplayEffect;
@@ -32,10 +31,6 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "ProjectR|Ability")
 	UDataTable* GetStatTableSynchronous(EPRCharacterRole Role) const;
 
-	// 탄약 타입에 대응하는 무기 장착 GE 반환 (슬롯별 어트리뷰트 set 대상이 다르므로 분리)
-	UFUNCTION(BlueprintCallable, Category = "ProjectR|Ability")
-	TSubclassOf<UGameplayEffect> GetEquipAmmoGE(EPRAmmoType AmmoType) const;
-
 public:
 	// 역할별 스탯 DataTable 약참조
 	UPROPERTY(EditAnywhere, Category = "Registry")
@@ -50,23 +45,42 @@ public:
 	TSubclassOf<UGameplayEffect>  InitializeGE;
 	
 	// ==== 데미지 적용 GE ====
-	UPROPERTY(EditAnywhere, Category = "Registry")
+	UPROPERTY(EditAnywhere, Category = "Registry|DamageGE")
 	TSubclassOf<UGameplayEffect>  DamageGE_FromEnemy;
 	
-	UPROPERTY(EditAnywhere, Category = "Registry")
+	UPROPERTY(EditAnywhere, Category = "Registry|DamageGE")
 	TSubclassOf<UGameplayEffect>  DamageGE_FromWeapon;
 	
-	UPROPERTY(EditAnywhere, Category = "Registry")
+	UPROPERTY(EditAnywhere, Category = "Registry|DamageGE")
 	TSubclassOf<UGameplayEffect>  DamageGE_FromMod;
+	
+	// ==== 무기 장착 GE ====
+	UPROPERTY(EditAnywhere, Category = "Registry|EquipGE")
+	TSubclassOf<UGameplayEffect>  EquipGE_CurrentWeapon;
+	
+	UPROPERTY(EditAnywhere, Category = "Registry|EquipGE")
+	TSubclassOf<UGameplayEffect>  EquipGE_PrimaryWeapon;
+	
+	UPROPERTY(EditAnywhere, Category = "Registry|EquipGE")
+	TSubclassOf<UGameplayEffect>  EquipGE_PrimaryMod;
+	
+	UPROPERTY(EditAnywhere, Category = "Registry|EquipGE")
+	TSubclassOf<UGameplayEffect>  EquipGE_Override_PrimaryAmmo;
 
-	// ==== 무기 장착 GE (슬롯별, AmmoScale·ReserveAmmoRatio·MagazineAmmo set용) ====
-	// 주무기 슬롯 어트리뷰트를 set하는 Instant GE
-	UPROPERTY(EditAnywhere, Category = "Registry|Ammo")
-	TSubclassOf<UGameplayEffect> EquipAmmoGE_Primary;
-
-	// 보조무기 슬롯 어트리뷰트를 set하는 Instant GE
-	UPROPERTY(EditAnywhere, Category = "Registry|Ammo")
-	TSubclassOf<UGameplayEffect> EquipAmmoGE_Secondary;
+	UPROPERTY(EditAnywhere, Category = "Registry|EquipGE")
+	TSubclassOf<UGameplayEffect>  EquipGE_Override_PrimaryModResource;
+	
+	UPROPERTY(EditAnywhere, Category = "Registry|EquipGE")
+	TSubclassOf<UGameplayEffect>  EquipGE_SecondaryWeapon;
+	
+	UPROPERTY(EditAnywhere, Category = "Registry|EquipGE")
+	TSubclassOf<UGameplayEffect>  EquipGE_SecondaryMod;
+	
+	UPROPERTY(EditAnywhere, Category = "Registry|EquipGE")
+	TSubclassOf<UGameplayEffect>  EquipGE_Override_SecondaryAmmo;
+	
+	UPROPERTY(EditAnywhere, Category = "Registry|EquipGE")
+	TSubclassOf<UGameplayEffect>  EquipGE_Override_SecondaryModResource;
 
 	// ==== 쿨다운 GE ====
 	// 사격 어빌리티 공통 쿨다운 GE. SetByCaller.Cooldown으로 Duration 주입. Cooldown.Ability.Fire.Primary를 Granted Tag로 부여

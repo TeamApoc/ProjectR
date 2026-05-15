@@ -83,6 +83,9 @@ protected:
 	// 서버에서 ASC ActorInfo, 초기 스탯, AbilitySet을 준비한다.
 	void InitializeEnemyAbilitySystem();
 
+	// AIController가 Blackboard에 쓰기 전에 복귀 기준 위치를 확정한다.
+	void InitializeHomeLocation();
+
 	UFUNCTION()
 	void HandleDeath(AActor* InstigatorActor);
 
@@ -143,9 +146,12 @@ protected:
 	UPROPERTY(EditDefaultsOnly, Category = "ProjectR|AI")
 	TObjectPtr<UPRPerceptionConfig> PerceptionConfig;
 
-	// AI 복귀 기준 위치다. BeginPlay에서 현재 위치로 저장한다.
+	// AI 복귀 기준 위치다. Possess/BeginPlay 중 먼저 도달한 시점의 현재 위치로 저장한다.
 	UPROPERTY(VisibleInstanceOnly, Category = "ProjectR|AI")
 	FVector HomeLocation = FVector::ZeroVector;
+
+	// HomeLocation을 0,0,0 기본값으로 다시 덮어쓰지 않기 위한 초기화 여부다.
+	bool bHasInitializedHomeLocation = false;
 
 	// 서버에서 부여한 Ability/GE를 수동 초기화할 때 추적하기 위한 핸들 묶음이다.
 	UPROPERTY()

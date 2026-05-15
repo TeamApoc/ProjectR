@@ -110,7 +110,7 @@ void UPRGameplayStatics::GrantAmmo(AActor* TargetActor, TSubclassOf<UGameplayEff
 		return;
 	}
 
-	// SetByCaller로 raw 자원량을 GE Spec에 전달
+	// SetByCaller로 탄약량을 GE Spec에 전달
 	FGameplayEffectContextHandle Context = TargetASC->MakeEffectContext();
 	const FGameplayEffectSpecHandle SpecHandle = TargetASC->MakeOutgoingSpec(AmmoEffect, 1.f, Context);
 	SpecHandle.Data->SetSetByCallerMagnitude(PRCombatGameplayTags::SetByCaller_AmmoMagnitude, AmmoAmount);

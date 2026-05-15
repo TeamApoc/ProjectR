@@ -19,6 +19,7 @@ public:
 	/*~ UGameplayAbility Interface ~*/
 	virtual void ActivateAbility(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilityActivationInfo ActivationInfo, const FGameplayEventData* TriggerEventData) override;
 	virtual void InputReleased(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilityActivationInfo ActivationInfo) override;
+	/** 조준 종료 시 로컬 카메라와 조준 피드백을 기본 상태로 되돌린다. */
 	virtual void EndAbility(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilityActivationInfo ActivationInfo, bool bReplicateEndAbility, bool bWasCancelled) override;
 	
 protected:
@@ -41,4 +42,7 @@ protected:
 	/** 26.04.26, Yuchan, 임시: 조준 시 사용할 크로스헤어 Config. 추후 WeaponManager 가 무기별로 관리 예정 */
 	UPROPERTY(EditDefaultsOnly, Category = "PR|Aim|Crosshair")
 	TObjectPtr<UPRCrosshairConfig> AimCrosshairConfig;
+
+private:
+	void ApplyAimCameraMode();
 };

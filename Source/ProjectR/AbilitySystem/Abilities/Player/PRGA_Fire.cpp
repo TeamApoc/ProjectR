@@ -427,7 +427,7 @@ void UPRGA_Fire::ServerConfirmShot(const FPRFireShotPayload& Payload)
 {
 	UE_LOG(LogFire, Warning, TEXT("Server Confirm Shot. ShotID: %u"), Payload.ShotID);
 
-	// GA의 CostGameplayEffectClass(MMC_AmmoCost 기반)를 적용해 슬롯 raw 탄창에서 cost × scale 차감
+	// GA의 CostGameplayEffectClass를 적용해 슬롯 탄창에서 발사 비용을 차감
 	// CheckCost 실패 시 탄약 부족으로 간주해 데미지를 적용하지 않고 어빌리티 종료
 	if (!CommitAbilityCost(CurrentSpecHandle, CurrentActorInfo, CurrentActivationInfo))
 	{

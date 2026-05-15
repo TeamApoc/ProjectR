@@ -236,4 +236,8 @@ public:
 	// attack_pressure 누적 및 리셋 설정
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|Pressure")
 	FPREnemyAttackPressureConfig AttackPressureConfig;
+
+	// 타겟 후보 유지와 선택 정책
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|Targeting")
+	FPREnemyTargetingConfig TargetingConfig;
 };

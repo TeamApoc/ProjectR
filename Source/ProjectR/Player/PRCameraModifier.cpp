@@ -25,6 +25,7 @@ bool UPRCameraModifier::ModifyCamera(float DeltaTime, struct FMinimalViewInfo& I
 	if (APRCameraManager* PRCamera = Cast<APRCameraManager>(CameraOwner))
 	{
 		PRCamera->ModifierTargetFOV = TargetFOV;
+		PRCamera->ModifierFOVAlpha = Alpha;
 	}
 
 	// 2. 위치(Z축 하강 등)는 모디파이어가 계속 직접 처리

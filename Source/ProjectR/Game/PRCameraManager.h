@@ -22,6 +22,9 @@ public:
 
 	// 모디파이어(구르기 등)가 외부에서 덮어씌울 목표 FOV (0이면 사용 안 함)
 	float ModifierTargetFOV = 0.0f;
+
+	// 모디파이어 FOV 반영 비율
+	float ModifierFOVAlpha = 0.0f;
 	
 	// 어빌리티가 조준 중일 때 덮어씌울 목표 FOV (0.0f이면 조준 안 함)
 	float OverrideAimFOV = 0.0f;

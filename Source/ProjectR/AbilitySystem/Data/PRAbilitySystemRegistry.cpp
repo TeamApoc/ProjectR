@@ -33,11 +33,6 @@ UDataTable* UPRAbilitySystemRegistry::GetStatTableSynchronous(EPRCharacterRole R
 	return nullptr;
 }
 
-TSubclassOf<UGameplayEffect> UPRAbilitySystemRegistry::GetEquipAmmoGE(EPRAmmoType AmmoType) const
-{
-	return AmmoType == EPRAmmoType::Primary ? EquipAmmoGE_Primary : EquipAmmoGE_Secondary;
-}
-
 // =====  Data Validation =====
 
 #if WITH_EDITOR
@@ -108,6 +103,27 @@ EDataValidationResult UPRAbilitySystemRegistry::IsDataValid(FDataValidationConte
 			}
 		}
 	}
+
+	// 6) 장착 GE 필수 참조 유효성
+	const auto ValidateRequiredEquipGE = [&Context, &Result](const TCHAR* PropertyName, const TSubclassOf<UGameplayEffect>& EffectClass)
+	{
+		if (!IsValid(EffectClass))
+		{
+			Context.AddError(FText::FromString(
+				FString::Printf(TEXT("EquipGE required reference '%s' is invalid"), PropertyName)));
+			Result = EDataValidationResult::Invalid;
+		}
+	};
+
+	ValidateRequiredEquipGE(TEXT("EquipGE_CurrentWeapon"), EquipGE_CurrentWeapon);
+	ValidateRequiredEquipGE(TEXT("EquipGE_PrimaryWeapon"), EquipGE_PrimaryWeapon);
+	ValidateRequiredEquipGE(TEXT("EquipGE_PrimaryMod"), EquipGE_PrimaryMod);
+	ValidateRequiredEquipGE(TEXT("EquipGE_Override_PrimaryAmmo"), EquipGE_Override_PrimaryAmmo);
+	ValidateRequiredEquipGE(TEXT("EquipGE_Override_PrimaryModResource"), EquipGE_Override_PrimaryModResource);
+	ValidateRequiredEquipGE(TEXT("EquipGE_SecondaryWeapon"), EquipGE_SecondaryWeapon);
+	ValidateRequiredEquipGE(TEXT("EquipGE_SecondaryMod"), EquipGE_SecondaryMod);
+	ValidateRequiredEquipGE(TEXT("EquipGE_Override_SecondaryAmmo"), EquipGE_Override_SecondaryAmmo);
+	ValidateRequiredEquipGE(TEXT("EquipGE_Override_SecondaryModResource"), EquipGE_Override_SecondaryModResource);
 
 	return Result;
 }

@@ -62,7 +62,7 @@ protected:
 public:
 	// 후보 트레이스 반경 (cm). 진입 거리.
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Interaction", meta = (ClampMin = "0.0"))
-	float FocusableRange = 300.f;
+	float FocusableRange = 400.f;
 
 	// 화면 중앙으로부터 후보 인정 반경 (뷰포트 짧은변 대비 비율, 0~1)
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Interaction", meta = (ClampMin = "0.0", ClampMax = "1.0"))

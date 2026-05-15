@@ -7,6 +7,9 @@
 #include "BrainComponent.h"
 #include "BehaviorTree/BehaviorTree.h"
 #include "GameFramework/CharacterMovementComponent.h"
+#include "GameFramework/Controller.h"
+#include "GameFramework/Pawn.h"
+#include "GameFramework/PlayerController.h"
 #include "ProjectR/AI/Components/PREnemyCombatEventRelayComponent.h"
 #include "ProjectR/AI/Components/PREnemyThreatComponent.h"
 #include "ProjectR/AI/Data/PREnemyCombatDataAsset.h"
@@ -16,6 +19,7 @@
 #include "ProjectR/AbilitySystem/AttributeSets/PRAttributeSet_Common.h"
 #include "ProjectR/AbilitySystem/AttributeSets/PRAttributeSet_Enemy.h"
 #include "ProjectR/AbilitySystem/Data/PRAbilitySystemRegistry.h"
+#include "ProjectR/Combat/PRCombatStatics.h"
 #include "Engine/DataTable.h"
 #include "ProjectR/PRGameplayTags.h"
 #include "ProjectR/System/PRAssetManager.h"
@@ -23,6 +27,30 @@
 #include "ProjectR/UI/FloatingText/PRFloatingTextManager.h"
 #include "ProjectR/UI/HUD/PREnemyWorldHealthBarComponent.h"
 #include "Net/UnrealNetwork.h"
+
+namespace
+{
+	AActor* ResolveEnemyThreatSourceActor(const FPRDamageAppliedContext& Context)
+	{
+		if (APlayerController* PlayerController = Cast<APlayerController>(Context.InstigatorController.Get()))
+		{
+			return PlayerController->GetPawn();
+		}
+
+		AActor* InstigatorActor = Context.Instigator.Get();
+		if (AController* InstigatorController = Cast<AController>(InstigatorActor))
+		{
+			return InstigatorController->GetPawn();
+		}
+
+		if (APawn* InstigatorPawn = Cast<APawn>(InstigatorActor))
+		{
+			return InstigatorPawn;
+		}
+
+		return InstigatorActor;
+	}
+}
 
 APREnemyBaseCharacter::APREnemyBaseCharacter()
 {
@@ -60,8 +88,7 @@ void APREnemyBaseCharacter::BeginPlay()
 
 	BindTagChangeEvent();
 	
-	// 배치된 위치를 복귀 기준점으로 저장한다.
-	HomeLocation = GetActorLocation();
+	InitializeHomeLocation();
 	InitializeEnemyWorldHealthBar();
 
 	if (IsValid(CommonSet))
@@ -83,6 +110,7 @@ void APREnemyBaseCharacter::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>
 
 void APREnemyBaseCharacter::PossessedBy(AController* NewController)
 {
+	InitializeHomeLocation();
 	Super::PossessedBy(NewController);
 
 	InitializeEnemyAbilitySystem();
@@ -234,6 +262,15 @@ void APREnemyBaseCharacter::OnPostDamageApplied(const FPRDamageAppliedContext& C
 		return;
 	}
 
+	if (Context.FinalDamage > 0.0f && IsValid(ThreatComponent))
+	{
+		AActor* ThreatSourceActor = ResolveEnemyThreatSourceActor(Context);
+		if (UPRCombatStatics::GetActorTeam(ThreatSourceActor) == EPRTeam::Player)
+		{
+			ThreatComponent->AddDamageThreat(ThreatSourceActor, Context.FinalDamage);
+		}
+	}
+
 	APRPlayerController* PC = Cast<APRPlayerController>(Context.InstigatorController.Get());
 	if (!IsValid(PC))
 	{
@@ -277,6 +314,17 @@ void APREnemyBaseCharacter::HandleGameplayTagUpdated(const FGameplayTag& Changed
 	{
 		HandleGroggyTagChanged(TagExists);
 	}
+}
+
+void APREnemyBaseCharacter::InitializeHomeLocation()
+{
+	if (bHasInitializedHomeLocation)
+	{
+		return;
+	}
+
+	HomeLocation = GetActorLocation();
+	bHasInitializedHomeLocation = true;
 }
 
 void APREnemyBaseCharacter::InitializeEnemyAbilitySystem()
@@ -355,6 +403,11 @@ void APREnemyBaseCharacter::HandleDeadTagChanged(bool bEntered)
 	// 사망 상태 진입
 	if (bEntered)
 	{
+		if (IsValid(ThreatComponent))
+		{
+			ThreatComponent->ForceClearAttackCommit();
+		}
+
 		ClearCombatMovePresentationContext();
 		HandleDeath(nullptr);
 	}
@@ -365,6 +418,11 @@ void APREnemyBaseCharacter::HandleGroggyTagChanged(bool bEntered)
 	// 그로기 상태 진입
 	if (bEntered)
 	{
+		if (IsValid(ThreatComponent))
+		{
+			ThreatComponent->ForceClearAttackCommit();
+		}
+
 		ClearCombatMovePresentationContext();
 		GetCharacterMovement()->StopMovementImmediately();
 	}

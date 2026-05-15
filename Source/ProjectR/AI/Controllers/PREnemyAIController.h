@@ -78,7 +78,7 @@ protected:
 	// 탐지 직후 시작 attack_pressure 적용
 	void ApplyInitialAttackPressureOnAlert();
 
-	// BehaviorTree / Blackboard 준비 및 실행
+	// BehaviorTree에서 Blackboard를 준비하고 캐시
 	void CacheBlackboardFromBehaviorTree(UBehaviorTree* BehaviorTreeAsset);
 
 	// Threat 바인딩 해제

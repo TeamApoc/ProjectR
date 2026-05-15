@@ -5,6 +5,7 @@
 #include "AIController.h"
 #include "BehaviorTree/BlackboardComponent.h"
 #include "ProjectR/AI/PREnemyAIDebug.h"
+#include "ProjectR/AI/Components/PREnemyThreatComponent.h"
 #include "ProjectR/AI/Data/PREnemyCombatDataAsset.h"
 #include "ProjectR/AbilitySystem/PRAbilitySystemComponent.h"
 #include "ProjectR/Character/Enemy/PREnemyInterface.h"
@@ -28,6 +29,17 @@ namespace
 		}
 
 		return Cast<UPREnemyCombatDataAsset>(EnemyInterface->GetCombatDataAsset());
+	}
+
+	UPREnemyThreatComponent* ResolveEnemyThreatComponent(const APawn* ControlledPawn)
+	{
+		const IPREnemyInterface* EnemyInterface = Cast<IPREnemyInterface>(ControlledPawn);
+		if (EnemyInterface == nullptr)
+		{
+			return nullptr;
+		}
+
+		return EnemyInterface->GetEnemyThreatComponent();
 	}
 
 	bool IsEnemyDisabled(const APawn* ControlledPawn)
@@ -208,6 +220,11 @@ void UBTService_PRUpdateEnemyCombatBlackboard::TickNode(UBehaviorTreeComponent& 
 	if (HasCombatBlackboardKey(BlackboardComponent, SelfActorKey))
 	{
 		BlackboardComponent->SetValueAsObject(SelfActorKey, ControlledPawn);
+	}
+
+	if (UPREnemyThreatComponent* ThreatComponent = ResolveEnemyThreatComponent(ControlledPawn))
+	{
+		ThreatComponent->RefreshTargetCandidates();
 	}
 
 	AActor* CurrentTarget = Cast<AActor>(BlackboardComponent->GetValueAsObject(CurrentTargetKey));

@@ -32,6 +32,8 @@ namespace PRGameplayTags
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Ability_Player_Revive, "Ability.Player.Revive", "플레이어 동료 소생 어빌리티");
 
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Ability_Enemy_Pattern, "Ability.Enemy.Pattern", "일반 적 패턴 공통 루트");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Ability_Enemy_Alert, "Ability.Enemy.Alert", "일반 적 최초 발견 Alert");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Ability_Enemy_Evade, "Ability.Enemy.Evade", "일반 적 회피 패턴");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Ability_Boss_Pattern, "Ability.Boss.Pattern", "보스 패턴 공통 루트");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Ability_Boss_PhaseTransition, "Ability.Boss.PhaseTransition", "보스 페이즈 전환 공통 루트");
 
@@ -108,6 +110,7 @@ namespace PRGameplayTags
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Cooldown_Ability_Fire, "Cooldown.Ability.Fire", "무기 발사 쿨다운");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Cooldown_Ability_PlayerHitReact, "Cooldown.Ability.PlayerHitReact", "플레이어 피격 리액션 쿨다운");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Cooldown_Ability_SwapWeapon, "Cooldown.Ability.SwapWeapon", "무기 교체 쿨다운");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Cooldown_Enemy_Evade, "Cooldown.Enemy.Evade", "일반 적 회피 쿨다운");
 	
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Cooldown_Boss_Faerin_TeleportLunge, "Cooldown.Boss.Faerin.TeleportLunge", "Faerin Teleport Lunge 패턴 쿨다운");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Cooldown_Boss_Faerin_PortalMissile, "Cooldown.Boss.Faerin.PortalMissile", "Faerin 포털 미사일 패턴 쿨다운");

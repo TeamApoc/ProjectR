@@ -291,6 +291,7 @@ void APRPlayerCharacter::HandleGameplayTagUpdated(const FGameplayTag& ChangedTag
 	if (ChangedTag.MatchesTagExact(PRGameplayTags::State_UsingConsumable))
 	{
 		APRWeaponActor* ActiveWeapon = IsValid(WeaponManagerComponent) ? WeaponManagerComponent->GetActiveWeaponActor() : nullptr;
+		ActiveWeapon->SetIsIKSuppressed(bTagExists);
 		if (IsValid(ActiveWeapon))
 		{
 			ActiveWeapon->SetActorHiddenInGame(bTagExists);

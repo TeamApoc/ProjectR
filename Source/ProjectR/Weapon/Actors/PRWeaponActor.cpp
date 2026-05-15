@@ -134,7 +134,6 @@ bool APRWeaponActor::ShouldApplyLeftHandIK() const
 
 void APRWeaponActor::SetIsIKSuppressed(bool bInSuppressed)
 {
-	UE_LOG(LogTemp,Warning,TEXT("LeftHand IK Suppressed: %s"),bInSuppressed? TEXT("true") : TEXT("false"));
 	bIsIKSuppressed = bInSuppressed;
 }
 

@@ -15,22 +15,46 @@ void UPRInteraction_Revive::OnHoldStart_Implementation(AActor* Interactor)
 {
 	Super::OnHoldStart_Implementation(Interactor);
 	
+	if (Interactor->HasAuthority())
+	{
+		UE_LOG(LogTemp,Warning,TEXT("[Server] Revive Hold Start"));	
+	}
+	else
+	{
+		UE_LOG(LogTemp,Warning,TEXT("[Client] Revive Hold Start"));	
+	}
+	
 	if (UAbilitySystemComponent* ASC = UPRGameplayStatics::GetAbilitySystemComponent(Interactor))
 	{
-		UAbilitySystemBlueprintLibrary::SendGameplayEventToActor(ASC->GetOwner(),PRGameplayTags::Event_Ability_Revive,FGameplayEventData());
+		UAbilitySystemBlueprintLibrary::SendGameplayEventToActor(ASC->GetOwner(),PRGameplayTags::Event_Ability_Revive_Start,FGameplayEventData());
 	}
 }
 
 void UPRInteraction_Revive::OnHoldCanceled_Implementation(AActor* Interactor)
 {
 	Super::OnHoldCanceled_Implementation(Interactor);
-	FinishReviveAbility(Interactor);
+	if (Interactor->HasAuthority())
+	{
+		UE_LOG(LogTemp,Warning,TEXT("[Server] Revive Hold Canceled"));	
+	}
+	else
+	{
+		UE_LOG(LogTemp,Warning,TEXT("[Client] Revive Hold Canceled"));	
+	}
+	FinishReviveAbility(Interactor,true);
 }
 
 void UPRInteraction_Revive::OnHoldFinished_Implementation(AActor* Interactor)
 {
 	Super::OnHoldFinished_Implementation(Interactor);
-	FinishReviveAbility(Interactor);
+	if (Interactor->HasAuthority())
+	{
+		UE_LOG(LogTemp,Warning,TEXT("[Server] Revive Hold Finished"));	
+	}
+	else
+	{
+		UE_LOG(LogTemp,Warning,TEXT("[Client] Revive Hold Finished"));	
+	}
 }
 
 void UPRInteraction_Revive::Execute_Implementation(AActor* Interactor)
@@ -38,8 +62,22 @@ void UPRInteraction_Revive::Execute_Implementation(AActor* Interactor)
 	ensureMsgf(IsValid(CostItem),TEXT("소생 코스트 아이템이 설정되어 있어야함."));
 	Super::Execute_Implementation(Interactor);
 	
+	FinishReviveAbility(Interactor,false);
+	
 	if (UAbilitySystemComponent* OwnerASC = UPRGameplayStatics::GetAbilitySystemComponent(GetOwner()))
 	{
+		// 체력 회복 GE 적용
+		if (IsValid(HealEffectClass))
+		{
+			FGameplayEffectContextHandle Context = OwnerASC->MakeEffectContext();
+			Context.AddSourceObject(this);
+			const FGameplayEffectSpecHandle SpecHandle = OwnerASC->MakeOutgoingSpec(HealEffectClass, 1.f, Context);
+			if (SpecHandle.IsValid() && SpecHandle.Data.IsValid())
+			{
+				OwnerASC->ApplyGameplayEffectSpecToSelf(*SpecHandle.Data);
+			}
+		}
+		
 		UAbilitySystemBlueprintLibrary::SendGameplayEventToActor(OwnerASC->GetOwner(),PRGameplayTags::Event_Ability_GetUp,FGameplayEventData());
 	}
 	
@@ -64,6 +102,12 @@ bool UPRInteraction_Revive::CanInteract_Implementation(AActor* Interactor) const
 		return false;
 	}
 	
+	UAbilitySystemComponent* InteractorASC = UPRGameplayStatics::GetAbilitySystemComponent(Interactor);
+	if (IsValid(InteractorASC) && InteractorASC->HasMatchingGameplayTag(PRGameplayTags::State_Reviving))
+	{
+		return false;
+	}
+	
 	UPRInventoryComponent* InteractorInventory = UPRGameplayStatics::GetInventoryComponent(Interactor);
 	if (!IsValid(InteractorInventory))
 	{
@@ -78,12 +122,17 @@ bool UPRInteraction_Revive::CanInteract_Implementation(AActor* Interactor) const
 	return false;
 }
 
-void UPRInteraction_Revive::FinishReviveAbility(AActor* Interactor)
+void UPRInteraction_Revive::FinishReviveAbility(AActor* Interactor, bool bCanceled)
 {
 	if (UAbilitySystemComponent* ASC = UPRGameplayStatics::GetAbilitySystemComponent(Interactor))
 	{
-		FGameplayTagContainer TagContainer;
-		TagContainer.AddTag(PRGameplayTags::Ability_Player_Revive);
-		ASC->CancelAbilities(&TagContainer);
+		if (bCanceled)
+		{
+			UAbilitySystemBlueprintLibrary::SendGameplayEventToActor(ASC->GetOwner(),PRGameplayTags::Event_Ability_Revive_Canceled,FGameplayEventData());	
+		}
+		else
+		{
+			UAbilitySystemBlueprintLibrary::SendGameplayEventToActor(ASC->GetOwner(),PRGameplayTags::Event_Ability_Revive_Finished,FGameplayEventData());
+		}
 	}
 }

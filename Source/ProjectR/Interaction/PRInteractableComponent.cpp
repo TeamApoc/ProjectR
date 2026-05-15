@@ -24,14 +24,10 @@ void UPRInteractableComponent::OnRep_CurrentInteractor()
 	// TODO : 클라측 피드백 (사용 중 표시 등)
 }
 
-void UPRInteractableComponent::OnFocus(bool bIsInRange)
+void UPRInteractableComponent::ApplyDepthStencilValues(bool bIsInRange)
 {
-	if (bIsFocused)
-	{
-		return;
-	}
-	bIsFocused = true;
-
+	bDepthStencilApplied = true;
+	
 	TArray<UMeshComponent*> Meshes;
 	UPRGameplayStatics::GetAllMeshComponents(GetOwner(), Meshes);
 
@@ -49,10 +45,56 @@ void UPRInteractableComponent::OnFocus(bool bIsInRange)
 	}
 }
 
+void UPRInteractableComponent::OnFocus(AActor* Viewer, bool bIsInRange)
+{
+	bIsFocused = true;
+
+	if (ShouldApplyDepthStencilValue(Viewer))
+	{
+		ApplyDepthStencilValues(bIsInRange);
+	}
+}
+
+void UPRInteractableComponent::UpdateFocus(AActor* Viewer, bool bIsInRange)
+{
+	if (ShouldApplyDepthStencilValue(Viewer))
+	{
+		if (!bDepthStencilApplied)
+		{
+			ApplyDepthStencilValues(bIsInRange);
+		}
+		else
+		{
+			for (auto& DepthState : SavedCustomDepthStates)
+			{
+				UMeshComponent* Mesh = DepthState.Key;
+				if (IsValid(Mesh))
+				{
+					Mesh->SetCustomDepthStencilValue(bIsInRange ? PRStencilValues::Interaction : PRStencilValues::Highlight);
+				}
+			}	
+		}
+	}
+	else
+	{
+		ResetDepthStencilValues();
+	}
+}
+
+
 void UPRInteractableComponent::OnUnfocus()
 {
 	bIsFocused = false;
 
+	if (IsDepthStencilApplied())
+	{
+		ResetDepthStencilValues();
+	}
+}
+
+
+void UPRInteractableComponent::ResetDepthStencilValues()
+{
 	TArray<UMeshComponent*> Meshes;
 	UPRGameplayStatics::GetAllMeshComponents(GetOwner(), Meshes);
 
@@ -69,7 +111,8 @@ void UPRInteractableComponent::OnUnfocus()
 		const bool* bWasEnabled = SavedCustomDepthStates.Find(TObjectPtr<UMeshComponent>(Mesh));
 		Mesh->SetRenderCustomDepth(bWasEnabled ? *bWasEnabled : false);
 	}
-
+	
+	bDepthStencilApplied = false;
 	SavedCustomDepthStates.Reset();
 }
 
@@ -184,4 +227,9 @@ void UPRInteractableComponent::ReleaseExclusive()
 	{
 		CurrentInteractor = nullptr;
 	}
+}
+
+bool UPRInteractableComponent::ShouldApplyDepthStencilValue(AActor* Viewer) const
+{
+	return !bOnlyApplyDepthStencilOnAvailable || HasAvailableAction(Viewer) || IsHolding();
 }

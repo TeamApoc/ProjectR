@@ -26,51 +26,71 @@ public:
 	/*~ UActorComponent Interface ~*/
 	virtual void GetLifetimeReplicatedProps(TArray<class FLifetimeProperty>& OutLifetimeProps) const override;
 
-	/** 포커스 진입 시 호출. 소유 액터의 모든 메시에 오버레이 머티리얼 적용 */
-	virtual void OnFocus(bool bIsInRange);
+	// 포커스 진입 시 호출. 소유 액터의 모든 메시에 오버레이 머티리얼 적용
+	virtual void OnFocus(AActor* Viewer, bool bIsInRange);
+	
+	// 이미 포커스된 상태에서 업데이트
+	virtual void UpdateFocus(AActor* Viewer, bool bIsInRange);
 
-	/** 포커스 해제 시 호출. 소유 액터의 모든 메시에서 오버레이 머티리얼 제거 */
+	// 포커스 해제 시 호출. 소유 액터의 모든 메시에서 오버레이 머티리얼 제거
 	virtual void OnUnfocus();
 
-	/** 상호작용 시 호출. 조건을 만족하는 최고 우선순위 행동을 실행한다 */
+	// 상호작용 시 호출. 조건을 만족하는 최고 우선순위 행동을 실행
 	virtual void OnInteract(AActor* Interactor, int32 ActionIndex);
 
-	/** 조건을 만족하는 최고 우선순위 Action 선택 (실행은 안 함). 없으면 nullptr */
+	// 조건을 만족하는 최고 우선순위 Action 선택 (실행은 안 함). 없으면 nullptr
 	UPRInteractionAction* SelectBestAction(AActor* Interactor) const;
 
-	/** 실행 가능한 행동이 하나라도 있는지 여부 반환 */
+	// 실행 가능한 행동이 하나라도 있는지 여부 반환
 	UFUNCTION(BlueprintCallable, Category = "Interaction")
 	bool HasAvailableAction(AActor* Interactor) const;
 
-	/** 활성 유지형 상호작용을 종료한다 */
+	// 활성 유지형 상호작용을 종료
 	void EndActiveInteraction();
 
-	/** 현재 활성 Action 반환 (nullptr이면 비활성) */
+	// 현재 활성 Action 반환 (nullptr이면 비활성)
 	UPRInteractionAction* GetActiveAction() const { return ActiveAction; }
 
-	/** Index로부터 Action 반환 (nullptr이면 InValid Index) */
+	// Index로부터 Action 반환 (nullptr이면 InValid Index)
 	UPRInteractionAction* FindActionByIndex(int32 InActionIndex) const;
 	
 	int32 FindActionIndex(UPRInteractionAction* InAction) const;
 	
-	/** 현재 사용 중인 Interactor 반환 (없으면 nullptr) */
+	// 현재 사용 중인 Interactor 반환 (없으면 nullptr)
 	AActor* GetCurrentInteractor() const { return CurrentInteractor; }
 
-	/** 현재 사용 중 여부 반환 (배타 점유 사용 시에만 의미 있음) */
+	// 현재 사용 중 여부 반환 (배타 점유 사용 시에만 의미 있음)
 	bool IsBeingInteracted() const { return ::IsValid(CurrentInteractor); }
 
-	/** 배타 점유 사용 여부 반환 */
+	// 배타 점유 사용 여부 반환
 	bool IsExclusive() const { return bExclusiveInteraction; }
 
-	/** 주어진 Interactor가 점유 정책상 진입 가능한지 여부 반환 */
+	// 주어진 Interactor가 점유 정책상 진입 가능한지 여부 반환
 	bool CanBeInteractedBy(AActor* Interactor) const;
 
-	/** 배타 점유 시 현재 Interactor를 기록 */
+	// 배타 점유 시 현재 Interactor를 기록
 	void AcquireExclusive(AActor* Interactor);
 
-	/** 배타 점유 해제 */
+	// 배타 점유 해제
 	void ReleaseExclusive();
 
+	// 아웃라인 적용 여부
+	virtual bool ShouldApplyDepthStencilValue(AActor* Viewer) const;
+
+	// 아웃라인 적용
+	void ApplyDepthStencilValues(bool bIsInRange);
+
+	// 아웃라인 적용 중 여부
+	bool IsDepthStencilApplied() const { return bDepthStencilApplied; }
+	
+	// 아웃라인 해제
+	void ResetDepthStencilValues();
+	
+	// 홀딩 상태 설정
+	void SetIsHolding(const bool bInIsHolding) { bIsHolding = bInIsHolding; }
+	
+	// 홀딩 여부
+	bool IsHolding() const {return bIsHolding; }
 protected:
 	UFUNCTION()
 	void OnRep_CurrentInteractor();
@@ -87,13 +107,22 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Interaction")
 	bool bExclusiveInteraction = false;
 
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Interaction")
+	bool bOnlyApplyDepthStencilOnAvailable = false;
+	
 private:
 	// 현재 포커스 상태 여부
 	bool bIsFocused = false;
+	
+	// 현재 홀딩 여부
+	bool bIsHolding = false;
 
+	// Depth Stencil 적용 여부
+	bool bDepthStencilApplied = false;
+	
 	// 포커스 진입 전 메시별 RenderCustomDepth 원래 값 (복원용)
 	UPROPERTY()
-	TMap<TObjectPtr<UMeshComponent>, bool> SavedCustomDepthStates;
+	TMap<UMeshComponent*, bool> SavedCustomDepthStates;
 
 	// 현재 사용 중인 Interactor (없으면 nullptr)
 	UPROPERTY(ReplicatedUsing = OnRep_CurrentInteractor)

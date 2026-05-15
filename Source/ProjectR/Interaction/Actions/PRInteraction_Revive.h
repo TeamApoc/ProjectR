@@ -7,6 +7,7 @@
 #include "PRInteraction_Revive.generated.h"
 
 class UPRConsumableDataAsset;
+class UGameplayEffect;
 /**
  * 
  */
@@ -23,9 +24,13 @@ public:
 	virtual bool CanInteract_Implementation(AActor* Interactor) const override;
 	
 private:
-	void FinishReviveAbility(AActor* Interactor);
+	void FinishReviveAbility(AActor* Interactor, bool bCanceled);
 	
 public:
 	UPROPERTY(EditAnywhere,BlueprintReadWrite)
 	TObjectPtr<UPRConsumableDataAsset> CostItem;
+
+	// 소생 시 Owner(다운된 캐릭터)에게 적용할 체력 회복 GE 클래스
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	TSubclassOf<UGameplayEffect> HealEffectClass;
 };

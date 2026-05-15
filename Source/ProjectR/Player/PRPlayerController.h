@@ -33,7 +33,8 @@ public:
 	
 	/*~ AActor Interface ~*/
 	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
-
+	virtual void Tick(float DeltaSeconds) override;
+	
 	/*~ APlayerController Interface ~*/
 	virtual void AcknowledgePossession(APawn* InPawn) override;
 	virtual void BeginPlay() override;
@@ -46,6 +47,8 @@ public:
 	// 로컬 플레이어 UI 흐름을 담당하는 컴포넌트 조회
 	UPRUIControllerComponent* GetUIController() const { return UIControllerComponent; }
 
+	
+	void UpdateCompanionHighlight();
 public:
 	// 로컬 클라에서 호출. GameInstance의 LocalCharacter를 서버로 제출
 	// 자동 호출(BeginPlay)과 수동 호출(재제출) 모두 허용

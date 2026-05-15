@@ -7,6 +7,8 @@
 #include "PRGameTypes.h"
 #include "PRGameStateBase.generated.h"
 
+class APRPlayerCharacter;
+
 // 체크포인트 활성화 시 발행
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnCheckpointActivatedSignature, FName, CheckpointId);
 
@@ -29,6 +31,9 @@ public:
 
 	// 보스 처치 여부 조회
 	bool IsBossDefeated(FName BossId) const;
+
+	// 현재 세션에 등록된 PlayerState의 Pawn을 PRPlayerCharacter로 캐스팅해 수집. 캐스팅 실패나 미possess 상태는 제외
+	TArray<APRPlayerCharacter*> GetPlayerCharacters() const;
 
 	// 서버 전용. 월드 세이브 스냅샷을 GameState에 주입. 호스트 맵 로드 직후 GameMode가 호출
 	void InitializeFromWorldSave(const FPRWorldSaveData& WorldSave);

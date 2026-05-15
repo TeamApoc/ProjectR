@@ -103,9 +103,15 @@ void UPRInteractorComponent::SetIgnoreActors(const TArray<AActor*>& Actors)
 
 void UPRInteractorComponent::SetFocus(UPRInteractableComponent* NewFocus)
 {
-	// 동일 대상이면 무시
+	const bool bIsWithinRange =  IsWithinRange(FocusedComponent);
+	
 	if (FocusedComponent == NewFocus)
 	{
+		// 동일 대상이면 업데이트
+		if (IsValid(FocusedComponent))
+		{
+			FocusedComponent->UpdateFocus(GetOwner(),bIsWithinRange);	
+		}
 		return;
 	}
 
@@ -120,7 +126,7 @@ void UPRInteractorComponent::SetFocus(UPRInteractableComponent* NewFocus)
 	// 신규 포커스 진입
 	if (IsValid(FocusedComponent))
 	{
-		FocusedComponent->OnFocus(IsWithinRange(FocusedComponent));
+		FocusedComponent->OnFocus(GetOwner(), IsWithinRange(FocusedComponent));
 		UE_LOG(LogTemp,Warning,TEXT("Interactable Focused: %s"), *FocusedComponent->GetOwner()->GetName());
 	}
 }
@@ -212,8 +218,7 @@ void UPRInteractorComponent::OnInteractionReleased()
 
 void UPRInteractorComponent::ServerCancelHold_Implementation()
 {
-	ClearHoldInfo();
-	ClientCancelHold();
+	MulticastCancelHold();
 }
 
 void UPRInteractorComponent::ServerFinishHold_Implementation()
@@ -227,11 +232,11 @@ void UPRInteractorComponent::ServerFinishHold_Implementation()
 	UPRInteractableComponent* InteractionTarget = HoldInfo.HoldTarget;
 	int8 ActionIndex = static_cast<int8>(InteractionTarget->FindActionIndex(HoldInfo.HoldAction));
 	
-	ClientFinishHold();
+	MulticastFinishHold();
 	Internal_HandleInteraction(InteractionTarget, ActionIndex);
 }
 
-void UPRInteractorComponent::ClientStartHold_Implementation(UPRInteractableComponent* Target, int8 ActionIndex)
+void UPRInteractorComponent::MulticastStartHold_Implementation(UPRInteractableComponent* Target, int8 ActionIndex)
 {
 	if (!IsValid(Target))
 	{
@@ -252,24 +257,27 @@ void UPRInteractorComponent::ClientStartHold_Implementation(UPRInteractableCompo
 		return;
 	}
 	
-	// 클라측 HoldStart 피드백
+	Target->SetIsHolding(true);
+	// HoldStart 피드백
 	HoldInfo.HoldAction->OnHoldStart(GetOwner());
 }
 
-void UPRInteractorComponent::ClientCancelHold_Implementation()
+void UPRInteractorComponent::MulticastCancelHold_Implementation()
 {
 	if (HoldInfo.IsValid())
 	{
+		HoldInfo.HoldTarget->SetIsHolding(false);
 		HoldInfo.HoldAction->OnHoldCanceled(GetOwner());
 	}
 	
 	ClearHoldInfo();
 }
 
-void UPRInteractorComponent::ClientFinishHold_Implementation()
+void UPRInteractorComponent::MulticastFinishHold_Implementation()
 {
 	if (HoldInfo.IsValid())
 	{
+		HoldInfo.HoldTarget->SetIsHolding(false);
 		HoldInfo.HoldAction->OnHoldFinished(GetOwner());
 		if (HoldInfo.HoldAction->ShouldSustained())
 		{
@@ -465,14 +473,17 @@ void UPRInteractorComponent::ClearHoldInfo()
 	{
 		GetWorld()->GetTimerManager().ClearTimer(HoldInfo.HoldTimerHandle);
 	}
-	
+
+	// Reset 을 Broadcast 보다 먼저 수행. OnHoldEnd 외부 핸들러가 EndAbility 를 경유해 IsHolding 을 확인하는데,
+	// Reset 이전이라면 리슨 서버에서 bIsHolding 이 true 로 남아 OnInteractionReleased -> ServerCancelHold 경로가 발동해
+	// Finish 흐름임에도 Cancel 콜백까지 호출되는 문제 발생
+	HoldInfo.Reset();
+
 	if (OnHoldEnd.IsBound())
 	{
 		OnHoldEnd.Broadcast();
 		OnHoldEnd.Clear();
 	}
-	
-	HoldInfo.Reset();
 }
 
 void UPRInteractorComponent::OnHoldFinished()
@@ -540,8 +551,7 @@ void UPRInteractorComponent::Internal_StartHold(UPRInteractableComponent* Target
 		return;
 	}
 	
-	SetHoldInfo(Target, HoldAction);
-	ClientStartHold(Target, ActionIndex);
+	MulticastStartHold(Target, ActionIndex);
 	
 	if (UWorld* World = GetWorld())
 	{
@@ -554,7 +564,6 @@ void UPRInteractorComponent::Internal_StartHold(UPRInteractableComponent* Target
 
 void UPRInteractorComponent::ClearPreviousInteraction()
 {
-	
 	// 이미 유지형 상호작용 중이면 먼저 종료
 	if (ActiveInteractionInfo.IsValid())
 	{

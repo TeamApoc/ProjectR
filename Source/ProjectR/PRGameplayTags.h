@@ -94,6 +94,7 @@ namespace PRGameplayTags
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(State_Boss_WeakpointOpen_Core); // 보스 코어 약점 오픈 상태.
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(State_Armed); // 플레이어 무기 장착중 상태
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(State_Block_Move); // 움직임 비활성화 상태
+	UE_DECLARE_GAMEPLAY_TAG_EXTERN(State_Reviving); // 소생중 상태
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(State_WeaponZooming); // 무기 줌 상태
 
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(State_UsingConsumable); // 소비 아이템 사용중인 상태
@@ -114,7 +115,9 @@ namespace PRGameplayTags
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Event_Ability_Death); // 사망 이벤트.
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Event_Ability_Down); // 다운 이벤트.
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Event_Ability_GetUp); // 기상 이벤트.
-	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Event_Ability_Revive); // 소생 이벤트.
+	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Event_Ability_Revive_Start); // 소생 이벤트.
+	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Event_Ability_Revive_Finished);
+	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Event_Ability_Revive_Canceled);
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Event_Ability_GroggyEntered); // 그로기 진입 이벤트.
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Event_Ability_PhaseTransition); // 페이즈 전환 이벤트.
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Event_Ability_PlayerHitReact_Weak); // 플레이어 약한 경직 이벤트

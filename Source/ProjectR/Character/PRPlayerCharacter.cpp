@@ -82,6 +82,8 @@ APRPlayerCharacter::APRPlayerCharacter()
 	GetCharacterMovement()->bAllowPhysicsRotationDuringAnimRootMotion = true;
 	
 	InteractableComponent = CreateDefaultSubobject<UPRInteractableComponent>(TEXT("InteractableComponent"));
+	InteractableComponent->bOnlyApplyDepthStencilOnAvailable = true;
+	
 	InteractionSphere = CreateDefaultSubobject<USphereComponent>(TEXT("InteractionSphere"));
 	InteractionSphere->SetSphereRadius(30.f);
 	InteractionSphere->SetCollisionProfileName(TEXT("Interactable"));
@@ -290,10 +292,9 @@ void APRPlayerCharacter::HandleGameplayTagUpdated(const FGameplayTag& ChangedTag
 	// 소비템 사용중에 무기 숨기기
 	if (ChangedTag.MatchesTagExact(PRGameplayTags::State_UsingConsumable))
 	{
-		APRWeaponActor* ActiveWeapon = IsValid(WeaponManagerComponent) ? WeaponManagerComponent->GetActiveWeaponActor() : nullptr;
-		ActiveWeapon->SetIsIKSuppressed(bTagExists);
-		if (IsValid(ActiveWeapon))
+		if (APRWeaponActor* ActiveWeapon = WeaponManagerComponent->GetActiveWeaponActor())
 		{
+			ActiveWeapon->SetIsIKSuppressed(bTagExists);
 			ActiveWeapon->SetActorHiddenInGame(bTagExists);
 		}
 	}

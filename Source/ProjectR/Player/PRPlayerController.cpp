@@ -19,6 +19,9 @@
 #include "ProjectR/UI/FloatingText/PRFloatingTextManager.h"
 #include "ProjectR/Interaction/PRInteractionSensor.h"
 #include "ProjectR/Interaction/PRInteractorComponent.h"
+#include "ProjectR/Character/PRPlayerCharacter.h"
+#include "ProjectR/Interaction/PRInteractableComponent.h"
+#include "ProjectR/Game/PRGameStateBase.h"
 
 
 APRPlayerController::APRPlayerController()
@@ -43,6 +46,13 @@ void APRPlayerController::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& 
 	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
 
 	DOREPLIFETIME_CONDITION(APRPlayerController, CheatHandler, COND_OwnerOnly);
+}
+
+void APRPlayerController::Tick(float DeltaSeconds)
+{
+	Super::Tick(DeltaSeconds);
+
+	UpdateCompanionHighlight();
 }
 
 void APRPlayerController::BeginPlay()
@@ -170,6 +180,73 @@ UPRAbilitySystemComponent* APRPlayerController::GetASC() const
 }
 
 // =====  캐릭터 페이로드 제출 =====
+
+void APRPlayerController::UpdateCompanionHighlight()
+{
+	if (!IsLocalController())
+	{
+		return;
+	}
+
+	UWorld* World = GetWorld();
+	if (!IsValid(World))
+	{
+		return;
+	}
+
+	APRGameStateBase* GS = World->GetGameState<APRGameStateBase>();
+	if (!IsValid(GS))
+	{
+		return;
+	}
+
+	FVector ViewLocation;
+	FRotator ViewRotation;
+	GetPlayerViewPoint(ViewLocation, ViewRotation);
+
+	APawn* MyPawn = GetPawn();
+
+	// 본인 제외 모든 플레이어 캐릭터 순회. 카메라 뷰포인트에서 캐릭터 위치까지 라인 트레이스로 차폐 여부 판정
+	for (APRPlayerCharacter* OtherCharacter : GS->GetPlayerCharacters())
+	{
+		if (OtherCharacter == MyPawn)
+		{
+			continue;
+		}
+		
+		UPRInteractableComponent* Interactable = OtherCharacter->GetInteractableComponent();
+		if (InteractorComponent->GetFocusedComponent() == Interactable)
+		{
+			continue;
+		}
+		
+		FCollisionQueryParams Params(SCENE_QUERY_STAT(PRPlayerVisibility), false, this);
+		Params.AddIgnoredActor(OtherCharacter);
+		if (IsValid(MyPawn))
+		{
+			Params.AddIgnoredActor(MyPawn);
+		}
+
+		FHitResult Hit;
+		const bool bBlocked = World->LineTraceSingleByChannel(
+			Hit, ViewLocation, OtherCharacter->GetActorLocation(), ECC_Visibility, Params);
+		const bool bVisible = !bBlocked;
+		
+		if (Interactable->IsDepthStencilApplied())
+		{
+			// 보이는 경우 하이라이트 해제
+			if (bVisible)
+			{
+				Interactable->ResetDepthStencilValues();
+			}
+		}
+		// 벽에 가려진 경우 하이라이트 적용
+		else if (!bVisible)
+		{
+			Interactable->ApplyDepthStencilValues(false);
+		}
+	}
+}
 
 void APRPlayerController::SubmitLocalCharacterToServer()
 {

@@ -144,14 +144,14 @@ protected:
 	UFUNCTION(Server, Reliable)
 	void ServerFinishHold();
 	
-	UFUNCTION(Client, Reliable)
-	void ClientStartHold(UPRInteractableComponent* Target, int8 ActionIndex);
+	UFUNCTION(NetMulticast, Reliable)
+	void MulticastStartHold(UPRInteractableComponent* Target, int8 ActionIndex);
 	
-	UFUNCTION(Client, Reliable)
-	void ClientCancelHold();
+	UFUNCTION(NetMulticast, Reliable)
+	void MulticastCancelHold();
 	
-	UFUNCTION(Client, Reliable)
-	void ClientFinishHold();
+	UFUNCTION(NetMulticast, Reliable)
+	void MulticastFinishHold();
 
 	// 서버 거부 알림. 클라 선반영 상태 정리 + 종료 델리게이트 broadcast 
 	UFUNCTION(Client, Reliable)
@@ -166,16 +166,19 @@ private:
 	// 홀드 시작, 서버 권위에서 실행
 	void Internal_StartHold(UPRInteractableComponent* Target, int32 ActionIndex);
 	
+	// 이전 상호작용 정보 초기화
 	void ClearPreviousInteraction();
 	
-
 	// 활성 유지형 상호작용을 종료한다
 	void Internal_EndActiveInteraction();
 
 	// 활성 유지형 상호작용 추적을 시작한다
 	void Internal_SetActiveInteraction(UPRInteractionAction* Action, UPRInteractableComponent* Interactable);
 
+	// 홀드 설정
 	void SetHoldInfo(UPRInteractableComponent* Target, UPRInteractionAction* HoldAction);
+	
+	// 홀드 정보 초기화
 	void ClearHoldInfo();
 	
 	UFUNCTION()
@@ -184,7 +187,7 @@ private:
 public:
 	// 상호작용 최대 거리 (cm)
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Interaction", meta = (ClampMin = "0.0"))
-	float MaxInteractionDistance = 200.f;
+	float MaxInteractionDistance = 300.f;
 	
 	FOnInteractionEndSignature OnInteractionEnd;
 	FOnInteractionEndSignature OnHoldEnd;

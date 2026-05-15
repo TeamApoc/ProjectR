@@ -86,3 +86,6 @@ Docs/Private
 *.code-workspace
 /*.md
 .ignore
+.vscode
+*.code-workspace
+*.user

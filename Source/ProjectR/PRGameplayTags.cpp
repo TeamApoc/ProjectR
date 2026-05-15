@@ -27,6 +27,9 @@ namespace PRGameplayTags
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Ability_Player_SwapWeapon, "Ability.Player.SwapWeapon", "플레이어 주무기/보조무기 교체 어빌리티");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Ability_Player_Death, "Ability.Player.Death", "플레이어 사망 어빌리티");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Ability_Player_Down, "Ability.Player.Down", "플레이어 다운 어빌리티");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Ability_Player_Weapon_Zoom, "Ability.Player.Weapon.Zoom", "플레이어 볼트액션 줌 어빌리티");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Ability_Player_GetUp, "Ability.Player.GetUp", "플레이어 기상 어빌리티");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Ability_Player_Revive, "Ability.Player.Revive", "플레이어 동료 소생 어빌리티");
 
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Ability_Enemy_Pattern, "Ability.Enemy.Pattern", "일반 적 패턴 공통 루트");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Ability_Boss_Pattern, "Ability.Boss.Pattern", "보스 패턴 공통 루트");
@@ -91,9 +94,11 @@ namespace PRGameplayTags
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(State_Boss_WeakpointOpen_Core, "State.Boss.WeakpointOpen.Core", "보스 코어 약점 오픈 상태");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(State_Armed, "State.Armed", "플레이어 무기 장착중 상태");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(State_Block_Move, "State.Block.Move", "움직임 비활성화 상태");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(State_WeaponZooming, "State.WeaponZooming", "움직임 비활성화 상태");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(State_Mod_Primary_GaugeLocked, "State.Mod.Primary.GaugeLocked", "주무기 Mod 게이지 축적 차단 상태");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(State_Mod_Secondary_GaugeLocked, "State.Mod.Secondary.GaugeLocked", "보조무기 Mod 게이지 축적 차단 상태");
 	
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(State_Reviving, "State.Reviving", "소생중 상태");	
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(State_UsingConsumable, "State.UsingConsumable", "플레이어 소비템 사용중 상테");
 	
 
@@ -114,6 +119,10 @@ namespace PRGameplayTags
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Event_Hit, "Event.Hit", "피격 이벤트");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Event_Ability_Death, "Event.Ability.Death", "사망 이벤트");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Event_Ability_Down, "Event.Ability.Down", "다운 이벤트");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Event_Ability_GetUp, "Event.Ability.GetUp", "기상 이벤트");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Event_Ability_Revive_Start, "Event.Ability.Revive.Start", "소생 이벤트");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Event_Ability_Revive_Finished, "Event.Ability.Revive.Finished", "소생 완료 이벤트");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Event_Ability_Revive_Canceled, "Event.Ability.Revive.Canceled", "소생 취소 이벤트");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Event_Ability_GroggyEntered, "Event.Ability.GroggyEntered", "그로기 진입 이벤트");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Event_Ability_PhaseTransition, "Event.Ability.PhaseTransition", "페이즈 전환 이벤트");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Event_Ability_PlayerHitReact_Weak, "Event.Ability.PlayerHitReact.Weak", "플레이어 약한 경직 이벤트");
@@ -131,6 +140,10 @@ namespace PRGameplayTags
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Event_Player_ConsumableCommit, "Event.Player.ConsumableCommit", "소비 아이템 사용 확정 트리거");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Event_Player_Interaction_Hold, "Event.Player.Interaction.Hold", "Hold 상호작용 단계 알림");
 
+	// ===== Event.Boss.* =====
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Event_Boss_Encounter_Begin, "Event.Boss.Encounter.Begin", "보스 조우 시작 (FPRBossEncounterEventPayload 동반)");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Event_Boss_Encounter_End, "Event.Boss.Encounter.End", "보스 조우 종료");
+
 	// ===== Cue.* =====
 
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Cue_Critical_Boss_PhaseTransition, "Cue.Critical.Boss.PhaseTransition", "보스 페이즈 전환 연출 Cue");
@@ -147,6 +160,7 @@ namespace PRGameplayTags
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Input_Ability_Mod, "Input.Ability.Mod", "모드 스킬 입력 태그");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Input_Ability_Reload, "Input.Ability.Reload", "재장전 입력 태그");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Input_Ability_SwapWeapon, "Input.Ability.SwapWeapon", "주무기/보조무기 교체 입력 태그");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Input_Ability_Zoom, "Input.Ability.Zoom", "무기 줌 입력 태그");
 
 	// ===== Input.Locomotion.* =====
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Input_Locomotion_Walk, "Input.Locomotion.Walk", "Walk 토글 입력 태그");

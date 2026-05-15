@@ -41,12 +41,6 @@ protected:
 	// 최종 사망 상태 태그, 이동 정지, 몽타주 재생을 적용한다.
 	void EnterDeath();
 
-	// 최종 사망 상태 태그를 서버에서 부여하고 복제한다.
-	void ApplyDeathStateTags();
-
-	// 이 Ability가 부여한 최종 사망 상태 태그를 제거한다.
-	void ClearDeathStateTags();
-
 	// GameMode에 플레이어 최종 사망 진입을 알린다.
 	void NotifyDeathToGameMode() const;
 
@@ -55,14 +49,13 @@ protected:
 	UPROPERTY(EditDefaultsOnly, Category = "ProjectR|Death|Montage")
 	TObjectPtr<UAnimMontage> DeathMontage;
 
+	UPROPERTY(EditDefaultsOnly, Category = "ProjectR|Death|Montage")
+	TObjectPtr<UAnimMontage> DownToDeathMontage;
+
+	UPROPERTY(EditDefaultsOnly, Category = "ProjectR|Death")
+	FGameplayTagContainer AbilitiesToCancelOnMontage;
+	
 	// 사망 몽타주 재생 속도다.
 	UPROPERTY(EditDefaultsOnly, Category = "ProjectR|Death|Montage", meta = (ClampMin = "0.1"))
 	float MontagePlayRate = 1.0f;
-
-private:
-	UPROPERTY(Transient)
-	TObjectPtr<UAbilityTask_PlayMontageAndWait> ActiveMontageTask;
-
-	// 최종 사망 상태 태그를 이 Ability가 직접 부여했는지 나타낸다.
-	bool bDeathStateTagsAdded = false;
 };

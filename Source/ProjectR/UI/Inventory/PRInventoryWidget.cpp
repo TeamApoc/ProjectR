@@ -9,7 +9,7 @@
 #include "ProjectR/Inventory/Data/PRConsumableDataAsset.h"
 #include "ProjectR/Inventory/Data/PRItemDataAsset.h"
 #include "ProjectR/Inventory/Items/PRItemInstance_Consumable.h"
-#include "ProjectR/QuickSlot/Coponents/PRQuickSlotComponent.h"
+#include "ProjectR/Inventory/Components/PRQuickSlotComponent.h"
 #include "ProjectR/Weapon/Components/PRWeaponManagerComponent.h"
 #include "ProjectR/Weapon/Data/PRWeaponDataAsset.h"
 #include "ProjectR/Weapon/Data/PRWeaponModDataAsset.h"
@@ -302,10 +302,9 @@ void UPRInventoryWidget::HandleItemListSelection(const FPRInventoryItemSlotViewD
 	CloseItemList();
 }
 
-void UPRInventoryWidget::HandleInventoryChanged(UPRInventoryComponent* ChangedInventoryComponent, EPRInventoryChangeReason ChangeReason)
+void UPRInventoryWidget::HandleInventoryChanged(UPRInventoryComponent* ChangedInventoryComponent,
+	const FPRInventoryChangeEventData& EventData)
 {
-	static_cast<void>(ChangeReason);
-
 	if (ChangedInventoryComponent != InventoryComponent)
 	{
 		return;

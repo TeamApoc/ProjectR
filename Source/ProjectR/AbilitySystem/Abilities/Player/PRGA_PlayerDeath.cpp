@@ -25,7 +25,7 @@ UPRGA_PlayerDeath::UPRGA_PlayerDeath()
 
 	ActivationBlockedTags.AddTag(PRGameplayTags::State_Dead);
 
-	CancelAbilitiesWithTag.AddTag(PRGameplayTags::Ability_Player_Down);
+	AbilitiesToCancelOnMontage.AddTag(PRGameplayTags::Ability_Player_Down);
 	CancelAbilitiesWithTag.AddTag(PRGameplayTags::Ability_Player_Weapon_Fire_Primary);
 	CancelAbilitiesWithTag.AddTag(PRGameplayTags::Ability_Player_Aim);
 	CancelAbilitiesWithTag.AddTag(PRGameplayTags::Ability_Player_Crouch);
@@ -44,6 +44,10 @@ UPRGA_PlayerDeath::UPRGA_PlayerDeath()
 	BlockAbilitiesWithTag.AddTag(PRGameplayTags::Ability_Player_Interaction);
 	BlockAbilitiesWithTag.AddTag(PRGameplayTags::Ability_Player_HitReact);
 
+	ActivationOwnedTags.AddTag(PRGameplayTags::State_Dead);
+	ActivationOwnedTags.AddTag(PRGameplayTags::State_PlayerInputLocked);
+	ActivationOwnedTags.AddTag(PRGameplayTags::State_Block_Move);
+	
 	ReplicationPolicy = EGameplayAbilityReplicationPolicy::ReplicateYes;
 	InstancingPolicy = EGameplayAbilityInstancingPolicy::InstancedPerActor;
 	NetExecutionPolicy = EGameplayAbilityNetExecutionPolicy::ServerInitiated;
@@ -54,17 +58,6 @@ void UPRGA_PlayerDeath::ActivateAbility(const FGameplayAbilitySpecHandle Handle,
 	const FGameplayAbilityActivationInfo ActivationInfo,
 	const FGameplayEventData* TriggerEventData)
 {
-	if (TriggerEventData != nullptr
-		&& TriggerEventData->EventTag.MatchesTagExact(PRGameplayTags::Event_Ability_Death))
-	{
-		const UAbilitySystemComponent* ASC = GetAbilitySystemComponentFromActorInfo();
-		if (IsValid(ASC) && ASC->HasMatchingGameplayTag(PRGameplayTags::State_Down))
-		{
-			EndAbility(Handle, ActorInfo, ActivationInfo, true, false);
-			return;
-		}
-	}
-
 	if (!CommitAbility(Handle, ActorInfo, ActivationInfo))
 	{
 		EndAbility(Handle, ActorInfo, ActivationInfo, true, true);
@@ -72,6 +65,7 @@ void UPRGA_PlayerDeath::ActivateAbility(const FGameplayAbilitySpecHandle Handle,
 	}
 
 	EnterDeath();
+	Super::ActivateAbility(Handle, ActorInfo, ActivationInfo, TriggerEventData);
 }
 
 void UPRGA_PlayerDeath::EndAbility(const FGameplayAbilitySpecHandle Handle,
@@ -80,116 +74,57 @@ void UPRGA_PlayerDeath::EndAbility(const FGameplayAbilitySpecHandle Handle,
 	bool bReplicateEndAbility,
 	bool bWasCancelled)
 {
-	if (IsValid(ActiveMontageTask))
-	{
-		ActiveMontageTask->EndTask();
-		ActiveMontageTask = nullptr;
-	}
-
-	ClearDeathStateTags();
-
 	Super::EndAbility(Handle, ActorInfo, ActivationInfo, bReplicateEndAbility, bWasCancelled);
 }
 
 void UPRGA_PlayerDeath::HandleDeathMontageCompleted()
 {
-	ActiveMontageTask = nullptr;
 }
 
 void UPRGA_PlayerDeath::HandleDeathMontageInterrupted()
 {
-	ActiveMontageTask = nullptr;
 }
 
 void UPRGA_PlayerDeath::EnterDeath()
 {
-	ApplyDeathStateTags();
-
 	if (ACharacter* Character = Cast<ACharacter>(GetAvatarActorFromActorInfo()))
 	{
 		UCharacterMovementComponent* CharacterMovement = Character->GetCharacterMovement();
 		if (IsValid(CharacterMovement))
 		{
 			CharacterMovement->StopMovementImmediately();
-			CharacterMovement->DisableMovement();
 		}
 	}
 
 	NotifyDeathToGameMode();
-
-	if (IsValid(ActiveMontageTask))
+	
+	UAnimMontage* MontageToPlay = nullptr;
+	
+	if (auto ASC =  GetAbilitySystemComponentFromActorInfo())
 	{
-		ActiveMontageTask->EndTask();
-		ActiveMontageTask = nullptr;
+		const bool bIsDown = ASC->HasMatchingGameplayTag(PRGameplayTags::State_Down); 
+		MontageToPlay = bIsDown ? DownToDeathMontage : DeathMontage;
+		ASC->CancelAbilities(&AbilitiesToCancelOnMontage);
 	}
-
-	if (!IsValid(DeathMontage))
+	
+	if (!IsValid(MontageToPlay))
 	{
 		return;
 	}
 
-	ActiveMontageTask = UAbilityTask_PlayMontageAndWait::CreatePlayMontageAndWaitProxy(
+	UAbilityTask_PlayMontageAndWait* MontageTask = UAbilityTask_PlayMontageAndWait::CreatePlayMontageAndWaitProxy(
 		this,
 		NAME_None,
-		DeathMontage,
+		MontageToPlay,
 		FMath::Max(MontagePlayRate, UE_SMALL_NUMBER),
 		NAME_None,
 		true);
-	if (!IsValid(ActiveMontageTask))
-	{
-		return;
-	}
 
-	ActiveMontageTask->OnCompleted.AddDynamic(this, &UPRGA_PlayerDeath::HandleDeathMontageCompleted);
-	ActiveMontageTask->OnBlendOut.AddDynamic(this, &UPRGA_PlayerDeath::HandleDeathMontageCompleted);
-	ActiveMontageTask->OnInterrupted.AddDynamic(this, &UPRGA_PlayerDeath::HandleDeathMontageInterrupted);
-	ActiveMontageTask->OnCancelled.AddDynamic(this, &UPRGA_PlayerDeath::HandleDeathMontageInterrupted);
-	ActiveMontageTask->ReadyForActivation();
-}
-
-void UPRGA_PlayerDeath::ApplyDeathStateTags()
-{
-	AActor* AvatarActor = GetAvatarActorFromActorInfo();
-	if (!IsValid(AvatarActor) || !AvatarActor->HasAuthority() || bDeathStateTagsAdded)
-	{
-		return;
-	}
-
-	UAbilitySystemComponent* ASC = GetAbilitySystemComponentFromActorInfo();
-	if (!IsValid(ASC))
-	{
-		return;
-	}
-
-	ASC->AddLooseGameplayTag(PRGameplayTags::State_Dead);
-	ASC->AddLooseGameplayTag(PRGameplayTags::State_Block_Move);
-	ASC->AddLooseGameplayTag(PRGameplayTags::State_PlayerInputLocked);
-	ASC->AddReplicatedLooseGameplayTag(PRGameplayTags::State_Dead);
-	ASC->AddReplicatedLooseGameplayTag(PRGameplayTags::State_Block_Move);
-	ASC->AddReplicatedLooseGameplayTag(PRGameplayTags::State_PlayerInputLocked);
-	bDeathStateTagsAdded = true;
-}
-
-void UPRGA_PlayerDeath::ClearDeathStateTags()
-{
-	if (!bDeathStateTagsAdded)
-	{
-		return;
-	}
-
-	AActor* AvatarActor = GetAvatarActorFromActorInfo();
-	UAbilitySystemComponent* ASC = GetAbilitySystemComponentFromActorInfo();
-	if (IsValid(AvatarActor) && AvatarActor->HasAuthority() && IsValid(ASC))
-	{
-		ASC->RemoveLooseGameplayTag(PRGameplayTags::State_Dead);
-		ASC->RemoveLooseGameplayTag(PRGameplayTags::State_Block_Move);
-		ASC->RemoveLooseGameplayTag(PRGameplayTags::State_PlayerInputLocked);
-		ASC->RemoveReplicatedLooseGameplayTag(PRGameplayTags::State_Dead);
-		ASC->RemoveReplicatedLooseGameplayTag(PRGameplayTags::State_Block_Move);
-		ASC->RemoveReplicatedLooseGameplayTag(PRGameplayTags::State_PlayerInputLocked);
-	}
-
-	bDeathStateTagsAdded = false;
+	MontageTask->OnCompleted.AddDynamic(this, &UPRGA_PlayerDeath::HandleDeathMontageCompleted);
+	MontageTask->OnBlendOut.AddDynamic(this, &UPRGA_PlayerDeath::HandleDeathMontageCompleted);
+	MontageTask->OnInterrupted.AddDynamic(this, &UPRGA_PlayerDeath::HandleDeathMontageInterrupted);
+	MontageTask->OnCancelled.AddDynamic(this, &UPRGA_PlayerDeath::HandleDeathMontageInterrupted);
+	MontageTask->ReadyForActivation();
 }
 
 void UPRGA_PlayerDeath::NotifyDeathToGameMode() const

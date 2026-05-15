@@ -1132,6 +1132,8 @@ void UPRWeaponManagerComponent::SetCurrentWeaponSlotInternal(EPRWeaponSlotType T
 
 	// 활성 슬롯 전환에 맞춰 애니메이션 레이어 갱신
 	RefreshAnimLayer();
+
+	OnWeaponEquipmentChanged.Broadcast(this, TargetSlot);
 }
 
 void UPRWeaponManagerComponent::RefreshWeaponActorForSlot(EPRWeaponSlotType SlotType)
@@ -1313,6 +1315,8 @@ void UPRWeaponManagerComponent::OnRep_CurrentWeaponSlot(EPRWeaponSlotType OldCur
 
 	// 활성 슬롯 변화에 맞춰 애니메이션 레이어 갱신
 	RefreshAnimLayer();
+
+	OnWeaponEquipmentChanged.Broadcast(this, CurrentWeaponSlot);
 }
 
 void UPRWeaponManagerComponent::OnRep_PrimaryVisualInfo(FPRWeaponVisualInfo OldVisualInfo)

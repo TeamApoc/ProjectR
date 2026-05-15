@@ -28,24 +28,13 @@ namespace
 void UPRItemInstance_Consumable::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const
 {
 	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
-
-	DOREPLIFETIME(UPRItemInstance_Consumable, ConsumableData);
-	DOREPLIFETIME(UPRItemInstance_Consumable, StackCount);
 }
 
-void UPRItemInstance_Consumable::InitializeConsumableItem(UPRConsumableDataAsset* InConsumableData, int32 InitialStackCount)
-{
-	ConsumableData = InConsumableData;
-	StackCount = FMath::Max(InitialStackCount, 0);
-
-	if (IsValid(ConsumableData))
-	{
-		StackCount = FMath::Min(StackCount, ConsumableData->MaxStackCount);
-	}
-}
 
 bool UPRItemInstance_Consumable::UseItem(AActor* UserActor)
 {
+	const UPRConsumableDataAsset* ConsumableData = GetConsumableData();
+	
 	if (!IsValid(UserActor) || !UserActor->HasAuthority())
 	{
 		UE_LOG(
@@ -119,48 +108,13 @@ bool UPRItemInstance_Consumable::UseItem(AActor* UserActor)
 	return true;
 }
 
-bool UPRItemInstance_Consumable::HasAnyStack() const
+UPRConsumableDataAsset* UPRItemInstance_Consumable::GetConsumableData() const
 {
-	return StackCount > 0;
-}
-
-bool UPRItemInstance_Consumable::AddStack(int32 AddCount)
-{
-	if (AddCount <= 0 || !IsValid(ConsumableData))
-	{
-		return false;
-	}
-
-	const int32 PreviousStackCount = StackCount;
-	StackCount = FMath::Clamp(StackCount + AddCount, 0, ConsumableData->MaxStackCount);
-
-	if (StackCount == PreviousStackCount)
-	{
-		return false;
-	}
-
-	NotifyInventoryChanged(EPRInventoryChangeReason::ItemListChanged);
-	return true;
-}
-
-bool UPRItemInstance_Consumable::RemoveStack(int32 RemoveCount)
-{
-	if (RemoveCount <= 0 || StackCount < RemoveCount)
-	{
-		return false;
-	}
-
-	StackCount -= RemoveCount;
-	NotifyInventoryChanged(EPRInventoryChangeReason::ItemListChanged);
-	return true;
+	return Cast<UPRConsumableDataAsset>(ItemData);
 }
 
 bool UPRItemInstance_Consumable::CanUseItem(AActor* UserActor) const
 {
+	const UPRConsumableDataAsset* ConsumableData = GetConsumableData();
 	return IsValid(UserActor) && IsValid(ConsumableData) && IsValid(ConsumableData->UseAbilityClass) && StackCount > 0;
-}
-
-void UPRItemInstance_Consumable::OnRep_StackCount()
-{
-	NotifyInventoryChanged(EPRInventoryChangeReason::ItemListChanged);
 }

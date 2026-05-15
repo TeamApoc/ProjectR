@@ -2,6 +2,8 @@
 
 #include "PRGameStateBase.h"
 #include "Net/UnrealNetwork.h"
+#include "GameFramework/PlayerState.h"
+#include "ProjectR/Character/PRPlayerCharacter.h"
 
 // ===== 복제 등록 =====
 
@@ -20,6 +22,30 @@ void APRGameStateBase::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& Out
 bool APRGameStateBase::IsBossDefeated(FName BossId) const
 {
 	return DefeatedBosses.Contains(BossId);
+}
+
+TArray<APRPlayerCharacter*> APRGameStateBase::GetPlayerCharacters() const
+{
+	TArray<APRPlayerCharacter*> OutCharacters;
+	OutCharacters.Reserve(PlayerArray.Num());
+
+	for (APlayerState* PS : PlayerArray)
+	{
+		if (!IsValid(PS))
+		{
+			continue;
+		}
+
+		APRPlayerCharacter* PlayerCharacter = Cast<APRPlayerCharacter>(PS->GetPawn());
+		if (!IsValid(PlayerCharacter))
+		{
+			continue;
+		}
+
+		OutCharacters.Add(PlayerCharacter);
+	}
+
+	return OutCharacters;
 }
 
 // ===== 서버 권위 변경 =====

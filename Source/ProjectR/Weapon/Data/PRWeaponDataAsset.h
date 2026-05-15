@@ -17,6 +17,7 @@
 class APRWeaponActor;
 class USkeletalMesh;
 class UAnimMontage;
+class UUserWidget;
 
 // 무기 1종의 정적 장착 규칙과 기본 탄약 설정을 담는다
 UCLASS(BlueprintType)
@@ -113,4 +114,8 @@ public:
 	// 발사 간격(초). RPM = 60 / FireInterval. 0.1 = 600 RPM
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|01_Weapon|Fire", meta = (ClampMin = "0.01"))
 	float FireInterval = 0.1f;
+
+	// 무기 장착 중 HUD에 준비할 스코프 위젯 클래스
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|01_Weapon|UI")
+	TSubclassOf<UUserWidget> ScopeWidgetClass;
 };

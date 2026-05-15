@@ -6,8 +6,11 @@
 #include "PRCharacterBase.h"
 #include "Net/UnrealNetwork.h"
 #include "ProjectR/AbilitySystem/Data/PRAbilitySet.h"
+#include "ProjectR/Interaction/PRInteractionInterface.h"
 #include "PRPlayerCharacter.generated.h"
 
+class USphereComponent;
+class UPRInteractableComponent;
 class USpringArmComponent;
 class UCameraComponent;
 class UInputMappingContext;
@@ -21,7 +24,7 @@ struct FInputActionValue;
 class UPRWeaponDataAsset;
 
 UCLASS()
-class PROJECTR_API APRPlayerCharacter : public APRCharacterBase
+class PROJECTR_API APRPlayerCharacter : public APRCharacterBase, public IPRInteractionInterface
 {
 	GENERATED_BODY()
 
@@ -41,6 +44,9 @@ public:
 	/*~ IPRCombatInterface ~*/
 	virtual EPRTeam GetTeam() const override { return EPRTeam::Player; }
 
+	/*~ IPRInteractionInterface ~*/
+	virtual UPRInteractableComponent* GetInteractableComponent() const override { return InteractableComponent; }
+	
 	/*~ APRPlayerCharacter Interface ~*/
 	/** 애니메이션 인스턴스에서 사용하는 게터 함수들 */                   
 	bool IsCrouching() const { return bIsCrouched; } 
@@ -111,7 +117,15 @@ public:
 	/** 투사체 발사 예측 경로 표시 컴포넌트. 로컬 시각 효과 전용 */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Projectile")
 	TObjectPtr<UPRProjectileTrajectoryPreviewComponent> ProjectileTrajectoryPreviewComponent;
-
+	
+	// 상호작용 타겟 컴포넌트
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Interaction")
+	TObjectPtr<UPRInteractableComponent> InteractableComponent;
+	
+	// 상호작용 collider
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Interaction")
+	TObjectPtr<USphereComponent> InteractionSphere;
+	
 protected:
 	/** Enhanced Input 에셋 (블루프린트에서 할당) */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Input")

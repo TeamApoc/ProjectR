@@ -115,7 +115,7 @@ bool APRPlayGameMode::AcceptGuestCharacter(APRPlayerController* From, const FPRC
 	// PlayerState에 주입. 이후 복제로 모든 클라에 전파
 	if (APRPlayerState* PS = From->GetPlayerState<APRPlayerState>())
 	{
-		PS->InitializeFromSaveData(Payload);
+		PS->InitializePrimaryInfoFromSaveData(Payload);
 		return true;
 	}
 
@@ -201,13 +201,18 @@ void APRPlayGameMode::ConfirmPartyWipe()
 			continue;
 		}
 
-		if (PRPlayerState->IsDown())
-		{
-			PRPlayerState->SendSurvivalGameplayEvent(PRGameplayTags::Event_Ability_PlayerDeathConfirmed);
-		}
-		else if (!PRPlayerState->IsDead())
+		if (!PRPlayerState->IsDead())
 		{
 			PRPlayerState->SendSurvivalGameplayEvent(PRGameplayTags::Event_Ability_Death);
 		}
+		
+		// if (PRPlayerState->IsDown())
+		// {
+		// 	PRPlayerState->SendSurvivalGameplayEvent(PRGameplayTags::Event_Ability_PlayerDeathConfirmed);
+		// }
+		// else if (!PRPlayerState->IsDead())
+		// {
+		// 	PRPlayerState->SendSurvivalGameplayEvent(PRGameplayTags::Event_Ability_Death);
+		// }
 	}
 }

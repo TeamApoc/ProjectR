@@ -4,11 +4,33 @@
 
 #include "CoreMinimal.h"
 #include "Components/ActorComponent.h"
+#include "ProjectR/System/PREventTypes.h"
 #include "PRInteractableComponent.generated.h"
 
 class UPRInteractionAction;
 class UPRInteractorComponent;
 class UMeshComponent;
+
+/**
+ * 상호작용 프롬프트 이벤트 페이로드.
+ */
+USTRUCT(BlueprintType)
+struct PROJECTR_API FPRInteractableEventPayload : public FPREventPayload
+{
+	GENERATED_BODY()
+
+	// 프롬프트 표시 여부: true = 표시, false = 숨김
+	UPROPERTY(BlueprintReadWrite)
+	bool bShowPrompt = false;
+	
+	// 상호작용 가능 여부: false면 반투명 처리
+	UPROPERTY(BlueprintReadWrite)
+	bool bCanInteract = false;
+	
+	// 상호작용 힌트 텍스트 (예: "줍기")
+	UPROPERTY(BlueprintReadWrite)
+	FText ActionHintText;
+};
 
 /**
  * 상호작용 가능한 오브젝트에 부착하는 컴포넌트.
@@ -94,6 +116,10 @@ public:
 protected:
 	UFUNCTION()
 	void OnRep_CurrentInteractor();
+
+private:
+	// EventManager 로 상호작용 프롬프트 이벤트(bShowPrompt + bCanInteract + ActionHintText) 브로드캐스트
+	void BroadcastInteractableEvent(AActor* Viewer, bool bIsInRange) const;
 
 public:
 	// 이 컴포넌트에 등록된 상호작용 행동 목록

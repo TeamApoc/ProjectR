@@ -67,19 +67,28 @@ void UPRInteractionAction::EndInteraction_Implementation()
 void UPRInteractionAction::OnHoldStart_Implementation(AActor* Interactor)
 {
 	// HUD 등 클라측 리스너에 Hold 시작을 알림. HoldDuration 을 함께 전달
-	BroadcastHoldEvent(EPRInteractionHoldPhase::Start);
+	if (IsLocalPlayer(Interactor))
+	{
+		BroadcastHoldEvent(EPRInteractionHoldPhase::Start);
+	}
 }
 
 void UPRInteractionAction::OnHoldCanceled_Implementation(AActor* Interactor)
 {
 	// HUD 등 클라측 리스너에 Hold 취소를 알림
-	BroadcastHoldEvent(EPRInteractionHoldPhase::Canceled);
+	if (IsLocalPlayer(Interactor))
+	{
+		BroadcastHoldEvent(EPRInteractionHoldPhase::Canceled);
+	}
 }
 
 void UPRInteractionAction::OnHoldFinished_Implementation(AActor* Interactor)
 {
 	// HUD 등 클라측 리스너에 Hold 완료를 알림 (Execute 직전 성공 펄스)
-	BroadcastHoldEvent(EPRInteractionHoldPhase::Finished);
+	if (IsLocalPlayer(Interactor))
+	{
+		BroadcastHoldEvent(EPRInteractionHoldPhase::Finished);	
+	}
 }
 
 void UPRInteractionAction::BroadcastHoldEvent(EPRInteractionHoldPhase Phase) const
@@ -105,4 +114,13 @@ void UPRInteractionAction::BroadcastHoldEvent(EPRInteractionHoldPhase Phase) con
 int32 UPRInteractionAction::GetPriority_Implementation() const
 {
 	return Priority;
+}
+
+bool UPRInteractionAction::IsLocalPlayer(AActor* Interactor) const
+{
+	if (AController* AsController =  Cast<AController>(Interactor))
+	{
+		return AsController->IsLocalController();
+	}
+	return false;
 }

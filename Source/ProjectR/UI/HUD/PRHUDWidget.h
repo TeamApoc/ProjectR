@@ -6,10 +6,11 @@
 #include "ProjectR/UI/PRWidgetBase.h"
 #include "PRHUDWidget.generated.h"
 
+class UPRInteractionHintWidget;
 class UPRQuickSlotWidget;
 class UPRWeaponHUDWidget;
 class UPRCrosshairWidget;
-class UPRInteractionHUDWidget;
+class UPRInteractionProgressBar;
 class UPRBossHealthBarWidget;
 class UPRHealthBarWidget;
 class UPRPartyHealthListWidget;
@@ -61,7 +62,10 @@ private:
 
 	// EventManager 콜백: Hold 상호작용 단계 알림 - InteractionHUD 갱신
 	void HandleInteractionHold(FGameplayTag EventTag, const FInstancedStruct& Payload);
-
+	
+	// 상호작용 대상 관련 이벤트 (힌트 표시)
+	void HandleInteractableChanged(FGameplayTag EventTag, const FInstancedStruct& Payload);
+	
 	// EventManager 콜백: 보스 조우 시작 - BossHealthBar에 대상 보스 바인딩
 	void HandleBossEncounterBegin(FGameplayTag EventTag, const FInstancedStruct& Payload);
 
@@ -89,7 +93,10 @@ protected:
 	// UMG 트리에서 동일 이름("InteractionHUD")의 자식이 있을 때 자동 바인딩.
 	// 없으면 Hold 이벤트 바인딩도 건너뛴다
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "HUD")
-	TObjectPtr<UPRInteractionHUDWidget> InteractionHUD;
+	TObjectPtr<UPRInteractionProgressBar> InteractionProgressBar;
+	
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "HUD")
+	TObjectPtr<UPRInteractionHintWidget> InteractionHint;
 	
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "HUD")
 	TObjectPtr<UPRWeaponHUDWidget> WeaponHUD;

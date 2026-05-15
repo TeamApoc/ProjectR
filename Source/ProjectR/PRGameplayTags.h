@@ -131,6 +131,7 @@ namespace PRGameplayTags
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Event_Player_ReloadCommit); // 재장전 몽타주 노티파이가 발행하는 자원 이동 트리거
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Event_Player_ConsumableCommit); // 소비 아이템 몽타주 노티파이가 발행하는 사용 확정 트리거
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Event_Player_Interaction_Hold); // Hold 상호작용 단계 알림 (FPRInteractionHoldEventPayload 동반)
+	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Event_Player_Interactable);
 
 	// ===== Event.Boss.* — 보스 조우 이벤트 =====
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Event_Boss_Encounter_Begin); // 보스 조우 시작 (FPRBossEncounterEventPayload 동반)

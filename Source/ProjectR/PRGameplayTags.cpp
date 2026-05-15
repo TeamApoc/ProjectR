@@ -134,6 +134,7 @@ namespace PRGameplayTags
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Event_Player_ReloadCommit, "Event.Player.ReloadCommit", "재장전 자원 이동 트리거");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Event_Player_ConsumableCommit, "Event.Player.ConsumableCommit", "소비 아이템 사용 확정 트리거");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Event_Player_Interaction_Hold, "Event.Player.Interaction.Hold", "Hold 상호작용 단계 알림");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Event_Player_Interactable, "Event.Player.Interactable", "상호작용 가능 알림");
 
 	// ===== Event.Boss.* =====
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Event_Boss_Encounter_Begin, "Event.Boss.Encounter.Begin", "보스 조우 시작 (FPRBossEncounterEventPayload 동반)");

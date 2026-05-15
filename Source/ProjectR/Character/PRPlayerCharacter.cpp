@@ -8,6 +8,7 @@
 #include "GameFramework/SpringArmComponent.h"
 #include "EnhancedInputComponent.h"
 #include "EnhancedInputSubsystems.h"
+#include "Components/SphereComponent.h"
 #include "Kismet/KismetMathLibrary.h"
 #include "ProjectR/ProjectR.h"
 #include "ProjectR/AbilitySystem/PRAbilitySystemComponent.h"
@@ -15,6 +16,7 @@
 #include "ProjectR/System/PRAssetManager.h"
 #include "ProjectR/PRGameplayTags.h"
 #include "ProjectR/AbilitySystem/AttributeSets/PRAttributeSet_Common.h"
+#include "ProjectR/Interaction/PRInteractableComponent.h"
 #include "ProjectR/Weapon/Components/PRWeaponManagerComponent.h"
 #include "ProjectR/Player/Components/PRActionInputRouterComponent.h"
 #include "ProjectR/Player/Components/PRSpringArmComponent.h"
@@ -78,6 +80,15 @@ APRPlayerCharacter::APRPlayerCharacter()
 	
 	// 루트모션을 통한 회전 켜기
 	GetCharacterMovement()->bAllowPhysicsRotationDuringAnimRootMotion = true;
+	
+	InteractableComponent = CreateDefaultSubobject<UPRInteractableComponent>(TEXT("InteractableComponent"));
+	InteractableComponent->bOnlyApplyDepthStencilOnAvailable = true;
+	
+	InteractionSphere = CreateDefaultSubobject<USphereComponent>(TEXT("InteractionSphere"));
+	InteractionSphere->SetSphereRadius(30.f);
+	InteractionSphere->SetCollisionProfileName(TEXT("Interactable"));
+	InteractionSphere->SetCollisionEnabled(ECollisionEnabled::Type::QueryOnly);
+	InteractionSphere->SetupAttachment(RootComponent);
 }
 
 // =====  ASC 연동 =====
@@ -168,6 +179,15 @@ bool APRPlayerCharacter::IsAiming() const
 	return false;
 }
 
+bool APRPlayerCharacter::IsDown() const
+{
+	if (const UPRAbilitySystemComponent* ASC = GetPRAbilitySystemComponent())
+	{
+		return ASC->HasMatchingGameplayTag(PRGameplayTags::State_Down);
+	}
+	return false;
+}
+
 // Called when the game starts or when spawned
 void APRPlayerCharacter::BeginPlay()
 {
@@ -241,21 +261,53 @@ void APRPlayerCharacter::HandleGameplayTagUpdated(const FGameplayTag& ChangedTag
 	if (ChangedTag.MatchesTagExact(PRGameplayTags::State_Armed))
 	{
 		APRWeaponActor* ActiveWeapon = IsValid(WeaponManagerComponent) ? WeaponManagerComponent->GetActiveWeaponActor() : nullptr;
-		if (IsValid(ActiveWeapon))
-		{
-			ActiveWeapon->SetIsIKSuppressed(bTagExists);
-		}
-
 		// 무기 장착/해제에 맞춰 투사체 예측 경로 표시 컴포넌트의 기점 무기 액터 동기화
 		if (IsValid(ProjectileTrajectoryPreviewComponent))
 		{
 			ProjectileTrajectoryPreviewComponent->SetWeaponActor(bTagExists ? ActiveWeapon : nullptr);
 		}
 	}
+	if (ChangedTag.MatchesTagExact(PRGameplayTags::State_Block_Move))
+	{
+		bBlockMove = bTagExists;
+	}
+	if (ChangedTag.MatchesTagExact(PRGameplayTags::State_Down))
+	{
+		if (bTagExists)
+		{
+			bIsSprinting = false;
+			bIsWalking = false;
+			bIsAiming = false;
+
+			UCharacterMovementComponent* MoveComp = GetCharacterMovement();
+			if (IsValid(MoveComp))
+			{
+				MoveComp->StopMovementImmediately();
+			}
+		}
+
+		UpdateMaxWalkSpeed();
+	}
+	
+	// 소비템 사용중에 무기 숨기기
+	if (ChangedTag.MatchesTagExact(PRGameplayTags::State_UsingConsumable))
+	{
+		if (APRWeaponActor* ActiveWeapon = WeaponManagerComponent->GetActiveWeaponActor())
+		{
+			ActiveWeapon->SetIsIKSuppressed(bTagExists);
+			ActiveWeapon->SetActorHiddenInGame(bTagExists);
+		}
+	}
 }
 
 void APRPlayerCharacter::Move(const FInputActionValue& Value)
 {
+	// 사망 상태 등 움직임 비활성화시 움직임 수신 안함
+	if (IsMovementBlocked())
+	{
+		return;
+	}
+	
 	FVector2D MovementVector = Value.Get<FVector2D>();
 
 	if (!MovementVector.IsNearlyZero()
@@ -309,6 +361,11 @@ void APRPlayerCharacter::WalkPressed()
 		return;
 	}
 
+	if (IsDown())
+	{
+		return;
+	}
+
 	bIsWalking = !bIsWalking;
 	UpdateMaxWalkSpeed();
 	
@@ -320,17 +377,21 @@ void APRPlayerCharacter::WalkPressed()
 
 void APRPlayerCharacter::UpdateMaxWalkSpeed()
 {
-    // 클라이언트 예측과 서버 보정 오차를 줄이기 위해 양측 동시 수행
-    float BaseSpeed = JogSpeed;
+	// 클라이언트 예측과 서버 보정 오차를 줄이기 위해 양측 동시 수행
+	float BaseSpeed = JogSpeed;
 
-    if (bIsSprinting)
-    {
-        BaseSpeed = SprintSpeed;
-    }
-    else if (bIsAiming || bIsWalking)
-    {
-        BaseSpeed = WalkSpeed;
-    }
+	if (IsDown())
+	{
+		BaseSpeed = DownSpeed;
+	}
+	else if (bIsSprinting)
+	{
+		BaseSpeed = SprintSpeed;
+	}
+	else if (bIsAiming || bIsWalking)
+	{
+		BaseSpeed = WalkSpeed;
+	}
 
 	float CurrentMultiplier = 1.0f;
 
@@ -340,7 +401,8 @@ void APRPlayerCharacter::UpdateMaxWalkSpeed()
 	}
 	
 	// 3. 최종 속도를 CharacterMovementComponent에 적용 
-	if (UCharacterMovementComponent* MoveComp = GetCharacterMovement())
+	UCharacterMovementComponent* MoveComp = GetCharacterMovement();
+	if (IsValid(MoveComp))
 	{
 		MoveComp->MaxWalkSpeed = BaseSpeed * CurrentMultiplier;
 	}
@@ -351,7 +413,7 @@ void APRPlayerCharacter::UpdateMaxWalkSpeed()
 	bUseControllerRotationYaw = bIsAiming;
 	
 	// Strafe 모드에서도 bUseControllerRotationYaw를 꺼야 제자리 회전이 동작합니다.
-	if (UCharacterMovementComponent* MoveComp = GetCharacterMovement())
+	if (IsValid(MoveComp))
 	{
 		MoveComp->bOrientRotationToMovement = !bIsStrafeMode;
 		// 26.04.27, Yuchan, 아래 코드가 플레이어 Strafe 모드를 해제하지 않도록 막아 주석처리

@@ -1,6 +1,9 @@
 // Copyright ProjectR. All Rights Reserved.
 
 #include "PRPlayerController.h"
+
+#include "Net/UnrealNetwork.h"
+#include "ProjectR/Test/PRCheatHandler.h"
 #include "ProjectR/Game/PRGameInstance.h"
 #include "ProjectR/Game/PRPlayGameMode.h"
 #include "ProjectR/AbilitySystem/PRAbilitySystemComponent.h"
@@ -11,17 +14,23 @@
 #include "ProjectR/Input/PRInputConfigDataAsset.h"
 #include "ProjectR/Player/PRPlayerState.h"
 #include "ProjectR/Projectile/PRProjectileManagerComponent.h"
-#include "ProjectR/QuickSlot/Coponents/PRQuickSlotComponent.h"
+#include "ProjectR/Inventory/Components/PRQuickSlotComponent.h"
 #include "ProjectR/UI/Components/PRUIControllerComponent.h"
 #include "ProjectR/UI/FloatingText/PRFloatingTextManager.h"
 #include "ProjectR/Interaction/PRInteractionSensor.h"
 #include "ProjectR/Interaction/PRInteractorComponent.h"
+#include "ProjectR/Character/PRPlayerCharacter.h"
+#include "ProjectR/Interaction/PRInteractableComponent.h"
+#include "ProjectR/Game/PRGameStateBase.h"
 
 
 APRPlayerController::APRPlayerController()
 {
 	PlayerCameraManagerClass = APRCameraManager::StaticClass();
-	
+
+	// 등록 기반 SubObject 복제 시스템 사용. CheatHandler를 AddReplicatedSubObject로 등록 가능
+	bReplicateUsingRegisteredSubObjectList = true;
+
 	ProjectileManager = CreateDefaultSubobject<UPRProjectileManagerComponent>(TEXT("ProjectileManager"));
 	FloatingTextManager = CreateDefaultSubobject<UPRFloatingTextManager>(TEXT("FloatingTextManager"));
 	// 2026.05.01 이건주 | UI 컨트롤러 컴포넌트 추가 
@@ -32,10 +41,35 @@ APRPlayerController::APRPlayerController()
 
 // =====  APlayerController Interface =====
 
+void APRPlayerController::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const
+{
+	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
+
+	DOREPLIFETIME_CONDITION(APRPlayerController, CheatHandler, COND_OwnerOnly);
+}
+
+void APRPlayerController::Tick(float DeltaSeconds)
+{
+	Super::Tick(DeltaSeconds);
+
+	UpdateCompanionHighlight();
+}
+
 void APRPlayerController::BeginPlay()
 {
 	Super::BeginPlay();
-	
+
+#if !UE_BUILD_SHIPPING
+	EnableCheats();
+
+	// 서버 권위에서 CheatHandler 생성 후 ReplicatedSubObject로 등록. 본인 클라에 복제
+	if (HasAuthority() && IsValid(CheatHandlerClass))
+	{
+		CheatHandler = NewObject<UPRCheatHandler>(this, CheatHandlerClass);
+		AddReplicatedSubObject(CheatHandler);
+	}
+#endif
+
 	// TODO: 로컬 클라만 서버로 캐릭터 페이로드 제출
 	// 호스트의 경우 GameMode가 직접 LocalCharacter를 주입하므로 별도 경로로 처리
 	// if (IsLocalController() && GetNetMode() == NM_Client)
@@ -47,6 +81,12 @@ void APRPlayerController::BeginPlay()
 void APRPlayerController::AcknowledgePossession(APawn* InPawn)
 {
 	Super::AcknowledgePossession(InPawn);
+
+	// 새 폰 possession 시점에 폰 의존 UI를 재초기화. 초기 possession과 리스폰 양쪽에서 동작
+	if (IsValid(UIControllerComponent))
+	{
+		UIControllerComponent->RefreshForPawn(InPawn);
+	}
 }
 
 void APRPlayerController::SetupInputComponent()
@@ -141,6 +181,73 @@ UPRAbilitySystemComponent* APRPlayerController::GetASC() const
 
 // =====  캐릭터 페이로드 제출 =====
 
+void APRPlayerController::UpdateCompanionHighlight()
+{
+	if (!IsLocalController())
+	{
+		return;
+	}
+
+	UWorld* World = GetWorld();
+	if (!IsValid(World))
+	{
+		return;
+	}
+
+	APRGameStateBase* GS = World->GetGameState<APRGameStateBase>();
+	if (!IsValid(GS))
+	{
+		return;
+	}
+
+	FVector ViewLocation;
+	FRotator ViewRotation;
+	GetPlayerViewPoint(ViewLocation, ViewRotation);
+
+	APawn* MyPawn = GetPawn();
+
+	// 본인 제외 모든 플레이어 캐릭터 순회. 카메라 뷰포인트에서 캐릭터 위치까지 라인 트레이스로 차폐 여부 판정
+	for (APRPlayerCharacter* OtherCharacter : GS->GetPlayerCharacters())
+	{
+		if (OtherCharacter == MyPawn)
+		{
+			continue;
+		}
+		
+		UPRInteractableComponent* Interactable = OtherCharacter->GetInteractableComponent();
+		if (InteractorComponent->GetFocusedComponent() == Interactable)
+		{
+			continue;
+		}
+		
+		FCollisionQueryParams Params(SCENE_QUERY_STAT(PRPlayerVisibility), false, this);
+		Params.AddIgnoredActor(OtherCharacter);
+		if (IsValid(MyPawn))
+		{
+			Params.AddIgnoredActor(MyPawn);
+		}
+
+		FHitResult Hit;
+		const bool bBlocked = World->LineTraceSingleByChannel(
+			Hit, ViewLocation, OtherCharacter->GetActorLocation(), ECC_Visibility, Params);
+		const bool bVisible = !bBlocked;
+		
+		if (Interactable->IsDepthStencilApplied())
+		{
+			// 보이는 경우 하이라이트 해제
+			if (bVisible)
+			{
+				Interactable->ResetDepthStencilValues();
+			}
+		}
+		// 벽에 가려진 경우 하이라이트 적용
+		else if (!bVisible)
+		{
+			Interactable->ApplyDepthStencilValues(false);
+		}
+	}
+}
+
 void APRPlayerController::SubmitLocalCharacterToServer()
 {
 	if (bCharacterSubmitted)
@@ -207,6 +314,29 @@ void APRPlayerController::ClientGrantReward_Implementation(const FPRRewardGrant&
 	}
 
 	GI->ApplyRewardGrant(Grant);
+}
+
+void APRPlayerController::ClientDispatchSurvivalGameplayEvent_Implementation(FGameplayTag EventTag)
+{
+	if (!EventTag.IsValid())
+	{
+		return;
+	}
+
+	APawn* ControlledPawn = GetPawn();
+	if (!IsValid(ControlledPawn))
+	{
+		return;
+	}
+
+	FGameplayEventData Payload;
+	Payload.EventTag = EventTag;
+	Payload.Target = ControlledPawn;
+
+	UAbilitySystemBlueprintLibrary::SendGameplayEventToActor(
+		ControlledPawn,
+		EventTag,
+		Payload);
 }
 
 // ===== UI =====

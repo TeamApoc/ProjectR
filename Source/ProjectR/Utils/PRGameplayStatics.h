@@ -6,6 +6,7 @@
 #include "Kismet/BlueprintFunctionLibrary.h"
 #include "PRGameplayStatics.generated.h"
 
+class UPRGameInstance;
 class UGameplayEffect;
 class APawn;
 class UAbilitySystemComponent;
@@ -31,8 +32,13 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "PR|Utils")
 	static UAbilitySystemComponent* GetAbilitySystemComponent(AActor* Actor);
 
+	// Ammo 부여
 	UFUNCTION(BlueprintCallable, Category = "PR|Utils")
 	static void GrantAmmo(AActor* TargetActor,TSubclassOf<UGameplayEffect> AmmoEffect,  float AmmoAmount);
+	
+	// GameInstance 획득
+	UFUNCTION(BlueprintPure, Category = "PR|Utils")
+	static UPRGameInstance* GetPRGameInstance(const UObject* WorldContext);
 	
 	/** 폰의 PlayerController 카메라 위치/회전 추출. 컨트롤러 부재 시 Pawn::GetActorEyesViewPoint 폴백.
 	 * 로컬 컨트롤된 폰에서만 의미가 있음. 추출 성공 여부 반환  

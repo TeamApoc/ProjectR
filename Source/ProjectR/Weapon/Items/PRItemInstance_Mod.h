@@ -20,12 +20,11 @@ public:
 	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
 
 public:
-	// Mod 데이터를 연결한다
-	void InitializeModItem(UPRWeaponModDataAsset* InModData);
+	virtual void InitializeItem(UPRItemDataAsset* InItemData, int32 InitialStackCount) override;
 
 	// 현재 연결된 Mod 데이터를 반환한다
 	UFUNCTION(BlueprintPure, Category = "ProjectR|Weapon")
-	UPRWeaponModDataAsset* GetModData() const { return ModData; }
+	UPRWeaponModDataAsset* GetModData() const;
 
 	// 입력 데이터가 현재 Mod와 같은지 확인한다
 	bool MatchesModData(const UPRWeaponModDataAsset* InModData) const;
@@ -57,10 +56,6 @@ private:
 	void OnRep_EquippedWeaponItem();
 
 public:
-	// 현재 연결된 Mod 데이터
-	UPROPERTY(ReplicatedUsing = OnRep_ModData, VisibleInstanceOnly, BlueprintReadOnly, Category = "ProjectR|Weapon")
-	TObjectPtr<UPRWeaponModDataAsset> ModData = nullptr;
-
 	// 이 Mod를 장착 중인 무기 Item
 	UPROPERTY(ReplicatedUsing = OnRep_EquippedWeaponItem, VisibleInstanceOnly, BlueprintReadOnly, Category = "ProjectR|Weapon")
 	TObjectPtr<UPRItemInstance_Weapon> EquippedWeaponItem = nullptr;

@@ -139,6 +139,10 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Interaction")
 	bool ShouldSustained() const { return InteractionType == EPRInteractionType::Sustained; }
 
+protected:
+	UFUNCTION(BlueprintPure, Category = "Interaction")
+	bool IsLocalPlayer(AActor* Interactor) const;
+	
 public:
 	// 이 행동의 기본 우선순위. 하위 클래스에서 재정의 가능
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Interaction")

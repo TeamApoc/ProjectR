@@ -1,6 +1,9 @@
 // Copyright ProjectR. All Rights Reserved.
 
 #include "PRPlayerState.h"
+#include "AbilitySystemBlueprintLibrary.h"
+#include "AbilitySystemComponent.h"
+#include "GameFramework/GameStateBase.h"
 #include "Net/UnrealNetwork.h"
 #include "ProjectR/AbilitySystem/PRAbilitySystemComponent.h"
 #include "ProjectR/AbilitySystem/AttributeSets/PRAttributeSet_Common.h"
@@ -8,7 +11,11 @@
 #include "ProjectR/AbilitySystem/AttributeSets/PRAttributeSet_Weapon.h"
 #include "ProjectR/Equipment/Components/PREquipmentManagerComponent.h"
 #include "ProjectR/Inventory/Components/PRInventoryComponent.h"
-#include "ProjectR/QuickSlot/Coponents/PRQuickSlotComponent.h"
+#include "ProjectR/Player/PRPlayerController.h"
+#include "ProjectR/PRGameplayTags.h"
+#include "ProjectR/Inventory/Components/PRQuickSlotComponent.h"
+#include "ProjectR/Inventory/Data/PRItemDataAsset.h"
+#include "ProjectR/Inventory/Items/PRItemInstance_Consumable.h"
 
 APRPlayerState::APRPlayerState()
 {
@@ -43,6 +50,33 @@ void APRPlayerState::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLi
 void APRPlayerState::BeginPlay()
 {
 	Super::BeginPlay();
+	
+	// 초기 아이템 지급
+	if (HasAuthority())
+	{
+		for (FPRItemSaveEntry& StartUpItem : StartUpItems)
+		{
+			if (IsValid(StartUpItem.ItemData) && StartUpItem.Amount > 0)
+			{
+				InventoryComponent->AddItem(StartUpItem.ItemData, StartUpItem.Amount);
+			}
+		}
+		
+		BindAutoRegisterQuickSlotEvent();
+	}
+	QuickSlotComponent->InitializeQuickSlots(InventoryComponent);
+}
+
+void APRPlayerState::CopyProperties(APlayerState* PlayerState)
+{
+	Super::CopyProperties(PlayerState);
+	
+	if (APRPlayerState* NewPS = Cast<APRPlayerState>(PlayerState))
+	{
+		// TODO: ASC 상태 보존, 인벤토리 등 상태 컴포넌트 값 보존
+		FPRCharacterSaveData SaveData = MakeSaveData();
+		NewPS->InitializePrimaryInfoFromSaveData(SaveData);
+	}
 }
 
 // =====  IAbilitySystemInterface =====
@@ -52,17 +86,187 @@ UAbilitySystemComponent* APRPlayerState::GetAbilitySystemComponent() const
 	return AbilitySystemComponent;
 }
 
+void APRPlayerState::GetCachedAmmoRatios(EPRWeaponSlotType SlotType, float& OutMagazineRatio, float& OutReserveRatio) const
+{
+	if (SlotType == EPRWeaponSlotType::Primary)
+	{
+		OutMagazineRatio = CachedPrimaryMagazineAmmoRatio;
+		OutReserveRatio = CachedPrimaryReserveAmmoRatio;
+		return;
+	}
+
+	if (SlotType == EPRWeaponSlotType::Secondary)
+	{
+		OutMagazineRatio = CachedSecondaryMagazineAmmoRatio;
+		OutReserveRatio = CachedSecondaryReserveAmmoRatio;
+		return;
+	}
+
+	OutMagazineRatio = 1.0f;
+	OutReserveRatio = 1.0f;
+}
+
+void APRPlayerState::SetCachedAmmoRatios(EPRWeaponSlotType SlotType, float MagazineRatio, float ReserveRatio)
+{
+	const float ClampedMagazineRatio = FMath::Clamp(MagazineRatio, 0.0f, 1.0f);
+	const float ClampedReserveRatio = FMath::Clamp(ReserveRatio, 0.0f, 1.0f);
+
+	if (SlotType == EPRWeaponSlotType::Primary)
+	{
+		CachedPrimaryMagazineAmmoRatio = ClampedMagazineRatio;
+		CachedPrimaryReserveAmmoRatio = ClampedReserveRatio;
+		return;
+	}
+
+	if (SlotType == EPRWeaponSlotType::Secondary)
+	{
+		CachedSecondaryMagazineAmmoRatio = ClampedMagazineRatio;
+		CachedSecondaryReserveAmmoRatio = ClampedReserveRatio;
+	}
+}
+
 // =====  초기화 =====
 
-void APRPlayerState::InitializeFromSaveData(const FPRCharacterSaveData& SaveData)
+void APRPlayerState::InitializePrimaryInfoFromSaveData(const FPRCharacterSaveData& InSaveData)
 {
 	if (!HasAuthority())
 	{
 		return;
 	}
 
-	DisplayName    = SaveData.DisplayName;
-	CharacterLevel = SaveData.Level;
-	Experience     = SaveData.Experience;
-	StatUpgradeInfo          = SaveData.Stats;
+	CurrentSaveData = InSaveData;
+	DisplayName    = InSaveData.DisplayName;
+}
+
+void APRPlayerState::ApplySaveData(const FPRCharacterSaveData& InSaveData)
+{
+	
+}
+
+FPRCharacterSaveData APRPlayerState::MakeSaveData() const
+{
+	return FPRCharacterSaveData();
+}
+
+void APRPlayerState::BindAutoRegisterQuickSlotEvent()
+{
+	InventoryComponent->GetOnInventoryChanged().RemoveDynamic(this,&ThisClass::OnInventoryChanged);
+	InventoryComponent->GetOnInventoryChanged().AddDynamic(this,&ThisClass::OnInventoryChanged);
+}
+
+void APRPlayerState::OnInventoryChanged(UPRInventoryComponent* InInventory,
+	const FPRInventoryChangeEventData& EventData)
+{
+	if (!HasAuthority())
+	{
+		return;
+	}
+	
+	if (EventData.ChangeReason != EPRInventoryChangeReason::ItemAdded)
+	{
+		return;
+	}
+
+	UPRItemInstance_Consumable* AsConsumable = Cast<UPRItemInstance_Consumable>(EventData.ItemInstance);
+	if (!IsValid(AsConsumable))
+	{
+		return;
+	}
+	
+	if (QuickSlotComponent->IsRegisteredItem(AsConsumable->GetConsumableData()))
+	{
+		return;
+	}
+	
+	const int32 MaxCount = QuickSlotComponent->GetMaxQuickSlotCount();
+	const int32 CurrentCount = QuickSlotComponent->GetUsingQuickSlotCount();
+
+	if (CurrentCount < MaxCount)
+	{
+		QuickSlotComponent->RequestRegisterQuickSlotItem(CurrentCount,AsConsumable->GetConsumableData());
+	}
+}
+
+// =====  생존 상태 =====
+
+bool APRPlayerState::IsCombatParticipant() const
+{
+	return !IsOnlyASpectator() && IsValid(AbilitySystemComponent);
+}
+
+bool APRPlayerState::IsDown() const
+{
+	const UAbilitySystemComponent* ASC = GetAbilitySystemComponent();
+	return IsValid(ASC) && ASC->HasMatchingGameplayTag(PRGameplayTags::State_Down);
+}
+
+bool APRPlayerState::IsDead() const
+{
+	const UAbilitySystemComponent* ASC = GetAbilitySystemComponent();
+	return IsValid(ASC) && ASC->HasMatchingGameplayTag(PRGameplayTags::State_Dead);
+}
+
+bool APRPlayerState::IsOutOfFight() const
+{
+	return IsDown() || IsDead();
+}
+
+bool APRPlayerState::HasFightCapableAllyExceptSelf() const
+{
+	const UWorld* World = GetWorld();
+	const AGameStateBase* CurrentGameState = IsValid(World) ? World->GetGameState<AGameStateBase>() : nullptr;
+	if (!IsValid(CurrentGameState))
+	{
+		return false;
+	}
+
+	for (APlayerState* PlayerState : CurrentGameState->PlayerArray)
+	{
+		const APRPlayerState* OtherPlayerState = Cast<APRPlayerState>(PlayerState);
+		if (!IsValid(OtherPlayerState) || OtherPlayerState == this || !OtherPlayerState->IsCombatParticipant())
+		{
+			continue;
+		}
+
+		if (!OtherPlayerState->IsOutOfFight())
+		{
+			return true;
+		}
+	}
+
+	return false;
+}
+
+void APRPlayerState::SendSurvivalGameplayEvent(const FGameplayTag& EventTag) const
+{
+	if (!HasAuthority() || !EventTag.IsValid())
+	{
+		return;
+	}
+
+	const UAbilitySystemComponent* ASC = GetAbilitySystemComponent();
+	AActor* AvatarActor = IsValid(ASC) ? ASC->GetAvatarActor() : nullptr;
+	if (!IsValid(AvatarActor))
+	{
+		return;
+	}
+
+	FGameplayEventData Payload;
+	Payload.EventTag = EventTag;
+	Payload.Target = AvatarActor;
+
+	UAbilitySystemBlueprintLibrary::SendGameplayEventToActor(
+		AvatarActor,
+		EventTag,
+		Payload);
+	
+	//
+	// if (EventTag.MatchesTagExact(PRGameplayTags::Event_Ability_PlayerDeathConfirmed))
+	// {
+	// 	APRPlayerController* PlayerController = Cast<APRPlayerController>(GetOwner());
+	// 	if (IsValid(PlayerController))
+	// 	{
+	// 		PlayerController->ClientDispatchSurvivalGameplayEvent(EventTag);
+	// 	}
+	// }
 }

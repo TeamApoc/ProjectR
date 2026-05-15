@@ -6,8 +6,11 @@
 #include "PRCharacterBase.h"
 #include "Net/UnrealNetwork.h"
 #include "ProjectR/AbilitySystem/Data/PRAbilitySet.h"
+#include "ProjectR/Interaction/PRInteractionInterface.h"
 #include "PRPlayerCharacter.generated.h"
 
+class USphereComponent;
+class UPRInteractableComponent;
 class USpringArmComponent;
 class UCameraComponent;
 class UInputMappingContext;
@@ -21,7 +24,7 @@ struct FInputActionValue;
 class UPRWeaponDataAsset;
 
 UCLASS()
-class PROJECTR_API APRPlayerCharacter : public APRCharacterBase
+class PROJECTR_API APRPlayerCharacter : public APRCharacterBase, public IPRInteractionInterface
 {
 	GENERATED_BODY()
 
@@ -41,6 +44,9 @@ public:
 	/*~ IPRCombatInterface ~*/
 	virtual EPRTeam GetTeam() const override { return EPRTeam::Player; }
 
+	/*~ IPRInteractionInterface ~*/
+	virtual UPRInteractableComponent* GetInteractableComponent() const override { return InteractableComponent; }
+	
 	/*~ APRPlayerCharacter Interface ~*/
 	/** 애니메이션 인스턴스에서 사용하는 게터 함수들 */                   
 	bool IsCrouching() const { return bIsCrouched; } 
@@ -49,15 +55,18 @@ public:
 	float GetWalkSpeed() const { return WalkSpeed; }
 	float GetJogSpeed() const { return JogSpeed; }
 	float GetSprintSpeed() const { return SprintSpeed; }
+	float GetDownSpeed() const { return DownSpeed; }
 	bool IsAiming() const;
-
-	/** Sprint Ability가 질주 상태를 캐릭터 이동 상태에 반영한다 */
+	bool IsDown() const;
+	bool IsMovementBlocked() const {return bBlockMove;}
+	
+	/** Sprint Ability가 질주 상태를 캐릭터 이동 상태에 반영 */
 	void SetSprintingFromAbility(bool bNewSprinting);
-
-	/** 액션 입력 라우터 컴포넌트를 반환한다 */
-	UPRActionInputRouterComponent* GetActionInputRouter() const { return ActionInputRouterComponent; }
 	
 	// ===== Component getters =====
+	
+	/** 액션 입력 라우터 컴포넌트를 반환 */
+	UPRActionInputRouterComponent* GetActionInputRouter() const { return ActionInputRouterComponent; }
 	UPRWeaponManagerComponent* GetWeaponManager() const {return WeaponManagerComponent;}
 
 	
@@ -108,7 +117,15 @@ public:
 	/** 투사체 발사 예측 경로 표시 컴포넌트. 로컬 시각 효과 전용 */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Projectile")
 	TObjectPtr<UPRProjectileTrajectoryPreviewComponent> ProjectileTrajectoryPreviewComponent;
-
+	
+	// 상호작용 타겟 컴포넌트
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Interaction")
+	TObjectPtr<UPRInteractableComponent> InteractableComponent;
+	
+	// 상호작용 collider
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Interaction")
+	TObjectPtr<USphereComponent> InteractionSphere;
+	
 protected:
 	/** Enhanced Input 에셋 (블루프린트에서 할당) */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Input")
@@ -135,6 +152,10 @@ protected:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "PR|Locomotion")
 	float SprintSpeed = 600.0f;
 
+	/** 다운 상태 기어가기 속도 (cm/s) */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "PR|Locomotion")
+	float DownSpeed = 50.0f;
+
 private:
 	/** 복제되는 상태 변수 */
 	UPROPERTY(ReplicatedUsing = OnRep_IsSprinting, VisibleInstanceOnly, BlueprintReadOnly, Category = "Locomotion", meta = (AllowPrivateAccess = "true"))
@@ -147,4 +168,6 @@ private:
 	bool bIsWalking = false;
 
 	FPRAbilitySetHandles AbilitySetHandles;
+	
+	bool bBlockMove = false;
 };

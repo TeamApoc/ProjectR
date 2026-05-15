@@ -19,6 +19,7 @@ struct FInputActionValue;
 class UInputAction;
 class UPRUIControllerComponent;
 class UPRInteractionSensor;
+class UPRCheatHandler;
 
 // 플레이어 입력·UI 소유. Join 시 캐릭터 페이로드를 서버로 전송하고,
 // 인게임 중 발생한 보상 Grant를 연결이 살아있는 동안 즉시 수령하여 GameInstance에 반영한다
@@ -30,12 +31,24 @@ class PROJECTR_API APRPlayerController : public APlayerController
 public:
 	APRPlayerController();
 	
+	/*~ AActor Interface ~*/
+	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
+	virtual void Tick(float DeltaSeconds) override;
+	
 	/*~ APlayerController Interface ~*/
 	virtual void AcknowledgePossession(APawn* InPawn) override;
 	virtual void BeginPlay() override;
 	virtual void SetupInputComponent() override;
 	virtual void PostProcessInput(const float DeltaTime, const bool bGamePaused) override;
 
+	// 서버 권위에서 동작하는 치트 핸들러 조회. 본인 클라에는 복제로 전달
+	UPRCheatHandler* GetCheatHandler() const { return CheatHandler; }
+
+	// 로컬 플레이어 UI 흐름을 담당하는 컴포넌트 조회
+	UPRUIControllerComponent* GetUIController() const { return UIControllerComponent; }
+
+	
+	void UpdateCompanionHighlight();
 public:
 	// 로컬 클라에서 호출. GameInstance의 LocalCharacter를 서버로 제출
 	// 자동 호출(BeginPlay)과 수동 호출(재제출) 모두 허용
@@ -51,6 +64,10 @@ public:
 	UFUNCTION(Client, Reliable)
 	void ClientGrantReward(const FPRRewardGrant& Grant);
 
+	// 서버 -> 본인 클라. 현재 Pawn에 생존 상태 전환 Gameplay Event를 발행한다.
+	UFUNCTION(Client, Reliable)
+	void ClientDispatchSurvivalGameplayEvent(FGameplayTag EventTag);
+
 	UPRProjectileManagerComponent* GetProjectileManagerComponent() const {return ProjectileManager;}
 
 	// 플로팅 텍스트 매니저 컴포넌트를 반환한다
@@ -60,6 +77,10 @@ protected:
 	// 클라이언트 -> 서버. 로컬 캐릭터 페이로드 제출
 	UFUNCTION(Server, Reliable, WithValidation)
 	void ServerSubmitCharacter(const FPRCharacterSaveData& Payload);
+
+	// 치트 핸들러 클래스. BP에서 지정. 비어있으면 핸들러 미생성
+	UPROPERTY(EditDefaultsOnly, Category = "ProjectR|Cheat")
+	TSubclassOf<UPRCheatHandler> CheatHandlerClass;
 
 	// IA에 대한 InputTag 매핑을 담고 있는 InputConfig. 각 IA에 Pressed/Released 콜백을 라우팅
 	UPROPERTY(EditDefaultsOnly, Category = "ProjectR|Input")
@@ -97,7 +118,11 @@ private:
 	bool bCharacterSubmitted = false;
 	
 	mutable TWeakObjectPtr<UPRAbilitySystemComponent> CachedASC;
-	
+
+	// 서버 권위에서 생성되어 본인 클라에 복제되는 치트 명령 처리 객체
+	UPROPERTY(Replicated)
+	TObjectPtr<UPRCheatHandler> CheatHandler;
+
 	UPROPERTY(VisibleAnywhere)
 	TObjectPtr<UPRProjectileManagerComponent> ProjectileManager;
 

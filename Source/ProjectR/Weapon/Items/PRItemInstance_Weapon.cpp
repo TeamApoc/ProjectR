@@ -31,15 +31,18 @@ void UPRItemInstance_Weapon::GetLifetimeReplicatedProps(TArray<FLifetimeProperty
 {
 	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
 
-	DOREPLIFETIME(UPRItemInstance_Weapon, WeaponData);
 	DOREPLIFETIME(UPRItemInstance_Weapon, ModData);
 	DOREPLIFETIME(UPRItemInstance_Weapon, EquippedModItem);
 	DOREPLIFETIME(UPRItemInstance_Weapon, bIsEquippedCurrentWeaponSlot);
 }
 
-void UPRItemInstance_Weapon::InitializeWeaponItem(UPRWeaponDataAsset* InWeaponData, UPRWeaponModDataAsset* InModData)
+void UPRItemInstance_Weapon::InitializeItem(UPRItemDataAsset* InItemData, int32 InitialStackCount)
 {
-	WeaponData = InWeaponData;
+	Super::InitializeItem(InItemData, InitialStackCount);
+}
+
+void UPRItemInstance_Weapon::InitializeMod(UPRWeaponModDataAsset* InModData)
+{
 	ModData = InModData;
 	ClearEquippedModItem();
 	bIsEquippedCurrentWeaponSlot = false;
@@ -47,9 +50,14 @@ void UPRItemInstance_Weapon::InitializeWeaponItem(UPRWeaponDataAsset* InWeaponDa
 	CachedModAbilitySet = nullptr;
 }
 
+UPRWeaponDataAsset* UPRItemInstance_Weapon::GetWeaponData() const
+{
+	return Cast<UPRWeaponDataAsset>(ItemData);
+}
+
 bool UPRItemInstance_Weapon::MatchesWeaponData(const UPRWeaponDataAsset* InWeaponData) const
 {
-	return WeaponData == InWeaponData;
+	return GetWeaponData() == InWeaponData;
 }
 
 bool UPRItemInstance_Weapon::HasEquippedModItem() const
@@ -143,7 +151,7 @@ void UPRItemInstance_Weapon::GrantEquippedAbilitySets(AActor* OwnerActor)
 		Log,
 		TEXT("무기 아이템의 어빌리티 셋 부여. Owner=%s Weapon=%s Mod=%s WeaponAbilities=%d WeaponEffects=%d ModAbilities=%d ModEffects=%d"),
 		*GetNameSafe(OwnerActor),
-		*GetNameSafe(WeaponData),
+		*GetNameSafe(GetWeaponData()),
 		*GetNameSafe(ModData),
 		WeaponAbilityHandles.AbilityHandles.Num(),
 		WeaponAbilityHandles.EffectHandles.Num(),
@@ -172,7 +180,7 @@ void UPRItemInstance_Weapon::ClearEquippedAbilitySets(AActor* OwnerActor)
 		Log,
 		TEXT("무기 아이템의 어빌리티 셋 회수. Owner=%s Weapon=%s Mod=%s"),
 		*GetNameSafe(OwnerActor),
-		*GetNameSafe(WeaponData),
+		*GetNameSafe(GetWeaponData()),
 		*GetNameSafe(ModData));
 }
 
@@ -200,7 +208,7 @@ void UPRItemInstance_Weapon::RebuildModAbility(AActor* OwnerActor, UPRWeaponModD
 		Log,
 		TEXT("Weapon item mod rebuild start. Owner=%s Weapon=%s PrevMod=%s NewMod=%s WasEquipped=%d"),
 		*GetNameSafe(OwnerActor),
-		*GetNameSafe(WeaponData),
+		*GetNameSafe(GetWeaponData()),
 		*GetNameSafe(PreviousModData),
 		*GetNameSafe(NewModData),
 		bWasEquipped ? 1 : 0);
@@ -230,7 +238,7 @@ void UPRItemInstance_Weapon::RebuildModAbility(AActor* OwnerActor, UPRWeaponModD
 		Log,
 		TEXT("Weapon item mod rebuild complete. Owner=%s Weapon=%s CurrentMod=%s ModAbilities=%d ModEffects=%d"),
 		*GetNameSafe(OwnerActor),
-		*GetNameSafe(WeaponData),
+		*GetNameSafe(GetWeaponData()),
 		*GetNameSafe(ModData),
 		ModAbilityHandles.AbilityHandles.Num(),
 		ModAbilityHandles.EffectHandles.Num());
@@ -252,6 +260,7 @@ float UPRItemInstance_Weapon::GetRemainingModDurationSeconds(float ServerWorldTi
 
 UPRAbilitySet* UPRItemInstance_Weapon::GetWeaponAbilitySet()
 {
+	auto WeaponData = GetWeaponData();
 	if (!IsValid(WeaponData))
 	{
 		return nullptr;
@@ -286,20 +295,6 @@ UPRAbilitySet* UPRItemInstance_Weapon::GetModAbilitySet()
 	return CachedModAbilitySet;
 }
 
-void UPRItemInstance_Weapon::OnRep_WeaponData()
-{
-	// 클라이언트에서 무기 데이터와 현재 Mod 연결 상태가 함께 복제됐는지 추적
-	UE_LOG(
-		LogTemp,
-		Log,
-		TEXT("[Inventory][Client] Weapon item data replicated. Item = %s | Weapon = %s | WeaponId = %s | Mod = %s | ModItem = %s"),
-		*GetNameSafe(this),
-		*GetNameSafe(WeaponData),
-		IsValid(WeaponData) ? *WeaponData->GetDisplayName().ToString() : TEXT("None"),
-		*GetNameSafe(ModData),
-		*GetNameSafe(EquippedModItem.Get()));
-}
-
 void UPRItemInstance_Weapon::OnRep_ModData()
 {
 	NotifyInventoryChanged(EPRInventoryChangeReason::ModEquipChanged);
@@ -313,7 +308,7 @@ void UPRItemInstance_Weapon::OnRep_EquippedModItem()
 		Log,
 		TEXT("[Inventory][Client] Weapon item mod item replicated. Item = %s | Weapon = %s | Mod = %s | ModItem = %s"),
 		*GetNameSafe(this),
-		*GetNameSafe(WeaponData),
+		*GetNameSafe(GetWeaponData()),
 		*GetNameSafe(ModData),
 		*GetNameSafe(EquippedModItem.Get()));
 

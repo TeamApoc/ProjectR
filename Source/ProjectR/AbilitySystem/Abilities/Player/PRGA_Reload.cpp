@@ -50,8 +50,9 @@ bool UPRGA_Reload::CanActivateAbility(const FGameplayAbilitySpecHandle Handle,
 
 	// 탄창이 이미 가득 찼거나 예비탄이 없으면 재장전 불가
 	const float Magazine = WeaponSet->GetMagazineAmmoByType(AmmoType);
+	const float MaxMagazine = WeaponSet->GetMaxMagazineAmmoByType(AmmoType);
 	const float Reserve = WeaponSet->GetReserveAmmoByType(AmmoType);
-	if (Magazine >= UPRAttributeSet_Weapon::MagazineRawBaseline - KINDA_SMALL_NUMBER)
+	if (Magazine >= MaxMagazine - KINDA_SMALL_NUMBER)
 	{
 		return false;
 	}
@@ -155,7 +156,7 @@ void UPRGA_Reload::ExecuteReload()
 		return;
 	}
 
-	// 이동량은 Reload GE의 MMC가 슬롯 Magazine·Reserve·AmmoScale을 캡처해 산출한다
+	// 이동량은 Reload GE의 실행 계산이 슬롯 Magazine·MaxMagazine·Reserve를 캡처해 산출한다
 	FGameplayEffectContextHandle Context = ASC->MakeEffectContext();
 	Context.AddSourceObject(this);
 

@@ -5,8 +5,8 @@
 #include "GameplayEffectExtension.h"
 #include "Net/UnrealNetwork.h"
 #include "ProjectR/AbilitySystem/AttributeSets/PRAttributeSet_Player.h"
+#include "ProjectR/Player/PRPlayerState.h"
 #include "ProjectR/PRGameplayTags.h"
-
 
 void UPRAttributeSet_Common::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const
 {
@@ -80,41 +80,41 @@ void UPRAttributeSet_Common::PostGameplayEffectExecute(const FGameplayEffectModC
 			const UPRAttributeSet_Player* PlayerSet = ASC->GetSet<UPRAttributeSet_Player>();
 			if (IsValid(PlayerSet))
 			{
+				// TODO: 아래 회복 가능량 산출 로직이 명확하지 않고, AttribteSet보다 ExecCalc에서 처리함이 좋을 듯함
 				UPRAttributeSet_Player* MutablePlayerSet = const_cast<UPRAttributeSet_Player*>(PlayerSet);
 				const float RecoverableHealthMax = FMath::Max(GetMaxHealth() - GetHealth(), 0.0f);
 				MutablePlayerSet->SetRecoverableHealth(FMath::Clamp(PlayerSet->GetRecoverableHealth(), 0.0f, RecoverableHealthMax));
 			}
-		}
-
-		const float NewHealth = GetHealth();
-		if (NewHealth <= 0.0f)
-		{
-			UAbilitySystemComponent* ASC = GetOwningAbilitySystemComponent();
-			if (IsValid(ASC))
+			
+			const float NewHealth = GetHealth();
+			if (NewHealth <= 0.0f)
 			{
-				const FGameplayTag DeadTag = PRGameplayTags::State_Dead;
-				if (!ASC->HasMatchingGameplayTag(DeadTag))
+				if (!ASC->HasMatchingGameplayTag(PRGameplayTags::State_Dead)
+					&& !ASC->HasMatchingGameplayTag(PRGameplayTags::State_Down))
 				{
-					ASC->AddLooseGameplayTag(DeadTag);
-					ASC->AddReplicatedLooseGameplayTag(DeadTag);
-
 					AActor* Instigator = Data.EffectSpec.GetContext().GetOriginalInstigator();
 					AActor* AvatarActor = ASC->GetAvatarActor();
 					if (IsValid(AvatarActor) && AvatarActor->HasAuthority())
 					{
+						// 아래 로직에서 Player가 아닌 경우 (Enemy인 경우) EventTag는 Event_Ability_Death가 됨
+						const APRPlayerState* OwnerPlayerState = Cast<APRPlayerState>(ASC->GetOwnerActor());
+						const FGameplayTag EventTag = IsValid(OwnerPlayerState) && OwnerPlayerState->HasFightCapableAllyExceptSelf()
+							? PRGameplayTags::Event_Ability_Down
+							: PRGameplayTags::Event_Ability_Death;
+
 						FGameplayEventData Payload;
-						Payload.EventTag = PRGameplayTags::Event_Ability_Death;
+						Payload.EventTag = EventTag;
 						Payload.Instigator = Instigator;
 						Payload.Target = AvatarActor;
+						Payload.ContextHandle = Data.EffectSpec.GetContext();
 
-						// 사망 이벤트는 AttributeSet에서 직접 발행해 별도 릴레이 컴포넌트 의존을 줄인다.
+						// 사망 이벤트 전송
 						UAbilitySystemBlueprintLibrary::SendGameplayEventToActor(
 							AvatarActor,
-							PRGameplayTags::Event_Ability_Death,
+							EventTag,
 							Payload);
+						// 캐릭터들은 Event_Ability_Death를 트리거로 하는 Dead 어빌리티가 부여되어 있어야함
 					}
-
-					OnDeath.Broadcast(Instigator);
 				}
 			}
 		}

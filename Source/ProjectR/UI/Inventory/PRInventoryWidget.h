@@ -114,7 +114,7 @@ private:
 
 	// 인벤토리 변경 알림을 받아 화면을 갱신한다
 	UFUNCTION()
-	void HandleInventoryChanged(UPRInventoryComponent* ChangedInventoryComponent, EPRInventoryChangeReason ChangeReason);
+	void HandleInventoryChanged(UPRInventoryComponent* ChangedInventoryComponent,const FPRInventoryChangeEventData& EventData);
 
 	// 무기 장착 변경 알림을 받아 화면을 갱신한다
 	UFUNCTION()

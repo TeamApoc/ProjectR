@@ -36,13 +36,16 @@ UPRGA_PlayerHitReact::UPRGA_PlayerHitReact()
 	DefaultAbilityTags.AddTag(PRGameplayTags::Ability_Player_HitReact);
 	SetAssetTags(DefaultAbilityTags);
 	ActivationBlockedTags.AddTag(PRGameplayTags::State_Dead);
+	ActivationBlockedTags.AddTag(PRGameplayTags::Cooldown_Ability_PlayerHitReact);
 	ActivationOwnedTags.AddTag(PRGameplayTags::State_PlayerInputLocked);
 
 	// 사격 취소
 	CancelAbilitiesWithTag.AddTag(PRGameplayTags::Ability_Player_Weapon_Fire_Primary);
+	CancelAbilitiesWithTag.AddTag(PRGameplayTags::Ability_Player_Weapon_Zoom);
 	
 	// 피격 리액션 중 새 액션이 끼어들지 않도록 기본 차단 태그를 둔다.
 	BlockAbilitiesWithTag.AddTag(PRGameplayTags::Ability_Player_Weapon_Fire_Primary);
+	BlockAbilitiesWithTag.AddTag(PRGameplayTags::Ability_Player_Weapon_Zoom);
 	BlockAbilitiesWithTag.AddTag(PRGameplayTags::Ability_Player_Aim);
 	BlockAbilitiesWithTag.AddTag(PRGameplayTags::Ability_Player_Crouch);
 	BlockAbilitiesWithTag.AddTag(PRGameplayTags::Ability_Player_Dodge);
@@ -168,6 +171,7 @@ void UPRGA_PlayerHitReact::EndAbility(const FGameplayAbilitySpecHandle Handle,
 {
 	bHitReactFinished = true;
 	ClearDownHitReact();
+	ClearDownHitReactCooldown();
 	ClearActionLock();
 
 	if (IsValid(ActiveMontageTask))
@@ -381,6 +385,7 @@ void UPRGA_PlayerHitReact::CancelActionsForHitReact(EPRPlayerHitReactType HitRea
 
 	FGameplayTagContainer CancelTags;
 	CancelTags.AddTag(PRGameplayTags::Ability_Player_Reload);
+	CancelTags.AddTag(PRGameplayTags::Ability_Player_Weapon_Zoom);
 
 	if (HitReactType == EPRPlayerHitReactType::Strong || HitReactType == EPRPlayerHitReactType::Down)
 	{
@@ -426,6 +431,40 @@ void UPRGA_PlayerHitReact::StartDownHitReact()
 {
 	DownHitReactPhase = EPRPlayerDownHitReactPhase::Start;
 	bDownLandRequested = false;
+	StartDownHitReactCooldown();
+}
+
+// 다운 리액션이 이미 재생 중일 때 같은 Ability가 다시 발동하지 않도록 쿨다운 태그를 부여한다.
+void UPRGA_PlayerHitReact::StartDownHitReactCooldown()
+{
+	if (bDownHitReactCooldownTagAdded)
+	{
+		return;
+	}
+
+	UAbilitySystemComponent* ASC = GetAbilitySystemComponentFromActorInfo();
+	if (IsValid(ASC))
+	{
+		ASC->AddLooseGameplayTag(PRGameplayTags::Cooldown_Ability_PlayerHitReact);
+		bDownHitReactCooldownTagAdded = true;
+	}
+}
+
+// 다운 리액션 몽타주가 끝나거나 취소되면 HitReact 쿨다운 태그를 제거한다.
+void UPRGA_PlayerHitReact::ClearDownHitReactCooldown()
+{
+	if (!bDownHitReactCooldownTagAdded)
+	{
+		return;
+	}
+
+	UAbilitySystemComponent* ASC = GetAbilitySystemComponentFromActorInfo();
+	if (IsValid(ASC))
+	{
+		ASC->RemoveLooseGameplayTag(PRGameplayTags::Cooldown_Ability_PlayerHitReact);
+	}
+
+	bDownHitReactCooldownTagAdded = false;
 }
 
 // 다운 몽타주의 섹션 연결과 섹션 변경 콜백을 설정한다.

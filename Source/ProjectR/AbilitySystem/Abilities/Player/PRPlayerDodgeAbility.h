@@ -106,7 +106,7 @@ protected:
 
 	/** 무적 프레임이 시작되기 전 지연 시간 */
 	UPROPERTY(EditDefaultsOnly, Category = "PR|Dodge")
-	float IFrameStartDelay = 0.1f;
+	float IFrameStartDelay = 0.01f;
 
 	/** 무적 프레임 지속 시간 */
 	UPROPERTY(EditDefaultsOnly, Category = "PR|Dodge")

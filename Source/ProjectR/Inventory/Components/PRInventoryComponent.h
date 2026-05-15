@@ -26,13 +26,27 @@ UENUM(BlueprintType)
 enum class EPRInventoryChangeReason : uint8
 {
 	// 아이템 목록이 변경되었다
-	ItemListChanged,
-
+	ItemAdded,
+	ItemRemoved,
 	// Mod 장착 상태가 변경되었다
-	ModEquipChanged
+	ModEquipChanged,
+	// 아이템 보유 개수가 변경되었다
+	StackChanged
 };
 
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FPRInventoryChangedSignature, UPRInventoryComponent*, InventoryComponent, EPRInventoryChangeReason, ChangeReason);
+USTRUCT(BlueprintType)
+struct FPRInventoryChangeEventData
+{
+	GENERATED_BODY()
+	
+	UPROPERTY(BlueprintReadWrite)
+	EPRInventoryChangeReason ChangeReason;
+	
+	UPROPERTY(BlueprintReadWrite)
+	TObjectPtr<UPRItemInstance> ItemInstance;
+};
+
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FPRInventoryChangedSignature, UPRInventoryComponent*, InventoryComponent, const FPRInventoryChangeEventData&, EventData);
 
 // 플레이어가 소유한 Item 인스턴스의 정본 컨테이너다
 UCLASS(ClassGroup = (ProjectR), meta = (BlueprintSpawnableComponent))
@@ -49,16 +63,17 @@ public:
 	virtual bool ReplicateSubobjects(UActorChannel* Channel, FOutBunch* Bunch, FReplicationFlags* RepFlags) override;
 
 public:
+	// Item 데이터 타입에 맞는 추가 요청을 서버 권위 경로로 전달한다
 	UFUNCTION(BlueprintCallable, Category = "ProjectR|Inventory")
 	void RequestAddItem(UPRItemDataAsset* InItemData, int32 Amount = 1);
-	
+
 	// 무기 Item 추가를 서버 권위 경로로 요청한다
 	UFUNCTION(BlueprintCallable, Category = "ProjectR|Inventory")
 	void RequestAddWeaponItem(UPRWeaponDataAsset* WeaponData);
 
-	// 서버: 아이템 타입 구분하여 추가
+	// Item 데이터 타입에 맞는 인벤토리 Item을 추가한다
 	UPRItemInstance* AddItem(UPRItemDataAsset* InItemData, int32 Amount = 1);
-	
+
 	// 새 무기 Item을 생성해 인벤토리에 추가한다
 	UPRItemInstance_Weapon* AddWeaponItem(UPRWeaponDataAsset* WeaponData);
 
@@ -134,28 +149,38 @@ public:
 	// 무기 Item 데이터로 인벤토리 내 무기 Item을 조회한다
 	UFUNCTION(BlueprintCallable, Category = "ProjectR|Inventory")
 	UPRItemInstance_Weapon* FindWeaponItemByData(const UPRWeaponDataAsset* WeaponData);
-	
+
+	// 무기 Mod Item 데이터로 인벤토리 내 Mod Item을 조회한다
 	UFUNCTION(BlueprintCallable, Category = "ProjectR|Inventory")
 	UPRItemInstance_Mod* FindModItemByData(const UPRWeaponModDataAsset* ItemData);
-	
+
 	// 인벤토리 변경 이벤트를 발행한다
-	void OnInventoryChanged(EPRInventoryChangeReason ChangeReason);
+	void OnInventoryChanged(const FPRInventoryChangeEventData& EventData);
 
 	// 인벤토리 변경 델리게이트를 반환한다
 	FPRInventoryChangedSignature& GetOnInventoryChanged() { return OnInventoryChangedDelegate; }
 
+	UFUNCTION(BlueprintCallable)
+	TArray<UPRItemInstance_Consumable*> GetConsumableItems() const {return InventoryConsumableItems;}
+	
+	UFUNCTION(BlueprintCallable)
+	TArray<UPRItemInstance_Mod*> GetModItems() const {return InventoryModItems;}
+	
+	UFUNCTION(BlueprintCallable)
+	TArray<UPRItemInstance_Weapon*> GetWeaponItems() const {return InventoryWeaponItems;}
+	
 protected:
 	// 클라이언트에서 무기 Item 목록 복제 결과를 확인한다
 	UFUNCTION()
-	void OnRep_InventoryWeaponItems();
+	void OnRep_InventoryWeaponItems(const TArray<UPRItemInstance_Weapon*>& OldWeaponItems);
 
 	// 클라이언트에서 무기 Mod Item 목록 복제 결과를 확인한다
 	UFUNCTION()
-	void OnRep_InventoryModItems();
+	void OnRep_InventoryModItems(const TArray<UPRItemInstance_Mod*>& OldModItems);
 
 	// 클라이언트에서 소비 Item 목록 복제 결과를 확인한다
 	UFUNCTION()
-	void OnRep_InventoryConsumableItems();
+	void OnRep_InventoryConsumableItems(const TArray<UPRItemInstance_Consumable*>& OldConsumables);
 
 	// 현재 인벤토리에 무기 Item을 등록한다
 	void RegisterInventoryWeaponItem(UPRItemInstance_Weapon* WeaponItem);
@@ -233,15 +258,15 @@ private:
 public:
 	// 현재 인벤토리가 소유한 무기 Item 목록
 	UPROPERTY(ReplicatedUsing = OnRep_InventoryWeaponItems, VisibleInstanceOnly, BlueprintReadOnly, Category = "ProjectR|Inventory")
-	TArray<TObjectPtr<UPRItemInstance_Weapon>> InventoryWeaponItems;
+	TArray<UPRItemInstance_Weapon*> InventoryWeaponItems;
 
 	// 현재 인벤토리가 소유한 무기 Mod Item 목록
 	UPROPERTY(ReplicatedUsing = OnRep_InventoryModItems, VisibleInstanceOnly, BlueprintReadOnly, Category = "ProjectR|Inventory")
-	TArray<TObjectPtr<UPRItemInstance_Mod>> InventoryModItems;
+	TArray<UPRItemInstance_Mod*> InventoryModItems;
 
 	// 현재 인벤토리가 소유한 소비 Item 목록
 	UPROPERTY(ReplicatedUsing = OnRep_InventoryConsumableItems, VisibleInstanceOnly, BlueprintReadOnly, Category = "ProjectR|Inventory")
-	TArray<TObjectPtr<UPRItemInstance_Consumable>> InventoryConsumableItems;
+	TArray<UPRItemInstance_Consumable*> InventoryConsumableItems;
 
 private:
 	// 인벤토리 목록 또는 Item 장착 상태가 변경되었을 때 알린다

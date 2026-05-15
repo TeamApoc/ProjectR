@@ -24,12 +24,12 @@ public:
 	FGameplayTagContainer ModTags;
 
 	// 슬롯 초기화 시 사용할 최대 게이지
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|Weapon", meta = (ClampMin = "0.0"))
-	float MaxGauge = 100.0f;
-
-	// 슬롯 초기화 시 사용할 시작 스택
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|Weapon", meta = (ClampMin = "0"))
-	int32 InitialStack = 1;
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|Weapon|Stat", meta = (ClampMin = "0.0"))
+	float MaxModGauge = 1000.0f;
+	
+	// 슬롯 초기화 시 사용할 최대 스택
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|Weapon|Stat", meta = (ClampMin = "0.0"))
+	float MaxModStck = 0.0f;
 
 	// 활성 슬롯 장착 시 부여할 Mod 어빌리티 목록. 순서대로 GiveAbility
 	UPROPERTY(EditAnywhere, Category = "ProjectR|Weapon")

@@ -56,7 +56,7 @@ void APRCameraManager::UpdateViewTarget(FTViewTarget& OutVT, float DeltaTime)
 		
 		if (ModifierTargetFOV > 0.0f)
 		{
-			TargetFOV = ModifierTargetFOV;
+			TargetFOV = FMath::Lerp(TargetFOV, ModifierTargetFOV, FMath::Clamp(ModifierFOVAlpha, 0.0f, 1.0f));
 		}
 
 		// 3. 현재 FOV에서 목표 FOV로 부드럽게 보간합니다 (InterpSpeed: 10.0f).
@@ -65,5 +65,6 @@ void APRCameraManager::UpdateViewTarget(FTViewTarget& OutVT, float DeltaTime)
 		
 		// 사용이 끝난 모디파이어 값은 매 프레임 초기화 (모디파이어가 비활성화되면 0이 됨)
 		ModifierTargetFOV = 0.0f;
+		ModifierFOVAlpha = 0.0f;
 	}
 }

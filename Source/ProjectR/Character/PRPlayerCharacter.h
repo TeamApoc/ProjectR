@@ -37,8 +37,6 @@ public:
 	/*~ APawn Interface ~*/
 	virtual void PossessedBy(AController* NewController) override;
 	virtual void OnRep_PlayerState() override;
-	virtual FRotator GetBaseAimRotation() const override;
-	virtual void Tick(float DeltaSeconds) override;
 	
 	/*~ APRCharacterBase Interface ~*/
 	virtual UPRAbilitySystemComponent* GetPRAbilitySystemComponent() const override;
@@ -162,9 +160,6 @@ private:
 	/** 복제되는 상태 변수 */
 	UPROPERTY(ReplicatedUsing = OnRep_IsSprinting, VisibleInstanceOnly, BlueprintReadOnly, Category = "Locomotion", meta = (AllowPrivateAccess = "true"))
 	bool bIsSprinting = false;
-
-	UPROPERTY(Replicated, BlueprintReadOnly, Category = "Locomotion", meta = (AllowPrivateAccess = "true"))
-	FRotator BaseAimRotation;
 	
 	UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Category = "Locomotion", meta = (AllowPrivateAccess = "true"))
 	bool bIsAiming = false;

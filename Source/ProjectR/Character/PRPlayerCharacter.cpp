@@ -92,13 +92,6 @@ APRPlayerCharacter::APRPlayerCharacter()
 
 // =====  ASC 연동 =====
 
-void APRPlayerCharacter::Tick(float DeltaSeconds)
-{
-	Super::Tick(DeltaSeconds);
-	
-	BaseAimRotation = Super::GetBaseAimRotation();
-}
-
 UPRAbilitySystemComponent* APRPlayerCharacter::GetPRAbilitySystemComponent() const
 {
 	// 플레이어 ASC는 PlayerState에 있음
@@ -166,11 +159,6 @@ void APRPlayerCharacter::OnRep_PlayerState()
 	}
 }
 
-FRotator APRPlayerCharacter::GetBaseAimRotation() const
-{
-	return BaseAimRotation;
-}
-
 void APRPlayerCharacter::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const
 {
 	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
@@ -179,8 +167,6 @@ void APRPlayerCharacter::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& O
 	DOREPLIFETIME(APRPlayerCharacter, bIsSprinting);
 	//DOREPLIFETIME(APRPlayerCharacter, bIsAiming);
 	DOREPLIFETIME(APRPlayerCharacter, bIsWalking);
-	
-	DOREPLIFETIME(APRPlayerCharacter, BaseAimRotation);
 }
 
 bool APRPlayerCharacter::IsAiming() const

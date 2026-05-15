@@ -28,8 +28,7 @@
 // Sets default values
 APRPlayerCharacter::APRPlayerCharacter()
 {
-	// Set this character to call Tick() every frame.  You can turn this off to improve performance if you don't need it.
-	PrimaryActorTick.bCanEverTick = false;
+	PrimaryActorTick.bCanEverTick = true;
 	
 	// 멀티플레이어 설정
 	bReplicates = true;
@@ -92,6 +91,13 @@ APRPlayerCharacter::APRPlayerCharacter()
 }
 
 // =====  ASC 연동 =====
+
+void APRPlayerCharacter::Tick(float DeltaSeconds)
+{
+	Super::Tick(DeltaSeconds);
+	
+	BaseAimRotation = Super::GetBaseAimRotation();
+}
 
 UPRAbilitySystemComponent* APRPlayerCharacter::GetPRAbilitySystemComponent() const
 {
@@ -160,6 +166,11 @@ void APRPlayerCharacter::OnRep_PlayerState()
 	}
 }
 
+FRotator APRPlayerCharacter::GetBaseAimRotation() const
+{
+	return BaseAimRotation;
+}
+
 void APRPlayerCharacter::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const
 {
 	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
@@ -168,6 +179,8 @@ void APRPlayerCharacter::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& O
 	DOREPLIFETIME(APRPlayerCharacter, bIsSprinting);
 	//DOREPLIFETIME(APRPlayerCharacter, bIsAiming);
 	DOREPLIFETIME(APRPlayerCharacter, bIsWalking);
+	
+	DOREPLIFETIME(APRPlayerCharacter, BaseAimRotation);
 }
 
 bool APRPlayerCharacter::IsAiming() const
@@ -284,8 +297,13 @@ void APRPlayerCharacter::HandleGameplayTagUpdated(const FGameplayTag& ChangedTag
 			{
 				MoveComp->StopMovementImmediately();
 			}
+			
+			if (GetNetOwner() != nullptr)
+			{
+				WeaponManagerComponent->SetWeaponArmedState(EPRArmedState::Unarmed);	
+			}
 		}
-
+		
 		UpdateMaxWalkSpeed();
 	}
 	

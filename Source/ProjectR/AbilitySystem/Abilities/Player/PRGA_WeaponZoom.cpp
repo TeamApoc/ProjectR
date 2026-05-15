@@ -8,7 +8,9 @@
 #include "ProjectR/Character/PRPlayerCharacter.h"
 #include "ProjectR/Player/PRCameraModifier.h"
 #include "ProjectR/Player/Components/PRSpringArmComponent.h"
+#include "ProjectR/Player/PRPlayerController.h"
 #include "ProjectR/PRGameplayTags.h"
+#include "ProjectR/UI/Components/PRUIControllerComponent.h"
 
 UPRGA_WeaponZoom::UPRGA_WeaponZoom()
 {
@@ -154,6 +156,14 @@ void UPRGA_WeaponZoom::ApplyLocalZoom()
 				ActiveCameraModifier->SetActionCameraSettings(ZoomFOV, ZoomModifierLocationOffset);
 			}
 		}
+
+		if (APRPlayerController* PRPlayerController = Cast<APRPlayerController>(PlayerController))
+		{
+			if (UPRUIControllerComponent* UIController = PRPlayerController->GetUIController())
+			{
+				UIController->ShowWeaponScope();
+			}
+		}
 	}
 
 	bZoomApplied = true;
@@ -176,6 +186,14 @@ void UPRGA_WeaponZoom::CleanupZoom()
 	{
 		if (APRPlayerCharacter* Character = Cast<APRPlayerCharacter>(GetAvatarActorFromActorInfo()))
 		{
+			if (APRPlayerController* PlayerController = Cast<APRPlayerController>(Character->GetController()))
+			{
+				if (UPRUIControllerComponent* UIController = PlayerController->GetUIController())
+				{
+					UIController->HideWeaponScope();
+				}
+			}
+
 			if (UPRSpringArmComponent* SpringArm = Character->CameraBoom)
 			{
 				if (CameraModeAfterZoom == EPRCameraMode::Aim

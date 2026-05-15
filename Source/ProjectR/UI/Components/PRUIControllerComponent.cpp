@@ -12,6 +12,7 @@
 #include "ProjectR/UI/Inventory/PRInventoryWidget.h"
 #include "ProjectR/UI/PRUIManagerSubsystem.h"
 #include "ProjectR/Weapon/Components/PRWeaponManagerComponent.h"
+#include "ProjectR/Weapon/Data/PRWeaponDataAsset.h"
 
 UPRUIControllerComponent::UPRUIControllerComponent()
 {
@@ -78,11 +79,39 @@ void UPRUIControllerComponent::CloseInventory()
 	}
 }
 
+void UPRUIControllerComponent::ShowWeaponScope()
+{
+	if (!IsLocalPlayer())
+	{
+		return;
+	}
+
+	bWantsWeaponScopeVisible = true;
+	RefreshWeaponScopeWidget();
+
+	if (IsValid(WeaponScopeWidget))
+	{
+		WeaponScopeWidget->SetVisibility(ESlateVisibility::HitTestInvisible);
+	}
+}
+
+void UPRUIControllerComponent::HideWeaponScope()
+{
+	bWantsWeaponScopeVisible = false;
+
+	if (IsValid(WeaponScopeWidget))
+	{
+		WeaponScopeWidget->SetVisibility(ESlateVisibility::Collapsed);
+	}
+}
+
 void UPRUIControllerComponent::EndPlay(const EEndPlayReason::Type EndPlayReason)
 {
 	CloseInventory();
 	InventoryWidget = nullptr;
 
+	UnbindWeaponManager();
+	RemoveWeaponScopeWidget();
 	TearDownHUDWidget();
 
 	Super::EndPlay(EndPlayReason);
@@ -98,6 +127,8 @@ void UPRUIControllerComponent::RefreshForPawn(APawn* InPawn)
 	// 새 폰이 없으면 HUD 위젯만 정리하고 종료
 	if (!IsValid(InPawn))
 	{
+		UnbindWeaponManager();
+		RemoveWeaponScopeWidget();
 		TearDownHUDWidget();
 		return;
 	}
@@ -105,6 +136,14 @@ void UPRUIControllerComponent::RefreshForPawn(APawn* InPawn)
 	// 기존 HUD 위젯 정리 후 새 인스턴스 생성. EventManager 바인딩이 새 위젯 NativeOnInitialized에서 다시 등록됨
 	TearDownHUDWidget();
 	CreateHUDWidget();
+
+	BindWeaponManager(GetWeaponManagerComponent());
+	RefreshWeaponScopeWidget();
+}
+
+void UPRUIControllerComponent::HandleWeaponEquipmentChanged(UPRWeaponManagerComponent* WeaponManagerComponent, EPRWeaponSlotType ChangedSlot)
+{
+	RefreshWeaponScopeWidget();
 }
 
 bool UPRUIControllerComponent::IsLocalPlayer() const
@@ -245,4 +284,81 @@ void UPRUIControllerComponent::CreateHUDWidget()
 		// UIManager가 없는 예외 케이스에 대한 폴백
 		HUDWidget->AddToViewport();
 	}
+}
+
+void UPRUIControllerComponent::RefreshWeaponScopeWidget()
+{
+	UPRWeaponManagerComponent* WeaponManagerComponent = GetWeaponManagerComponent();
+	if (!IsValid(WeaponManagerComponent))
+	{
+		RemoveWeaponScopeWidget();
+		return;
+	}
+
+	const EPRWeaponSlotType CurrentWeaponSlot = WeaponManagerComponent->GetCurrentWeaponSlot();
+	const UPRWeaponDataAsset* WeaponData = WeaponManagerComponent->GetWeaponDataBySlotType(CurrentWeaponSlot);
+	TSubclassOf<UUserWidget> ScopeWidgetClass = IsValid(WeaponData) ? WeaponData->ScopeWidgetClass : nullptr;
+	if (!IsValid(ScopeWidgetClass.Get()))
+	{
+		RemoveWeaponScopeWidget();
+		return;
+	}
+
+	if (IsValid(WeaponScopeWidget) && CurrentScopeWidgetClass == ScopeWidgetClass)
+	{
+		WeaponScopeWidget->SetVisibility(bWantsWeaponScopeVisible ? ESlateVisibility::HitTestInvisible : ESlateVisibility::Collapsed);
+		return;
+	}
+
+	RemoveWeaponScopeWidget();
+
+	APlayerController* PlayerController = GetOwningPlayerController();
+	if (!IsValid(PlayerController))
+	{
+		return;
+	}
+
+	WeaponScopeWidget = CreateWidget<UUserWidget>(PlayerController, ScopeWidgetClass);
+	if (!IsValid(WeaponScopeWidget))
+	{
+		return;
+	}
+
+	CurrentScopeWidgetClass = ScopeWidgetClass;
+	WeaponScopeWidget->AddToViewport(-1);
+	WeaponScopeWidget->SetVisibility(bWantsWeaponScopeVisible ? ESlateVisibility::HitTestInvisible : ESlateVisibility::Collapsed);
+}
+
+void UPRUIControllerComponent::RemoveWeaponScopeWidget()
+{
+	if (IsValid(WeaponScopeWidget))
+	{
+		WeaponScopeWidget->RemoveFromParent();
+	}
+
+	WeaponScopeWidget = nullptr;
+	CurrentScopeWidgetClass = nullptr;
+}
+
+void UPRUIControllerComponent::BindWeaponManager(UPRWeaponManagerComponent* WeaponManagerComponent)
+{
+	UnbindWeaponManager();
+
+	if (!IsValid(WeaponManagerComponent))
+	{
+		return;
+	}
+
+	BoundWeaponManager = WeaponManagerComponent;
+	BoundWeaponManager->GetOnWeaponEquipmentChanged().AddDynamic(this, &ThisClass::HandleWeaponEquipmentChanged);
+}
+
+void UPRUIControllerComponent::UnbindWeaponManager()
+{
+	if (IsValid(BoundWeaponManager))
+	{
+		BoundWeaponManager->GetOnWeaponEquipmentChanged().RemoveAll(this);
+	}
+
+	BoundWeaponManager = nullptr;
 }

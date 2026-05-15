@@ -18,7 +18,8 @@ enum class EPRTacticalMode : uint8
 	FastApproach	UMETA(DisplayName = "FastApproach"),
 	Attack		UMETA(DisplayName = "Attack"),
 	Strafe		UMETA(DisplayName = "Strafe"),
-	Return		UMETA(DisplayName = "Return")
+	Return		UMETA(DisplayName = "Return"),
+	Patrol		UMETA(DisplayName = "Patrol")
 };
 
 // 패턴의 전투 계열이다.

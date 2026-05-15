@@ -102,11 +102,13 @@ public:
 
 protected:
 	bool IsValidThreatTarget(const AActor* Target) const;
-	void ReevaluateTarget();
+	void ReevaluateTarget(bool bResetScoreWindow = true);
 	void SetCurrentTarget(AActor* NewTarget, float CandidateScore = 0.0f);
 	void CleanupInvalidEntries();
-	// 10초 점수 창이 만료되었으면 피해 누적 점수를 초기화한다.
-	bool ResetScoreWindowIfNeeded(float CurrentTime);
+	// 10초 점수 창이 만료되었는지 확인하고, 필요할 때 피해 누적 점수를 초기화한다.
+	bool ResetScoreWindowIfNeeded(float CurrentTime, bool bClearDamageScores = true);
+	// 현재 점수 창에 누적된 피해 점수를 다음 창을 위해 초기화한다.
+	void ClearScoreWindowDamage();
 	// 후보의 피해/거리/LOS/현재 타겟 유지 점수를 다시 계산한다.
 	float UpdateCandidateSelectionScore(FPREnemyTargetCandidate& Candidate) const;
 	// 최종 선택 점수를 가중치로 사용해 다음 공격 대상을 확률 선택한다.
@@ -117,6 +119,10 @@ protected:
 	bool ShouldRemoveTargetCandidate(const FPREnemyTargetCandidate& Candidate, float CurrentTime) const;
 	void QueuePendingTarget(AActor* NewTarget, float CandidateScore);
 	void ClearPendingTarget();
+	// 타겟 후보/현재 타겟/커밋 상태를 로그로 출력한다.
+	void LogTargetDebugState(const TCHAR* Reason) const;
+	// 타겟 후보/현재 타겟/커밋 상태를 월드에 그린다.
+	void DrawTargetDebugState(const TCHAR* Reason) const;
 
 protected:
 	// 타겟 후보 유지와 선택 정책이다. 기본값은 안전한 fallback이며, 일반 몬스터는 CombatDataAsset 값으로 덮어쓴다.

@@ -88,8 +88,7 @@ void APREnemyBaseCharacter::BeginPlay()
 
 	BindTagChangeEvent();
 	
-	// 배치된 위치를 복귀 기준점으로 저장한다.
-	HomeLocation = GetActorLocation();
+	InitializeHomeLocation();
 	InitializeEnemyWorldHealthBar();
 
 	if (IsValid(CommonSet))
@@ -111,6 +110,7 @@ void APREnemyBaseCharacter::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>
 
 void APREnemyBaseCharacter::PossessedBy(AController* NewController)
 {
+	InitializeHomeLocation();
 	Super::PossessedBy(NewController);
 
 	InitializeEnemyAbilitySystem();
@@ -314,6 +314,17 @@ void APREnemyBaseCharacter::HandleGameplayTagUpdated(const FGameplayTag& Changed
 	{
 		HandleGroggyTagChanged(TagExists);
 	}
+}
+
+void APREnemyBaseCharacter::InitializeHomeLocation()
+{
+	if (bHasInitializedHomeLocation)
+	{
+		return;
+	}
+
+	HomeLocation = GetActorLocation();
+	bHasInitializedHomeLocation = true;
 }
 
 void APREnemyBaseCharacter::InitializeEnemyAbilitySystem()

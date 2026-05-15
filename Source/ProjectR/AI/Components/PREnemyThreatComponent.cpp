@@ -2,11 +2,19 @@
 
 #include "PREnemyThreatComponent.h"
 
+#include "ProjectR/AI/PREnemyAIDebug.h"
 #include "ProjectR/Combat/PRCombatStatics.h"
+
+#include "DrawDebugHelpers.h"
 
 namespace
 {
 	constexpr float MinTargetSelectionScore = UE_SMALL_NUMBER;
+	constexpr float TargetDebugOwnerHeightOffset = 92.0f;
+	constexpr float TargetDebugTargetHeightOffset = 88.0f;
+	constexpr float TargetDebugLabelHeightOffset = 132.0f;
+	constexpr float TargetDebugLineThickness = 2.0f;
+	constexpr float TargetDebugSphereRadius = 24.0f;
 
 	FPREnemyTargetingConfig SanitizeTargetingConfig(FPREnemyTargetingConfig Config)
 	{
@@ -23,6 +31,37 @@ namespace
 		Config.EngagementRetainRadius = FMath::Max(Config.EngagementRetainRadius, 0.0f);
 		Config.CandidateForgetTime = FMath::Max(Config.CandidateForgetTime, 0.0f);
 		return Config;
+	}
+
+	const TCHAR* BoolToText(bool bValue)
+	{
+		return bValue ? TEXT("true") : TEXT("false");
+	}
+
+	FColor GetCandidateDebugColor(const FPREnemyTargetCandidate& Candidate, const AActor* CurrentTarget, const AActor* ActiveAttackTarget, const AActor* PendingTarget)
+	{
+		const AActor* CandidateTarget = Candidate.Target.Get();
+		if (CandidateTarget == ActiveAttackTarget)
+		{
+			return FColor::Red;
+		}
+
+		if (CandidateTarget == PendingTarget)
+		{
+			return FColor(255, 128, 0);
+		}
+
+		if (CandidateTarget == CurrentTarget)
+		{
+			return FColor::Green;
+		}
+
+		if (Candidate.bCurrentlyPerceived)
+		{
+			return FColor::Cyan;
+		}
+
+		return FColor(150, 150, 150);
 	}
 }
 
@@ -73,6 +112,8 @@ void UPREnemyThreatComponent::AddThreat(AActor* Target, float Amount)
 	UpdateCandidateSelectionScore(Candidate);
 
 	ReevaluateTarget();
+	LogTargetDebugState(TEXT("AddThreat"));
+	DrawTargetDebugState(TEXT("AddThreat"));
 }
 
 void UPREnemyThreatComponent::AddDamageThreat(AActor* Target, float DamageAmount)
@@ -94,6 +135,8 @@ void UPREnemyThreatComponent::AddDamageThreat(AActor* Target, float DamageAmount
 	UpdateCandidateSelectionScore(Candidate);
 
 	ForceCurrentTarget(Target);
+	LogTargetDebugState(TEXT("AddDamageThreat"));
+	DrawTargetDebugState(TEXT("AddDamageThreat"));
 }
 
 void UPREnemyThreatComponent::ForceCurrentTarget(AActor* NewTarget)
@@ -112,6 +155,8 @@ void UPREnemyThreatComponent::ForceCurrentTarget(AActor* NewTarget)
 	const float CandidateScore = UpdateCandidateSelectionScore(Candidate);
 
 	SetCurrentTarget(NewTarget, CandidateScore);
+	LogTargetDebugState(TEXT("ForceCurrentTarget"));
+	DrawTargetDebugState(TEXT("ForceCurrentTarget"));
 }
 
 void UPREnemyThreatComponent::UpdatePerceivedTarget(AActor* Target, FVector SensedLocation, bool bHasLOS)
@@ -135,7 +180,14 @@ void UPREnemyThreatComponent::UpdatePerceivedTarget(AActor* Target, FVector Sens
 	Candidate.ThreatValue = FMath::Max(Candidate.ThreatValue, TargetingConfig.BaseCandidateScore);
 	UpdateCandidateSelectionScore(Candidate);
 
-	ReevaluateTarget();
+	// 이미 공격 대상이 있으면 새 감지 대상은 후보 풀에만 추가하고, 교체는 점수창 갱신/피해 이벤트에서 처리한다.
+	if (!IsValid(CurrentTarget))
+	{
+		ReevaluateTarget();
+	}
+
+	LogTargetDebugState(TEXT("UpdatePerceivedTarget"));
+	DrawTargetDebugState(TEXT("UpdatePerceivedTarget"));
 }
 
 void UPREnemyThreatComponent::MarkTargetPerceptionLost(AActor* LostTarget, FVector LastKnownLocation)
@@ -147,15 +199,22 @@ void UPREnemyThreatComponent::MarkTargetPerceptionLost(AActor* LostTarget, FVect
 
 	const float CurrentTime = GetWorld()->GetTimeSeconds();
 	ResetScoreWindowIfNeeded(CurrentTime);
-	FPREnemyTargetCandidate& Candidate = FindOrAddTargetCandidate(LostTarget, CurrentTime);
+	FPREnemyTargetCandidate* Candidate = FindTargetCandidate(LostTarget);
+	if (Candidate == nullptr)
+	{
+		return;
+	}
+
 	const FVector ResolvedLocation = LastKnownLocation.IsNearlyZero() ? LostTarget->GetActorLocation() : LastKnownLocation;
 
-	Candidate.bCurrentlyPerceived = false;
-	Candidate.bHasLOS = false;
-	Candidate.LastKnownLocation = ResolvedLocation;
-	Candidate.LastUpdatedTime = CurrentTime;
+	Candidate->bCurrentlyPerceived = false;
+	Candidate->bHasLOS = false;
+	Candidate->LastKnownLocation = ResolvedLocation;
+	Candidate->LastUpdatedTime = CurrentTime;
 
 	RefreshTargetCandidates();
+	LogTargetDebugState(TEXT("MarkTargetPerceptionLost"));
+	DrawTargetDebugState(TEXT("MarkTargetPerceptionLost"));
 }
 
 bool UPREnemyThreatComponent::GetTargetCandidate(AActor* Target, FPREnemyTargetCandidate& OutCandidate) const
@@ -178,7 +237,7 @@ void UPREnemyThreatComponent::RefreshTargetCandidates()
 	}
 
 	const float CurrentTime = GetWorld()->GetTimeSeconds();
-	const bool bScoreWindowReset = ResetScoreWindowIfNeeded(CurrentTime);
+	const bool bScoreWindowReset = ResetScoreWindowIfNeeded(CurrentTime, false);
 	CleanupInvalidEntries();
 
 	for (FPREnemyTargetCandidate& Candidate : TargetCandidates)
@@ -193,8 +252,21 @@ void UPREnemyThreatComponent::RefreshTargetCandidates()
 
 	if (bScoreWindowReset || !IsValid(CurrentTarget))
 	{
-		ReevaluateTarget();
+		ReevaluateTarget(false);
 	}
+
+	if (bScoreWindowReset)
+	{
+		ClearScoreWindowDamage();
+		for (FPREnemyTargetCandidate& Candidate : TargetCandidates)
+		{
+			UpdateCandidateSelectionScore(Candidate);
+		}
+
+		LogTargetDebugState(TEXT("ScoreWindowReset"));
+	}
+
+	DrawTargetDebugState(TEXT("RefreshTargetCandidates"));
 }
 
 void UPREnemyThreatComponent::BeginAttackCommit(AActor* InTarget, FVector InTargetLocation)
@@ -214,6 +286,8 @@ void UPREnemyThreatComponent::BeginAttackCommit(AActor* InTarget, FVector InTarg
 	AttackCommitState.ActiveAttackTargetLocation = InTargetLocation;
 	AttackCommitState.bIsAttackCommitted = true;
 	ClearPendingTarget();
+	LogTargetDebugState(TEXT("BeginAttackCommit"));
+	DrawTargetDebugState(TEXT("BeginAttackCommit"));
 }
 
 void UPREnemyThreatComponent::EndAttackCommit()
@@ -239,10 +313,14 @@ void UPREnemyThreatComponent::EndAttackCommit()
 	if (IsValidThreatTarget(PendingTarget))
 	{
 		SetCurrentTarget(PendingTarget, PendingScore);
+		LogTargetDebugState(TEXT("EndAttackCommit-Pending"));
+		DrawTargetDebugState(TEXT("EndAttackCommit-Pending"));
 		return;
 	}
 
 	ReevaluateTarget();
+	LogTargetDebugState(TEXT("EndAttackCommit"));
+	DrawTargetDebugState(TEXT("EndAttackCommit"));
 }
 
 void UPREnemyThreatComponent::ForceClearAttackCommit()
@@ -256,6 +334,8 @@ void UPREnemyThreatComponent::ForceClearAttackCommit()
 	AttackCommitState.ActiveAttackTargetLocation = FVector::ZeroVector;
 	AttackCommitState.bIsAttackCommitted = false;
 	ClearPendingTarget();
+	LogTargetDebugState(TEXT("ForceClearAttackCommit"));
+	DrawTargetDebugState(TEXT("ForceClearAttackCommit"));
 }
 
 void UPREnemyThreatComponent::InvalidateCurrentTarget()
@@ -293,6 +373,9 @@ void UPREnemyThreatComponent::ReleaseCurrentTargetForSearch(AActor* LostTarget)
 			break;
 		}
 	}
+
+	LogTargetDebugState(TEXT("ReleaseCurrentTargetForSearch"));
+	DrawTargetDebugState(TEXT("ReleaseCurrentTargetForSearch"));
 }
 
 void UPREnemyThreatComponent::OnTargetLost(AActor* LostTarget)
@@ -316,9 +399,11 @@ void UPREnemyThreatComponent::OnTargetLost(AActor* LostTarget)
 	}
 
 	ReevaluateTarget();
+	LogTargetDebugState(TEXT("OnTargetLost"));
+	DrawTargetDebugState(TEXT("OnTargetLost"));
 }
 
-void UPREnemyThreatComponent::ReevaluateTarget()
+void UPREnemyThreatComponent::ReevaluateTarget(bool bResetScoreWindow)
 {
 	if (!GetOwner() || !GetOwner()->HasAuthority())
 	{
@@ -326,7 +411,10 @@ void UPREnemyThreatComponent::ReevaluateTarget()
 	}
 
 	const float CurrentTime = GetWorld()->GetTimeSeconds();
-	ResetScoreWindowIfNeeded(CurrentTime);
+	if (bResetScoreWindow)
+	{
+		ResetScoreWindowIfNeeded(CurrentTime);
+	}
 	CleanupInvalidEntries();
 
 	if (IsValid(CurrentTarget) && FindTargetCandidate(CurrentTarget) == nullptr)
@@ -414,12 +502,22 @@ void UPREnemyThreatComponent::SetCurrentTarget(AActor* NewTarget, float Candidat
 	CurrentTarget = NewTarget;
 	LastSwitchTime = GetWorld()->GetTimeSeconds();
 
+	if (PREnemyAIDebug::IsTargetingLogEnabled())
+	{
+		UE_LOG(LogPREnemyAI, Log, TEXT("[Targeting][SetCurrentTarget] Owner=%s Old=%s New=%s Score=%.2f"),
+			*GetNameSafe(GetOwner()),
+			*GetNameSafe(OldTarget),
+			*GetNameSafe(NewTarget),
+			CandidateScore);
+	}
+
 	if (!IsValid(NewTarget) || AttackCommitState.PendingTargetCandidate == NewTarget)
 	{
 		ClearPendingTarget();
 	}
 
 	OnTargetChanged.Broadcast(OldTarget, NewTarget);
+	DrawTargetDebugState(TEXT("SetCurrentTarget"));
 }
 
 void UPREnemyThreatComponent::CleanupInvalidEntries()
@@ -435,7 +533,7 @@ void UPREnemyThreatComponent::CleanupInvalidEntries()
 	}
 }
 
-bool UPREnemyThreatComponent::ResetScoreWindowIfNeeded(float CurrentTime)
+bool UPREnemyThreatComponent::ResetScoreWindowIfNeeded(float CurrentTime, bool bClearDamageScores)
 {
 	if (LastScoreWindowResetTime < 0.0f)
 	{
@@ -449,13 +547,21 @@ bool UPREnemyThreatComponent::ResetScoreWindowIfNeeded(float CurrentTime)
 	}
 
 	LastScoreWindowResetTime = CurrentTime;
+	if (bClearDamageScores)
+	{
+		ClearScoreWindowDamage();
+	}
+
+	return true;
+}
+
+void UPREnemyThreatComponent::ClearScoreWindowDamage()
+{
 	for (FPREnemyTargetCandidate& Candidate : TargetCandidates)
 	{
 		Candidate.DamageInCurrentWindow = 0.0f;
 		Candidate.DamageScore = 0.0f;
 	}
-
-	return true;
 }
 
 float UPREnemyThreatComponent::UpdateCandidateSelectionScore(FPREnemyTargetCandidate& Candidate) const
@@ -614,10 +720,142 @@ void UPREnemyThreatComponent::QueuePendingTarget(AActor* NewTarget, float Candid
 
 	AttackCommitState.PendingTargetCandidate = NewTarget;
 	AttackCommitState.PendingTargetScore = CandidateScore;
+
+	if (PREnemyAIDebug::IsTargetingLogEnabled())
+	{
+		UE_LOG(LogPREnemyAI, Log, TEXT("[Targeting][QueuePendingTarget] Owner=%s Pending=%s Score=%.2f Active=%s Current=%s"),
+			*GetNameSafe(GetOwner()),
+			*GetNameSafe(NewTarget),
+			CandidateScore,
+			*GetNameSafe(AttackCommitState.ActiveAttackTarget.Get()),
+			*GetNameSafe(CurrentTarget.Get()));
+	}
 }
 
 void UPREnemyThreatComponent::ClearPendingTarget()
 {
+	if (PREnemyAIDebug::IsTargetingLogEnabled() && IsValid(AttackCommitState.PendingTargetCandidate))
+	{
+		UE_LOG(LogPREnemyAI, Log, TEXT("[Targeting][ClearPendingTarget] Owner=%s Pending=%s Score=%.2f"),
+			*GetNameSafe(GetOwner()),
+			*GetNameSafe(AttackCommitState.PendingTargetCandidate.Get()),
+			AttackCommitState.PendingTargetScore);
+	}
+
 	AttackCommitState.PendingTargetCandidate = nullptr;
 	AttackCommitState.PendingTargetScore = 0.0f;
+}
+
+void UPREnemyThreatComponent::LogTargetDebugState(const TCHAR* Reason) const
+{
+	if (!PREnemyAIDebug::IsTargetingLogEnabled())
+	{
+		return;
+	}
+
+	const AActor* OwnerActor = GetOwner();
+	const UWorld* World = GetWorld();
+	const float CurrentTime = World != nullptr ? World->GetTimeSeconds() : 0.0f;
+	const TCHAR* DebugReason = Reason != nullptr ? Reason : TEXT("Unknown");
+
+	UE_LOG(LogPREnemyAI, Log, TEXT("[Targeting][%s] Owner=%s Current=%s AttackTarget=%s Active=%s Pending=%s PendingScore=%.2f Committed=%s Candidates=%d"),
+		DebugReason,
+		*GetNameSafe(OwnerActor),
+		*GetNameSafe(CurrentTarget.Get()),
+		*GetNameSafe(GetAttackTarget()),
+		*GetNameSafe(AttackCommitState.ActiveAttackTarget.Get()),
+		*GetNameSafe(AttackCommitState.PendingTargetCandidate.Get()),
+		AttackCommitState.PendingTargetScore,
+		BoolToText(AttackCommitState.bIsAttackCommitted),
+		TargetCandidates.Num());
+
+	for (int32 Index = 0; Index < TargetCandidates.Num(); ++Index)
+	{
+		const FPREnemyTargetCandidate& Candidate = TargetCandidates[Index];
+		const AActor* CandidateTarget = Candidate.Target.Get();
+		const float DistanceToOwner = IsValid(OwnerActor) && IsValid(CandidateTarget)
+			? FVector::Dist(OwnerActor->GetActorLocation(), CandidateTarget->GetActorLocation())
+			: -1.0f;
+		const float UpdatedAge = CurrentTime - Candidate.LastUpdatedTime;
+		const float SensedAge = CurrentTime - Candidate.LastSensedTime;
+
+		UE_LOG(LogPREnemyAI, Log, TEXT("  [%d] Target=%s Final=%.2f Base=%.2f Damage=%.2f Distance=%.2f Stickiness=%.2f Threat=%.2f DamageWindow=%.2f DistToOwner=%.1f Perceived=%s LOS=%s UpdatedAge=%.2f SensedAge=%.2f LastKnown=%s"),
+			Index,
+			*GetNameSafe(CandidateTarget),
+			Candidate.FinalSelectionScore,
+			Candidate.BaseScore,
+			Candidate.DamageScore,
+			Candidate.DistanceScore,
+			Candidate.StickinessScore,
+			Candidate.ThreatValue,
+			Candidate.DamageInCurrentWindow,
+			DistanceToOwner,
+			BoolToText(Candidate.bCurrentlyPerceived),
+			BoolToText(Candidate.bHasLOS),
+			UpdatedAge,
+			SensedAge,
+			*Candidate.LastKnownLocation.ToCompactString());
+	}
+}
+
+void UPREnemyThreatComponent::DrawTargetDebugState(const TCHAR* Reason) const
+{
+	if (!PREnemyAIDebug::IsTargetingDrawEnabled())
+	{
+		return;
+	}
+
+	UWorld* World = GetWorld();
+	const AActor* OwnerActor = GetOwner();
+	if (World == nullptr || !IsValid(OwnerActor))
+	{
+		return;
+	}
+
+	const FVector OwnerLocation = OwnerActor->GetActorLocation() + FVector(0.0f, 0.0f, TargetDebugOwnerHeightOffset);
+	const float DrawDuration = PREnemyAIDebug::GetTargetingDrawDuration();
+	const AActor* ActiveAttackTarget = AttackCommitState.ActiveAttackTarget.Get();
+	const AActor* PendingTarget = AttackCommitState.PendingTargetCandidate.Get();
+	const TCHAR* DebugReason = Reason != nullptr ? Reason : TEXT("Unknown");
+
+	const FString OwnerLabel = FString::Printf(TEXT("TargetDebug: %s\nCurrent=%s Attack=%s Commit=%s Candidates=%d"),
+		DebugReason,
+		*GetNameSafe(CurrentTarget.Get()),
+		*GetNameSafe(GetAttackTarget()),
+		BoolToText(AttackCommitState.bIsAttackCommitted),
+		TargetCandidates.Num());
+	DrawDebugString(World, OwnerLocation + FVector(0.0f, 0.0f, TargetDebugLabelHeightOffset), OwnerLabel, nullptr, FColor::White, DrawDuration, true, 1.0f);
+
+	for (int32 Index = 0; Index < TargetCandidates.Num(); ++Index)
+	{
+		const FPREnemyTargetCandidate& Candidate = TargetCandidates[Index];
+		const AActor* CandidateTarget = Candidate.Target.Get();
+		if (!IsValid(CandidateTarget))
+		{
+			continue;
+		}
+
+		const FColor CandidateColor = GetCandidateDebugColor(Candidate, CurrentTarget.Get(), ActiveAttackTarget, PendingTarget);
+		const FVector TargetLocation = CandidateTarget->GetActorLocation() + FVector(0.0f, 0.0f, TargetDebugTargetHeightOffset);
+		DrawDebugLine(World, OwnerLocation, TargetLocation, CandidateColor, false, DrawDuration, 0, TargetDebugLineThickness);
+		DrawDebugSphere(World, TargetLocation, TargetDebugSphereRadius, 12, CandidateColor, false, DrawDuration, 0, TargetDebugLineThickness);
+
+		const FString CandidateLabel = FString::Printf(TEXT("[%d] %s\nScore %.2f Dmg %.2f Dist %.2f Stick %.2f\nPerceived=%s LOS=%s Last=%s"),
+			Index,
+			*GetNameSafe(CandidateTarget),
+			Candidate.FinalSelectionScore,
+			Candidate.DamageScore,
+			Candidate.DistanceScore,
+			Candidate.StickinessScore,
+			BoolToText(Candidate.bCurrentlyPerceived),
+			BoolToText(Candidate.bHasLOS),
+			*Candidate.LastKnownLocation.ToCompactString());
+		DrawDebugString(World, TargetLocation + FVector(0.0f, 0.0f, TargetDebugLabelHeightOffset + static_cast<float>(Index) * 18.0f), CandidateLabel, nullptr, CandidateColor, DrawDuration, true, 0.9f);
+	}
+
+	if (IsValid(ActiveAttackTarget))
+	{
+		const FVector ActiveLocation = ActiveAttackTarget->GetActorLocation() + FVector(0.0f, 0.0f, TargetDebugTargetHeightOffset + 48.0f);
+		DrawDebugSphere(World, ActiveLocation, TargetDebugSphereRadius * 1.5f, 16, FColor::Red, false, DrawDuration, 0, TargetDebugLineThickness + 1.0f);
+	}
 }

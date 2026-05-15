@@ -25,6 +25,7 @@ namespace PRGameplayTags
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Ability_Player_SwapWeapon); // 플레이어 주무기/보조무기 교체 어빌리티
 	
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Ability_Enemy_Pattern); // 일반 적 패턴 공통 루트
+	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Ability_Enemy_Alert); // 일반 적 최초 발견 Alert
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Ability_Enemy_Evade); // 일반 적 회피 패턴
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Ability_Boss_Pattern); // 보스 패턴 공통 루트
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Ability_Boss_PhaseTransition); // 보스 페이즈 전환 공통 루트

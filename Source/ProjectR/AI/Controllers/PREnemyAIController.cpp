@@ -114,12 +114,18 @@ void APREnemyAIController::OnPossess(APawn* InPawn)
 		CachedThreatComponent->OnTargetChanged.AddDynamic(this, &APREnemyAIController::HandleThreatTargetChanged);
 	}
 
-	CacheBlackboardFromBehaviorTree(EnemyInterface->GetBehaviorTreeAsset());
+	UBehaviorTree* BehaviorTreeAsset = EnemyInterface->GetBehaviorTreeAsset();
+	CacheBlackboardFromBehaviorTree(BehaviorTreeAsset);
 
 	if (IsValid(CachedBlackboardComponent))
 	{
 		CachedBlackboardComponent->SetValueAsVector(HomeLocationKey, EnemyInterface->GetHomeLocation());
 		ApplyTacticalModeState(EPRTacticalMode::Idle);
+	}
+
+	if (IsValid(CachedBlackboardComponent) && IsValid(BehaviorTreeAsset))
+	{
+		RunBehaviorTree(BehaviorTreeAsset);
 	}
 
 	bPreserveAlertOnNextTargetClear = false;
@@ -493,7 +499,6 @@ void APREnemyAIController::CacheBlackboardFromBehaviorTree(UBehaviorTree* Behavi
 	}
 
 	CachedBlackboardComponent = BlackboardComponent;
-	RunBehaviorTree(BehaviorTreeAsset);
 }
 
 void APREnemyAIController::ClearThreatBinding()

@@ -17,6 +17,7 @@
 class APRWeaponActor;
 class USkeletalMesh;
 class UAnimMontage;
+class UGameplayEffect;
 class UUserWidget;
 
 // 무기 1종의 정적 장착 규칙과 기본 탄약 설정을 담는다

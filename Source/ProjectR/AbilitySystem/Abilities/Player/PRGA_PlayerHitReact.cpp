@@ -48,7 +48,6 @@ UPRGA_PlayerHitReact::UPRGA_PlayerHitReact()
 	BlockAbilitiesWithTag.AddTag(PRGameplayTags::Ability_Player_Weapon_Zoom);
 	BlockAbilitiesWithTag.AddTag(PRGameplayTags::Ability_Player_Aim);
 	BlockAbilitiesWithTag.AddTag(PRGameplayTags::Ability_Player_Crouch);
-	BlockAbilitiesWithTag.AddTag(PRGameplayTags::Ability_Player_Dodge);
 	BlockAbilitiesWithTag.AddTag(PRGameplayTags::Ability_Player_Sprint);
 	BlockAbilitiesWithTag.AddTag(PRGameplayTags::Ability_Player_Reload);
 	BlockAbilitiesWithTag.AddTag(PRGameplayTags::Ability_Player_Interaction);
@@ -753,19 +752,33 @@ void UPRGA_PlayerHitReact::StartActionLock(EPRPlayerHitReactType HitReactType)
 		{
 			ASC->AddReplicatedLooseGameplayTag(PRGameplayTags::State_PlayerHitReactLocked);
 		}
+		FGameplayTagContainer BlockedTags;
+		BlockedTags.AddTag(PRGameplayTags::Ability_Player_Dodge);
+		ASC->BlockAbilitiesWithTags(BlockedTags);
+		
 		bActionLockTagAdded = true;
+		bActionLockAbilityBlockApplied = true;
 	}
 }
 
 // 이 Ability가 부여한 행동불능 상태 태그를 제거한다.
 void UPRGA_PlayerHitReact::ClearActionLock()
 {
+	UAbilitySystemComponent* ASC = GetAbilitySystemComponentFromActorInfo();
+
+	if (bActionLockAbilityBlockApplied && IsValid(ASC))
+	{
+		FGameplayTagContainer BlockedTags;
+		BlockedTags.AddTag(PRGameplayTags::Ability_Player_Dodge);
+		ASC->UnBlockAbilitiesWithTags(BlockedTags);
+		bActionLockAbilityBlockApplied = false;
+	}
+	
 	if (!bActionLockTagAdded)
 	{
 		return;
 	}
-
-	UAbilitySystemComponent* ASC = GetAbilitySystemComponentFromActorInfo();
+	
 	if (IsValid(ASC))
 	{
 		ASC->RemoveLooseGameplayTag(PRGameplayTags::State_PlayerHitReactLocked);

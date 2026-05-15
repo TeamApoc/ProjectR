@@ -213,4 +213,7 @@ private:
 
 	// 다운 리액션 재발동 방지 태그를 이 Ability가 부여했는지 나타낸다.
 	bool bDownHitReactCooldownTagAdded = false;
+	
+	// Strong, Down 중 이 Ability가 Ability 차단을 적용했는지 나타낸다.
+	bool bActionLockAbilityBlockApplied = false;
 };

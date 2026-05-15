@@ -12,7 +12,7 @@
 
 namespace
 {
-	AAIController* ResolveAIControllerFromQueryOwner(UObject* QueryOwner)
+	AAIController* ResolveHomeLocationAIControllerFromQueryOwner(UObject* QueryOwner)
 	{
 		AActor* OwnerActor = Cast<AActor>(QueryOwner);
 		if (AAIController* AIController = Cast<AAIController>(OwnerActor))
@@ -45,7 +45,7 @@ namespace
 void UPREnvQueryContext_HomeLocation::ProvideContext(FEnvQueryInstance& QueryInstance, FEnvQueryContextData& ContextData) const
 {
 	UObject* QueryOwner = QueryInstance.Owner.Get();
-	AAIController* AIController = ResolveAIControllerFromQueryOwner(QueryOwner);
+	AAIController* AIController = ResolveHomeLocationAIControllerFromQueryOwner(QueryOwner);
 
 	if (IsValid(AIController))
 	{

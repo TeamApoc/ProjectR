@@ -57,6 +57,45 @@ UAbilitySystemComponent* APRPlayerState::GetAbilitySystemComponent() const
 	return AbilitySystemComponent;
 }
 
+void APRPlayerState::GetCachedAmmoRatios(EPRWeaponSlotType SlotType, float& OutMagazineRatio, float& OutReserveRatio) const
+{
+	if (SlotType == EPRWeaponSlotType::Primary)
+	{
+		OutMagazineRatio = CachedPrimaryMagazineAmmoRatio;
+		OutReserveRatio = CachedPrimaryReserveAmmoRatio;
+		return;
+	}
+
+	if (SlotType == EPRWeaponSlotType::Secondary)
+	{
+		OutMagazineRatio = CachedSecondaryMagazineAmmoRatio;
+		OutReserveRatio = CachedSecondaryReserveAmmoRatio;
+		return;
+	}
+
+	OutMagazineRatio = 1.0f;
+	OutReserveRatio = 1.0f;
+}
+
+void APRPlayerState::SetCachedAmmoRatios(EPRWeaponSlotType SlotType, float MagazineRatio, float ReserveRatio)
+{
+	const float ClampedMagazineRatio = FMath::Clamp(MagazineRatio, 0.0f, 1.0f);
+	const float ClampedReserveRatio = FMath::Clamp(ReserveRatio, 0.0f, 1.0f);
+
+	if (SlotType == EPRWeaponSlotType::Primary)
+	{
+		CachedPrimaryMagazineAmmoRatio = ClampedMagazineRatio;
+		CachedPrimaryReserveAmmoRatio = ClampedReserveRatio;
+		return;
+	}
+
+	if (SlotType == EPRWeaponSlotType::Secondary)
+	{
+		CachedSecondaryMagazineAmmoRatio = ClampedMagazineRatio;
+		CachedSecondaryReserveAmmoRatio = ClampedReserveRatio;
+	}
+}
+
 // =====  초기화 =====
 
 void APRPlayerState::InitializeFromSaveData(const FPRCharacterSaveData& SaveData)

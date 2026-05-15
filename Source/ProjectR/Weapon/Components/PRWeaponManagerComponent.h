@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "ActiveGameplayEffectHandle.h"
 #include "Components/ActorComponent.h"
 #include "ProjectR/Weapon/Types/PRWeaponAnimationTypes.h"
 #include "ProjectR/Weapon/Types/PRWeaponTypes.h"
@@ -10,7 +11,9 @@
 
 class UNiagaraSystem;
 class APRWeaponActor;
+class APRPlayerState;
 class UAnimInstance;
+class UGameplayEffect;
 class UPRAbilitySystemComponent;
 class UPRAttributeSet_Weapon;
 class UPRInventoryComponent;
@@ -20,6 +23,19 @@ class UPRWeaponManagerComponent;
 class UPRWeaponModDataAsset;
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FPRWeaponEquipmentChangedSignature, UPRWeaponManagerComponent*, WeaponManagerComponent, EPRWeaponSlotType, ChangedSlot);
+
+// 슬롯 장착 상태가 유지하는 지속형 GameplayEffect 핸들 묶음이다.
+USTRUCT()
+struct FPREquipSlotEffectHandles
+{
+	GENERATED_BODY()
+
+	// 슬롯 탄약 최대치 지속 효과 핸들
+	FActiveGameplayEffectHandle AmmoMaxHandle;
+
+	// 슬롯 Mod 최대 자원 지속 효과 핸들
+	FActiveGameplayEffectHandle ModMaxHandle;
+};
 
 // 캐릭터 기준 무기 장착 공개 상태와 슬롯별 로컬 Actor 생명주기를 관리하는 허브다.
 UCLASS(ClassGroup = (ProjectR), meta = (BlueprintSpawnableComponent))
@@ -213,9 +229,20 @@ protected:
 	// 현재 활성 무기 데이터를 기준으로 캐릭터 애니메이션 레이어를 갱신한다
 	void RefreshAnimLayer();
 
-	// 무기 데이터의 EquipAmmoGE를 SetByCaller 자력값과 함께 ASC에 적용한다
-	// 슬롯의 AmmoScale·ReserveAmmoRatio 비율만 갱신하며, 탄창·예비탄 raw 자원은 보존한다
+	// 무기 데이터의 탄약 최대값을 지속형 장착 GE로 적용하고 현재 탄약을 캐시 비율로 복원한다
 	void ApplyEquipAmmoGE(const UPRWeaponDataAsset* WeaponData, UObject* SourceObject);
+
+	// 현재 활성 무기의 전투 스탯을 지속형 GE SetByCaller 값으로 ASC에 적용한다
+	void ApplyCurrentWeaponGE(UObject* SourceObject);
+
+	// 대상 슬롯의 Mod 자원 최대값을 지속형 GE SetByCaller 값으로 ASC에 적용한다
+	void ApplyEquipModGE(EPRWeaponSlotType SlotType, const UPRWeaponModDataAsset* ModData, UObject* SourceObject);
+
+	// 대상 슬롯의 현재 탄약 값을 즉시 Override GE로 적용한다
+	void ApplyOverrideAmmoGE(EPRWeaponSlotType SlotType, float MagazineAmmo, float ReserveAmmo, UObject* SourceObject) const;
+
+	// 대상 슬롯의 현재 Mod 자원 값을 즉시 Override GE로 적용한다
+	void ApplyOverrideModResourceGE(EPRWeaponSlotType SlotType, float ModGauge, float ModStack, UObject* SourceObject) const;
 
 private:
 	// 대상 슬롯 원본을 수정 가능한 참조로 반환한다
@@ -232,6 +259,30 @@ private:
 
 	// 지정 무기 Item이 연결된 슬롯 타입을 반환한다
 	EPRWeaponSlotType ResolveWeaponItemSlot(const UPRItemInstance_Weapon* WeaponItem) const;
+
+	// 현재 소유자의 PlayerState를 반환한다
+	APRPlayerState* GetOwnerPlayerState() const;
+
+	// 대상 슬롯의 지속형 장착 GE 핸들 묶음을 수정 가능한 참조로 반환한다
+	FPREquipSlotEffectHandles& GetMutableEquipEffectHandlesBySlot(EPRWeaponSlotType SlotType);
+
+	// 지속형 GameplayEffect 핸들을 제거하고 비운다
+	void RemoveEquipEffectHandle(FActiveGameplayEffectHandle& Handle);
+
+	// 대상 슬롯에 연결된 지속형 장착 GE를 모두 제거한다
+	void RemoveSlotEquipEffects(EPRWeaponSlotType SlotType);
+
+	// 모든 슬롯과 현재 무기 지속형 장착 GE를 제거한다
+	void RemoveAllEquipEffects();
+
+	// 대상 슬롯의 현재 탄약 비율을 PlayerState에 저장한다
+	void CacheAmmoRatiosForSlot(EPRWeaponSlotType SlotType) const;
+
+	// 대상 슬롯의 현재 탄약을 PlayerState 캐시 비율로 Override GE를 통해 복원한다
+	void RestoreAmmoFromCachedRatios(EPRWeaponSlotType SlotType, UObject* SourceObject) const;
+
+	// 대상 슬롯의 현재 탄약 값을 Override GE로 비운다
+	void ClearAmmoAttributesForSlot(EPRWeaponSlotType SlotType, UObject* SourceObject) const;
 
 protected:
 	// 현재 무장 상태
@@ -279,6 +330,15 @@ private:
 
 	// 현재 PlayerState에 연결된 인벤토리 캐시
 	TWeakObjectPtr<UPRInventoryComponent> CachedInventory = nullptr;
+
+	// 주무기 슬롯 지속형 장착 GE 핸들
+	FPREquipSlotEffectHandles PrimaryEquipEffectHandles;
+
+	// 보조무기 슬롯 지속형 장착 GE 핸들
+	FPREquipSlotEffectHandles SecondaryEquipEffectHandles;
+
+	// 현재 활성 무기 전투 스탯 지속형 GE 핸들
+	FActiveGameplayEffectHandle CurrentWeaponEffectHandle;
 
 	// 무기 슬롯 장착 상태가 변경되었을 때 알린다
 	FPRWeaponEquipmentChangedSignature OnWeaponEquipmentChanged;

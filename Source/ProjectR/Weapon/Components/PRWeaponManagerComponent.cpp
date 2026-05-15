@@ -6,18 +6,19 @@
 #include "Components/SkeletalMeshComponent.h"
 #include "Engine/World.h"
 #include "GameFramework/Character.h"
+#include "GameplayEffect.h"
 #include "Logging/LogMacros.h"
 #include "Net/UnrealNetwork.h"
 #include "ProjectR/PRGameplayTags.h"
 #include "ProjectR/AbilitySystem/AttributeSets/PRAttributeSet_Player.h"
 #include "ProjectR/AbilitySystem/AttributeSets/PRAttributeSet_Weapon.h"
-#include "ProjectR/AbilitySystem/Data/PRAbilitySystemRegistry.h"
 #include "ProjectR/AbilitySystem/PRAbilitySystemComponent.h"
+#include "ProjectR/AbilitySystem/Data/PRAbilitySystemRegistry.h"
 #include "ProjectR/Character/PRCharacterBase.h"
 #include "ProjectR/Combat/PRCombatGameplayTags.h"
 #include "ProjectR/Inventory/Components/PRInventoryComponent.h"
-#include "ProjectR/System/PRAssetManager.h"
 #include "ProjectR/Player/PRPlayerState.h"
+#include "ProjectR/System/PRAssetManager.h"
 #include "ProjectR/Weapon/Actors/PRWeaponActor.h"
 #include "ProjectR/Weapon/Data/PRWeaponDataAsset.h"
 #include "ProjectR/Weapon/Data/PRWeaponModDataAsset.h"
@@ -96,6 +97,9 @@ void UPRWeaponManagerComponent::EndPlay(const EEndPlayReason::Type EndPlayReason
 	{
 		CurrentWeaponInstance->OnUnequipped(GetOwner());
 	}
+
+	// PlayerState ASC에 남은 장착 지속 효과를 모두 회수한다
+	RemoveAllEquipEffects();
 
 	// 컴포넌트 종료 시 남아 있는 주무기 Actor 정리
 	DestroyWeaponActorForSlot(EPRWeaponSlotType::Primary);
@@ -289,6 +293,9 @@ bool UPRWeaponManagerComponent::UnequipWeaponFromSlot(EPRWeaponSlotType TargetSl
 	// 서버 권위가 있으면 RPC를 거치지 않고 내부 해제 경로로 즉시 처리
 	if (IsValid(GetOwner()) && GetOwner()->HasAuthority())
 	{
+		// 서버 권위 해제 처리에서 GE를 적용할 수 있도록 런타임 링크 갱신
+		InitializeRuntimeLinks();
+
 		// 서버 권위 해제 결과 리턴
 		return UnequipWeaponFromSlotInternal(TargetSlot);
 	}
@@ -338,6 +345,9 @@ void UPRWeaponManagerComponent::SetCurrentWeaponSlot(EPRWeaponSlotType TargetSlo
 	// 서버 권위가 있으면 RPC를 거치지 않고 활성 슬롯을 즉시 전환
 	if (IsValid(GetOwner()) && GetOwner()->HasAuthority())
 	{
+		// 서버 권위 슬롯 전환에서 GE를 적용할 수 있도록 런타임 링크 갱신
+		InitializeRuntimeLinks();
+
 		SetCurrentWeaponSlotInternal(TargetSlot);
 
 		// 함수 조기 종료. 서버 전환 처리 마침
@@ -424,6 +434,8 @@ void UPRWeaponManagerComponent::HandleInventoryWeaponModChanged(UPRItemInstance_
 
 	// 현재 활성 중인 무기라면 기존 Mod 어빌리티를 회수하고 새 Mod 어빌리티를 부여한다
 	WeaponItem->OnModChanged(GetOwner(), WeaponItem->GetModData());
+	ApplyEquipModGE(TargetSlot, WeaponItem->GetModData(), WeaponItem);
+	ApplyOverrideModResourceGE(TargetSlot, 0.0f, 0.0f, WeaponItem);
 
 	// Mod 장착 여부에 맞춰 최근 Mod 실패 사유를 정리한다
 	WeaponItem->LastModFailReason = IsValid(WeaponItem->GetModData()) ? EPRWeaponModFailReason::None : EPRWeaponModFailReason::MissingMod;
@@ -536,6 +548,11 @@ bool UPRWeaponManagerComponent::EquipWeaponInternal(UPRItemInstance_Weapon* Weap
 	// 장착 슬롯이 활성 슬롯이었는지. 기존 무기 해제 알림 필요 여부를 결정
 	const bool bWasWeaponSlotCurrent = CurrentWeaponSlot == WeaponSlot;
 
+	if (IsValid(CurrentWeaponInstance))
+	{
+		CacheAmmoRatiosForSlot(WeaponSlot);
+	}
+
 	// 장착 슬롯이 장착 전 활성 슬롯이었던 경우
 	if (bWasWeaponSlotCurrent)
 	{
@@ -547,12 +564,11 @@ bool UPRWeaponManagerComponent::EquipWeaponInternal(UPRItemInstance_Weapon* Weap
 		}
 	}
 
+	// 새 무기 장착 전에 기존 슬롯 지속 효과를 회수해 최대치 누적을 방지한다
+	RemoveSlotEquipEffects(WeaponSlot);
+
 	// 장착 검증이 끝난 뒤 장착 슬롯 원본을 새 무기로 확정
 	GetMutableWeaponInstanceBySlot(WeaponSlot) = WeaponItem;
-
-	// 무기 데이터의 장착 GE를 적용해 슬롯 AmmoScale·ReserveAmmoRatio·MagazineAmmo를 갱신
-	// 예비탄(ReserveAmmo)은 갱신하지 않으므로 슬롯 누적 자원이 보존된다
-	ApplyEquipAmmoGE(WeaponData, WeaponItem);
 
 	// 현재 활성 슬롯이 비어 있거나 이미 활성 중인 슬롯에 다시 장착하는 경우
 	if (CurrentWeaponSlot == EPRWeaponSlotType::None || CurrentWeaponSlot == WeaponSlot)
@@ -563,6 +579,16 @@ bool UPRWeaponManagerComponent::EquipWeaponInternal(UPRItemInstance_Weapon* Weap
 
 		// 무기의 어빌리티셋을 플레이어에게 부여
 		WeaponItem->OnEquipped(GetOwner());
+	}
+
+	// 무기 슬롯 최대 자원과 현재 자원을 GE로 적용한다
+	ApplyEquipAmmoGE(WeaponData, WeaponItem);
+	ApplyEquipModGE(WeaponSlot, WeaponItem->GetModData(), WeaponItem);
+	ApplyOverrideModResourceGE(WeaponSlot, 0.0f, 0.0f, WeaponItem);
+	if (CurrentWeaponSlot == WeaponSlot)
+	{
+		// 활성 슬롯에 새 무기를 장착한 경우에만 현재 무기 전투 스탯을 갱신한다
+		ApplyCurrentWeaponGE(WeaponItem);
 	}
 
 	// 원본 슬롯 데이터를 기준으로 두 슬롯의 공개 비주얼 정보를 다시 구성
@@ -592,24 +618,152 @@ bool UPRWeaponManagerComponent::EquipWeaponInternal(UPRItemInstance_Weapon* Weap
 
 void UPRWeaponManagerComponent::ApplyEquipAmmoGE(const UPRWeaponDataAsset* WeaponData, UObject* SourceObject)
 {
-	if (!IsValid(WeaponData) || !CachedASC.IsValid())
+	if (!IsValid(WeaponData) || !CachedASC.IsValid() || !IsSupportedSlot(WeaponData->SlotType))
 	{
 		return;
 	}
 
-	// Override가 있으면 우선, 없으면 Registry의 슬롯별 GE를 fallback으로 사용
-	TSubclassOf<UGameplayEffect> EquipGE = WeaponData->EquipAmmoGEOverride;
-	if (!IsValid(EquipGE))
+	// 현재 적용된 Ammo Equip GE를 제거한다 
+	FPREquipSlotEffectHandles& SlotHandles = GetMutableEquipEffectHandlesBySlot(WeaponData->SlotType);
+	RemoveEquipEffectHandle(SlotHandles.AmmoMaxHandle);
+
+	// 슬롯 타입에 맞는 Equip GE를 Get
+	const UPRAbilitySystemRegistry* Registry = UPRAssetManager::Get().GetAbilitySystemRegistry();
+	if (!IsValid(Registry))
 	{
-		if (const UPRAbilitySystemRegistry* Registry = UPRAssetManager::Get().GetAbilitySystemRegistry())
-		{
-			EquipGE = Registry->GetEquipAmmoGE(WeaponData->GetAmmoType());
-		}
+		return;
 	}
+
+	const TSubclassOf<UGameplayEffect> EquipGE = WeaponData->SlotType == EPRWeaponSlotType::Primary
+		? Registry->EquipGE_PrimaryWeapon
+		: Registry->EquipGE_SecondaryWeapon;
 
 	if (!IsValid(EquipGE))
 	{
-		// 장착 GE 미설정 무기는 슬롯 어트리뷰트 자동 갱신을 수행하지 않는다
+		UE_LOG(LogTemp, Warning, TEXT("[WeaponManager] EquipGE가 유효하지 않습니다. | ApplyEquipAmmoGE()"));
+		return;
+	}
+
+	// 이펙트 컨텍스트 생성
+	FGameplayEffectContextHandle Context = CachedASC->MakeEffectContext();
+	if (IsValid(SourceObject))
+	{
+		// 컨텍스트에 무기 아이템을 소스 오브젝트로 추가
+		Context.AddSourceObject(SourceObject);
+	}
+
+	// Equip GE 스펙 핸들 생성 
+	const FGameplayEffectSpecHandle SpecHandle = CachedASC->MakeOutgoingSpec(EquipGE, 1.f, Context);
+	if (!SpecHandle.IsValid())
+	{
+		return;
+	}
+
+	// 무기 데이터 에셋에서 원본 값 불러오기
+	const float MaxMagazineAmmo = FMath::Max(WeaponData->MaxMagazineAmmo, 0.0f);
+	const float MaxReserveAmmo = MaxMagazineAmmo * FMath::Max(WeaponData->ReserveAmmoMultiplier, 0.0f);
+
+	// 슬롯 타입에 맞게 SetSetByCallerMagnitude로 주입
+	if (WeaponData->SlotType == EPRWeaponSlotType::Primary)
+	{
+		SpecHandle.Data->SetSetByCallerMagnitude(PRCombatGameplayTags::SetByCaller_Equip_PrimaryMaxMagazineAmmo, MaxMagazineAmmo);
+		SpecHandle.Data->SetSetByCallerMagnitude(PRCombatGameplayTags::SetByCaller_Equip_PrimaryMaxReserveAmmo, MaxReserveAmmo);
+	}
+	else
+	{
+		SpecHandle.Data->SetSetByCallerMagnitude(PRCombatGameplayTags::SetByCaller_Equip_SecondaryMaxMagazineAmmo, MaxMagazineAmmo);
+		SpecHandle.Data->SetSetByCallerMagnitude(PRCombatGameplayTags::SetByCaller_Equip_SecondaryMaxReserveAmmo, MaxReserveAmmo);
+	}
+
+	// 이펙트 적용과 슬롯 핸들에 등록을 동시에 한다
+	SlotHandles.AmmoMaxHandle = CachedASC->ApplyGameplayEffectSpecToSelf(*SpecHandle.Data);
+	
+	// 기록된 CurrentAmmo 값 복구
+	RestoreAmmoFromCachedRatios(WeaponData->SlotType, SourceObject);
+}
+
+void UPRWeaponManagerComponent::ApplyCurrentWeaponGE(UObject* SourceObject)
+{
+	if (!CachedASC.IsValid())
+	{
+		return;
+	}
+
+	RemoveEquipEffectHandle(CurrentWeaponEffectHandle);
+
+	const UPRWeaponDataAsset* CurrentWeaponData = nullptr;
+	if (const UPRItemInstance_Weapon* CurrentWeapon = GetWeaponInstanceBySlotType(CurrentWeaponSlot))
+	{
+		CurrentWeaponData = CurrentWeapon->GetWeaponData();
+	}
+
+	if (!IsValid(CurrentWeaponData))
+	{
+		return;
+	}
+
+	FGameplayEffectContextHandle Context = CachedASC->MakeEffectContext();
+	if (IsValid(SourceObject))
+	{
+		Context.AddSourceObject(SourceObject);
+	}
+	
+	const UPRAbilitySystemRegistry* Registry = UPRAssetManager::Get().GetAbilitySystemRegistry();
+	if (!IsValid(Registry))
+	{
+		return;
+	}
+
+	const TSubclassOf<UGameplayEffect> EquipGE = Registry->EquipGE_CurrentWeapon;
+	
+	if (!IsValid(EquipGE))
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[WeaponManager] EquipGE가 유효하지 않습니다. | ApplyCurrentWeaponGE()"));
+		return;
+	}
+
+	const FGameplayEffectSpecHandle SpecHandle = CachedASC->MakeOutgoingSpec(EquipGE, 1.f, Context);
+	if (!SpecHandle.IsValid())
+	{
+		return;
+	}
+
+	SpecHandle.Data->SetSetByCallerMagnitude(PRCombatGameplayTags::SetByCaller_CurrentWeapon_BaseDamage, FMath::Max(CurrentWeaponData->BaseDamage, 0.0f));
+	SpecHandle.Data->SetSetByCallerMagnitude(PRCombatGameplayTags::SetByCaller_CurrentWeapon_ArmorPenetration, FMath::Max(CurrentWeaponData->ArmorPenetration, 0.0f));
+	SpecHandle.Data->SetSetByCallerMagnitude(PRCombatGameplayTags::SetByCaller_CurrentWeapon_WeakpointMultiplier, FMath::Max(CurrentWeaponData->WeakpointMultiplier, 0.0f));
+	SpecHandle.Data->SetSetByCallerMagnitude(PRCombatGameplayTags::SetByCaller_CurrentWeapon_GroggyDamageMultiplier, FMath::Max(CurrentWeaponData->GroggyDamageMultiplier, 0.0f));
+
+	CurrentWeaponEffectHandle = CachedASC->ApplyGameplayEffectSpecToSelf(*SpecHandle.Data);
+}
+
+void UPRWeaponManagerComponent::ApplyEquipModGE(EPRWeaponSlotType SlotType, const UPRWeaponModDataAsset* ModData, UObject* SourceObject)
+{
+	if (!CachedASC.IsValid() || !IsSupportedSlot(SlotType))
+	{
+		return;
+	}
+
+	FPREquipSlotEffectHandles& SlotHandles = GetMutableEquipEffectHandlesBySlot(SlotType);
+	RemoveEquipEffectHandle(SlotHandles.ModMaxHandle);
+
+	if (!IsValid(ModData))
+	{
+		return;
+	}
+
+	const UPRAbilitySystemRegistry* Registry = UPRAssetManager::Get().GetAbilitySystemRegistry();
+	if (!IsValid(Registry))
+	{
+		return;
+	}
+
+	const TSubclassOf<UGameplayEffect> EquipGE = SlotType == EPRWeaponSlotType::Primary
+		? Registry->EquipGE_PrimaryMod
+		: Registry->EquipGE_SecondaryMod;
+	
+	if (!IsValid(EquipGE))
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[WeaponManager] EquipGE가 유효하지 않습니다. | ApplyEquipModGE()"));
 		return;
 	}
 
@@ -625,11 +779,124 @@ void UPRWeaponManagerComponent::ApplyEquipAmmoGE(const UPRWeaponDataAsset* Weapo
 		return;
 	}
 
-	// 슬롯 비율 어트리뷰트(AmmoScale, ReserveAmmoRatio)만 SetByCaller로 전달
-	// MagazineAmmo는 갱신하지 않아 슬롯 raw 자원이 그대로 보존된다 (재장전으로만 채움)
-	SpecHandle.Data->SetSetByCallerMagnitude(PRCombatGameplayTags::SetByCaller_AmmoScale, WeaponData->AmmoScale);
-	SpecHandle.Data->SetSetByCallerMagnitude(PRCombatGameplayTags::SetByCaller_ReserveAmmoRatio, WeaponData->ReserveAmmoRatio);
+	const float MaxGauge = FMath::Max(ModData->MaxModGauge, 0.0f);
+	const float MaxStack = FMath::Max(ModData->MaxModStck, 0.0f);
 
+	if (SlotType == EPRWeaponSlotType::Primary)
+	{
+		SpecHandle.Data->SetSetByCallerMagnitude(PRCombatGameplayTags::SetByCaller_Equip_PrimaryMaxModGauge, MaxGauge);
+		SpecHandle.Data->SetSetByCallerMagnitude(PRCombatGameplayTags::SetByCaller_Equip_PrimaryMaxModStack, MaxStack);
+	}
+	else
+	{
+		SpecHandle.Data->SetSetByCallerMagnitude(PRCombatGameplayTags::SetByCaller_Equip_SecondaryMaxModGauge, MaxGauge);
+		SpecHandle.Data->SetSetByCallerMagnitude(PRCombatGameplayTags::SetByCaller_Equip_SecondaryMaxModStack, MaxStack);
+	}
+
+	SlotHandles.ModMaxHandle = CachedASC->ApplyGameplayEffectSpecToSelf(*SpecHandle.Data);
+}
+
+void UPRWeaponManagerComponent::ApplyOverrideAmmoGE(EPRWeaponSlotType SlotType, float MagazineAmmo, float ReserveAmmo, UObject* SourceObject) const
+{
+	if (!CachedASC.IsValid() || !IsSupportedSlot(SlotType))
+	{
+		return;
+	}
+
+	const UPRAbilitySystemRegistry* Registry = UPRAssetManager::Get().GetAbilitySystemRegistry();
+	if (!IsValid(Registry))
+	{
+		return;
+	}
+
+	// 슬롯 타입에 맞는 오버라이드 Ammo GE를 불러온다
+	const TSubclassOf<UGameplayEffect> OverrideGE = SlotType == EPRWeaponSlotType::Primary
+		? Registry->EquipGE_Override_PrimaryAmmo
+		: Registry->EquipGE_Override_SecondaryAmmo;
+	if (!IsValid(OverrideGE))
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[WeaponManager] OverrideGE가 유효하지 않습니다. | ApplyOverrideAmmoGE()"));
+		return;
+	}
+
+	// 무기 아이템을 소스 오브젝트로 콘텍스트에 추가한다
+	FGameplayEffectContextHandle Context = CachedASC->MakeEffectContext();
+	if (IsValid(SourceObject))
+	{
+		Context.AddSourceObject(SourceObject);
+	}
+
+	const FGameplayEffectSpecHandle SpecHandle = CachedASC->MakeOutgoingSpec(OverrideGE, 1.f, Context);
+	if (!SpecHandle.IsValid())
+	{
+		return;
+	}
+
+	// 슬롯에 맞는 SetSetByCallerMagnitude값 주입
+	if (SlotType == EPRWeaponSlotType::Primary)
+	{
+		SpecHandle.Data->SetSetByCallerMagnitude(PRCombatGameplayTags::SetByCaller_Equip_PrimaryMagazineAmmo, FMath::Max(MagazineAmmo, 0.0f));
+		SpecHandle.Data->SetSetByCallerMagnitude(PRCombatGameplayTags::SetByCaller_Equip_PrimaryReserveAmmo, FMath::Max(ReserveAmmo, 0.0f));
+	}
+	else
+	{
+		SpecHandle.Data->SetSetByCallerMagnitude(PRCombatGameplayTags::SetByCaller_Equip_SecondaryMagazineAmmo, FMath::Max(MagazineAmmo, 0.0f));
+		SpecHandle.Data->SetSetByCallerMagnitude(PRCombatGameplayTags::SetByCaller_Equip_SecondaryReserveAmmo, FMath::Max(ReserveAmmo, 0.0f));
+	}
+
+	// GE 적용
+	CachedASC->ApplyGameplayEffectSpecToSelf(*SpecHandle.Data);
+}
+
+void UPRWeaponManagerComponent::ApplyOverrideModResourceGE(EPRWeaponSlotType SlotType, float ModGauge, float ModStack, UObject* SourceObject) const
+{
+	if (!CachedASC.IsValid() || !IsSupportedSlot(SlotType))
+	{
+		return;
+	}
+
+	const UPRAbilitySystemRegistry* Registry = UPRAssetManager::Get().GetAbilitySystemRegistry();
+	if (!IsValid(Registry))
+	{
+		return;
+	}
+
+	// 슬롯 타입에 맞는 오버라이드 GE를 불러온다
+	const TSubclassOf<UGameplayEffect> OverrideGE = SlotType == EPRWeaponSlotType::Primary
+		? Registry->EquipGE_Override_PrimaryModResource
+		: Registry->EquipGE_Override_SecondaryModResource;
+	if (!IsValid(OverrideGE))
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[WeaponManager] OverrideGE가 유효하지 않습니다. | ApplyOverrideModResourceGE()"));
+		return;
+	}
+
+	// 무기 아이템을 소스 오브젝트로 콘텍스트에 추가한다
+	FGameplayEffectContextHandle Context = CachedASC->MakeEffectContext();
+	if (IsValid(SourceObject))
+	{
+		Context.AddSourceObject(SourceObject);
+	}
+
+	const FGameplayEffectSpecHandle SpecHandle = CachedASC->MakeOutgoingSpec(OverrideGE, 1.f, Context);
+	if (!SpecHandle.IsValid())
+	{
+		return;
+	}
+
+	// 슬롯에 맞는 SetSetByCallerMagnitude값 주입
+	if (SlotType == EPRWeaponSlotType::Primary)
+	{
+		SpecHandle.Data->SetSetByCallerMagnitude(PRCombatGameplayTags::SetByCaller_Equip_PrimaryModGauge, FMath::Max(ModGauge, 0.0f));
+		SpecHandle.Data->SetSetByCallerMagnitude(PRCombatGameplayTags::SetByCaller_Equip_PrimaryModStack, FMath::Max(ModStack, 0.0f));
+	}
+	else
+	{
+		SpecHandle.Data->SetSetByCallerMagnitude(PRCombatGameplayTags::SetByCaller_Equip_SecondaryModGauge, FMath::Max(ModGauge, 0.0f));
+		SpecHandle.Data->SetSetByCallerMagnitude(PRCombatGameplayTags::SetByCaller_Equip_SecondaryModStack, FMath::Max(ModStack, 0.0f));
+	}
+	
+	// GE 적용
 	CachedASC->ApplyGameplayEffectSpecToSelf(*SpecHandle.Data);
 }
 
@@ -650,6 +917,8 @@ bool UPRWeaponManagerComponent::UnequipWeaponFromSlotInternal(EPRWeaponSlotType 
 
 	// 해제 타겟 슬롯이 활성 슬롯이었는지. 활성 무기 해제 알림 필요 여부를 결정
 	const bool bWasTargetSlotCurrent = PreWeaponSlot == TargetSlot;
+
+	CacheAmmoRatiosForSlot(TargetSlot);
 
 	// 해제 대상이 활성 슬롯이었던 경우
 	if (bWasTargetSlotCurrent)
@@ -682,6 +951,16 @@ bool UPRWeaponManagerComponent::UnequipWeaponFromSlotInternal(EPRWeaponSlotType 
 			// 활성 슬롯 후보가 없으므로 비무장 상태로 변경
 			ArmedState = EPRArmedState::Unarmed;
 		}
+	}
+
+	// 해제 이후 대상 슬롯 지속 효과와 현재 자원을 정리한다
+	RemoveSlotEquipEffects(TargetSlot);
+	ClearAmmoAttributesForSlot(TargetSlot, CurrentWeaponInstance);
+	ApplyOverrideModResourceGE(TargetSlot, 0.0f, 0.0f, CurrentWeaponInstance);
+	if (bWasTargetSlotCurrent)
+	{
+		// 활성 슬롯이 바뀐 경우 현재 무기 전투 스탯도 새 활성 슬롯 기준으로 갱신한다
+		ApplyCurrentWeaponGE(CurrentWeaponInstance);
 	}
 
 	// 해제 결과를 공개 비주얼 정보에 반영
@@ -746,6 +1025,8 @@ bool UPRWeaponManagerComponent::AttachModToSlotInternal(EPRWeaponSlotType Target
 
 	// 무기 Item에 Mod 변경을 반영하고 장착 효과 갱신
 	TargetWeaponInstance->OnModChanged(GetOwner(), NewModData);
+	ApplyEquipModGE(TargetSlot, NewModData, TargetWeaponInstance);
+	ApplyOverrideModResourceGE(TargetSlot, 0.0f, 0.0f, TargetWeaponInstance);
 
 	// Mod 장착 또는 빈 Mod 상태를 마지막 처리 결과로 기록
 	TargetWeaponInstance->LastModFailReason = IsValid(NewModData) ? EPRWeaponModFailReason::None : EPRWeaponModFailReason::MissingMod;
@@ -842,6 +1123,9 @@ void UPRWeaponManagerComponent::SetCurrentWeaponSlotInternal(EPRWeaponSlotType T
 
 	// 새 활성 무기의 어빌리티셋을 플레이어에게 부여
 	TargetWeaponInstance->OnEquipped(GetOwner());
+
+	// 활성 슬롯 기준 전투 값을 새 무기 데이터로 갱신한다
+	ApplyCurrentWeaponGE(TargetWeaponInstance);
 
 	// 슬롯 전환은 Actor를 재생성하지 않고 소켓 부착만 최신화하는 경로 유지
 	RefreshAllWeaponActors();
@@ -1141,12 +1425,18 @@ void UPRWeaponManagerComponent::Server_EquipWeapon_Implementation(UPRItemInstanc
 
 void UPRWeaponManagerComponent::Server_UnequipWeaponSlot_Implementation(EPRWeaponSlotType TargetSlot)
 {
+	// 서버 RPC 진입 시 PlayerState 기반 런타임 링크 갱신
+	InitializeRuntimeLinks();
+
 	// 서버 권위에서 슬롯 해제 처리
 	UnequipWeaponFromSlotInternal(TargetSlot);
 }
 
 void UPRWeaponManagerComponent::Server_SetCurrentWeaponSlot_Implementation(EPRWeaponSlotType TargetSlot)
 {
+	// 서버 RPC 진입 시 PlayerState 기반 런타임 링크 갱신
+	InitializeRuntimeLinks();
+
 	// 서버 권위에서 활성 슬롯 전환 처리
 	SetCurrentWeaponSlotInternal(TargetSlot);
 }
@@ -1277,6 +1567,139 @@ EPRWeaponSlotType UPRWeaponManagerComponent::ResolveWeaponItemSlot(const UPRItem
 	}
 
 	return EPRWeaponSlotType::None;
+}
+
+APRPlayerState* UPRWeaponManagerComponent::GetOwnerPlayerState() const
+{
+	const ACharacter* OwnerCharacter = Cast<ACharacter>(GetOwner());
+	if (!IsValid(OwnerCharacter))
+	{
+		return nullptr;
+	}
+
+	return OwnerCharacter->GetPlayerState<APRPlayerState>();
+}
+
+FPREquipSlotEffectHandles& UPRWeaponManagerComponent::GetMutableEquipEffectHandlesBySlot(EPRWeaponSlotType SlotType)
+{
+	if (SlotType == EPRWeaponSlotType::Primary)
+	{
+		return PrimaryEquipEffectHandles;
+	}
+
+	if (SlotType == EPRWeaponSlotType::Secondary)
+	{
+		return SecondaryEquipEffectHandles;
+	}
+
+	checkNoEntry();
+	return PrimaryEquipEffectHandles;
+}
+
+void UPRWeaponManagerComponent::RemoveEquipEffectHandle(FActiveGameplayEffectHandle& Handle)
+{
+	if (!Handle.IsValid())
+	{
+		return;
+	}
+
+	if (!CachedASC.IsValid())
+	{
+		return;
+	}
+
+	CachedASC->RemoveActiveGameplayEffect(Handle);
+	Handle = FActiveGameplayEffectHandle();
+}
+
+void UPRWeaponManagerComponent::RemoveSlotEquipEffects(EPRWeaponSlotType SlotType)
+{
+	if (!IsSupportedSlot(SlotType))
+	{
+		return;
+	}
+
+	// 타겟 슬롯 GE 제거
+	FPREquipSlotEffectHandles& SlotHandles = GetMutableEquipEffectHandlesBySlot(SlotType);
+	RemoveEquipEffectHandle(SlotHandles.AmmoMaxHandle);
+	RemoveEquipEffectHandle(SlotHandles.ModMaxHandle);
+}
+
+
+void UPRWeaponManagerComponent::RemoveAllEquipEffects()
+{
+	// 모든 EquipEffects 제거
+	RemoveSlotEquipEffects(EPRWeaponSlotType::Primary);
+	RemoveSlotEquipEffects(EPRWeaponSlotType::Secondary);
+	RemoveEquipEffectHandle(CurrentWeaponEffectHandle);
+}
+
+
+void UPRWeaponManagerComponent::CacheAmmoRatiosForSlot(EPRWeaponSlotType SlotType) const
+{
+	if (!CachedWeaponSet.IsValid() || !IsSupportedSlot(SlotType))
+	{
+		return;
+	}
+
+	APRPlayerState* PlayerState = GetOwnerPlayerState();
+	if (!IsValid(PlayerState))
+	{
+		return;
+	}
+
+	const EPRAmmoType AmmoType = SlotType == EPRWeaponSlotType::Primary ? EPRAmmoType::Primary : EPRAmmoType::Secondary;
+	const float MaxMagazineAmmo = CachedWeaponSet->GetMaxMagazineAmmoByType(AmmoType);
+	const float MaxReserveAmmo = CachedWeaponSet->GetMaxReserveAmmoByType(AmmoType);
+	if (MaxMagazineAmmo <= KINDA_SMALL_NUMBER || MaxReserveAmmo <= KINDA_SMALL_NUMBER)
+	{
+		return;
+	}
+
+	const float MagazineRatio = CachedWeaponSet->GetMagazineAmmoByType(AmmoType) / MaxMagazineAmmo;
+	const float ReserveRatio = CachedWeaponSet->GetReserveAmmoByType(AmmoType) / MaxReserveAmmo;
+	PlayerState->SetCachedAmmoRatios(SlotType, MagazineRatio, ReserveRatio);
+}
+
+void UPRWeaponManagerComponent::RestoreAmmoFromCachedRatios(EPRWeaponSlotType SlotType, UObject* SourceObject) const
+{
+	if (!CachedASC.IsValid() || !CachedWeaponSet.IsValid() || !IsSupportedSlot(SlotType))
+	{
+		return;
+	}
+
+	const APRPlayerState* PlayerState = GetOwnerPlayerState();
+	if (!IsValid(PlayerState))
+	{
+		return;
+	}
+
+	// 플레이어 스테이트에 기록된 슬롯 AmmoRatios를 불러온다
+	float MagazineRatio = 1.0f;
+	float ReserveRatio = 1.0f;
+	PlayerState->GetCachedAmmoRatios(SlotType, MagazineRatio, ReserveRatio);
+
+	// 적용할 슬롯의 최대 Ammo 값을 불러온다
+	const EPRAmmoType AmmoType = SlotType == EPRWeaponSlotType::Primary ? EPRAmmoType::Primary : EPRAmmoType::Secondary;
+	const float MaxMagazineAmmo = CachedWeaponSet->GetMaxMagazineAmmoByType(AmmoType);
+	const float MaxReserveAmmo = CachedWeaponSet->GetMaxReserveAmmoByType(AmmoType);
+
+	// 비율에 맞는 CurrentAmmo 값을 오버라이드 한다
+	ApplyOverrideAmmoGE(
+		SlotType,
+		FMath::Clamp(MaxMagazineAmmo * MagazineRatio, 0.0f, MaxMagazineAmmo),
+		FMath::Clamp(MaxReserveAmmo * ReserveRatio, 0.0f, MaxReserveAmmo),
+		SourceObject);
+}
+
+void UPRWeaponManagerComponent::ClearAmmoAttributesForSlot(EPRWeaponSlotType SlotType, UObject* SourceObject) const
+{
+	if (!CachedASC.IsValid() || !IsSupportedSlot(SlotType))
+	{
+		return;
+	}
+
+	ApplyOverrideAmmoGE(SlotType, 0.0f, 0.0f, SourceObject);
 }
 
 void UPRWeaponManagerComponent::RefreshAnimLayer()

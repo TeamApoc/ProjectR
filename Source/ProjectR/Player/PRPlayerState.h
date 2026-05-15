@@ -6,6 +6,7 @@
 #include "GameFramework/PlayerState.h"
 #include "AbilitySystemInterface.h"
 #include "ProjectR/Game/PRGameTypes.h"
+#include "ProjectR/Weapon/Types/PRWeaponTypes.h"
 #include "PRPlayerState.generated.h"
 
 class UPRAbilitySystemComponent;
@@ -57,6 +58,12 @@ public:
 	// 플레이어 퀵슬롯 컴포넌트를 반환
 	UFUNCTION(BlueprintPure, Category = "ProjectR|QuickSlot")
 	UPRQuickSlotComponent* GetQuickSlotComponent() const { return QuickSlotComponent; }
+
+	// 지정 무기 슬롯의 캐시된 탄창과 예비탄 비율을 반환한다
+	void GetCachedAmmoRatios(EPRWeaponSlotType SlotType, float& OutMagazineRatio, float& OutReserveRatio) const;
+
+	// 지정 무기 슬롯의 탄창과 예비탄 비율을 캐시한다
+	void SetCachedAmmoRatios(EPRWeaponSlotType SlotType, float MagazineRatio, float ReserveRatio);
 
 	// 표시명 조회
 	const FString& GetDisplayName() const { return DisplayName; }
@@ -132,4 +139,16 @@ protected:
 	// 스탯 업그레이드 정보
 	UPROPERTY(Replicated)
 	FPRCharacterStatUpgradeInfo StatUpgradeInfo;
+
+	// 주무기 슬롯 탄창 보존 비율
+	float CachedPrimaryMagazineAmmoRatio = 1.0f;
+
+	// 주무기 슬롯 예비탄 보존 비율
+	float CachedPrimaryReserveAmmoRatio = 1.0f;
+
+	// 보조무기 슬롯 탄창 보존 비율
+	float CachedSecondaryMagazineAmmoRatio = 1.0f;
+
+	// 보조무기 슬롯 예비탄 보존 비율
+	float CachedSecondaryReserveAmmoRatio = 1.0f;
 };

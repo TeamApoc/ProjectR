@@ -11,9 +11,9 @@ namespace
 	bool IsPrimarySlotAttribute(const FGameplayAttribute& Attribute)
 	{
 		return Attribute == UPRAttributeSet_Weapon::GetPrimaryMagazineAmmoAttribute()
+			|| Attribute == UPRAttributeSet_Weapon::GetPrimaryMaxMagazineAmmoAttribute()
 			|| Attribute == UPRAttributeSet_Weapon::GetPrimaryReserveAmmoAttribute()
-			|| Attribute == UPRAttributeSet_Weapon::GetPrimaryAmmoScaleAttribute()
-			|| Attribute == UPRAttributeSet_Weapon::GetPrimaryReserveAmmoRatioAttribute()
+			|| Attribute == UPRAttributeSet_Weapon::GetPrimaryMaxReserveAmmoAttribute()
 			|| Attribute == UPRAttributeSet_Weapon::GetPrimaryModGaugeAttribute()
 			|| Attribute == UPRAttributeSet_Weapon::GetPrimaryMaxModGaugeAttribute()
 			|| Attribute == UPRAttributeSet_Weapon::GetPrimaryModStackAttribute()
@@ -24,9 +24,9 @@ namespace
 	bool IsSecondarySlotAttribute(const FGameplayAttribute& Attribute)
 	{
 		return Attribute == UPRAttributeSet_Weapon::GetSecondaryMagazineAmmoAttribute()
+			|| Attribute == UPRAttributeSet_Weapon::GetSecondaryMaxMagazineAmmoAttribute()
 			|| Attribute == UPRAttributeSet_Weapon::GetSecondaryReserveAmmoAttribute()
-			|| Attribute == UPRAttributeSet_Weapon::GetSecondaryAmmoScaleAttribute()
-			|| Attribute == UPRAttributeSet_Weapon::GetSecondaryReserveAmmoRatioAttribute()
+			|| Attribute == UPRAttributeSet_Weapon::GetSecondaryMaxReserveAmmoAttribute()
 			|| Attribute == UPRAttributeSet_Weapon::GetSecondaryModGaugeAttribute()
 			|| Attribute == UPRAttributeSet_Weapon::GetSecondaryMaxModGaugeAttribute()
 			|| Attribute == UPRAttributeSet_Weapon::GetSecondaryModStackAttribute()
@@ -36,14 +36,10 @@ namespace
 
 UPRAttributeSet_Weapon::UPRAttributeSet_Weapon()
 {
-	InitBaseDamage(1.0f);
+	InitBaseDamage(0.0f);
 	InitDamageMultiplier(1.0f);
-	InitGroggyDamageMultiplier(1.0f);
-	InitPrimaryAmmoScale(1.0f);
-	InitSecondaryAmmoScale(1.0f);
-	InitPrimaryReserveAmmoRatio(5.0f);
-	InitSecondaryReserveAmmoRatio(5.0f);
-	InitWeakpointMultiplier(1.0f);
+	InitGroggyDamageMultiplier(0.0f);
+	InitWeakpointMultiplier(0.0f);
 }
 
 // =====  UPRAttributeSet_Weapon Interface =====
@@ -54,6 +50,13 @@ FGameplayAttribute UPRAttributeSet_Weapon::GetMagazineAmmoAttribute(EPRAmmoType 
 		: GetSecondaryMagazineAmmoAttribute();
 }
 
+FGameplayAttribute UPRAttributeSet_Weapon::GetMaxMagazineAmmoAttribute(EPRAmmoType AmmoType)
+{
+	return AmmoType == EPRAmmoType::Primary
+		? GetPrimaryMaxMagazineAmmoAttribute()
+		: GetSecondaryMaxMagazineAmmoAttribute();
+}
+
 FGameplayAttribute UPRAttributeSet_Weapon::GetReserveAmmoAttribute(EPRAmmoType AmmoType)
 {
 	return AmmoType == EPRAmmoType::Primary
@@ -61,18 +64,11 @@ FGameplayAttribute UPRAttributeSet_Weapon::GetReserveAmmoAttribute(EPRAmmoType A
 		: GetSecondaryReserveAmmoAttribute();
 }
 
-FGameplayAttribute UPRAttributeSet_Weapon::GetAmmoScaleAttribute(EPRAmmoType AmmoType)
+FGameplayAttribute UPRAttributeSet_Weapon::GetMaxReserveAmmoAttribute(EPRAmmoType AmmoType)
 {
 	return AmmoType == EPRAmmoType::Primary
-		? GetPrimaryAmmoScaleAttribute()
-		: GetSecondaryAmmoScaleAttribute();
-}
-
-FGameplayAttribute UPRAttributeSet_Weapon::GetReserveAmmoRatioAttribute(EPRAmmoType AmmoType)
-{
-	return AmmoType == EPRAmmoType::Primary
-		? GetPrimaryReserveAmmoRatioAttribute()
-		: GetSecondaryReserveAmmoRatioAttribute();
+		? GetPrimaryMaxReserveAmmoAttribute()
+		: GetSecondaryMaxReserveAmmoAttribute();
 }
 
 float UPRAttributeSet_Weapon::GetMagazineAmmoByType(EPRAmmoType AmmoType) const
@@ -82,6 +78,13 @@ float UPRAttributeSet_Weapon::GetMagazineAmmoByType(EPRAmmoType AmmoType) const
 		: GetSecondaryMagazineAmmo();
 }
 
+float UPRAttributeSet_Weapon::GetMaxMagazineAmmoByType(EPRAmmoType AmmoType) const
+{
+	return AmmoType == EPRAmmoType::Primary
+		? GetPrimaryMaxMagazineAmmo()
+		: GetSecondaryMaxMagazineAmmo();
+}
+
 float UPRAttributeSet_Weapon::GetReserveAmmoByType(EPRAmmoType AmmoType) const
 {
 	return AmmoType == EPRAmmoType::Primary
@@ -89,43 +92,11 @@ float UPRAttributeSet_Weapon::GetReserveAmmoByType(EPRAmmoType AmmoType) const
 		: GetSecondaryReserveAmmo();
 }
 
-float UPRAttributeSet_Weapon::GetAmmoScaleByType(EPRAmmoType AmmoType) const
+float UPRAttributeSet_Weapon::GetMaxReserveAmmoByType(EPRAmmoType AmmoType) const
 {
 	return AmmoType == EPRAmmoType::Primary
-		? GetPrimaryAmmoScale()
-		: GetSecondaryAmmoScale();
-}
-
-float UPRAttributeSet_Weapon::GetReserveAmmoRatioByType(EPRAmmoType AmmoType) const
-{
-	return AmmoType == EPRAmmoType::Primary
-		? GetPrimaryReserveAmmoRatio()
-		: GetSecondaryReserveAmmoRatio();
-}
-
-int32 UPRAttributeSet_Weapon::GetDisplayedMagazineAmmo(EPRAmmoType AmmoType) const
-{
-	const float Scale = GetAmmoScaleByType(AmmoType);
-	if (Scale <= KINDA_SMALL_NUMBER)
-	{
-		return 0;
-	}
-	return FMath::FloorToInt(GetMagazineAmmoByType(AmmoType) / Scale);
-}
-
-int32 UPRAttributeSet_Weapon::GetDisplayedReserveAmmo(EPRAmmoType AmmoType) const
-{
-	const float Scale = GetAmmoScaleByType(AmmoType);
-	if (Scale <= KINDA_SMALL_NUMBER)
-	{
-		return 0;
-	}
-	return FMath::FloorToInt(GetReserveAmmoByType(AmmoType) / Scale);
-}
-
-float UPRAttributeSet_Weapon::GetMaxReserveAmmoRaw(EPRAmmoType AmmoType) const
-{
-	return GetReserveAmmoRatioByType(AmmoType) * GetAmmoScaleByType(AmmoType) * MagazineRawBaseline;
+		? GetPrimaryMaxReserveAmmo()
+		: GetSecondaryMaxReserveAmmo();
 }
 
 // =====  UAttributeSet Interface =====
@@ -137,15 +108,21 @@ void UPRAttributeSet_Weapon::PreAttributeChange(const FGameplayAttribute& Attrib
 		|| Attribute == GetBaseDamageAttribute()
 		|| Attribute == GetDamageMultiplierAttribute()
 		|| Attribute == GetArmorPenetrationAttribute()
-		|| Attribute == GetWeakpointMultiplierAttribute())
+		|| Attribute == GetWeakpointMultiplierAttribute()
+		|| Attribute == GetGroggyDamageMultiplierAttribute())
 	{
 		NewValue = FMath::Max(NewValue, 0.0f);
 	}
 
-	// 탄창 raw 값은 baseline 캡으로 클램프
-	if (Attribute == GetPrimaryMagazineAmmoAttribute() || Attribute == GetSecondaryMagazineAmmoAttribute())
+	if (Attribute == GetPrimaryMagazineAmmoAttribute())
 	{
-		NewValue = FMath::Min(NewValue, MagazineRawBaseline);
+		const float MaxMagazine = GetPrimaryMaxMagazineAmmo();
+		NewValue = MaxMagazine > 0.0f ? FMath::Min(NewValue, MaxMagazine) : 0.0f;
+	}
+	else if (Attribute == GetSecondaryMagazineAmmoAttribute())
+	{
+		const float MaxMagazine = GetSecondaryMaxMagazineAmmo();
+		NewValue = MaxMagazine > 0.0f ? FMath::Min(NewValue, MaxMagazine) : 0.0f;
 	}
 
 	if (Attribute == GetPrimaryModGaugeAttribute())
@@ -181,22 +158,15 @@ void UPRAttributeSet_Weapon::PreAttributeChange(const FGameplayAttribute& Attrib
 		}
 	}
 
-	// 예비탄 raw 값은 슬롯의 동적 max(Ratio × Scale × Baseline)로 클램프
 	if (Attribute == GetPrimaryReserveAmmoAttribute())
 	{
-		const float MaxReserve = GetMaxReserveAmmoRaw(EPRAmmoType::Primary);
-		if (MaxReserve > 0.f)
-		{
-			NewValue = FMath::Min(NewValue, MaxReserve);
-		}
+		const float MaxReserve = GetPrimaryMaxReserveAmmo();
+		NewValue = MaxReserve > 0.0f ? FMath::Min(NewValue, MaxReserve) : 0.0f;
 	}
 	else if (Attribute == GetSecondaryReserveAmmoAttribute())
 	{
-		const float MaxReserve = GetMaxReserveAmmoRaw(EPRAmmoType::Secondary);
-		if (MaxReserve > 0.f)
-		{
-			NewValue = FMath::Min(NewValue, MaxReserve);
-		}
+		const float MaxReserve = GetSecondaryMaxReserveAmmo();
+		NewValue = MaxReserve > 0.0f ? FMath::Min(NewValue, MaxReserve) : 0.0f;
 	}
 }
 
@@ -205,7 +175,27 @@ void UPRAttributeSet_Weapon::PostGameplayEffectExecute(const FGameplayEffectModC
 	Super::PostGameplayEffectExecute(Data);
 
 	const FGameplayAttribute& Attribute = Data.EvaluatedData.Attribute;
-	if (Attribute == GetPrimaryModGaugeAttribute())
+	if (Attribute == GetPrimaryMagazineAmmoAttribute() || Attribute == GetPrimaryMaxMagazineAmmoAttribute())
+	{
+		const float MaxMagazine = GetPrimaryMaxMagazineAmmo();
+		SetPrimaryMagazineAmmo(MaxMagazine > 0.0f ? FMath::Clamp(GetPrimaryMagazineAmmo(), 0.0f, MaxMagazine) : 0.0f);
+	}
+	else if (Attribute == GetPrimaryReserveAmmoAttribute() || Attribute == GetPrimaryMaxReserveAmmoAttribute())
+	{
+		const float MaxReserve = GetPrimaryMaxReserveAmmo();
+		SetPrimaryReserveAmmo(MaxReserve > 0.0f ? FMath::Clamp(GetPrimaryReserveAmmo(), 0.0f, MaxReserve) : 0.0f);
+	}
+	else if (Attribute == GetSecondaryMagazineAmmoAttribute() || Attribute == GetSecondaryMaxMagazineAmmoAttribute())
+	{
+		const float MaxMagazine = GetSecondaryMaxMagazineAmmo();
+		SetSecondaryMagazineAmmo(MaxMagazine > 0.0f ? FMath::Clamp(GetSecondaryMagazineAmmo(), 0.0f, MaxMagazine) : 0.0f);
+	}
+	else if (Attribute == GetSecondaryReserveAmmoAttribute() || Attribute == GetSecondaryMaxReserveAmmoAttribute())
+	{
+		const float MaxReserve = GetSecondaryMaxReserveAmmo();
+		SetSecondaryReserveAmmo(MaxReserve > 0.0f ? FMath::Clamp(GetSecondaryReserveAmmo(), 0.0f, MaxReserve) : 0.0f);
+	}
+	else if (Attribute == GetPrimaryModGaugeAttribute())
 	{
 		const float MaxGauge = GetPrimaryMaxModGauge();
 		SetPrimaryModGauge(MaxGauge > 0.0f ? FMath::Clamp(GetPrimaryModGauge(), 0.0f, MaxGauge) : FMath::Max(GetPrimaryModGauge(), 0.0f));
@@ -252,17 +242,17 @@ void UPRAttributeSet_Weapon::GetLifetimeReplicatedProps(TArray<FLifetimeProperty
 	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
 
 	DOREPLIFETIME_CONDITION_NOTIFY(UPRAttributeSet_Weapon, PrimaryMagazineAmmo, COND_None, REPNOTIFY_Always);
+	DOREPLIFETIME_CONDITION_NOTIFY(UPRAttributeSet_Weapon, PrimaryMaxMagazineAmmo, COND_None, REPNOTIFY_Always);
 	DOREPLIFETIME_CONDITION_NOTIFY(UPRAttributeSet_Weapon, PrimaryReserveAmmo, COND_None, REPNOTIFY_Always);
-	DOREPLIFETIME_CONDITION_NOTIFY(UPRAttributeSet_Weapon, PrimaryAmmoScale, COND_None, REPNOTIFY_Always);
-	DOREPLIFETIME_CONDITION_NOTIFY(UPRAttributeSet_Weapon, PrimaryReserveAmmoRatio, COND_None, REPNOTIFY_Always);
+	DOREPLIFETIME_CONDITION_NOTIFY(UPRAttributeSet_Weapon, PrimaryMaxReserveAmmo, COND_None, REPNOTIFY_Always);
 	DOREPLIFETIME_CONDITION_NOTIFY(UPRAttributeSet_Weapon, PrimaryModGauge, COND_None, REPNOTIFY_Always);
 	DOREPLIFETIME_CONDITION_NOTIFY(UPRAttributeSet_Weapon, PrimaryMaxModGauge, COND_None, REPNOTIFY_Always);
 	DOREPLIFETIME_CONDITION_NOTIFY(UPRAttributeSet_Weapon, PrimaryModStack, COND_None, REPNOTIFY_Always);
 	DOREPLIFETIME_CONDITION_NOTIFY(UPRAttributeSet_Weapon, PrimaryMaxModStack, COND_None, REPNOTIFY_Always);
 	DOREPLIFETIME_CONDITION_NOTIFY(UPRAttributeSet_Weapon, SecondaryMagazineAmmo, COND_None, REPNOTIFY_Always);
+	DOREPLIFETIME_CONDITION_NOTIFY(UPRAttributeSet_Weapon, SecondaryMaxMagazineAmmo, COND_None, REPNOTIFY_Always);
 	DOREPLIFETIME_CONDITION_NOTIFY(UPRAttributeSet_Weapon, SecondaryReserveAmmo, COND_None, REPNOTIFY_Always);
-	DOREPLIFETIME_CONDITION_NOTIFY(UPRAttributeSet_Weapon, SecondaryAmmoScale, COND_None, REPNOTIFY_Always);
-	DOREPLIFETIME_CONDITION_NOTIFY(UPRAttributeSet_Weapon, SecondaryReserveAmmoRatio, COND_None, REPNOTIFY_Always);
+	DOREPLIFETIME_CONDITION_NOTIFY(UPRAttributeSet_Weapon, SecondaryMaxReserveAmmo, COND_None, REPNOTIFY_Always);
 	DOREPLIFETIME_CONDITION_NOTIFY(UPRAttributeSet_Weapon, SecondaryModGauge, COND_None, REPNOTIFY_Always);
 	DOREPLIFETIME_CONDITION_NOTIFY(UPRAttributeSet_Weapon, SecondaryMaxModGauge, COND_None, REPNOTIFY_Always);
 	DOREPLIFETIME_CONDITION_NOTIFY(UPRAttributeSet_Weapon, SecondaryModStack, COND_None, REPNOTIFY_Always);
@@ -279,19 +269,19 @@ void UPRAttributeSet_Weapon::OnRep_PrimaryMagazineAmmo(const FGameplayAttributeD
 	GAMEPLAYATTRIBUTE_REPNOTIFY(UPRAttributeSet_Weapon, PrimaryMagazineAmmo, OldValue);
 }
 
+void UPRAttributeSet_Weapon::OnRep_PrimaryMaxMagazineAmmo(const FGameplayAttributeData& OldValue)
+{
+	GAMEPLAYATTRIBUTE_REPNOTIFY(UPRAttributeSet_Weapon, PrimaryMaxMagazineAmmo, OldValue);
+}
+
 void UPRAttributeSet_Weapon::OnRep_PrimaryReserveAmmo(const FGameplayAttributeData& OldValue)
 {
 	GAMEPLAYATTRIBUTE_REPNOTIFY(UPRAttributeSet_Weapon, PrimaryReserveAmmo, OldValue);
 }
 
-void UPRAttributeSet_Weapon::OnRep_PrimaryAmmoScale(const FGameplayAttributeData& OldValue)
+void UPRAttributeSet_Weapon::OnRep_PrimaryMaxReserveAmmo(const FGameplayAttributeData& OldValue)
 {
-	GAMEPLAYATTRIBUTE_REPNOTIFY(UPRAttributeSet_Weapon, PrimaryAmmoScale, OldValue);
-}
-
-void UPRAttributeSet_Weapon::OnRep_PrimaryReserveAmmoRatio(const FGameplayAttributeData& OldValue)
-{
-	GAMEPLAYATTRIBUTE_REPNOTIFY(UPRAttributeSet_Weapon, PrimaryReserveAmmoRatio, OldValue);
+	GAMEPLAYATTRIBUTE_REPNOTIFY(UPRAttributeSet_Weapon, PrimaryMaxReserveAmmo, OldValue);
 }
 
 void UPRAttributeSet_Weapon::OnRep_PrimaryModGauge(const FGameplayAttributeData& OldValue)
@@ -319,19 +309,19 @@ void UPRAttributeSet_Weapon::OnRep_SecondaryMagazineAmmo(const FGameplayAttribut
 	GAMEPLAYATTRIBUTE_REPNOTIFY(UPRAttributeSet_Weapon, SecondaryMagazineAmmo, OldValue);
 }
 
+void UPRAttributeSet_Weapon::OnRep_SecondaryMaxMagazineAmmo(const FGameplayAttributeData& OldValue)
+{
+	GAMEPLAYATTRIBUTE_REPNOTIFY(UPRAttributeSet_Weapon, SecondaryMaxMagazineAmmo, OldValue);
+}
+
 void UPRAttributeSet_Weapon::OnRep_SecondaryReserveAmmo(const FGameplayAttributeData& OldValue)
 {
 	GAMEPLAYATTRIBUTE_REPNOTIFY(UPRAttributeSet_Weapon, SecondaryReserveAmmo, OldValue);
 }
 
-void UPRAttributeSet_Weapon::OnRep_SecondaryAmmoScale(const FGameplayAttributeData& OldValue)
+void UPRAttributeSet_Weapon::OnRep_SecondaryMaxReserveAmmo(const FGameplayAttributeData& OldValue)
 {
-	GAMEPLAYATTRIBUTE_REPNOTIFY(UPRAttributeSet_Weapon, SecondaryAmmoScale, OldValue);
-}
-
-void UPRAttributeSet_Weapon::OnRep_SecondaryReserveAmmoRatio(const FGameplayAttributeData& OldValue)
-{
-	GAMEPLAYATTRIBUTE_REPNOTIFY(UPRAttributeSet_Weapon, SecondaryReserveAmmoRatio, OldValue);
+	GAMEPLAYATTRIBUTE_REPNOTIFY(UPRAttributeSet_Weapon, SecondaryMaxReserveAmmo, OldValue);
 }
 
 void UPRAttributeSet_Weapon::OnRep_SecondaryModGauge(const FGameplayAttributeData& OldValue)

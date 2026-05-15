@@ -21,5 +21,6 @@ void UPRGA_FireSingle::ActivateAbility(const FGameplayAbilitySpecHandle Handle,
 {
 	Super::ActivateAbility(Handle, ActorInfo, ActivationInfo, TriggerEventData);
 	FireHitScan();
+	CommitAbilityCooldown(Handle,ActorInfo,ActivationInfo,true);
 	EndAbility(Handle, ActorInfo, ActivationInfo, /*bReplicateEndAbility=*/true, /*bWasCancelled=*/false);
 }

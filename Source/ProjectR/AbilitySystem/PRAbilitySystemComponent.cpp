@@ -5,10 +5,18 @@
 #include "ProjectR/PRGameplayTags.h"
 #include "Engine/DataTable.h"
 #include "GameplayEffect.h"
+#include "Net/UnrealNetwork.h"
 #include "Data/PRAbilitySet.h"
 #include "Data/PRAbilitySystemRegistry.h"
 
 // =====  UActorComponent Interface =====
+
+void UPRAbilitySystemComponent::GetLifetimeReplicatedProps(TArray<class FLifetimeProperty>& OutLifetimeProps) const
+{
+	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
+
+	DOREPLIFETIME_CONDITION(UPRAbilitySystemComponent, PROwningTags, COND_SimulatedOnly);
+}
 
 void UPRAbilitySystemComponent::BeginPlay()
 {
@@ -98,9 +106,29 @@ void UPRAbilitySystemComponent::AbilitySpecInputReleased(FGameplayAbilitySpec& S
 	}
 }
 
-void UPRAbilitySystemComponent::OnTagUpdated(const FGameplayTag& Tag, bool TagExists)
+void UPRAbilitySystemComponent::OnTagUpdated(const FGameplayTag& Tag, bool bTagExists)
 {
-	Super::OnTagUpdated(Tag, TagExists);
+	Super::OnTagUpdated(Tag, bTagExists);
+	
+	if (GetOwner()&& GetOwner()->GetNetOwner())
+	{
+		if (bTagExists)
+		{
+			PROwningTags.AddTag(Tag);
+		}
+		else
+		{
+			PROwningTags.RemoveTag(Tag);
+		}
+		if (OnGameplayTagUpdated.IsBound())
+		{
+			OnGameplayTagUpdated.Broadcast(Tag, bTagExists);
+		}
+	}
+}
+
+void UPRAbilitySystemComponent::MulticastTagUpdated_Implementation(const FGameplayTag Tag, bool TagExists)
+{
 	if (OnGameplayTagUpdated.IsBound())
 	{
 		OnGameplayTagUpdated.Broadcast(Tag, TagExists);
@@ -185,8 +213,6 @@ void UPRAbilitySystemComponent::ClearAbilitySetByHandles(FPRAbilitySetHandles& H
 	Handles.Reset();
 }
 
-// =====  속성 초기화 =====
-
 bool UPRAbilitySystemComponent::InitializeAttributesFromRegistry(const UPRAbilitySystemRegistry* Registry,
                                                                    EPRCharacterRole Role, FName RowName)
 {
@@ -240,8 +266,6 @@ bool UPRAbilitySystemComponent::InitializeAttributesFromRegistry(const UPRAbilit
 
 	return true;
 }
-
-// =====  입력 라우팅 =====
 
 void UPRAbilitySystemComponent::AbilityInputPressed(const FGameplayTag& InputTag)
 {
@@ -450,4 +474,30 @@ void UPRAbilitySystemComponent::HandleAbilityEnded(const FAbilityEndedData& Ende
 void UPRAbilitySystemComponent::HandleAbilityActivated(UGameplayAbility* ActivatedAbility)
 {
 	
+}
+
+void UPRAbilitySystemComponent::OnRep_OwningTags(const FGameplayTagContainer& OldTags)
+{
+	if (!OnGameplayTagUpdated.IsBound())
+	{
+		return;
+	}
+	
+	// 사라진 태그 조회
+	for (auto& OldTag : OldTags)
+	{
+		if (!PROwningTags.HasTagExact(OldTag))
+		{
+			OnGameplayTagUpdated.Broadcast(OldTag,false);
+		}
+	}
+	
+	// 추가된 태그 조회
+	for (auto& NewTag : PROwningTags)
+	{
+		if (!OldTags.HasTagExact(NewTag))
+		{
+			OnGameplayTagUpdated.Broadcast(NewTag,true);
+		}
+	}
 }

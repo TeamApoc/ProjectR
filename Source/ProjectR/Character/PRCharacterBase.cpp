@@ -35,6 +35,15 @@ void APRCharacterBase::BindTagChangeEvent()
 	}
 	
 	ASC->OnGameplayTagUpdated.AddUObject(this, &ThisClass::HandleGameplayTagUpdated);
+	
+	// 이미 가지고 있던 태그가 있을 수 있으므로 명시적 호출
+	FGameplayTagContainer OwnedGameplayTags;
+	ASC->GetOwnedGameplayTags(OwnedGameplayTags);
+	
+	for (const FGameplayTag& Tag : OwnedGameplayTags)
+	{
+		HandleGameplayTagUpdated(Tag, true);
+	}
 }
 
 void APRCharacterBase::HandleGameplayTagUpdated(const FGameplayTag& ChangedTag, bool bTagExists)

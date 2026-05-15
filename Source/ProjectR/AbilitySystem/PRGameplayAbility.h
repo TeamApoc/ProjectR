@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "AbilitySystemComponent.h"
 #include "Abilities/GameplayAbility.h"
 #include "ProjectR/AbilitySystem/PRAbilityTypes.h"
 #include "ProjectR/Character/PRCharacterBase.h"
@@ -23,6 +24,20 @@ public:
 	                                 FGameplayTagContainer* OptionalRelevantTags) const override;
 
 public:
+	// CDO가 아닌 어빌리티의 실제 인스턴스 반환
+	template<typename T>
+	T* GetAbilityInstance(const FGameplayAbilitySpecHandle Handle,  const FGameplayAbilityActorInfo* ActorInfo) const
+	{
+		if (UAbilitySystemComponent* ASC = ActorInfo->AbilitySystemComponent.Get())
+		{
+			if (FGameplayAbilitySpec* AbilitySpec = ASC->FindAbilitySpecFromHandle(Handle))
+			{
+				return Cast<T>(AbilitySpec->GetPrimaryInstance());
+			}
+		}
+		return nullptr;
+	}
+	
 	// ActivationPolicy 조회. ASC OnGiveAbility 및 입력 라우터에서 사용
 	EPRAbilityActivationPolicy GetActivationPolicy() const { return ActivationPolicy; }
 

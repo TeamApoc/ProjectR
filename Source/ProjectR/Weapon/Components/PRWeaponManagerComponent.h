@@ -108,8 +108,8 @@ public:
 	
 	// 애니메이션용 공개 Getter 함수
 	// 04.29 김동석 수정 현재 AimOffset 선택에 사용할 무장 슬롯을 반환한다
-	UFUNCTION(BlueprintPure, Category = "ProjectR|Weapon")
-	EPRWeaponSlotType GetAimOffsetWeaponSlot() const;
+	// UFUNCTION(BlueprintPure, Category = "ProjectR|Weapon")
+	// EPRWeaponSlotType GetAimOffsetWeaponSlot() const;
 
 	// 지정 무기 Item이 현재 매니저의 슬롯 원본인지 확인한다
 	bool IsManagingWeaponItem(const UPRItemInstance_Weapon* WeaponItem) const;

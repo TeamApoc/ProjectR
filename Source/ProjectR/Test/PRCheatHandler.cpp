@@ -8,6 +8,7 @@
 #include "GameplayEffect.h"
 #include "ProjectR/AbilitySystem/PRAbilitySystemComponent.h"
 #include "ProjectR/AbilitySystem/AttributeSets/PRAttributeSet_Weapon.h"
+#include "ProjectR/Interaction/PRInteractorComponent.h"
 #include "ProjectR/Player/PRPlayerController.h"
 #include "ProjectR/Player/PRPlayerState.h"
 #include "ProjectR/Weapon/Types/PRWeaponTypes.h"
@@ -63,10 +64,25 @@ void UPRCheatHandler::ServerCheatRespawn_Implementation()
 		return;
 	}
 
+	// 상호작용 상태 초기화 (포커스 + 진행 중 Hold/Sustained)
+	if (UPRInteractorComponent* Interactor = PC->FindComponentByClass<UPRInteractorComponent>())
+	{
+		Interactor->RequestEndInteract();
+		Interactor->ClearFocus();
+	}
+
+	// 기존 폰 제거
 	if (APawn* CurrentPawn = PC->GetPawn())
 	{
 		PC->UnPossess();
 		CurrentPawn->Destroy();
+	}
+
+	// PlayerState 의 AbilitySystem 초기화. 새 폰의 PossessedBy 에서 GiveAbilitySet + InitializeAttributesFromRegistry 로 재구성됨
+	if (UPRAbilitySystemComponent* ASC = GetOwningPlayerASC())
+	{
+		ASC->ClearAllAbilities();
+		ASC->RemoveActiveEffects(FGameplayEffectQuery());
 	}
 
 	GameMode->RestartPlayer(PC);

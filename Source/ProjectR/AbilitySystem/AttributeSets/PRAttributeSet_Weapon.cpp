@@ -39,7 +39,7 @@ UPRAttributeSet_Weapon::UPRAttributeSet_Weapon()
 	InitBaseDamage(0.0f);
 	InitDamageMultiplier(1.0f);
 	InitGroggyDamageMultiplier(0.0f);
-	InitWeakpointMultiplier(0.0f);
+	InitWeakpointMultiplier(1.0f);
 }
 
 // =====  UPRAttributeSet_Weapon Interface =====

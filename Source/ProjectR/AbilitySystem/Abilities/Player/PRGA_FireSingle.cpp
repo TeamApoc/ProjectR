@@ -21,27 +21,11 @@ void UPRGA_FireSingle::ActivateAbility(const FGameplayAbilitySpecHandle Handle,
 {
 	Super::ActivateAbility(Handle, ActorInfo, ActivationInfo, TriggerEventData);
 
-	if (!CheckCost(Handle, ActorInfo))
+	if (!CommitAbility(Handle, ActorInfo,ActivationInfo))
 	{
 		EndAbility(Handle, ActorInfo, ActivationInfo, /*bReplicateEndAbility=*/true, /*bWasCancelled=*/true);
 		return;
 	}
-
-	// 발사 간격 결정. CommitAbilityCooldown 이전에 캐싱해야 ApplyCooldown SetByCaller 주입에 반영
-	if (bOverrideFireInterval)
-	{
-		CachedFireInterval = FireIntervalOverride;
-	}
-	else if (const UPRWeaponDataAsset* WeaponData = GetActiveWeaponData())
-	{
-		CachedFireInterval = WeaponData->FireInterval;
-	}
-	else
-	{
-		CachedFireInterval = FireIntervalOverride;
-	}
-
-	CommitAbilityCooldown(Handle, ActorInfo, ActivationInfo, /*ForceCooldown=*/true);
 
 	FireHitScan();
 

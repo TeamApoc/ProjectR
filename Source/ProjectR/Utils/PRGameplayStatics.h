@@ -6,6 +6,7 @@
 #include "Kismet/BlueprintFunctionLibrary.h"
 #include "PRGameplayStatics.generated.h"
 
+class UPRWeaponManagerComponent;
 class UPRGameInstance;
 class UGameplayEffect;
 class APawn;
@@ -28,6 +29,10 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "PR|Utils")
 	static UPRInventoryComponent* GetInventoryComponent(AActor* Actor);
 
+	/** 액터의 WeaponManagerComponent 찾아 반환 */
+	UFUNCTION(BlueprintCallable, Category = "PR|Utils")
+	static UPRWeaponManagerComponent* GetWeaponManagerComponent(AActor* Actor);
+	
 	/** Actor로 부터 ASC 획득 (Controller or Owner or Avatar 자동) */
 	UFUNCTION(BlueprintCallable, Category = "PR|Utils")
 	static UAbilitySystemComponent* GetAbilitySystemComponent(AActor* Actor);

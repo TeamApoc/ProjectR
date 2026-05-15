@@ -22,6 +22,7 @@ UPRGA_PlayerAim::UPRGA_PlayerAim()
 
 	ActivationOwnedTags.AddTag(PRGameplayTags::State_Aiming);
 
+	ReplicationPolicy = EGameplayAbilityReplicationPolicy::ReplicateYes;
 	NetExecutionPolicy = EGameplayAbilityNetExecutionPolicy::LocalPredicted;
 	InstancingPolicy = EGameplayAbilityInstancingPolicy::InstancedPerActor;
 }

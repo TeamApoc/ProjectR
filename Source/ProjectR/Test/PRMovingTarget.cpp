@@ -113,7 +113,7 @@ void APRMovingTarget::OnPostDamageApplied(const FPRDamageAppliedContext& Context
 	EPRFloatingTextType TextType = EPRFloatingTextType::NormalDamage;
 	if (Context.Region.IsWeakpoint())
 	{
-		TextType = EPRFloatingTextType::HitWeakpoint;
+		TextType = EPRFloatingTextType::WeakNormal;
 	}
 	else if (Context.bIsCritical)
 	{

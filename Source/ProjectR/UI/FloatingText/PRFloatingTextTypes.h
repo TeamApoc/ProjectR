@@ -11,19 +11,16 @@ enum class EPRFloatingTextType : uint8
 {
 	// 일반 피해
 	NormalDamage,
-
 	// 방어된 피해
 	BlockedDamage,
-
 	// 치명타 피해
 	CriticalDamage,
-
-	// 약점 명중
-	HitWeakpoint,
-
+	// 약점 명중 일반 피해
+	WeakNormal,
+	// 약점 크리티컬
+	WeakCritical,
 	// 회복
 	Heal,
-
 	MAX UMETA(Hidden),
 };
 

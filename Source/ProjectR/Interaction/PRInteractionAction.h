@@ -23,6 +23,7 @@ enum class EPRInteractionHoldPhase : uint8
 	Finished,
 };
 
+
 /**
  * Hold 상호작용 이벤트 페이로드.
  * Event.Player.Interaction.Hold 발송 시 동반되며, Phase 로 단계 구분.
@@ -39,6 +40,10 @@ struct PROJECTR_API FPRInteractionHoldEventPayload : public FPREventPayload
 	// Hold 완료까지 필요한 시간 (초). Start 단계에서만 의미가 있다
 	UPROPERTY(BlueprintReadWrite)
 	float HoldDuration = 0.f;
+	
+	// 상호작용 이름
+	UPROPERTY(BlueprintReadWrite)
+	FText ActionName;
 };
 
 /**
@@ -144,6 +149,16 @@ protected:
 	bool IsLocalPlayer(AActor* Interactor) const;
 	
 public:
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Interaction")
+	FText ActionName;
+	
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Interaction")
+	FText ActionHintText;
+
+	// 포커스 시 힌트 프롬프트 표시 여부
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Interaction")
+	bool bShowHint = true;
+	
 	// 이 행동의 기본 우선순위. 하위 클래스에서 재정의 가능
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Interaction")
 	int32 Priority = 0;

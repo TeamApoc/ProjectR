@@ -99,12 +99,12 @@ void UPRCheatHandler::ServerCheatFillAmmo_Implementation()
 
 		if (MagazineAttr.IsValid())
 		{
-			ASC->SetNumericAttributeBase(MagazineAttr, UPRAttributeSet_Weapon::MagazineRawBaseline);
+			ASC->SetNumericAttributeBase(MagazineAttr, WeaponSet->GetMaxMagazineAmmoByType(AmmoType));
 		}
 
 		if (ReserveAttr.IsValid())
 		{
-			ASC->SetNumericAttributeBase(ReserveAttr, WeaponSet->GetMaxReserveAmmoRaw(AmmoType));
+			ASC->SetNumericAttributeBase(ReserveAttr, WeaponSet->GetMaxReserveAmmoByType(AmmoType));
 		}
 	}
 #endif

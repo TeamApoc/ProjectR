@@ -62,6 +62,7 @@ void UPRGameplayAbility_EnemyMeleeAttack::ActivateAbility(const FGameplayAbility
 		SourceCharacter->GetCharacterMovement()->StopMovementImmediately();
 	}
 
+	BeginThreatAttackCommit();
 	RefreshAttackFacing(bFaceTargetOnAbilityStart);
 
 	UWorld* World = GetWorld();
@@ -226,6 +227,7 @@ void UPRGameplayAbility_EnemyMeleeAttack::EndAbility(const FGameplayAbilitySpecH
 	PreviousMeleeWindowTracePoint = FVector::ZeroVector;
 	PreviousMeleeWindowPhysicsBodyTracePoints.Reset();
 
+	EndThreatAttackCommit();
 	Super::EndAbility(Handle, ActorInfo, ActivationInfo, bReplicateEndAbility, bWasCancelled);
 }
 
@@ -549,7 +551,7 @@ void UPRGameplayAbility_EnemyMeleeAttack::ExecuteMeleeTraceWithRadius(const FVec
 
 	FCollisionQueryParams QueryParams(SCENE_QUERY_STAT(PREnemyMeleeAttack), false, SourceCharacter);
 	QueryParams.AddIgnoredActor(SourceCharacter);
-
+	
 	TArray<FHitResult> HitResults;
 	const float ClampedTraceRadius = FMath::Max(TraceRadius, 0.0f);
 	const FCollisionShape CollisionShape = FCollisionShape::MakeSphere(ClampedTraceRadius);
@@ -613,8 +615,38 @@ AActor* UPRGameplayAbility_EnemyMeleeAttack::GetCurrentThreatTarget() const
 		: nullptr;
 
 	return IsValid(ThreatComponent)
-		? ThreatComponent->GetCurrentTarget()
+		? ThreatComponent->GetAttackTarget()
 		: nullptr;
+}
+
+void UPRGameplayAbility_EnemyMeleeAttack::BeginThreatAttackCommit()
+{
+	APREnemyBaseCharacter* EnemyCharacter = GetEnemyAvatarCharacter();
+	UPREnemyThreatComponent* ThreatComponent = IsValid(EnemyCharacter)
+		? EnemyCharacter->GetEnemyThreatComponent()
+		: nullptr;
+	if (!IsValid(ThreatComponent))
+	{
+		return;
+	}
+
+	AActor* TargetActor = ThreatComponent->GetAttackTarget();
+	const FVector TargetLocation = IsValid(TargetActor) ? TargetActor->GetActorLocation() : FVector::ZeroVector;
+	ThreatComponent->BeginAttackCommit(TargetActor, TargetLocation);
+}
+
+void UPRGameplayAbility_EnemyMeleeAttack::EndThreatAttackCommit()
+{
+	APREnemyBaseCharacter* EnemyCharacter = GetEnemyAvatarCharacter();
+	UPREnemyThreatComponent* ThreatComponent = IsValid(EnemyCharacter)
+		? EnemyCharacter->GetEnemyThreatComponent()
+		: nullptr;
+	if (!IsValid(ThreatComponent))
+	{
+		return;
+	}
+
+	ThreatComponent->EndAttackCommit();
 }
 
 void UPRGameplayAbility_EnemyMeleeAttack::RefreshAttackFacing(bool bApplyActorRotation) const
@@ -669,7 +701,7 @@ bool UPRGameplayAbility_EnemyMeleeAttack::GetCurrentAttackTracePoint(FVector& Ou
 	const FTransform SourceTransform = MeshComp->GetSocketTransform(AttackTraceSourceName, RTS_World);
 	const FVector SourceLocation = SourceTransform.GetLocation();
 	const FVector WorldOffset = SourceTransform.TransformVectorNoScale(AttackTraceSourceOffset);
-
+	
 	OutTracePoint = SourceLocation + WorldOffset;
 	return true;
 }
@@ -695,11 +727,6 @@ bool UPRGameplayAbility_EnemyMeleeAttack::ShouldDamageActor(const AActor* Candid
 	{
 		return true;
 	}
-
-	const APREnemyBaseCharacter* EnemyCharacter = GetEnemyAvatarCharacter();
-	const UPREnemyThreatComponent* ThreatComponent = IsValid(EnemyCharacter)
-		? EnemyCharacter->GetEnemyThreatComponent()
-		: nullptr;
 
 	return GetCurrentThreatTarget() == CandidateActor;
 }

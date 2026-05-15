@@ -34,6 +34,8 @@ namespace PRGameplayTags
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Ability_Player_Weapon_Zoom); // 플레이어 볼트액션 줌 어빌리티
 
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Ability_Enemy_Pattern); // 일반 적 패턴 공통 루트
+	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Ability_Enemy_Alert); // 일반 적 최초 발견 Alert
+	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Ability_Enemy_Evade); // 일반 적 회피 패턴
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Ability_Boss_Pattern); // 보스 패턴 공통 루트
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Ability_Boss_PhaseTransition); // 보스 페이즈 전환 공통 루트
 
@@ -96,6 +98,8 @@ namespace PRGameplayTags
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(State_Block_Move); // 움직임 비활성화 상태
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(State_Reviving); // 소생중 상태
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(State_WeaponZooming); // 무기 줌 상태
+	UE_DECLARE_GAMEPLAY_TAG_EXTERN(State_Mod_Primary_GaugeLocked); // 주무기 Mod 게이지 축적 차단 상태
+	UE_DECLARE_GAMEPLAY_TAG_EXTERN(State_Mod_Secondary_GaugeLocked); // 보조무기 Mod 게이지 축적 차단 상태
 
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(State_UsingConsumable); // 소비 아이템 사용중인 상태
 
@@ -105,6 +109,7 @@ namespace PRGameplayTags
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Cooldown_Ability_Fire); // 무기 발사 쿨다운
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Cooldown_Ability_PlayerHitReact); // 플레이어 피격 리액션 쿨다운
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Cooldown_Ability_SwapWeapon); // 무기 교체 쿨다운
+	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Cooldown_Enemy_Evade); // 일반 적 회피 쿨다운
 	
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Cooldown_Boss_Faerin_PortalMissile); // Faerin 포털 미사일 패턴 쿨다운
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Cooldown_Boss_Faerin_PortalBarrage); // Faerin 포털 연속 포격 패턴 쿨다운
@@ -134,6 +139,7 @@ namespace PRGameplayTags
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Event_Player_ReloadCommit); // 재장전 몽타주 노티파이가 발행하는 자원 이동 트리거
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Event_Player_ConsumableCommit); // 소비 아이템 몽타주 노티파이가 발행하는 사용 확정 트리거
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Event_Player_Interaction_Hold); // Hold 상호작용 단계 알림 (FPRInteractionHoldEventPayload 동반)
+	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Event_Player_Interactable);
 
 	// ===== Event.Boss.* — 보스 조우 이벤트 =====
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Event_Boss_Encounter_Begin); // 보스 조우 시작 (FPRBossEncounterEventPayload 동반)

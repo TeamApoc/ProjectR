@@ -16,4 +16,13 @@ namespace PREnemyAIDebug
 
 	// 패턴 선택/이동 의도 판단 로그 활성 여부
 	bool IsPatternLogEnabled();
+
+	// 타겟 후보/현재 타겟/공격 커밋 상태 로그 활성 여부
+	bool IsTargetingLogEnabled();
+
+	// 타겟 후보와 선택 상태 화면 디버그 활성 여부
+	bool IsTargetingDrawEnabled();
+
+	// 타겟 화면 디버그가 유지되는 시간
+	float GetTargetingDrawDuration();
 }

@@ -20,13 +20,4 @@ public:
 public:
 	/*~ UGameplayAbility Interface ~*/
 	virtual void ActivateAbility(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilityActivationInfo ActivationInfo, const FGameplayEventData* TriggerEventData) override;
-
-protected:
-	// true이면 무기 데이터의 FireInterval 대신 FireIntervalOverride 사용
-	UPROPERTY(EditDefaultsOnly, Category = "ProjectR|Fire|Single")
-	bool bOverrideFireInterval = false;
-
-	// Override가 true일 때 사용할 발사 간격(초)
-	UPROPERTY(EditDefaultsOnly, Category = "ProjectR|Fire|Single")
-	float FireIntervalOverride = 0.5f;
 };

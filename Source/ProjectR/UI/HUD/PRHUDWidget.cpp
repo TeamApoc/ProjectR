@@ -3,11 +3,13 @@
 
 #include "PRHUDWidget.h"
 
-#include "PRInteractionHUDWidget.h"
+#include "PRInteractionProgressBar.h"
 #include "EngineUtils.h"
+#include "PRInteractionHintWidget.h"
 #include "ProjectR/Character/Enemy/PRBossBaseCharacter.h"
 #include "ProjectR/Interaction/PRInteractionAction.h"
 #include "ProjectR/PRGameplayTags.h"
+#include "ProjectR/Interaction/PRInteractableComponent.h"
 #include "ProjectR/Player/PRPlayerState.h"
 #include "ProjectR/System/PREventManagerSubsystem.h"
 #include "ProjectR/UI/Crosshair/PRCrosshairWidget.h"
@@ -94,13 +96,22 @@ void UPRHUDWidget::NativeOnInitialized()
 	}
 
 	// 상호작용 HUD 가 BP 레이아웃에 포함된 경우에만 Hold 이벤트를 구독한다
-	if (IsValid(InteractionHUD))
+	if (IsValid(InteractionProgressBar))
 	{
-		InteractionHUD->SetHUDVisible(false);
+		InteractionProgressBar->SetProgressBarVisible(false);
 
 		EventHandles.Add(EventMgr->Listen(
 			PRGameplayTags::Event_Player_Interaction_Hold,
 			FPREventMulticast::FDelegate::CreateUObject(this, &UPRHUDWidget::HandleInteractionHold)));
+	}
+	
+	if (IsValid(InteractionHint))
+	{
+		InteractionHint->SetHintVisible(false);
+		
+		EventHandles.Add(EventMgr->Listen(
+			PRGameplayTags::Event_Player_Interactable,
+			FPREventMulticast::FDelegate::CreateUObject(this, &UPRHUDWidget::HandleInteractableChanged)));
 	}
 
 	// 보스 HP 바가 BP 레이아웃에 포함된 경우에만 보스 조우 이벤트를 구독한다
@@ -135,13 +146,13 @@ void UPRHUDWidget::NativeTick(const FGeometry& MyGeometry, float InDeltaTime)
 	Super::NativeTick(MyGeometry, InDeltaTime);
 
 	// Hold 진행 중일 때 진행도 보간. HoldDuration 이 0 이하인 경우는 Start 즉시 완료로 간주
-	if (bIsHoldActive && IsValid(InteractionHUD))
+	if (bIsHoldActive && IsValid(InteractionProgressBar))
 	{
 		HoldElapsed += InDeltaTime;
 		const float Percent = HoldDuration > KINDA_SMALL_NUMBER
 			? FMath::Clamp(HoldElapsed / HoldDuration, 0.f, 1.f)
 			: 1.f;
-		InteractionHUD->SetProgress(Percent);
+		InteractionProgressBar->SetProgress(Percent);
 	}
 }
 
@@ -189,7 +200,7 @@ void UPRHUDWidget::HandleAimEnd(FGameplayTag EventTag, const FInstancedStruct& P
 
 void UPRHUDWidget::HandleInteractionHold(FGameplayTag EventTag, const FInstancedStruct& Payload)
 {
-	if (!IsValid(InteractionHUD))
+	if (!IsValid(InteractionProgressBar))
 	{
 		return;
 	}
@@ -206,25 +217,57 @@ void UPRHUDWidget::HandleInteractionHold(FGameplayTag EventTag, const FInstanced
 		HoldDuration = Data->HoldDuration;
 		HoldElapsed = 0.f;
 		bIsHoldActive = true;
-		InteractionHUD->SetHUDVisible(true);
-		InteractionHUD->SetProgress(0.f);
+		InteractionProgressBar->SetProgressBarVisible(true);
+		
+		if (InteractionHint)
+		{
+			InteractionHint->SetHintVisible(false);
+		}
+		
+		InteractionProgressBar->SetProgress(0.f);
+		InteractionProgressBar->SetActionNameText(Data->ActionName);
 		break;
 
 	case EPRInteractionHoldPhase::Canceled:
 		bIsHoldActive = false;
 		HoldElapsed = 0.f;
 		HoldDuration = 0.f;
-		InteractionHUD->SetHUDVisible(false);
+		InteractionProgressBar->SetProgressBarVisible(false);
 		break;
 
 	case EPRInteractionHoldPhase::Finished:
 		bIsHoldActive = false;
 		// 완료 펄스를 위해 한 프레임은 100% 로 채운 뒤 숨김 처리
-		InteractionHUD->SetProgress(1.f);
-		InteractionHUD->SetHUDVisible(false);
+		InteractionProgressBar->SetProgress(1.f);
+		InteractionProgressBar->SetProgressBarVisible(false);
 		HoldElapsed = 0.f;
 		HoldDuration = 0.f;
 		break;
+	}
+}
+
+void UPRHUDWidget::HandleInteractableChanged(FGameplayTag EventTag, const FInstancedStruct& Payload)
+{
+	if (!IsValid(InteractionHint))
+	{
+		return;
+	}
+
+	const FPRInteractableEventPayload* Data = Payload.GetPtr<FPRInteractableEventPayload>();
+	if (Data == nullptr)
+	{
+		return;
+	}
+	
+	if (Data->bShowPrompt)
+	{
+		InteractionHint->SetHintVisible(true);
+		InteractionHint->SetInteractionHintText(Data->ActionHintText);
+		InteractionHint->SetCanInteract(Data->bCanInteract);
+	}
+	else
+	{
+		InteractionHint->SetHintVisible(false);
 	}
 }
 

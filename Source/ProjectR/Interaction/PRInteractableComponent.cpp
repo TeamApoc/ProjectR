@@ -5,6 +5,8 @@
 #include "Components/MeshComponent.h"
 #include "Net/UnrealNetwork.h"
 #include "ProjectR/ProjectR.h"
+#include "ProjectR/PRGameplayTags.h"
+#include "ProjectR/System/PREventManagerSubsystem.h"
 #include "ProjectR/Utils/PRGameplayStatics.h"
 
 UPRInteractableComponent::UPRInteractableComponent()
@@ -53,6 +55,8 @@ void UPRInteractableComponent::OnFocus(AActor* Viewer, bool bIsInRange)
 	{
 		ApplyDepthStencilValues(bIsInRange);
 	}
+
+	BroadcastInteractableEvent(Viewer, bIsInRange);
 }
 
 void UPRInteractableComponent::UpdateFocus(AActor* Viewer, bool bIsInRange)
@@ -72,13 +76,15 @@ void UPRInteractableComponent::UpdateFocus(AActor* Viewer, bool bIsInRange)
 				{
 					Mesh->SetCustomDepthStencilValue(bIsInRange ? PRStencilValues::Interaction : PRStencilValues::Highlight);
 				}
-			}	
+			}
 		}
 	}
 	else
 	{
 		ResetDepthStencilValues();
 	}
+
+	BroadcastInteractableEvent(Viewer, bIsInRange);
 }
 
 
@@ -90,6 +96,36 @@ void UPRInteractableComponent::OnUnfocus()
 	{
 		ResetDepthStencilValues();
 	}
+
+	BroadcastInteractableEvent(nullptr, false);
+}
+
+void UPRInteractableComponent::BroadcastInteractableEvent(AActor* Viewer, bool bIsInRange) const
+{
+	UWorld* World = GetWorld();
+	if (!IsValid(World))
+	{
+		return;
+	}
+
+	UPREventManagerSubsystem* EventMgr = World->GetSubsystem<UPREventManagerSubsystem>();
+	if (!IsValid(EventMgr))
+	{
+		return;
+	}
+
+	const UPRInteractionAction* BestAction = IsValid(Viewer) ? SelectBestAction(Viewer) : nullptr;
+
+	FPRInteractableEventPayload Payload;
+	// 거리 내에 있고, 선택된 Action 이 힌트 표시를 허용해야 프롬프트 표시
+	Payload.bShowPrompt = bIsFocused && bIsInRange && IsValid(BestAction) && BestAction->bShowHint;
+	Payload.bCanInteract = IsValid(Viewer) && HasAvailableAction(Viewer);
+	if (IsValid(BestAction))
+	{
+		Payload.ActionHintText = BestAction->ActionHintText;
+	}
+
+	EventMgr->BroadcastTyped(PRGameplayTags::Event_Player_Interactable, Payload);
 }
 
 

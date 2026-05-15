@@ -102,6 +102,12 @@ protected:
 	// ThreatComponent 기준 현재 타겟을 반환한다.
 	AActor* GetCurrentThreatTarget() const;
 
+	// 공격 시작 시점의 타겟을 이번 공격 대상으로 고정한다.
+	void BeginThreatAttackCommit();
+
+	// 공격 종료 시점의 타겟 고정을 해제하고 보류 후보를 재평가한다.
+	void EndThreatAttackCommit();
+
 	// 현재 공격 판정 중심점을 계산한다.
 	bool GetCurrentAttackTracePoint(FVector& OutTracePoint) const;
 

@@ -26,6 +26,47 @@ namespace
 
 		return EnemyInterface->GetCombatDataAsset();
 	}
+
+	FVector ResolveStimulusLocation(const AActor* Actor, const FAIStimulus& Stimulus)
+	{
+		if (!Stimulus.StimulusLocation.IsNearlyZero())
+		{
+			return Stimulus.StimulusLocation;
+		}
+
+		return IsValid(Actor) ? Actor->GetActorLocation() : FVector::ZeroVector;
+	}
+
+	bool IsSightStimulus(const UAISenseConfig_Sight* SightConfig, const FAIStimulus& Stimulus)
+	{
+		return IsValid(SightConfig) && Stimulus.Type == SightConfig->GetSenseID();
+	}
+
+	bool IsCurrentThreatTarget(const UPREnemyThreatComponent* ThreatComponent, const AActor* Actor)
+	{
+		return IsValid(ThreatComponent)
+			&& IsValid(Actor)
+			&& ThreatComponent->GetCurrentTarget() == Actor;
+	}
+
+	void WriteCurrentTargetTrackingToBlackboard(
+		UBlackboardComponent* BlackboardComponent,
+		const FName TargetLocationKey,
+		const FName LastKnownTargetLocationKey,
+		const FName HasLOSKey,
+		const FVector& TargetLocation,
+		const FVector& LastKnownTargetLocation,
+		const bool bHasLOS)
+	{
+		if (!IsValid(BlackboardComponent))
+		{
+			return;
+		}
+
+		BlackboardComponent->SetValueAsVector(TargetLocationKey, TargetLocation);
+		BlackboardComponent->SetValueAsVector(LastKnownTargetLocationKey, LastKnownTargetLocation);
+		BlackboardComponent->SetValueAsBool(HasLOSKey, bHasLOS);
+	}
 }
 
 APREnemyAIController::APREnemyAIController()
@@ -64,15 +105,27 @@ void APREnemyAIController::OnPossess(APawn* InPawn)
 	CachedThreatComponent = EnemyInterface->GetEnemyThreatComponent();
 	if (IsValid(CachedThreatComponent))
 	{
+		const UPREnemyCombatDataAsset* EnemyCombatDataAsset = Cast<UPREnemyCombatDataAsset>(EnemyInterface->GetCombatDataAsset());
+		if (IsValid(EnemyCombatDataAsset))
+		{
+			CachedThreatComponent->SetTargetingConfig(EnemyCombatDataAsset->TargetingConfig);
+		}
+
 		CachedThreatComponent->OnTargetChanged.AddDynamic(this, &APREnemyAIController::HandleThreatTargetChanged);
 	}
 
-	CacheBlackboardFromBehaviorTree(EnemyInterface->GetBehaviorTreeAsset());
+	UBehaviorTree* BehaviorTreeAsset = EnemyInterface->GetBehaviorTreeAsset();
+	CacheBlackboardFromBehaviorTree(BehaviorTreeAsset);
 
 	if (IsValid(CachedBlackboardComponent))
 	{
 		CachedBlackboardComponent->SetValueAsVector(HomeLocationKey, EnemyInterface->GetHomeLocation());
 		ApplyTacticalModeState(EPRTacticalMode::Idle);
+	}
+
+	if (IsValid(CachedBlackboardComponent) && IsValid(BehaviorTreeAsset))
+	{
+		RunBehaviorTree(BehaviorTreeAsset);
 	}
 
 	bPreserveAlertOnNextTargetClear = false;
@@ -121,10 +174,7 @@ void APREnemyAIController::HandleTargetPerceptionUpdated(AActor* Actor, FAIStimu
 		return;
 	}
 
-	if (IsValid(CachedBlackboardComponent))
-	{
-		CachedBlackboardComponent->SetValueAsVector(TargetLocationKey, Stimulus.StimulusLocation);
-	}
+	const FVector StimulusLocation = ResolveStimulusLocation(Actor, Stimulus);
 
 	if (!IsValid(CachedThreatComponent))
 	{
@@ -133,33 +183,38 @@ void APREnemyAIController::HandleTargetPerceptionUpdated(AActor* Actor, FAIStimu
 
 	if (Stimulus.WasSuccessfullySensed())
 	{
-		CachedThreatComponent->AddThreat(Actor, 1.0f);
+		const bool bHasLOS = IsSightStimulus(SightConfig, Stimulus);
+		CachedThreatComponent->UpdatePerceivedTarget(Actor, StimulusLocation, bHasLOS);
 
-		if (IsValid(CachedBlackboardComponent))
+		// Perception은 여러 플레이어의 이벤트를 받을 수 있으므로,
+		// Blackboard 추적값은 현재 공격 대상 기준일 때만 갱신한다.
+		if (IsCurrentThreatTarget(CachedThreatComponent, Actor))
 		{
-			CachedBlackboardComponent->SetValueAsVector(LastKnownTargetLocationKey, Stimulus.StimulusLocation);
-			CachedBlackboardComponent->SetValueAsBool(HasLOSKey, true);
+			WriteCurrentTargetTrackingToBlackboard(
+				CachedBlackboardComponent,
+				TargetLocationKey,
+				LastKnownTargetLocationKey,
+				HasLOSKey,
+				StimulusLocation,
+				StimulusLocation,
+				bHasLOS);
 		}
 
 		bPreserveAlertOnNextTargetClear = false;
 	}
 	else
 	{
-		if (IsValid(CachedBlackboardComponent))
-		{
-			CachedBlackboardComponent->SetValueAsVector(LastKnownTargetLocationKey, Stimulus.StimulusLocation);
-			CachedBlackboardComponent->SetValueAsBool(HasLOSKey, false);
-		}
+		const bool bWasCurrentTarget = IsCurrentThreatTarget(CachedThreatComponent, Actor);
 
 		switch (TargetLostPolicy)
 		{
 		case EPRTargetLostPolicy::ClearCurrentTarget:
-			bPreserveAlertOnNextTargetClear = true;
-			CachedThreatComponent->ReleaseCurrentTargetForSearch(Actor);
+			bPreserveAlertOnNextTargetClear = bWasCurrentTarget;
+			CachedThreatComponent->MarkTargetPerceptionLost(Actor, StimulusLocation);
 			break;
 		case EPRTargetLostPolicy::RemoveThreatEntry:
 			bPreserveAlertOnNextTargetClear = false;
-			if (IsValid(CachedBlackboardComponent))
+			if (bWasCurrentTarget && IsValid(CachedBlackboardComponent))
 			{
 				CachedBlackboardComponent->ClearValue(LastKnownTargetLocationKey);
 			}
@@ -168,7 +223,20 @@ void APREnemyAIController::HandleTargetPerceptionUpdated(AActor* Actor, FAIStimu
 		case EPRTargetLostPolicy::KeepCurrentTarget:
 		default:
 			bPreserveAlertOnNextTargetClear = false;
+			CachedThreatComponent->MarkTargetPerceptionLost(Actor, StimulusLocation);
 			break;
+		}
+
+		if (bWasCurrentTarget && IsCurrentThreatTarget(CachedThreatComponent, Actor))
+		{
+			WriteCurrentTargetTrackingToBlackboard(
+				CachedBlackboardComponent,
+				TargetLocationKey,
+				LastKnownTargetLocationKey,
+				HasLOSKey,
+				Actor->GetActorLocation(),
+				StimulusLocation,
+				false);
 		}
 	}
 }
@@ -185,9 +253,22 @@ void APREnemyAIController::HandleThreatTargetChanged(AActor* OldTarget, AActor* 
 	if (IsValid(NewTarget))
 	{
 		const bool bHasPreviousTarget = IsValid(OldTarget);
+		FPREnemyTargetCandidate TargetCandidate;
+		const bool bHasCandidateInfo = IsValid(CachedThreatComponent)
+			&& CachedThreatComponent->GetTargetCandidate(NewTarget, TargetCandidate);
+		const bool bHasLOS = bHasCandidateInfo ? TargetCandidate.bHasLOS : true;
+		const FVector TargetLocation = bHasCandidateInfo && !TargetCandidate.LastKnownLocation.IsNearlyZero()
+			? TargetCandidate.LastKnownLocation
+			: NewTarget->GetActorLocation();
 
-		CachedBlackboardComponent->SetValueAsVector(TargetLocationKey, NewTarget->GetActorLocation());
-		CachedBlackboardComponent->SetValueAsBool(HasLOSKey, true);
+		WriteCurrentTargetTrackingToBlackboard(
+			CachedBlackboardComponent,
+			TargetLocationKey,
+			LastKnownTargetLocationKey,
+			HasLOSKey,
+			TargetLocation,
+			TargetLocation,
+			bHasLOS);
 		if (!bHasPreviousTarget)
 		{
 			ApplyTacticalModeState(EPRTacticalMode::Alert, NewTarget);
@@ -418,7 +499,6 @@ void APREnemyAIController::CacheBlackboardFromBehaviorTree(UBehaviorTree* Behavi
 	}
 
 	CachedBlackboardComponent = BlackboardComponent;
-	RunBehaviorTree(BehaviorTreeAsset);
 }
 
 void APREnemyAIController::ClearThreatBinding()

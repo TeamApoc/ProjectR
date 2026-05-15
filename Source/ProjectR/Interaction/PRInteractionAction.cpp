@@ -108,6 +108,7 @@ void UPRInteractionAction::BroadcastHoldEvent(EPRInteractionHoldPhase Phase) con
 	FPRInteractionHoldEventPayload Payload;
 	Payload.Phase = Phase;
 	Payload.HoldDuration = HoldDuration;
+	Payload.ActionName = ActionName;
 	EventMgr->BroadcastTyped(PRGameplayTags::Event_Player_Interaction_Hold, Payload);
 }
 

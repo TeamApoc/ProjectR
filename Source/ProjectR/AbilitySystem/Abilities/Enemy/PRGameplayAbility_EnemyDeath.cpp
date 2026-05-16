@@ -9,6 +9,7 @@
 #include "GameFramework/Character.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "TimerManager.h"
+#include "ProjectR/Character/Enemy/PREnemyBaseCharacter.h"
 #include "ProjectR/PRGameplayTags.h"
 
 UPRGameplayAbility_EnemyDeath::UPRGameplayAbility_EnemyDeath()
@@ -18,7 +19,7 @@ UPRGameplayAbility_EnemyDeath::UPRGameplayAbility_EnemyDeath()
 	TriggerData.TriggerTag = PRGameplayTags::Event_Ability_Death;
 	AbilityTriggers.Add(TriggerData);
 
-	// 사망 Ability 활성화 시 GAS 내장 태그 취소 규약으로 진행 중인 패턴을 중단한다.
+	// 사망 Ability 활성화 시 진행 중인 적/보스 패턴 Ability를 모두 중단하고 새 패턴 진입을 막는다.
 	CancelAbilitiesWithTag.AddTag(PRGameplayTags::Ability_Enemy_Pattern);
 	CancelAbilitiesWithTag.AddTag(PRGameplayTags::Ability_Boss_Pattern);
 	BlockAbilitiesWithTag.AddTag(PRGameplayTags::Ability_Enemy_Pattern);
@@ -43,7 +44,7 @@ void UPRGameplayAbility_EnemyDeath::ActivateAbility(const FGameplayAbilitySpecHa
 	{
 		if (bDisableMovementOnDeath)
 		{
-			// 사망 후에는 AI/루트모션/외부 이동이 다시 캐릭터를 움직이지 못하게 막는다.
+			// 사망 이후 AI, Root Motion, 관성 이동이 다시 캐릭터를 움직이지 못하게 잠근다.
 			Character->GetCharacterMovement()->DisableMovement();
 		}
 		else
@@ -58,15 +59,14 @@ void UPRGameplayAbility_EnemyDeath::ActivateAbility(const FGameplayAbilitySpecHa
 
 		if (UCapsuleComponent* CapsuleComponent = Character->GetCapsuleComponent())
 		{
-			// 삭제 전 사망 연출 중에도 길막/피격 판정이 남지 않도록 Pawn 충돌을 끈다.
+			// 사망 연출 중 길막이나 추가 피격 판정이 남지 않도록 Pawn 충돌을 끈다.
 			CapsuleComponent->SetCollisionEnabled(ECollisionEnabled::NoCollision);
 		}
 	}
 
 	if (IsValid(DeathMontage))
 	{
-		// 기본 정책은 사망 Ability를 끝내지 않는 것이다.
-		// 몽타주는 재생하되 State.Dead와 Ability 상태는 유지해 사망 상태를 고정한다.
+		// 사망 몽타주는 다른 공격/그로기 몽타주와 동일하게 GAS 몽타주 복제 경로만 사용한다.
 		ActiveMontageTask = UAbilityTask_PlayMontageAndWait::CreatePlayMontageAndWaitProxy(
 			this,
 			NAME_None,
@@ -83,17 +83,14 @@ void UPRGameplayAbility_EnemyDeath::ActivateAbility(const FGameplayAbilitySpecHa
 		}
 	}
 
-	if (bDestroyActorOnDeath)
+	if (bUseDissolveOnDeath)
 	{
-		if (UWorld* World = GetWorld())
-		{
-			World->GetTimerManager().SetTimer(
-				DeathDestroyTimerHandle,
-				this,
-				&UPRGameplayAbility_EnemyDeath::DestroyDeathAvatar,
-				FMath::Max(DeathDestroyDelay, 0.0f),
-				false);
-		}
+		RequestDeathDissolveVisual();
+		ScheduleDeathDestroy(CalculateDeathDestroyDelay());
+	}
+	else
+	{
+		ScheduleDeathDestroy(DeathDestroyDelay);
 	}
 }
 
@@ -119,7 +116,7 @@ void UPRGameplayAbility_EnemyDeath::EndAbility(const FGameplayAbilitySpecHandle 
 
 void UPRGameplayAbility_EnemyDeath::HandleDeathMontageCompleted()
 {
-	if (bEndAbilityWhenMontageEnds)
+	if (!bUseDissolveOnDeath && bEndAbilityWhenMontageEnds)
 	{
 		FinishDeath(false);
 	}
@@ -127,7 +124,7 @@ void UPRGameplayAbility_EnemyDeath::HandleDeathMontageCompleted()
 
 void UPRGameplayAbility_EnemyDeath::HandleDeathMontageInterrupted()
 {
-	if (bEndAbilityWhenMontageEnds)
+	if (!bUseDissolveOnDeath && bEndAbilityWhenMontageEnds)
 	{
 		FinishDeath(true);
 	}
@@ -141,7 +138,69 @@ void UPRGameplayAbility_EnemyDeath::DestroyDeathAvatar()
 		return;
 	}
 
+	FinishDeath(false);
 	AvatarActor->Destroy();
+}
+
+void UPRGameplayAbility_EnemyDeath::ScheduleDeathDestroy(float Delay)
+{
+	if (!bDestroyActorOnDeath)
+	{
+		return;
+	}
+
+	if (UWorld* World = GetWorld())
+	{
+		World->GetTimerManager().SetTimer(
+			DeathDestroyTimerHandle,
+			this,
+			&UPRGameplayAbility_EnemyDeath::DestroyDeathAvatar,
+			FMath::Max(Delay, 0.0f),
+			false);
+	}
+	else
+	{
+		DestroyDeathAvatar();
+	}
+}
+
+void UPRGameplayAbility_EnemyDeath::RequestDeathDissolveVisual()
+{
+	APREnemyBaseCharacter* EnemyCharacter = Cast<APREnemyBaseCharacter>(GetAvatarActorFromActorInfo());
+	if (!IsValid(EnemyCharacter))
+	{
+		return;
+	}
+
+	EnemyCharacter->RequestDeathDissolveVisual(
+		IsValid(ActiveMontageTask) ? DeathMontage.Get() : nullptr,
+		MontagePlayRate,
+		DissolveDelayAfterMontage,
+		DissolveDuration,
+		DissolveStartValue,
+		DissolveEndValue,
+		DissolveScalarParameterName,
+		DissolveNiagaraSystem,
+		NiagaraDissolveParameterName,
+		DissolveTexture,
+		DissolveTextureUV,
+		DissolveTickInterval);
+}
+
+float UPRGameplayAbility_EnemyDeath::CalculateDeathDestroyDelay() const
+{
+	if (!bUseDissolveOnDeath)
+	{
+		return DeathDestroyDelay;
+	}
+
+	const float MontageDelay = IsValid(DeathMontage) && IsValid(ActiveMontageTask)
+		? (DeathMontage->GetPlayLength() / FMath::Max(MontagePlayRate, UE_SMALL_NUMBER)) + 0.1f
+		: 0.0f;
+	const float StartDelay = FMath::Max(DissolveDelayAfterMontage, 0.0f);
+	const float VisualDuration = FMath::Max(DissolveDuration, 0.0f);
+
+	return MontageDelay + StartDelay + VisualDuration;
 }
 
 void UPRGameplayAbility_EnemyDeath::FinishDeath(bool bWasCancelled)

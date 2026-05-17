@@ -8,9 +8,10 @@
 
 class UAbilityTask_PlayMontageAndWait;
 class UAnimMontage;
+class UNiagaraSystem;
+class UTexture;
 
-// State.Dead 이벤트를 받아 적을 사망 상태로 고정하는 Ability다.
-// 공격 취소는 GA의 CancelAbilitiesWithTag 설정을 쓰고, C++은 이동 잠금과 사망 몽타주만 처리한다.
+// State.Dead 이벤트를 받아 적을 사망 상태로 고정하고, 사망 몽타주와 삭제 타이밍을 관리하는 Ability다.
 UCLASS(Abstract)
 class PROJECTR_API UPRGameplayAbility_EnemyDeath : public UPRGameplayAbility_EnemyBase
 {
@@ -19,6 +20,7 @@ class PROJECTR_API UPRGameplayAbility_EnemyDeath : public UPRGameplayAbility_Ene
 public:
 	UPRGameplayAbility_EnemyDeath();
 
+	/*~ UGameplayAbility Interface ~*/
 	virtual void ActivateAbility(const FGameplayAbilitySpecHandle Handle,
 		const FGameplayAbilityActorInfo* ActorInfo,
 		const FGameplayAbilityActivationInfo ActivationInfo,
@@ -40,30 +42,86 @@ protected:
 	// 사망 연출 이후 Avatar Actor를 제거한다.
 	void DestroyDeathAvatar();
 
-	void FinishDeath(bool bWasCancelled);
+	// DeathDestroyDelay 또는 별도 연출 지연 뒤 Actor 제거를 예약한다.
+	void ScheduleDeathDestroy(float Delay);
+
+	// 사망 시각 연출을 모든 클라이언트에 요청한다.
+	void RequestDeathDissolveVisual();
+
+	// 몽타주와 Dissolve 길이를 포함해 Actor 삭제까지 필요한 시간을 계산한다.
+	float CalculateDeathDestroyDelay() const;
+
+	// 사망 Ability 종료 처리를 한 번만 수행한다.
+	void FinishDeath();
 
 protected:
 	// 사망 중 재생할 몽타주다.
 	UPROPERTY(EditDefaultsOnly, Category = "ProjectR|Animation")
 	TObjectPtr<UAnimMontage> DeathMontage;
 
+	// 사망 몽타주 재생 속도다.
 	UPROPERTY(EditDefaultsOnly, Category = "ProjectR|Animation", meta = (ClampMin = "0.0"))
 	float MontagePlayRate = 1.0f;
 
+	// Dissolve를 사용하지 않는 경우 몽타주 종료 시 Ability를 종료할지 결정한다.
 	UPROPERTY(EditDefaultsOnly, Category = "ProjectR|Animation")
 	bool bEndAbilityWhenMontageEnds = false;
 
-	// true면 CharacterMovement를 DisableMovement로 잠가 사망 후 움직이지 않게 한다.
+	// true면 CharacterMovement를 DisableMovement로 잠가 사망 이후 움직임을 막는다.
 	UPROPERTY(EditDefaultsOnly, Category = "ProjectR|Death")
 	bool bDisableMovementOnDeath = true;
 
-	// true면 사망 후 지정 시간 뒤 Actor를 제거한다.
+	// true면 사망 연출 이후 Actor를 제거한다.
 	UPROPERTY(EditDefaultsOnly, Category = "ProjectR|Death")
 	bool bDestroyActorOnDeath = true;
 
-	// 사망 후 Actor 제거까지 대기할 시간이다.
+	// Dissolve를 사용하지 않을 때 Actor 제거까지 대기할 시간이다.
 	UPROPERTY(EditDefaultsOnly, Category = "ProjectR|Death", meta = (ClampMin = "0.0"))
 	float DeathDestroyDelay = 3.0f;
+
+	// true면 사망 몽타주 마지막 자세에서 메시 Dissolve를 진행한 뒤 Actor를 제거한다.
+	UPROPERTY(EditDefaultsOnly, Category = "ProjectR|Death|Dissolve")
+	bool bUseDissolveOnDeath = false;
+
+	// 몽타주 마지막 자세 고정 후 Dissolve 시작까지 대기할 시간이다.
+	UPROPERTY(EditDefaultsOnly, Category = "ProjectR|Death|Dissolve", meta = (EditCondition = "bUseDissolveOnDeath", ClampMin = "0.0"))
+	float DissolveDelayAfterMontage = 0.0f;
+
+	// Dissolve가 진행되는 시간이다.
+	UPROPERTY(EditDefaultsOnly, Category = "ProjectR|Death|Dissolve", meta = (EditCondition = "bUseDissolveOnDeath", ClampMin = "0.0"))
+	float DissolveDuration = 1.0f;
+
+	// Dissolve 시작 시 재질 파라미터 값이다.
+	UPROPERTY(EditDefaultsOnly, Category = "ProjectR|Death|Dissolve", meta = (EditCondition = "bUseDissolveOnDeath"))
+	float DissolveStartValue = 0.0f;
+
+	// Dissolve 종료 시 재질 파라미터 값이다.
+	UPROPERTY(EditDefaultsOnly, Category = "ProjectR|Death|Dissolve", meta = (EditCondition = "bUseDissolveOnDeath"))
+	float DissolveEndValue = 1.0f;
+
+	// Dissolve 재질에서 사용하는 Scalar Parameter 이름이다.
+	UPROPERTY(EditDefaultsOnly, Category = "ProjectR|Death|Dissolve", meta = (EditCondition = "bUseDissolveOnDeath"))
+	FName DissolveScalarParameterName = TEXT("DissolveAmount");
+
+	// Dissolve 중 재생할 Niagara 시스템이다.
+	UPROPERTY(EditDefaultsOnly, Category = "ProjectR|Death|Dissolve", meta = (EditCondition = "bUseDissolveOnDeath"))
+	TObjectPtr<UNiagaraSystem> DissolveNiagaraSystem;
+
+	// Niagara에 전달할 Dissolve 진행도 User Parameter 이름이다.
+	UPROPERTY(EditDefaultsOnly, Category = "ProjectR|Death|Dissolve", meta = (EditCondition = "bUseDissolveOnDeath"))
+	FName NiagaraDissolveParameterName = TEXT("User.DissolveAmount");
+
+	// Dissolve Niagara가 사용하는 노이즈 텍스처다.
+	UPROPERTY(EditDefaultsOnly, Category = "ProjectR|Death|Dissolve", meta = (EditCondition = "bUseDissolveOnDeath"))
+	TObjectPtr<UTexture> DissolveTexture;
+
+	// Dissolve Niagara 노이즈 텍스처 UV 스케일이다.
+	UPROPERTY(EditDefaultsOnly, Category = "ProjectR|Death|Dissolve", meta = (EditCondition = "bUseDissolveOnDeath"))
+	FVector2D DissolveTextureUV = FVector2D(1.0f, 1.0f);
+
+	// Dissolve 보간 타이머 간격이다.
+	UPROPERTY(EditDefaultsOnly, Category = "ProjectR|Death|Dissolve", meta = (EditCondition = "bUseDissolveOnDeath", ClampMin = "0.001"))
+	float DissolveTickInterval = 0.016f;
 
 private:
 	FTimerHandle DeathDestroyTimerHandle;

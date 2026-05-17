@@ -4,12 +4,20 @@
 
 #include "ProjectR/AI/Controllers/PREnemyAIController.h"
 #include "AIController.h"
+#include "Animation/AnimInstance.h"
+#include "Animation/AnimMontage.h"
 #include "BrainComponent.h"
 #include "BehaviorTree/BehaviorTree.h"
+#include "Components/SkeletalMeshComponent.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "GameFramework/Controller.h"
 #include "GameFramework/Pawn.h"
 #include "GameFramework/PlayerController.h"
+#include "Materials/MaterialInstanceDynamic.h"
+#include "Materials/MaterialInterface.h"
+#include "NiagaraComponent.h"
+#include "NiagaraFunctionLibrary.h"
+#include "NiagaraSystem.h"
 #include "ProjectR/AI/Components/PREnemyCombatEventRelayComponent.h"
 #include "ProjectR/AI/Components/PREnemyThreatComponent.h"
 #include "ProjectR/AI/Data/PREnemyCombatDataAsset.h"
@@ -27,6 +35,7 @@
 #include "ProjectR/UI/FloatingText/PRFloatingTextManager.h"
 #include "ProjectR/UI/HUD/PREnemyWorldHealthBarComponent.h"
 #include "Net/UnrealNetwork.h"
+#include "TimerManager.h"
 
 namespace
 {
@@ -90,12 +99,6 @@ void APREnemyBaseCharacter::BeginPlay()
 	
 	InitializeHomeLocation();
 	InitializeEnemyWorldHealthBar();
-
-	if (IsValid(CommonSet))
-	{
-		// CommonSet->OnDeath.AddDynamic(this, &APREnemyBaseCharacter::HandleDeath);
-		// !!!Note (26.04.22, Yuchan): 이미 Tag 이벤트로 Death 처리 함수를 호출하기 때문에 위 이벤트 바인딩 불필요하여 주석처리 
-	}
 }
 
 void APREnemyBaseCharacter::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const
@@ -174,6 +177,327 @@ void APREnemyBaseCharacter::ClearCombatMovePresentationContext()
 	bUseCombatMovePose = false;
 	bUseCombatAimOffset = false;
 	bUseCombatStrafeState = false;
+}
+
+void APREnemyBaseCharacter::RequestDeathDissolveVisual(
+	UAnimMontage* InDeathMontage,
+	float InMontagePlayRate,
+	float InDissolveDelay,
+	float InDissolveDuration,
+	float InDissolveStartValue,
+	float InDissolveEndValue,
+	FName InDissolveScalarParameterName,
+	UNiagaraSystem* InDissolveNiagaraSystem,
+	FName InNiagaraDissolveParameterName,
+	UTexture* InDissolveTexture,
+	FVector2D InDissolveTextureUV,
+	float InDissolveTickInterval)
+{
+	if (!HasAuthority())
+	{
+		return;
+	}
+
+	Multicast_RequestDeathDissolveVisual(
+		InDeathMontage,
+		InMontagePlayRate,
+		InDissolveDelay,
+		InDissolveDuration,
+		InDissolveStartValue,
+		InDissolveEndValue,
+		InDissolveScalarParameterName,
+		InDissolveNiagaraSystem,
+		InNiagaraDissolveParameterName,
+		InDissolveTexture,
+		InDissolveTextureUV,
+		InDissolveTickInterval);
+}
+
+void APREnemyBaseCharacter::Multicast_RequestDeathDissolveVisual_Implementation(
+	UAnimMontage* InDeathMontage,
+	float InMontagePlayRate,
+	float InDissolveDelay,
+	float InDissolveDuration,
+	float InDissolveStartValue,
+	float InDissolveEndValue,
+	FName InDissolveScalarParameterName,
+	UNiagaraSystem* InDissolveNiagaraSystem,
+	FName InNiagaraDissolveParameterName,
+	UTexture* InDissolveTexture,
+	FVector2D InDissolveTextureUV,
+	float InDissolveTickInterval)
+{
+	// 서버는 Death Ability가 Actor 제거까지 소유하므로, 멀티캐스트는 클라이언트 시각 연출만 담당한다.
+	if (UWorld* World = GetWorld())
+	{
+		World->GetTimerManager().ClearTimer(DeathDissolveStartTimerHandle);
+		World->GetTimerManager().ClearTimer(DeathDissolveTickTimerHandle);
+	}
+
+	DeathDissolveDynamicMaterials.Reset();
+	if (IsValid(ActiveDeathDissolveNiagara))
+	{
+		ActiveDeathDissolveNiagara->Deactivate();
+	}
+	ActiveDeathDissolveNiagara = nullptr;
+	DeathDissolveElapsedTime = 0.0f;
+	bDeathDissolveVisualStarted = false;
+
+	PendingDeathDissolveMontage = InDeathMontage;
+	PendingDeathDissolveMontagePlayRate = FMath::Max(InMontagePlayRate, UE_SMALL_NUMBER);
+	PendingDeathDissolveDelay = FMath::Max(InDissolveDelay, 0.0f);
+	PendingDeathDissolveDuration = FMath::Max(InDissolveDuration, 0.0f);
+	PendingDeathDissolveStartValue = InDissolveStartValue;
+	PendingDeathDissolveEndValue = InDissolveEndValue;
+	PendingDeathDissolveScalarParameterName = InDissolveScalarParameterName != NAME_None
+		? InDissolveScalarParameterName
+		: TEXT("DissolveAmount");
+	PendingDeathDissolveNiagaraSystem = InDissolveNiagaraSystem;
+	PendingDeathDissolveNiagaraParameterName = InNiagaraDissolveParameterName != NAME_None
+		? InNiagaraDissolveParameterName
+		: TEXT("User.DissolveAmount");
+	PendingDeathDissolveTexture = InDissolveTexture;
+	PendingDeathDissolveTextureUV = InDissolveTextureUV;
+	PendingDeathDissolveTickInterval = FMath::Max(InDissolveTickInterval, 0.001f);
+
+	if (!IsValid(PendingDeathDissolveMontage))
+	{
+		BeginDeathDissolveVisual();
+		return;
+	}
+
+	// Death는 곧바로 Dead 태그, AI 정지, Dissolve 예약이 이어지므로 클라이언트 시각 몽타주를 한 번 더 보장한다.
+	if (!HasAuthority())
+	{
+		PlayDeathDissolveMontageIfNeeded();
+	}
+
+	const float MontageDelay = (PendingDeathDissolveMontage->GetPlayLength() / PendingDeathDissolveMontagePlayRate) + 0.1f;
+	if (UWorld* World = GetWorld())
+	{
+		World->GetTimerManager().SetTimer(
+			DeathDissolveStartTimerHandle,
+			this,
+			&APREnemyBaseCharacter::BeginDeathDissolveVisual,
+			FMath::Max(MontageDelay, 0.0f),
+			false);
+	}
+	else
+	{
+		BeginDeathDissolveVisual();
+	}
+}
+
+void APREnemyBaseCharacter::PlayDeathDissolveMontageIfNeeded()
+{
+	if (!IsValid(PendingDeathDissolveMontage))
+	{
+		return;
+	}
+
+	USkeletalMeshComponent* MeshComponent = GetMesh();
+	if (!IsValid(MeshComponent))
+	{
+		return;
+	}
+
+	UAnimInstance* AnimInstance = MeshComponent->GetAnimInstance();
+	if (!IsValid(AnimInstance))
+	{
+		return;
+	}
+
+	if (AnimInstance->Montage_IsPlaying(PendingDeathDissolveMontage))
+	{
+		return;
+	}
+
+	AnimInstance->Montage_Play(PendingDeathDissolveMontage, PendingDeathDissolveMontagePlayRate);
+}
+
+void APREnemyBaseCharacter::BeginDeathDissolveVisual()
+{
+	if (bDeathDissolveVisualStarted)
+	{
+		return;
+	}
+
+	bDeathDissolveVisualStarted = true;
+
+	if (UWorld* World = GetWorld())
+	{
+		World->GetTimerManager().ClearTimer(DeathDissolveStartTimerHandle);
+	}
+
+	FreezeDeathDissolvePose();
+
+	if (PendingDeathDissolveDelay <= 0.0f)
+	{
+		StartDeathDissolveVisual();
+		return;
+	}
+
+	if (UWorld* World = GetWorld())
+	{
+		World->GetTimerManager().SetTimer(
+			DeathDissolveStartTimerHandle,
+			this,
+			&APREnemyBaseCharacter::StartDeathDissolveVisual,
+			PendingDeathDissolveDelay,
+			false);
+	}
+	else
+	{
+		StartDeathDissolveVisual();
+	}
+}
+
+void APREnemyBaseCharacter::StartDeathDissolveVisual()
+{
+	DeathDissolveElapsedTime = 0.0f;
+	DeathDissolveDynamicMaterials.Reset();
+
+	USkeletalMeshComponent* MeshComponent = GetMesh();
+	if (IsValid(MeshComponent))
+	{
+		const int32 MaterialCount = MeshComponent->GetNumMaterials();
+		for (int32 MaterialIndex = 0; MaterialIndex < MaterialCount; ++MaterialIndex)
+		{
+			UMaterialInterface* CurrentMaterial = MeshComponent->GetMaterial(MaterialIndex);
+			if (!IsValid(CurrentMaterial))
+			{
+				continue;
+			}
+
+			UMaterialInstanceDynamic* DynamicMaterial = Cast<UMaterialInstanceDynamic>(CurrentMaterial);
+			if (!IsValid(DynamicMaterial))
+			{
+				DynamicMaterial = MeshComponent->CreateDynamicMaterialInstance(MaterialIndex, CurrentMaterial);
+			}
+
+			if (IsValid(DynamicMaterial))
+			{
+				DynamicMaterial->SetScalarParameterValue(
+					PendingDeathDissolveScalarParameterName,
+					PendingDeathDissolveStartValue);
+				DeathDissolveDynamicMaterials.Add(DynamicMaterial);
+			}
+		}
+
+		if (IsValid(PendingDeathDissolveNiagaraSystem))
+		{
+			ActiveDeathDissolveNiagara = UNiagaraFunctionLibrary::SpawnSystemAttached(
+				PendingDeathDissolveNiagaraSystem,
+				MeshComponent,
+				NAME_None,
+				FVector::ZeroVector,
+				FRotator::ZeroRotator,
+				EAttachLocation::SnapToTarget,
+				true,
+				true);
+
+			if (IsValid(ActiveDeathDissolveNiagara))
+			{
+				ActiveDeathDissolveNiagara->SetVariableFloat(
+					PendingDeathDissolveNiagaraParameterName,
+					PendingDeathDissolveStartValue);
+
+				if (IsValid(PendingDeathDissolveTexture))
+				{
+					ActiveDeathDissolveNiagara->SetVariableTexture(TEXT("User.DissolveTexture"), PendingDeathDissolveTexture);
+				}
+
+				ActiveDeathDissolveNiagara->SetVariableVec2(TEXT("User.DissolveTextureUV"), PendingDeathDissolveTextureUV);
+				ActiveDeathDissolveNiagara->Activate(true);
+			}
+		}
+	}
+
+	ApplyDeathDissolveVisualValue(PendingDeathDissolveStartValue);
+
+	if (PendingDeathDissolveDuration <= UE_SMALL_NUMBER)
+	{
+		ApplyDeathDissolveVisualValue(PendingDeathDissolveEndValue);
+		CompleteDeathDissolveVisual();
+		return;
+	}
+
+	if (UWorld* World = GetWorld())
+	{
+		World->GetTimerManager().SetTimer(
+			DeathDissolveTickTimerHandle,
+			this,
+			&APREnemyBaseCharacter::TickDeathDissolveVisual,
+			PendingDeathDissolveTickInterval,
+			true);
+	}
+	else
+	{
+		CompleteDeathDissolveVisual();
+	}
+}
+
+void APREnemyBaseCharacter::TickDeathDissolveVisual()
+{
+	DeathDissolveElapsedTime += PendingDeathDissolveTickInterval;
+
+	const float Duration = FMath::Max(PendingDeathDissolveDuration, UE_SMALL_NUMBER);
+	const float Alpha = FMath::Clamp(DeathDissolveElapsedTime / Duration, 0.0f, 1.0f);
+	const float DissolveValue = FMath::Lerp(
+		PendingDeathDissolveStartValue,
+		PendingDeathDissolveEndValue,
+		Alpha);
+
+	ApplyDeathDissolveVisualValue(DissolveValue);
+
+	if (Alpha >= 1.0f)
+	{
+		CompleteDeathDissolveVisual();
+	}
+}
+
+void APREnemyBaseCharacter::CompleteDeathDissolveVisual()
+{
+	if (UWorld* World = GetWorld())
+	{
+		World->GetTimerManager().ClearTimer(DeathDissolveTickTimerHandle);
+	}
+
+	ApplyDeathDissolveVisualValue(PendingDeathDissolveEndValue);
+
+	if (IsValid(ActiveDeathDissolveNiagara))
+	{
+		ActiveDeathDissolveNiagara->Deactivate();
+		ActiveDeathDissolveNiagara = nullptr;
+	}
+}
+
+void APREnemyBaseCharacter::ApplyDeathDissolveVisualValue(float DissolveValue)
+{
+	for (UMaterialInstanceDynamic* DynamicMaterial : DeathDissolveDynamicMaterials)
+	{
+		if (IsValid(DynamicMaterial))
+		{
+			DynamicMaterial->SetScalarParameterValue(PendingDeathDissolveScalarParameterName, DissolveValue);
+		}
+	}
+
+	if (IsValid(ActiveDeathDissolveNiagara))
+	{
+		ActiveDeathDissolveNiagara->SetVariableFloat(PendingDeathDissolveNiagaraParameterName, DissolveValue);
+	}
+}
+
+void APREnemyBaseCharacter::FreezeDeathDissolvePose()
+{
+	USkeletalMeshComponent* MeshComponent = GetMesh();
+	if (!IsValid(MeshComponent))
+	{
+		return;
+	}
+
+	MeshComponent->bPauseAnims = true;
+	MeshComponent->GlobalAnimRateScale = 0.0f;
 }
 
 void APREnemyBaseCharacter::CacheMovementPresentationDefaults()

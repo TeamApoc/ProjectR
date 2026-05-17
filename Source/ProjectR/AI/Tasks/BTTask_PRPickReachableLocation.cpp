@@ -6,121 +6,10 @@
 #include "BehaviorTree/BlackboardComponent.h"
 #include "BehaviorTree/BlackboardData.h"
 #include "EnvironmentQuery/EnvQuery.h"
-#include "EnvironmentQuery/EnvQueryManager.h"
 #include "NavFilters/NavigationQueryFilter.h"
 #include "NavigationData.h"
 #include "NavigationSystem.h"
-
-namespace
-{
-	struct FPRLocationQueryCandidate
-	{
-		int32 ItemIndex = INDEX_NONE;
-		float Score = 0.0f;
-	};
-
-	EEnvQueryRunMode::Type ResolveQueryRunMode(const FPREnemyLocationQueryConfig& Config)
-	{
-		if (Config.CandidateSelectionMode == EPREnemyQueryCandidateSelectionMode::BestScore)
-		{
-			return Config.QueryRunMode;
-		}
-
-		return EEnvQueryRunMode::AllMatching;
-	}
-
-	void BuildSortedCandidates(const FEnvQueryResult& QueryResult, TArray<FPRLocationQueryCandidate>& OutCandidates)
-	{
-		for (int32 ItemIndex = 0; ItemIndex < QueryResult.Items.Num(); ++ItemIndex)
-		{
-			if (!QueryResult.Items[ItemIndex].IsValid())
-			{
-				continue;
-			}
-
-			FPRLocationQueryCandidate Candidate;
-			Candidate.ItemIndex = ItemIndex;
-			Candidate.Score = QueryResult.GetItemScore(ItemIndex);
-			OutCandidates.Add(Candidate);
-		}
-
-		OutCandidates.Sort([](const FPRLocationQueryCandidate& Left, const FPRLocationQueryCandidate& Right)
-		{
-			return Left.Score > Right.Score;
-		});
-	}
-
-	void FilterTopCandidates(const FPREnemyLocationQueryConfig& Config, TArray<FPRLocationQueryCandidate>& Candidates)
-	{
-		if (Candidates.IsEmpty())
-		{
-			return;
-		}
-
-		const float MaxScore = Candidates[0].Score;
-		const float MinAllowedScore = MaxScore * FMath::Clamp(Config.TopScoreCandidateRatio, 0.0f, 1.0f);
-		Candidates.RemoveAll([MinAllowedScore](const FPRLocationQueryCandidate& Candidate)
-		{
-			return Candidate.Score < MinAllowedScore;
-		});
-
-		if (Config.TopCandidateCount > 0 && Candidates.Num() > Config.TopCandidateCount)
-		{
-			Candidates.SetNum(Config.TopCandidateCount);
-		}
-	}
-
-	bool SelectCandidateIndex(const FPREnemyLocationQueryConfig& Config, const TArray<FPRLocationQueryCandidate>& Candidates, int32& OutItemIndex)
-	{
-		if (Candidates.IsEmpty())
-		{
-			return false;
-		}
-
-		switch (Config.CandidateSelectionMode)
-		{
-		case EPREnemyQueryCandidateSelectionMode::RandomTopCandidates:
-		{
-			const int32 PickIndex = FMath::RandRange(0, Candidates.Num() - 1);
-			OutItemIndex = Candidates[PickIndex].ItemIndex;
-			return true;
-		}
-		case EPREnemyQueryCandidateSelectionMode::WeightedRandomTopCandidates:
-		{
-			float TotalWeight = 0.0f;
-			for (const FPRLocationQueryCandidate& Candidate : Candidates)
-			{
-				TotalWeight += FMath::Max(Candidate.Score, KINDA_SMALL_NUMBER);
-			}
-
-			if (TotalWeight <= 0.0f)
-			{
-				OutItemIndex = Candidates[0].ItemIndex;
-				return true;
-			}
-
-			const float PickWeight = FMath::FRandRange(0.0f, TotalWeight);
-			float AccumulatedWeight = 0.0f;
-			for (const FPRLocationQueryCandidate& Candidate : Candidates)
-			{
-				AccumulatedWeight += FMath::Max(Candidate.Score, KINDA_SMALL_NUMBER);
-				if (PickWeight <= AccumulatedWeight)
-				{
-					OutItemIndex = Candidate.ItemIndex;
-					return true;
-				}
-			}
-
-			OutItemIndex = Candidates.Last().ItemIndex;
-			return true;
-		}
-		case EPREnemyQueryCandidateSelectionMode::BestScore:
-		default:
-			OutItemIndex = Candidates[0].ItemIndex;
-			return true;
-		}
-	}
-}
+#include "ProjectR/AI/PREnemyEQSSelectionUtils.h"
 
 UBTTask_PRPickReachableLocation::UBTTask_PRPickReachableLocation()
 {
@@ -176,7 +65,7 @@ FString UBTTask_PRPickReachableLocation::GetStaticDescription() const
 		*Super::GetStaticDescription(),
 		*OriginLocationKey.ToString(),
 		*MoveGoalLocationKey.ToString(),
-		*GetNameSafe(EQSQueryConfig.QueryTemplate),
+		*GetNameSafe(EQSQueryConfig.QueryTemplate.Get()),
 		bFallbackToNavmeshRandom ? TEXT("true") : TEXT("false"),
 		PickRadius,
 		MinDistanceFromOrigin,
@@ -207,54 +96,15 @@ bool UBTTask_PRPickReachableLocation::ResolveOriginLocation(const UBlackboardCom
 
 bool UBTTask_PRPickReachableLocation::PickEQSLocation(APawn* ControlledPawn, FVector& OutPickedLocation) const
 {
-	if (!IsValid(ControlledPawn) || !IsValid(EQSQueryConfig.QueryTemplate))
-	{
-		return false;
-	}
-
-	UWorld* World = ControlledPawn->GetWorld();
-	if (!IsValid(World))
-	{
-		return false;
-	}
-
-	UEnvQueryManager* QueryManager = UEnvQueryManager::GetCurrent(World);
-	if (!IsValid(QueryManager))
-	{
-		return false;
-	}
-
-	FEnvQueryRequest QueryRequest(EQSQueryConfig.QueryTemplate, ControlledPawn);
-	for (const FPREnemyEQSFloatParam& FloatParam : EQSQueryConfig.FloatParams)
-	{
-		if (FloatParam.ParamName == NAME_None)
-		{
-			continue;
-		}
-
-		QueryRequest.SetFloatParam(FloatParam.ParamName, FloatParam.Value);
-	}
-
-	const TSharedPtr<FEnvQueryResult> QueryResult = QueryManager->RunInstantQuery(
-		QueryRequest,
-		ResolveQueryRunMode(EQSQueryConfig));
-	if (!QueryResult.IsValid() || !QueryResult->IsSuccessful() || QueryResult->Items.Num() <= 0)
-	{
-		return false;
-	}
-
-	TArray<FPRLocationQueryCandidate> Candidates;
-	BuildSortedCandidates(*QueryResult, Candidates);
-	FilterTopCandidates(EQSQueryConfig, Candidates);
-
-	int32 SelectedItemIndex = INDEX_NONE;
-	if (!SelectCandidateIndex(EQSQueryConfig, Candidates, SelectedItemIndex) || SelectedItemIndex == INDEX_NONE)
-	{
-		return false;
-	}
-
-	OutPickedLocation = QueryResult->GetItemAsLocation(SelectedItemIndex);
-	return true;
+	return PREnemyEQSSelectionUtils::RunLocationQuery(
+		ControlledPawn,
+		EQSQueryConfig.QueryTemplate.Get(),
+		EQSQueryConfig.FloatParams,
+		EQSQueryConfig.QueryRunMode,
+		EQSQueryConfig.CandidateSelectionMode,
+		EQSQueryConfig.TopCandidateCount,
+		EQSQueryConfig.TopScoreCandidateRatio,
+		OutPickedLocation);
 }
 
 bool UBTTask_PRPickReachableLocation::PickReachableLocation(

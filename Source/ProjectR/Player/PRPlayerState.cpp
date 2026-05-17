@@ -21,7 +21,6 @@ APRPlayerState::APRPlayerState()
 {
 	AbilitySystemComponent = CreateDefaultSubobject<UPRAbilitySystemComponent>(TEXT("AbilitySystemComponent"));
 	AbilitySystemComponent->SetIsReplicated(true);
-	// 플레이어 ASC는 Mixed 모드: 본인 GE 전체 + 타 플레이어 요약
 	AbilitySystemComponent->SetReplicationMode(EGameplayEffectReplicationMode::Mixed);
 
 	CommonSet = CreateDefaultSubobject<UPRAttributeSet_Common>(TEXT("CommonSet"));

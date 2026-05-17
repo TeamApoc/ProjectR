@@ -27,35 +27,10 @@ void UPRPlayerCrouchAbility::ActivateAbility(const FGameplayAbilitySpecHandle Sp
 	const FGameplayEventData* TriggerEventData)
 {
 	Super::ActivateAbility(SpecHandle, ActorInfo, ActivationInfo, TriggerEventData);
-	
 	APRPlayerCharacter* Character = Cast<APRPlayerCharacter>(ActorInfo->AvatarActor.Get());
-	if (IsLocallyControlled())
+	if (IsValid(Character) && Character->CanCrouch())
 	{
-		// 1. [클라이언트] 현재 위치 저장
-		FVector_NetQuantize100 CurrentLoc = Character->GetActorLocation();
-
-		// 서버 장이면 그냥 실행
-		if (HasAuthority(&ActivationInfo))
-		{
-			bServerReceivedLocation = true;
-			SavedLocation = CurrentLoc;
-		}
-		else
-		{
-			// 클라이언트면 서버에 위치 전달 RPC
-			Server_SendCrouchLocation(CurrentLoc);
-		}
-
-		// 예측 실행
-		ExecuteCrouch();
-	}
-	else // 서버 측
-	{
-		// 서버는 데이터가 도착할 때까지 대기하거나, 이미 도착했다면 실행
-		if (bServerReceivedLocation)
-		{
-			ExecuteCrouch();
-		}
+		Character->Crouch();
 	}
 }
 
@@ -68,64 +43,13 @@ void UPRPlayerCrouchAbility::EndAbility(const FGameplayAbilitySpecHandle SpecHan
 	{
 		Character->UnCrouch();
 	}
-	
-	if (ActiveCameraModifier)
-	{
-		ActiveCameraModifier->DisableModifier(true); 
-		ActiveCameraModifier = nullptr;
-	}
-	
-	bServerReceivedLocation = false;
 	Super::EndAbility(SpecHandle, ActorInfo, ActivationInfo, bReplicateEndAbility, bWasCancelled);
 }
 
-void UPRPlayerCrouchAbility::ExecuteCrouch()
+void UPRPlayerCrouchAbility::InputPressed(const FGameplayAbilitySpecHandle Handle,
+	const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilityActivationInfo ActivationInfo)
 {
-	APRPlayerCharacter* Character = Cast<APRPlayerCharacter>(GetAvatarActorFromActorInfo());
-	if (IsValid(Character) && Character->CanCrouch())
-	{
-		Character->Crouch();
-		
-		UAbilityTask_WaitInputPress* WaitInputTask = UAbilityTask_WaitInputPress::WaitInputPress(this);
-		WaitInputTask->OnPress.AddDynamic(this, &UPRPlayerCrouchAbility::OnCrouchInputPressed);
-		WaitInputTask->Activate();
-		
-		// 카메라 모디파이어 추가 (로컬 플레이어만 적용)
-		if (IsLocallyControlled())
-		{
-			if (APlayerController* PC = Cast<APlayerController>(Character->GetController()))
-			{
-				if (APlayerCameraManager* CameraManager = PC->PlayerCameraManager)
-				{
-					// 모디파이어를 생성하고 매니저에 부착 (AlphaInTime에 맞춰 부드럽게 시야가 변함)
-					ActiveCameraModifier = Cast<UPRCameraModifier>(
-						CameraManager->AddNewCameraModifier(UPRCameraModifier::StaticClass())
-					);
-
-					if (ActiveCameraModifier)
-					{
-						ActiveCameraModifier->SetActionCameraSettings(60.0f, FVector(0.f, 0.f, 0.f));
-					}
-				}
-			}
-		}
-	}
-}
-
-void UPRPlayerCrouchAbility::OnCrouchInputPressed(float TimeWaited)
-{
-	bool bReplicateEndAbility = true;
-	EndAbility(CurrentSpecHandle, CurrentActorInfo, CurrentActivationInfo, bReplicateEndAbility, false);
-}
-
-void UPRPlayerCrouchAbility::Server_SendCrouchLocation_Implementation(FVector_NetQuantize100 ClientLocation)
-{
-	bServerReceivedLocation = true;
-	SavedLocation = ClientLocation;
-
-	if (IsActive())
-	{
-		ExecuteCrouch();
-	}
+	Super::InputPressed(Handle, ActorInfo, ActivationInfo);
+	EndAbility(Handle,ActorInfo,ActivationInfo,true,true);
 }
 

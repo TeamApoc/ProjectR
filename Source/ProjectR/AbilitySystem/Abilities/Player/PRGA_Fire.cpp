@@ -48,6 +48,20 @@ void UPRGA_Fire::ActivateAbility(const FGameplayAbilitySpecHandle Handle, const 
 		}
 	}
 	
+	// 발사 간격 결정. CommitAbilityCooldown 이전에 캐싱해야 ApplyCooldown SetByCaller 주입에 반영
+	if (bOverrideFireInterval)
+	{
+		CachedFireInterval = FireIntervalOverride;
+	}
+	else if (const UPRWeaponDataAsset* WeaponData = GetActiveWeaponData())
+	{
+		CachedFireInterval = WeaponData->FireInterval;
+	}
+	else
+	{
+		CachedFireInterval = FireIntervalOverride;
+	}
+
 	Super::ActivateAbility(Handle, ActorInfo, ActivationInfo, TriggerEventData);
 	ResetConsecutiveShots();
 	NextShotId = 0;
@@ -64,9 +78,12 @@ void UPRGA_Fire::EndAbility(const FGameplayAbilitySpecHandle Handle, const FGame
 void UPRGA_Fire::OnRemoveAbility(const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilitySpec& Spec)
 {
 	// 무기 교체시 쿨다운 효과 제거
-	if (ActorInfo->AbilitySystemComponent.IsValid() && CooldownHandle.IsValid())
+	if (UPRGA_Fire* InstancedAbility = Cast<UPRGA_Fire>(Spec.GetPrimaryInstance()))
 	{
-		ActorInfo->AbilitySystemComponent->RemoveActiveGameplayEffect(CooldownHandle);
+		if (ActorInfo->AbilitySystemComponent.IsValid() && InstancedAbility->CooldownHandle.IsValid())
+		{
+			ActorInfo->AbilitySystemComponent->RemoveActiveGameplayEffect(InstancedAbility->CooldownHandle);
+		}
 	}
 	
 	Super::OnRemoveAbility(ActorInfo, Spec);
@@ -96,21 +113,25 @@ void UPRGA_Fire::ApplyCooldown(const FGameplayAbilitySpecHandle Handle, const FG
 	{
 		return;
 	}
-
-	const FGameplayEffectSpecHandle SpecHandle = MakeOutgoingGameplayEffectSpec(
-		Handle, ActorInfo, ActivationInfo, CooldownGE->GetClass());
-	if (!SpecHandle.IsValid())
+	
+	if (UPRGA_Fire* InstancedAbility = GetAbilityInstance<UPRGA_Fire>(Handle, ActorInfo))
 	{
-		return;
+		const FGameplayEffectSpecHandle SpecHandle = MakeOutgoingGameplayEffectSpec(
+			Handle, ActorInfo, ActivationInfo, CooldownGE->GetClass());
+		if (!SpecHandle.IsValid())
+		{
+			return;
+		}
+				
+		UE_LOG(LogTemp,Warning,TEXT("Ability Instance Name: %s "),*GetNameSafe(InstancedAbility));
+		// 무기 데이터에서 캐싱한 발사 간격을 GE Duration으로 주입
+		SpecHandle.Data->SetSetByCallerMagnitude(PRCombatGameplayTags::SetByCaller_Cooldown, InstancedAbility->CachedFireInterval);
+		InstancedAbility->CooldownHandle = ApplyGameplayEffectSpecToOwner(Handle, ActorInfo, ActivationInfo, SpecHandle);
 	}
-
-	// 무기 데이터에서 캐싱한 발사 간격을 GE Duration으로 주입
-	SpecHandle.Data->SetSetByCallerMagnitude(PRCombatGameplayTags::SetByCaller_Cooldown, CachedFireInterval);
-	CooldownHandle = ApplyGameplayEffectSpecToOwner(Handle, ActorInfo, ActivationInfo, SpecHandle);
 }
 
 
-FVector UPRGA_Fire::GetMuzzleLocation() const
+FVector UPRGA_Fire::GetMuzzleLocation()
 {
 	// !!! 임시 코드 !!!
 	if (!CurrentWeapon.IsValid())
@@ -235,13 +256,7 @@ void UPRGA_Fire::SendRecoilEvent()
 void UPRGA_Fire::FireHitScan()
 {
 	const FGameplayAbilityActorInfo& Info = GetActorInfo();
-
-	// 로컬에서만 트레이스/리포트 수행. 시뮬레이트 프록시는 무시
-	if (!Info.IsLocallyControlled())
-	{
-		return;
-	}
-
+	
 	// 클라이언트 예측 cost 적용 (호스트는 ServerConfirmShot에서 단일 auth commit 처리하므로 제외)
 	// 예측 cost가 실패하면 발사 시도 자체를 차단하고 어빌리티 종료
 	const AActor* AvatarActor = Info.AvatarActor.Get();
@@ -255,11 +270,17 @@ void UPRGA_Fire::FireHitScan()
 			return;
 		}
 	}
-
+	
 	// 몽타쥬 재생. 무기 메시 애니메이션은 몽타주 노티파이가 각 머신에서 로컬로 트리거한다
 	if (UPRWeaponDataAsset* WeaponData = GetActiveWeaponData())
 	{
 		PlayWeaponMontage(WeaponData->ShootMontage, WeaponData->ShootMontagePlayRate);
+	}
+	
+	// 로컬에서만 트레이스/리포트 수행. 시뮬레이트 프록시는 무시
+	if (!Info.IsLocallyControlled())
+	{
+		return;
 	}
 
 	// 페이로드 구성
@@ -325,7 +346,7 @@ void UPRGA_Fire::ResetConsecutiveShots()
 	ConsecutiveShots = 0;
 }
 
-FTransform UPRGA_Fire::GetProjectileLaunchTransform() const
+FTransform UPRGA_Fire::GetProjectileLaunchTransform()
 {
 	if (!GetActorInfo().IsLocallyControlled())
 	{

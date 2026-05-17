@@ -501,11 +501,12 @@ void APRProjectileBase::HandleHit_Implementation(UPrimitiveComponent* HitCompone
 
 void APRProjectileBase::DrawDebugs(float DeltaSeconds)
 {
+#if WITH_EDITORONLY_DATA
 	if (HasAuthority() && ProjectileRole == EPRProjectileRole::Auth)
 	{
 		return;
 	}
-	
+
 	if (!bDrawDebugSphere)
 	{
 		return;
@@ -520,4 +521,5 @@ void APRProjectileBase::DrawDebugs(float DeltaSeconds)
 
 	const FColor& DrawColor = (ProjectileRole == EPRProjectileRole::Predicted) ? DebugColorPredicted : DebugColorAuth;
 	DrawDebugSphere(GetWorld(), GetActorLocation(), DebugSphereRadius, 12, DrawColor, false, DebugDrawLifetime);
+#endif
 }

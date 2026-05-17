@@ -611,7 +611,7 @@ void APREnemyBaseCharacter::OnPostDamageApplied(const FPRDamageAppliedContext& C
 	EPRFloatingTextType TextType = EPRFloatingTextType::NormalDamage;
 	if (Context.Region.IsWeakpoint())
 	{
-		TextType = EPRFloatingTextType::HitWeakpoint;
+		TextType = Context.bIsCritical ? EPRFloatingTextType::WeakCritical : EPRFloatingTextType::WeakNormal;
 	}
 	else if (Context.bIsCritical)
 	{

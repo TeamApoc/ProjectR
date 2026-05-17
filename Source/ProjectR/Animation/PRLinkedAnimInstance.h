@@ -105,8 +105,8 @@ protected:
 	EPRWeaponSlotType EquippedWeaponSlot = EPRWeaponSlotType::None;
 
 	// 현재 AimOffset 선택에 사용할 무기 슬롯
-	UPROPERTY(BlueprintReadOnly, Category = "Movement|Aiming")
-	EPRWeaponSlotType AimOffsetWeaponSlot = EPRWeaponSlotType::None;
+	// UPROPERTY(BlueprintReadOnly, Category = "Movement|Aiming")
+	// EPRWeaponSlotType AimOffsetWeaponSlot = EPRWeaponSlotType::None;
 
 	// 메인 AnimInstance에서 계산한 FABRIK용 왼손 Effector 트랜스폼이다
 	UPROPERTY(BlueprintReadOnly, Category = "ProjectR|Animation|IK")

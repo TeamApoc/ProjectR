@@ -7,7 +7,6 @@
 #include "ProjectR/Player/Components/PRSpringArmComponent.h"
 #include "ProjectR/PRGameplayTags.h"
 #include "ProjectR/System/PREventManagerSubsystem.h"
-#include "ProjectR/System/PREventTypes.h"
 #include "ProjectR/UI/Crosshair/PRCrosshairConfig.h"
 #include "ProjectR/Weapon/Components/PRWeaponManagerComponent.h"
 
@@ -22,8 +21,29 @@ UPRGA_PlayerAim::UPRGA_PlayerAim()
 
 	ActivationOwnedTags.AddTag(PRGameplayTags::State_Aiming);
 
+	ReplicationPolicy = EGameplayAbilityReplicationPolicy::ReplicateYes;
 	NetExecutionPolicy = EGameplayAbilityNetExecutionPolicy::LocalPredicted;
 	InstancingPolicy = EGameplayAbilityInstancingPolicy::InstancedPerActor;
+}
+
+bool UPRGA_PlayerAim::CanActivateAbility(const FGameplayAbilitySpecHandle Handle,
+	const FGameplayAbilityActorInfo* ActorInfo, const FGameplayTagContainer* SourceTags,
+	const FGameplayTagContainer* TargetTags, FGameplayTagContainer* OptionalRelevantTags) const
+{
+	if (!Super::CanActivateAbility(Handle, ActorInfo, SourceTags, TargetTags, OptionalRelevantTags))
+	{
+		return false;
+	}
+	
+	if (APRPlayerCharacter* AvatarCharacter = Cast<APRPlayerCharacter>(GetAvatarActorFromActorInfo()))
+	{
+		if (UPRWeaponManagerComponent* WeaponManager = AvatarCharacter->GetWeaponManager())
+		{
+			return WeaponManager->GetCurrentWeaponSlot() != EPRWeaponSlotType::None;
+		}
+	}
+	
+	return false;
 }
 
 void UPRGA_PlayerAim::ActivateAbility(const FGameplayAbilitySpecHandle Handle,
@@ -42,12 +62,6 @@ void UPRGA_PlayerAim::ActivateAbility(const FGameplayAbilitySpecHandle Handle,
 	{
 		if (UPRWeaponManagerComponent* WeaponManager = AvatarCharacter->GetWeaponManager())
 		{
-			if (WeaponManager->GetCurrentWeaponSlot()== EPRWeaponSlotType::None)
-			{
-				EndAbility(Handle, ActorInfo, ActivationInfo, true, true);
-				return;
-				// TODO: 위 로직 CanActivate로 이동
-			}
 			if (WeaponManager->GetArmedState() != EPRArmedState::Armed)
 			{
 				WeaponManager->SetWeaponArmedState(EPRArmedState::Armed);
@@ -77,7 +91,6 @@ void UPRGA_PlayerAim::ActivateAbility(const FGameplayAbilitySpecHandle Handle,
 				FPRChangeCrosshairEventPayload CrosshairPayload;
 				CrosshairPayload.Config = AimCrosshairConfig;
 				EventMgr->BroadcastTyped(PRGameplayTags::Event_Player_ChangeCrosshair, CrosshairPayload);
-
 				EventMgr->BroadcastEmpty(PRGameplayTags::Event_Player_Aim_Start);
 			}
 		}

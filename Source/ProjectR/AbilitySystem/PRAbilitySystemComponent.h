@@ -20,6 +20,7 @@ class PROJECTR_API UPRAbilitySystemComponent : public UAbilitySystemComponent
 
 public:
 	/*~ UActorComponent Interface ~*/
+	virtual void GetLifetimeReplicatedProps(TArray<class FLifetimeProperty>& OutLifetimeProps) const override;
 	virtual void BeginPlay() override;
 
 protected:
@@ -27,7 +28,10 @@ protected:
 	virtual void OnGiveAbility(FGameplayAbilitySpec& AbilitySpec) override;
 	virtual void AbilitySpecInputPressed(FGameplayAbilitySpec& Spec) override;
 	virtual void AbilitySpecInputReleased(FGameplayAbilitySpec& Spec) override;
-	virtual void OnTagUpdated(const FGameplayTag& Tag, bool TagExists) override;
+	virtual void OnTagUpdated(const FGameplayTag& Tag, bool bTagExists) override;
+	
+	UFUNCTION(NetMulticast, Reliable)
+	void MulticastTagUpdated(const FGameplayTag Tag, bool TagExists);
 	
 public:
 	// AbilitySet 일괄 부여. 서버 전용. OutHandles에 Clear용 대칭 핸들 누적
@@ -75,6 +79,8 @@ protected:
 	// 어빌리티 활성화 시 델리게이트 브로드캐스트
 	void HandleAbilityActivated(UGameplayAbility* ActivatedAbility);
 
+	UFUNCTION()
+	void OnRep_OwningTags(const FGameplayTagContainer& OldTags);
 public:
 	// 어빌리티 활성화 직후 발행 (Ability 첫 태그 기준)
 	UPROPERTY(BlueprintAssignable)
@@ -96,4 +102,7 @@ protected:
 
 	// 이번 프레임 Released된 Spec Handle
 	TArray<FGameplayAbilitySpecHandle> InputReleasedSpecHandles;
+	
+	UPROPERTY(ReplicatedUsing = OnRep_OwningTags)
+	FGameplayTagContainer PROwningTags;
 };

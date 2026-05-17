@@ -39,7 +39,7 @@ public:
 public:
 	// 총구 위치 
 	UFUNCTION(BlueprintPure)
-	virtual FVector GetMuzzleLocation() const;
+	virtual FVector GetMuzzleLocation();
 
 	// 로컬 화면 Viewpoint 추출
 	virtual FPRFireViewpoint GetFireViewpoint() const;
@@ -67,7 +67,7 @@ public:
 	// 조준 기준 투사체 발사 트랜스폼 계산. 1차 카메라 트레이스로 조준점을 구하고, 총구->조준점 방향을 회전으로 환산
 	// 위치는 총구. 조준점이 총구 뒤쪽이거나 거리가 너무 짧으면 카메라 정면 방향으로 폴백
 	UFUNCTION(BlueprintCallable, BlueprintPure)
-	virtual FTransform GetProjectileLaunchTransform() const;
+	virtual FTransform GetProjectileLaunchTransform();
 	
 protected:
 	// 04.28 김동석 추가, // strength, speed는 삭제
@@ -107,6 +107,14 @@ protected:
 	void K2_OnProjectileSpawnFailed(APRProjectileBase* SpawnedProjectile);
 	
 protected:
+	// true이면 무기 데이터의 FireInterval 대신 FireIntervalOverride 사용
+	UPROPERTY(EditDefaultsOnly, Category = "ProjectR|Fire|FullAuto")
+	bool bOverrideFireInterval = false;
+
+	// Override가 true일 때 사용할 발사 간격(초). 0.1 = 600 RPM
+	UPROPERTY(EditDefaultsOnly, Category = "ProjectR|Fire|FullAuto")
+	float FireIntervalOverride = 0.1f;
+
 	// 트레이스 최대 거리
 	UPROPERTY(EditDefaultsOnly, Category = "ProjectR|Fire")
 	float MaxTraceDistance = 20000.f;
@@ -131,10 +139,10 @@ protected:
 	float DebugDrawDuration = 1.0f;
 	
 	// 활성 무기 캐시 (활성화 시 1회 획득)
-	mutable TWeakObjectPtr<APRWeaponActor> CurrentWeapon;
+	TWeakObjectPtr<APRWeaponActor> CurrentWeapon;
 
 	// 자식 어빌리티가 ActivateAbility 진입 시 무기 데이터 또는 Override로 캐싱. ApplyCooldown에서 SetByCaller로 주입
-	mutable float CachedFireInterval = 0.1f;
+	float CachedFireInterval = 0.1f;
 
 	// GetCooldownTags가 반환할 컨테이너. 생성자에서 Cooldown.Ability.Fire.Primary 채움
 	FGameplayTagContainer CooldownTagsContainer;
@@ -145,5 +153,5 @@ protected:
 	// 현재 입력 유지 중 누적된 연속 발사 횟수
 	int32 ConsecutiveShots = 0;
 	
-	mutable FActiveGameplayEffectHandle CooldownHandle;
+	FActiveGameplayEffectHandle CooldownHandle;
 };

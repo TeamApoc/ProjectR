@@ -28,7 +28,7 @@ public:
 	/*~ AActor Interface ~*/
 	// 초기 생성 이후 추가 초기화 지점을 제공한다
 	virtual void BeginPlay() override;
-
+	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 public:
 	// 전달받은 소켓 이름 기준으로 캐릭터 메시 소켓에 자신을 부착한다
 	UFUNCTION(BlueprintCallable, Category = "ProjectR|Weapon")
@@ -78,11 +78,15 @@ public:
 	
 	// IK 보정 억제 상태를 설정
 	UFUNCTION(BlueprintCallable)
-	void SetIsIKSuppressed(bool bInSuppressed);
+	void SetIsIKSuppressed(bool bInSuppressed, float InitialDelay = 0.f);
 	
 	// IK 보정 억제 상태를 반환
 	UFUNCTION(BLueprintPure)
 	bool IsIKSuppressed() const { return bIsIKSuppressed; }
+	
+protected:
+	void Internal_SetIsIKSuppressed();
+	
 public:
 	// 이 무기가 왼손 IK 보정을 사용할지 결정
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|Weapon|Animation")
@@ -104,6 +108,9 @@ protected:
 	TObjectPtr<USkeletalMeshComponent> WeaponMeshComponent;
 	
 private:
+	bool bPendingIKSuppressed = false;
 	// IK 보정 억제 상태
 	bool bIsIKSuppressed = false;
+	
+	FTimerHandle IKSuppressedTimerHandle;
 };

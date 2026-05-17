@@ -27,14 +27,6 @@ protected:
 	void HandleInputRelease(float TimeHeld);
 
 protected:
-	// true이면 무기 데이터의 FireInterval 대신 FireIntervalOverride 사용
-	UPROPERTY(EditDefaultsOnly, Category = "ProjectR|Fire|FullAuto")
-	bool bOverrideFireInterval = false;
-
-	// Override가 true일 때 사용할 발사 간격(초). 0.1 = 600 RPM
-	UPROPERTY(EditDefaultsOnly, Category = "ProjectR|Fire|FullAuto")
-	float FireIntervalOverride = 0.1f;
-
 	// 활성화 즉시 1발 발사 여부
 	UPROPERTY(EditDefaultsOnly, Category = "ProjectR|Fire|FullAuto")
 	bool bFireOnActivate = true;

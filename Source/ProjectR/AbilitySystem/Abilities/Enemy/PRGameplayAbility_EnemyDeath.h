@@ -52,7 +52,7 @@ protected:
 	float CalculateDeathDestroyDelay() const;
 
 	// 사망 Ability 종료 처리를 한 번만 수행한다.
-	void FinishDeath(bool bWasCancelled);
+	void FinishDeath();
 
 protected:
 	// 사망 중 재생할 몽타주다.

@@ -118,7 +118,7 @@ void UPRGameplayAbility_EnemyDeath::HandleDeathMontageCompleted()
 {
 	if (!bUseDissolveOnDeath && bEndAbilityWhenMontageEnds)
 	{
-		FinishDeath(false);
+		FinishDeath();
 	}
 }
 
@@ -126,7 +126,7 @@ void UPRGameplayAbility_EnemyDeath::HandleDeathMontageInterrupted()
 {
 	if (!bUseDissolveOnDeath && bEndAbilityWhenMontageEnds)
 	{
-		FinishDeath(true);
+		FinishDeath();
 	}
 }
 
@@ -138,7 +138,7 @@ void UPRGameplayAbility_EnemyDeath::DestroyDeathAvatar()
 		return;
 	}
 
-	FinishDeath(false);
+	FinishDeath();
 	AvatarActor->Destroy();
 }
 
@@ -203,7 +203,7 @@ float UPRGameplayAbility_EnemyDeath::CalculateDeathDestroyDelay() const
 	return MontageDelay + StartDelay + VisualDuration;
 }
 
-void UPRGameplayAbility_EnemyDeath::FinishDeath(bool bWasCancelled)
+void UPRGameplayAbility_EnemyDeath::FinishDeath()
 {
 	if (bDeathFinished)
 	{

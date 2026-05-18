@@ -118,6 +118,10 @@ public:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Interaction")
 	TObjectPtr<USphereComponent> InteractionSphere;
 	
+	// 감도 최신화
+	UFUNCTION()
+	void HandleMouseSensitivityChanged(float NewSensitivity);
+
 protected:
 	/** Enhanced Input 에셋 (블루프린트에서 할당) */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Input")
@@ -147,6 +151,10 @@ protected:
 	/** 다운 상태 기어가기 속도 (cm/s) */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "PR|Locomotion")
 	float DownSpeed = 50.0f;
+	
+	/** 카메라 감도 */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "PR|Camera")
+	float CachedCameraSensitivity = 0.5f;
 
 private:
 	bool bIsSprinting = false;

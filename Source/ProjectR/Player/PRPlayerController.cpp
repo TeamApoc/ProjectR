@@ -106,12 +106,22 @@ void APRPlayerController::SetupInputComponent()
 
 	for (int32 SlotIndex = 0; SlotIndex < QuickSlotActions.Num(); ++SlotIndex)
 	{
-		if (!IsValid(QuickSlotActions[SlotIndex].Get()))
+		if (!IsValid(QuickSlotActions[SlotIndex]))
 		{
 			continue;
 		}
 
-		EIC->BindAction(QuickSlotActions[SlotIndex].Get(), ETriggerEvent::Started, this, &APRPlayerController::OnQuickSlotInputStarted, SlotIndex);
+		EIC->BindAction(QuickSlotActions[SlotIndex], ETriggerEvent::Started, this, &APRPlayerController::OnQuickSlotInputStarted, SlotIndex);
+	}
+	
+	if (IsValid(MouseSensitivityActionUp.Get()))
+	{
+		EIC->BindAction(MouseSensitivityActionUp.Get(), ETriggerEvent::Started, this, &APRPlayerController::OnMouseSensitivityActionUp);
+	}
+	
+	if (IsValid(MouseSensitivityActionDown.Get()))
+	{
+		EIC->BindAction(MouseSensitivityActionDown.Get(), ETriggerEvent::Started, this, &APRPlayerController::OnMouseSensitivityActionDown);
 	}
 
 	if (!IsValid(InputConfig))
@@ -144,6 +154,28 @@ void APRPlayerController::PostProcessInput(const float DeltaTime, const bool bGa
 }
 
 // =====  입력 콜백 =====
+
+void APRPlayerController::OnMouseSensitivityActionUp()
+{
+	APRPlayerState* PS = GetPlayerState<APRPlayerState>();
+	
+	if (IsValid(PS))
+	{
+		float NewSensitivity = PS->GetCameraSensitivity() + 0.05;
+		PS->SetCameraSensitivity(NewSensitivity);
+	}
+}
+
+void APRPlayerController::OnMouseSensitivityActionDown()
+{
+	APRPlayerState* PS = GetPlayerState<APRPlayerState>();
+	
+	if (IsValid(PS))
+	{
+		float NewSensitivity = PS->GetCameraSensitivity() - 0.05;
+		PS->SetCameraSensitivity(NewSensitivity);
+	}
+}
 
 void APRPlayerController::OnAbilityInputPressed(FGameplayTag InputTag)
 {

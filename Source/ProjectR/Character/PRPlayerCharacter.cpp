@@ -127,6 +127,9 @@ void APRPlayerCharacter::PossessedBy(AController* NewController)
 		{
 			WeaponManagerComponent->InitializeRuntimeLinks();
 		}
+		
+		PS->OnMouseSensitivityChanged.AddDynamic(this, &ThisClass::HandleMouseSensitivityChanged);
+		CachedCameraSensitivity = PS->GetCameraSensitivity();
 	}
 	
 	if (UPREventManagerSubsystem* EventManager = GetWorld()->GetSubsystem<UPREventManagerSubsystem>())
@@ -296,18 +299,6 @@ void APRPlayerCharacter::HandleGameplayTagUpdated(const FGameplayTag& ChangedTag
 	{
 		SetSprintingFromAbility(bTagExists);
 	}
-	if (ChangedTag.MatchesTagExact(PRGameplayTags::State_Armed))
-	{
-		if (IsLocallyControlled())
-		{
-			APRWeaponActor* ActiveWeapon = IsValid(WeaponManagerComponent) ? WeaponManagerComponent->GetActiveWeaponActor() : nullptr;
-			// 무기 장착/해제에 맞춰 투사체 예측 경로 표시 컴포넌트의 기점 무기 액터 동기화
-			if (IsValid(ProjectileTrajectoryPreviewComponent))
-			{
-				ProjectileTrajectoryPreviewComponent->SetWeaponActor(bTagExists ? ActiveWeapon : nullptr);
-			}	
-		}
-	}
 	if (ChangedTag.MatchesTagExact(PRGameplayTags::State_Block_Move))
 	{
 		bBlockMove = bTagExists;
@@ -392,8 +383,8 @@ void APRPlayerCharacter::Look(const FInputActionValue& Value)
 
 	if (IsValid(Controller))
 	{
-		AddControllerYawInput(LookAxisVector.X);
-		AddControllerPitchInput(LookAxisVector.Y);
+		AddControllerYawInput(LookAxisVector.X * CachedCameraSensitivity);
+		AddControllerPitchInput(LookAxisVector.Y * CachedCameraSensitivity);
 	}
 }
 
@@ -452,6 +443,11 @@ bool APRPlayerCharacter::IsMoveInputLockedByState() const
 {
 	const UPRAbilitySystemComponent* ASC = GetPRAbilitySystemComponent();
 	return IsValid(ASC) && ASC->HasMatchingGameplayTag(PRGameplayTags::State_PlayerHitReactLocked);
+}
+
+void APRPlayerCharacter::HandleMouseSensitivityChanged(float NewSensitivity)
+{
+	CachedCameraSensitivity = NewSensitivity;
 }
 
 /*~ 상태 변경 및 동기화 ~*/

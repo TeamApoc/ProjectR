@@ -7,6 +7,7 @@
 #include "PRProjectileTypes.h"
 #include "PRProjectileTrajectoryPreviewComponent.generated.h"
 
+class UPRWeaponManagerComponent;
 class APRWeaponActor;
 class UInstancedStaticMeshComponent;
 class UStaticMesh;
@@ -52,6 +53,8 @@ public:
     // 직전 틱 산출 결과 조회. UI/에임 어시스트 등 외부 시스템이 착탄 위치 참조 시 사용
     const FPRProjectilePreviewResult& GetLastResult() const { return LastResult; }
 
+    void BindObject(UObject* InObject) {BoundObject = InObject;}
+    UObject* GetBoundObject() const { return BoundObject; }
 protected:
     /*~ Draw Interface ~*/
 
@@ -122,4 +125,9 @@ private:
 
     // 직전 틱 산출 결과 캐시
     FPRProjectilePreviewResult LastResult;
+    
+    TWeakObjectPtr<UPRWeaponManagerComponent> CachedWeaponManager;
+    
+    UPROPERTY()
+    TObjectPtr<UObject> BoundObject;
 };

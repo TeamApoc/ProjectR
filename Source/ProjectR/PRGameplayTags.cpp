@@ -75,8 +75,8 @@ namespace PRGameplayTags
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Pattern_Boss_Faerin_Throw, "Pattern.Boss.Faerin.Throw", "Faerin Throw 계열 패턴");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Pattern_Boss_Faerin_Fallback, "Pattern.Boss.Faerin.Fallback", "Faerin 패턴 실패 시 보조 이동 식별");
 
-	// ===== State.* =====
-
+	// ===== State.* ====
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(State, "State", "상태 루트");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(State_Dead, "State.Dead", "사망 상태");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(State_Groggy, "State.Groggy", "그로기 상태");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(State_StaminaDepleted, "State.StaminaDepleted", "스태미너 고갈 상태");

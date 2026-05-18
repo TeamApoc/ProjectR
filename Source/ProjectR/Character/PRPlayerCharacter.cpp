@@ -17,6 +17,7 @@
 #include "ProjectR/PRGameplayTags.h"
 #include "ProjectR/AbilitySystem/AttributeSets/PRAttributeSet_Common.h"
 #include "ProjectR/Interaction/PRInteractableComponent.h"
+#include "ProjectR/Player/PRCameraModifier.h"
 #include "ProjectR/Weapon/Components/PRWeaponManagerComponent.h"
 #include "ProjectR/Player/Components/PRActionInputRouterComponent.h"
 #include "ProjectR/Player/Components/PRSpringArmComponent.h"
@@ -162,11 +163,6 @@ void APRPlayerCharacter::OnRep_PlayerState()
 void APRPlayerCharacter::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const
 {
 	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
-	
-	// 상태 변수들을 모든 클라이언트에게 복제하도록 등록
-	DOREPLIFETIME(APRPlayerCharacter, bIsSprinting);
-	//DOREPLIFETIME(APRPlayerCharacter, bIsAiming);
-	DOREPLIFETIME(APRPlayerCharacter, bIsWalking);
 }
 
 bool APRPlayerCharacter::IsAiming() const
@@ -218,8 +214,6 @@ void APRPlayerCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputC
 	{
 		EnhancedInputComponent->BindAction(MoveAction, ETriggerEvent::Triggered, this, &APRPlayerCharacter::Move);
 		EnhancedInputComponent->BindAction(LookAction, ETriggerEvent::Triggered, this, &APRPlayerCharacter::Look);
-		
-		EnhancedInputComponent->BindAction(WalkAction, ETriggerEvent::Started, this, &APRPlayerCharacter::WalkPressed);
 	}
 	
 	// NOTE: PRPlayerController의 SetupInputComponent 에서 Ability Input을 바인딩함
@@ -229,7 +223,49 @@ void APRPlayerCharacter::HandleGameplayTagUpdated(const FGameplayTag& ChangedTag
 {
 	Super::HandleGameplayTagUpdated(ChangedTag, bTagExists);
 	
-	// 26.04.26, Yuchan, Aiming 임시 테스트 코드
+	if (ChangedTag.MatchesTag(PRGameplayTags::State))
+	{
+		if (GEngine)
+		{
+			GEngine->AddOnScreenDebugMessage(-1,1.0f,FColor::Yellow,FString::Printf(
+				TEXT("%s StateChanged: %s, %s"), *GetName(),*ChangedTag.ToString(),bTagExists?TEXT("True"):TEXT("False")));
+		}	
+	}
+	
+	if (ChangedTag.MatchesTag(PRGameplayTags::State_Crouching))
+	{
+		// 카메라 모디파이어 추가 (로컬 플레이어만 적용)
+		if (IsLocallyControlled())
+		{
+			if (APlayerController* PC = GetController<APlayerController>())
+			{
+				if (APlayerCameraManager* CameraManager = PC->PlayerCameraManager)
+				{
+					if (bTagExists)
+					{
+						// 모디파이어를 생성하고 매니저에 부착 (AlphaInTime에 맞춰 부드럽게 시야가 변함)
+						CrouchCameraModifier = Cast<UPRCameraModifier>(
+							CameraManager->AddNewCameraModifier(UPRCameraModifier::StaticClass())
+						);
+
+						if (CrouchCameraModifier)
+						{
+							CrouchCameraModifier->SetActionCameraSettings(60.0f, FVector(0.f, 0.f, 0.f));
+						}
+					}
+					else
+					{
+						if (CrouchCameraModifier)
+						{
+							CrouchCameraModifier->DisableModifier(true); 
+							CrouchCameraModifier = nullptr;
+						}
+					}
+				}
+			}
+		}
+	}
+	
 	if (ChangedTag.MatchesTagExact(PRGameplayTags::State_Aiming))
 	{
 		bIsAiming = bTagExists;
@@ -237,20 +273,31 @@ void APRPlayerCharacter::HandleGameplayTagUpdated(const FGameplayTag& ChangedTag
 
 		if (APRWeaponActor* Weapon = WeaponManagerComponent->GetActiveWeaponActor())
 		{
-			Weapon->SetIsIKSuppressed(!bTagExists);
-		}
-
-		// 조준 ON/OFF에 맞춰 투사체 예측 경로 표시 토글
-		if (IsValid(ProjectileTrajectoryPreviewComponent))
-		{
 			if (bTagExists)
 			{
-				ProjectileTrajectoryPreviewComponent->Show();
+				// 무기를 들 때는 약간의 딜레이 적용
+				Weapon->SetIsIKSuppressed(true, 0.1f);
 			}
 			else
 			{
-				ProjectileTrajectoryPreviewComponent->Hide();
+				Weapon->SetIsIKSuppressed(false);	
 			}
+		}
+
+		// 조준 ON/OFF에 맞춰 투사체 예측 경로 표시 토글
+		if (IsLocallyControlled())
+		{
+			if (IsValid(ProjectileTrajectoryPreviewComponent))
+			{
+				if (bTagExists)
+				{
+					ProjectileTrajectoryPreviewComponent->Show();
+				}
+				else
+				{
+					ProjectileTrajectoryPreviewComponent->Hide();
+				}
+			}	
 		}
 	}
 	if (ChangedTag.MatchesTagExact(PRGameplayTags::State_Sprinting))
@@ -259,11 +306,14 @@ void APRPlayerCharacter::HandleGameplayTagUpdated(const FGameplayTag& ChangedTag
 	}
 	if (ChangedTag.MatchesTagExact(PRGameplayTags::State_Armed))
 	{
-		APRWeaponActor* ActiveWeapon = IsValid(WeaponManagerComponent) ? WeaponManagerComponent->GetActiveWeaponActor() : nullptr;
-		// 무기 장착/해제에 맞춰 투사체 예측 경로 표시 컴포넌트의 기점 무기 액터 동기화
-		if (IsValid(ProjectileTrajectoryPreviewComponent))
+		if (IsLocallyControlled())
 		{
-			ProjectileTrajectoryPreviewComponent->SetWeaponActor(bTagExists ? ActiveWeapon : nullptr);
+			APRWeaponActor* ActiveWeapon = IsValid(WeaponManagerComponent) ? WeaponManagerComponent->GetActiveWeaponActor() : nullptr;
+			// 무기 장착/해제에 맞춰 투사체 예측 경로 표시 컴포넌트의 기점 무기 액터 동기화
+			if (IsValid(ProjectileTrajectoryPreviewComponent))
+			{
+				ProjectileTrajectoryPreviewComponent->SetWeaponActor(bTagExists ? ActiveWeapon : nullptr);
+			}	
 		}
 	}
 	if (ChangedTag.MatchesTagExact(PRGameplayTags::State_Block_Move))
@@ -301,6 +351,10 @@ void APRPlayerCharacter::HandleGameplayTagUpdated(const FGameplayTag& ChangedTag
 			ActiveWeapon->SetIsIKSuppressed(bTagExists);
 			ActiveWeapon->SetActorHiddenInGame(bTagExists);
 		}
+	}
+	if (ChangedTag.MatchesTagExact(PRGameplayTags::State_Dodging))
+	{
+		bIsDodging = bTagExists;
 	}
 }
 
@@ -351,34 +405,6 @@ void APRPlayerCharacter::Look(const FInputActionValue& Value)
 	}
 }
 
-void APRPlayerCharacter::WalkPressed()
-{
-	if (IsValid(ActionInputRouterComponent)
-		&& ActionInputRouterComponent->IsRoutingInput()
-		&& ActionInputRouterComponent->HandleRoutedInput())
-	{
-		return;
-	}
-
-	if (IsMoveInputLockedByState())
-	{
-		return;
-	}
-
-	if (IsDown())
-	{
-		return;
-	}
-
-	bIsWalking = !bIsWalking;
-	UpdateMaxWalkSpeed();
-	
-	if (!HasAuthority())
-	{
-		Server_SetWalking(bIsWalking);
-	}
-}
-
 void APRPlayerCharacter::UpdateMaxWalkSpeed()
 {
 	// 클라이언트 예측과 서버 보정 오차를 줄이기 위해 양측 동시 수행
@@ -404,7 +430,7 @@ void APRPlayerCharacter::UpdateMaxWalkSpeed()
 		CurrentMultiplier = ASC->GetNumericAttribute(UPRAttributeSet_Common::GetMovementSpeedMultiplierAttribute());
 	}
 	
-	// 3. 최종 속도를 CharacterMovementComponent에 적용 
+	// 최종 속도를 CharacterMovementComponent에 적용 
 	UCharacterMovementComponent* MoveComp = GetCharacterMovement();
 	if (IsValid(MoveComp))
 	{
@@ -442,21 +468,4 @@ void APRPlayerCharacter::SetSprintingFromAbility(bool bNewSprinting)
 {
 	bIsSprinting = bNewSprinting;
 	UpdateMaxWalkSpeed();
-}
-
-void APRPlayerCharacter::Server_SetWalking_Implementation(bool bNewWalking)
-{
-	bIsWalking = bNewWalking;
-	UpdateMaxWalkSpeed();
-}
-
-bool APRPlayerCharacter::Server_SetWalking_Validate(bool bNewWalking)
-{
-	return true;
-}
-
-void APRPlayerCharacter::OnRep_IsSprinting()
-{
-    // 타 플레이어의 화면에서도 애니메이션/속도 일치
-    UpdateMaxWalkSpeed();
 }

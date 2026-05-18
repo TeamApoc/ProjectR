@@ -53,7 +53,7 @@ void UPRLinkedAnimInstance::NativeUpdateAnimation(float DeltaSeconds)
 	Direction = MainAnimInstance->Direction;
 	ArmedState = MainAnimInstance->ArmedState;
 	EquippedWeaponSlot = MainAnimInstance->EquippedWeaponSlot;
-	AimOffsetWeaponSlot = MainAnimInstance->AimOffsetWeaponSlot;
+	//AimOffsetWeaponSlot = MainAnimInstance->AimOffsetWeaponSlot;
 	LeftHandIKEffectorTransform = MainAnimInstance->LeftHandIKEffectorTransform;
 	LeftHandIKAlpha = MainAnimInstance->LeftHandIKAlpha;
 	bHasLeftHandIKTarget = MainAnimInstance->bHasLeftHandIKTarget;

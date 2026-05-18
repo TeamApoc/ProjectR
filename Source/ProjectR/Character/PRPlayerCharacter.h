@@ -9,6 +9,7 @@
 #include "ProjectR/Interaction/PRInteractionInterface.h"
 #include "PRPlayerCharacter.generated.h"
 
+class UPRCameraModifier;
 class USphereComponent;
 class UPRInteractableComponent;
 class USpringArmComponent;
@@ -52,6 +53,7 @@ public:
 	bool IsCrouching() const { return bIsCrouched; } 
 	bool IsSprinting() const { return bIsSprinting; } 
 	bool IsWalking() const { return bIsWalking; }
+	bool IsDodging() const {return bIsDodging; }
 	float GetWalkSpeed() const { return WalkSpeed; }
 	float GetJogSpeed() const { return JogSpeed; }
 	float GetSprintSpeed() const { return SprintSpeed; }
@@ -82,20 +84,10 @@ protected:
 	void Move(const FInputActionValue& Value);
 	void Look(const FInputActionValue& Value);
 
-	/** 상태 변경 함수 (멀티플레이어 대응) */
-	void WalkPressed();
-
 	/** 현재 상태(질주, 조준 등)에 맞춰 MaxWalkSpeed를 업데이트한다 (클라이언트 예측용) */
 	void UpdateMaxWalkSpeed();
-
-	UFUNCTION(Server, Reliable, WithValidation)
-	void Server_SetWalking(bool bNewWalking);
 	
 private:
-    /** 질주 상태가 복제되었을 때 속도를 업데이트한다 */
-    UFUNCTION()
-    void OnRep_IsSprinting();
-
 	/** 상태 태그 기준으로 이동 입력이 차단되는지 반환한다 */
 	bool IsMoveInputLockedByState() const;
 
@@ -157,17 +149,15 @@ protected:
 	float DownSpeed = 50.0f;
 
 private:
-	/** 복제되는 상태 변수 */
-	UPROPERTY(ReplicatedUsing = OnRep_IsSprinting, VisibleInstanceOnly, BlueprintReadOnly, Category = "Locomotion", meta = (AllowPrivateAccess = "true"))
 	bool bIsSprinting = false;
-	
-	UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Category = "Locomotion", meta = (AllowPrivateAccess = "true"))
 	bool bIsAiming = false;
-	
-	UPROPERTY(Replicated, VisibleInstanceOnly, BlueprintReadOnly, Category = "Locomotion", meta = (AllowPrivateAccess = "true"))
 	bool bIsWalking = false;
+	bool bIsDodging = false;
 
 	FPRAbilitySetHandles AbilitySetHandles;
 	
 	bool bBlockMove = false;
+	
+	UPROPERTY()
+	TObjectPtr<UPRCameraModifier> CrouchCameraModifier; 
 };

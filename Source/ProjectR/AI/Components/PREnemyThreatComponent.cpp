@@ -2,8 +2,10 @@
 
 #include "PREnemyThreatComponent.h"
 
+#include "AbilitySystemComponent.h"
 #include "ProjectR/AI/PREnemyAIDebug.h"
 #include "ProjectR/Combat/PRCombatStatics.h"
+#include "ProjectR/PRGameplayTags.h"
 
 #include "DrawDebugHelpers.h"
 
@@ -73,12 +75,12 @@ UPREnemyThreatComponent::UPREnemyThreatComponent()
 
 AActor* UPREnemyThreatComponent::GetAttackTarget() const
 {
-	if (AttackCommitState.bIsAttackCommitted && IsValid(AttackCommitState.ActiveAttackTarget))
+	if (AttackCommitState.bIsAttackCommitted && IsValidThreatTarget(AttackCommitState.ActiveAttackTarget))
 	{
 		return AttackCommitState.ActiveAttackTarget;
 	}
 
-	return CurrentTarget;
+	return IsValidThreatTarget(CurrentTarget) ? CurrentTarget.Get() : nullptr;
 }
 
 bool UPREnemyThreatComponent::CanSwitchCurrentTarget() const
@@ -482,7 +484,20 @@ bool UPREnemyThreatComponent::IsValidThreatTarget(const AActor* Target) const
 	}
 
 	// 일반 몬스터 AI는 플레이어만 공격 대상으로 추적한다.
-	return UPRCombatStatics::GetActorTeam(Target) == EPRTeam::Player;
+	if (UPRCombatStatics::GetActorTeam(Target) != EPRTeam::Player)
+	{
+		return false;
+	}
+
+	const UAbilitySystemComponent* TargetAbilitySystem = UPRCombatStatics::FindAbilitySystemComponent(Target);
+	if (!IsValid(TargetAbilitySystem))
+	{
+		return false;
+	}
+
+	// 다운/사망한 플레이어는 감지되어도 공격 후보와 현재 공격 대상으로 유지하지 않는다.
+	return !TargetAbilitySystem->HasMatchingGameplayTag(PRGameplayTags::State_Down)
+		&& !TargetAbilitySystem->HasMatchingGameplayTag(PRGameplayTags::State_Dead);
 }
 
 void UPREnemyThreatComponent::SetCurrentTarget(AActor* NewTarget, float CandidateScore)
@@ -530,6 +545,23 @@ void UPREnemyThreatComponent::CleanupInvalidEntries()
 		{
 			TargetCandidates.RemoveAt(Index);
 		}
+	}
+
+	if (IsValid(CurrentTarget) && !IsValidThreatTarget(CurrentTarget))
+	{
+		SetCurrentTarget(nullptr);
+	}
+
+	if (IsValid(AttackCommitState.ActiveAttackTarget) && !IsValidThreatTarget(AttackCommitState.ActiveAttackTarget))
+	{
+		AttackCommitState.ActiveAttackTarget = nullptr;
+		AttackCommitState.ActiveAttackTargetLocation = FVector::ZeroVector;
+		AttackCommitState.bIsAttackCommitted = false;
+	}
+
+	if (IsValid(AttackCommitState.PendingTargetCandidate) && !IsValidThreatTarget(AttackCommitState.PendingTargetCandidate))
+	{
+		ClearPendingTarget();
 	}
 }
 

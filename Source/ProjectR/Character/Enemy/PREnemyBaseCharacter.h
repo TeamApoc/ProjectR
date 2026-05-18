@@ -11,6 +11,11 @@
 #include "PREnemyBaseCharacter.generated.h"
 
 class UBehaviorTree;
+class UAnimMontage;
+class UMaterialInstanceDynamic;
+class UNiagaraComponent;
+class UNiagaraSystem;
+class UTexture;
 class UPRAbilitySystemComponent;
 class UPRAttributeSet_Common;
 class UPRAttributeSet_Enemy;
@@ -76,6 +81,21 @@ public:
 	const UPRAttributeSet_Enemy* GetEnemySet() const { return EnemySet; }
 	UPREnemyWorldHealthBarComponent* GetEnemyWorldHealthBarComponent() const { return EnemyWorldHealthBarComponent; }
 
+	// 서버 사망 Ability에서 모든 클라이언트에 사망 Dissolve 시각 연출을 요청한다.
+	void RequestDeathDissolveVisual(
+		UAnimMontage* InDeathMontage,
+		float InMontagePlayRate,
+		float InDissolveDelay,
+		float InDissolveDuration,
+		float InDissolveStartValue,
+		float InDissolveEndValue,
+		FName InDissolveScalarParameterName,
+		UNiagaraSystem* InDissolveNiagaraSystem,
+		FName InNiagaraDissolveParameterName,
+		UTexture* InDissolveTexture,
+		FVector2D InDissolveTextureUV,
+		float InDissolveTickInterval);
+
 protected:
 	/*~ APRCharacterBase Interface ~*/
 	virtual void HandleGameplayTagUpdated(const FGameplayTag& ChangedTag, bool TagExists) override;
@@ -104,7 +124,42 @@ protected:
 	// 월드 HP 바 컴포넌트를 현재 ASC에 연결한다.
 	void InitializeEnemyWorldHealthBar();
 
-protected:
+	UFUNCTION(NetMulticast, Reliable)
+	void Multicast_RequestDeathDissolveVisual(
+		UAnimMontage* InDeathMontage,
+		float InMontagePlayRate,
+		float InDissolveDelay,
+		float InDissolveDuration,
+		float InDissolveStartValue,
+		float InDissolveEndValue,
+		FName InDissolveScalarParameterName,
+		UNiagaraSystem* InDissolveNiagaraSystem,
+		FName InNiagaraDissolveParameterName,
+		UTexture* InDissolveTexture,
+		FVector2D InDissolveTextureUV,
+		float InDissolveTickInterval);
+
+	// 클라이언트 메시를 사망 몽타주 마지막 포즈에 고정하고 Dissolve 시작을 예약한다.
+	void BeginDeathDissolveVisual();
+
+	// GAS 몽타주 복제가 늦거나 누락된 클라이언트에서 사망 몽타주 재생을 보정한다.
+	void PlayDeathDissolveMontageIfNeeded();
+
+	// 메시 머티리얼과 Niagara를 준비한 뒤 Dissolve 보간을 시작한다.
+	void StartDeathDissolveVisual();
+
+	// Dissolve 보간 값을 주기적으로 갱신한다.
+	void TickDeathDissolveVisual();
+
+	// Dissolve 연출 타이머와 Niagara를 정리한다.
+	void CompleteDeathDissolveVisual();
+
+	// 메시 머티리얼과 Niagara에 Dissolve 진행 값을 반영한다.
+	void ApplyDeathDissolveVisualValue(float DissolveValue);
+
+	// 사망 몽타주 이후 Idle로 돌아가지 않도록 현재 포즈를 고정한다.
+	void FreezeDeathDissolvePose();
+
 	// 적은 PlayerState가 아니라 캐릭터 자신이 ASC를 소유한다.
 	UPROPERTY(VisibleAnywhere, Category = "ProjectR|Ability")
 	TObjectPtr<UPRAbilitySystemComponent> AbilitySystemComponent;
@@ -178,6 +233,36 @@ protected:
 	// 부위 매핑 조회용으로 보유한 StatRow 사본. InitializeEnemyAbilitySystem에서 채운다.
 	FPREnemyStatRow CachedStatRow;
 	bool bHasCachedStatRow = false;
+
+	FTimerHandle DeathDissolveStartTimerHandle;
+	FTimerHandle DeathDissolveTickTimerHandle;
+
+	UPROPERTY(Transient)
+	TArray<TObjectPtr<UMaterialInstanceDynamic>> DeathDissolveDynamicMaterials;
+
+	UPROPERTY(Transient)
+	TObjectPtr<UNiagaraComponent> ActiveDeathDissolveNiagara;
+
+	UPROPERTY(Transient)
+	TObjectPtr<UAnimMontage> PendingDeathDissolveMontage;
+
+	UPROPERTY(Transient)
+	TObjectPtr<UNiagaraSystem> PendingDeathDissolveNiagaraSystem;
+
+	UPROPERTY(Transient)
+	TObjectPtr<UTexture> PendingDeathDissolveTexture;
+
+	FName PendingDeathDissolveScalarParameterName = TEXT("DissolveAmount");
+	FName PendingDeathDissolveNiagaraParameterName = TEXT("User.DissolveAmount");
+	FVector2D PendingDeathDissolveTextureUV = FVector2D(1.0f, 1.0f);
+	float PendingDeathDissolveMontagePlayRate = 1.0f;
+	float PendingDeathDissolveDelay = 0.0f;
+	float PendingDeathDissolveDuration = 1.0f;
+	float PendingDeathDissolveStartValue = 0.0f;
+	float PendingDeathDissolveEndValue = 1.0f;
+	float PendingDeathDissolveTickInterval = 0.016f;
+	float DeathDissolveElapsedTime = 0.0f;
+	bool bDeathDissolveVisualStarted = false;
 
 	bool bGameplayTagEventsBound = false;
 };

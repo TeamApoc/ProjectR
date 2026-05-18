@@ -381,31 +381,31 @@ APRWeaponActor* UPRWeaponManagerComponent::GetActiveWeaponActor() const
 	// 현재 활성 슬롯에 대응하는 로컬 무기 Actor 리턴
 	return GetWeaponActorBySlot(CurrentWeaponSlot);
 }
-
-EPRWeaponSlotType UPRWeaponManagerComponent::GetAimOffsetWeaponSlot() const
-{
-	// 비무장 상태에서는 맨손 AimOffset을 사용하도록 빈 슬롯을 반환한다
-	if (ArmedState != EPRArmedState::Armed)
-	{
-		return EPRWeaponSlotType::None;
-	}
-
-	// 주무기와 보조무기 외 슬롯은 AimOffset 대상으로 사용하지 않는다
-	if (!IsSupportedSlot(CurrentWeaponSlot))
-	{
-		return EPRWeaponSlotType::None;
-	}
-
-	const FPRWeaponVisualInfo& CurrentVisualInfo = GetCurrentWeaponVisualInfo();
-
-	// 현재 활성 슬롯에 공개 무기 데이터가 없으면 맨손 AimOffset으로 처리한다
-	if (CurrentVisualInfo.IsEmpty())
-	{
-		return EPRWeaponSlotType::None;
-	}
-
-	return CurrentWeaponSlot;
-}
+//
+// EPRWeaponSlotType UPRWeaponManagerComponent::GetAimOffsetWeaponSlot() const
+// {
+// 	// 비무장 상태에서는 맨손 AimOffset을 사용하도록 빈 슬롯을 반환한다
+// 	if (ArmedState != EPRArmedState::Armed)
+// 	{
+// 		return EPRWeaponSlotType::None;
+// 	}
+//
+// 	// 주무기와 보조무기 외 슬롯은 AimOffset 대상으로 사용하지 않는다
+// 	if (!IsSupportedSlot(CurrentWeaponSlot))
+// 	{
+// 		return EPRWeaponSlotType::None;
+// 	}
+//
+// 	const FPRWeaponVisualInfo& CurrentVisualInfo = GetCurrentWeaponVisualInfo();
+//
+// 	// 현재 활성 슬롯에 공개 무기 데이터가 없으면 맨손 AimOffset으로 처리한다
+// 	if (CurrentVisualInfo.IsEmpty())
+// 	{
+// 		return EPRWeaponSlotType::None;
+// 	}
+//
+// 	return CurrentWeaponSlot;
+// }
 
 bool UPRWeaponManagerComponent::IsManagingWeaponItem(const UPRItemInstance_Weapon* WeaponItem) const
 {
@@ -1392,6 +1392,14 @@ void UPRWeaponManagerComponent::OnRep_ArmedState(EPRArmedState OldArmedState)
 	{
 		// 함수 조기 종료. 로컬 Actor 부착 갱신 불필요
 		return;
+	}
+	
+	if (GEngine)
+	{
+		GEngine->AddOnScreenDebugMessage(-1,1.0f,FColor::Yellow,FString::Printf(
+			TEXT("%s ArmedState: %s"),
+			*GetNameSafe(GetOwner()),
+			*UEnum::GetValueAsString(ArmedState)));
 	}
 
 	// 무장 상태 동기화를 Owner, 이전 상태, 새 상태 기준으로 추적

@@ -24,7 +24,7 @@ public:
 	
 protected:
 	UFUNCTION(BlueprintCallable)
-	UPRInteractorComponent* GetInteractorComponent(AController* InController) const;
+	UPRInteractorComponent* GetInteractorComponent(AController* InController);
 	
 	void BindToSustained(UPRInteractorComponent* Interactor);
 	void BindToHoldFinished(UPRInteractorComponent* Interactor);
@@ -35,7 +35,7 @@ private:
 	void OnInputReleased(float TimeHeld);
 	
 private:
-	mutable TWeakObjectPtr<UPRInteractorComponent> CachedInteractorComponent;
+	TWeakObjectPtr<UPRInteractorComponent> CachedInteractorComponent;
 	
 	UPROPERTY()
 	UAbilityTask_WaitInputRelease* WaitHoldReleaseTask = nullptr;

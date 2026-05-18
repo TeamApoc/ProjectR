@@ -14,6 +14,7 @@
 #include "ProjectR/AbilitySystem/PRAbilitySystemComponent.h"
 #include "ProjectR/AI/Controllers/PREnemyAIController.h"
 #include "ProjectR/Character/Enemy/PREnemyInterface.h"
+#include "ProjectR/Combat/PRCombatStatics.h"
 #include "ProjectR/PRGameplayTags.h"
 
 namespace
@@ -23,6 +24,19 @@ namespace
 		return IsValid(BlackboardComponent)
 			&& KeyName != NAME_None
 			&& BlackboardComponent->GetKeyID(KeyName) != FBlackboard::InvalidKey;
+	}
+
+	bool IsDisabledPlayerTarget(const AActor* Target)
+	{
+		if (!IsValid(Target) || UPRCombatStatics::GetActorTeam(Target) != EPRTeam::Player)
+		{
+			return false;
+		}
+
+		const UAbilitySystemComponent* TargetAbilitySystem = UPRCombatStatics::FindAbilitySystemComponent(Target);
+		return IsValid(TargetAbilitySystem)
+			&& (TargetAbilitySystem->HasMatchingGameplayTag(PRGameplayTags::State_Down)
+				|| TargetAbilitySystem->HasMatchingGameplayTag(PRGameplayTags::State_Dead));
 	}
 }
 
@@ -88,6 +102,27 @@ EBTNodeResult::Type UBTTask_PRActivateEnemyAbility::ExecuteTask(UBehaviorTreeCom
 				ASC->HasMatchingGameplayTag(PRGameplayTags::State_Groggy) ? TEXT("true") : TEXT("false"));
 		}
 		return EBTNodeResult::Failed;
+	}
+
+	if (UBlackboardComponent* BlackboardComponent = OwnerComp.GetBlackboardComponent())
+	{
+		AActor* CurrentTarget = HasActivateAbilityBlackboardKey(BlackboardComponent, CurrentTargetKey)
+			? Cast<AActor>(BlackboardComponent->GetValueAsObject(CurrentTargetKey))
+			: nullptr;
+		if (IsDisabledPlayerTarget(CurrentTarget))
+		{
+			if (PREnemyAIDebug::IsPatternLogEnabled())
+			{
+				UE_LOG(
+					LogPREnemyAI,
+					Verbose,
+					TEXT("[Ability] BlockedByDisabledTarget Tag=%s Pawn=%s Target=%s"),
+					*ResolvedAbilityTag.ToString(),
+					*GetNameSafe(ControlledPawn),
+					*GetNameSafe(CurrentTarget));
+			}
+			return EBTNodeResult::Failed;
+		}
 	}
 
 	// 몬스터 Ability 실행은 서버 ASC에서만 시도한다.

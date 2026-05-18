@@ -223,14 +223,14 @@ void APRPlayerCharacter::HandleGameplayTagUpdated(const FGameplayTag& ChangedTag
 {
 	Super::HandleGameplayTagUpdated(ChangedTag, bTagExists);
 	
-	if (ChangedTag.MatchesTag(PRGameplayTags::State))
-	{
-		if (GEngine)
-		{
-			GEngine->AddOnScreenDebugMessage(-1,1.0f,FColor::Yellow,FString::Printf(
-				TEXT("%s StateChanged: %s, %s"), *GetName(),*ChangedTag.ToString(),bTagExists?TEXT("True"):TEXT("False")));
-		}	
-	}
+	// if (ChangedTag.MatchesTag(PRGameplayTags::State))
+	// {
+	// 	if (GEngine)
+	// 	{
+	// 		GEngine->AddOnScreenDebugMessage(-1,1.0f,FColor::Yellow,FString::Printf(
+	// 			TEXT("%s StateChanged: %s, %s"), *GetName(),*ChangedTag.ToString(),bTagExists?TEXT("True"):TEXT("False")));
+	// 	}	
+	// }
 	
 	if (ChangedTag.MatchesTag(PRGameplayTags::State_Crouching))
 	{
@@ -273,15 +273,7 @@ void APRPlayerCharacter::HandleGameplayTagUpdated(const FGameplayTag& ChangedTag
 
 		if (APRWeaponActor* Weapon = WeaponManagerComponent->GetActiveWeaponActor())
 		{
-			if (bTagExists)
-			{
-				// 무기를 들 때는 약간의 딜레이 적용
-				Weapon->SetIsIKSuppressed(true, 0.1f);
-			}
-			else
-			{
-				Weapon->SetIsIKSuppressed(false);	
-			}
+			Weapon->SetIsIKSuppressed(false);
 		}
 
 		// 조준 ON/OFF에 맞춰 투사체 예측 경로 표시 토글

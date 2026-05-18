@@ -74,8 +74,8 @@ bool UPRAnimInstance::ShouldApplyLeftHandIK() const
 		return false;
 	}
 	
-	// 무기를 실제로 들고 있을 때만 왼손 IK를 적용한다.
-	if (ArmedState != EPRArmedState::Armed || EquippedWeaponSlot == EPRWeaponSlotType::None)
+	// 무기를 실제로 들고, aiming상태일때만 왼손 IK를 적용한다.
+	if (!bIsAiming || ArmedState != EPRArmedState::Armed || EquippedWeaponSlot == EPRWeaponSlotType::None)
 	{
 		return false;
 	}

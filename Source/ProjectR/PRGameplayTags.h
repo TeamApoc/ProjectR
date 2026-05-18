@@ -77,7 +77,7 @@ namespace PRGameplayTags
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Pattern_Boss_Faerin_Fallback); // Faerin 패턴 실패 시 보조 이동 식별
 
 	// ===== State.* — 캐릭터 상태 =====
-	UE_DECLARE_GAMEPLAY_TAG_EXTERN(State); // 상태 루트.
+	//UE_DECLARE_GAMEPLAY_TAG_EXTERN(State); // 상태 루트.
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(State_Dead); // 사망 상태.
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(State_Groggy); // 그로기 상태.
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(State_StaminaDepleted); // 스태미너 고갈 상태.

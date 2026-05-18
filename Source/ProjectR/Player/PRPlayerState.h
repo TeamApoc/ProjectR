@@ -19,6 +19,8 @@ class UPRInventoryComponent;
 class UPREquipmentManagerComponent;
 class UPRQuickSlotComponent;
 
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnMouseSensitivityChanged, float, NewSensitivity);
+
 // 플레이어별 복제 데이터 소유. Player ASC + AttributeSet의 소유자
 // Inventory/Equipment 컴포넌트는 각 시스템 구현 시 본 클래스에 부착 예정
 UCLASS()
@@ -107,6 +109,12 @@ public:
 	// TODO: 플레이어 각종 상태 값 (인벤토리 포함) 기록하여 반환
 	FPRCharacterSaveData MakeSaveData() const;
 	
+	// 마우스 감도
+	float GetCameraSensitivity() const { return CameraSensitivity; }
+	void SetCameraSensitivity(float Sensitivity);
+	FOnMouseSensitivityChanged OnMouseSensitivityChanged;
+	
+	
 protected:
 	void BindAutoRegisterQuickSlotEvent();
 	
@@ -176,6 +184,9 @@ protected:
 	// 보조무기 슬롯 예비탄 보존 비율
 	float CachedSecondaryReserveAmmoRatio = 1.0f;
 	
+	/** 카메라 감도 */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "PR|Camera")
+	float CameraSensitivity = 0.5f;
 private:
 	UPROPERTY()
 	FPRCharacterSaveData CurrentSaveData;

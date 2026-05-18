@@ -127,6 +127,9 @@ void APRPlayerCharacter::PossessedBy(AController* NewController)
 		{
 			WeaponManagerComponent->InitializeRuntimeLinks();
 		}
+		
+		PS->OnMouseSensitivityChanged.AddDynamic(this, &ThisClass::HandleMouseSensitivityChanged);
+		CachedCameraSensitivity = PS->GetCameraSensitivity();
 	}
 	
 	if (UPREventManagerSubsystem* EventManager = GetWorld()->GetSubsystem<UPREventManagerSubsystem>())
@@ -392,8 +395,8 @@ void APRPlayerCharacter::Look(const FInputActionValue& Value)
 
 	if (IsValid(Controller))
 	{
-		AddControllerYawInput(LookAxisVector.X);
-		AddControllerPitchInput(LookAxisVector.Y);
+		AddControllerYawInput(LookAxisVector.X * CachedCameraSensitivity);
+		AddControllerPitchInput(LookAxisVector.Y * CachedCameraSensitivity);
 	}
 }
 
@@ -452,6 +455,11 @@ bool APRPlayerCharacter::IsMoveInputLockedByState() const
 {
 	const UPRAbilitySystemComponent* ASC = GetPRAbilitySystemComponent();
 	return IsValid(ASC) && ASC->HasMatchingGameplayTag(PRGameplayTags::State_PlayerHitReactLocked);
+}
+
+void APRPlayerCharacter::HandleMouseSensitivityChanged(float NewSensitivity)
+{
+	CachedCameraSensitivity = NewSensitivity;
 }
 
 /*~ 상태 변경 및 동기화 ~*/

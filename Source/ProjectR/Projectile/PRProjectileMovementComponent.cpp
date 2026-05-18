@@ -45,8 +45,17 @@ bool UPRProjectileMovementComponent::ShouldBounce(const FHitResult& Hit)
 	{
 		return false;
 	}
+	
+	if (UPrimitiveComponent* HitComponent = Hit.GetComponent())
+	{
+		ECollisionChannel HitObjectType = HitComponent->GetCollisionObjectType();
+		if (BounceChannels.Contains(HitObjectType))
+		{
+			return true;
+		}
+	}
 
-	return true;
+	return false;
 }
 
 void UPRProjectileMovementComponent::HandleImpact(const FHitResult& Hit, float TimeSlice, const FVector& MoveDelta)

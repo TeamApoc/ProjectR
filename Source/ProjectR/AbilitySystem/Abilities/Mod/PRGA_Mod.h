@@ -65,10 +65,6 @@ protected:
 	// 모드 스킬 데미지 GE를 타겟에 적용, Damage와 GroggyDamage를 SetByCaller로 전달
 	void ApplyDamage(AActor* TargetActor, float Damage, float GroggyDamage = 0.0f, const FHitResult* HitResult = nullptr);
 
-	// 모드 스킬의 EffectSpec 반환, Damage와 GroggyDamage를 SetByCaller로 전달.
-	// 기본 구현은 Registry의 DamageGE_FromMod 사용. 파생 클래스에서 다른 GE로 교체 가능
-	virtual FGameplayEffectSpecHandle MakeModEffectSpec(float Damage, float GroggyDamage = 0.0f, const FHitResult* HitResult = nullptr) const;
-
 	// ========= Mod Base  =============
 	// 모드 비용 처리 방식을 설정한다
 	void SetModCostPolicy(EPRModCostPolicyType InModCostType);

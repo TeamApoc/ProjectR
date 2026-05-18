@@ -157,6 +157,8 @@ APRProjectileBase* UPRProjectileManagerComponent::SpawnPredictedProjectile(FPRPr
 		}
 	}
 	
+	SpawnInfo.SpawnParameters.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AdjustIfPossibleButAlwaysSpawn;
+	
 	SpawnInfo.SpawnParameters.CustomPreSpawnInitalization = [this, SpawnInfo](AActor* Actor)
 	{
 		if (APRProjectileBase* ProjectileBase = Cast<APRProjectileBase>(Actor))
@@ -203,6 +205,8 @@ APRProjectileBase* UPRProjectileManagerComponent::SpawnAuthProjectile(FPRProject
 			SpawnInfo.SpawnParameters.Instigator = Ctrl->GetPawn();
 		}
 	}
+	
+	SpawnInfo.SpawnParameters.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AdjustIfPossibleButAlwaysSpawn;
 
 	SpawnInfo.SpawnParameters.CustomPreSpawnInitalization = [this, SpawnInfo](AActor* Actor)
 	{

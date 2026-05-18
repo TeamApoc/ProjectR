@@ -2,7 +2,7 @@
 
 #include "PRProjectileTrajectoryPreviewComponent.h"
 
-#include "Components/HierarchicalInstancedStaticMeshComponent.h"
+#include "Components/InstancedStaticMeshComponent.h"
 #include "DrawDebugHelpers.h"
 #include "Engine/Engine.h"
 #include "Engine/StaticMesh.h"
@@ -12,12 +12,12 @@
 #include "Kismet/GameplayStatics.h"
 #include "ProjectR/Utils/PRGameplayStatics.h"
 #include "ProjectR/Weapon/Actors/PRWeaponActor.h"
+#include "ProjectR/Weapon/Components/PRWeaponManagerComponent.h"
 #include "UObject/ConstructorHelpers.h"
 
 UPRProjectileTrajectoryPreviewComponent::UPRProjectileTrajectoryPreviewComponent()
 {
 	PrimaryComponentTick.bCanEverTick = true;
-	PrimaryComponentTick.TickInterval = 0.016f;
 	PrimaryComponentTick.bStartWithTickEnabled = false;
 
 	// CDO 단계에서 기본 메시 바인딩. BP에서 슬롯이 비워져도 폴백 동작 보장
@@ -26,6 +26,38 @@ UPRProjectileTrajectoryPreviewComponent::UPRProjectileTrajectoryPreviewComponent
 	if (DefaultPreviewMeshFinder.Succeeded())
 	{
 		PreviewMesh = DefaultPreviewMeshFinder.Object;
+	}
+}
+
+void UPRProjectileTrajectoryPreviewComponent::BeginPlay()
+{
+	Super::BeginPlay();
+
+	AActor* Owner = GetOwner();
+	if (!IsValid(Owner))
+	{
+		return;
+	}
+
+	CachedWeaponManager = Owner->FindComponentByClass<UPRWeaponManagerComponent>();
+
+	// Lazy 생성. 첫 호출 시 owner 액터에 ISMC을 동적 생성/등록.
+	// 런타임 SceneComponent 생성 표준 패턴: NewObject 후 Mobility 설정과 SetupAttachment를 RegisterComponent 이전에 수행
+	if (!IsValid(TrajectoryISMC))
+	{
+		TrajectoryISMC = NewObject<UInstancedStaticMeshComponent>(Owner);
+		TrajectoryISMC->SetMobility(EComponentMobility::Movable);
+		if (USceneComponent* OwnerRoot = Owner->GetRootComponent())
+		{
+			TrajectoryISMC->SetupAttachment(OwnerRoot);
+		}
+		TrajectoryISMC->SetStaticMesh(PreviewMesh);
+		TrajectoryISMC->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+		TrajectoryISMC->SetGenerateOverlapEvents(false);
+		TrajectoryISMC->SetCastShadow(false);
+		// 머티리얼이 PerInstanceCustomData를 샘플링하여 일반/착탄 색상 분기 가능하도록 1채널 확보
+		TrajectoryISMC->SetNumCustomDataFloats(1);
+		TrajectoryISMC->RegisterComponent();
 	}
 }
 
@@ -55,12 +87,6 @@ void UPRProjectileTrajectoryPreviewComponent::SetWeaponActor(APRWeaponActor* InW
 void UPRProjectileTrajectoryPreviewComponent::Show()
 {
 	if (bIsShowing)
-	{
-		return;
-	}
-
-	// WeaponActor가 무효이면 매 틱 즉시 Hide로 빠지므로 활성화 자체를 무시
-	if (!WeaponActor.IsValid())
 	{
 		return;
 	}
@@ -108,52 +134,29 @@ void UPRProjectileTrajectoryPreviewComponent::DrawTrajectory(const TArray<FVecto
 #endif
 
 	// PreviewMesh가 지정된 경우에만 동작
-	DrawTrajectoryHISM(SamplePoints);
+	DrawTrajectoryISMC(SamplePoints);
 }
 
 void UPRProjectileTrajectoryPreviewComponent::ClearTrajectory()
 {
-	ClearTrajectoryHISM();
+	ClearTrajectoryISMC();
 }
 
-void UPRProjectileTrajectoryPreviewComponent::DrawTrajectoryHISM(const TArray<FVector>& SamplePoints)
+void UPRProjectileTrajectoryPreviewComponent::DrawTrajectoryISMC(const TArray<FVector>& SamplePoints)
 {
 	if (!IsValid(PreviewMesh))
 	{
 		return;
 	}
 
-	AActor* Owner = GetOwner();
-	if (!IsValid(Owner))
+	if (!IsValid(TrajectoryISMC))
 	{
 		return;
 	}
 
-	// Lazy 생성. 첫 호출 시 owner 액터에 HISM을 동적 생성/등록.
-	// 런타임 SceneComponent 생성 표준 패턴: NewObject 후 Mobility 설정과 SetupAttachment를 RegisterComponent 이전에 수행
-	if (!IsValid(TrajectoryHISM))
-	{
-		TrajectoryHISM = NewObject<UHierarchicalInstancedStaticMeshComponent>(Owner);
-		TrajectoryHISM->SetMobility(EComponentMobility::Movable);
-		if (USceneComponent* OwnerRoot = Owner->GetRootComponent())
-		{
-			TrajectoryHISM->SetupAttachment(OwnerRoot);
-		}
-		TrajectoryHISM->SetStaticMesh(PreviewMesh);
-		TrajectoryHISM->SetCollisionEnabled(ECollisionEnabled::NoCollision);
-		TrajectoryHISM->SetGenerateOverlapEvents(false);
-		TrajectoryHISM->SetCastShadow(false);
-		// 머티리얼이 PerInstanceCustomData를 샘플링하여 일반/착탄 색상 분기 가능하도록 1채널 확보
-		TrajectoryHISM->SetNumCustomDataFloats(1);
-		// 인스턴스 변경 시 HISM 내부 트리 자동 재구성을 보장
-		TrajectoryHISM->bAutoRebuildTreeOnInstanceChanges = true;
-		TrajectoryHISM->RegisterComponent();
-	}
-
-	// In-Place 갱신. ClearInstances를 사용하면 인스턴스가 0개인 프레임이 렌더되어 깜빡임 발생.
 	// 기존 인스턴스의 Transform만 갱신하고, 수량 차이만 Add/Remove로 보정
 	const int32 NewCount = SamplePoints.Num();
-	const int32 OldCount = TrajectoryHISM->GetInstanceCount();
+	const int32 OldCount = TrajectoryISMC->GetInstanceCount();
 
 	const bool bImpactDetected = LastResult.EndReason == EPRPreviewEndReason::HitBlocking;
 	const int32 LastIndex = NewCount - 1;
@@ -164,60 +167,66 @@ void UPRProjectileTrajectoryPreviewComponent::DrawTrajectoryHISM(const TArray<FV
 	for (int32 i = 0; i < UpdateCount; ++i)
 	{
 		const FTransform InstanceTransform(FQuat::Identity, SamplePoints[i], InstanceScale);
-		TrajectoryHISM->UpdateInstanceTransform(i, InstanceTransform, /*bWorldSpace=*/true,
-			/*bMarkRenderStateDirty=*/false, /*bTeleport=*/true);
+		TrajectoryISMC->UpdateInstanceTransform(i, InstanceTransform, /*bWorldSpace=*/true,
+		                                        /*bMarkRenderStateDirty=*/false, /*bTeleport=*/true);
 
 		const float CustomValue = (bImpactDetected && i == LastIndex) ? 1.f : 0.f;
-		TrajectoryHISM->SetCustomDataValue(i, 0, CustomValue, /*bMarkRenderStateDirty=*/false);
+		TrajectoryISMC->SetCustomDataValue(i, 0, CustomValue, /*bMarkRenderStateDirty=*/false);
 	}
 
 	// 부족한 만큼 추가
 	for (int32 i = OldCount; i < NewCount; ++i)
 	{
 		const FTransform InstanceTransform(FQuat::Identity, SamplePoints[i], InstanceScale);
-		const int32 InstanceIndex = TrajectoryHISM->AddInstance(InstanceTransform, /*bWorldSpace=*/true);
+		const int32 InstanceIndex = TrajectoryISMC->AddInstance(InstanceTransform, /*bWorldSpace=*/true);
 
 		const float CustomValue = (bImpactDetected && i == LastIndex) ? 1.f : 0.f;
-		TrajectoryHISM->SetCustomDataValue(InstanceIndex, 0, CustomValue, /*bMarkRenderStateDirty=*/false);
+		TrajectoryISMC->SetCustomDataValue(InstanceIndex, 0, CustomValue, /*bMarkRenderStateDirty=*/false);
 	}
 
 	// 초과분 제거 (뒤에서부터)
 	for (int32 i = OldCount - 1; i >= NewCount; --i)
 	{
-		TrajectoryHISM->RemoveInstance(i);
+		TrajectoryISMC->RemoveInstance(i);
 	}
 
-	TrajectoryHISM->MarkRenderStateDirty();
+	// 모든 인스턴스 갱신 완료 후 렌더 스테이트 1회 갱신
+	TrajectoryISMC->MarkRenderStateDirty();
 }
 
-void UPRProjectileTrajectoryPreviewComponent::ClearTrajectoryHISM()
+void UPRProjectileTrajectoryPreviewComponent::ClearTrajectoryISMC()
 {
-	if (IsValid(TrajectoryHISM))
+	if (IsValid(TrajectoryISMC))
 	{
-		TrajectoryHISM->ClearInstances();
+		TrajectoryISMC->ClearInstances();
 	}
 }
 
 void UPRProjectileTrajectoryPreviewComponent::OnUnregister()
 {
-	if (IsValid(TrajectoryHISM))
+	if (IsValid(TrajectoryISMC))
 	{
-		TrajectoryHISM->DestroyComponent();
-		TrajectoryHISM = nullptr;
+		TrajectoryISMC->DestroyComponent();
+		TrajectoryISMC = nullptr;
 	}
 	Super::OnUnregister();
 }
 
 /*~ Tick ~*/
 
-void UPRProjectileTrajectoryPreviewComponent::TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction)
+void UPRProjectileTrajectoryPreviewComponent::TickComponent(float DeltaTime, ELevelTick TickType,
+                                                            FActorComponentTickFunction* ThisTickFunction)
 {
 	Super::TickComponent(DeltaTime, TickType, ThisTickFunction);
 
+	if (CachedWeaponManager.IsValid())
+	{
+		WeaponActor = CachedWeaponManager->GetActiveWeaponActor();	
+	}
+	
 	// WeaponActor 유효성 재확인. 무기 교체 등으로 사라졌을 수 있음
 	if (!WeaponActor.IsValid() || !bIsEnabled)
 	{
-		Hide();
 		return;
 	}
 
@@ -256,10 +265,12 @@ void UPRProjectileTrajectoryPreviewComponent::RebuildPath()
 	}
 	IgnoredActors.Add(Weapon);
 
-	const FTransform LaunchTransform = UPRGameplayStatics::ResolveProjectileLaunchTransform(OwnerPawn, StartLocation, AimTraceDistance, FireParams.TraceChannel, IgnoredActors);
+	const FTransform LaunchTransform = UPRGameplayStatics::ResolveProjectileLaunchTransform(
+		OwnerPawn, StartLocation, AimTraceDistance, FireParams.TraceChannel, IgnoredActors);
 	const FVector LaunchVelocity = LaunchTransform.GetRotation().GetForwardVector() * FireParams.InitialSpeed;
 
-	FPredictProjectilePathParams PathParams(FireParams.CollisionRadius, StartLocation, LaunchVelocity, FireParams.MaxSimTime);
+	FPredictProjectilePathParams PathParams(FireParams.CollisionRadius, StartLocation, LaunchVelocity,
+	                                        FireParams.MaxSimTime);
 	PathParams.bTraceWithCollision = true;
 	PathParams.bTraceWithChannel = true;
 	PathParams.TraceChannel = FireParams.TraceChannel;
@@ -368,4 +379,3 @@ void UPRProjectileTrajectoryPreviewComponent::RebuildPath()
 		LastResult.EndReason = EPRPreviewEndReason::TimeExceeded;
 	}
 }
-

@@ -2,8 +2,6 @@
 
 
 #include "PRGA_FireProjectile.h"
-
-#include "AbilitySystemComponent.h"
 #include "Components/SphereComponent.h"
 #include "GameFramework/ProjectileMovementComponent.h"
 #include "ProjectR/Character/PRPlayerCharacter.h"
@@ -33,6 +31,8 @@ void UPRGA_FireProjectile::OnGiveAbility(const FGameplayAbilityActorInfo* ActorI
 		{
 			return;
 		}
+		
+		Preview->BindObject(this);
 
 		// 디자이너가 어빌리티에 작성한 템플릿을 기반으로 작업
 		FPRProjectilePreviewParams Params = PreviewParams;
@@ -75,7 +75,7 @@ void UPRGA_FireProjectile::OnRemoveAbility(const FGameplayAbilityActorInfo* Acto
 		}
 
 		UPRProjectileTrajectoryPreviewComponent* Preview = PlayerChar->FindComponentByClass<UPRProjectileTrajectoryPreviewComponent>();
-		if (!IsValid(Preview))
+		if (!IsValid(Preview) || Preview->GetBoundObject() != this)
 		{
 			return;
 		}
@@ -131,5 +131,4 @@ void UPRGA_FireProjectile::OnProjectileSpawnSuccess(APRProjectileBase* SpawnedPr
 	}
 	
 	Super::OnProjectileSpawnSuccess(SpawnedProjectile);
-
 }

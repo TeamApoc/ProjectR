@@ -85,6 +85,11 @@ protected:
 	// IA에 대한 InputTag 매핑을 담고 있는 InputConfig. 각 IA에 Pressed/Released 콜백을 라우팅
 	UPROPERTY(EditDefaultsOnly, Category = "ProjectR|Input")
 	TObjectPtr<UPRInputConfigDataAsset> InputConfig;
+	
+	void OnMouseSensitivityActionUp();
+
+	void OnMouseSensitivityActionDown();
+
 
 	// IA Pressed 콜백. InputTag를 ASC로 전달
 	void OnAbilityInputPressed(FGameplayTag InputTag);
@@ -105,8 +110,16 @@ protected:
 
 	// 퀵슬롯 입력 액션 목록. 배열 인덱스가 퀵슬롯 인덱스와 일치한다
 	UPROPERTY(EditDefaultsOnly, Category = "ProjectR|Input")
-	TArray<TObjectPtr<const UInputAction>> QuickSlotActions;
+	TArray<UInputAction*> QuickSlotActions;
 
+	// 마우스 감도 조절 액션 목록 
+	UPROPERTY(EditDefaultsOnly, Category = "ProjectR|Input|MouseSensitivity")
+	TObjectPtr<const UInputAction> MouseSensitivityActionUp;
+	
+	// 마우스 감도 조절 액션 목록 
+	UPROPERTY(EditDefaultsOnly, Category = "ProjectR|Input|MouseSensitivity")
+	TObjectPtr<const UInputAction> MouseSensitivityActionDown;
+	
 	// 퀵슬롯 입력 시작을 처리
 	void OnQuickSlotInputStarted(int32 SlotIndex);
 

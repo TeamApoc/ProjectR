@@ -147,6 +147,14 @@ FPRCharacterSaveData APRPlayerState::MakeSaveData() const
 	return FPRCharacterSaveData();
 }
 
+void APRPlayerState::SetCameraSensitivity(float Sensitivity)
+{
+	float NewSensetivity = FMath::Clamp(Sensitivity, 0.05f, 1.0f);
+	CameraSensitivity = NewSensetivity;
+	UE_LOG(LogTemp, Log, TEXT("MouseSensitivity = %f"), CameraSensitivity);
+	OnMouseSensitivityChanged.Broadcast(CameraSensitivity);
+}
+
 void APRPlayerState::BindAutoRegisterQuickSlotEvent()
 {
 	InventoryComponent->GetOnInventoryChanged().RemoveDynamic(this,&ThisClass::OnInventoryChanged);

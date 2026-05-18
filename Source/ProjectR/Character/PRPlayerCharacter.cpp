@@ -296,18 +296,6 @@ void APRPlayerCharacter::HandleGameplayTagUpdated(const FGameplayTag& ChangedTag
 	{
 		SetSprintingFromAbility(bTagExists);
 	}
-	if (ChangedTag.MatchesTagExact(PRGameplayTags::State_Armed))
-	{
-		if (IsLocallyControlled())
-		{
-			APRWeaponActor* ActiveWeapon = IsValid(WeaponManagerComponent) ? WeaponManagerComponent->GetActiveWeaponActor() : nullptr;
-			// 무기 장착/해제에 맞춰 투사체 예측 경로 표시 컴포넌트의 기점 무기 액터 동기화
-			if (IsValid(ProjectileTrajectoryPreviewComponent))
-			{
-				ProjectileTrajectoryPreviewComponent->SetWeaponActor(bTagExists ? ActiveWeapon : nullptr);
-			}	
-		}
-	}
 	if (ChangedTag.MatchesTagExact(PRGameplayTags::State_Block_Move))
 	{
 		bBlockMove = bTagExists;

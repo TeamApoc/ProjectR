@@ -131,5 +131,4 @@ void UPRGA_FireProjectile::OnProjectileSpawnSuccess(APRProjectileBase* SpawnedPr
 	}
 	
 	Super::OnProjectileSpawnSuccess(SpawnedProjectile);
-
 }

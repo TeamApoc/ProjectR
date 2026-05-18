@@ -20,10 +20,14 @@ public:
 protected:
 	virtual void HandleImpact(const FHitResult& Hit, float TimeSlice, const FVector& MoveDelta) override;
 
+protected:
 	// 최대 바운스 허용 횟수. 0이면 바운스 불가
 	UPROPERTY(EditDefaultsOnly, Category=ProjectileBounces, meta = (ClampMin = "0"))
 	int32 MaxBounceCount = 1;
 
+	UPROPERTY(EditDefaultsOnly, Category = "ProjectR|Fire")
+	TArray<TEnumAsByte<ECollisionChannel>> BounceChannels;
+	
 private:
 	// 현재까지 바운스 된 횟수
 	int32 CurrentBounceCount = 0;

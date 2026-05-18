@@ -77,7 +77,7 @@ namespace PRGameplayTags
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Pattern_Boss_Faerin_Fallback); // Faerin 패턴 실패 시 보조 이동 식별
 
 	// ===== State.* — 캐릭터 상태 =====
-	UE_DECLARE_GAMEPLAY_TAG_EXTERN(State); // 상태 루트.
+	//UE_DECLARE_GAMEPLAY_TAG_EXTERN(State); // 상태 루트.
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(State_Dead); // 사망 상태.
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(State_Groggy); // 그로기 상태.
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(State_StaminaDepleted); // 스태미너 고갈 상태.
@@ -101,6 +101,7 @@ namespace PRGameplayTags
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(State_WeaponZooming); // 무기 줌 상태
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(State_Mod_Primary_GaugeLocked); // 주무기 Mod 게이지 축적 차단 상태
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(State_Mod_Secondary_GaugeLocked); // 보조무기 Mod 게이지 축적 차단 상태
+	UE_DECLARE_GAMEPLAY_TAG_EXTERN(State_Mod_Fire_Enabled); // 발사형 모드 활성 상태
 
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(State_UsingConsumable); // 소비 아이템 사용중인 상태
 

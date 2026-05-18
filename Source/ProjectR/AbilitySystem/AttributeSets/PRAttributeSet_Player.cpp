@@ -39,7 +39,7 @@ namespace
 	}
 
 	FGameplayTag ResolveHitReactEventTag(float OldPoiseDamage, float NewPoiseDamage, float IncomingPoiseDamage,
-		float WeakHitReactThreshold, float StrongHitReactThreshold, float DownHitReactThreshold)
+		float StrongHitReactThreshold, float DownHitReactThreshold)
 	{
 		if (OldPoiseDamage < DownHitReactThreshold && NewPoiseDamage >= DownHitReactThreshold)
 		{
@@ -50,8 +50,8 @@ namespace
 		{
 			return PRGameplayTags::Event_Ability_PlayerHitReact_Strong;
 		}
-
-		if (IncomingPoiseDamage < WeakHitReactThreshold)
+		// TODO:PoiseWeakHitReactThreshold  attributeset에서 빼야하거나, 어떻게할지 정해야함
+		if (IncomingPoiseDamage < StrongHitReactThreshold)
 		{
 			return PRGameplayTags::Event_Ability_PlayerHitReact_Weak;
 		}
@@ -61,7 +61,7 @@ namespace
 
 	void SendHitReactEvent(UAbilitySystemComponent* TargetASC, const FGameplayEffectModCallbackData& Data,
 		float OldPoiseDamage, float NewPoiseDamage, float IncomingPoiseDamage,
-		float WeakHitReactThreshold, float StrongHitReactThreshold, float DownHitReactThreshold)
+		float StrongHitReactThreshold, float DownHitReactThreshold)
 	{
 		if (!IsValid(TargetASC))
 		{
@@ -78,7 +78,6 @@ namespace
 			OldPoiseDamage,
 			NewPoiseDamage,
 			IncomingPoiseDamage,
-			WeakHitReactThreshold,
 			StrongHitReactThreshold,
 			DownHitReactThreshold);
 		if (!EventTag.IsValid())
@@ -199,8 +198,7 @@ void UPRAttributeSet_Player::PostGameplayEffectExecute(const FGameplayEffectModC
 
 		const float ClampMin = FMath::Max(GetPoiseDamageMin(), 0.0f);
 		const float ClampMax = ResolvePoiseDamageMax(ClampMin, GetPoiseDamageMax());
-		const float WeakHitReactThreshold = ResolvePoiseThreshold(GetPoiseWeakHitReactThreshold(), ClampMin, ClampMax);
-		const float StrongHitReactThreshold = ResolvePoiseThreshold(GetPoiseStrongHitReactThreshold(), WeakHitReactThreshold, ClampMax);
+		const float StrongHitReactThreshold = ResolvePoiseThreshold(GetPoiseStrongHitReactThreshold(), ClampMin, ClampMax);
 		const float OldPoiseDamage = GetAccumulatedPoiseDamage();
 		const float NewPoiseDamage = FMath::Clamp(OldPoiseDamage + LocalPoiseDamage, ClampMin, ClampMax);
 		SetAccumulatedPoiseDamage(NewPoiseDamage);
@@ -210,7 +208,6 @@ void UPRAttributeSet_Player::PostGameplayEffectExecute(const FGameplayEffectModC
 			OldPoiseDamage,
 			NewPoiseDamage,
 			LocalPoiseDamage,
-			WeakHitReactThreshold,
 			StrongHitReactThreshold,
 			ClampMax);
 		if (NewPoiseDamage >= ClampMax)

@@ -53,7 +53,7 @@ void UPRGA_Fire::ActivateAbility(const FGameplayAbilitySpecHandle Handle, const 
 	{
 		CachedFireInterval = FireIntervalOverride;
 	}
-	else if (const UPRWeaponDataAsset* WeaponData = GetActiveWeaponData())
+	else if (const UPRWeaponDataAsset* WeaponData = GetActiveWeaponData(ActorInfo))
 	{
 		CachedFireInterval = WeaponData->FireInterval;
 	}
@@ -239,7 +239,7 @@ void UPRGA_Fire::SendRecoilEvent()
 		if (UPREventManagerSubsystem* EventMgr = World->GetSubsystem<UPREventManagerSubsystem>())
 		{
 			FPRRecoilEventPayload RecoilPayload;
-			if (UPRWeaponDataAsset* WeaponData = GetActiveWeaponData())   
+			if (UPRWeaponDataAsset* WeaponData = GetActiveWeaponData(GetCurrentActorInfo()))   
 			{
 				RecoilPayload.RecoilProfile = WeaponData->RecoilProfile;
 			}                                                                                                                                                   
@@ -272,7 +272,7 @@ void UPRGA_Fire::FireHitScan()
 	}
 	
 	// 몽타쥬 재생. 무기 메시 애니메이션은 몽타주 노티파이가 각 머신에서 로컬로 트리거한다
-	if (UPRWeaponDataAsset* WeaponData = GetActiveWeaponData())
+	if (UPRWeaponDataAsset* WeaponData = GetActiveWeaponData(GetCurrentActorInfo()))
 	{
 		PlayWeaponMontage(WeaponData->ShootMontage, WeaponData->ShootMontagePlayRate);
 	}
@@ -389,7 +389,7 @@ void UPRGA_Fire::FireProjectile(TSubclassOf<APRProjectileBase> ProjectileClass, 
 	Task->ReadyForActivation();
 	
 	// 몽타쥬 재생. 무기 메시 애니메이션은 몽타주 노티파이가 각 머신에서 로컬로 트리거한다
-	if (UPRWeaponDataAsset* WeaponData = GetActiveWeaponData())
+	if (UPRWeaponDataAsset* WeaponData = GetActiveWeaponData(GetCurrentActorInfo()))
 	{
 		PlayWeaponMontage(WeaponData->ShootMontage, WeaponData->ShootMontagePlayRate);
 	}
@@ -506,48 +506,6 @@ void UPRGA_Fire::ApplyDamage(AActor* TargetActor, const FHitResult* HitResult)
 		SourceASC->ApplyGameplayEffectSpecToTarget(*SpecHandle.Data.Get(), TargetASC);
 	}
 }
-
-FGameplayEffectSpecHandle UPRGA_Fire::MakeWeaponEffectSpec(const FHitResult* HitResult) const
-{
-	const UPRAbilitySystemRegistry* Registry = UPRAssetManager::Get().GetAbilitySystemRegistry();
-	if (!IsValid(Registry) || !IsValid(Registry->DamageGE_FromWeapon))
-	{
-		return FGameplayEffectSpecHandle();
-	}
-
-	const FGameplayEffectSpecHandle SpecHandle = MakeOutgoingGameplayEffectSpec(
-		GetCurrentAbilitySpecHandle(),
-		GetCurrentActorInfo(),
-		GetCurrentActivationInfo(),
-		Registry->DamageGE_FromWeapon);
-
-	if (!SpecHandle.IsValid())
-	{
-		return FGameplayEffectSpecHandle();
-	}
-
-	// HitResult가 있으면 EffectContext에 포함시켜 ExecCalc에서 부위 판정에 활용한다
-	if (HitResult != nullptr && HitResult->bBlockingHit)
-	{
-		SpecHandle.Data->GetContext().AddHitResult(*HitResult, true);
-	}
-
-	return SpecHandle;
-}
-
-UPRWeaponDataAsset* UPRGA_Fire::GetActiveWeaponData() const                                                            
-{                                                                                                                      
-	if (APRPlayerCharacter* PlayerCharacter = GetPRCharacter<APRPlayerCharacter>())                                  
-	{                                                                                                                
-		if (UPRWeaponManagerComponent* WeaponManager = PlayerCharacter->GetWeaponManager())                      
-		{                                                                                                        
-			const FPRWeaponVisualInfo& CurrentWeaponVisualInfo = WeaponManager->GetCurrentWeaponVisualInfo();
-			return CurrentWeaponVisualInfo.WeaponData;                                                       
-		}                                                                                                        
-	}                                                                                                                
-                                                                                                                       
-	return nullptr;                                                                                                  
-}                                                                                                                      
 
 void UPRGA_Fire::PlayWeaponMontage(UAnimMontage* Montage, float PlayRate)
 {

@@ -713,7 +713,16 @@ bool UPRGameplayAbility_EnemyMeleeAttack::ShouldDamageActor(const AActor* Candid
 		return false;
 	}
 
-	if (!IsValid(UPRCombatStatics::FindAbilitySystemComponent(CandidateActor)))
+	const UAbilitySystemComponent* CandidateAbilitySystem = UPRCombatStatics::FindAbilitySystemComponent(CandidateActor);
+	if (!IsValid(CandidateAbilitySystem))
+	{
+		return false;
+	}
+
+	// 다운/사망한 플레이어는 범위에 들어와도 추가 피해 대상으로 보지 않는다.
+	if (UPRCombatStatics::GetActorTeam(CandidateActor) == EPRTeam::Player
+		&& (CandidateAbilitySystem->HasMatchingGameplayTag(PRGameplayTags::State_Down)
+			|| CandidateAbilitySystem->HasMatchingGameplayTag(PRGameplayTags::State_Dead)))
 	{
 		return false;
 	}

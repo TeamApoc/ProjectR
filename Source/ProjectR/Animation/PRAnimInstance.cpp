@@ -33,16 +33,13 @@ void UPRAnimInstance::NativeUpdateAnimation(float DeltaSeconds)
 	if (!IsValid(PlayerCharacter))
 	{
 		PlayerCharacter = Cast<APRPlayerCharacter>(GetOwningActor());
+		if (IsValid(PlayerCharacter))
+		{
+			CharacterMovement = PlayerCharacter->GetCharacterMovement();
+		}
 	}
-
-	if (IsValid(PlayerCharacter) && !IsValid(CharacterMovement))
+	if (!IsValid(PlayerCharacter))
 	{
-		CharacterMovement = PlayerCharacter->GetCharacterMovement();
-	}
-
-	if (!IsValid(PlayerCharacter) || !IsValid(CharacterMovement))
-	{
-		ResetLeftHandIK();
 		return;
 	}
 
@@ -65,6 +62,11 @@ void UPRAnimInstance::NativePostEvaluateAnimation()
 
 bool UPRAnimInstance::ShouldApplyLeftHandIK() const
 {
+	if (bIsFalling)
+	{
+		return false;
+	}
+	
 	USkeletalMeshComponent* CharacterMeshComponent = GetSkelMeshComponent();
 	if (!IsValid(CharacterMeshComponent) ||
 		CharacterMeshComponent->GetBoneIndex(LeftHandIKTargetBoneName) == INDEX_NONE)
@@ -191,17 +193,8 @@ void UPRAnimInstance::UpdateFlags()
 	bIsAiming = PlayerCharacter->IsAiming();
 	bIsWalking = PlayerCharacter->IsWalking();
 	bIsDown = PlayerCharacter->IsDown();
+	bIsDodging = PlayerCharacter->IsDodging();
 	bIsStrafeMode = bIsAiming || bIsWalking;
-
-	// DodgeAbility가 소유한 재생 상태는 AnimInstance에서 직접 관리하지 않고 ASC 태그로 관찰한다.
-	if (const UPRAbilitySystemComponent* ASC = PlayerCharacter->GetPRAbilitySystemComponent())
-	{
-		bIsDodging = ASC->HasMatchingGameplayTag(PRGameplayTags::State_Dodging);
-	}
-	else
-	{
-		bIsDodging = false;
-	}
 
 	if (bIsFalling)
 	{
@@ -299,13 +292,11 @@ void UPRAnimInstance::UpdateAim()
 
 	ArmedState = EPRArmedState::Unarmed;
 	EquippedWeaponSlot = EPRWeaponSlotType::None;
-	AimOffsetWeaponSlot = EPRWeaponSlotType::None;
 
 	if (const UPRWeaponManagerComponent* WeaponManager = PlayerCharacter->GetWeaponManager())
 	{
 		ArmedState = WeaponManager->GetArmedState();
 		EquippedWeaponSlot = WeaponManager->GetCurrentWeaponSlot();
-		AimOffsetWeaponSlot = WeaponManager->GetAimOffsetWeaponSlot();
 	}
 
 	if (bIsStrafeMode)

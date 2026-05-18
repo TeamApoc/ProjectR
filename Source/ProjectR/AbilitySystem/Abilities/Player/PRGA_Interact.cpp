@@ -80,7 +80,7 @@ void UPRGA_Interact::EndAbility(const FGameplayAbilitySpecHandle Handle, const F
 	Super::EndAbility(Handle, ActorInfo, ActivationInfo, bReplicateEndAbility, bWasCancelled);
 }
 
-UPRInteractorComponent* UPRGA_Interact::GetInteractorComponent(AController* InController) const
+UPRInteractorComponent* UPRGA_Interact::GetInteractorComponent(AController* InController)
 {
 	if (!IsValid(InController))
 	{

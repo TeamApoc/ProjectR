@@ -28,6 +28,16 @@ void APRWeaponActor::BeginPlay()
 	Super::BeginPlay();
 }
 
+void APRWeaponActor::EndPlay(const EEndPlayReason::Type EndPlayReason)
+{
+	Super::EndPlay(EndPlayReason);
+	
+	if (IKSuppressedTimerHandle.IsValid())
+	{
+		GetWorld()->GetTimerManager().ClearTimer(IKSuppressedTimerHandle);
+	}
+}
+
 void APRWeaponActor::AttachToOwnerMesh(ACharacter* OwnerCharacter, FName SocketName)
 {
 	// 캐릭터, 메시, 소켓 이름 중 하나라도 유효하지 않으면 부착을 진행하지 않는다.
@@ -129,12 +139,36 @@ bool APRWeaponActor::SetWeaponAnimationIdle()
 
 bool APRWeaponActor::ShouldApplyLeftHandIK() const
 {
-	return bUseLeftHandIK && LeftHandIKSocketName.IsValid() && !bIsIKSuppressed;
+	return bUseLeftHandIK && LeftHandIKSocketName.IsValid() && !bIsIKSuppressed && !IsHidden();
 }
 
-void APRWeaponActor::SetIsIKSuppressed(bool bInSuppressed)
+void APRWeaponActor::SetIsIKSuppressed(bool bInSuppressed, float InitialDelay)
 {
-	bIsIKSuppressed = bInSuppressed;
+	if (IKSuppressedTimerHandle.IsValid())
+	{
+		GetWorld()->GetTimerManager().ClearTimer(IKSuppressedTimerHandle);
+	}
+	
+	bPendingIKSuppressed = bInSuppressed;
+	
+	if (FMath::IsNearlyZero(InitialDelay))
+	{
+		Internal_SetIsIKSuppressed();
+	}
+	else
+	{
+		GetWorld()->GetTimerManager().SetTimer(
+			IKSuppressedTimerHandle,
+			this,
+			&APRWeaponActor::Internal_SetIsIKSuppressed,
+			InitialDelay,
+			false);
+	}
+}
+
+void APRWeaponActor::Internal_SetIsIKSuppressed()
+{
+	bIsIKSuppressed = bPendingIKSuppressed;
 }
 
 void APRWeaponActor::PlayNiagaraEffect_Implementation(EPRWeaponEffectType EffectType, UNiagaraSystem* InNiagaraSystem)

@@ -181,10 +181,7 @@ public:
 
 	UPROPERTY(BlueprintReadOnly, Category = "Movement|Weapon")
 	EPRWeaponSlotType EquippedWeaponSlot = EPRWeaponSlotType::None;
-
-	UPROPERTY(BlueprintReadOnly, Category = "Movement|Aiming")
-	EPRWeaponSlotType AimOffsetWeaponSlot = EPRWeaponSlotType::None;
-
+	
 	// FABRIK 노드에 전달할 왼손 Effector 트랜스폼이다
 	UPROPERTY(BlueprintReadOnly, Category = "ProjectR|Animation|IK")
 	FTransform LeftHandIKEffectorTransform = FTransform::Identity;
@@ -201,7 +198,6 @@ public:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "ProjectR|Animation|IK")
 	FName LeftHandIKTargetBoneName = FName(TEXT("Bone_M_Hand_R"));
 
-	/*~ Ability 액션 관찰 상태 ~*/
 	UPROPERTY(BlueprintReadOnly, Category = "ProjectR|Animation|Dodge")
 	bool bIsDodging = false;
 

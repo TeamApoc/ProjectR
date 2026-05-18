@@ -5,8 +5,8 @@
 #include "BehaviorTree/BlackboardComponent.h"
 #include "BehaviorTree/BlackboardData.h"
 #include "EnvironmentQuery/EnvQuery.h"
-#include "EnvironmentQuery/EnvQueryManager.h"
 #include "ProjectR/AI/PREnemyAIDebug.h"
+#include "ProjectR/AI/PREnemyEQSSelectionUtils.h"
 #include "ProjectR/AI/Controllers/PREnemyAIController.h"
 #include "ProjectR/AI/Data/PRBossCombatDataAsset.h"
 #include "ProjectR/AI/Data/PREnemyCombatDataAsset.h"
@@ -14,12 +14,6 @@
 
 namespace
 {
-	struct FPRMoveQueryCandidate
-	{
-		int32 ItemIndex = INDEX_NONE;
-		float Score = 0.0f;
-	};
-
 	bool HasMoveGoalBlackboardKey(const UBlackboardComponent* BlackboardComponent, const FName KeyName)
 	{
 		return IsValid(BlackboardComponent)
@@ -82,156 +76,17 @@ namespace
 		return EnemyInterface->GetCombatDataAsset();
 	}
 
-	EEnvQueryRunMode::Type ResolveQueryRunMode(const FPREnemyMoveQueryConfig& Config)
-	{
-		if (Config.CandidateSelectionMode == EPREnemyQueryCandidateSelectionMode::BestScore)
-		{
-			return Config.QueryRunMode;
-		}
-
-		return EEnvQueryRunMode::AllMatching;
-	}
-
-	void BuildSortedCandidates(const FEnvQueryResult& QueryResult, TArray<FPRMoveQueryCandidate>& OutCandidates)
-	{
-		for (int32 ItemIndex = 0; ItemIndex < QueryResult.Items.Num(); ++ItemIndex)
-		{
-			if (!QueryResult.Items[ItemIndex].IsValid())
-			{
-				continue;
-			}
-
-			FPRMoveQueryCandidate Candidate;
-			Candidate.ItemIndex = ItemIndex;
-			Candidate.Score = QueryResult.GetItemScore(ItemIndex);
-			OutCandidates.Add(Candidate);
-		}
-
-		OutCandidates.Sort([](const FPRMoveQueryCandidate& Left, const FPRMoveQueryCandidate& Right)
-		{
-			return Left.Score > Right.Score;
-		});
-	}
-
-	void FilterTopCandidates(const FPREnemyMoveQueryConfig& Config, TArray<FPRMoveQueryCandidate>& Candidates)
-	{
-		if (Candidates.IsEmpty())
-		{
-			return;
-		}
-
-		const float MaxScore = Candidates[0].Score;
-		const float MinAllowedScore = MaxScore * FMath::Clamp(Config.TopScoreCandidateRatio, 0.0f, 1.0f);
-		Candidates.RemoveAll([MinAllowedScore](const FPRMoveQueryCandidate& Candidate)
-		{
-			return Candidate.Score < MinAllowedScore;
-		});
-
-		if (Config.TopCandidateCount > 0 && Candidates.Num() > Config.TopCandidateCount)
-		{
-			Candidates.SetNum(Config.TopCandidateCount);
-		}
-	}
-
-	bool SelectCandidateIndex(const FPREnemyMoveQueryConfig& Config, const TArray<FPRMoveQueryCandidate>& Candidates, int32& OutItemIndex)
-	{
-		if (Candidates.IsEmpty())
-		{
-			return false;
-		}
-
-		switch (Config.CandidateSelectionMode)
-		{
-		case EPREnemyQueryCandidateSelectionMode::RandomTopCandidates:
-		{
-			const int32 PickIndex = FMath::RandRange(0, Candidates.Num() - 1);
-			OutItemIndex = Candidates[PickIndex].ItemIndex;
-			return true;
-		}
-		case EPREnemyQueryCandidateSelectionMode::WeightedRandomTopCandidates:
-		{
-			float TotalWeight = 0.0f;
-			for (const FPRMoveQueryCandidate& Candidate : Candidates)
-			{
-				TotalWeight += FMath::Max(Candidate.Score, KINDA_SMALL_NUMBER);
-			}
-
-			if (TotalWeight <= 0.0f)
-			{
-				OutItemIndex = Candidates[0].ItemIndex;
-				return true;
-			}
-
-			const float PickWeight = FMath::FRandRange(0.0f, TotalWeight);
-			float AccumulatedWeight = 0.0f;
-			for (const FPRMoveQueryCandidate& Candidate : Candidates)
-			{
-				AccumulatedWeight += FMath::Max(Candidate.Score, KINDA_SMALL_NUMBER);
-				if (PickWeight <= AccumulatedWeight)
-				{
-					OutItemIndex = Candidate.ItemIndex;
-					return true;
-				}
-			}
-
-			OutItemIndex = Candidates.Last().ItemIndex;
-			return true;
-		}
-		case EPREnemyQueryCandidateSelectionMode::BestScore:
-		default:
-			OutItemIndex = Candidates[0].ItemIndex;
-			return true;
-		}
-	}
-
 	bool RunMoveGoalEQS(APawn* ControlledPawn, const FPREnemyMoveQueryConfig& Config, FVector& OutLocation)
 	{
-		if (!IsValid(ControlledPawn) || !IsValid(Config.QueryTemplate))
-		{
-			return false;
-		}
-
-		UWorld* World = ControlledPawn->GetWorld();
-		if (!IsValid(World))
-		{
-			return false;
-		}
-
-		UEnvQueryManager* QueryManager = UEnvQueryManager::GetCurrent(World);
-		if (!IsValid(QueryManager))
-		{
-			return false;
-		}
-
-		FEnvQueryRequest QueryRequest(Config.QueryTemplate, ControlledPawn);
-		for (const FPREnemyEQSFloatParam& FloatParam : Config.FloatParams)
-		{
-			if (FloatParam.ParamName == NAME_None)
-			{
-				continue;
-			}
-
-			QueryRequest.SetFloatParam(FloatParam.ParamName, FloatParam.Value);
-		}
-
-		const TSharedPtr<FEnvQueryResult> QueryResult = QueryManager->RunInstantQuery(QueryRequest, ResolveQueryRunMode(Config));
-		if (!QueryResult.IsValid() || !QueryResult->IsSuccessful() || QueryResult->Items.Num() <= 0)
-		{
-			return false;
-		}
-
-		TArray<FPRMoveQueryCandidate> Candidates;
-		BuildSortedCandidates(*QueryResult, Candidates);
-		FilterTopCandidates(Config, Candidates);
-
-		int32 SelectedItemIndex = INDEX_NONE;
-		if (!SelectCandidateIndex(Config, Candidates, SelectedItemIndex) || SelectedItemIndex == INDEX_NONE)
-		{
-			return false;
-		}
-
-		OutLocation = QueryResult->GetItemAsLocation(SelectedItemIndex);
-		return true;
+		return PREnemyEQSSelectionUtils::RunLocationQuery(
+			ControlledPawn,
+			Config.QueryTemplate.Get(),
+			Config.FloatParams,
+			Config.QueryRunMode,
+			Config.CandidateSelectionMode,
+			Config.TopCandidateCount,
+			Config.TopScoreCandidateRatio,
+			OutLocation);
 	}
 }
 
@@ -261,7 +116,7 @@ EBTNodeResult::Type UBTTask_PRPrepareCombatMove::ExecuteTask(UBehaviorTreeCompon
 
 	const UPRCombatMoveDataAsset* ResolvedCombatDataAsset = ResolveCombatDataAsset(ControlledPawn, CombatDataAsset);
 	const FPREnemyMoveQueryConfig* MoveQueryConfig = GetMoveQueryConfig(ResolvedCombatDataAsset, SelectionMode);
-	if (MoveQueryConfig == nullptr || !IsValid(MoveQueryConfig->QueryTemplate))
+	if (MoveQueryConfig == nullptr || !IsValid(MoveQueryConfig->QueryTemplate.Get()))
 	{
 		return EBTNodeResult::Failed;
 	}

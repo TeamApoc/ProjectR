@@ -10,9 +10,11 @@
 #include "GameFramework/Pawn.h"
 #include "GameFramework/PlayerController.h"
 #include "ProjectR/AbilitySystem/AttributeSets/PRAttributeSet_Weapon.h"
+#include "ProjectR/Character/PRPlayerCharacter.h"
 #include "ProjectR/Combat/PRCombatGameplayTags.h"
 #include "ProjectR/Player/PRPlayerState.h"
 #include "ProjectR/Game/PRGameInstance.h"
+#include "ProjectR/Weapon/Components/PRWeaponManagerComponent.h"
 
 void UPRGameplayStatics::GetAllMeshComponents(AActor* Actor, TArray<UMeshComponent*>& OutMeshes)
 {
@@ -79,6 +81,32 @@ UPRInventoryComponent* UPRGameplayStatics::GetInventoryComponent(AActor* Actor)
 	if (APRPlayerState* PS = Cast<APRPlayerState>(Actor))
 	{
 		return PS->GetInventoryComponent();
+	}
+	
+	return nullptr;
+}
+
+UPRWeaponManagerComponent* UPRGameplayStatics::GetWeaponManagerComponent(AActor* Actor)
+{
+	if (!IsValid(Actor))
+	{
+		return nullptr;
+	}
+	
+	APawn* AsPawn = nullptr;
+	
+	if (APawn* Pawn = Cast<APawn>(Actor))
+	{
+		AsPawn = Pawn;
+	}
+	else if (AController* Controller = Cast<AController>(Actor))
+	{
+		AsPawn = Controller->GetPawn();
+	}
+	
+	if (AsPawn)
+	{
+		return AsPawn->FindComponentByClass<UPRWeaponManagerComponent>();
 	}
 	
 	return nullptr;

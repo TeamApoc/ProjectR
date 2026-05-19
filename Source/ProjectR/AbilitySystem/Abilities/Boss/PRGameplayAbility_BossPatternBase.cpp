@@ -15,6 +15,10 @@ UPRGameplayAbility_BossPatternBase::UPRGameplayAbility_BossPatternBase()
 	ActivationBlockedTags.AddTag(PRGameplayTags::State_Dead);
 	ActivationBlockedTags.AddTag(PRGameplayTags::State_Groggy);
 	ActivationBlockedTags.AddTag(PRGameplayTags::State_PhaseTransitioning);
+	ActivationBlockedTags.AddTag(PRGameplayTags::State_Boss_PatternPlaying);
+
+	ActivationOwnedTags.AddTag(PRGameplayTags::State_Boss_PatternPlaying);
+	BlockAbilitiesWithTag.AddTag(PRGameplayTags::Ability_Boss_Pattern);
 }
 
 APRBossBaseCharacter* UPRGameplayAbility_BossPatternBase::GetBossAvatarCharacter() const

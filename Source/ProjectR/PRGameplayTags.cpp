@@ -58,7 +58,14 @@ namespace PRGameplayTags
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Ability_Boss_Faerin_PortalPairSequence, "Ability.Boss.Faerin.PortalPairSequence", "Faerin 포털 연계");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Ability_Boss_Faerin_PortalMissileSequence, "Ability.Boss.Faerin.PortalMissileSequence", "Faerin 원작형 미사일 포털 소환");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Ability_Boss_Faerin_PortalBarrageSequence, "Ability.Boss.Faerin.PortalBarrageSequence", "Faerin 포털 연속 포격");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Ability_Boss_Faerin_PortalAttachedSequence, "Ability.Boss.Faerin.PortalAttachedSequence", "Faerin 부착 포털 소환");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Ability_Boss_Faerin_PortalTorrentSequence, "Ability.Boss.Faerin.PortalTorrentSequence", "Faerin Torrent 포털 소환");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Ability_Boss_Faerin_TeleportLungeSequence, "Ability.Boss.Faerin.TeleportLungeSequence", "Faerin 원작형 텔레포트 런지");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Ability_Boss_Faerin_ShiftPlayerClose, "Ability.Boss.Faerin.ShiftPlayerClose", "Faerin Shift Player Close 패턴 어빌리티");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Ability_Boss_Faerin_ShiftPlayerAway, "Ability.Boss.Faerin.ShiftPlayerAway", "Faerin Shift Player Away 패턴 어빌리티");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Ability_Boss_Faerin_TeleportDownSequence, "Ability.Boss.Faerin.TeleportDownSequence", "Faerin TeleportDown 패턴 어빌리티");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Ability_Boss_Faerin_CrashSequence, "Ability.Boss.Faerin.CrashSequence", "Faerin Crash 패턴 어빌리티");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Ability_Boss_Faerin_ThrowSequence, "Ability.Boss.Faerin.ThrowSequence", "Faerin Throw 패턴 어빌리티");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Ability_Boss_Faerin_TeleportDash, "Ability.Boss.Faerin.TeleportDash", "Faerin 텔레포트 대시");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Ability_Boss_Faerin_EnergyRain, "Ability.Boss.Faerin.EnergyRain", "Faerin 범위 압박");
 
@@ -93,6 +100,7 @@ namespace PRGameplayTags
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(State_PlayerInputLocked, "State.PlayerInputLocked", "플레이어 입력 차단 상태");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(State_PlayerHitReactLocked, "State.PlayerHitReactLocked", "피격 리액션 행동불능 상태");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(State_PhaseTransitioning, "State.PhaseTransitioning", "보스 페이즈 전환 상태");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(State_Boss_PatternPlaying, "State.Boss.PatternPlaying", "보스 패턴 실행 중 상태");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(State_Boss_WeakpointOpen_Core, "State.Boss.WeakpointOpen.Core", "보스 코어 약점 오픈 상태");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(State_Armed, "State.Armed", "플레이어 무기 장착중 상태");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(State_Block_Move, "State.Block.Move", "움직임 비활성화 상태");
@@ -116,7 +124,14 @@ namespace PRGameplayTags
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Cooldown_Boss_Faerin_TeleportLunge, "Cooldown.Boss.Faerin.TeleportLunge", "Faerin Teleport Lunge 패턴 쿨다운");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Cooldown_Boss_Faerin_PortalMissile, "Cooldown.Boss.Faerin.PortalMissile", "Faerin 포털 미사일 패턴 쿨다운");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Cooldown_Boss_Faerin_PortalBarrage, "Cooldown.Boss.Faerin.PortalBarrage", "Faerin 포털 연속 포격 패턴 쿨다운");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Cooldown_Boss_Faerin_PortalAttached, "Cooldown.Boss.Faerin.PortalAttached", "Faerin 부착 포털 패턴 쿨다운");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Cooldown_Boss_Faerin_PortalTorrent, "Cooldown.Boss.Faerin.PortalTorrent", "Faerin Torrent 포털 패턴 쿨다운");
 
+
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Cooldown_Boss_Faerin_Shift, "Cooldown.Boss.Faerin.Shift", "Faerin Shift 계열 공용 쿨다운");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Cooldown_Boss_Faerin_TeleportDown, "Cooldown.Boss.Faerin.TeleportDown", "Faerin TeleportDown 패턴 쿨다운");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Cooldown_Boss_Faerin_Crash, "Cooldown.Boss.Faerin.Crash", "Faerin Crash 패턴 쿨다운");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Cooldown_Boss_Faerin_Throw, "Cooldown.Boss.Faerin.Throw", "Faerin Throw 패턴 쿨다운");
 
 	// ===== Event.* =====
 

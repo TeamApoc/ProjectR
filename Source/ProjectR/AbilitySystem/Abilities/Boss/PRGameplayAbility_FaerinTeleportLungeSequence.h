@@ -17,6 +17,7 @@ UENUM()
 enum class EPRFaerinTeleportLungeStage : uint8
 {
 	None,
+	TeleportOut,
 	TeleportIn,
 	LungeStart,
 	LungeLoop,
@@ -35,7 +36,7 @@ public:
 
 	/*~ UGameplayAbility Interface ~*/
 public:
-	// TeleportIn 선택 구간과 LungeStart를 시작한다.
+	// TeleportOut, TeleportIn, LungeStart 순서의 런지 시퀀스를 시작한다.
 	virtual void ActivateAbility(const FGameplayAbilitySpecHandle Handle,
 		const FGameplayAbilityActorInfo* ActorInfo,
 		const FGameplayAbilityActivationInfo ActivationInfo,
@@ -63,6 +64,9 @@ protected:
 
 	// 지정 몽타주를 현재 단계로 재생한다.
 	bool PlayStageMontage(UAnimMontage* Montage, EPRFaerinTeleportLungeStage Stage);
+
+	// TeleportIn 단계로 진입한다.
+	void PlayTeleportInStage();
 
 	// LungeStart 단계로 진입한다.
 	void PlayLungeStartStage();
@@ -122,6 +126,10 @@ protected:
 	void HandleStageMontageInterrupted();
 
 protected:
+	// TeleportIn 전에 검 분리/순간이동 아웃 연출을 재생하는 몽타주다.
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Faerin|Animation")
+	TObjectPtr<UAnimMontage> TeleportOutMontage;
+
 	// 텔레포트 인 연출 몽타주다. 1차에서는 선택 사용하며 원작 선행 여부는 에디터 검증으로 확정한다.
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Faerin|Animation")
 	TObjectPtr<UAnimMontage> TeleportInMontage;

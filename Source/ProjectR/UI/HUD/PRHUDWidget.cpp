@@ -332,13 +332,3 @@ void UPRHUDWidget::SetCrosshairVisible(bool bVisible)
 	}
 	CrosshairWidget->SetVisibility(bVisible ? ESlateVisibility::HitTestInvisible : ESlateVisibility::Collapsed);
 }
-
-UPREventManagerSubsystem* UPRHUDWidget::GetEventManager() const
-{
-	UWorld* World = GetWorld();
-	if (!IsValid(World))
-	{
-		return nullptr;
-	}
-	return World->GetSubsystem<UPREventManagerSubsystem>();
-}

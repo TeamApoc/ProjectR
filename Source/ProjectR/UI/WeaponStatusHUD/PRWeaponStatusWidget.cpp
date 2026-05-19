@@ -4,9 +4,22 @@
 #include "PRWeaponStatusWidget.h"
 
 #include "Components/Image.h"
+#include "Components/PanelWidget.h"
 #include "Components/ProgressBar.h"
 #include "Components/TextBlock.h"
+#include "ProjectR/PRGameplayTags.h"
+#include "ProjectR/System/PREventManagerSubsystem.h"
 #include "ProjectR/UI/PRUserInterfaceStatics.h"
+
+void UPRWeaponStatusWidget::NativeConstruct()
+{
+	Super::NativeConstruct();
+	
+	if (HighlightBorder)
+	{
+		HighlightBorder->SetVisibility(ESlateVisibility::Collapsed);
+	}
+}
 
 void UPRWeaponStatusWidget::SetSlotType(EPRWeaponSlotType InSlotType)
 {
@@ -22,6 +35,9 @@ void UPRWeaponStatusWidget::SetWeaponStatus(const FPRWeaponStatusViewData& ViewD
 		ClearWeaponStatus();
 		return;
 	}
+	
+	UnbindHighlightEvent();
+	BindHighlightEvent();
 
 	SetVisibility(ESlateVisibility::HitTestInvisible);
 	SetWeaponIcon(ViewData.WeaponIcon);
@@ -129,6 +145,7 @@ void UPRWeaponStatusWidget::ClearWeaponStatus()
 	SetReserveAmmoText(0.0f);
 
 	ClearModStatus();
+	UnbindHighlightEvent();
 }
 
 void UPRWeaponStatusWidget::ClearModStatus()
@@ -148,5 +165,63 @@ void UPRWeaponStatusWidget::ClearModStatus()
 	{
 		ModStackText->SetText(UPRUserInterfaceStatics::ConvertFloatToText(0.0f));
 		ModStackText->SetVisibility(ESlateVisibility::Hidden);
+	}
+}
+
+void UPRWeaponStatusWidget::BindHighlightEvent()
+{
+	// 모드 활성화 수신 대기
+	if (UPREventManagerSubsystem* EventManager = GetEventManager())
+	{
+		HighlightEventDelegateHandle = EventManager->Listen(PRGameplayTags::Event_Player_ModActivation,
+			FPREventMulticast::FDelegate::CreateUObject(this, &ThisClass::HandleModActivation));
+	}
+}
+
+void UPRWeaponStatusWidget::UnbindHighlightEvent()
+{
+	if (HighlightEventDelegateHandle.IsValid())
+	{
+		if (UPREventManagerSubsystem* EventManager = GetEventManager())
+		{
+			EventManager->UnlistenAll(HighlightEventDelegateHandle);
+		}
+	}
+}
+
+void UPRWeaponStatusWidget::HandleModActivation(FGameplayTag EventTag, const FInstancedStruct& Payload)
+{
+	const FPRModActivationPayload* EventData = Payload.GetPtr<FPRModActivationPayload>();
+	if (!EventData)
+	{
+		return;
+	}
+	
+	if (EventData->SlotType != SlotType)
+	{
+		return;
+	}
+	
+	if (EventData->bActivated)
+	{
+		if (HighlightBorder)
+		{
+			HighlightBorder->SetVisibility(ESlateVisibility::HitTestInvisible);
+		}
+		if (HighlightAnimation)
+		{
+			PlayAnimation(HighlightAnimation,0.f,0);
+		}
+	}
+	else
+	{
+		if (HighlightBorder)
+		{
+			HighlightBorder->SetVisibility(ESlateVisibility::Hidden);
+		}
+		if (HighlightAnimation)
+		{
+			StopAnimation(HighlightAnimation);
+		}
 	}
 }

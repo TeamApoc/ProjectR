@@ -11,9 +11,11 @@
 #include "ProjectR/Combat/PRCombatGameplayTags.h"
 #include "ProjectR/PRGameplayTags.h"
 #include "ProjectR/System/PRAssetManager.h"
+#include "ProjectR/System/PREventManagerSubsystem.h"
 #include "ProjectR/Utils/PRGameplayStatics.h"
 #include "ProjectR/Weapon/Actors/PRWeaponActor.h"
 #include "ProjectR/Weapon/Components/PRWeaponManagerComponent.h"
+#include "ProjectR/Weapon/Data/PRWeaponDataAsset.h"
 #include "ProjectR/Weapon/Data/PRWeaponModDataAsset.h"
 #include "ProjectR/Weapon/Items/PRItemInstance_Weapon.h"
 
@@ -21,7 +23,7 @@ UPRGA_Mod::UPRGA_Mod()
 {
 	InstancingPolicy = EGameplayAbilityInstancingPolicy::InstancedPerActor;
 	NetExecutionPolicy = EGameplayAbilityNetExecutionPolicy::LocalPredicted;
-
+	ReplicationPolicy = EGameplayAbilityReplicationPolicy::ReplicateYes;
 	// ========= Mod Base  =============
 	InputTag = PRGameplayTags::Input_Ability_Mod;
 
@@ -32,7 +34,7 @@ UPRGA_Mod::UPRGA_Mod()
 void UPRGA_Mod::ActivateAbility(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo,
 	const FGameplayAbilityActivationInfo ActivationInfo, const FGameplayEventData* TriggerEventData)
 {
-	// 활성 무기 캐싱. PRGA_Fire와 동일 패턴
+	// 활성 무기 캐싱
 	if (APRPlayerCharacter* PlayerCharacter = GetPRCharacter<APRPlayerCharacter>())
 	{
 		if (UPRWeaponManagerComponent* WeaponManager = PlayerCharacter->GetWeaponManager())
@@ -42,7 +44,39 @@ void UPRGA_Mod::ActivateAbility(const FGameplayAbilitySpecHandle Handle, const F
 		}
 	}
 	
+	// 모드 UI 하이라이트용 이벤트 전송
+	if (UPREventManagerSubsystem* EventManager = GetWorld()->GetSubsystem<UPREventManagerSubsystem>())
+	{
+		FPRModActivationPayload Payload;
+		Payload.bActivated = true;
+		if (UPRWeaponDataAsset* WeaponData = GetCurrentWeaponData())
+		{
+			Payload.SlotType = WeaponData->SlotType;	
+		}
+		
+		EventManager->BroadcastTyped(PRGameplayTags::Event_Player_ModActivation, Payload);
+	}
+	
 	Super::ActivateAbility(Handle, ActorInfo, ActivationInfo, TriggerEventData);
+}
+
+void UPRGA_Mod::EndAbility(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo,
+	const FGameplayAbilityActivationInfo ActivationInfo, bool bReplicateEndAbility, bool bWasCancelled)
+{
+	// 모드 UI 하이라이트 끄기용 이벤트 전송
+	if (UPREventManagerSubsystem* EventManager = GetWorld()->GetSubsystem<UPREventManagerSubsystem>())
+	{
+		FPRModActivationPayload Payload;
+		Payload.bActivated = false;
+		if (UPRWeaponDataAsset* WeaponData = GetCurrentWeaponData())
+		{
+			Payload.SlotType = WeaponData->SlotType;	
+		}
+		
+		EventManager->BroadcastTyped(PRGameplayTags::Event_Player_ModActivation, Payload);
+	}
+	
+	Super::EndAbility(Handle, ActorInfo, ActivationInfo, bReplicateEndAbility, bWasCancelled);
 }
 
 // ========= Mod Base  =============
@@ -57,11 +91,11 @@ bool UPRGA_Mod::CheckCost(const FGameplayAbilitySpecHandle Handle, const FGamepl
 
 	bool bHasCost = true;
 	bool bIsBlocked = false;
-	if (ModCostPolicy == EPRModCostPolicyType::Stack)
+	if (ModCostPolicy == EPRModCostPolicy::Stack)
 	{
 		bHasCost = HasModStackCost(ActorInfo);
 	}
-	else if (ModCostPolicy == EPRModCostPolicyType::GaugeDuration)
+	else if (ModCostPolicy == EPRModCostPolicy::GaugeDuration)
 	{
 		bIsBlocked = HasActiveModGaugeLock(ActorInfo);
 		bHasCost = !bIsBlocked && ModDuration > 0.0f && HasFullModGaugeCost(ActorInfo);
@@ -79,22 +113,52 @@ bool UPRGA_Mod::CheckCost(const FGameplayAbilitySpecHandle Handle, const FGamepl
 	return bHasCost;
 }
 
-void UPRGA_Mod::ApplyCost(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo,
-	const FGameplayAbilityActivationInfo ActivationInfo) const
+void UPRGA_Mod::ApplyModCost(const FGameplayAbilityActorInfo* ActorInfo) const
 {
-	Super::ApplyCost(Handle, ActorInfo, ActivationInfo);
-
-	if (ModCostPolicy == EPRModCostPolicyType::Stack)
+	if (ModCostPolicy == EPRModCostPolicy::Stack)
 	{
 		ApplyModStackCost(ActorInfo);
 	}
-	else if (ModCostPolicy == EPRModCostPolicyType::GaugeDuration)
+	else if (ModCostPolicy == EPRModCostPolicy::GaugeDuration)
 	{
 		ApplyModGaugeDurationCost(ActorInfo);
 	}
 }
 
-void UPRGA_Mod::SetModCostPolicy(EPRModCostPolicyType InModCostType)
+void UPRGA_Mod::ApplyCost(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo,
+                          const FGameplayAbilityActivationInfo ActivationInfo) const
+{
+	Super::ApplyCost(Handle, ActorInfo, ActivationInfo);
+	ApplyModCost(ActorInfo);
+}
+
+UPRWeaponModDataAsset* UPRGA_Mod::GetCurrentModData() const
+{
+	if (UPRItemInstance_Weapon* Item = Cast<UPRItemInstance_Weapon>(GetCurrentSourceObject()))
+	{
+		return Item->GetModData();
+	}
+	return nullptr;
+}
+
+UPRWeaponManagerComponent* UPRGA_Mod::GetWeaponManager()
+{
+	if (!CachedWeaponManager.IsValid())
+	{
+		if (APRPlayerCharacter* PlayerCharacter = GetPRCharacter<APRPlayerCharacter>())
+		{
+			if (UPRWeaponManagerComponent* WeaponManager = PlayerCharacter->GetWeaponManager())
+			{
+				CachedWeaponManager = WeaponManager;
+				CurrentWeapon = WeaponManager->GetActiveWeaponActor();
+			}
+		}
+	}
+	
+	return CachedWeaponManager.Get();
+}
+
+void UPRGA_Mod::SetModCostPolicy(EPRModCostPolicy InModCostType)
 {
 	ModCostPolicy = InModCostType;
 }
@@ -209,22 +273,27 @@ bool UPRGA_Mod::HasActiveModGaugeLock(const FGameplayAbilityActorInfo* ActorInfo
 
 void UPRGA_Mod::ApplyModStackCost(const FGameplayAbilityActorInfo* ActorInfo) const
 {
-	EPRWeaponSlotType SlotType = EPRWeaponSlotType::None;
-	UAbilitySystemComponent* ASC = nullptr;
-	UPRItemInstance_Weapon* WeaponInstance = nullptr;
-	if (!TryGetCurrentModCostContext(ActorInfo, SlotType, ASC, WeaponInstance))
+	TSubclassOf<UGameplayEffect> CostGE;
+	
+	if (auto WeaponData = GetCurrentWeaponData())
+	{
+		if (WeaponData->SlotType == EPRWeaponSlotType::Primary)
+		{
+			CostGE = UPRAssetManager::Get().GetAbilitySystemRegistry()->ModStackCostGE_Primary;
+		}
+		else if (WeaponData->SlotType == EPRWeaponSlotType::Secondary)
+		{
+			CostGE = UPRAssetManager::Get().GetAbilitySystemRegistry()->ModStackCostGE_Secondary;
+		}
+	}
+	
+	if (!ensureMsgf(IsValid(CostGE),TEXT("AbilitySystemRegistry에 올바른 GE가 할당되지 않음")))
 	{
 		return;
 	}
 
-	const FGameplayAttribute StackAttribute = GetModStackAttribute(SlotType);
-	if (!StackAttribute.IsValid())
-	{
-		return;
-	}
-
-	const float CurrentStack = ASC->GetNumericAttribute(StackAttribute);
-	ASC->SetNumericAttributeBase(StackAttribute, FMath::Max(CurrentStack - 1.0f, 0.0f));
+	FGameplayEffectSpecHandle GEHandle = MakeOutgoingGameplayEffectSpec(CostGE, 1);
+	ApplyGameplayEffectSpecToOwner(GetCurrentAbilitySpecHandle(),GetCurrentActorInfo(),GetCurrentActivationInfo(),GEHandle);
 }
 
 void UPRGA_Mod::ApplyModGaugeDurationCost(const FGameplayAbilityActorInfo* ActorInfo) const
@@ -334,99 +403,6 @@ FGameplayAttribute UPRGA_Mod::GetMaxModStackAttribute(EPRWeaponSlotType SlotType
 	}
 
 	return FGameplayAttribute();
-}
-
-/*~ 조준/총구 헬퍼 ~*/
-
-FVector UPRGA_Mod::GetMuzzleLocation() const
-{
-	if (!CurrentWeapon.IsValid())
-	{
-		if (APRPlayerCharacter* PlayerCharacter = GetPRCharacter<APRPlayerCharacter>())
-		{
-			if (UPRWeaponManagerComponent* WeaponManager = PlayerCharacter->GetWeaponManager())
-			{
-				CurrentWeapon = WeaponManager->GetActiveWeaponActor();
-			}
-		}
-	}
-	
-	if (CurrentWeapon.IsValid())
-	{
-		return CurrentWeapon->GetMuzzleTransform().GetLocation();
-	}
-	
-	// Fallback: 무기 캐시가 없으면 아바타 정면 50cm 지점
-	if (AActor* AvatarActor = GetAvatarActorFromActorInfo())
-	{
-		return AvatarActor->GetActorLocation() + AvatarActor->GetActorForwardVector() * 50.f;
-	}
-
-	return FVector::ZeroVector;
-}
-
-FTransform UPRGA_Mod::GetMuzzleTransform() const
-{
-	if (!CurrentWeapon.IsValid())
-	{
-		if (APRPlayerCharacter* PlayerCharacter = GetPRCharacter<APRPlayerCharacter>())
-		{
-			if (UPRWeaponManagerComponent* WeaponManager = PlayerCharacter->GetWeaponManager())
-			{
-				CurrentWeapon = WeaponManager->GetActiveWeaponActor();
-			}
-		}
-	}
-	
-	if (CurrentWeapon.IsValid())
-	{
-		return CurrentWeapon->GetMuzzleTransform();
-	}
-	
-	// Fallback: 무기 캐시가 없으면 아바타 정면 50cm 지점
-	if (AActor* AvatarActor = GetAvatarActorFromActorInfo())
-	{
-		FTransform ActorTransform = AvatarActor->GetActorTransform();
-		ActorTransform.SetLocation(AvatarActor->GetActorLocation() + AvatarActor->GetActorForwardVector() * 50.f);
-		return ActorTransform;
-	}
-
-	return FTransform::Identity;
-}
-
-FPRFireViewpoint UPRGA_Mod::GetFireViewpoint() const
-{
-	FPRFireViewpoint View;
-
-	if (!ensureMsgf(GetActorInfo().IsLocallyControlled(), TEXT("Viewpoint는 로컬에서만 유효.")))
-	{
-		return View;
-	}
-
-	UPRGameplayStatics::GetPawnViewpoint(Cast<APawn>(GetAvatarActorFromActorInfo()), View.Location, View.Rotation);
-	return View;
-}
-
-FVector UPRGA_Mod::ResolveAimPoint(const FPRFireViewpoint& View, float InMaxTraceDistance) const
-{
-	APawn* OwnerPawn = Cast<APawn>(GetAvatarActorFromActorInfo());
-	TArray<AActor*> IgnoredActors;
-	if (AActor* AvatarActor = GetAvatarActorFromActorInfo())
-	{
-		IgnoredActors.Add(AvatarActor);
-	}
-	const FVector AimPoint = UPRGameplayStatics::ResolveCameraAimPoint(OwnerPawn, InMaxTraceDistance, AimTraceChannel.GetValue(), IgnoredActors);
-
-	// 디버그: 카메라 트레이스 시안색
-	if (bDrawCameraTrace)
-	{
-		if (UWorld* World = GetWorld())
-		{
-			DrawDebugLine(World, View.Location, AimPoint, FColor::Cyan, false, DebugDrawDuration, 0, 0.5f);
-		}
-	}
-
-	return AimPoint;
 }
 
 /*~ 데미지 적용 ~*/

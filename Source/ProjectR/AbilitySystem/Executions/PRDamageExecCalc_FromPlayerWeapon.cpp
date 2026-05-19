@@ -8,6 +8,9 @@
 #include "ProjectR/AbilitySystem/AttributeSets/PRAttributeSet_Player.h"
 #include "ProjectR/Combat/PRCombatStatics.h"
 #include "ProjectR/PRGameplayTags.h"
+#include "ProjectR/AbilitySystem/PRGameplayAbility.h"
+#include "ProjectR/Combat/PRCombatGameplayTags.h"
+#include "ProjectR/Weapon/Data/PRWeaponDataAsset.h"
 
 struct FFromPlayerCaptureDefs
 {
@@ -89,6 +92,7 @@ void UPRDamageExecCalc_FromPlayerWeapon::Execute_Implementation(const FGameplayE
 	}
 
 	const FGameplayEffectSpec& OwningSpec = ExecutionParams.GetOwningSpec();
+	const FGameplayTagContainer& DynamicAssetTags = OwningSpec.GetDynamicAssetTags();
 	
 	// HitResult는 GE Context에 포함되어 있으면 사용. 없으면 빈 HitResult로 진행하여 Region이 None으로 처리됨
 	const FHitResult* HitResult = OwningSpec.GetContext().GetHitResult();

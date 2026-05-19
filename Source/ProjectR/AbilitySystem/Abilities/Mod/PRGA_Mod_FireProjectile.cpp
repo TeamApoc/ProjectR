@@ -11,7 +11,7 @@
 UPRGA_Mod_FireProjectile::UPRGA_Mod_FireProjectile()
 {
 	ReplicationPolicy = EGameplayAbilityReplicationPolicy::ReplicateYes;
-	InputTag = PRGameplayTags::Input_Ability_Mod;
+	InputTag = PRGameplayTags::Input_Ability_Fire_Primary;
 }
 
 /*~ UGameplayAbility Interface ~*/
@@ -41,6 +41,13 @@ void UPRGA_Mod_FireProjectile::ActivateAbility(const FGameplayAbilitySpecHandle 
 
 	FTransform LaunchTransform = GetProjectileLaunchTransform();
 	FireProjectile(ProjectileClass, LaunchTransform.GetLocation(), LaunchTransform.Rotator());
+}
+
+void UPRGA_Mod_FireProjectile::ApplyCost(const FGameplayAbilitySpecHandle Handle,
+	const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilityActivationInfo ActivationInfo) const
+{
+	Super::ApplyCost(Handle, ActorInfo, ActivationInfo);
+	ApplySourceModCost();
 }
 
 /*~ 투사체 발사 ~*/

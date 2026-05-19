@@ -11,7 +11,7 @@
 
 UPRGA_Mod_Buff::UPRGA_Mod_Buff()
 {
-	SetModCostPolicy(EPRModCostPolicyType::GaugeDuration);
+	SetModCostPolicy(EPRModCostPolicy::GaugeDuration);
 	ReplicationPolicy = EGameplayAbilityReplicationPolicy::ReplicateYes;
 }
 

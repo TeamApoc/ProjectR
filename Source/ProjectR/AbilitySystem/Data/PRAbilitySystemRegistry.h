@@ -86,4 +86,14 @@ public:
 	// 사격 어빌리티 공통 쿨다운 GE. SetByCaller.Cooldown으로 Duration 주입. Cooldown.Ability.Fire.Primary를 Granted Tag로 부여
 	UPROPERTY(EditAnywhere, Category = "Registry|Cooldown")
 	TSubclassOf<UGameplayEffect> CooldownGE_Fire;
+	
+	// ==== Mod Cost GE ====
+	UPROPERTY(EditAnywhere, Category = "Registry|Cost")
+	TSubclassOf<UGameplayEffect> ModGaugeGrantGE;
+	
+	UPROPERTY(EditAnywhere, Category = "Registry|Cost")
+	TSubclassOf<UGameplayEffect> ModStackCostGE_Primary;
+	
+	UPROPERTY(EditAnywhere, Category = "Registry|Cost")
+	TSubclassOf<UGameplayEffect> ModStackCostGE_Secondary;
 };

@@ -159,7 +159,9 @@ protected:
 
 	// 사망 몽타주 이후 Idle로 돌아가지 않도록 현재 포즈를 고정한다.
 	void FreezeDeathDissolvePose();
-
+	
+	void GiveModGauge(const FPRDamageAppliedContext& Context) const;
+protected:
 	// 적은 PlayerState가 아니라 캐릭터 자신이 ASC를 소유한다.
 	UPROPERTY(VisibleAnywhere, Category = "ProjectR|Ability")
 	TObjectPtr<UPRAbilitySystemComponent> AbilitySystemComponent;

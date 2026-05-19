@@ -13,5 +13,15 @@ enum class EPRItemType : uint8
 	Mod,
 	PrimaryWeapon,
 	SecondaryWeapon,
-	Consumable
+	Consumable,
+	Material
+};
+
+UENUM(BlueprintType)
+enum class EPRItemRarity : uint8
+{
+	Common,
+	Rare,
+	Epic,
+	Legendary
 };

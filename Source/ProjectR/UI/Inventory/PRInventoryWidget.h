@@ -15,11 +15,15 @@ class UPRItemDataAsset;
 class UPRInventoryComponent;
 class UPRInventoryItemListWidget;
 class UPRItemInstance_Consumable;
+class UPRItemInstance_Material;
 class UPRItemInstance_Weapon;
 class UPRItemSlotWidget;
 class UPRQuickSlotComponent;
 class UPRCharacterPreviewWidget;
+class UPRCurrencyDisplayWidget;
 class UPRWeaponManagerComponent;
+class UPRCurrencyComponent;
+class UTextBlock;
 class APRPlayerCharacter;
 
 // 인벤토리 화면의 무기 슬롯과 아이템 선택 목록을 연결하는 최상위 위젯이다
@@ -108,6 +112,10 @@ private:
 	UFUNCTION()
 	void HandleQuickSlot3LeftClicked(const FPRInventoryItemSlotViewData& ViewData);
 
+	// 재료 슬롯 좌클릭을 처리한다
+	UFUNCTION()
+	void HandleMaterialSlotLeftClicked(const FPRInventoryItemSlotViewData& ViewData);
+
 	// 리스트에서 선택한 아이템을 장착 요청으로 변환한다
 	UFUNCTION()
 	void HandleItemListSelection(const FPRInventoryItemSlotViewData& ViewData);
@@ -123,6 +131,10 @@ private:
 	// 퀵슬롯 변경 알림을 받아 화면을 갱신한다
 	UFUNCTION()
 	void HandleQuickSlotChanged(UPRQuickSlotComponent* ChangedQuickSlotComponent, int32 ChangedSlotIndex);
+
+	// 고철 수량 변경 알림을 받아 화면을 갱신한다
+	UFUNCTION()
+	void HandleScrapChanged(int32 NewScrap);
 	// =======================
 
 
@@ -135,6 +147,12 @@ private:
 	// 지정 퀵슬롯에 등록할 소비 아이템 목록을 연다
 	void OpenConsumableListForQuickSlot(int32 SlotIndex);
 
+	// 보유 재료 아이템 목록을 연다
+	void OpenMaterialList();
+
+	// 지정 리스트 타입이 현재 열려 있는지 확인한다
+	bool IsItemListOpenAs(EPRItemType ListType) const;
+
 	// 아이템 리스트를 숨긴다
 	void CloseItemList();
 
@@ -143,6 +161,12 @@ private:
 
 	// 현재 퀵슬롯 위젯을 갱신한다
 	void RefreshQuickSlotWidgets();
+
+	// 재료 목록 진입 슬롯을 갱신한다
+	void RefreshMaterialSlotWidget();
+
+	// 고철 보유량 텍스트를 갱신한다
+	void RefreshCurrencyText();
 
 	// 장착 슬롯과 열린 리스트를 현재 데이터 기준으로 갱신한다
 	void RefreshInventoryView();
@@ -165,6 +189,12 @@ private:
 	// 소비 아이템 뷰 데이터를 만든다
 	FPRInventoryItemSlotViewData BuildConsumableItemViewData(UPRItemInstance_Consumable* ConsumableItem) const;
 
+	// 재료 목록 진입 슬롯 뷰 데이터를 만든다
+	FPRInventoryItemSlotViewData BuildMaterialSlotViewData() const;
+
+	// 재료 아이템 뷰 데이터를 만든다
+	FPRInventoryItemSlotViewData BuildMaterialItemViewData(UPRItemInstance_Material* MaterialItem) const;
+
 	// 퀵슬롯 뷰 데이터를 만든다
 	FPRInventoryItemSlotViewData BuildQuickSlotViewData(int32 SlotIndex) const;
 
@@ -173,6 +203,9 @@ private:
 
 	// 지정 무기에 Mod가 장착 가능한지 확인한다
 	bool IsModCompatibleWithWeapon(const UPRItemInstance_Mod* ModItem, const UPRItemInstance_Weapon* WeaponItem) const;
+
+	// 현재 인벤토리 소유자의 재화 컴포넌트를 조회한다
+	UPRCurrencyComponent* ResolveCurrencyComponent() const;
 
 protected:
 	// UMG에서 바인딩할 주무기 슬롯 위젯
@@ -199,9 +232,21 @@ protected:
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "ProjectR|Inventory")
 	TObjectPtr<UPRItemSlotWidget> QuickSlotItemSlotWidget3;
 
+	// UMG에서 바인딩할 재료 목록 진입 슬롯 위젯
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "ProjectR|Inventory")
+	TObjectPtr<UPRItemSlotWidget> MaterialSlotWidget;
+
 	// UMG에서 바인딩할 아이템 리스트 위젯
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "ProjectR|Inventory")
 	TObjectPtr<UPRInventoryItemListWidget> ItemListWidget;
+
+	// UMG에서 바인딩할 고철 표시 위젯
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "ProjectR|Inventory")
+	TObjectPtr<UPRCurrencyDisplayWidget> ScrapDisplayWidget;
+
+	// UMG에서 바인딩할 고철 보유량 텍스트
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "ProjectR|Inventory")
+	TObjectPtr<UTextBlock> ScrapAmountText;
 
 	// UMG에서 바인딩할 캐릭터 프리뷰 위젯
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "ProjectR|Inventory")
@@ -219,6 +264,10 @@ private:
 	// 소비 아이템 퀵슬롯 컴포넌트
 	UPROPERTY(BlueprintReadOnly, Category = "ProjectR|Inventory", meta = (AllowPrivateAccess = "true"))
 	TObjectPtr<UPRQuickSlotComponent> QuickSlotComponent;
+
+	// 고철 보유량을 제공하는 재화 컴포넌트
+	UPROPERTY(BlueprintReadOnly, Category = "ProjectR|Inventory", meta = (AllowPrivateAccess = "true"))
+	TObjectPtr<UPRCurrencyComponent> CurrencyComponent;
 
 	// 무기 리스트 팝업 위젯에 띄울 아이템의 무기 슬롯
 	UPROPERTY(BlueprintReadOnly, Category = "ProjectR|Inventory", meta = (AllowPrivateAccess = "true"))

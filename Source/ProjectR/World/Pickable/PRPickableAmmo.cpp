@@ -12,7 +12,7 @@
 APRPickableAmmo::APRPickableAmmo()
 {
 	SetReplicates(true);
-	SetNetCullDistanceSquared(5000.f);
+	SetNetCullDistanceSquared(FMath::Square(5000.f));
 
 	AmmoMesh = CreateDefaultSubobject<UStaticMeshComponent>("AmmoMesh");
 	AmmoNiagara = CreateDefaultSubobject<UNiagaraComponent>(TEXT("AmmoNiagara"));

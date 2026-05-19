@@ -12,10 +12,12 @@ class UPRConsumableDataAsset;
 class UPRItemInstance_Mod;
 class UPRItemInstance_Weapon;
 class UPRItemInstance_Consumable;
+class UPRItemInstance_Material;
 class UPRInventoryComponent;
 class UPRWeaponManagerComponent;
 class UPRWeaponDataAsset;
 class UPRWeaponModDataAsset;
+class UPRMaterialDataAsset;
 class AActor;
 class UActorChannel;
 class FOutBunch;
@@ -91,6 +93,13 @@ public:
 	// 새 소비 Item을 생성하거나 기존 소비 Item의 보유 개수를 증가시킨다
 	UPRItemInstance_Consumable* AddConsumableItem(UPRConsumableDataAsset* ConsumableData, int32 AddCount);
 
+	// 재료 Item 추가를 서버 권위 경로로 요청한다
+	UFUNCTION(BlueprintCallable, Category = "ProjectR|Inventory")
+	void RequestAddMaterialItem(UPRMaterialDataAsset* MaterialData, int32 AddCount);
+
+	// 새 재료 Item을 생성하거나 기존 재료 Item의 보유 개수를 증가시킨다
+	UPRItemInstance_Material* AddMaterialItem(UPRMaterialDataAsset* MaterialData, int32 AddCount);
+
 	// 소비 Item 제거를 서버 권위 경로로 요청한다
 	UFUNCTION(BlueprintCallable, Category = "ProjectR|Inventory")
 	void RequestRemoveConsumableItem(UPRItemInstance_Consumable* ConsumableItem, int32 RemoveCount);
@@ -133,6 +142,10 @@ public:
 	UFUNCTION(BlueprintPure, Category = "ProjectR|Inventory")
 	UPRItemInstance_Consumable* GetConsumableItemAtIndex(int32 ItemIndex) const;
 
+	// 인벤토리 인덱스로 재료 Item을 조회한다
+	UFUNCTION(BlueprintPure, Category = "ProjectR|Inventory")
+	UPRItemInstance_Material* GetMaterialItemAtIndex(int32 ItemIndex) const;
+
 	// 인자로 받은 무기 Item을 현재 인벤토리가 소유하는지 확인한다
 	bool OwnsWeapon(const UPRItemInstance_Weapon* WeaponItem) const;
 
@@ -142,9 +155,16 @@ public:
 	// 인자로 받은 소비 Item을 현재 인벤토리가 소유하는지 확인한다
 	bool OwnsConsumable(const UPRItemInstance_Consumable* ConsumableItem) const;
 
+	// 인자로 받은 재료 Item을 현재 인벤토리가 소유하는지 확인한다
+	bool OwnsMaterial(const UPRItemInstance_Material* MaterialItem) const;
+
 	// 소비 Item 데이터로 인벤토리 내 소비 Item을 조회한다
 	UFUNCTION(BlueprintCallable, Category = "ProjectR|Inventory")
 	UPRItemInstance_Consumable* FindConsumableItemByData(const UPRConsumableDataAsset* ConsumableData) const;
+
+	// 재료 Item 데이터로 인벤토리 내 재료 Item을 조회한다
+	UFUNCTION(BlueprintCallable, Category = "ProjectR|Inventory")
+	UPRItemInstance_Material* FindMaterialItemByData(const UPRMaterialDataAsset* MaterialData) const;
 
 	// 무기 Item 데이터로 인벤토리 내 무기 Item을 조회한다
 	UFUNCTION(BlueprintCallable, Category = "ProjectR|Inventory")
@@ -168,6 +188,10 @@ public:
 	
 	UFUNCTION(BlueprintCallable)
 	TArray<UPRItemInstance_Weapon*> GetWeaponItems() const {return InventoryWeaponItems;}
+
+	// 현재 인벤토리가 소유한 재료 Item 목록을 반환한다
+	UFUNCTION(BlueprintCallable)
+	TArray<UPRItemInstance_Material*> GetMaterialItems() const { return InventoryMaterialItems; }
 	
 protected:
 	// 클라이언트에서 무기 Item 목록 복제 결과를 확인한다
@@ -181,6 +205,10 @@ protected:
 	// 클라이언트에서 소비 Item 목록 복제 결과를 확인한다
 	UFUNCTION()
 	void OnRep_InventoryConsumableItems(const TArray<UPRItemInstance_Consumable*>& OldConsumables);
+
+	// 클라이언트에서 재료 Item 목록 복제 결과를 확인한다
+	UFUNCTION()
+	void OnRep_InventoryMaterialItems(const TArray<UPRItemInstance_Material*>& OldMaterials);
 
 	// 현재 인벤토리에 무기 Item을 등록한다
 	void RegisterInventoryWeaponItem(UPRItemInstance_Weapon* WeaponItem);
@@ -199,6 +227,12 @@ protected:
 
 	// 현재 인벤토리에서 소비 Item 등록을 해제한다
 	void UnregisterConsumableItemInstance(UPRItemInstance_Consumable* ConsumableItem);
+
+	// 현재 인벤토리에 재료 Item을 등록한다
+	void RegisterInventoryMaterialItem(UPRItemInstance_Material* MaterialItem);
+
+	// 현재 인벤토리에서 재료 Item 등록을 해제한다
+	void UnregisterMaterialItemInstance(UPRItemInstance_Material* MaterialItem);
 
 	// 소비 Item의 보유 개수를 감소시키고 0개가 되면 인벤토리에서 제거한다
 	bool RemoveConsumableItemInternal(UPRItemInstance_Consumable* ConsumableItem, int32 RemoveCount);
@@ -223,6 +257,10 @@ protected:
 	// 클라이언트 요청을 서버의 소비 Item 추가 처리로 전달한다
 	UFUNCTION(Server, Reliable)
 	void Server_RequestAddConsumableItem(UPRConsumableDataAsset* ConsumableData, int32 AddCount);
+
+	// 클라이언트 요청을 서버의 재료 Item 추가 처리로 전달한다
+	UFUNCTION(Server, Reliable)
+	void Server_RequestAddMaterialItem(UPRMaterialDataAsset* MaterialData, int32 AddCount);
 
 	// 클라이언트 요청을 서버의 소비 Item 제거 처리로 전달한다
 	UFUNCTION(Server, Reliable)
@@ -267,6 +305,10 @@ public:
 	// 현재 인벤토리가 소유한 소비 Item 목록
 	UPROPERTY(ReplicatedUsing = OnRep_InventoryConsumableItems, VisibleInstanceOnly, BlueprintReadOnly, Category = "ProjectR|Inventory")
 	TArray<UPRItemInstance_Consumable*> InventoryConsumableItems;
+
+	// 현재 인벤토리가 소유한 재료 Item 목록
+	UPROPERTY(ReplicatedUsing = OnRep_InventoryMaterialItems, VisibleInstanceOnly, BlueprintReadOnly, Category = "ProjectR|Inventory")
+	TArray<UPRItemInstance_Material*> InventoryMaterialItems;
 
 private:
 	// 인벤토리 목록 또는 Item 장착 상태가 변경되었을 때 알린다

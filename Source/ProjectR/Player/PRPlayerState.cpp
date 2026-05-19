@@ -16,6 +16,7 @@
 #include "ProjectR/Inventory/Components/PRQuickSlotComponent.h"
 #include "ProjectR/Inventory/Data/PRItemDataAsset.h"
 #include "ProjectR/Inventory/Items/PRItemInstance_Consumable.h"
+#include "ProjectR/Player/Components/PRCurrencyComponent.h"
 
 APRPlayerState::APRPlayerState()
 {
@@ -29,6 +30,7 @@ APRPlayerState::APRPlayerState()
 	InventoryComponent = CreateDefaultSubobject<UPRInventoryComponent>(TEXT("InventoryComponent"));
 	EquipmentManagerComponent = CreateDefaultSubobject<UPREquipmentManagerComponent>(TEXT("EquipmentManagerComponent"));
 	QuickSlotComponent = CreateDefaultSubobject<UPRQuickSlotComponent>(TEXT("QuickSlotComponent"));
+	CurrencyComponent = CreateDefaultSubobject<UPRCurrencyComponent>(TEXT("CurrencyComponent"));
 
 	// PlayerState는 NetUpdate가 낮음. GAS 예측 응답성 확보를 위해 인상
 	SetNetUpdateFrequency(100.0f);

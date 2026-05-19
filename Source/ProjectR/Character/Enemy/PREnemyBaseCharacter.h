@@ -81,6 +81,9 @@ public:
 	const UPRAttributeSet_Enemy* GetEnemySet() const { return EnemySet; }
 	UPREnemyWorldHealthBarComponent* GetEnemyWorldHealthBarComponent() const { return EnemyWorldHealthBarComponent; }
 
+	// 드롭 테이블 조회에 사용할 몬스터 식별자를 반환한다
+	FName GetMonsterId() const { return CharacterID; }
+
 	// 서버 사망 Ability에서 모든 클라이언트에 사망 Dissolve 시각 연출을 요청한다.
 	void RequestDeathDissolveVisual(
 		UAnimMontage* InDeathMontage,

@@ -41,10 +41,10 @@ public:
 	FDelegateHandle Listen(FGameplayTag EventTag, FPREventMulticast::FDelegate Callback);
 
 	// 핸들을 사용해 특정 EventTag의 리스너를 해제한다
-	void Unlisten(FGameplayTag EventTag, FDelegateHandle Handle);
+	void Unlisten(FGameplayTag EventTag,FDelegateHandle& InHandle);
 
 	// 모든 등록된 EventTag에서 해당 핸들을 제거한다 (콜백 객체 소멸 시 정리용)
-	void UnlistenAll(FDelegateHandle Handle);
+	void UnlistenAll(FDelegateHandle& InHandle);
 
 	// 페이로드와 함께 EventTag를 브로드캐스트한다. 부모 태그 매칭 동작은 옵션으로 처리
 	void Broadcast(FGameplayTag EventTag, const FInstancedStruct& Payload);

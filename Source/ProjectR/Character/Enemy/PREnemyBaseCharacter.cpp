@@ -2,6 +2,7 @@
 
 #include "PREnemyBaseCharacter.h"
 
+#include "AbilitySystemBlueprintLibrary.h"
 #include "ProjectR/AI/Controllers/PREnemyAIController.h"
 #include "AIController.h"
 #include "Animation/AnimInstance.h"
@@ -36,6 +37,12 @@
 #include "ProjectR/UI/HUD/PREnemyWorldHealthBarComponent.h"
 #include "Net/UnrealNetwork.h"
 #include "TimerManager.h"
+#include "ProjectR/AbilitySystem/PRGameplayAbility.h"
+#include "ProjectR/AbilitySystem/AttributeSets/PRAttributeSet_Weapon.h"
+#include "ProjectR/Combat/PRCombatGameplayTags.h"
+#include "ProjectR/Weapon/Data/PRWeaponDataAsset.h"
+#include "ProjectR/Weapon/Items/PRItemInstance_Mod.h"
+#include "ProjectR/Weapon/Items/PRItemInstance_Weapon.h"
 
 namespace
 {
@@ -500,6 +507,80 @@ void APREnemyBaseCharacter::FreezeDeathDissolvePose()
 	MeshComponent->GlobalAnimRateScale = 0.0f;
 }
 
+void APREnemyBaseCharacter::GiveModGauge(const FPRDamageAppliedContext& Context) const
+{
+	// 서버에서만 실행. InstigatorController에게 Unreliable RPC로 데미지 텍스트를 전송한다
+	if (!HasAuthority())
+	{
+		return;
+	}
+
+	UAbilitySystemComponent* TargetASC = UAbilitySystemBlueprintLibrary::GetAbilitySystemComponent(
+		Context.Instigator.Get());
+	if (!IsValid(TargetASC))
+	{
+		return;
+	}
+	
+	TSubclassOf<UGameplayEffect> ModGaugeEffect = UPRAssetManager::Get().GetAbilitySystemRegistry()->ModGaugeGrantGE;
+	if (!ensureMsgf(IsValid(ModGaugeEffect), TEXT("ModGaugeGrantGE가 AbilitySystemRegistry에 없음")))
+	{
+		return;
+	}
+	
+	FGameplayEffectContextHandle EffectContext = TargetASC->MakeEffectContext();
+	FGameplayEffectSpecHandle SpecHandle = TargetASC->MakeOutgoingSpec(ModGaugeEffect,1.0f,EffectContext);
+	
+	// Source 무기의 탄약 배수에 따라 모드 게이지 충전량 적용
+	UPRGameplayAbility* GA = Cast<UPRGameplayAbility>(Context.SourceObject.Get());
+	UPRWeaponDataAsset* WeaponData = nullptr;
+	
+	// 1. SourceObject가 GA인 경우
+	if (IsValid(GA))
+	{
+		WeaponData = GA->GetCurrentWeaponData();
+	}
+	else
+	{
+		// 2. SourceObject가 WeaponItem인 경우
+		if (UPRItemInstance_Weapon* WeaponItem = Cast<UPRItemInstance_Weapon>(Context.SourceObject.Get()))
+		{
+			WeaponData = WeaponItem->GetWeaponData();
+		}
+		// 3. SourceObject가 ModItem인 경우
+		if (UPRItemInstance_Mod* ModItem = Cast<UPRItemInstance_Mod>(Context.SourceObject.Get()))
+		{
+			if (UPRItemInstance_Weapon* WeaponItem =  ModItem->GetEquippedWeaponItem())
+			{
+				WeaponData = WeaponItem->GetWeaponData();
+			}
+		}
+	}
+	
+	if (IsValid(WeaponData))
+	{
+		// TODO: 게이지 충전 공식 적용. 현재는 탄창 크기 기준 (한 탄창에 500)
+		float MagazineSize = WeaponData->MaxMagazineAmmo;
+		if (FMath::IsNearlyZero(MagazineSize))
+		{
+			MagazineSize = 100.f;
+		}
+			
+		float IncomingModGaugeAmount = 500.0f / MagazineSize;
+			
+		if (Context.EffectTags.HasTagExact(PRCombatGameplayTags::Ability_Source_Weapon_Primary))
+		{
+			SpecHandle.Data->SetSetByCallerMagnitude(PRCombatGameplayTags::SetByCaller_ModGauge_Primary, IncomingModGaugeAmount);
+		}
+		else if (Context.EffectTags.HasTagExact(PRCombatGameplayTags::Ability_Source_Weapon_Secondary))
+		{
+			SpecHandle.Data->SetSetByCallerMagnitude(PRCombatGameplayTags::SetByCaller_ModGauge_Secondary, IncomingModGaugeAmount);
+		}
+	}
+	
+	TargetASC->ApplyGameplayEffectSpecToSelf(*SpecHandle.Data.Get());
+}
+
 void APREnemyBaseCharacter::CacheMovementPresentationDefaults()
 {
 	if (bHasCachedMovementPresentation)
@@ -585,6 +666,8 @@ void APREnemyBaseCharacter::OnPostDamageApplied(const FPRDamageAppliedContext& C
 	{
 		return;
 	}
+	
+	GiveModGauge(Context);
 
 	if (Context.FinalDamage > 0.0f && IsValid(ThreatComponent))
 	{

@@ -6,6 +6,7 @@
 #include "Blueprint/UserWidget.h"
 #include "PRWidgetBase.generated.h"
 
+class UPREventManagerSubsystem;
 class UPBViewModelBase;
 
 /**
@@ -40,6 +41,10 @@ UCLASS(Abstract, BlueprintType)
 class PROJECTR_API UPRWidgetBase : public UUserWidget
 {
 	GENERATED_BODY()
+
+public:
+	// 현재 월드의 EventManager 조회
+	UPREventManagerSubsystem* GetEventManager() const;
 
 public:
 	// 이 위젯이 속한 레이어. UIManager가 ZOrder/스택 정렬에 사용

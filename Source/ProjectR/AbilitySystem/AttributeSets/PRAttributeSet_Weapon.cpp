@@ -7,6 +7,17 @@
 
 namespace
 {
+	constexpr float ModResourceTolerance = KINDA_SMALL_NUMBER;
+
+	struct FPRModResourceResult
+	{
+		// 정리된 Mod 게이지
+		float ModGauge = 0.0f;
+
+		// 정리된 Mod 스택
+		float ModStack = 0.0f;
+	};
+
 	// 주무기 슬롯 자원 속성 판별
 	bool IsPrimarySlotAttribute(const FGameplayAttribute& Attribute)
 	{
@@ -31,6 +42,107 @@ namespace
 			|| Attribute == UPRAttributeSet_Weapon::GetSecondaryMaxModGaugeAttribute()
 			|| Attribute == UPRAttributeSet_Weapon::GetSecondaryModStackAttribute()
 			|| Attribute == UPRAttributeSet_Weapon::GetSecondaryMaxModStackAttribute();
+	}
+
+	// 음수 및 비정상 수치 보정
+	float SanitizeModResourceValue(float Value)
+	{
+		return FMath::IsFinite(Value) ? FMath::Max(Value, 0.0f) : 0.0f;
+	}
+
+	// 양수 판정
+	bool IsPositiveModResourceValue(float Value)
+	{
+		return Value > ModResourceTolerance;
+	}
+
+	// 스택 사용 판정
+	bool IsStackResourceEnabled(float MaxStack)
+	{
+		return MaxStack >= 1.0f - ModResourceTolerance;
+	}
+
+	// 최대 스택 도달 판정
+	bool IsModStackAtMax(float CurrentStack, float MaxStack)
+	{
+		return IsStackResourceEnabled(MaxStack) && CurrentStack >= MaxStack - ModResourceTolerance;
+	}
+
+	// 최대 게이지 도달 판정
+	bool IsModGaugeFull(float CurrentGauge, float MaxGauge)
+	{
+		return CurrentGauge >= MaxGauge - ModResourceTolerance;
+	}
+
+	// Mod 게이지 초과분 정리
+	FPRModResourceResult ResolveModGaugeOverflow(float CurrentGauge, float MaxGauge, float CurrentStack, float MaxStack, bool bAllowStackCharge)
+	{
+		const float SafeGauge = SanitizeModResourceValue(CurrentGauge);
+		const float SafeMaxGauge = SanitizeModResourceValue(MaxGauge);
+		const float SafeStack = SanitizeModResourceValue(CurrentStack);
+		const float SafeMaxStack = SanitizeModResourceValue(MaxStack);
+
+		FPRModResourceResult Result;
+		Result.ModGauge = IsPositiveModResourceValue(SafeMaxGauge)
+			? FMath::Clamp(SafeGauge, 0.0f, SafeMaxGauge)
+			: SafeGauge;
+		Result.ModStack = IsPositiveModResourceValue(SafeMaxStack)
+			? FMath::Clamp(SafeStack, 0.0f, SafeMaxStack)
+			: SafeStack;
+
+		// 최대 스택 도달 상태
+		if (IsModStackAtMax(Result.ModStack, SafeMaxStack))
+		{
+			Result.ModStack = SafeMaxStack;
+			Result.ModGauge = 0.0f;
+			return Result;
+		}
+
+		// 게이지 최대치 미설정
+		if (!IsPositiveModResourceValue(SafeMaxGauge))
+		{
+			return Result;
+		}
+
+		// 스택 미사용 모드
+		if (!IsStackResourceEnabled(SafeMaxStack))
+		{
+			Result.ModStack = 0.0f;
+			return Result;
+		}
+
+		// 충전 처리 제외 상태
+		if (!bAllowStackCharge)
+		{
+			return Result;
+		}
+
+		// 게이지 미충전 상태
+		if (!IsModGaugeFull(SafeGauge, SafeMaxGauge))
+		{
+			return Result;
+		}
+
+		// 스택 충전
+		Result.ModStack = FMath::Min(Result.ModStack + 1.0f, SafeMaxStack);
+		if (IsModStackAtMax(Result.ModStack, SafeMaxStack))
+		{
+			Result.ModStack = SafeMaxStack;
+			Result.ModGauge = 0.0f;
+			return Result;
+		}
+
+		// 잔여 게이지 반영
+		const float RemainingGauge = SafeGauge - SafeMaxGauge;
+		if (FMath::IsNearlyZero(RemainingGauge, ModResourceTolerance))
+		{
+			Result.ModGauge = 0.0f;
+		}
+		else
+		{
+			Result.ModGauge = FMath::Clamp(RemainingGauge, 0.0f, SafeMaxGauge);
+		}
+		return Result;
 	}
 }
 
@@ -125,34 +237,30 @@ void UPRAttributeSet_Weapon::PreAttributeChange(const FGameplayAttribute& Attrib
 		NewValue = MaxMagazine > 0.0f ? FMath::Min(NewValue, MaxMagazine) : 0.0f;
 	}
 
-	if (Attribute == GetPrimaryModGaugeAttribute())
+	if (Attribute == GetPrimaryModGaugeAttribute()
+		|| Attribute == GetPrimaryMaxModGaugeAttribute()
+		|| Attribute == GetPrimaryModStackAttribute()
+		|| Attribute == GetPrimaryMaxModStackAttribute()
+		|| Attribute == GetSecondaryModGaugeAttribute()
+		|| Attribute == GetSecondaryMaxModGaugeAttribute()
+		|| Attribute == GetSecondaryModStackAttribute()
+		|| Attribute == GetSecondaryMaxModStackAttribute())
 	{
-		const float MaxGauge = GetPrimaryMaxModGauge();
-		if (MaxGauge > 0.0f)
-		{
-			NewValue = FMath::Min(NewValue, MaxGauge);
-		}
+		NewValue = SanitizeModResourceValue(NewValue);
 	}
-	else if (Attribute == GetSecondaryModGaugeAttribute())
+
+	if (Attribute == GetPrimaryModStackAttribute())
 	{
-		const float MaxGauge = GetSecondaryMaxModGauge();
-		if (MaxGauge > 0.0f)
-		{
-			NewValue = FMath::Min(NewValue, MaxGauge);
-		}
-	}
-	else if (Attribute == GetPrimaryModStackAttribute())
-	{
-		const float MaxStack = GetPrimaryMaxModStack();
-		if (MaxStack > 0.0f)
+		const float MaxStack = SanitizeModResourceValue(GetPrimaryMaxModStack());
+		if (IsPositiveModResourceValue(MaxStack))
 		{
 			NewValue = FMath::Min(NewValue, MaxStack);
 		}
 	}
 	else if (Attribute == GetSecondaryModStackAttribute())
 	{
-		const float MaxStack = GetSecondaryMaxModStack();
-		if (MaxStack > 0.0f)
+		const float MaxStack = SanitizeModResourceValue(GetSecondaryMaxModStack());
+		if (IsPositiveModResourceValue(MaxStack))
 		{
 			NewValue = FMath::Min(NewValue, MaxStack);
 		}
@@ -198,42 +306,104 @@ void UPRAttributeSet_Weapon::PostGameplayEffectExecute(const FGameplayEffectModC
 	else if (Attribute == GetPrimaryModGaugeAttribute())
 	{
 		const float MaxGauge = GetPrimaryMaxModGauge();
-		SetPrimaryModGauge(MaxGauge > 0.0f ? FMath::Clamp(GetPrimaryModGauge(), 0.0f, MaxGauge) : FMath::Max(GetPrimaryModGauge(), 0.0f));
+		const FPRModResourceResult Result = ResolveModGaugeOverflow(
+			GetPrimaryModGauge(),
+			MaxGauge,
+			GetPrimaryModStack(),
+			GetPrimaryMaxModStack(),
+			true);
+		if (!FMath::IsNearlyEqual(GetPrimaryModStack(), Result.ModStack, ModResourceTolerance))
+		{
+			SetPrimaryModStack(Result.ModStack);
+		}
+		SetPrimaryModGauge(Result.ModGauge);
 	}
 	else if (Attribute == GetPrimaryMaxModGaugeAttribute())
 	{
-		const float MaxGauge = GetPrimaryMaxModGauge();
-		SetPrimaryModGauge(MaxGauge > 0.0f ? FMath::Clamp(GetPrimaryModGauge(), 0.0f, MaxGauge) : 0.0f);
+		const FPRModResourceResult Result = ResolveModGaugeOverflow(
+			GetPrimaryModGauge(),
+			GetPrimaryMaxModGauge(),
+			GetPrimaryModStack(),
+			GetPrimaryMaxModStack(),
+			false);
+		if (!FMath::IsNearlyEqual(GetPrimaryModStack(), Result.ModStack, ModResourceTolerance))
+		{
+			SetPrimaryModStack(Result.ModStack);
+		}
+		SetPrimaryModGauge(Result.ModGauge);
 	}
 	else if (Attribute == GetSecondaryModGaugeAttribute())
 	{
 		const float MaxGauge = GetSecondaryMaxModGauge();
-		SetSecondaryModGauge(MaxGauge > 0.0f ? FMath::Clamp(GetSecondaryModGauge(), 0.0f, MaxGauge) : FMath::Max(GetSecondaryModGauge(), 0.0f));
+		const FPRModResourceResult Result = ResolveModGaugeOverflow(
+			GetSecondaryModGauge(),
+			MaxGauge,
+			GetSecondaryModStack(),
+			GetSecondaryMaxModStack(),
+			true);
+		if (!FMath::IsNearlyEqual(GetSecondaryModStack(), Result.ModStack, ModResourceTolerance))
+		{
+			SetSecondaryModStack(Result.ModStack);
+		}
+		SetSecondaryModGauge(Result.ModGauge);
 	}
 	else if (Attribute == GetSecondaryMaxModGaugeAttribute())
 	{
-		const float MaxGauge = GetSecondaryMaxModGauge();
-		SetSecondaryModGauge(MaxGauge > 0.0f ? FMath::Clamp(GetSecondaryModGauge(), 0.0f, MaxGauge) : 0.0f);
+		const FPRModResourceResult Result = ResolveModGaugeOverflow(
+			GetSecondaryModGauge(),
+			GetSecondaryMaxModGauge(),
+			GetSecondaryModStack(),
+			GetSecondaryMaxModStack(),
+			false);
+		if (!FMath::IsNearlyEqual(GetSecondaryModStack(), Result.ModStack, ModResourceTolerance))
+		{
+			SetSecondaryModStack(Result.ModStack);
+		}
+		SetSecondaryModGauge(Result.ModGauge);
 	}
 	else if (Attribute == GetPrimaryModStackAttribute())
 	{
-		const float MaxStack = GetPrimaryMaxModStack();
-		SetPrimaryModStack(MaxStack > 0.0f ? FMath::Clamp(GetPrimaryModStack(), 0.0f, MaxStack) : FMath::Max(GetPrimaryModStack(), 0.0f));
+		const FPRModResourceResult Result = ResolveModGaugeOverflow(
+			GetPrimaryModGauge(),
+			GetPrimaryMaxModGauge(),
+			GetPrimaryModStack(),
+			GetPrimaryMaxModStack(),
+			false);
+		SetPrimaryModStack(Result.ModStack);
+		SetPrimaryModGauge(Result.ModGauge);
 	}
 	else if (Attribute == GetPrimaryMaxModStackAttribute())
 	{
-		const float MaxStack = GetPrimaryMaxModStack();
-		SetPrimaryModStack(MaxStack > 0.0f ? FMath::Clamp(GetPrimaryModStack(), 0.0f, MaxStack) : 0.0f);
+		const FPRModResourceResult Result = ResolveModGaugeOverflow(
+			GetPrimaryModGauge(),
+			GetPrimaryMaxModGauge(),
+			GetPrimaryModStack(),
+			GetPrimaryMaxModStack(),
+			false);
+		SetPrimaryModStack(Result.ModStack);
+		SetPrimaryModGauge(Result.ModGauge);
 	}
 	else if (Attribute == GetSecondaryModStackAttribute())
 	{
-		const float MaxStack = GetSecondaryMaxModStack();
-		SetSecondaryModStack(MaxStack > 0.0f ? FMath::Clamp(GetSecondaryModStack(), 0.0f, MaxStack) : FMath::Max(GetSecondaryModStack(), 0.0f));
+		const FPRModResourceResult Result = ResolveModGaugeOverflow(
+			GetSecondaryModGauge(),
+			GetSecondaryMaxModGauge(),
+			GetSecondaryModStack(),
+			GetSecondaryMaxModStack(),
+			false);
+		SetSecondaryModStack(Result.ModStack);
+		SetSecondaryModGauge(Result.ModGauge);
 	}
 	else if (Attribute == GetSecondaryMaxModStackAttribute())
 	{
-		const float MaxStack = GetSecondaryMaxModStack();
-		SetSecondaryModStack(MaxStack > 0.0f ? FMath::Clamp(GetSecondaryModStack(), 0.0f, MaxStack) : 0.0f);
+		const FPRModResourceResult Result = ResolveModGaugeOverflow(
+			GetSecondaryModGauge(),
+			GetSecondaryMaxModGauge(),
+			GetSecondaryModStack(),
+			GetSecondaryMaxModStack(),
+			false);
+		SetSecondaryModStack(Result.ModStack);
+		SetSecondaryModGauge(Result.ModGauge);
 	}
 }
 

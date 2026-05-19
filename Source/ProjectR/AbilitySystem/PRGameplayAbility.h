@@ -34,7 +34,7 @@ public:
 	                                 const FGameplayTagContainer* TargetTags,
 	                                 FGameplayTagContainer* OptionalRelevantTags) const override;
 
-public:
+
 	// CDO가 아닌 어빌리티의 실제 인스턴스 반환
 	template<typename T>
 	T* GetAbilityInstance(const FGameplayAbilitySpecHandle Handle,  const FGameplayAbilityActorInfo* ActorInfo) const
@@ -49,12 +49,17 @@ public:
 		return nullptr;
 	}
 	
+	
 	// ActivationPolicy 조회. ASC OnGiveAbility 및 입력 라우터에서 사용
 	EPRAbilityActivationPolicy GetActivationPolicy() const { return ActivationPolicy; }
 
 	// InputTag 조회
 	const FGameplayTag& GetInputTag() const { return InputTag; }
-
+	
+	// Instance된 어빌리티의 SourceObject(ItemInstance)로부터 WeaponData를 반환
+	UPRWeaponDataAsset* GetCurrentWeaponData() const;
+	
+	
 	// PlayerCharacter의 WeaponManager 반환
 	UPRWeaponManagerComponent* GetWeaponManager(const FGameplayAbilityActorInfo* ActorInfo) const;
 	
@@ -72,6 +77,9 @@ public:
 	virtual FGameplayEffectSpecHandle MakeModEffectSpec(float Damage, float GroggyDamage = 0.0f, const FHitResult* HitResult = nullptr) const;
 
 
+	UFUNCTION(BlueprintCallable)
+	virtual void ApplySourceModCost() const;
+	
 protected:
 	// AvatarActor를 지정한 캐릭터 타입으로 캐스팅하여 반환. CharacterType은 APRCharacterBase 파생만 허용
 	template <typename CharacterType>

@@ -2,12 +2,16 @@
 
 #include "PRGameplayAbility.h"
 #include "AbilitySystemComponent.h"
+#include "Abilities/Mod/PRGA_Mod.h"
 #include "Data/PRAbilitySystemRegistry.h"
 #include "ProjectR/PRGameplayTags.h"
 #include "ProjectR/Character/PRPlayerCharacter.h"
 #include "ProjectR/Combat/PRCombatGameplayTags.h"
 #include "ProjectR/System/PRAssetManager.h"
 #include "ProjectR/Weapon/Components/PRWeaponManagerComponent.h"
+#include "ProjectR/Weapon/Data/PRWeaponDataAsset.h"
+#include "ProjectR/Weapon/Items/PRItemInstance_Mod.h"
+#include "ProjectR/Weapon/Items/PRItemInstance_Weapon.h"
 #include "ProjectR/Weapon/Types/PRWeaponTypes.h"
 
 // =====  UGameplayAbility Interface =====
@@ -59,6 +63,15 @@ bool UPRGameplayAbility::CanActivateAbility(const FGameplayAbilitySpecHandle Han
 	}
 	
 	return bCanActivate;
+}
+
+UPRWeaponDataAsset* UPRGameplayAbility::GetCurrentWeaponData() const
+{
+	if (UPRItemInstance_Weapon* Item = Cast<UPRItemInstance_Weapon>(GetCurrentSourceObject()))
+	{
+		return Item->GetWeaponData();
+	}
+	return nullptr;
 }
 
 UPRWeaponManagerComponent* UPRGameplayAbility::GetWeaponManager(const FGameplayAbilityActorInfo* ActorInfo) const
@@ -120,6 +133,19 @@ FGameplayEffectSpecHandle UPRGameplayAbility::MakeWeaponEffectSpec(const FHitRes
 		return FGameplayEffectSpecHandle();
 	}
 
+	// 이 대미지가 주무기 or 보조무기 중 어떤 무기로부터 발생했는지 컨텍스트 추가
+	if (UPRWeaponDataAsset* WeaponData = GetCurrentWeaponData())
+	{
+		if (WeaponData->SlotType == EPRWeaponSlotType::Primary)
+		{
+			SpecHandle.Data->AddDynamicAssetTag(PRCombatGameplayTags::Ability_Source_Weapon_Primary);
+		}
+		if (WeaponData->SlotType == EPRWeaponSlotType::Secondary)
+		{
+			SpecHandle.Data->AddDynamicAssetTag(PRCombatGameplayTags::Ability_Source_Weapon_Secondary);
+		}
+	}
+	
 	// HitResult가 있으면 EffectContext에 포함시켜 ExecCalc에서 부위 판정에 활용한다
 	if (HitResult != nullptr && HitResult->bBlockingHit)
 	{
@@ -173,4 +199,12 @@ FGameplayEffectSpecHandle UPRGameplayAbility::MakeModEffectSpec(float Damage, fl
 	}
 
 	return SpecHandle;
+}
+
+void UPRGameplayAbility::ApplySourceModCost() const
+{
+	if (UPRGA_Mod* SourceMod = Cast<UPRGA_Mod>(GetCurrentSourceObject()))
+	{
+		SourceMod->ApplyModCost(GetCurrentActorInfo());
+	}
 }

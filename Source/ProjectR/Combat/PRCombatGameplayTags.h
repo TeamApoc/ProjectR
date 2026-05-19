@@ -37,10 +37,16 @@ namespace PRCombatGameplayTags
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(SetByCaller_Equip_SecondaryMaxMagazineAmmo); // 보조무기 탄창 최대값
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(SetByCaller_Equip_SecondaryReserveAmmo); // 보조무기 예비탄 현재값
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(SetByCaller_Equip_SecondaryMaxReserveAmmo); // 보조무기 예비탄 최대값
+	
+	UE_DECLARE_GAMEPLAY_TAG_EXTERN(SetByCaller_ModGauge_Primary); // 주무기 모드게이지 충전량
+	UE_DECLARE_GAMEPLAY_TAG_EXTERN(SetByCaller_ModGauge_Secondary); // 보조무기 모드게이지 충전량
 
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Event_Ability_EnemyMeleeHit);
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Event_Ability_EnemyMeleeWindowBegin);
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Event_Ability_EnemyMeleeWindowTick);
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Event_Ability_EnemyMeleeWindowEnd);
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Event_Ability_EnemyComboWindow);
+	
+	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Ability_Source_Weapon_Primary);
+	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Ability_Source_Weapon_Secondary);
 }

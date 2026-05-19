@@ -198,7 +198,7 @@ public:
 	UPROPERTY(BlueprintReadOnly, ReplicatedUsing = OnRep_SecondaryMaxModStack, Category = "ProjectR|Attributes|Weapon")
 	FGameplayAttributeData SecondaryMaxModStack;
 	PR_ATTRIBUTE_ACCESSORS(UPRAttributeSet_Weapon, SecondaryMaxModStack)
-
+	
 	// 무기 기본 데미지
 	UPROPERTY(BlueprintReadOnly, ReplicatedUsing = OnRep_BaseDamage, Category = "ProjectR|Attributes|Weapon")
 	FGameplayAttributeData BaseDamage;

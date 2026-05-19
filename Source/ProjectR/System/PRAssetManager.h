@@ -7,6 +7,9 @@
 #include "PRAssetManager.generated.h"
 
 class UPRAbilitySystemRegistry;
+class UDataTable;
+class UPRItemDataAsset;
+struct FPRMonsterDropTableRow;
 
 // 프로젝트 전용 AssetManager. DeveloperSettings에 지정된 Registry들을 시작 시 동기 로드 및 캐싱
 UCLASS(Config = Game)
@@ -25,6 +28,12 @@ public:
 	// 캐싱된 AbilitySystem Registry 반환. 미로드 시 Lazy Load
 	UPRAbilitySystemRegistry* GetAbilitySystemRegistry();
 
+	// 몬스터 드롭 테이블 Row를 조회한다
+	const FPRMonsterDropTableRow* FindMonsterDropRow(FName MonsterId);
+
+	// Primary Asset Id로 아이템 데이터 에셋을 조회한다
+	UPRItemDataAsset* GetItemDataByPrimaryAssetId(const FPrimaryAssetId& ItemAssetId);
+
 private:
 	// DeveloperSettings 기반 Registry들을 동기 로드 및 캐시에 등록
 	void LoadRegistries();
@@ -32,4 +41,7 @@ private:
 private:
 	UPROPERTY(Transient)
 	TObjectPtr<UPRAbilitySystemRegistry> CachedAbilitySystemRegistry;
+
+	UPROPERTY(Transient)
+	TObjectPtr<UDataTable> CachedMonsterDropTable;
 };

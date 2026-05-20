@@ -17,6 +17,7 @@
 class APRWeaponActor;
 class USkeletalMesh;
 class UAnimMontage;
+class UDataTable;
 class UGameplayEffect;
 class UUserWidget;
 
@@ -49,6 +50,10 @@ public:
 	// 무기 Unarmed 부착 소켓 이름
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|01_Weapon")
 	EPRWeaponStowedSocketNames StowedSocketName;
+
+	// 무기 전용 강화 단계 비용 데이터 테이블
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|01_Weapon|Upgrade")
+	TObjectPtr<UDataTable> WeaponUpgradeTable = nullptr;
 	
 	// ========= 무기 장착 GE 참조 값 ===============
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|01_Weapon|Stat", meta = (ClampMin = "0.0"))

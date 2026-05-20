@@ -9,6 +9,8 @@
 #include "AbilitySystemInterface.h"
 #include "Components/SphereComponent.h"
 #include "DrawDebugHelpers.h"
+#include "GameFramework/Controller.h"
+#include "GameFramework/Pawn.h"
 #include "PRProjectileMovementComponent.h"
 #include "PRProjectileManagerComponent.h"
 #include "Net/UnrealNetwork.h"
@@ -249,9 +251,30 @@ bool APRProjectileBase::HasProjectileAuthority() const
 void APRProjectileBase::BeginPlay()
 {
 	Super::BeginPlay();
+
+	// 발사자 충돌 제외
+	AActor* IgnoredInstigator = GetInstigator();
+	if (!IsValid(IgnoredInstigator))
+	{
+		if (APawn* OwnerPawn = Cast<APawn>(GetOwner()))
+		{
+			IgnoredInstigator = OwnerPawn;
+		}
+		else if (AController* OwnerController = Cast<AController>(GetOwner()))
+		{
+			IgnoredInstigator = OwnerController->GetPawn();
+		}
+	}
+
+	if (IsValid(IgnoredInstigator))
+	{
+		if (IsValid(SphereComponent))
+		{
+			SphereComponent->IgnoreActorWhenMoving(IgnoredInstigator, true);
+		}
+	}
 	
 	// 투사체의 NetOwner는 PC로 설정되므로, 클라이언트 remote에서는 nullptr이다.
-	// AI/보스가 서버에서 직접 생성한 권위 투사체는 NetOwner가 없을 수 있으므로 서버에서는 remote 판정을 하지 않는다.
 	bIsRemoteProjectile = !HasAuthority() && GetNetOwner() == nullptr;
 	
 	if (bIsRemoteProjectile)

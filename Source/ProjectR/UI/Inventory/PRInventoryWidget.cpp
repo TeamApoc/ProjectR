@@ -4,12 +4,18 @@
 #include "PRInventoryWidget.h"
 
 #include "GameFramework/PlayerController.h"
+#include "Components/TextBlock.h"
 #include "ProjectR/Character/PRPlayerCharacter.h"
 #include "ProjectR/Inventory/Components/PRInventoryComponent.h"
 #include "ProjectR/Inventory/Data/PRConsumableDataAsset.h"
 #include "ProjectR/Inventory/Data/PRItemDataAsset.h"
+#include "ProjectR/Inventory/Data/PRMaterialDataAsset.h"
 #include "ProjectR/Inventory/Items/PRItemInstance_Consumable.h"
+#include "ProjectR/Inventory/Items/PRItemInstance_Material.h"
 #include "ProjectR/Inventory/Components/PRQuickSlotComponent.h"
+#include "ProjectR/Player/PRPlayerState.h"
+#include "ProjectR/Player/Components/PRCurrencyComponent.h"
+#include "ProjectR/UI/Inventory/PRCurrencyDisplayWidget.h"
 #include "ProjectR/Weapon/Components/PRWeaponManagerComponent.h"
 #include "ProjectR/Weapon/Data/PRWeaponDataAsset.h"
 #include "ProjectR/Weapon/Data/PRWeaponModDataAsset.h"
@@ -101,6 +107,11 @@ void UPRInventoryWidget::BindChildWidgetEvents()
 		QuickSlotItemSlotWidget3->OnLeftClicked.AddDynamic(this, &UPRInventoryWidget::HandleQuickSlot3LeftClicked);
 	}
 
+	if (IsValid(MaterialSlotWidget))
+	{
+		MaterialSlotWidget->OnLeftClicked.AddDynamic(this, &UPRInventoryWidget::HandleMaterialSlotLeftClicked);
+	}
+
 	// 아이템 리스트 위젯 이벤트 바인드
 	if (IsValid(ItemListWidget))
 	{
@@ -144,6 +155,11 @@ void UPRInventoryWidget::UnbindChildWidgetEvents()
 		QuickSlotItemSlotWidget3->OnLeftClicked.RemoveDynamic(this, &UPRInventoryWidget::HandleQuickSlot3LeftClicked);
 	}
 
+	if (IsValid(MaterialSlotWidget))
+	{
+		MaterialSlotWidget->OnLeftClicked.RemoveDynamic(this, &UPRInventoryWidget::HandleMaterialSlotLeftClicked);
+	}
+
 	// 아이템 리스트 이벤트 언바인드
 	if (IsValid(ItemListWidget))
 	{
@@ -170,6 +186,13 @@ void UPRInventoryWidget::BindInventorySourceEvents()
 		QuickSlotComponent->GetOnQuickSlotChanged().RemoveDynamic(this, &UPRInventoryWidget::HandleQuickSlotChanged);
 		QuickSlotComponent->GetOnQuickSlotChanged().AddDynamic(this, &UPRInventoryWidget::HandleQuickSlotChanged);
 	}
+
+	CurrencyComponent = ResolveCurrencyComponent();
+	if (IsValid(CurrencyComponent))
+	{
+		CurrencyComponent->OnScrapChanged.RemoveDynamic(this, &UPRInventoryWidget::HandleScrapChanged);
+		CurrencyComponent->OnScrapChanged.AddDynamic(this, &UPRInventoryWidget::HandleScrapChanged);
+	}
 }
 
 void UPRInventoryWidget::UnbindInventorySourceEvents()
@@ -188,11 +211,24 @@ void UPRInventoryWidget::UnbindInventorySourceEvents()
 	{
 		QuickSlotComponent->GetOnQuickSlotChanged().RemoveDynamic(this, &UPRInventoryWidget::HandleQuickSlotChanged);
 	}
+
+	if (IsValid(CurrencyComponent))
+	{
+		CurrencyComponent->OnScrapChanged.RemoveDynamic(this, &UPRInventoryWidget::HandleScrapChanged);
+	}
+
+	CurrencyComponent = nullptr;
 }
 
 //
 void UPRInventoryWidget::HandlePrimaryWeaponSlotLeftClicked(const FPRInventoryItemSlotViewData& ViewData)
 {
+	if (IsItemListOpenAs(EPRItemType::PrimaryWeapon) && PendingWeaponListSlot == EPRWeaponSlotType::Primary)
+	{
+		CloseItemList();
+		return;
+	}
+
 	// 주무기 슬롯 위젯 좌클릭 시 주무기 아이템 리스트 열기
 	OpenWeaponList(EPRWeaponSlotType::Primary);
 }
@@ -204,11 +240,23 @@ void UPRInventoryWidget::HandlePrimaryWeaponSlotRightClicked(const FPRInventoryI
 		? WeaponManagerComponent->GetWeaponInstanceBySlotType(EPRWeaponSlotType::Primary)
 		: nullptr;
 
+	if (IsItemListOpenAs(EPRItemType::Mod) && PendingModTargetWeaponItem == WeaponItem)
+	{
+		CloseItemList();
+		return;
+	}
+
 	OpenModList(WeaponItem);
 }
 
 void UPRInventoryWidget::HandleSecondaryWeaponSlotLeftClicked(const FPRInventoryItemSlotViewData& ViewData)
 {
+	if (IsItemListOpenAs(EPRItemType::SecondaryWeapon) && PendingWeaponListSlot == EPRWeaponSlotType::Secondary)
+	{
+		CloseItemList();
+		return;
+	}
+
 	// 보조무기 슬롯 위젯 좌클릭 시 주무기 아이템 리스트 열기
 	OpenWeaponList(EPRWeaponSlotType::Secondary);
 }
@@ -220,27 +268,68 @@ void UPRInventoryWidget::HandleSecondaryWeaponSlotRightClicked(const FPRInventor
 		? WeaponManagerComponent->GetWeaponInstanceBySlotType(EPRWeaponSlotType::Secondary)
 		: nullptr;
 
+	if (IsItemListOpenAs(EPRItemType::Mod) && PendingModTargetWeaponItem == WeaponItem)
+	{
+		CloseItemList();
+		return;
+	}
+
 	OpenModList(WeaponItem);
 }
 
 void UPRInventoryWidget::HandleQuickSlot0LeftClicked(const FPRInventoryItemSlotViewData& ViewData)
 {
+	if (IsItemListOpenAs(EPRItemType::Consumable) && PendingQuickSlotIndex == 0)
+	{
+		CloseItemList();
+		return;
+	}
+
 	OpenConsumableListForQuickSlot(0);
 }
 
 void UPRInventoryWidget::HandleQuickSlot1LeftClicked(const FPRInventoryItemSlotViewData& ViewData)
 {
+	if (IsItemListOpenAs(EPRItemType::Consumable) && PendingQuickSlotIndex == 1)
+	{
+		CloseItemList();
+		return;
+	}
+
 	OpenConsumableListForQuickSlot(1);
 }
 
 void UPRInventoryWidget::HandleQuickSlot2LeftClicked(const FPRInventoryItemSlotViewData& ViewData)
 {
+	if (IsItemListOpenAs(EPRItemType::Consumable) && PendingQuickSlotIndex == 2)
+	{
+		CloseItemList();
+		return;
+	}
+
 	OpenConsumableListForQuickSlot(2);
 }
 
 void UPRInventoryWidget::HandleQuickSlot3LeftClicked(const FPRInventoryItemSlotViewData& ViewData)
 {
+	if (IsItemListOpenAs(EPRItemType::Consumable) && PendingQuickSlotIndex == 3)
+	{
+		CloseItemList();
+		return;
+	}
+
 	OpenConsumableListForQuickSlot(3);
+}
+
+void UPRInventoryWidget::HandleMaterialSlotLeftClicked(const FPRInventoryItemSlotViewData& ViewData)
+{
+	if (IsItemListOpenAs(EPRItemType::Material))
+	{
+		CloseItemList();
+		return;
+	}
+
+	OpenMaterialList();
 }
 
 void UPRInventoryWidget::HandleItemListSelection(const FPRInventoryItemSlotViewData& ViewData)
@@ -298,6 +387,10 @@ void UPRInventoryWidget::HandleItemListSelection(const FPRInventoryItemSlotViewD
 			QuickSlotComponent->RequestRegisterQuickSlotItem(PendingQuickSlotIndex, ConsumableData);
 		}
 	}
+	else if (CurrentListType == EPRItemType::Material)
+	{
+		// 재료는 현재 인벤토리에서 상세 행동 없이 보유 목록만 확인한다
+	}
 
 	CloseItemList();
 }
@@ -337,6 +430,13 @@ void UPRInventoryWidget::HandleQuickSlotChanged(UPRQuickSlotComponent* ChangedQu
 	}
 
 	RefreshQuickSlotWidgets();
+}
+
+void UPRInventoryWidget::HandleScrapChanged(int32 NewScrap)
+{
+	static_cast<void>(NewScrap);
+
+	RefreshCurrencyText();
 }
 
 void UPRInventoryWidget::OpenWeaponList(EPRWeaponSlotType TargetSlot)
@@ -450,6 +550,38 @@ void UPRInventoryWidget::OpenConsumableListForQuickSlot(int32 SlotIndex)
 	ItemListWidget->SetVisibility(ESlateVisibility::Visible);
 }
 
+void UPRInventoryWidget::OpenMaterialList()
+{
+	if (!IsValid(ItemListWidget) || !IsValid(InventoryComponent))
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[InventoryWidget] 재료 아이템 리스트 열기 실패. OpenMaterialList()"));
+		return;
+	}
+
+	PendingWeaponListSlot = EPRWeaponSlotType::None;
+	PendingModTargetWeaponItem = nullptr;
+	PendingQuickSlotIndex = INDEX_NONE;
+
+	TArray<FPRInventoryItemSlotViewData> ListItems;
+	for (UPRItemInstance_Material* MaterialItem : InventoryComponent->InventoryMaterialItems)
+	{
+		if (!IsValid(MaterialItem))
+		{
+			continue;
+		}
+
+		ListItems.Add(BuildMaterialItemViewData(MaterialItem));
+	}
+
+	ItemListWidget->SetItemList(EPRItemType::Material, ListItems);
+	ItemListWidget->SetVisibility(ESlateVisibility::Visible);
+}
+
+bool UPRInventoryWidget::IsItemListOpenAs(EPRItemType ListType) const
+{
+	return IsValid(ItemListWidget) && ItemListWidget->IsVisible() && ItemListWidget->GetListType() == ListType;
+}
+
 void UPRInventoryWidget::CloseItemList()
 {
 	//아이템 리스트 위젯이 유효하면
@@ -506,11 +638,44 @@ void UPRInventoryWidget::RefreshQuickSlotWidgets()
 	}
 }
 
+void UPRInventoryWidget::RefreshMaterialSlotWidget()
+{
+	if (IsValid(MaterialSlotWidget))
+	{
+		MaterialSlotWidget->SetSlotViewData(BuildMaterialSlotViewData());
+	}
+}
+
+void UPRInventoryWidget::RefreshCurrencyText()
+{
+	if (!IsValid(ScrapDisplayWidget) && !IsValid(ScrapAmountText))
+	{
+		return;
+	}
+
+	if (!IsValid(CurrencyComponent))
+	{
+		CurrencyComponent = ResolveCurrencyComponent();
+	}
+
+	const int32 ScrapAmount = IsValid(CurrencyComponent) ? CurrencyComponent->GetScrap() : 0;
+	if (IsValid(ScrapDisplayWidget))
+	{
+		ScrapDisplayWidget->SetScrapAmount(ScrapAmount);
+	}
+	else if (IsValid(ScrapAmountText))
+	{
+		ScrapAmountText->SetText(FText::AsNumber(ScrapAmount));
+	}
+}
+
 void UPRInventoryWidget::RefreshInventoryView()
 {
 	// 장착 슬롯은 리스트 표시 여부와 관계없이 항상 최신 상태로 맞춘다
 	RefreshEquippedSlotWidgets();
 	RefreshQuickSlotWidgets();
+	RefreshMaterialSlotWidget();
+	RefreshCurrencyText();
 
 	if (!IsValid(ItemListWidget) || !ItemListWidget->IsVisible())
 	{
@@ -534,6 +699,10 @@ void UPRInventoryWidget::RefreshInventoryView()
 	else if (CurrentListType == EPRItemType::Consumable && PendingQuickSlotIndex != INDEX_NONE)
 	{
 		OpenConsumableListForQuickSlot(PendingQuickSlotIndex);
+	}
+	else if (CurrentListType == EPRItemType::Material)
+	{
+		OpenMaterialList();
 	}
 }
 
@@ -659,6 +828,39 @@ FPRInventoryItemSlotViewData UPRInventoryWidget::BuildConsumableItemViewData(UPR
 	return ViewData;
 }
 
+FPRInventoryItemSlotViewData UPRInventoryWidget::BuildMaterialSlotViewData() const
+{
+	FPRInventoryItemSlotViewData ViewData;
+	ViewData.ItemType = EPRItemType::Material;
+	ViewData.DisplayName = FText::FromString(TEXT("재료"));
+	return ViewData;
+}
+
+FPRInventoryItemSlotViewData UPRInventoryWidget::BuildMaterialItemViewData(UPRItemInstance_Material* MaterialItem) const
+{
+	FPRInventoryItemSlotViewData ViewData;
+	if (!IsValid(MaterialItem))
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[InventoryWidget] 재료 아이템 없음. BuildMaterialItemViewData()"));
+		return ViewData;
+	}
+
+	UPRMaterialDataAsset* MaterialData = MaterialItem->GetMaterialData();
+	ViewData.ItemData = MaterialData;
+	ViewData.ItemInstance = MaterialItem;
+	ViewData.ItemType = EPRItemType::Material;
+	ViewData.StackCount = MaterialItem->GetStackCount();
+	ViewData.bShowStackCount = true;
+
+	if (IsValid(MaterialData))
+	{
+		ViewData.DisplayName = MaterialData->GetDisplayName();
+		ViewData.Icon = MaterialData->GetIcon();
+	}
+
+	return ViewData;
+}
+
 FPRInventoryItemSlotViewData UPRInventoryWidget::BuildQuickSlotViewData(int32 SlotIndex) const
 {
 	FPRInventoryItemSlotViewData ViewData;
@@ -735,4 +937,20 @@ bool UPRInventoryWidget::IsModCompatibleWithWeapon(const UPRItemInstance_Mod* Mo
 	}
 
 	return WeaponData->SupportedModTags.HasAny(ModData->ModTags);
+}
+
+UPRCurrencyComponent* UPRInventoryWidget::ResolveCurrencyComponent() const
+{
+	if (!IsValid(InventoryComponent))
+	{
+		return nullptr;
+	}
+
+	const APRPlayerState* PlayerState = Cast<APRPlayerState>(InventoryComponent->GetOwner());
+	if (!IsValid(PlayerState))
+	{
+		return nullptr;
+	}
+
+	return PlayerState->GetCurrencyComponent();
 }

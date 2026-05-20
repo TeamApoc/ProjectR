@@ -18,6 +18,7 @@ class UPRAttributeSet_Weapon;
 class UPRInventoryComponent;
 class UPREquipmentManagerComponent;
 class UPRQuickSlotComponent;
+class UPRCurrencyComponent;
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnMouseSensitivityChanged, float, NewSensitivity);
 
@@ -66,6 +67,10 @@ public:
 	// 플레이어 퀵슬롯 컴포넌트를 반환
 	UFUNCTION(BlueprintPure, Category = "ProjectR|QuickSlot")
 	UPRQuickSlotComponent* GetQuickSlotComponent() const { return QuickSlotComponent; }
+
+	// 플레이어 재화 컴포넌트를 반환
+	UFUNCTION(BlueprintPure, Category = "ProjectR|Currency")
+	UPRCurrencyComponent* GetCurrencyComponent() const { return CurrencyComponent; }
 
 	// 지정 무기 슬롯의 캐시된 탄창과 예비탄 비율을 반환한다
 	void GetCachedAmmoRatios(EPRWeaponSlotType SlotType, float& OutMagazineRatio, float& OutReserveRatio) const;
@@ -171,6 +176,10 @@ protected:
 	// 플레이어 소비 아이템 퀵슬롯 상태 컴포넌트
 	UPROPERTY(VisibleAnywhere, Category = "ProjectR|QuickSlot")
 	TObjectPtr<UPRQuickSlotComponent> QuickSlotComponent;
+
+	// 플레이어가 보유한 고철 재화 컨테이너
+	UPROPERTY(VisibleAnywhere, Category = "ProjectR|Currency")
+	TObjectPtr<UPRCurrencyComponent> CurrencyComponent;
 
 	// 주무기 슬롯 탄창 보존 비율
 	float CachedPrimaryMagazineAmmoRatio = 1.0f;

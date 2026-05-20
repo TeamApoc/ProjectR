@@ -32,6 +32,9 @@ void UPRInventoryItemListWidget::SetItemList(EPRItemType InListType, const TArra
 		case EPRItemType::Mod:
 		ItemTypeString = TEXT("모드");
 		break;
+		case EPRItemType::Material:
+		ItemTypeString = TEXT("재료");
+		break;
 		case EPRItemType::Weapon:
 		ItemTypeString = TEXT("무기");
 		break;

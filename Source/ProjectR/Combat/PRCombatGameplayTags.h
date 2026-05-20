@@ -43,4 +43,5 @@ namespace PRCombatGameplayTags
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Event_Ability_EnemyMeleeWindowTick);
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Event_Ability_EnemyMeleeWindowEnd);
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Event_Ability_EnemyComboWindow);
+	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Event_Ability_EnemyProjectileFire);
 }

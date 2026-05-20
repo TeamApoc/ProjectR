@@ -39,4 +39,5 @@ namespace PRCombatGameplayTags
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Event_Ability_EnemyMeleeWindowTick, "Event.Ability.EnemyMeleeWindowTick", "적 근접 공격 판정 구간 갱신 이벤트");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Event_Ability_EnemyMeleeWindowEnd, "Event.Ability.EnemyMeleeWindowEnd", "적 근접 공격 판정 구간 종료 이벤트");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Event_Ability_EnemyComboWindow, "Event.Ability.EnemyComboWindow", "적 콤보 분기 윈도우 이벤트");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Event_Ability_EnemyProjectileFire, "Event.Ability.EnemyProjectileFire", "적 투사체 발사 프레임 이벤트");
 }

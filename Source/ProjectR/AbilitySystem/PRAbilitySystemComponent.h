@@ -71,6 +71,9 @@ public:
 	 */
 	bool TryConsumeClientReplicatedTargetData(FGameplayAbilitySpecHandle AbilityHandle, FPredictionKey AbilityOriginalPredictionKey);
 	
+	UFUNCTION(NetMulticast, Reliable)
+	void MulticastTriggerEvent(FGameplayTag EventTag);
+	
 protected:
 	// 어빌리티 종료 시 델리게이트 브로드캐스트
 	UFUNCTION()

@@ -36,7 +36,7 @@ public:
 
 	// 소프트 참조된 맵으로 ServerTravel 진입. 호스트 권위에서만 동작
 	UFUNCTION(BlueprintCallable, Category = "ProjectR|Session")
-	void ServerTravelToMap(TSoftObjectPtr<UWorld> MapAsset, bool bAbsolute = true);
+	void ServerTravelToMap(TSoftObjectPtr<UWorld> MapAsset, bool bAbsolute = false);
 
 	// 로컬 캐릭터 세이브 로드. 메뉴에서 "이어하기" 선택 시 호출
 	// 현재 단계에서는 스켈레톤 구현. 세이브 시스템 연동 시 본 메서드에서 SaveGame 로드 분기 추가

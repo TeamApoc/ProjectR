@@ -1,6 +1,8 @@
 // Copyright ProjectR. All Rights Reserved.
 
 #include "PRAbilitySystemComponent.h"
+
+#include "AbilitySystemBlueprintLibrary.h"
 #include "ProjectR/AbilitySystem/PRGameplayAbility.h"
 #include "ProjectR/PRGameplayTags.h"
 #include "Engine/DataTable.h"
@@ -492,6 +494,11 @@ bool UPRAbilitySystemComponent::TryConsumeClientReplicatedTargetData(FGameplayAb
 		return bConsumed;
 	}
 	return false;
+}
+
+void UPRAbilitySystemComponent::MulticastTriggerEvent_Implementation(FGameplayTag EventTag)
+{
+	UAbilitySystemBlueprintLibrary::SendGameplayEventToActor(GetOwner(),EventTag,FGameplayEventData());
 }
 
 // =====  내부 =====

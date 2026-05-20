@@ -7,6 +7,8 @@
 #include "GameFramework/Controller.h"
 #include "GameFramework/Pawn.h"
 #include "Net/UnrealNetwork.h"
+#include "ProjectR/PRGameplayTags.h"
+#include "ProjectR/System/PREventManagerSubsystem.h"
 
 void FPRActiveInteractionInfo::Reset()
 {
@@ -134,6 +136,18 @@ void UPRInteractorComponent::SetFocus(UPRInteractableComponent* NewFocus)
 void UPRInteractorComponent::ClearFocus()
 {
 	SetFocus(nullptr);
+	
+	UPREventManagerSubsystem* EventMgr = GetWorld()->GetSubsystem<UPREventManagerSubsystem>();
+	if (!IsValid(EventMgr))
+	{
+		return;
+	}
+	
+	FPRInteractableEventPayload Payload;
+	Payload.bShowPrompt = false;
+	Payload.bCanInteract =  false;
+
+	EventMgr->BroadcastTyped(PRGameplayTags::Event_Player_Interactable, Payload);
 }
 
 void UPRInteractorComponent::TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction)

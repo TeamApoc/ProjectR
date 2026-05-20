@@ -135,12 +135,12 @@ void UPRItemInstance_Weapon::GrantEquippedAbilitySets(AActor* OwnerActor)
 
 	if (UPRAbilitySet* WeaponAbilitySet = GetWeaponAbilitySet())
 	{
-		ASC->GiveAbilitySet(WeaponAbilitySet, WeaponAbilityHandles);
+		ASC->GiveAbilitySet(WeaponAbilitySet, WeaponAbilityHandles, this);
 	}
 
 	if (UPRAbilitySet* ModAbilitySet = GetModAbilitySet())
 	{
-		ASC->GiveAbilitySet(ModAbilitySet, ModAbilityHandles);
+		ASC->GiveAbilitySet(ModAbilitySet, ModAbilityHandles, this);
 	}
 
 	LastWeaponFailReason = EPRWeaponActionFailReason::None;
@@ -229,7 +229,7 @@ void UPRItemInstance_Weapon::RebuildModAbility(AActor* OwnerActor, UPRWeaponModD
 	{
 		if (UPRAbilitySet* ModAbilitySet = GetModAbilitySet())
 		{
-			ASC->GiveAbilitySet(ModAbilitySet, ModAbilityHandles);
+			ASC->GiveAbilitySet(ModAbilitySet, ModAbilityHandles, this);
 		}
 	}
 

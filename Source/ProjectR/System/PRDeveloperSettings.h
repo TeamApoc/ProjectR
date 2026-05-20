@@ -11,6 +11,8 @@ enum class EPRFloatingTextType : uint8;
 class UPRAbilitySystemRegistry;
 class UPRFloatingTextWidget;
 class UUserWidget;
+class UDataTable;
+class APRRewardPickupActor;
 
 // 플로팅 텍스트 타입별 위젯 클래스 및 색상 설정
 USTRUCT(BlueprintType)
@@ -57,6 +59,14 @@ public:
 	// AbilitySystem 전용 Registry 소프트 레퍼런스
 	UPROPERTY(EditAnywhere, Config, Category = "Registries", meta = (AllowedClasses = "/Script/ProjectR.PRAbilitySystemRegistry"))
 	TSoftObjectPtr<UPRAbilitySystemRegistry> AbilitySystemRegistry;
+
+	// 몬스터별 드롭 보상 테이블
+	UPROPERTY(EditAnywhere, Config, Category = "Registries", meta = (RequiredAssetDataTags = "RowStructure=/Script/ProjectR.PRMonsterDropTableRow"))
+	TSoftObjectPtr<UDataTable> MonsterDropTable;
+
+	// 드롭 보상 픽업에 사용할 액터 클래스
+	UPROPERTY(EditAnywhere, Config, Category = "Registries", meta = (AllowedClasses = "/Script/ProjectR.PRRewardPickupActor"))
+	TSoftClassPtr<APRRewardPickupActor> RewardPickupActorClass;
 	
 	// EPRCrosshairType : CrosshairWidgetClass 매핑
 	UPROPERTY(EditAnywhere, Config, Category = "Registries")

@@ -5,12 +5,78 @@
 #include "Abilities/Tasks/AbilityTask_PlayMontageAndWait.h"
 #include "AIController.h"
 #include "Animation/AnimMontage.h"
+#include "AbilitySystemComponent.h"
 #include "Components/CapsuleComponent.h"
 #include "GameFramework/Character.h"
 #include "GameFramework/CharacterMovementComponent.h"
+#include "GameFramework/PlayerState.h"
 #include "TimerManager.h"
+#include "ProjectR/AI/Components/PREnemyThreatComponent.h"
 #include "ProjectR/Character/Enemy/PREnemyBaseCharacter.h"
+#include "ProjectR/Inventory/Types/PRDropTypes.h"
 #include "ProjectR/PRGameplayTags.h"
+#include "ProjectR/World/Drop/PRItemDropManagerSubsystem.h"
+
+namespace
+{
+	// 사망 이벤트의 Instigator가 컨트롤러, 폰, 플레이어 스테이트, 투사체처럼 여러 형태로 올 수 있어 컨트롤러까지 역추적한다.
+	AController* ResolveDropControllerFromActor(AActor* Actor)
+	{
+		if (!IsValid(Actor))
+		{
+			return nullptr;
+		}
+
+		if (AController* Controller = Cast<AController>(Actor))
+		{
+			return Controller;
+		}
+
+		if (APlayerState* PlayerState = Cast<APlayerState>(Actor))
+		{
+			return PlayerState->GetPlayerController();
+		}
+
+		if (APawn* Pawn = Cast<APawn>(Actor))
+		{
+			return Pawn->GetController();
+		}
+
+		return ResolveDropControllerFromActor(Actor->GetOwner());
+	}
+
+	// 데미지 GE Context는 공격 경로에 따라 Instigator, OriginalInstigator, EffectCauser 중 다른 곳에 플레이어 출처가 들어갈 수 있다.
+	AController* ResolveDropControllerFromEffectContext(const FGameplayEffectContextHandle& ContextHandle)
+	{
+		if (AController* Controller = ResolveDropControllerFromActor(ContextHandle.GetInstigator()))
+		{
+			return Controller;
+		}
+
+		if (AController* Controller = ResolveDropControllerFromActor(ContextHandle.GetOriginalInstigator()))
+		{
+			return Controller;
+		}
+
+		if (AController* Controller = ResolveDropControllerFromActor(ContextHandle.GetEffectCauser()))
+		{
+			return Controller;
+		}
+
+		const UAbilitySystemComponent* InstigatorASC = ContextHandle.GetInstigatorAbilitySystemComponent();
+		if (IsValid(InstigatorASC))
+		{
+			if (AController* Controller = ResolveDropControllerFromActor(InstigatorASC->GetOwnerActor()))
+			{
+				return Controller;
+			}
+
+			return ResolveDropControllerFromActor(InstigatorASC->GetAvatarActor());
+		}
+
+		return nullptr;
+	}
+}
 
 UPRGameplayAbility_EnemyDeath::UPRGameplayAbility_EnemyDeath()
 {
@@ -39,6 +105,8 @@ void UPRGameplayAbility_EnemyDeath::ActivateAbility(const FGameplayAbilitySpecHa
 	}
 
 	bDeathFinished = false;
+
+	RequestMonsterDrop(TriggerEventData);
 
 	if (ACharacter* Character = Cast<ACharacter>(GetAvatarActorFromActorInfo()))
 	{
@@ -185,6 +253,56 @@ void UPRGameplayAbility_EnemyDeath::RequestDeathDissolveVisual()
 		DissolveTexture,
 		DissolveTextureUV,
 		DissolveTickInterval);
+}
+
+void UPRGameplayAbility_EnemyDeath::RequestMonsterDrop(const FGameplayEventData* TriggerEventData)
+{
+	APREnemyBaseCharacter* EnemyCharacter = Cast<APREnemyBaseCharacter>(GetAvatarActorFromActorInfo());
+	if (!IsValid(EnemyCharacter) || !EnemyCharacter->HasAuthority())
+	{
+		return;
+	}
+
+	UWorld* World = GetWorld();
+	if (!IsValid(World))
+	{
+		return;
+	}
+
+	UPRItemDropManagerSubsystem* DropManager = World->GetSubsystem<UPRItemDropManagerSubsystem>();
+	if (!IsValid(DropManager))
+	{
+		return;
+	}
+
+	AController* KillerController = nullptr;
+	if (TriggerEventData != nullptr)
+	{
+		// GameplayEvent의 직접 Instigator를 먼저 사용하고, 비어 있으면 GE Context 안의 공격 출처를 순차적으로 확인한다.
+		AActor* InstigatorActor = const_cast<AActor*>(TriggerEventData->Instigator.Get());
+		KillerController = ResolveDropControllerFromActor(InstigatorActor);
+		if (!IsValid(KillerController))
+		{
+			KillerController = ResolveDropControllerFromEffectContext(TriggerEventData->ContextHandle);
+		}
+	}
+
+	if (!IsValid(KillerController))
+	{
+		// 일부 공격 경로에서 이벤트 Context가 비어 있을 수 있으므로, 마지막으로 적이 기억하는 현재 타겟을 개인 보상 대상으로 사용한다.
+		if (UPREnemyThreatComponent* ThreatComponent = EnemyCharacter->GetEnemyThreatComponent())
+		{
+			KillerController = ResolveDropControllerFromActor(ThreatComponent->GetCurrentTarget());
+		}
+	}
+
+	FPRMonsterDeathDropRequest DropRequest;
+	DropRequest.MonsterId = EnemyCharacter->GetMonsterId();
+	DropRequest.DeadMonster = EnemyCharacter;
+	DropRequest.KillerController = KillerController;
+	DropRequest.DropLocation = EnemyCharacter->GetActorLocation();
+
+	DropManager->HandleMonsterDied(DropRequest);
 }
 
 float UPRGameplayAbility_EnemyDeath::CalculateDeathDestroyDelay() const

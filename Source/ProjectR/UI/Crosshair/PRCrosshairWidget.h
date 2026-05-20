@@ -43,9 +43,6 @@ private:
 	// 등록된 EventManager 핸들 정리
 	void UnbindFromEventManager();
 
-	// 현재 월드의 EventManager 조회
-	UPREventManagerSubsystem* GetEventManager() const;
-
 private:
 	FDelegateHandle HitShotHandle;
 	FDelegateHandle RecoilHandle;

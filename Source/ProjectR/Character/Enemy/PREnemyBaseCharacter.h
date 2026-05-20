@@ -81,6 +81,9 @@ public:
 	const UPRAttributeSet_Enemy* GetEnemySet() const { return EnemySet; }
 	UPREnemyWorldHealthBarComponent* GetEnemyWorldHealthBarComponent() const { return EnemyWorldHealthBarComponent; }
 
+	// 드롭 테이블 조회에 사용할 몬스터 식별자를 반환한다
+	FName GetMonsterId() const { return CharacterID; }
+
 	// 서버 사망 Ability에서 모든 클라이언트에 사망 Dissolve 시각 연출을 요청한다.
 	void RequestDeathDissolveVisual(
 		UAnimMontage* InDeathMontage,
@@ -159,7 +162,9 @@ protected:
 
 	// 사망 몽타주 이후 Idle로 돌아가지 않도록 현재 포즈를 고정한다.
 	void FreezeDeathDissolvePose();
-
+	
+	void GiveModGauge(const FPRDamageAppliedContext& Context) const;
+protected:
 	// 적은 PlayerState가 아니라 캐릭터 자신이 ASC를 소유한다.
 	UPROPERTY(VisibleAnywhere, Category = "ProjectR|Ability")
 	TObjectPtr<UPRAbilitySystemComponent> AbilitySystemComponent;

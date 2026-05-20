@@ -34,10 +34,16 @@ namespace PRCombatGameplayTags
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(SetByCaller_Equip_SecondaryReserveAmmo, "SetByCaller.Equip.Secondary.ReserveAmmo", "보조무기 예비탄 현재값");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(SetByCaller_Equip_SecondaryMaxReserveAmmo, "SetByCaller.Equip.Secondary.MaxReserveAmmo", "보조무기 예비탄 최대값");
 
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(SetByCaller_ModGauge_Primary, "SetByCaller.ModGauge.Primary","주무기 모드게이지 충전량");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(SetByCaller_ModGauge_Secondary,"SetByCaller.ModGauge.Secondary","보조무기 모드게이지 충전량"); 
+	
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Event_Ability_EnemyMeleeHit, "Event.Ability.EnemyMeleeHit", "적 근접 공격 타격 프레임 이벤트");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Event_Ability_EnemyMeleeWindowBegin, "Event.Ability.EnemyMeleeWindowBegin", "적 근접 공격 판정 구간 시작 이벤트");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Event_Ability_EnemyMeleeWindowTick, "Event.Ability.EnemyMeleeWindowTick", "적 근접 공격 판정 구간 갱신 이벤트");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Event_Ability_EnemyMeleeWindowEnd, "Event.Ability.EnemyMeleeWindowEnd", "적 근접 공격 판정 구간 종료 이벤트");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Event_Ability_EnemyComboWindow, "Event.Ability.EnemyComboWindow", "적 콤보 분기 윈도우 이벤트");
+	
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Ability_Source_Weapon_Primary, "Ability.Source.Weapon.Primary", "주무기에 의한 대미지 컨텍스트 태그");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Ability_Source_Weapon_Secondary, "Ability.Source.Weapon.Secondary", "보조무기에 의한 대미지 컨텍스트 태그");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Event_Ability_EnemyProjectileFire, "Event.Ability.EnemyProjectileFire", "적 투사체 발사 프레임 이벤트");
 }

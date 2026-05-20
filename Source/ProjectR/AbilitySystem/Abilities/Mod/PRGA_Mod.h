@@ -8,6 +8,7 @@
 #include "ProjectR/AbilitySystem/Abilities/Player/PRFireAbilityTypes.h"
 #include "PRGA_Mod.generated.h"
 
+class UPRWeaponModDataAsset;
 class UPRWeaponManagerComponent;
 class APRWeaponActor;
 
@@ -18,7 +19,7 @@ enum class EPRWeaponSlotType : uint8;
 
 // 모드 어빌리티의 공통 비용 처리 방식
 UENUM(BlueprintType)
-enum class EPRModCostPolicyType : uint8
+enum class EPRModCostPolicy : uint8
 {
 	None,
 	Stack,
@@ -38,28 +39,25 @@ public:
 public:
 	/*~ UGameplayAbility Interface ~*/
 	virtual void ActivateAbility(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilityActivationInfo ActivationInfo, const FGameplayEventData* TriggerEventData) override;
-
+	virtual void EndAbility(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilityActivationInfo ActivationInfo, bool bReplicateEndAbility, bool bWasCancelled) override;
+	
 	// ========= Mod Base  =============
 	// 모드 공통 비용 조건을 검사한다
 	virtual bool CheckCost(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo, FGameplayTagContainer* OptionalRelevantTags = nullptr) const override;
+	void ApplyModCost(const FGameplayAbilityActorInfo* ActorInfo) const;
 
 	// 모드 공통 비용을 적용한다
 	virtual void ApplyCost(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilityActivationInfo ActivationInfo) const override;
 
-public:
-	// 총구 위치. CurrentWeapon이 유효하지 않으면 아바타 정면 폴백 위치 반환
-	UFUNCTION(BlueprintPure)
-	virtual FVector GetMuzzleLocation() const;
+	// Instance된 어빌리티의 SourceObject(ItemInstance)로부터 ModData를 반환
+	UPRWeaponModDataAsset* GetCurrentModData() const;
+
+	// 코스트 정책
+	EPRModCostPolicy GetModCostPolicy() const {return ModCostPolicy;}
 	
-	// 총구 위치, 회전
-	UFUNCTION(BlueprintPure)
-	virtual FTransform GetMuzzleTransform() const;
-
-	// 로컬 화면 Viewpoint(카메라 위치/회전) 추출. 로컬 컨트롤러에서만 호출
-	virtual FPRFireViewpoint GetFireViewpoint() const;
-
-	// 카메라에서 조준 방향으로 트레이스해 조준 끝점(월드 좌표) 산출. 적중 없으면 최대 거리 끝점
-	virtual FVector ResolveAimPoint(const FPRFireViewpoint& View, float InMaxTraceDistance) const;
+public:
+	UFUNCTION(BlueprintCallable)
+	UPRWeaponManagerComponent* GetWeaponManager();
 
 protected:
 	// 모드 스킬 데미지 GE를 타겟에 적용, Damage와 GroggyDamage를 SetByCaller로 전달
@@ -67,27 +65,15 @@ protected:
 
 	// ========= Mod Base  =============
 	// 모드 비용 처리 방식을 설정한다
-	void SetModCostPolicy(EPRModCostPolicyType InModCostType);
+	void SetModCostPolicy(EPRModCostPolicy InModCostType);
 
 protected:
-	// 카메라 조준 트레이스 최대 거리
+	// 모드 비용 처리 방식
 	UPROPERTY(EditDefaultsOnly, Category = "ProjectR|Mod")
-	float MaxTraceDistance = 20000.f;
-
-	// 조준 트레이스 충돌 채널
-	UPROPERTY(EditDefaultsOnly, Category = "ProjectR|Mod")
-	TEnumAsByte<ECollisionChannel> AimTraceChannel = PRCollisionChannels::ECC_Combat;
-
-	// 카메라 조준 트레이스 디버그 표시 여부
-	UPROPERTY(EditDefaultsOnly, Category = "ProjectR|Mod|Debug")
-	bool bDrawCameraTrace = false;
-
-	// 디버그 라인 지속 시간(초)
-	UPROPERTY(EditDefaultsOnly, Category = "ProjectR|Mod|Debug")
-	float DebugDrawDuration = 1.0f;
-
+	EPRModCostPolicy ModCostPolicy = EPRModCostPolicy::None;
+	
 	// 활성 무기 캐시
-	mutable TWeakObjectPtr<APRWeaponActor> CurrentWeapon;
+	TWeakObjectPtr<APRWeaponActor> CurrentWeapon;
 	
 	// 무기 매니저 캐시
 	TWeakObjectPtr<UPRWeaponManagerComponent> CachedWeaponManager;
@@ -114,7 +100,5 @@ private:
 	FGameplayAttribute GetModStackAttribute(EPRWeaponSlotType SlotType) const;
 	FGameplayAttribute GetMaxModStackAttribute(EPRWeaponSlotType SlotType) const;
 
-	// 모드 비용 처리 방식
-	EPRModCostPolicyType ModCostPolicy = EPRModCostPolicyType::None;
 
 };

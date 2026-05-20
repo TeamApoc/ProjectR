@@ -35,7 +35,7 @@ protected:
 	
 public:
 	// AbilitySet 일괄 부여. 서버 전용. OutHandles에 Clear용 대칭 핸들 누적
-	void GiveAbilitySet(const UPRAbilitySet* AbilitySet, FPRAbilitySetHandles& OutHandles);
+	void GiveAbilitySet(const UPRAbilitySet* AbilitySet, FPRAbilitySetHandles& OutHandles, UObject* InSourceObject = nullptr);
 
 	// 이전 부여 시 받은 핸들로 ClearAbility · RemoveActiveGameplayEffect 후 Reset
 	void ClearAbilitySetByHandles(FPRAbilitySetHandles& Handles);

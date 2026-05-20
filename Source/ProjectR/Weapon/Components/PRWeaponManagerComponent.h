@@ -117,6 +117,9 @@ public:
 	// 인벤토리에서 변경된 Mod 상태를 현재 관리 중인 무기 슬롯에 반영한다
 	void HandleInventoryWeaponModChanged(UPRItemInstance_Weapon* WeaponItem);
 
+	// 강화된 무기가 현재 활성 무기라면 전투 스탯 GE를 즉시 갱신한다
+	void RefreshCurrentWeaponUpgradeState(UPRItemInstance_Weapon* WeaponItem);
+
 	// 26.05.04, Yuchan, rpc 이펙트 재생 추가 (AnimNotify에서 호출)
 	void PlayWeaponNiagaraEffect(EPRWeaponEffectType EffectType, UNiagaraSystem* InNiagaraSystem = nullptr);
 

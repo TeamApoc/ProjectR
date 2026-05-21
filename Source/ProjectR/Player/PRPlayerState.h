@@ -18,6 +18,7 @@ class UPRAttributeSet_Player;
 class UPRAttributeSet_Weapon;
 class UPRInventoryComponent;
 class UPREquipmentManagerComponent;
+class UPRWeaponManagerComponent;
 class UPRQuickSlotComponent;
 class UPRCurrencyComponent;
 
@@ -65,6 +66,10 @@ public:
 	UFUNCTION(BlueprintPure, Category = "ProjectR|Equipment")
 	UPREquipmentManagerComponent* GetEquipmentManagerComponent() const { return EquipmentManagerComponent; }
 
+	// 플레이어 무기 매니저 컴포넌트를 반환
+	UFUNCTION(BlueprintPure, Category = "ProjectR|Weapon")
+	UPRWeaponManagerComponent* GetWeaponManagerComponent() const { return WeaponManagerComponent; }
+
 	// 플레이어 퀵슬롯 컴포넌트를 반환
 	UFUNCTION(BlueprintPure, Category = "ProjectR|QuickSlot")
 	UPRQuickSlotComponent* GetQuickSlotComponent() const { return QuickSlotComponent; }
@@ -105,33 +110,39 @@ public:
 
 	// 현재 플레이어 Pawn에게 생존 상태 전환 이벤트를 보낸다.
 	void SendSurvivalGameplayEvent(const FGameplayTag& EventTag) const;
-
+	
 	// 리스폰 전 생존 상태 태그와 입력 캐시를 초기화한다
 	void ResetSurvivalStateForRespawn();
-
+	
 	// 현재 캐릭터 Pawn 기준 AbilitySet을 재부여한다
 	void GrantCharacterAbilitySet(const UPRAbilitySet* InAbilitySet, UObject* InSourceObject = nullptr);
 	
+	// 저장 데이터 적용 대기 여부
+	bool HasPendingSaveDataApply() const { return bPendingSaveDataApply; }
+	
+	// 현재 보관 중인 캐릭터 저장 데이터
+	const FPRCharacterSaveData& GetCurrentSaveData() const { return CurrentSaveData; }
+	
 	// 기본 정보 적용 (맵 전환시 유지하기 위해)
 	void InitializePrimaryInfoFromSaveData(const FPRCharacterSaveData& InSaveData);
-
-	// 서버 전용. AbilitySystem, Inventory등의 상태를 SaveData에서 복원. (Character의 PossessedBy에서 AbilitySystem 초기화 후 호출) 
-	void ApplySaveData(const FPRCharacterSaveData& InSaveData);
 	
-	// TODO: 플레이어 각종 상태 값 (인벤토리 포함) 기록하여 반환
+	void ApplySaveData(const FPRCharacterSaveData& InSaveData);
 	FPRCharacterSaveData MakeSaveData() const;
 	
 	// 마우스 감도
 	float GetCameraSensitivity() const { return CameraSensitivity; }
 	void SetCameraSensitivity(float Sensitivity);
-	FOnMouseSensitivityChanged OnMouseSensitivityChanged;
 	
-	
+
 protected:
 	void BindAutoRegisterQuickSlotEvent();
 	
 	UFUNCTION()
 	void OnInventoryChanged(UPRInventoryComponent* InInventory, const FPRInventoryChangeEventData& EventData);
+	
+public:
+	FOnMouseSensitivityChanged OnMouseSensitivityChanged;
+	
 	
 protected:
 	// ===== Configs ======
@@ -180,6 +191,10 @@ protected:
 	UPROPERTY(VisibleAnywhere, Category = "ProjectR|Equipment")
 	TObjectPtr<UPREquipmentManagerComponent> EquipmentManagerComponent;
 
+	// 무기 장착과 관리를 담당하는 컴포넌트
+	UPROPERTY(VisibleAnywhere, Category = "ProjectR|Weapon")
+	TObjectPtr<UPRWeaponManagerComponent> WeaponManagerComponent;
+
 	// 플레이어 소비 아이템 퀵슬롯 상태 컴포넌트
 	UPROPERTY(VisibleAnywhere, Category = "ProjectR|QuickSlot")
 	TObjectPtr<UPRQuickSlotComponent> QuickSlotComponent;
@@ -209,4 +224,7 @@ protected:
 private:
 	UPROPERTY()
 	FPRCharacterSaveData CurrentSaveData;
+	
+	// PossessedBy 이후 적용할 저장 데이터 존재 여부
+	bool bPendingSaveDataApply = false;
 };

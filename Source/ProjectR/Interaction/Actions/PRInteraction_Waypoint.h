@@ -7,6 +7,7 @@
 #include "ProjectR/Interaction/PRInteractionAction.h"
 #include "PRInteraction_Waypoint.generated.h"
 
+class UGameplayEffect;
 /**
  * 
  */
@@ -44,13 +45,19 @@ protected:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|Interaction|Crystal", meta = (ClampMin = "0.0"))
 	float TravelCheckDelay = 2.0f;
 	
+	// TODO: UI 선택으로 이전
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|Interaction|Crystal", meta = (ClampMin = "0.0"))
 	TSoftObjectPtr<UWorld> TargetMap;
 
+	// TODO: UI 선택으로 이전
 	// 목적지 맵 진입 Waypoint 태그
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|Interaction|Crystal")
 	FGameplayTag TargetWaypointId;
-
+	
+	// 상호작용시 자원 충전 GE
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|Interaction|Crystal")
+	TSubclassOf<UGameplayEffect> WaypointGE;
+	
 private:
 	FTimerHandle TravelCheckTimerHandle;
 	FTimerHandle TravelDelayTimerHandle;

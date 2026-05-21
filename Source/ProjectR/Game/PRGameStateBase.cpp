@@ -55,8 +55,20 @@ void APRGameStateBase::InitializeFromWorldSave(const FPRWorldSaveData& WorldSave
 
 	WorldSaveVersion     = WorldSave.Version;
 	ActiveCheckpoint     = WorldSave.LastCheckpointId;
+	LastActiveWaypointId = WorldSave.LastActiveWaypointId;
 	UnlockedCheckpoints  = WorldSave.UnlockedCheckpoints;
 	DefeatedBosses       = WorldSave.DefeatedBosses;
+}
+
+FPRWorldSaveData APRGameStateBase::MakeWorldSaveData() const
+{
+	FPRWorldSaveData SaveData;
+	SaveData.Version = WorldSaveVersion;
+	SaveData.LastCheckpointId = ActiveCheckpoint;
+	SaveData.LastActiveWaypointId = LastActiveWaypointId;
+	SaveData.UnlockedCheckpoints = UnlockedCheckpoints;
+	SaveData.DefeatedBosses = DefeatedBosses;
+	return SaveData;
 }
 
 void APRGameStateBase::SetActiveCheckpoint(FName CheckpointId)

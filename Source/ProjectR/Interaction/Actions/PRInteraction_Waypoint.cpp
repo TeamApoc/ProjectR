@@ -111,7 +111,15 @@ void UPRInteraction_Waypoint::StartTravel(TSoftObjectPtr<UWorld> MapToTravel)
 			}
 				
 			Controller->ClientStartMapTransition(TravelDelay, EPRMapTransitionType::MapTravel);
-				
+			
+			// TODO: Travel을 안하고 UI를 닫은 경우 사망 플레이어를 웨이포인트 근처로 리스폰 시켜야 함
+			if (UAbilitySystemComponent* ASC = UPRGameplayStatics::GetAbilitySystemComponent(PlayerState))
+			{
+				FGameplayEffectContextHandle EffectContext = ASC->MakeEffectContext();
+				FGameplayEffectSpecHandle SpecHandle = ASC->MakeOutgoingSpec(WaypointGE,1.0f,EffectContext);
+				ASC->BP_ApplyGameplayEffectSpecToSelf(SpecHandle);
+			}
+			
 			// TODO: 무적 상태 추가?
 		}
 	}
@@ -121,6 +129,12 @@ void UPRInteraction_Waypoint::StartTravel(TSoftObjectPtr<UWorld> MapToTravel)
 	{
 		if (UPRGameInstance* GameInstance = GetWorld()->GetGameInstance<UPRGameInstance>())
 		{
+			if (const APRGameStateBase* GameState = GetWorld()->GetGameState<APRGameStateBase>())
+			{
+				// 월드 진행 상태 예약
+				GameInstance->SetPendingWorldSaveData(GameState->MakeWorldSaveData());
+			}
+
 			// 목적지 Waypoint 예약
 			GameInstance->SetPendingTravelWaypointId(ResolveTargetWaypointId());
 			GameInstance->ServerTravelToMap(MapToTravel, false);

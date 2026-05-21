@@ -3,12 +3,18 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "GameplayEffectTypes.h"
 #include "GameplayTagContainer.h"
+#include "ProjectR/Weapon/Types/PRWeaponTypes.h"
 #include "PRGameTypes.generated.h"
 
 /*~ 세이브 포맷 버전 ~*/
 
 class UPRItemDataAsset;
+class UPRConsumableDataAsset;
+class UPRMaterialDataAsset;
+class UPRWeaponDataAsset;
+class UPRWeaponModDataAsset;
 // 세이브 파일 포맷 버전. Join 시 호스트-게스트 간 호환성 체크에 사용
 // 불일치 시 접속 거부. 상향은 마이그레이션 구현 후에만 허용
 UENUM(BlueprintType)
@@ -103,6 +109,220 @@ struct FPREquipmentState
 
 /*~ 캐릭터 스펙 ~*/
 
+// 무기 인스턴스 고유 상태
+USTRUCT(BlueprintType)
+struct FPRWeaponInstanceState
+{
+	GENERATED_BODY()
+
+	// 강화 단계
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	int32 EnhancementLevel = 0;
+};
+
+// Mod 인스턴스 고유 상태
+USTRUCT(BlueprintType)
+struct FPRModInstanceState
+{
+	GENERATED_BODY()
+
+	// 강화 단계
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	int32 EnhancementLevel = 0;
+};
+
+// 무기 아이템 저장 엔트리
+USTRUCT(BlueprintType)
+struct FPRWeaponItemSaveEntry
+{
+	GENERATED_BODY()
+
+	// 무기 데이터 소프트 참조
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	TSoftObjectPtr<UPRWeaponDataAsset> WeaponData;
+
+	// 보유 개수
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	int32 StackCount = 1;
+
+	// 장착 Mod 인덱스
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	int32 EquippedModIndex = INDEX_NONE;
+
+	// 무기 인스턴스 상태
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	FPRWeaponInstanceState State;
+};
+
+// Mod 아이템 저장 엔트리
+USTRUCT(BlueprintType)
+struct FPRModItemSaveEntry
+{
+	GENERATED_BODY()
+
+	// Mod 데이터 소프트 참조
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	TSoftObjectPtr<UPRWeaponModDataAsset> ModData;
+	
+	// Mod 인스턴스 상태
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	FPRModInstanceState State;
+	
+	// 모드 아이템의 ItemStack은 1로 고정임
+};
+
+// 소비 아이템 저장 엔트리
+USTRUCT(BlueprintType)
+struct FPRConsumableSaveEntry
+{
+	GENERATED_BODY()
+
+	// 소비 아이템 데이터 소프트 참조
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	TSoftObjectPtr<UPRConsumableDataAsset> ConsumableData;
+
+	// 보유 개수
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	int32 StackCount = 0;
+};
+
+// 재료 아이템 저장 엔트리
+USTRUCT(BlueprintType)
+struct FPRMaterialSaveEntry
+{
+	GENERATED_BODY()
+
+	// 재료 데이터 소프트 참조
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	TSoftObjectPtr<UPRMaterialDataAsset> MaterialData;
+
+	// 보유 개수
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	int32 StackCount = 0;
+};
+
+// 인벤토리 저장 데이터
+USTRUCT(BlueprintType)
+struct FPRInventorySaveData
+{
+	GENERATED_BODY()
+
+	// 무기 아이템 목록
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	TArray<FPRWeaponItemSaveEntry> Weapons;
+
+	// Mod 아이템 목록
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	TArray<FPRModItemSaveEntry> Mods;
+
+	// 소비 아이템 목록
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	TArray<FPRConsumableSaveEntry> Consumables;
+
+	// 재료 아이템 목록
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	TArray<FPRMaterialSaveEntry> Materials;
+};
+
+// 무기 매니저 저장 데이터
+USTRUCT(BlueprintType)
+struct FPRWeaponManagerSaveData
+{
+	GENERATED_BODY()
+
+	// 주무기 인벤토리 인덱스
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	int32 PrimaryWeaponIndex = INDEX_NONE;
+
+	// 보조무기 인벤토리 인덱스
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	int32 SecondaryWeaponIndex = INDEX_NONE;
+
+	// 현재 무기 슬롯
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	EPRWeaponSlotType CurrentWeaponSlot = EPRWeaponSlotType::None;
+
+	// 현재 무장 상태
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	EPRArmedState ArmedState = EPRArmedState::Unarmed;
+
+	// 주무기 현재 탄창 탄약
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	float PrimaryMagazineAmmo = 0.0f;
+
+	// 주무기 현재 예비 탄약
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	float PrimaryReserveAmmo = 0.0f;
+
+	// 주무기 현재 Mod 게이지
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	float PrimaryModGauge = 0.0f;
+
+	// 주무기 현재 Mod 스택
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	float PrimaryModStack = 0.0f;
+
+	// 보조무기 현재 탄창 탄약
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	float SecondaryMagazineAmmo = 0.0f;
+
+	// 보조무기 현재 예비 탄약
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	float SecondaryReserveAmmo = 0.0f;
+
+	// 보조무기 현재 Mod 게이지
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	float SecondaryModGauge = 0.0f;
+
+	// 보조무기 현재 Mod 스택
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	float SecondaryModStack = 0.0f;
+};
+
+// 퀵슬롯 저장 데이터
+USTRUCT(BlueprintType)
+struct FPRQuickSlotSaveData
+{
+	GENERATED_BODY()
+
+	// 슬롯별 등록 소비 아이템 데이터
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	TArray<TSoftObjectPtr<UPRConsumableDataAsset>> RegisteredConsumables;
+};
+
+// 비무기 장비 저장 데이터
+USTRUCT(BlueprintType)
+struct FPREquipmentSaveData
+{
+	GENERATED_BODY()
+};
+
+// Attribute Base 저장 엔트리
+USTRUCT(BlueprintType)
+struct FPRAttributeBaseEntry
+{
+	GENERATED_BODY()
+
+	// 저장 대상 Attribute
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	FGameplayAttribute Attribute;
+
+	// Base 값
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	float BaseValue = 0.0f;
+};
+
+// Attribute Base 스냅샷
+USTRUCT(BlueprintType)
+struct FPRAttributeBaseSnapshot
+{
+	GENERATED_BODY()
+
+	// Attribute별 Base 값 목록
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	TArray<FPRAttributeBaseEntry> Entries;
+};
+
 // 캐릭터 스탯 업그레이드 정보.
 USTRUCT(BlueprintType)
 struct FPRCharacterStatUpgradeInfo
@@ -136,6 +356,26 @@ struct FPRCharacterSaveData
 	// 스탯 배분 결과. 각 필드는 Level 기반 상한 검증 대상
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	FPRCharacterStatUpgradeInfo Stats;
+
+	// 인벤토리 저장 데이터
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	FPRInventorySaveData Inventory;
+
+	// 무기 매니저 저장 데이터
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	FPRWeaponManagerSaveData WeaponManager;
+
+	// 비무기 장비 저장 데이터
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	FPREquipmentSaveData Equipment;
+
+	// 퀵슬롯 저장 데이터
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	FPRQuickSlotSaveData QuickSlot;
+
+	// Attribute Base 스냅샷
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	FPRAttributeBaseSnapshot AttributeBaseSnapshot;
 };
 
 /*~ 월드 세이브 ~*/
@@ -154,6 +394,10 @@ struct FPRWorldSaveData
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	FName LastCheckpointId;
 
+	// 마지막으로 활성화된 Waypoint ID. 전멸 리스폰 지점 결정에 사용
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	FGameplayTag LastActiveWaypointId;
+
 	// 활성화된 체크포인트 집합. UI 목록·워프에 사용
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	TArray<FName> UnlockedCheckpoints;
@@ -161,14 +405,6 @@ struct FPRWorldSaveData
 	// 처치 완료된 보스 ID 집합. 재도전 시 상태 초기화 분기
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	TArray<FName> DefeatedBosses;
-
-	// 열린 문·게이트 등 환경 오브젝트 상태. 키는 오브젝트 ID
-	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	TMap<FName, EPRWorldObjectState> WorldObjectStates;
-
-	// 스토리 진행 플래그. 퀘스트·컷신 트리거 제어용
-	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	FGameplayTagContainer StoryFlags;
 };
 
 /*~ 세션 연결 파라미터 ~*/

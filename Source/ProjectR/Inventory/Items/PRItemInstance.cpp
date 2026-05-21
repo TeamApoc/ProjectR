@@ -92,3 +92,13 @@ bool UPRItemInstance::RemoveStack(int32 RemoveCount)
 	return true;
 }
 
+void UPRItemInstance::SetStack(int32 NewStack)
+{
+	const int32 PreviousStackCount = StackCount;
+	StackCount = FMath::Clamp(NewStack, 0, ItemData->MaxStackCount);
+	if (NewStack != PreviousStackCount)
+	{
+		NotifyInventoryChanged(EPRInventoryChangeReason::StackChanged);
+	}
+}
+

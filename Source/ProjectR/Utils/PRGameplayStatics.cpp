@@ -106,7 +106,10 @@ UPRWeaponManagerComponent* UPRGameplayStatics::GetWeaponManagerComponent(AActor*
 	
 	if (AsPawn)
 	{
-		return AsPawn->FindComponentByClass<UPRWeaponManagerComponent>();
+		if (APRPlayerCharacter* PlayerCharacter = Cast<APRPlayerCharacter>(AsPawn))
+		{
+			return PlayerCharacter->GetWeaponManager();
+		}
 	}
 	
 	return nullptr;

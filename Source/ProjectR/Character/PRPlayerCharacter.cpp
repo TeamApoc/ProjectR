@@ -1,4 +1,4 @@
-﻿// Fill out your copyright notice in the Description page of Project Settings.
+// Fill out your copyright notice in the Description page of Project Settings.
 
 
 #include "PRPlayerCharacter.h"
@@ -54,7 +54,6 @@ APRPlayerCharacter::APRPlayerCharacter()
 	FollowCamera->bUsePawnControlRotation = false;
 	FollowCamera->SetFieldOfView(80.0f); // 기본 FOV 80도 설정
 
-	WeaponManagerComponent = CreateDefaultSubobject<UPRWeaponManagerComponent>(TEXT("WeaponManagerComponent"));
 	ActionInputRouterComponent = CreateDefaultSubobject<UPRActionInputRouterComponent>(TEXT("ActionInputRouterComponent"));
 	ProjectileTrajectoryPreviewComponent = CreateDefaultSubobject<UPRProjectileTrajectoryPreviewComponent>(TEXT("ProjectileTrajectoryPreviewComponent"));
 	
@@ -98,6 +97,15 @@ UPRAbilitySystemComponent* APRPlayerCharacter::GetPRAbilitySystemComponent() con
 	return nullptr;
 }
 
+UPRWeaponManagerComponent* APRPlayerCharacter::GetWeaponManager() const
+{
+	if (APRPlayerState* PRPlayerState = GetPlayerState<APRPlayerState>())
+	{
+		return PRPlayerState->GetWeaponManagerComponent();
+	}
+	return nullptr;
+}
+
 void APRPlayerCharacter::PossessedBy(AController* NewController)
 {
 	Super::PossessedBy(NewController);
@@ -117,10 +125,17 @@ void APRPlayerCharacter::PossessedBy(AController* NewController)
 			// 이 시점에서 플레이어의 ASC 유효하므로 BindTagChangeEvent 호출
 			BindTagChangeEvent();
 		}
-
-		if (IsValid(WeaponManagerComponent))
+		
+		if (PS->HasPendingSaveDataApply())
 		{
-			WeaponManagerComponent->InitializeRuntimeLinks();
+			// 저장 데이터 1회 복원
+			PS->ApplySaveData(PS->GetCurrentSaveData());
+		}
+
+		if (UPRWeaponManagerComponent* WeaponManager = GetWeaponManager())
+		{
+			WeaponManager->InitializeRuntimeLinks();
+			WeaponManager->InitializeWithPawn(this);
 		}
 		
 		PS->OnMouseSensitivityChanged.AddDynamic(this, &ThisClass::HandleMouseSensitivityChanged);
@@ -146,9 +161,10 @@ void APRPlayerCharacter::OnRep_PlayerState()
 			BindTagChangeEvent();
 		}
 
-		if (IsValid(WeaponManagerComponent))
+		if (UPRWeaponManagerComponent* WeaponManager = GetWeaponManager())
 		{
-			WeaponManagerComponent->InitializeRuntimeLinks();
+			WeaponManager->InitializeRuntimeLinks();
+			WeaponManager->InitializeWithPawn(this);
 		}
 	}
 	
@@ -269,9 +285,12 @@ void APRPlayerCharacter::HandleGameplayTagUpdated(const FGameplayTag& ChangedTag
 		bIsAiming = bTagExists;
 		UpdateMaxWalkSpeed();
 
-		if (APRWeaponActor* Weapon = WeaponManagerComponent->GetActiveWeaponActor())
+		if (UPRWeaponManagerComponent* WeaponManager = GetWeaponManager())
 		{
-			Weapon->SetIsIKSuppressed(false);
+			if (APRWeaponActor* Weapon = WeaponManager->GetActiveWeaponActor())
+			{
+				Weapon->SetIsIKSuppressed(false);
+			}
 		}
 
 		// 조준 ON/OFF에 맞춰 투사체 예측 경로 표시 토글
@@ -314,7 +333,10 @@ void APRPlayerCharacter::HandleGameplayTagUpdated(const FGameplayTag& ChangedTag
 			
 			if (GetNetOwner() != nullptr)
 			{
-				WeaponManagerComponent->SetWeaponArmedState(EPRArmedState::Unarmed);	
+				if (UPRWeaponManagerComponent* WeaponManager = GetWeaponManager())
+				{
+					WeaponManager->SetWeaponArmedState(EPRArmedState::Unarmed);	
+				}
 			}
 		}
 		
@@ -324,10 +346,13 @@ void APRPlayerCharacter::HandleGameplayTagUpdated(const FGameplayTag& ChangedTag
 	// 소비템 사용중에 무기 숨기기
 	if (ChangedTag.MatchesTagExact(PRGameplayTags::State_UsingConsumable))
 	{
-		if (APRWeaponActor* ActiveWeapon = WeaponManagerComponent->GetActiveWeaponActor())
+		if (UPRWeaponManagerComponent* WeaponManager = GetWeaponManager())
 		{
-			ActiveWeapon->SetIsIKSuppressed(bTagExists);
-			ActiveWeapon->SetActorHiddenInGame(bTagExists);
+			if (APRWeaponActor* ActiveWeapon = WeaponManager->GetActiveWeaponActor())
+			{
+				ActiveWeapon->SetIsIKSuppressed(bTagExists);
+				ActiveWeapon->SetActorHiddenInGame(bTagExists);
+			}
 		}
 	}
 	if (ChangedTag.MatchesTagExact(PRGameplayTags::State_Dodging))

@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "Components/ActorComponent.h"
+#include "ProjectR/Game/PRGameTypes.h"
 #include "ProjectR/Inventory/Components/PRInventoryComponent.h"
 #include "ProjectR/Inventory/Types/PRQuickSlotTypes.h"
 #include "PRQuickSlotComponent.generated.h"
@@ -64,6 +65,12 @@ public:
 	int32 GetMaxQuickSlotCount() const {return MaxQuickSlotCount;}
 	int32 GetUsingQuickSlotCount() const;
 	bool IsRegisteredItem(UPRConsumableDataAsset* InConsumableData);
+
+	// 현재 퀵슬롯 등록 상태 저장 데이터
+	FPRQuickSlotSaveData MakeSaveData() const;
+
+	// 저장 데이터 기반 퀵슬롯 등록 상태 복원
+	void ApplySaveData(const FPRQuickSlotSaveData& InSaveData);
 protected:
 	// 퀵슬롯 복제 결과를 로컬 UI에 알린다
 	UFUNCTION()

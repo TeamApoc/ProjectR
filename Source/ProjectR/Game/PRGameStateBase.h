@@ -42,6 +42,9 @@ public:
 	// 서버 전용. 월드 세이브 스냅샷을 GameState에 주입. 호스트 맵 로드 직후 GameMode가 호출
 	void InitializeFromWorldSave(const FPRWorldSaveData& WorldSave);
 
+	// 현재 월드 진행 상태 저장 데이터
+	FPRWorldSaveData MakeWorldSaveData() const;
+
 	// 서버 전용. 체크포인트 활성화 반영
 	void SetActiveCheckpoint(FName CheckpointId);
 

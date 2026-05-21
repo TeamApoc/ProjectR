@@ -17,13 +17,21 @@ namespace
 	// 소유 캐릭터 기준 프로젝트 ASC를 조회한다
 	UPRAbilitySystemComponent* ResolveOwnerAbilitySystem(AActor* OwnerActor)
 	{
-		APRCharacterBase* OwnerCharacter = Cast<APRCharacterBase>(OwnerActor);
-		if (!IsValid(OwnerCharacter))
+		if (IAbilitySystemInterface* ASI = Cast<IAbilitySystemInterface>(OwnerActor))
 		{
-			return nullptr;
+			if (UAbilitySystemComponent* ASC = ASI->GetAbilitySystemComponent())
+			{
+				return Cast<UPRAbilitySystemComponent>(ASC);
+			}
 		}
 
-		return OwnerCharacter->GetPRAbilitySystemComponent();
+		APRCharacterBase* OwnerCharacter = Cast<APRCharacterBase>(OwnerActor);
+		if (IsValid(OwnerCharacter))
+		{
+			return OwnerCharacter->GetPRAbilitySystemComponent();
+		}
+
+		return nullptr;
 	}
 }
 
@@ -53,6 +61,20 @@ void UPRItemInstance_Weapon::InitializeMod(UPRWeaponModDataAsset* InModData)
 UPRWeaponDataAsset* UPRItemInstance_Weapon::GetWeaponData() const
 {
 	return Cast<UPRWeaponDataAsset>(ItemData);
+}
+
+void UPRItemInstance_Weapon::FillSaveEntry(FPRWeaponItemSaveEntry& OutEntry) const
+{
+	// 저장 엔트리 기본값
+	OutEntry = FPRWeaponItemSaveEntry();
+	OutEntry.WeaponData = GetWeaponData();
+	OutEntry.StackCount = GetStackCount();
+}
+
+void UPRItemInstance_Weapon::ApplySaveEntry(const FPRWeaponItemSaveEntry& InEntry)
+{
+	// v1 인스턴스 상태 복원
+	StackCount = FMath::Max(InEntry.StackCount, 0);
 }
 
 bool UPRItemInstance_Weapon::MatchesWeaponData(const UPRWeaponDataAsset* InWeaponData) const

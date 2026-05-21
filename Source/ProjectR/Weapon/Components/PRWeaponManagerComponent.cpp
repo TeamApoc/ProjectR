@@ -140,17 +140,7 @@ void UPRWeaponManagerComponent::InitializeRuntimeLinks()
 	CachedWeaponSet = nullptr;
 	CachedInventory = nullptr;
 
-	// 무기 매니저는 캐릭터 소유를 전제로 PlayerState 런타임 링크를 조회
-	const ACharacter* OwnerCharacter = Cast<ACharacter>(GetOwner());
-	// 캐릭터 소유자가 아니면
-	if (!IsValid(OwnerCharacter))
-	{
-		// 함수 조기 종료. 런타임 링크 구성 불가
-		return;
-	}
-
-	// ASC, AttributeSet, Inventory 조회용
-	const APRPlayerState* PlayerState = OwnerCharacter->GetPlayerState<APRPlayerState>();
+	const APRPlayerState* PlayerState = Cast<APRPlayerState>(GetOwner());
 	if (!IsValid(PlayerState))
 	{
 		// 함수 조기 종료. PlayerState가 아직 준비되지 않은 시점이므로 캐시를 비운 상태로 유지
@@ -161,6 +151,121 @@ void UPRWeaponManagerComponent::InitializeRuntimeLinks()
 	CachedASC = PlayerState->GetPRAbilitySystemComponent();
 	CachedWeaponSet = PlayerState->GetWeaponSet();
 	CachedInventory = PlayerState->GetInventoryComponent();
+}
+
+void UPRWeaponManagerComponent::InitializeWithPawn(APRCharacterBase* InPawn)
+{
+	CachedPawnOwner = InPawn;
+	RefreshAllWeaponActors();
+	RefreshAnimLayer();
+}
+
+
+FPRWeaponManagerSaveData UPRWeaponManagerComponent::MakeSaveData() const
+{
+	FPRWeaponManagerSaveData SaveData;
+	const APRPlayerState* PlayerState = GetOwnerPlayerState();
+	const UPRInventoryComponent* Inventory = IsValid(PlayerState) ? PlayerState->GetInventoryComponent() : nullptr;
+	if (!IsValid(Inventory))
+	{
+		return SaveData;
+	}
+	SaveData.PrimaryWeaponIndex = Inventory->GetWeaponItemIndex(PrimaryWeaponInstance);
+	SaveData.SecondaryWeaponIndex = Inventory->GetWeaponItemIndex(SecondaryWeaponInstance);
+	SaveData.CurrentWeaponSlot = CurrentWeaponSlot;
+	SaveData.ArmedState = ArmedState;
+	const UPRAbilitySystemComponent* SaveASC = CachedASC.IsValid()
+		? CachedASC.Get()
+		: PlayerState->GetPRAbilitySystemComponent();
+	if (IsValid(SaveASC))
+	{
+		// 슬롯별 현재 자원 저장
+		SaveData.PrimaryMagazineAmmo = SaveASC->GetNumericAttribute(UPRAttributeSet_Weapon::GetPrimaryMagazineAmmoAttribute());
+		SaveData.PrimaryReserveAmmo = SaveASC->GetNumericAttribute(UPRAttributeSet_Weapon::GetPrimaryReserveAmmoAttribute());
+		SaveData.PrimaryModGauge = SaveASC->GetNumericAttribute(UPRAttributeSet_Weapon::GetPrimaryModGaugeAttribute());
+		SaveData.PrimaryModStack = SaveASC->GetNumericAttribute(UPRAttributeSet_Weapon::GetPrimaryModStackAttribute());
+		SaveData.SecondaryMagazineAmmo = SaveASC->GetNumericAttribute(UPRAttributeSet_Weapon::GetSecondaryMagazineAmmoAttribute());
+		SaveData.SecondaryReserveAmmo = SaveASC->GetNumericAttribute(UPRAttributeSet_Weapon::GetSecondaryReserveAmmoAttribute());
+		SaveData.SecondaryModGauge = SaveASC->GetNumericAttribute(UPRAttributeSet_Weapon::GetSecondaryModGaugeAttribute());
+		SaveData.SecondaryModStack = SaveASC->GetNumericAttribute(UPRAttributeSet_Weapon::GetSecondaryModStackAttribute());
+	}
+	return SaveData;
+}
+
+void UPRWeaponManagerComponent::ApplySaveData(const FPRWeaponManagerSaveData& InSaveData)
+{
+	if (!IsValid(GetOwner()) || !GetOwner()->HasAuthority())
+	{
+		return;
+	}
+	InitializeRuntimeLinks();
+	if (!CachedInventory.IsValid())
+	{
+		return;
+	}
+	if (IsValid(PrimaryWeaponInstance) && CurrentWeaponSlot == EPRWeaponSlotType::Primary)
+	{
+		// 기존 주무기 활성 상태 정리
+		PrimaryWeaponInstance->OnUnequipped(GetOwner());
+	}
+	if (IsValid(SecondaryWeaponInstance) && CurrentWeaponSlot == EPRWeaponSlotType::Secondary)
+	{
+		// 기존 보조무기 활성 상태 정리
+		SecondaryWeaponInstance->OnUnequipped(GetOwner());
+	}
+	RemoveAllEquipEffects();
+	PrimaryWeaponInstance = nullptr;
+	SecondaryWeaponInstance = nullptr;
+	CurrentWeaponSlot = EPRWeaponSlotType::None;
+	ArmedState = EPRArmedState::Unarmed;
+	UPRItemInstance_Weapon* RestoredPrimaryItem = nullptr;
+	UPRItemInstance_Weapon* RestoredSecondaryItem = nullptr;
+	if (UPRItemInstance_Weapon* PrimaryItem = CachedInventory->GetWeaponItemAtIndex(InSaveData.PrimaryWeaponIndex))
+	{
+		RestoredPrimaryItem = PrimaryItem;
+		EquipWeaponInternal(RestoredPrimaryItem);
+	}
+	if (UPRItemInstance_Weapon* SecondaryItem = CachedInventory->GetWeaponItemAtIndex(InSaveData.SecondaryWeaponIndex))
+	{
+		RestoredSecondaryItem = SecondaryItem;
+		EquipWeaponInternal(RestoredSecondaryItem);
+	}
+	if (IsSupportedSlot(InSaveData.CurrentWeaponSlot))
+	{
+		SetCurrentWeaponSlotInternal(InSaveData.CurrentWeaponSlot);
+	}
+	SetWeaponArmedStateInternal(InSaveData.ArmedState);
+	if (IsValid(RestoredPrimaryItem))
+	{
+		// 주무기 현재 자원 복원
+		ApplyOverrideAmmoGE(
+			EPRWeaponSlotType::Primary,
+			InSaveData.PrimaryMagazineAmmo,
+			InSaveData.PrimaryReserveAmmo,
+			RestoredPrimaryItem);
+		ApplyOverrideModResourceGE(
+			EPRWeaponSlotType::Primary,
+			InSaveData.PrimaryModGauge,
+			InSaveData.PrimaryModStack,
+			RestoredPrimaryItem);
+	}
+	if (IsValid(RestoredSecondaryItem))
+	{
+		// 보조무기 현재 자원 복원
+		ApplyOverrideAmmoGE(
+			EPRWeaponSlotType::Secondary,
+			InSaveData.SecondaryMagazineAmmo,
+			InSaveData.SecondaryReserveAmmo,
+			RestoredSecondaryItem);
+		ApplyOverrideModResourceGE(
+			EPRWeaponSlotType::Secondary,
+			InSaveData.SecondaryModGauge,
+			InSaveData.SecondaryModStack,
+			RestoredSecondaryItem);
+	}
+	RefreshVisualInfosFromCurrentState();
+	RefreshAllWeaponActors();
+	RefreshAnimLayer();
 }
 
 UPRItemInstance_Weapon* UPRWeaponManagerComponent::GetWeaponInstanceBySlotType(EPRWeaponSlotType SlotType) const
@@ -475,7 +580,7 @@ void UPRWeaponManagerComponent::PlayWeaponNiagaraEffect(EPRWeaponEffectType Effe
 
 void UPRWeaponManagerComponent::Multicast_PlayWeaponNiagaraEffect_Implementation(EPRWeaponEffectType EffectType,UNiagaraSystem* InNiagaraSystem)
 {
-	if (APawn* OwnerPawn = GetTypedOuter<APawn>())
+	if (APawn* OwnerPawn = GetPawnOwner())
 	{
 		// LocallyControlled인 경우 Multicast가 아닌 직접 PlayWeaponNiagaraEffect 호출
 		if (!OwnerPawn->IsLocallyControlled())
@@ -498,25 +603,38 @@ void UPRWeaponManagerComponent::RequestWeaponAnimation(EPRWeaponAnimationState A
 
 void UPRWeaponManagerComponent::Multicast_RequestWeaponAnimation_Reliable_Implementation(EPRWeaponAnimationState AnimationState)
 {
-	// 로컬 컨트롤러는 자체 예측 경로에서 이미 애니메이션을 요청했으므로 멀티캐스트로는 시뮬 프록시만 갱신
-	if (APawn* OwnerPawn = GetTypedOuter<APawn>())
+	if (GetOwner()->HasAuthority())
 	{
-		if (!OwnerPawn->IsLocallyControlled())
+		return;
+	}
+
+	if (APawn* TargetPawn = GetPawnOwner())
+	{
+		if (TargetPawn->IsLocallyControlled())
 		{
-			RequestWeaponAnimation(AnimationState);
+			return;
 		}
 	}
+
+	RequestWeaponAnimation(AnimationState);
 }
 
 void UPRWeaponManagerComponent::Multicast_RequestWeaponAnimation_Unreliable_Implementation(EPRWeaponAnimationState AnimationState)
 {
-	if (APawn* OwnerPawn = GetTypedOuter<APawn>())
+	if (GetOwner()->HasAuthority())
 	{
-		if (!OwnerPawn->IsLocallyControlled())
+		return;
+	}
+
+	if (APawn* TargetPawn = GetPawnOwner())
+	{
+		if (TargetPawn->IsLocallyControlled())
 		{
-			RequestWeaponAnimation(AnimationState);
+			return;
 		}
 	}
+
+	RequestWeaponAnimation(AnimationState);
 }
 
 bool UPRWeaponManagerComponent::EquipWeaponInternal(UPRItemInstance_Weapon* WeaponItem)
@@ -1259,7 +1377,7 @@ void UPRWeaponManagerComponent::RefreshWeaponAttachmentForSlot(EPRWeaponSlotType
 
 	// 부착 갱신 대상 Actor와 캐릭터 소유자. 둘 다 있어야 Mesh 소켓 부착 가능
 	APRWeaponActor* WeaponActor = GetWeaponActorBySlot(SlotType);
-	ACharacter* OwnerCharacter = Cast<ACharacter>(GetOwner());
+	ACharacter* OwnerCharacter = Cast<ACharacter>(GetPawnOwner());
 
 	// 장착된 슬롯 Actor 또는 캐릭터 소유자가 없는 경우
 	if (!IsValid(WeaponActor) || !IsValid(OwnerCharacter))
@@ -1583,13 +1701,7 @@ EPRWeaponSlotType UPRWeaponManagerComponent::ResolveWeaponItemSlot(const UPRItem
 
 APRPlayerState* UPRWeaponManagerComponent::GetOwnerPlayerState() const
 {
-	const ACharacter* OwnerCharacter = Cast<ACharacter>(GetOwner());
-	if (!IsValid(OwnerCharacter))
-	{
-		return nullptr;
-	}
-
-	return OwnerCharacter->GetPlayerState<APRPlayerState>();
+	return Cast<APRPlayerState>(GetOwner());
 }
 
 FPREquipSlotEffectHandles& UPRWeaponManagerComponent::GetMutableEquipEffectHandlesBySlot(EPRWeaponSlotType SlotType)
@@ -1716,15 +1828,16 @@ void UPRWeaponManagerComponent::ClearAmmoAttributesForSlot(EPRWeaponSlotType Slo
 
 void UPRWeaponManagerComponent::RefreshAnimLayer()
 {
-	ACharacter* OwnerCharacter = Cast<ACharacter>(GetOwner());
+	// 현재 애니메이션 레이어를 갱신할 대상 캐릭터와 Mesh
+	ACharacter* OwnerCharacter = Cast<ACharacter>(GetPawnOwner());
 	if (!IsValid(OwnerCharacter))
 	{
 		// 함수 조기 종료. 애니메이션 레이어 갱신 대상 없음
 		return;
 	}
 
-	USkeletalMeshComponent* MeshComp = OwnerCharacter->GetMesh();
-	if (!IsValid(MeshComp))
+	USkeletalMeshComponent* OwnerMesh = OwnerCharacter->GetMesh();
+	if (!IsValid(OwnerMesh))
 	{
 		// 함수 조기 종료. 메시 컴포넌트 없음
 		return;
@@ -1758,14 +1871,14 @@ void UPRWeaponManagerComponent::RefreshAnimLayer()
 	// 기존에 연결된 레이어가 있다면 먼저 해제
 	if (IsValid(CurrentLinkedAnimLayerClass))
 	{
-		MeshComp->UnlinkAnimClassLayers(CurrentLinkedAnimLayerClass);
+		OwnerMesh->UnlinkAnimClassLayers(CurrentLinkedAnimLayerClass);
 		CurrentLinkedAnimLayerClass = nullptr;
 	}
 
 	// 새 목표 레이어(무기 레이어 또는 기본 레이어)가 있으면 메시 컴포넌트에 연결
 	if (IsValid(TargetAnimLayerClass))
 	{
-		MeshComp->LinkAnimClassLayers(TargetAnimLayerClass);
+		OwnerMesh->LinkAnimClassLayers(TargetAnimLayerClass);
 		CurrentLinkedAnimLayerClass = TargetAnimLayerClass;
 	}
 }

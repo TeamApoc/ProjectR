@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "ActiveGameplayEffectHandle.h"
 #include "Components/ActorComponent.h"
+#include "ProjectR/Game/PRGameTypes.h"
 #include "ProjectR/Weapon/Types/PRWeaponAnimationTypes.h"
 #include "ProjectR/Weapon/Types/PRWeaponTypes.h"
 #include "PRWeaponManagerComponent.generated.h"
@@ -21,6 +22,7 @@ class UPRItemInstance_Weapon;
 class UPRWeaponDataAsset;
 class UPRWeaponManagerComponent;
 class UPRWeaponModDataAsset;
+class APRCharacterBase;
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FPRWeaponEquipmentChangedSignature, UPRWeaponManagerComponent*, WeaponManagerComponent, EPRWeaponSlotType, ChangedSlot);
 
@@ -67,6 +69,16 @@ public:
 
 	// PlayerState와 ASC, 인벤토리 연결 캐시를 초기화한다
 	void InitializeRuntimeLinks();
+
+	// 새 폰(Pawn)이 배정될 때 호출하여 무기 부착과 애니메이션을 갱신한다
+	void InitializeWithPawn(APRCharacterBase* InPawn);
+
+	// Save Data
+	FPRWeaponManagerSaveData MakeSaveData() const;
+	void ApplySaveData(const FPRWeaponManagerSaveData& InSaveData);
+	
+	// 현재 캐시된 폰(Pawn) 소유자를 반환한다
+	APRCharacterBase* GetPawnOwner() const { return CachedPawnOwner.Get(); }
 
 	// 대상 슬롯에 연결된 무기 Item 원본을 반환한다
 	UPRItemInstance_Weapon* GetWeaponInstanceBySlotType(EPRWeaponSlotType SlotType) const;
@@ -314,6 +326,9 @@ protected:
 	TSubclassOf<UAnimInstance> CurrentLinkedAnimLayerClass;
 
 private:
+	// 현재 빙의된 폰 소유자. 부착과 애니메이션에 사용
+	TWeakObjectPtr<APRCharacterBase> CachedPawnOwner = nullptr;
+
 	// 현재 머신에서만 유지하는 주무기 슬롯 Actor
 	UPROPERTY(Transient)
 	TObjectPtr<APRWeaponActor> PrimaryWeaponActor;

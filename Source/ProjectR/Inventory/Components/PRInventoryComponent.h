@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "Components/ActorComponent.h"
+#include "ProjectR/Game/PRGameTypes.h"
 #include "PRInventoryComponent.generated.h"
 
 class UPRItemInstance;
@@ -33,7 +34,9 @@ enum class EPRInventoryChangeReason : uint8
 	// Mod 장착 상태가 변경되었다
 	ModEquipChanged,
 	// 아이템 보유 개수가 변경되었다
-	StackChanged
+	StackChanged,
+	// 세이브 복원 기반 인벤토리 전체 갱신
+	BulkRestored
 };
 
 USTRUCT(BlueprintType)
@@ -65,6 +68,7 @@ public:
 	virtual bool ReplicateSubobjects(UActorChannel* Channel, FOutBunch* Bunch, FReplicationFlags* RepFlags) override;
 
 public:
+	
 	// Item 데이터 타입에 맞는 추가 요청을 서버 권위 경로로 전달한다
 	UFUNCTION(BlueprintCallable, Category = "ProjectR|Inventory")
 	void RequestAddItem(UPRItemDataAsset* InItemData, int32 Amount = 1);
@@ -158,6 +162,10 @@ public:
 	// 인자로 받은 재료 Item을 현재 인벤토리가 소유하는지 확인한다
 	bool OwnsMaterial(const UPRItemInstance_Material* MaterialItem) const;
 
+	// Item 데이터로 인벤토리 내 Item을 조회
+	UFUNCTION(BlueprintCallable, Category = "ProjectR|Inventory")
+	UPRItemInstance* FindItemByData(UPRItemDataAsset* InItemData);
+	
 	// 소비 Item 데이터로 인벤토리 내 소비 Item을 조회한다
 	UFUNCTION(BlueprintCallable, Category = "ProjectR|Inventory")
 	UPRItemInstance_Consumable* FindConsumableItemByData(const UPRConsumableDataAsset* ConsumableData) const;
@@ -192,6 +200,18 @@ public:
 	// 현재 인벤토리가 소유한 재료 Item 목록을 반환한다
 	UFUNCTION(BlueprintCallable)
 	TArray<UPRItemInstance_Material*> GetMaterialItems() const { return InventoryMaterialItems; }
+
+	// 현재 인벤토리 상태 저장 데이터
+	FPRInventorySaveData MakeSaveData() const;
+
+	// 저장 데이터 기반 인벤토리 복원
+	void ApplySaveData(const FPRInventorySaveData& InSaveData);
+
+	// 무기 Item 인벤토리 인덱스
+	int32 GetWeaponItemIndex(const UPRItemInstance_Weapon* WeaponItem) const;
+
+	// Mod Item 인벤토리 인덱스
+	int32 GetModItemIndex(const UPRItemInstance_Mod* ModItem) const;
 	
 protected:
 	// 클라이언트에서 무기 Item 목록 복제 결과를 확인한다

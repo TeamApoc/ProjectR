@@ -76,6 +76,25 @@ FGameplayTag UPRGameInstance::ConsumePendingTravelWaypointId()
 	return ConsumedWaypointId;
 }
 
+void UPRGameInstance::SetPendingWorldSaveData(const FPRWorldSaveData& WorldSaveData)
+{
+	PendingWorldSaveData = WorldSaveData;
+	bHasPendingWorldSaveData = true;
+}
+
+bool UPRGameInstance::ConsumePendingWorldSaveData(FPRWorldSaveData& OutWorldSaveData)
+{
+	if (!bHasPendingWorldSaveData)
+	{
+		return false;
+	}
+
+	OutWorldSaveData = PendingWorldSaveData;
+	PendingWorldSaveData = FPRWorldSaveData();
+	bHasPendingWorldSaveData = false;
+	return true;
+}
+
 // ===== 세이브 연동 (스켈레톤) =====
 
 bool UPRGameInstance::LoadLocalCharacter(FName SlotName)

@@ -39,6 +39,9 @@ public:
 	// 판매, 보정, 디버그 등 사용 외 경로로 보유 개수를 감소시킨다
 	bool RemoveStack(int32 RemoveCount);
 
+	// 지정 개수로 스택 설정
+	void SetStack(int32 NewStack);
+	
 public:
 	// 소유 인벤토리에 변경 이벤트를 전달
 	void NotifyInventoryChanged(EPRInventoryChangeReason ChangeReason);

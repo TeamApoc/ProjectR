@@ -48,6 +48,12 @@ public:
 	// 다음 맵 진입 Waypoint 태그 존재 여부 반환
 	bool HasPendingTravelWaypointId() const { return PendingTravelWaypointId.IsValid(); }
 
+	// 다음 맵 진입 시 복원할 월드 저장 데이터 설정
+	void SetPendingWorldSaveData(const FPRWorldSaveData& WorldSaveData);
+
+	// 다음 맵 진입 월드 저장 데이터 소비
+	bool ConsumePendingWorldSaveData(FPRWorldSaveData& OutWorldSaveData);
+
 	// 로컬 캐릭터 세이브 로드. 메뉴에서 "이어하기" 선택 시 호출
 	// 현재 단계에서는 스켈레톤 구현. 세이브 시스템 연동 시 본 메서드에서 SaveGame 로드 분기 추가
 	UFUNCTION(BlueprintCallable, Category = "ProjectR|Save")
@@ -75,4 +81,10 @@ protected:
 
 	// ServerTravel 이후 최초 스폰에 사용할 Waypoint 태그
 	FGameplayTag PendingTravelWaypointId;
+
+	// ServerTravel 이후 복원할 월드 진행 상태
+	FPRWorldSaveData PendingWorldSaveData;
+
+	// 월드 진행 상태 대기 여부
+	bool bHasPendingWorldSaveData = false;
 };

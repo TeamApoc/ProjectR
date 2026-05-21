@@ -6,6 +6,7 @@
 #include "GameFramework/Controller.h"
 #include "GameFramework/Pawn.h"
 #include "Net/UnrealNetwork.h"
+#include "ProjectR/Character/PRPlayerCharacter.h"
 #include "ProjectR/Inventory/Data/PRConsumableDataAsset.h"
 #include "ProjectR/Inventory/Data/PRMaterialDataAsset.h"
 #include "ProjectR/Inventory/Items/PRItemInstance_Consumable.h"
@@ -846,6 +847,33 @@ bool UPRInventoryComponent::OwnsMaterial(const UPRItemInstance_Material* Materia
 	return InventoryMaterialItems.Contains(MaterialItem);
 }
 
+UPRItemInstance* UPRInventoryComponent::FindItemByData(UPRItemDataAsset* InItemData)
+{
+	// 데이터가 없는 요청은 타입별 서버 요청으로 전달하지 않는다
+	if (!IsValid(InItemData))
+	{
+		return nullptr;
+	}
+
+	if (UPRWeaponDataAsset* WeaponData = Cast<UPRWeaponDataAsset>(InItemData))
+	{
+		return FindWeaponItemByData(WeaponData);
+	}
+	else if (UPRWeaponModDataAsset* ModData = Cast<UPRWeaponModDataAsset>(InItemData))
+	{
+		return FindModItemByData(ModData);
+	}
+	else if (UPRConsumableDataAsset* ConsumableData = Cast<UPRConsumableDataAsset>(InItemData))
+	{
+		return FindConsumableItemByData(ConsumableData);
+	}
+	else if (UPRMaterialDataAsset* MaterialData = Cast<UPRMaterialDataAsset>(InItemData))
+	{
+		return FindMaterialItemByData(MaterialData);
+	}
+	return nullptr;
+}
+
 UPRItemInstance_Consumable* UPRInventoryComponent::FindConsumableItemByData(const UPRConsumableDataAsset* ConsumableData) const
 {
 	// 유효하지 않은 데이터는 조회 대상이 아니다
@@ -945,6 +973,192 @@ UPRItemInstance_Mod* UPRInventoryComponent::FindModItemByData(const UPRWeaponMod
 void UPRInventoryComponent::OnInventoryChanged(const FPRInventoryChangeEventData& EventData)
 {
 	OnInventoryChangedDelegate.Broadcast(this, EventData);
+}
+
+FPRInventorySaveData UPRInventoryComponent::MakeSaveData() const
+{
+	FPRInventorySaveData SaveData;
+	SaveData.Weapons.Reserve(InventoryWeaponItems.Num());
+	SaveData.Mods.Reserve(InventoryModItems.Num());
+	SaveData.Consumables.Reserve(InventoryConsumableItems.Num());
+	SaveData.Materials.Reserve(InventoryMaterialItems.Num());
+
+	for (const UPRItemInstance_Weapon* WeaponItem : InventoryWeaponItems)
+	{
+		if (!IsValid(WeaponItem) || !IsValid(WeaponItem->GetWeaponData()))
+		{
+			continue;
+		}
+
+		FPRWeaponItemSaveEntry Entry;
+		WeaponItem->FillSaveEntry(Entry);
+		Entry.EquippedModIndex = GetModItemIndex(WeaponItem->GetEquippedModItem());
+		SaveData.Weapons.Add(Entry);
+	}
+
+	for (const UPRItemInstance_Mod* ModItem : InventoryModItems)
+	{
+		if (!IsValid(ModItem) || !IsValid(ModItem->GetModData()))
+		{
+			continue;
+		}
+
+		FPRModItemSaveEntry Entry;
+		ModItem->FillSaveEntry(Entry);
+		SaveData.Mods.Add(Entry);
+	}
+
+	for (const UPRItemInstance_Consumable* ConsumableItem : InventoryConsumableItems)
+	{
+		if (!IsValid(ConsumableItem) || !IsValid(ConsumableItem->GetConsumableData()))
+		{
+			continue;
+		}
+
+		FPRConsumableSaveEntry Entry;
+		Entry.ConsumableData = ConsumableItem->GetConsumableData();
+		Entry.StackCount = ConsumableItem->GetStackCount();
+		SaveData.Consumables.Add(Entry);
+	}
+
+	for (const UPRItemInstance_Material* MaterialItem : InventoryMaterialItems)
+	{
+		if (!IsValid(MaterialItem) || !IsValid(MaterialItem->GetMaterialData()))
+		{
+			continue;
+		}
+
+		FPRMaterialSaveEntry Entry;
+		Entry.MaterialData = MaterialItem->GetMaterialData();
+		Entry.StackCount = MaterialItem->GetStackCount();
+		SaveData.Materials.Add(Entry);
+	}
+
+	return SaveData;
+}
+
+void UPRInventoryComponent::ApplySaveData(const FPRInventorySaveData& InSaveData)
+{
+	if (!IsValid(GetOwner()) || !GetOwner()->HasAuthority())
+	{
+		return;
+	}
+
+	InventoryWeaponItems.Reset();
+	InventoryModItems.Reset();
+	InventoryConsumableItems.Reset();
+	InventoryMaterialItems.Reset();
+
+	for (const FPRModItemSaveEntry& Entry : InSaveData.Mods)
+	{
+		UPRWeaponModDataAsset* ModData = Entry.ModData.LoadSynchronous();
+		if (!IsValid(ModData))
+		{
+			continue;
+		}
+
+		UPRItemInstance_Mod* NewModItem = NewObject<UPRItemInstance_Mod>(this);
+		if (!IsValid(NewModItem))
+		{
+			continue;
+		}
+
+		// Mod 아이템 복원
+		NewModItem->InitializeItem(ModData, 1);
+		NewModItem->ApplySaveEntry(Entry);
+		InventoryModItems.Add(NewModItem);
+	}
+
+	for (const FPRWeaponItemSaveEntry& Entry : InSaveData.Weapons)
+	{
+		UPRWeaponDataAsset* WeaponData = Entry.WeaponData.LoadSynchronous();
+		if (!IsValid(WeaponData))
+		{
+			continue;
+		}
+
+		UPRItemInstance_Weapon* NewWeaponItem = NewObject<UPRItemInstance_Weapon>(this);
+		if (!IsValid(NewWeaponItem))
+		{
+			continue;
+		}
+
+		// 무기 아이템 복원
+		NewWeaponItem->InitializeItem(WeaponData, FMath::Max(Entry.StackCount, 1));
+		NewWeaponItem->ApplySaveEntry(Entry);
+
+		if (InventoryModItems.IsValidIndex(Entry.EquippedModIndex))
+		{
+			UPRItemInstance_Mod* ModItem = InventoryModItems[Entry.EquippedModIndex];
+			if (IsValid(ModItem) && IsValid(ModItem->GetModData()))
+			{
+				// Mod 장착 관계 복원
+				NewWeaponItem->SetEquippedModItem(ModItem);
+				NewWeaponItem->SetModData(ModItem->GetModData());
+				ModItem->MarkEquippedToWeaponItem(NewWeaponItem);
+			}
+		}
+
+		InventoryWeaponItems.Add(NewWeaponItem);
+	}
+
+	for (const FPRConsumableSaveEntry& Entry : InSaveData.Consumables)
+	{
+		UPRConsumableDataAsset* ConsumableData = Entry.ConsumableData.LoadSynchronous();
+		if (!IsValid(ConsumableData) || Entry.StackCount <= 0)
+		{
+			continue;
+		}
+
+		UPRItemInstance_Consumable* NewConsumableItem = NewObject<UPRItemInstance_Consumable>(this);
+		if (!IsValid(NewConsumableItem))
+		{
+			continue;
+		}
+
+		// 소비 아이템 복원
+		NewConsumableItem->InitializeItem(ConsumableData, Entry.StackCount);
+		InventoryConsumableItems.Add(NewConsumableItem);
+	}
+
+	for (const FPRMaterialSaveEntry& Entry : InSaveData.Materials)
+	{
+		UPRMaterialDataAsset* MaterialData = Entry.MaterialData.LoadSynchronous();
+		if (!IsValid(MaterialData) || Entry.StackCount <= 0)
+		{
+			continue;
+		}
+
+		UPRItemInstance_Material* NewMaterialItem = NewObject<UPRItemInstance_Material>(this);
+		if (!IsValid(NewMaterialItem))
+		{
+			continue;
+		}
+
+		// 재료 아이템 복원
+		NewMaterialItem->InitializeItem(MaterialData, Entry.StackCount);
+		InventoryMaterialItems.Add(NewMaterialItem);
+	}
+
+	if (IsValid(GetOwner()))
+	{
+		GetOwner()->ForceNetUpdate();
+	}
+
+	FPRInventoryChangeEventData EventData;
+	EventData.ChangeReason = EPRInventoryChangeReason::BulkRestored;
+	EventData.ItemInstance = nullptr;
+	OnInventoryChanged(EventData);
+}
+
+int32 UPRInventoryComponent::GetWeaponItemIndex(const UPRItemInstance_Weapon* WeaponItem) const
+{
+	return InventoryWeaponItems.IndexOfByKey(WeaponItem);
+}
+
+int32 UPRInventoryComponent::GetModItemIndex(const UPRItemInstance_Mod* ModItem) const
+{
+	return InventoryModItems.IndexOfByKey(ModItem);
 }
 
 void UPRInventoryComponent::OnRep_InventoryWeaponItems(const TArray<UPRItemInstance_Weapon*>& OldWeaponItems)
@@ -1268,14 +1482,13 @@ UPRWeaponManagerComponent* UPRInventoryComponent::ResolveOwnerWeaponManager() co
 	{
 		return nullptr;
 	}
-
-	APawn* OwnerPawn = OwnerController->GetPawn();
-	if (!IsValid(OwnerPawn))
+	
+	if (APRPlayerCharacter* Player = Cast<APRPlayerCharacter>(OwnerController->GetPawn()))
 	{
-		return nullptr;
+		return Player->GetWeaponManager();
 	}
-
-	return OwnerPawn->FindComponentByClass<UPRWeaponManagerComponent>();
+	
+	return nullptr;
 }
 
 void UPRInventoryComponent::NotifyWeaponItemModChanged(UPRItemInstance_Weapon* WeaponItem)

@@ -32,6 +32,9 @@ void APRPlayGameMode::InitGame(const FString& MapName, const FString& Options, F
 
 	if (UPRGameInstance* GameInstance = GetGameInstance<UPRGameInstance>())
 	{
+		// 월드 진행 상태 소비
+		GameInstance->ConsumePendingWorldSaveData(HostWorldSave);
+
 		// ServerTravel 진입 Waypoint 소비
 		TravelSpawnWaypointId = GameInstance->ConsumePendingTravelWaypointId();
 	}
@@ -44,7 +47,12 @@ void APRPlayGameMode::PostLogin(APlayerController* NewPlayer)
 	// GameState에 월드 세이브 주입 (최초 1회만 수행)
 	if (APRGameStateBase* GS = GetGameState<APRGameStateBase>())
 	{
-		if (GS->GetActiveCheckpoint().IsNone() && !HostWorldSave.LastCheckpointId.IsNone())
+		const bool bHasHostWorldSaveData =
+			!HostWorldSave.LastCheckpointId.IsNone()
+			|| HostWorldSave.LastActiveWaypointId.IsValid()
+			|| !HostWorldSave.UnlockedCheckpoints.IsEmpty()
+			|| !HostWorldSave.DefeatedBosses.IsEmpty();
+		if (GS->GetActiveCheckpoint().IsNone() && bHasHostWorldSaveData)
 		{
 			GS->InitializeFromWorldSave(HostWorldSave);
 		}
@@ -152,6 +160,11 @@ bool APRPlayGameMode::AcceptGuestCharacter(APRPlayerController* From, const FPRC
 	if (APRPlayerState* PS = From->GetPlayerState<APRPlayerState>())
 	{
 		PS->InitializePrimaryInfoFromSaveData(Payload);
+		if (IsValid(PS->GetPawn()))
+		{
+			// 게스트 페이로드 즉시 복원
+			PS->ApplySaveData(Payload);
+		}
 		return true;
 	}
 
@@ -381,8 +394,7 @@ FGameplayTag APRPlayGameMode::ResolvePlayerStartWaypointId() const
 	const APRGameStateBase* PRGameState = Cast<APRGameStateBase>(GameState);
 
 	// 맵 이동 진입 지점 우선
-	if (TravelSpawnWaypointId.IsValid()
-		&& (!IsValid(PRGameState) || !PRGameState->GetLastActiveWaypointId().IsValid()))
+	if (TravelSpawnWaypointId.IsValid())
 	{
 		return TravelSpawnWaypointId;
 	}

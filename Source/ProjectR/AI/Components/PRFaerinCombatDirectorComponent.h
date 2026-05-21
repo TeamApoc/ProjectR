@@ -22,10 +22,56 @@ enum class EPRFaerinCombatLoopState : uint8
 	Idle				UMETA(DisplayName = "Idle"),
 	SelectingPattern	UMETA(DisplayName = "Selecting Pattern"),
 	WaitingPatternEnd	UMETA(DisplayName = "Waiting Pattern End"),
-	PostPatternStrafe	UMETA(DisplayName = "Post Pattern Strafe")
+	PostPatternStrafe	UMETA(DisplayName = "Post Pattern Strafe"),
+	ApproachSprint		UMETA(DisplayName = "Approach Sprint")
 };
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FPRFaerinLoopStepFinishedSignature, bool, bSucceeded);
+
+USTRUCT(BlueprintType)
+struct PROJECTR_API FPRFaerinApproachSprintRequest
+{
+	GENERATED_BODY()
+
+	// 접근 요청이 유효한지 나타낸다.
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Faerin")
+	bool bIsValid = false;
+
+	// 스프린트 접근의 기준 타깃이다.
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Faerin")
+	TObjectPtr<AActor> TargetActor;
+
+	// 접근을 시작하게 만든 거리 기준이다.
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Faerin")
+	float TriggerDistance = 0.0f;
+
+	// 타깃과 이 거리 이하로 좁혀지면 End 섹션으로 전환한다.
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Faerin")
+	float StopDistance = 0.0f;
+
+	// 접근이 너무 오래 지속되지 않게 막는 최대 시간이다.
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Faerin")
+	float TimeoutSeconds = 0.0f;
+
+	// MoveTo와 거리 종료 판정에 사용하는 허용 반경이다.
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Faerin")
+	float AcceptanceRadius = 0.0f;
+
+	// 접근 목적지를 NavMesh 위로 보정할 때 사용하는 검색 범위다.
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Faerin")
+	FVector NavProjectExtent = FVector::ZeroVector;
+
+	// 접근 중 애니메이션 이동 표현에 적용할 설정이다.
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Faerin")
+	FPREnemyMovePresentationConfig PresentationConfig;
+};
+
+enum class EPRFaerinObservedAbilityRole : uint8
+{
+	None,
+	Pattern,
+	Approach
+};
 
 // Faerin 전용 공격 루프를 PatternData, LoopData, AbilitySet 기반으로 실행하는 컴포넌트다.
 UCLASS(ClassGroup = (ProjectR), meta = (BlueprintSpawnableComponent))
@@ -58,12 +104,24 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "ProjectR|AI|Boss|Faerin")
 	float CalculateStrafeDuration() const;
 
+	// 현재 스프린트 접근 GA가 사용할 요청 데이터를 복사한다.
+	bool GetActiveApproachSprintRequest(FPRFaerinApproachSprintRequest& OutRequest) const;
+
 protected:
 	// Owner와 데이터 참조를 다시 확인하고 캐시한다.
 	bool InitializeDirector();
 
 	// 현재 BT 문맥에서 선택 가능한 패턴 후보를 고른다.
 	bool SelectPatternPlan(UBehaviorTreeComponent& OwnerComp, FPRFaerinPatternPlan& OutPlan);
+
+	// 거리 때문에 패턴 선택이 실패했을 때 sprint 접근으로 유효 사거리까지 진입한다.
+	bool StartOutOfRangeApproach(UBehaviorTreeComponent& OwnerComp);
+
+	// 사거리 밖 접근의 기준이 될 패턴 후보를 고른다.
+	bool SelectOutOfRangeApproachPlan(
+		UBehaviorTreeComponent& OwnerComp,
+		const FPRFaerinPhaseLoopConfig& PhaseConfig,
+		FPRFaerinPatternPlan& OutPlan);
 
 	// 선택된 패턴 Ability를 서버 ASC에서 실행한다.
 	bool ActivatePatternAbility(const FPRFaerinPatternPlan& PatternPlan);
@@ -86,6 +144,9 @@ protected:
 	// 공격 후 횡이동이 필요한지 판단한다.
 	bool ShouldRunPostPatternStrafe(const FPRFaerinPatternPlan& PatternPlan, const FPRFaerinPhaseLoopConfig& PhaseConfig) const;
 
+	// 현재 거리가 방금 실행한 패턴의 유효 사거리 밖이라 즉시 접근해야 하는지 판단한다.
+	bool ShouldRunUrgentPatternRangeApproach(const FPRFaerinPatternPlan& PatternPlan, const FPRFaerinPhaseLoopConfig& PhaseConfig) const;
+
 	// 원작형 공격 후 횡이동을 시작한다.
 	bool StartPostPatternStrafe(const FPRFaerinPhaseLoopConfig& PhaseConfig);
 
@@ -94,6 +155,21 @@ protected:
 
 	// 횡이동 타이머가 끝났을 때 호출된다.
 	void HandlePostPatternStrafeElapsed();
+
+	// 횡이동 이후 다음 공격을 준비하는 접근이 필요한지 판단한다.
+	bool ShouldRunPostStrafeApproach(const FPRFaerinPatternPlan& PatternPlan, const FPRFaerinPhaseLoopConfig& PhaseConfig) const;
+
+	// 횡이동 이후 sprint 접근을 시작한다.
+	bool StartPostStrafeApproach(const FPRFaerinPhaseLoopConfig& PhaseConfig);
+
+	// 스프린트 접근 GA가 사용할 실행 요청을 만든다.
+	bool BuildApproachSprintRequest(const FPRFaerinPhaseLoopConfig& PhaseConfig, FPRFaerinApproachSprintRequest& OutRequest) const;
+
+	// 패턴 메타데이터와 페이즈 설정을 합쳐 최종 접근 정책을 결정한다.
+	EPRFaerinApproachPolicy ResolveApproachPolicy(const FPRFaerinPatternPlan& PatternPlan, const FPRFaerinPhaseLoopConfig& PhaseConfig) const;
+
+	// 현재 접근 요청 캐시를 초기화한다.
+	void ClearActiveApproachSprintRequest();
 
 	// 전체 루프 단계 타임아웃이 발생했을 때 호출된다.
 	void HandleLoopStepFailSafeElapsed();
@@ -179,11 +255,13 @@ private:
 	TObjectPtr<AActor> ActiveTarget;
 
 	FPRFaerinPatternPlan ActivePatternPlan;
+	FPRFaerinApproachSprintRequest ActiveApproachSprintRequest;
 	FGameplayAbilitySpecHandle ActiveAbilityHandle;
 	FDelegateHandle AbilityEndedDelegateHandle;
 	FTimerHandle LoopStepFailSafeTimerHandle;
 	FTimerHandle PostPatternStrafeTimerHandle;
 	EPRFaerinCombatLoopState LoopState = EPRFaerinCombatLoopState::Idle;
+	EPRFaerinObservedAbilityRole ObservedAbilityRole = EPRFaerinObservedAbilityRole::None;
 	int32 NextStrafeDirectionSign = 1;
 	bool bHasLoggedRuntimeValidationErrors = false;
 	bool bHasLoggedInitializationError = false;

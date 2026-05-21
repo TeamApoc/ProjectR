@@ -24,6 +24,7 @@ enum class EPRFaerinTeleportWrapperPolicy : uint8
 UENUM(BlueprintType)
 enum class EPRFaerinApproachPolicy : uint8
 {
+	PhaseDefault		UMETA(DisplayName = "Phase Default"),
 	None				UMETA(DisplayName = "None"),
 	KeepCurrentRange	UMETA(DisplayName = "Keep Current Range"),
 	SprintToMeleeRange	UMETA(DisplayName = "Sprint To Melee Range"),
@@ -90,6 +91,42 @@ struct PROJECTR_API FPRFaerinPhaseLoopConfig
 	// 횡이동 중 애니메이션/이동 표현에 적용할 설정이다.
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Faerin")
 	FPREnemyMovePresentationConfig StrafePresentationConfig;
+
+	// 횡이동 이후 다음 공격을 준비하는 접근 단계를 사용할지 결정한다.
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Faerin")
+	bool bUsePostStrafeApproach = true;
+
+	// 스프린트 접근을 실제로 실행할 Gameplay Ability 태그다.
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Faerin", meta = (Categories = "Ability.Boss.Faerin"))
+	FGameplayTag ApproachAbilityTag;
+
+	// 패턴 메타데이터가 PhaseDefault를 선택했을 때 사용할 기본 접근 정책이다.
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Faerin")
+	EPRFaerinApproachPolicy DefaultApproachPolicy = EPRFaerinApproachPolicy::SprintToMeleeRange;
+
+	// 이 거리보다 멀 때 sprint 접근을 시작한다.
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Faerin", meta = (ClampMin = "0.0"))
+	float ApproachTriggerDistance = 1400.0f;
+
+	// sprint 접근으로 유지하려는 타깃과의 거리다.
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Faerin", meta = (ClampMin = "0.0"))
+	float ApproachStopDistance = 220.0f;
+
+	// 접근 이동을 유지할 최대 시간이다.
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Faerin", meta = (ClampMin = "0.0"))
+	float ApproachTimeoutSeconds = 0.75f;
+
+	// AI MoveTo 접근 도착 판정 반경이다.
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Faerin", meta = (ClampMin = "0.0"))
+	float ApproachAcceptanceRadius = 120.0f;
+
+	// 접근 목적지를 NavMesh 위로 보정할 때 사용하는 검색 범위다.
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Faerin", meta = (ClampMin = "0.0"))
+	FVector ApproachNavProjectExtent = FVector(240.0f, 240.0f, 360.0f);
+
+	// 접근 중 애니메이션/이동 표현에 적용할 설정이다.
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Faerin")
+	FPREnemyMovePresentationConfig ApproachPresentationConfig;
 };
 
 USTRUCT(BlueprintType)
@@ -113,9 +150,9 @@ struct PROJECTR_API FPRFaerinPatternLoopMetadata
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Faerin")
 	EPRFaerinTeleportWrapperPolicy TeleportWrapperPolicy = EPRFaerinTeleportWrapperPolicy::None;
 
-	// 공격 전 거리 보정 방식이다.
+	// 공격 종료 후 다음 루프를 준비하는 접근 방식이다.
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Faerin")
-	EPRFaerinApproachPolicy ApproachPolicy = EPRFaerinApproachPolicy::KeepCurrentRange;
+	EPRFaerinApproachPolicy ApproachPolicy = EPRFaerinApproachPolicy::PhaseDefault;
 
 	// 공격 종료 후 루프 진행 방식이다.
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Faerin")

@@ -68,6 +68,7 @@ namespace PRGameplayTags
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Ability_Boss_Faerin_CrashSequence, "Ability.Boss.Faerin.CrashSequence", "Faerin Crash 패턴 어빌리티");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Ability_Boss_Faerin_CrashDropSequence, "Ability.Boss.Faerin.CrashDropSequence", "Faerin CrashDrop 패턴 어빌리티");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Ability_Boss_Faerin_ThrowSequence, "Ability.Boss.Faerin.ThrowSequence", "Faerin Throw 패턴 어빌리티");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Ability_Boss_Faerin_ApproachSprint, "Ability.Boss.Faerin.ApproachSprint", "Faerin 스프린트 접근 액션");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Ability_Boss_Faerin_TeleportDash, "Ability.Boss.Faerin.TeleportDash", "Faerin 텔레포트 대시");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Ability_Boss_Faerin_EnergyRain, "Ability.Boss.Faerin.EnergyRain", "Faerin 범위 압박");
 

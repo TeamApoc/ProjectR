@@ -117,6 +117,59 @@ bool UPRFaerinCombatLoopDataAsset::ValidateLoopData(
 				TEXT("Faerin PhaseConfig의 체력 비율 기준이 역전되어 있다. Phase=%s"),
 				*StaticEnum<EPRBossPhase>()->GetNameStringByValue(static_cast<int64>(PhaseConfig.Phase))));
 		}
+
+		if (PhaseConfig.bUsePostStrafeApproach && !PhaseConfig.ApproachAbilityTag.IsValid())
+		{
+			OutErrors.Add(FString::Printf(
+				TEXT("Faerin PhaseConfig의 sprint 접근 AbilityTag가 비어 있다. Phase=%s"),
+				*StaticEnum<EPRBossPhase>()->GetNameStringByValue(static_cast<int64>(PhaseConfig.Phase))));
+		}
+
+		if (PhaseConfig.bUsePostStrafeApproach
+			&& PhaseConfig.ApproachAbilityTag.IsValid()
+			&& IsValid(AbilitySystemComponent))
+		{
+			FGameplayTagContainer QueryTags;
+			QueryTags.AddTag(PhaseConfig.ApproachAbilityTag);
+
+			TArray<FGameplayAbilitySpec*> MatchingSpecs;
+			AbilitySystemComponent->GetActivatableGameplayAbilitySpecsByAllMatchingTags(QueryTags, MatchingSpecs);
+			if (MatchingSpecs.IsEmpty())
+			{
+				OutErrors.Add(FString::Printf(
+					TEXT("Faerin AbilitySet에서 sprint 접근 GA를 찾지 못했다. Phase=%s, AbilityTag=%s"),
+					*StaticEnum<EPRBossPhase>()->GetNameStringByValue(static_cast<int64>(PhaseConfig.Phase)),
+					*PhaseConfig.ApproachAbilityTag.ToString()));
+			}
+		}
+
+		if (PhaseConfig.bUsePostStrafeApproach
+			&& PhaseConfig.DefaultApproachPolicy == EPRFaerinApproachPolicy::SprintToMeleeRange
+			&& PhaseConfig.ApproachTriggerDistance <= PhaseConfig.ApproachStopDistance)
+		{
+			OutErrors.Add(FString::Printf(
+				TEXT("Faerin PhaseConfig의 접근 시작 거리는 정지 거리보다 커야 한다. Phase=%s"),
+				*StaticEnum<EPRBossPhase>()->GetNameStringByValue(static_cast<int64>(PhaseConfig.Phase))));
+		}
+
+		if (PhaseConfig.bUsePostStrafeApproach
+			&& PhaseConfig.DefaultApproachPolicy == EPRFaerinApproachPolicy::SprintToMeleeRange
+			&& PhaseConfig.ApproachStopDistance > 400.0f)
+		{
+			OutErrors.Add(FString::Printf(
+				TEXT("Faerin sprint 근접 접근의 정지 거리가 너무 멀다. 초근접 돌진 검증 기준은 180~260 권장. Phase=%s, StopDistance=%.1f"),
+				*StaticEnum<EPRBossPhase>()->GetNameStringByValue(static_cast<int64>(PhaseConfig.Phase)),
+				PhaseConfig.ApproachStopDistance));
+		}
+
+		if (PhaseConfig.bUsePostStrafeApproach
+			&& PhaseConfig.DefaultApproachPolicy == EPRFaerinApproachPolicy::SprintToMeleeRange
+			&& PhaseConfig.ApproachTimeoutSeconds <= 0.0f)
+		{
+			OutErrors.Add(FString::Printf(
+				TEXT("Faerin PhaseConfig의 sprint 접근 시간이 0 이하라 접근 단계가 즉시 종료된다. Phase=%s"),
+				*StaticEnum<EPRBossPhase>()->GetNameStringByValue(static_cast<int64>(PhaseConfig.Phase))));
+		}
 	}
 
 	return OutErrors.IsEmpty();

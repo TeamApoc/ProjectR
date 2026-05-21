@@ -179,6 +179,6 @@ void UPRCharacterPreviewWidget::ResolvePreviewSourcesFromOwningPlayerIfNeeded()
 
 	if (!IsValid(WeaponManagerComponent))
 	{
-		WeaponManagerComponent = PlayerCharacter->FindComponentByClass<UPRWeaponManagerComponent>();
+		WeaponManagerComponent = PlayerCharacter->GetWeaponManager();
 	}
 }

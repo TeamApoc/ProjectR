@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "GameplayTagContainer.h"
 #include "GameFramework/GameStateBase.h"
 #include "PRGameTypes.h"
 #include "PRGameStateBase.generated.h"
@@ -29,6 +30,9 @@ public:
 	// 현재 활성 체크포인트 조회
 	FName GetActiveCheckpoint() const { return ActiveCheckpoint; }
 
+	// 마지막 활성 Waypoint 태그 조회
+	FGameplayTag GetLastActiveWaypointId() const { return LastActiveWaypointId; }
+
 	// 보스 처치 여부 조회
 	bool IsBossDefeated(FName BossId) const;
 
@@ -38,8 +42,17 @@ public:
 	// 서버 전용. 월드 세이브 스냅샷을 GameState에 주입. 호스트 맵 로드 직후 GameMode가 호출
 	void InitializeFromWorldSave(const FPRWorldSaveData& WorldSave);
 
+	// 현재 월드 진행 상태 저장 데이터
+	FPRWorldSaveData MakeWorldSaveData() const;
+
 	// 서버 전용. 체크포인트 활성화 반영
 	void SetActiveCheckpoint(FName CheckpointId);
+
+	// 서버 전용. 마지막 활성 Waypoint 태그 반영
+	void SetLastActiveWaypointId(FGameplayTag WaypointId);
+
+	// 서버 전용. 마지막 활성 Waypoint 태그 초기화
+	void ClearLastActiveWaypointId();
 
 	// 서버 전용. 보스 처치 반영
 	void MarkBossDefeated(FName BossId);
@@ -66,6 +79,10 @@ protected:
 	// 이번 세션에서 해금된 체크포인트 집합
 	UPROPERTY(Replicated)
 	TArray<FName> UnlockedCheckpoints;
+
+	// 마지막 활성 Waypoint 태그
+	UPROPERTY(Replicated)
+	FGameplayTag LastActiveWaypointId;
 
 	// 처치된 보스 ID. 재도전 트리거·컷신 분기용
 	UPROPERTY(Replicated)

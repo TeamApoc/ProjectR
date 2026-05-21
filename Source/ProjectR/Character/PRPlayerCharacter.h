@@ -1,4 +1,4 @@
-﻿// Fill out your copyright notice in the Description page of Project Settings.
+// Fill out your copyright notice in the Description page of Project Settings.
 
 #pragma once
 
@@ -69,7 +69,9 @@ public:
 	
 	/** 액션 입력 라우터 컴포넌트를 반환 */
 	UPRActionInputRouterComponent* GetActionInputRouter() const { return ActionInputRouterComponent; }
-	UPRWeaponManagerComponent* GetWeaponManager() const {return WeaponManagerComponent;}
+	// TODO: UPRWeaponManagerComponent::GetAimOffsetWeaponSlot() 을 사용해야 함 (애니메이션에서 참조 시)
+	UFUNCTION(BlueprintPure, Category = "PR|Weapon")
+	UPRWeaponManagerComponent* GetWeaponManager() const;
 
 	
 protected:
@@ -98,9 +100,6 @@ public:
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Camera")
 	TObjectPtr<UCameraComponent> FollowCamera;
-
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Weapon")
-	TObjectPtr<UPRWeaponManagerComponent> WeaponManagerComponent;
 
 	/** 몽타주 기반 액션 중 입력 차단과 스킵 요청을 중계하는 컴포넌트 */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Input")
@@ -161,8 +160,6 @@ private:
 	bool bIsAiming = false;
 	bool bIsWalking = false;
 	bool bIsDodging = false;
-
-	FPRAbilitySetHandles AbilitySetHandles;
 	
 	bool bBlockMove = false;
 	

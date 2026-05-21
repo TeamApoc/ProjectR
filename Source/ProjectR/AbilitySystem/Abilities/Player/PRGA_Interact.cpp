@@ -3,6 +3,7 @@
 
 #include "PRGA_Interact.h"
 
+#include "Abilities/Tasks/AbilityTask_WaitInputPress.h"
 #include "Abilities/Tasks/AbilityTask_WaitInputRelease.h"
 #include "ProjectR/PRGameplayTags.h"
 #include "ProjectR/Interaction/PRInteractorComponent.h"
@@ -69,7 +70,7 @@ void UPRGA_Interact::EndAbility(const FGameplayAbilitySpecHandle Handle, const F
 			}
 			if (Interactor->IsSustained())
 			{
-				Interactor->RequestEndInteract();
+				Interactor->RequestEndInteract(bWasCancelled);
 			}
 			Interactor->OnInteractionEnd.RemoveAll(this);
 		}
@@ -78,6 +79,13 @@ void UPRGA_Interact::EndAbility(const FGameplayAbilitySpecHandle Handle, const F
 	WaitHoldReleaseTask = nullptr;
 	
 	Super::EndAbility(Handle, ActorInfo, ActivationInfo, bReplicateEndAbility, bWasCancelled);
+}
+
+void UPRGA_Interact::InputPressed(const FGameplayAbilitySpecHandle Handle,
+   const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilityActivationInfo ActivationInfo)
+{
+	Super::InputPressed(Handle, ActorInfo, ActivationInfo);
+	EndAbility(Handle,ActorInfo,ActivationInfo,true,false);
 }
 
 UPRInteractorComponent* UPRGA_Interact::GetInteractorComponent(AController* InController)

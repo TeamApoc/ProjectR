@@ -5,7 +5,6 @@
 #include "GameFramework/PlayerState.h"
 #include "ProjectR/Character/PRPlayerCharacter.h"
 
-// ===== 복제 등록 =====
 
 void APRGameStateBase::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const
 {
@@ -13,11 +12,10 @@ void APRGameStateBase::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& Out
 
 	DOREPLIFETIME(APRGameStateBase, ActiveCheckpoint);
 	DOREPLIFETIME(APRGameStateBase, UnlockedCheckpoints);
+	DOREPLIFETIME(APRGameStateBase, LastActiveWaypointId);
 	DOREPLIFETIME(APRGameStateBase, DefeatedBosses);
 	DOREPLIFETIME(APRGameStateBase, WorldSaveVersion);
 }
-
-// ===== 조회 =====
 
 bool APRGameStateBase::IsBossDefeated(FName BossId) const
 {
@@ -48,8 +46,6 @@ TArray<APRPlayerCharacter*> APRGameStateBase::GetPlayerCharacters() const
 	return OutCharacters;
 }
 
-// ===== 서버 권위 변경 =====
-
 void APRGameStateBase::InitializeFromWorldSave(const FPRWorldSaveData& WorldSave)
 {
 	if (!HasAuthority())
@@ -59,8 +55,20 @@ void APRGameStateBase::InitializeFromWorldSave(const FPRWorldSaveData& WorldSave
 
 	WorldSaveVersion     = WorldSave.Version;
 	ActiveCheckpoint     = WorldSave.LastCheckpointId;
+	LastActiveWaypointId = WorldSave.LastActiveWaypointId;
 	UnlockedCheckpoints  = WorldSave.UnlockedCheckpoints;
 	DefeatedBosses       = WorldSave.DefeatedBosses;
+}
+
+FPRWorldSaveData APRGameStateBase::MakeWorldSaveData() const
+{
+	FPRWorldSaveData SaveData;
+	SaveData.Version = WorldSaveVersion;
+	SaveData.LastCheckpointId = ActiveCheckpoint;
+	SaveData.LastActiveWaypointId = LastActiveWaypointId;
+	SaveData.UnlockedCheckpoints = UnlockedCheckpoints;
+	SaveData.DefeatedBosses = DefeatedBosses;
+	return SaveData;
 }
 
 void APRGameStateBase::SetActiveCheckpoint(FName CheckpointId)
@@ -75,6 +83,29 @@ void APRGameStateBase::SetActiveCheckpoint(FName CheckpointId)
 
 	// 서버 로컬에서도 이벤트 발행(호스트 UI 갱신)
 	OnCheckpointActivated.Broadcast(CheckpointId);
+}
+
+void APRGameStateBase::SetLastActiveWaypointId(FGameplayTag WaypointId)
+{
+	// 서버에서만 상태 변경
+	if (!HasAuthority())
+	{
+		return;
+	}
+
+	LastActiveWaypointId = WaypointId;
+	UE_LOG(LogTemp, Log, TEXT("LastActiveWaypointId updated: %s"), *LastActiveWaypointId.ToString());
+}
+
+void APRGameStateBase::ClearLastActiveWaypointId()
+{
+	// 서버에서만 상태 초기화
+	if (!HasAuthority())
+	{
+		return;
+	}
+
+	LastActiveWaypointId = FGameplayTag();
 }
 
 void APRGameStateBase::MarkBossDefeated(FName BossId)
@@ -92,8 +123,6 @@ void APRGameStateBase::MarkBossDefeated(FName BossId)
 	DefeatedBosses.Add(BossId);
 	OnBossDefeated.Broadcast(BossId);
 }
-
-// ===== 복제 콜백 =====
 
 void APRGameStateBase::OnRep_ActiveCheckpoint(FName OldCheckpoint)
 {

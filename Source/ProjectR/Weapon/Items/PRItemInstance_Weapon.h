@@ -12,6 +12,7 @@ class AActor;
 class UPRItemInstance_Mod;
 class UPRWeaponDataAsset;
 class UPRWeaponModDataAsset;
+struct FPRWeaponItemSaveEntry;
 
 // 인벤토리가 소유하는 무기 1개의 지속 인스턴스다
 UCLASS(BlueprintType, EditInlineNew, DefaultToInstanced)
@@ -30,6 +31,12 @@ public:
 
 	// 현재 연결된 무기 데이터를 반환한다
 	UPRWeaponDataAsset* GetWeaponData() const;
+
+	// 무기 인스턴스 상태 저장 엔트리 작성
+	void FillSaveEntry(FPRWeaponItemSaveEntry& OutEntry) const;
+
+	// 저장 엔트리 기반 인스턴스 상태 복원
+	void ApplySaveEntry(const FPRWeaponItemSaveEntry& InEntry);
 
 	// 현재 연결된 Mod 데이터를 반환한다
 	UPRWeaponModDataAsset* GetModData() const { return ModData; }

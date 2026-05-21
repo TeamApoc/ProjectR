@@ -21,6 +21,15 @@ void UPRInteractableComponent::GetLifetimeReplicatedProps(TArray<class FLifetime
 	DOREPLIFETIME(ThisClass, CurrentInteractor);
 }
 
+FVector UPRInteractableComponent::GetActorLocation() const
+{
+	if (GetOwner())
+	{
+		return GetOwner()->GetActorLocation();
+	}
+	return FVector::ZeroVector;
+}
+
 void UPRInteractableComponent::OnRep_CurrentInteractor()
 {
 	// TODO : 클라측 피드백 (사용 중 표시 등)
@@ -198,11 +207,11 @@ UPRInteractionAction* UPRInteractableComponent::SelectBestAction(AActor* Interac
 }
 
 
-void UPRInteractableComponent::EndActiveInteraction()
+void UPRInteractableComponent::EndActiveInteraction(AActor* Interactor, bool bCanceled)
 {
 	if (IsValid(ActiveAction))
 	{
-		ActiveAction->EndInteraction();
+		ActiveAction->EndInteraction(Interactor, bCanceled);
 		ActiveAction = nullptr;
 	}
 

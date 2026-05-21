@@ -26,6 +26,30 @@ void APRCameraManager::BeginPlay()
 	}
 }
 
+FLinearColor APRCameraManager::GetFadeColor(EPRFadeColorPreset InPresetColor)
+{
+	switch (InPresetColor)
+	{
+	case EPRFadeColorPreset::Black:
+		return FLinearColor::Black;
+	case EPRFadeColorPreset::White:
+		return FLinearColor::White;
+	}
+	return FLinearColor::Black;
+}
+
+void APRCameraManager::FadeOut(EPRFadeColorPreset ColorPreset, float InDuration, bool bShouldFadeAudio)
+{
+	FLinearColor TargetColor = GetFadeColor(ColorPreset);
+	StartCameraFade(0.f, 1.f, InDuration, TargetColor, bShouldFadeAudio, /* bHoldWhenFinished */true);
+}
+
+void APRCameraManager::FadeIn(EPRFadeColorPreset ColorPreset, float InDuration, bool bShouldFadeAudio)
+{
+	FLinearColor TargetColor = GetFadeColor(ColorPreset);
+	StartCameraFade(1.f, 0.f, InDuration, TargetColor, bShouldFadeAudio, false);
+}
+
 void APRCameraManager::UpdateViewTarget(FTViewTarget& OutVT, float DeltaTime)
 {
 	Super::UpdateViewTarget(OutVT, DeltaTime);

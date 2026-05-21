@@ -3,7 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "ProjectR/Interaction/PRInteractableActor.h"
+#include "ProjectR/World/PRInteractableActor.h"
 #include "PRPickableActor.generated.h"
 
 class USphereComponent;

@@ -3,6 +3,7 @@
 #include "PRCurrencyComponent.h"
 
 #include "Net/UnrealNetwork.h"
+#include "ProjectR/Game/PRGameTypes.h"
 
 UPRCurrencyComponent::UPRCurrencyComponent()
 {
@@ -59,6 +60,27 @@ bool UPRCurrencyComponent::TrySpendScrap(int32 Amount)
 	OnScrapChanged.Broadcast(Scrap);
 	GetOwner()->ForceNetUpdate();
 	return true;
+}
+
+FPRCurrencySaveData UPRCurrencyComponent::MakeSaveData() const
+{
+	// 재화 스냅샷
+	FPRCurrencySaveData SaveData;
+	SaveData.Scrap = Scrap;
+	return SaveData;
+}
+
+void UPRCurrencyComponent::ApplySaveData(const FPRCurrencySaveData& InSaveData)
+{
+	if (!IsValid(GetOwner()) || !GetOwner()->HasAuthority())
+	{
+		return;
+	}
+
+	// 고철 보유량 복원
+	Scrap = FMath::Max(InSaveData.Scrap, 0);
+	OnScrapChanged.Broadcast(Scrap);
+	GetOwner()->ForceNetUpdate();
 }
 
 void UPRCurrencyComponent::OnRep_Scrap()

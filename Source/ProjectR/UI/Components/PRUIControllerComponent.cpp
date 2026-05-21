@@ -12,7 +12,9 @@
 #include "ProjectR/UI/HUD/PRHUDWidget.h"
 #include "ProjectR/UI/Inventory/PRInventoryWidget.h"
 #include "ProjectR/UI/PRUIManagerSubsystem.h"
+#include "ProjectR/UI/Shop/PRShopWidget.h"
 #include "ProjectR/UI/WeaponUpgrade/PRWeaponUpgradeWidget.h"
+#include "ProjectR/Shop/Components/PRShopComponent.h"
 #include "ProjectR/Weapon/Components/PRWeaponUpgradeComponent.h"
 #include "ProjectR/Weapon/Components/PRWeaponManagerComponent.h"
 #include "ProjectR/Weapon/Data/PRWeaponDataAsset.h"
@@ -89,6 +91,8 @@ void UPRUIControllerComponent::OpenWeaponUpgrade(UPRWeaponUpgradeComponent* Upgr
 		return;
 	}
 
+	CloseShop();
+
 	UPRUIManagerSubsystem* UIManager = GetUIManager();
 	if (!IsValid(UIManager))
 	{
@@ -103,6 +107,31 @@ void UPRUIControllerComponent::OpenWeaponUpgrade(UPRWeaponUpgradeComponent* Upgr
 
 	CreatedWeaponUpgradeWidget->SetUpgradeContext(UpgradeComponent);
 	UIManager->PushUIInstance(CreatedWeaponUpgradeWidget);
+}
+
+void UPRUIControllerComponent::OpenShop(UPRShopComponent* ShopComponent)
+{
+	if (!IsLocalPlayer() || !IsValid(ShopComponent))
+	{
+		return;
+	}
+
+	CloseWeaponUpgrade();
+
+	UPRUIManagerSubsystem* UIManager = GetUIManager();
+	if (!IsValid(UIManager))
+	{
+		return;
+	}
+
+	UPRShopWidget* CreatedShopWidget = GetOrCreateShopWidget();
+	if (!IsValid(CreatedShopWidget))
+	{
+		return;
+	}
+
+	CreatedShopWidget->SetShopContext(ShopComponent);
+	UIManager->PushUIInstance(CreatedShopWidget);
 }
 
 void UPRUIControllerComponent::CloseWeaponUpgrade()
@@ -125,6 +154,29 @@ void UPRUIControllerComponent::CloseWeaponUpgrade()
 	else
 	{
 		WeaponUpgradeWidget->RemoveFromParent();
+	}
+}
+
+void UPRUIControllerComponent::CloseShop()
+{
+	if (!IsLocalPlayer())
+	{
+		return;
+	}
+
+	if (!IsValid(ShopWidget) || !ShopWidget->IsInViewport())
+	{
+		return;
+	}
+
+	UPRUIManagerSubsystem* UIManager = GetUIManager();
+	if (IsValid(UIManager))
+	{
+		UIManager->PopUI(ShopWidget);
+	}
+	else
+	{
+		ShopWidget->RemoveFromParent();
 	}
 }
 
@@ -160,6 +212,8 @@ void UPRUIControllerComponent::EndPlay(const EEndPlayReason::Type EndPlayReason)
 	InventoryWidget = nullptr;
 	CloseWeaponUpgrade();
 	WeaponUpgradeWidget = nullptr;
+	CloseShop();
+	ShopWidget = nullptr;
 
 	UnbindWeaponManager();
 	RemoveWeaponScopeWidget();
@@ -328,6 +382,23 @@ UPRWeaponUpgradeWidget* UPRUIControllerComponent::GetOrCreateWeaponUpgradeWidget
 
 	WeaponUpgradeWidget = CreateWidget<UPRWeaponUpgradeWidget>(PlayerController, WeaponUpgradeWidgetClass);
 	return WeaponUpgradeWidget;
+}
+
+UPRShopWidget* UPRUIControllerComponent::GetOrCreateShopWidget()
+{
+	if (IsValid(ShopWidget))
+	{
+		return ShopWidget;
+	}
+
+	APlayerController* PlayerController = GetOwningPlayerController();
+	if (!IsValid(PlayerController) || !IsValid(ShopWidgetClass.Get()))
+	{
+		return nullptr;
+	}
+
+	ShopWidget = CreateWidget<UPRShopWidget>(PlayerController, ShopWidgetClass);
+	return ShopWidget;
 }
 
 void UPRUIControllerComponent::TearDownHUDWidget()

@@ -117,6 +117,9 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "ProjectR|Inventory")
 	void RequestRemoveConsumableItemByData(UPRConsumableDataAsset* ConsumableData, int32 RemoveCount);
 
+	// 소비 Item 데이터 기반으로 보유 개수를 감소시키고 0개가 되면 제거한다
+	bool RemoveConsumableItemByData(UPRConsumableDataAsset* ConsumableData, int32 RemoveCount);
+
 	// 소비 Item 사용을 서버 권위 경로로 요청한다
 	UFUNCTION(BlueprintCallable, Category = "ProjectR|Inventory")
 	void RequestUseConsumableItem(UPRItemInstance_Consumable* ConsumableItem, AActor* UserActor);

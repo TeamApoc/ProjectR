@@ -6,6 +6,8 @@
 #include "Components/ActorComponent.h"
 #include "PRCurrencyComponent.generated.h"
 
+struct FPRCurrencySaveData;
+
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FPRScrapChangedSignature, int32, NewScrap);
 
 // 플레이어가 보유한 고철 재화를 서버 권위로 관리한다
@@ -32,6 +34,12 @@ public:
 	// 서버에서 고철을 소비하고 성공 여부를 반환한다
 	UFUNCTION(BlueprintAuthorityOnly, Category = "ProjectR|Currency")
 	bool TrySpendScrap(int32 Amount);
+
+	// 재화 저장 데이터 생성
+	FPRCurrencySaveData MakeSaveData() const;
+
+	// 재화 저장 데이터 적용
+	void ApplySaveData(const FPRCurrencySaveData& InSaveData);
 
 protected:
 	UFUNCTION()

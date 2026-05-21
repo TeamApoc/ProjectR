@@ -16,9 +16,9 @@ void UPRInteraction_DebugLog::Execute_Implementation(AActor* Interactor)
 	PrintDebug(TEXT("Execute"), Interactor);
 }
 
-void UPRInteraction_DebugLog::EndInteraction_Implementation()
+void UPRInteraction_DebugLog::EndInteraction_Implementation(AActor* Interactor, bool bCanceled)
 {
-	Super::EndInteraction_Implementation();
+	Super::EndInteraction_Implementation(Interactor, bCanceled);
 	PrintDebug(TEXT("EndInteraction"), nullptr);
 }
 

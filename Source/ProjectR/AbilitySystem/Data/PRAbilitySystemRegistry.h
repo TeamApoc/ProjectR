@@ -10,6 +10,18 @@
 #include "PRAbilitySystemRegistry.generated.h"
 
 class UGameplayEffect;
+
+// 영구 저장 대상 Attribute 목록
+USTRUCT(BlueprintType)
+struct FPRPersistentAttributeList
+{
+	GENERATED_BODY()
+
+	// Base 값 저장 대상 Attribute 목록
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Registry|Save")
+	TArray<FGameplayAttribute> Attributes;
+};
+
 // 프로젝트 단일 인스턴스 (DA_AbilitySystemRegistry). 역할별 DT와 Attribute 매핑 보유
 UCLASS(BlueprintType)
 class PROJECTR_API UPRAbilitySystemRegistry : public UPrimaryDataAsset
@@ -31,6 +43,9 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "ProjectR|Ability")
 	UDataTable* GetStatTableSynchronous(EPRCharacterRole Role) const;
 
+	// Role별 영구 저장 대상 Attribute 목록
+	const TArray<FGameplayAttribute>& GetPersistentBaseAttributes(EPRCharacterRole Role) const;
+
 public:
 	// 역할별 스탯 DataTable 약참조
 	UPROPERTY(EditAnywhere, Category = "Registry")
@@ -39,6 +54,10 @@ public:
 	// Row의 FFloatProperty 이름 -> 대응 Attribute 매핑 (PrimaryAttributes)
 	UPROPERTY(EditAnywhere, Category = "Registry")
 	TMap<FName, FGameplayAttribute> PropertyToAttribute;
+
+	// Role별 영구 저장 대상 Base Attribute 목록
+	UPROPERTY(EditAnywhere, Category = "Registry|Save")
+	TMap<EPRCharacterRole, FPRPersistentAttributeList> PersistentBaseAttributes;
 	
 	// 초기화 GE
 	UPROPERTY(EditAnywhere, Category = "Registry")

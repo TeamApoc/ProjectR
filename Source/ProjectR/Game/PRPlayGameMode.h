@@ -3,12 +3,15 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "GameplayTagContainer.h"
 #include "GameFramework/GameModeBase.h"
+#include "TimerManager.h"
 #include "PRGameTypes.h"
 #include "PRPlayGameMode.generated.h"
 
 class APRPlayerController;
 class APRPlayerState;
+class APRWaypointActor;
 
 // 인게임 GameMode. 호스트 프로세스에만 존재
 // 로그인 승인, 게스트 캐릭터 페이로드 검증, 월드 상태 주입, 이탈 시 보상 커밋을 담당
@@ -24,6 +27,7 @@ public:
 	virtual void InitGame(const FString& MapName, const FString& Options, FString& ErrorMessage) override;
 	virtual void PostLogin(APlayerController* NewPlayer) override;
 	virtual void Logout(AController* Exiting) override;
+	virtual AActor* ChoosePlayerStart_Implementation(AController* Player) override;
 
 public:
 	// 월드 이벤트 반영. 체크포인트 트리거·보스 처치 등에서 호출
@@ -51,6 +55,21 @@ protected:
 	// 전멸을 확정하고 모든 전투 참여 플레이어에게 최종 사망 이벤트를 보낸다.
 	void ConfirmPartyWipe();
 
+	// 전멸한 파티를 마지막 활성 Waypoint 기준으로 재스폰한다
+	void RespawnPartyAtLastActiveWaypoint();
+
+	// 지정 Waypoint 태그와 일치하는 Waypoint Actor를 찾는다
+	APRWaypointActor* FindWaypointById(FGameplayTag WaypointId) const;
+
+	// 일반 스폰에 사용할 Waypoint 태그를 결정한다
+	FGameplayTag ResolvePlayerStartWaypointId() const;
+
+	// 전멸 리스폰에 사용할 Waypoint 태그를 결정한다
+	FGameplayTag ResolvePartyRespawnWaypointId() const;
+
+	// PlayerArray 기준 플레이어 인덱스를 결정한다
+	int32 ResolvePlayerIndex(const AController* Controller) const;
+
 protected:
 	// 호스트 시작 시 로드된 월드 세이브. InitGame에서 주입되어 GameState에 전달된다
 	UPROPERTY(VisibleInstanceOnly, Category = "ProjectR|World")
@@ -67,4 +86,14 @@ protected:
 	// 전멸 이벤트 중복 발행을 막는 서버 플래그다.
 	UPROPERTY(VisibleInstanceOnly, Category = "ProjectR|Survival")
 	bool bPartyWipeInProgress = false;
+
+	// 전멸 확정 후 리스폰 지연
+	UPROPERTY(EditDefaultsOnly, Category = "ProjectR|Survival", meta = (ClampMin = "0.0"))
+	float PartyWipeRespawnDelay = 2.0f;
+
+	// 맵 이동 직후 최초 스폰에 사용할 Waypoint 태그
+	FGameplayTag TravelSpawnWaypointId;
+
+	// 전멸 리스폰 타이머 핸들
+	FTimerHandle PartyWipeRespawnTimerHandle;
 };

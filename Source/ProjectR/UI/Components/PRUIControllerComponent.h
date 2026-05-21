@@ -72,6 +72,9 @@ public:
 
 	// 새 폰 possession 시점에 폰 의존 위젯을 재초기화. 초기 possession과 리스폰 양쪽에서 호출 가능
 	void RefreshForPawn(APawn* InPawn);
+	
+	UFUNCTION(BlueprintCallable)
+	void RemoveAllWidget();
 
 protected:
 	/*~ UActorComponent Interface ~*/
@@ -127,22 +130,19 @@ private:
 	// 무기 장비 변경 델리게이트 바인딩을 해제한다.
 	void UnbindWeaponManager();
 
-private:
+protected:
+	// ========= Configs ==========
 	// 인벤토리 위젯 클래스
 	UPROPERTY(EditDefaultsOnly, Category = "ProjectR|Inventory")
 	TSubclassOf<UPRInventoryWidget> InventoryWidgetClass;
-
-	// 생성 후 재사용할 인벤토리 위젯
-	UPROPERTY(Transient)
-	TObjectPtr<UPRInventoryWidget> InventoryWidget;
 
 	// 강화 위젯 클래스
 	UPROPERTY(EditDefaultsOnly, Category = "ProjectR|WeaponUpgrade")
 	TSubclassOf<UPRWeaponUpgradeWidget> WeaponUpgradeWidgetClass;
 
-	// 생성 후 재사용할 강화 위젯
-	UPROPERTY(Transient)
-	TObjectPtr<UPRWeaponUpgradeWidget> WeaponUpgradeWidget;
+	// 상점 위젯 클래스
+	UPROPERTY(EditDefaultsOnly, Category = "ProjectR|Shop")
+	TSubclassOf<UPRShopWidget> ShopWidgetClass;
 
 	// 상점 위젯 클래스
 	UPROPERTY(EditDefaultsOnly, Category = "ProjectR|Shop")
@@ -155,7 +155,13 @@ private:
 	// HUD 위젯 클래스. BP에서 지정
 	UPROPERTY(EditDefaultsOnly, Category = "ProjectR|HUD")
 	TSubclassOf<UPRHUDWidget> HUDWidgetClass;
-
+	
+private:
+	// ======= Widget Instances =======
+	// 생성 후 재사용할 인벤토리 위젯
+	UPROPERTY(Transient)
+	TObjectPtr<UPRInventoryWidget> InventoryWidget;
+	
 	// 현재 활성 HUD 위젯 인스턴스
 	UPROPERTY(Transient)
 	TObjectPtr<UPRHUDWidget> HUDWidget;
@@ -163,14 +169,23 @@ private:
 	// 장착 무기 데이터로 생성한 스코프 위젯
 	UPROPERTY(Transient)
 	TObjectPtr<UUserWidget> WeaponScopeWidget;
-
-	// 현재 스코프 위젯 클래스
+	
+	// 생성 후 재사용할 강화 위젯
 	UPROPERTY(Transient)
-	TSubclassOf<UUserWidget> CurrentScopeWidgetClass;
-
+	TObjectPtr<UPRWeaponUpgradeWidget> WeaponUpgradeWidget;
+	
+	// 생성 후 재사용할 상점 위젯
+	UPROPERTY(Transient)
+	TObjectPtr<UPRShopWidget> ShopWidget;
+	
+	// ====== Variables =======
 	// 현재 바인딩된 무기 매니저
 	UPROPERTY(Transient)
 	TObjectPtr<UPRWeaponManagerComponent> BoundWeaponManager;
-
+	
+	// 현재 스코프 위젯 클래스
+	UPROPERTY(Transient)
+	TSubclassOf<UUserWidget> CurrentScopeWidgetClass;
+	
 	bool bWantsWeaponScopeVisible = false;
 };

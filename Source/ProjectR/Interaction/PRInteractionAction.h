@@ -109,8 +109,8 @@ public:
 
 	/** 유지형 상호작용 종료. 하위 클래스에서 정리 로직 override */
 	UFUNCTION(BlueprintNativeEvent, Category = "Interaction")
-	void EndInteraction();
-	virtual void EndInteraction_Implementation();
+	void EndInteraction(AActor* Interactor, bool bCanceled);
+	virtual void EndInteraction_Implementation(AActor* Interactor, bool bCanceled);
 
 	/** Hold 게이트 시작 시 클라측 피드백 (UI/VFX/SFX 시작) */
 	UFUNCTION(BlueprintNativeEvent, Category = "Interaction")
@@ -138,7 +138,7 @@ public:
 
 	/** 현재 상호작용 활성 상태 여부 반환 */
 	UFUNCTION(BlueprintCallable, Category = "Interaction")
-	bool IsActive() const { return bIsActive; }
+	bool IsActive(AActor* Interactor) const;
 
 	/** InteractionType == Sustained 여부 반환 */
 	UFUNCTION(BlueprintCallable, Category = "Interaction")
@@ -185,6 +185,5 @@ private:
 	void BroadcastHoldEvent(EPRInteractionHoldPhase Phase) const;
 
 protected:
-	// 현재 상호작용 활성 상태 (유지형 전용)
-	bool bIsActive = false;
+	TArray<TWeakObjectPtr<AActor>> ActiveInteractors;
 };

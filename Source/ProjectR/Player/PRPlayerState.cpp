@@ -13,10 +13,14 @@
 #include "ProjectR/Inventory/Components/PRInventoryComponent.h"
 #include "ProjectR/Player/PRPlayerController.h"
 #include "ProjectR/PRGameplayTags.h"
+#include "ProjectR/AbilitySystem/Data/PRAbilitySystemRegistry.h"
+#include "ProjectR/Character/PRPlayerCharacter.h"
 #include "ProjectR/Inventory/Components/PRQuickSlotComponent.h"
 #include "ProjectR/Inventory/Data/PRItemDataAsset.h"
 #include "ProjectR/Inventory/Items/PRItemInstance_Consumable.h"
 #include "ProjectR/Player/Components/PRCurrencyComponent.h"
+#include "ProjectR/System/PRAssetManager.h"
+#include "ProjectR/Weapon/Components/PRWeaponManagerComponent.h"
 
 APRPlayerState::APRPlayerState()
 {
@@ -29,6 +33,7 @@ APRPlayerState::APRPlayerState()
 	WeaponSet = CreateDefaultSubobject<UPRAttributeSet_Weapon>(TEXT("WeaponSet"));
 	InventoryComponent = CreateDefaultSubobject<UPRInventoryComponent>(TEXT("InventoryComponent"));
 	EquipmentManagerComponent = CreateDefaultSubobject<UPREquipmentManagerComponent>(TEXT("EquipmentManagerComponent"));
+	WeaponManagerComponent = CreateDefaultSubobject<UPRWeaponManagerComponent>(TEXT("WeaponManagerComponent"));
 	QuickSlotComponent = CreateDefaultSubobject<UPRQuickSlotComponent>(TEXT("QuickSlotComponent"));
 	CurrencyComponent = CreateDefaultSubobject<UPRCurrencyComponent>(TEXT("CurrencyComponent"));
 
@@ -57,7 +62,17 @@ void APRPlayerState::BeginPlay()
 	{
 		for (FPRItemSaveEntry& StartUpItem : StartUpItems)
 		{
-			if (IsValid(StartUpItem.ItemData) && StartUpItem.Amount > 0)
+			if (!IsValid(StartUpItem.ItemData) || StartUpItem.Amount <= 0)
+			{
+				continue;
+			}
+			
+			// 이미 존재하던 아이템에 AddItem이 될 수 있음.
+			if (UPRItemInstance* Item = InventoryComponent->FindItemByData(StartUpItem.ItemData))
+			{
+				Item->SetStack(StartUpItem.Amount);
+			}
+			else
 			{
 				InventoryComponent->AddItem(StartUpItem.ItemData, StartUpItem.Amount);
 			}
@@ -125,29 +140,100 @@ void APRPlayerState::SetCachedAmmoRatios(EPRWeaponSlotType SlotType, float Magaz
 		CachedSecondaryReserveAmmoRatio = ClampedReserveRatio;
 	}
 }
-
-// =====  초기화 =====
-
 void APRPlayerState::InitializePrimaryInfoFromSaveData(const FPRCharacterSaveData& InSaveData)
 {
 	if (!HasAuthority())
 	{
 		return;
 	}
-
 	CurrentSaveData = InSaveData;
 	DisplayName    = InSaveData.DisplayName;
+	CharacterLevel = InSaveData.Level;
+	Experience = InSaveData.Experience;
+	StatUpgradeInfo = InSaveData.Stats;
+	bPendingSaveDataApply = true;
 }
-
 void APRPlayerState::ApplySaveData(const FPRCharacterSaveData& InSaveData)
 {
-	
+	if (!HasAuthority())
+	{
+		return;
+	}
+	if (IsValid(AbilitySystemComponent))
+	{
+		// Attribute Base 복원
+		AbilitySystemComponent->ApplyAttributeBaseSnapshot(InSaveData.AttributeBaseSnapshot);
+	}
+	if (IsValid(InventoryComponent))
+	{
+		// 인벤토리 복원
+		InventoryComponent->ApplySaveData(InSaveData.Inventory);
+	}
+	if (IsValid(WeaponManagerComponent))
+	{
+		// 무기 장착 복원
+		WeaponManagerComponent->ApplySaveData(InSaveData.WeaponManager);	
+	}
+	if (IsValid(EquipmentManagerComponent))
+	{
+		// 비무기 장비 복원
+		EquipmentManagerComponent->ApplySaveData(InSaveData.Equipment);
+	}
+	if (IsValid(QuickSlotComponent))
+	{
+		// 퀵슬롯 복원
+		QuickSlotComponent->ApplySaveData(InSaveData.QuickSlot);
+	}
+	if (IsValid(CurrencyComponent))
+	{
+		// 재화 복원
+		CurrencyComponent->ApplySaveData(InSaveData.Currency);
+	}
+	CurrentSaveData = InSaveData;
+	DisplayName = InSaveData.DisplayName;
+	CharacterLevel = InSaveData.Level;
+	Experience = InSaveData.Experience;
+	StatUpgradeInfo = InSaveData.Stats;
+	bPendingSaveDataApply = false;
 }
 
 FPRCharacterSaveData APRPlayerState::MakeSaveData() const
 {
-	return FPRCharacterSaveData();
+	FPRCharacterSaveData SaveData;
+	SaveData.Version = EPRSaveVersion::V1;
+	SaveData.DisplayName = DisplayName;
+	SaveData.Level = CharacterLevel;
+	SaveData.Experience = Experience;
+	SaveData.Stats = StatUpgradeInfo;
+	if (IsValid(InventoryComponent))
+	{
+		SaveData.Inventory = InventoryComponent->MakeSaveData();
+	}
+	if (IsValid(WeaponManagerComponent))
+	{
+		SaveData.WeaponManager = WeaponManagerComponent->MakeSaveData();
+	}
+	if (IsValid(EquipmentManagerComponent))
+	{
+		SaveData.Equipment = EquipmentManagerComponent->MakeSaveData();
+	}
+	if (IsValid(QuickSlotComponent))
+	{
+		SaveData.QuickSlot = QuickSlotComponent->MakeSaveData();
+	}
+	if (IsValid(CurrencyComponent))
+	{
+		SaveData.Currency = CurrencyComponent->MakeSaveData();
+	}
+	const UPRAbilitySystemRegistry* Registry = UPRAssetManager::Get().GetAbilitySystemRegistry();
+	if (IsValid(AbilitySystemComponent) && IsValid(Registry))
+	{
+		SaveData.AttributeBaseSnapshot = AbilitySystemComponent->MakeAttributeBaseSnapshot(
+			Registry->GetPersistentBaseAttributes(EPRCharacterRole::Player));
+	}
+	return SaveData;
 }
+
 
 void APRPlayerState::SetCameraSensitivity(float Sensitivity)
 {
@@ -278,4 +364,49 @@ void APRPlayerState::SendSurvivalGameplayEvent(const FGameplayTag& EventTag) con
 	// 		PlayerController->ClientDispatchSurvivalGameplayEvent(EventTag);
 	// 	}
 	// }
+}
+
+void APRPlayerState::ResetSurvivalStateForRespawn()
+{
+	// 서버에서만 실행
+	if (!HasAuthority() || !IsValid(AbilitySystemComponent))
+	{
+		return;
+	}
+
+	// 생존 전환 Ability 정리
+	AbilitySystemComponent->CancelAllAbilities();
+	AbilitySystemComponent->ClearAbilityInput();
+
+	const FGameplayTag RespawnClearedTags[] =
+	{
+		PRGameplayTags::State_Dead,
+		PRGameplayTags::State_Down,
+		PRGameplayTags::State_Block_Move,
+		PRGameplayTags::State_PlayerInputLocked,
+		PRGameplayTags::State_PlayerHitReactLocked,
+	};
+
+	for (const FGameplayTag& Tag : RespawnClearedTags)
+	{
+		AbilitySystemComponent->RemoveLooseGameplayTag(Tag);
+		AbilitySystemComponent->RemoveReplicatedLooseGameplayTag(Tag);
+	}
+}
+
+void APRPlayerState::GrantCharacterAbilitySet(const UPRAbilitySet* InAbilitySet, UObject* InSourceObject)
+{
+	if (!HasAuthority() || !IsValid(AbilitySystemComponent))
+	{
+		return;
+	}
+
+	// 이전 Pawn AbilitySet 회수
+	AbilitySystemComponent->ClearAbilitySetByHandles(CharacterAbilitySetHandles);
+
+	if (IsValid(InAbilitySet))
+	{
+		// 새 Pawn AbilitySet 부여
+		AbilitySystemComponent->GiveAbilitySet(InAbilitySet, CharacterAbilitySetHandles, InSourceObject);
+	}
 }

@@ -61,6 +61,40 @@ void UPRGameInstance::ServerTravelToMap(TSoftObjectPtr<UWorld> MapAsset, bool bA
 	Session->ServerTravelToMap(MapAsset, bAbsolute);
 }
 
+// ===== 맵 이동 Waypoint 컨텍스트 =====
+
+void UPRGameInstance::SetPendingTravelWaypointId(FGameplayTag WaypointId)
+{
+	PendingTravelWaypointId = WaypointId;
+}
+
+FGameplayTag UPRGameInstance::ConsumePendingTravelWaypointId()
+{
+	// 일회성 컨텍스트 소비
+	const FGameplayTag ConsumedWaypointId = PendingTravelWaypointId;
+	PendingTravelWaypointId = FGameplayTag();
+	return ConsumedWaypointId;
+}
+
+void UPRGameInstance::SetPendingWorldSaveData(const FPRWorldSaveData& WorldSaveData)
+{
+	PendingWorldSaveData = WorldSaveData;
+	bHasPendingWorldSaveData = true;
+}
+
+bool UPRGameInstance::ConsumePendingWorldSaveData(FPRWorldSaveData& OutWorldSaveData)
+{
+	if (!bHasPendingWorldSaveData)
+	{
+		return false;
+	}
+
+	OutWorldSaveData = PendingWorldSaveData;
+	PendingWorldSaveData = FPRWorldSaveData();
+	bHasPendingWorldSaveData = false;
+	return true;
+}
+
 // ===== 세이브 연동 (스켈레톤) =====
 
 bool UPRGameInstance::LoadLocalCharacter(FName SlotName)

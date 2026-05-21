@@ -90,6 +90,15 @@ void APRPlayerController::AcknowledgePossession(APawn* InPawn)
 	{
 		UIControllerComponent->RefreshForPawn(InPawn);
 	}
+	
+	// 게임 시작 or 맵 진입 후 FadeIn
+	if (IsLocalController())
+	{
+		if (APRCameraManager* CM = Cast<APRCameraManager>(PlayerCameraManager))
+		{
+			CM->FadeIn(EPRFadeColorPreset::Black, FadeInDuration, false);
+		}
+	}
 }
 
 void APRPlayerController::SetupInputComponent()
@@ -149,14 +158,46 @@ void APRPlayerController::SetupInputComponent()
 
 void APRPlayerController::PostProcessInput(const float DeltaTime, const bool bGamePaused)
 {
-	if (UPRAbilitySystemComponent* ASC = GetASC())
+	if (UPRAbilitySystemComponent* ASC = GetPRASC())
 	{
 		ASC->ProcessAbilityInput(DeltaTime, bGamePaused);
 	}
 	Super::PostProcessInput(DeltaTime, bGamePaused);
 }
 
-// =====  입력 콜백 =====
+void APRPlayerController::ClientStartMapTransition_Implementation(float Delay, EPRMapTransitionType TransitionType)
+{
+	if (IsValid(UIControllerComponent))
+	{
+		// UI 정리
+		UIControllerComponent->RemoveAllWidget();
+	}
+
+	if (TransitionType == EPRMapTransitionType::None)
+	{
+		return;
+	}
+
+	APRCameraManager* CM = Cast<APRCameraManager>(PlayerCameraManager);
+	if (!IsValid(CM))
+	{
+		return;
+	}
+
+	switch (TransitionType)
+	{
+	case EPRMapTransitionType::MapTravel:
+		// 맵 이동 페이드
+		CM->FadeOut(EPRFadeColorPreset::White, Delay, false);
+		break;
+	case EPRMapTransitionType::Respawn:
+		// 리스폰 페이드
+		CM->FadeOut(EPRFadeColorPreset::Black, Delay, false);
+		break;
+	default:
+		break;
+	}
+}
 
 void APRPlayerController::OnMouseSensitivityActionUp()
 {
@@ -182,7 +223,7 @@ void APRPlayerController::OnMouseSensitivityActionDown()
 
 void APRPlayerController::OnAbilityInputPressed(FGameplayTag InputTag)
 {
-	if (UPRAbilitySystemComponent* ASC = GetASC())
+	if (UPRAbilitySystemComponent* ASC = GetPRASC())
 	{
 		ASC->AbilityInputPressed(InputTag);
 	}
@@ -190,13 +231,13 @@ void APRPlayerController::OnAbilityInputPressed(FGameplayTag InputTag)
 
 void APRPlayerController::OnAbilityInputReleased(FGameplayTag InputTag)
 {
-	if (UPRAbilitySystemComponent* ASC = GetASC())
+	if (UPRAbilitySystemComponent* ASC = GetPRASC())
 	{
 		ASC->AbilityInputReleased(InputTag);
 	}
 }
 
-UPRAbilitySystemComponent* APRPlayerController::GetASC() const
+UPRAbilitySystemComponent* APRPlayerController::GetPRASC() const
 {
 	if (CachedASC.IsValid())
 	{
@@ -213,8 +254,6 @@ UPRAbilitySystemComponent* APRPlayerController::GetASC() const
 	}
 	return nullptr;
 }
-
-// =====  캐릭터 페이로드 제출 =====
 
 void APRPlayerController::UpdateCompanionHighlight()
 {

@@ -6,6 +6,7 @@
 #include "GameFramework/PlayerController.h"
 #include "GameplayTagContainer.h"
 #include "ProjectR/Game/PRGameTypes.h"
+#include "ProjectR/Weapon/Types/PRWeaponUpgradeTypes.h"
 #include "PRPlayerController.generated.h"
 
 enum class EPRFadeColorPreset : uint8;
@@ -30,6 +31,10 @@ class UInputAction;
 class UPRUIControllerComponent;
 class UPRInteractionSensor;
 class UPRCheatHandler;
+class UPRItemInstance_Weapon;
+class UPRWeaponUpgradeComponent;
+
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FPRWeaponUpgradeResultSignature, const FPRWeaponUpgradeResult&, Result);
 
 // 플레이어 입력·UI 소유. Join 시 캐릭터 페이로드를 서버로 전송하고,
 // 인게임 중 발생한 보상 Grant를 연결이 살아있는 동안 즉시 수령하여 GameInstance에 반영한다
@@ -63,6 +68,9 @@ public:
 	// 플로팅 텍스트 매니저 컴포넌트를 반환
 	UPRFloatingTextManager* GetFloatingTextManager() const { return FloatingTextManager; }
 	
+	// 폰 -> PlayerState 경로로 ASC 조회
+	UPRAbilitySystemComponent* GetPRASC() const;
+	
 	// 로컬 클라에서 호출. GameInstance의 LocalCharacter를 서버로 제출
 	// 자동 호출(BeginPlay)과 수동 호출(재제출) 모두 허용
 	UFUNCTION(BlueprintCallable, Category = "ProjectR|Session")
@@ -85,13 +93,26 @@ public:
 	UFUNCTION(Client, Reliable)
 	void ClientStartMapTransition(float Delay, EPRMapTransitionType TransitionType);
 	
-	// 폰 -> PlayerState 경로로 ASC 조회
-	UPRAbilitySystemComponent* GetPRASC() const;
-	
+	// 서버 -> 본인 클라. 무기 강화 결과를 UI에 전달한다
+	UFUNCTION(Client, Reliable)
+	void ClientNotifyWeaponUpgradeResult(const FPRWeaponUpgradeResult& Result);
+
+	// 서버 -> 본인 클라. 강화 UI를 열고 강화 컴포넌트 Context를 전달한다
+	UFUNCTION(Client, Reliable)
+	void ClientOpenWeaponUpgradeUI(UPRWeaponUpgradeComponent* UpgradeComponent);
+
+	// 강화 UI에서 선택한 무기 강화를 서버에 요청한다
+	UFUNCTION(BlueprintCallable, Category = "ProjectR|WeaponUpgrade")
+	void RequestUpgradeWeapon(UPRWeaponUpgradeComponent* UpgradeComponent, UPRItemInstance_Weapon* WeaponItem);
+
 protected:
 	// 클라이언트 -> 서버. 로컬 캐릭터 페이로드 제출
 	UFUNCTION(Server, Reliable, WithValidation)
 	void ServerSubmitCharacter(const FPRCharacterSaveData& Payload);
+	
+	// 클라이언트 -> 서버. 강화 NPC 또는 터미널 컴포넌트에 무기 강화를 위임한다
+	UFUNCTION(Server, Reliable)
+	void ServerRequestUpgradeWeapon(UPRWeaponUpgradeComponent* UpgradeComponent, UPRItemInstance_Weapon* WeaponItem);
 	
 	void OnMouseSensitivityActionUp();
 
@@ -115,7 +136,12 @@ protected:
 	
 private:
 	void UpdateCompanionHighlight();
-	
+
+public:
+	// 무기 강화 결과를 UI에 알린다
+	UPROPERTY(BlueprintAssignable, Category = "ProjectR|WeaponUpgrade")
+	FPRWeaponUpgradeResultSignature OnWeaponUpgradeResult;
+
 protected:
 	// ====== Configs ======
 	// 치트 핸들러 클래스. BP에서 지정. 비어있으면 핸들러 미생성
@@ -144,7 +170,7 @@ protected:
 	
 	UPROPERTY(EditDefaultsOnly, Category = "ProjectR|Effect")
 	float FadeInDuration = 1.0f;
-	
+
 private:
 	// 캐릭터 페이로드를 이미 제출했는지 여부. 중복 제출 방지
 	bool bCharacterSubmitted = false;

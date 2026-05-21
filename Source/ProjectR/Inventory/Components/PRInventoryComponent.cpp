@@ -403,6 +403,11 @@ UPRItemInstance_Material* UPRInventoryComponent::AddMaterialItem(UPRMaterialData
 	return NewMaterialItem;
 }
 
+bool UPRInventoryComponent::RemoveMaterialItemByData(UPRMaterialDataAsset* MaterialData, int32 RemoveCount)
+{
+	return RemoveMaterialItemByDataInternal(MaterialData, RemoveCount);
+}
+
 void UPRInventoryComponent::RequestRemoveConsumableItem(UPRItemInstance_Consumable* ConsumableItem, int32 RemoveCount)
 {
 	// 잘못된 소비 Item 제거 요청은 서버 RPC를 보내기 전에 중단한다
@@ -506,6 +511,49 @@ bool UPRInventoryComponent::RemoveConsumableItemByDataInternal(UPRConsumableData
 	}
 
 	return RemoveConsumableItemInternal(FindConsumableItemByData(ConsumableData), RemoveCount);
+}
+
+bool UPRInventoryComponent::RemoveMaterialItemInternal(UPRItemInstance_Material* MaterialItem, int32 RemoveCount)
+{
+	// 재료 Item 제거는 인벤토리가 소유한 인스턴스만 대상으로 처리한다
+	if (!IsValid(GetOwner()) || !GetOwner()->HasAuthority() || !IsValid(MaterialItem) || !OwnsMaterial(MaterialItem) || RemoveCount <= 0)
+	{
+		return false;
+	}
+
+	const int32 PreviousStackCount = MaterialItem->GetStackCount();
+	if (!MaterialItem->RemoveStack(RemoveCount))
+	{
+		return false;
+	}
+
+	UE_LOG(
+		LogTemp,
+		Log,
+		TEXT("[Inventory][Server] RemoveMaterialItem. Owner = %s | Item = %s | Material = %s | BeforeStackCount = %d | AfterStackCount = %d"),
+		*GetNameSafe(GetOwner()),
+		*GetNameSafe(MaterialItem),
+		*GetNameSafe(MaterialItem->GetMaterialData()),
+		PreviousStackCount,
+		MaterialItem->GetStackCount());
+
+	if (MaterialItem->GetStackCount() <= 0)
+	{
+		UnregisterMaterialItemInstance(MaterialItem);
+	}
+
+	return true;
+}
+
+bool UPRInventoryComponent::RemoveMaterialItemByDataInternal(UPRMaterialDataAsset* MaterialData, int32 RemoveCount)
+{
+	// 데이터 기반 제거는 현재 인벤토리의 재료 Item 인스턴스를 먼저 찾는다
+	if (!IsValid(MaterialData))
+	{
+		return false;
+	}
+
+	return RemoveMaterialItemInternal(FindMaterialItemByData(MaterialData), RemoveCount);
 }
 
 bool UPRInventoryComponent::UseConsumableItemInternal(UPRItemInstance_Consumable* ConsumableItem, AActor* UserActor)

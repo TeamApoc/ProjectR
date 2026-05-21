@@ -14,6 +14,8 @@ class UPRInventoryComponent;
 class UPRInventoryWidget;
 class UPRQuickSlotComponent;
 class UPRUIManagerSubsystem;
+class UPRWeaponUpgradeComponent;
+class UPRWeaponUpgradeWidget;
 class UPRWeaponManagerComponent;
 
 // 플레이어 컨트롤러에 부착되어 로컬 플레이어 UI 표시 흐름을 관리한다
@@ -33,6 +35,14 @@ public:
 	// 인벤토리 위젯이 열려 있으면 닫는다
 	UFUNCTION(BlueprintCallable, Category = "ProjectR|UI")
 	void CloseInventory();
+
+	// 강화 위젯을 열고 강화 컴포넌트 Context를 전달한다
+	UFUNCTION(BlueprintCallable, Category = "ProjectR|UI")
+	void OpenWeaponUpgrade(UPRWeaponUpgradeComponent* UpgradeComponent);
+
+	// 강화 위젯이 열려 있으면 닫는다
+	UFUNCTION(BlueprintCallable, Category = "ProjectR|UI")
+	void CloseWeaponUpgrade();
 
 	// 현재 캐시된 인벤토리 위젯을 반환한다
 	UFUNCTION(BlueprintPure, Category = "ProjectR|UI")
@@ -86,6 +96,9 @@ private:
 	// 인벤토리 위젯 인스턴스를 생성하거나 캐시된 인스턴스를 반환한다
 	UPRInventoryWidget* GetOrCreateInventoryWidget();
 
+	// 강화 위젯 인스턴스를 생성하거나 캐시된 인스턴스를 반환한다
+	UPRWeaponUpgradeWidget* GetOrCreateWeaponUpgradeWidget();
+
 	// 현재 HUD 위젯을 UIManager에서 Pop하고 참조 정리
 	void TearDownHUDWidget();
 
@@ -113,6 +126,9 @@ protected:
 	// HUD 위젯 클래스. BP에서 지정
 	UPROPERTY(EditDefaultsOnly, Category = "ProjectR|HUD")
 	TSubclassOf<UPRHUDWidget> HUDWidgetClass;
+	
+	UPROPERTY(EditDefaultsOnly, Category = "ProjectR|HUD")
+	TSubclassOf<UPRWeaponUpgradeWidget> WeaponUpgradeWidgetClass;
 
 private:
 	// ======= Widget Instances =======
@@ -127,6 +143,9 @@ private:
 	// 장착 무기 데이터로 생성한 스코프 위젯
 	UPROPERTY(Transient)
 	TObjectPtr<UUserWidget> WeaponScopeWidget;
+	
+	UPROPERTY(Transient)
+	TObjectPtr<UPRWeaponUpgradeWidget> WeaponUpgradeWidget;
 	
 	// ====== Variables =======
 	// 현재 바인딩된 무기 매니저

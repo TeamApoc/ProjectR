@@ -79,6 +79,18 @@ namespace
 			return TEXT("Unknown");
 		}
 	}
+
+	// 강화 단계가 반영된 최종 기본 피해량을 계산한다
+	float CalculateUpgradedBaseDamage(const UPRWeaponDataAsset* WeaponData, const UPRItemInstance_Weapon* WeaponItem)
+	{
+		if (!IsValid(WeaponData))
+		{
+			return 0.0f;
+		}
+
+		const int32 UpgradeLevel = IsValid(WeaponItem) ? WeaponItem->GetUpgradeLevel() : 0;
+		return FMath::Max(WeaponData->BaseDamage * (1.0f + static_cast<float>(UpgradeLevel) * 0.1f), 0.0f);
+	}
 }
 
 UPRWeaponManagerComponent::UPRWeaponManagerComponent()
@@ -569,6 +581,19 @@ void UPRWeaponManagerComponent::HandleInventoryWeaponModChanged(UPRItemInstance_
 		*GetNameSafe(WeaponItem->GetEquippedModItem()));
 }
 
+void UPRWeaponManagerComponent::RefreshCurrentWeaponUpgradeState(UPRItemInstance_Weapon* WeaponItem)
+{
+	// 강화 반영은 현재 활성 무기 원본에 대해서만 즉시 전투 GE를 갱신한다
+	if (!IsValid(WeaponItem) || GetWeaponInstanceBySlotType(CurrentWeaponSlot) != WeaponItem)
+	{
+		return;
+	}
+
+	InitializeRuntimeLinks();
+	ApplyCurrentWeaponGE(WeaponItem);
+	OnWeaponEquipmentChanged.Broadcast(this, CurrentWeaponSlot);
+}
+
 void UPRWeaponManagerComponent::PlayWeaponNiagaraEffect(EPRWeaponEffectType EffectType, UNiagaraSystem* InNiagaraSystem)
 {
 	APRWeaponActor* ActiveWeaponActor = CurrentWeaponSlot == EPRWeaponSlotType::Primary ? PrimaryWeaponActor : SecondaryWeaponActor;
@@ -846,7 +871,8 @@ void UPRWeaponManagerComponent::ApplyCurrentWeaponGE(UObject* SourceObject)
 		return;
 	}
 
-	SpecHandle.Data->SetSetByCallerMagnitude(PRCombatGameplayTags::SetByCaller_CurrentWeapon_BaseDamage, FMath::Max(CurrentWeaponData->BaseDamage, 0.0f));
+	const UPRItemInstance_Weapon* CurrentWeapon = GetWeaponInstanceBySlotType(CurrentWeaponSlot);
+	SpecHandle.Data->SetSetByCallerMagnitude(PRCombatGameplayTags::SetByCaller_CurrentWeapon_BaseDamage, CalculateUpgradedBaseDamage(CurrentWeaponData, CurrentWeapon));
 	SpecHandle.Data->SetSetByCallerMagnitude(PRCombatGameplayTags::SetByCaller_CurrentWeapon_ArmorPenetration, FMath::Max(CurrentWeaponData->ArmorPenetration, 0.0f));
 	SpecHandle.Data->SetSetByCallerMagnitude(PRCombatGameplayTags::SetByCaller_CurrentWeapon_WeakpointMultiplier, FMath::Max(CurrentWeaponData->WeakpointMultiplier, 0.0f));
 	SpecHandle.Data->SetSetByCallerMagnitude(PRCombatGameplayTags::SetByCaller_CurrentWeapon_GroggyDamageMultiplier, FMath::Max(CurrentWeaponData->GroggyDamageMultiplier, 0.0f));

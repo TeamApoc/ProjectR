@@ -33,6 +33,8 @@ enum class EPRInventoryChangeReason : uint8
 	ItemRemoved,
 	// Mod 장착 상태가 변경되었다
 	ModEquipChanged,
+	// 무기 강화 단계가 변경되었다
+	WeaponUpgradeChanged,
 	// 아이템 보유 개수가 변경되었다
 	StackChanged,
 	// 세이브 복원 기반 인벤토리 전체 갱신
@@ -103,6 +105,9 @@ public:
 
 	// 새 재료 Item을 생성하거나 기존 재료 Item의 보유 개수를 증가시킨다
 	UPRItemInstance_Material* AddMaterialItem(UPRMaterialDataAsset* MaterialData, int32 AddCount);
+
+	// 재료 Item 데이터 기반으로 보유 개수를 감소시키고 0개가 되면 제거한다
+	bool RemoveMaterialItemByData(UPRMaterialDataAsset* MaterialData, int32 RemoveCount);
 
 	// 소비 Item 제거를 서버 권위 경로로 요청한다
 	UFUNCTION(BlueprintCallable, Category = "ProjectR|Inventory")
@@ -259,6 +264,12 @@ protected:
 
 	// 소비 Item 데이터로 보유 개수를 감소시키고 0개가 되면 인벤토리에서 제거한다
 	bool RemoveConsumableItemByDataInternal(UPRConsumableDataAsset* ConsumableData, int32 RemoveCount);
+
+	// 재료 Item의 보유 개수를 감소시키고 0개가 되면 인벤토리에서 제거한다
+	bool RemoveMaterialItemInternal(UPRItemInstance_Material* MaterialItem, int32 RemoveCount);
+
+	// 재료 Item 데이터로 보유 개수를 감소시키고 0개가 되면 인벤토리에서 제거한다
+	bool RemoveMaterialItemByDataInternal(UPRMaterialDataAsset* MaterialData, int32 RemoveCount);
 
 	// 소비 Item을 사용하고 0개가 되면 인벤토리에서 제거한다
 	bool UseConsumableItemInternal(UPRItemInstance_Consumable* ConsumableItem, AActor* UserActor);

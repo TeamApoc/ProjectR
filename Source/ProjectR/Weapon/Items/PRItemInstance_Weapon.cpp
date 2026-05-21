@@ -42,6 +42,7 @@ void UPRItemInstance_Weapon::GetLifetimeReplicatedProps(TArray<FLifetimeProperty
 	DOREPLIFETIME(UPRItemInstance_Weapon, ModData);
 	DOREPLIFETIME(UPRItemInstance_Weapon, EquippedModItem);
 	DOREPLIFETIME(UPRItemInstance_Weapon, bIsEquippedCurrentWeaponSlot);
+	DOREPLIFETIME(UPRItemInstance_Weapon, UpgradeLevel);
 }
 
 void UPRItemInstance_Weapon::InitializeItem(UPRItemDataAsset* InItemData, int32 InitialStackCount)
@@ -280,6 +281,28 @@ float UPRItemInstance_Weapon::GetRemainingModDurationSeconds(float ServerWorldTi
 	return FMath::Max(ModEffectEndServerWorldTimeSeconds - ServerWorldTimeSeconds, 0.0f);
 }
 
+bool UPRItemInstance_Weapon::SetUpgradeLevel(int32 NewLevel)
+{
+	if (NewLevel < 0)
+	{
+		return false;
+	}
+
+	if (UpgradeLevel == NewLevel)
+	{
+		return false;
+	}
+
+	UpgradeLevel = NewLevel;
+	NotifyInventoryChanged(EPRInventoryChangeReason::WeaponUpgradeChanged);
+	return true;
+}
+
+bool UPRItemInstance_Weapon::IncreaseUpgradeLevel()
+{
+	return SetUpgradeLevel(UpgradeLevel + 1);
+}
+
 UPRAbilitySet* UPRItemInstance_Weapon::GetWeaponAbilitySet()
 {
 	auto WeaponData = GetWeaponData();
@@ -335,4 +358,9 @@ void UPRItemInstance_Weapon::OnRep_EquippedModItem()
 		*GetNameSafe(EquippedModItem.Get()));
 
 	NotifyInventoryChanged(EPRInventoryChangeReason::ModEquipChanged);
+}
+
+void UPRItemInstance_Weapon::OnRep_UpgradeLevel()
+{
+	NotifyInventoryChanged(EPRInventoryChangeReason::WeaponUpgradeChanged);
 }

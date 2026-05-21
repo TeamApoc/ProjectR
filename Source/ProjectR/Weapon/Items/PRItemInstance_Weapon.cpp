@@ -70,12 +70,14 @@ void UPRItemInstance_Weapon::FillSaveEntry(FPRWeaponItemSaveEntry& OutEntry) con
 	OutEntry = FPRWeaponItemSaveEntry();
 	OutEntry.WeaponData = GetWeaponData();
 	OutEntry.StackCount = GetStackCount();
+	OutEntry.State.EnhancementLevel = UpgradeLevel;
 }
 
 void UPRItemInstance_Weapon::ApplySaveEntry(const FPRWeaponItemSaveEntry& InEntry)
 {
 	// v1 인스턴스 상태 복원
 	StackCount = FMath::Max(InEntry.StackCount, 0);
+	UpgradeLevel = FMath::Max(InEntry.State.EnhancementLevel, 0);
 }
 
 bool UPRItemInstance_Weapon::MatchesWeaponData(const UPRWeaponDataAsset* InWeaponData) const

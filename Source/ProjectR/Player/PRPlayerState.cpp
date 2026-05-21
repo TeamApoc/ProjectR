@@ -184,6 +184,11 @@ void APRPlayerState::ApplySaveData(const FPRCharacterSaveData& InSaveData)
 		// 퀵슬롯 복원
 		QuickSlotComponent->ApplySaveData(InSaveData.QuickSlot);
 	}
+	if (IsValid(CurrencyComponent))
+	{
+		// 재화 복원
+		CurrencyComponent->ApplySaveData(InSaveData.Currency);
+	}
 	CurrentSaveData = InSaveData;
 	DisplayName = InSaveData.DisplayName;
 	CharacterLevel = InSaveData.Level;
@@ -215,6 +220,10 @@ FPRCharacterSaveData APRPlayerState::MakeSaveData() const
 	if (IsValid(QuickSlotComponent))
 	{
 		SaveData.QuickSlot = QuickSlotComponent->MakeSaveData();
+	}
+	if (IsValid(CurrencyComponent))
+	{
+		SaveData.Currency = CurrencyComponent->MakeSaveData();
 	}
 	const UPRAbilitySystemRegistry* Registry = UPRAssetManager::Get().GetAbilitySystemRegistry();
 	if (IsValid(AbilitySystemComponent) && IsValid(Registry))

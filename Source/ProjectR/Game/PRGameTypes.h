@@ -297,6 +297,17 @@ struct FPREquipmentSaveData
 	GENERATED_BODY()
 };
 
+// 재화 저장 데이터
+USTRUCT(BlueprintType)
+struct FPRCurrencySaveData
+{
+	GENERATED_BODY()
+
+	// 고철 보유량
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	int32 Scrap = 0;
+};
+
 // Attribute Base 저장 엔트리
 USTRUCT(BlueprintType)
 struct FPRAttributeBaseEntry
@@ -372,6 +383,10 @@ struct FPRCharacterSaveData
 	// 퀵슬롯 저장 데이터
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	FPRQuickSlotSaveData QuickSlot;
+
+	// 재화 저장 데이터
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	FPRCurrencySaveData Currency;
 
 	// Attribute Base 스냅샷
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)

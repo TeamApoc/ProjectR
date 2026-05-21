@@ -147,6 +147,12 @@ void UPRGameplayAbility_FaerinTeleportLungeSequence::HandleFaerinCharacterEvent(
 
 	if (EventName == StopLungeEventName)
 	{
+		if (ActiveLungeStage == EPRFaerinTeleportLungeStage::LungeEnd)
+		{
+			StopLungeMovementAndHitWindow();
+			return;
+		}
+
 		PlayLungeEndStage();
 	}
 }

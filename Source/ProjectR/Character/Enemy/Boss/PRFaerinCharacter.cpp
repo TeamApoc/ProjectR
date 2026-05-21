@@ -3,11 +3,14 @@
 #include "PRFaerinCharacter.h"
 
 #include "Engine/World.h"
+#include "ProjectR/AI/Components/PRFaerinDebugDrawComponent.h"
 #include "ProjectR/PRGameplayTags.h"
 #include "ProjectR/System/PREventManagerSubsystem.h"
 
 APRFaerinCharacter::APRFaerinCharacter()
 {
+	DebugDrawComponent = CreateDefaultSubobject<UPRFaerinDebugDrawComponent>(TEXT("DebugDrawComponent"));
+
 	PhaseThresholdRatios.Add(EPRBossPhase::Phase2, 0.87f);
 	PhaseThresholdRatios.Add(EPRBossPhase::Phase3, 0.65f);
 	PhaseThresholdRatios.Add(EPRBossPhase::Phase4, 0.25f);

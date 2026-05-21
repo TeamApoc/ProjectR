@@ -50,6 +50,7 @@ void UPRGameplayAbility_FaerinStagedMontagePattern::ActivateAbility(
 	}
 
 	bStagedPatternFinished = false;
+	bAdvancingStageByFixedTimer = false;
 	ActiveStageIndex = INDEX_NONE;
 
 	if (RequiresCharacterEventListener() && !RegisterCharacterEventListener())
@@ -75,6 +76,7 @@ void UPRGameplayAbility_FaerinStagedMontagePattern::EndAbility(
 	const bool bWasCancelled)
 {
 	ClearStageEventTimeout();
+	ClearStageFixedAdvanceTimer();
 	UnregisterCharacterEventListener();
 
 	if (IsValid(ActiveMontageTask))
@@ -85,6 +87,7 @@ void UPRGameplayAbility_FaerinStagedMontagePattern::EndAbility(
 
 	ActiveStageIndex = INDEX_NONE;
 	bStagedPatternFinished = false;
+	bAdvancingStageByFixedTimer = false;
 
 	Super::EndAbility(Handle, ActorInfo, ActivationInfo, bReplicateEndAbility, bWasCancelled);
 }
@@ -148,6 +151,7 @@ void UPRGameplayAbility_FaerinStagedMontagePattern::HandleFaerinCharacterEvent(c
 	}
 
 	const FPRFaerinStagedMontageStage& ActiveStage = MontageStages[ActiveStageIndex];
+	NativeOnStageCharacterEvent(ActiveStage, EventName);
 	BP_OnStageCharacterEvent(ActiveStage.StageName, EventName);
 
 	if (!ActiveStage.bWaitForCharacterEventToAdvance || ActiveStage.AdvanceEventName != EventName)
@@ -156,6 +160,7 @@ void UPRGameplayAbility_FaerinStagedMontagePattern::HandleFaerinCharacterEvent(c
 	}
 
 	ClearStageEventTimeout();
+	ClearStageFixedAdvanceTimer();
 	AdvanceToNextStage();
 }
 
@@ -186,6 +191,7 @@ bool UPRGameplayAbility_FaerinStagedMontagePattern::PlayStage(const int32 StageI
 	}
 
 	ClearStageEventTimeout();
+	ClearStageFixedAdvanceTimer();
 	ActiveStageIndex = StageIndex;
 
 	if (Stage.bStopMovementBeforeStage)
@@ -208,6 +214,7 @@ bool UPRGameplayAbility_FaerinStagedMontagePattern::PlayStage(const int32 StageI
 		FaceCurrentTarget();
 	}
 
+	NativeOnStageStarted(Stage);
 	BP_OnStageStarted(Stage.StageName);
 
 	ActiveMontageTask = UAbilityTask_PlayMontageAndWait::CreatePlayMontageAndWaitProxy(
@@ -215,7 +222,10 @@ bool UPRGameplayAbility_FaerinStagedMontagePattern::PlayStage(const int32 StageI
 		NAME_None,
 		Stage.Montage,
 		FMath::Max(Stage.MontagePlayRate, UE_SMALL_NUMBER),
-		Stage.MontageStartSection);
+		Stage.MontageStartSection,
+		true,
+		1.0f,
+		Stage.MontageStartTimeSeconds);
 
 	if (!IsValid(ActiveMontageTask))
 	{
@@ -229,6 +239,7 @@ bool UPRGameplayAbility_FaerinStagedMontagePattern::PlayStage(const int32 StageI
 	ActiveMontageTask->ReadyForActivation();
 
 	StartStageEventTimeout(Stage);
+	StartStageFixedAdvanceTimer(Stage);
 	return true;
 }
 
@@ -458,6 +469,74 @@ void UPRGameplayAbility_FaerinStagedMontagePattern::HandleStageEventTimeout()
 
 // ===== 종료 =====
 
+void UPRGameplayAbility_FaerinStagedMontagePattern::StartStageFixedAdvanceTimer(
+	const FPRFaerinStagedMontageStage& Stage)
+{
+	if (!Stage.bAdvanceAfterFixedTime || Stage.FixedAdvanceTime <= 0.0f)
+	{
+		return;
+	}
+
+	UWorld* World = GetWorld();
+	if (!IsValid(World))
+	{
+		return;
+	}
+
+	World->GetTimerManager().SetTimer(
+		StageFixedAdvanceTimerHandle,
+		this,
+		&UPRGameplayAbility_FaerinStagedMontagePattern::HandleStageFixedAdvance,
+		Stage.FixedAdvanceTime,
+		false);
+}
+
+void UPRGameplayAbility_FaerinStagedMontagePattern::ClearStageFixedAdvanceTimer()
+{
+	UWorld* World = GetWorld();
+	if (IsValid(World))
+	{
+		World->GetTimerManager().ClearTimer(StageFixedAdvanceTimerHandle);
+	}
+}
+
+void UPRGameplayAbility_FaerinStagedMontagePattern::HandleStageFixedAdvance()
+{
+	if (bStagedPatternFinished || !MontageStages.IsValidIndex(ActiveStageIndex))
+	{
+		return;
+	}
+
+	const FPRFaerinStagedMontageStage ActiveStage = MontageStages[ActiveStageIndex];
+	ClearStageFixedAdvanceTimer();
+	ClearStageEventTimeout();
+
+	bAdvancingStageByFixedTimer = true;
+	if (ActiveStage.bStopMontageOnFixedAdvance && IsValid(ActiveMontageTask))
+	{
+		UAbilityTask_PlayMontageAndWait* MontageTaskToEnd = ActiveMontageTask;
+		ActiveMontageTask = nullptr;
+
+		MontageTaskToEnd->EndTask();
+	}
+
+	AdvanceToNextStage();
+	bAdvancingStageByFixedTimer = false;
+}
+
+void UPRGameplayAbility_FaerinStagedMontagePattern::NativeOnStageStarted(const FPRFaerinStagedMontageStage& Stage)
+{
+	(void)Stage;
+}
+
+void UPRGameplayAbility_FaerinStagedMontagePattern::NativeOnStageCharacterEvent(
+	const FPRFaerinStagedMontageStage& Stage,
+	const FName EventName)
+{
+	(void)Stage;
+	(void)EventName;
+}
+
 void UPRGameplayAbility_FaerinStagedMontagePattern::FinishStagedPattern(const bool bWasCancelled)
 {
 	if (bStagedPatternFinished)
@@ -468,6 +547,7 @@ void UPRGameplayAbility_FaerinStagedMontagePattern::FinishStagedPattern(const bo
 	bStagedPatternFinished = true;
 
 	ClearStageEventTimeout();
+	ClearStageFixedAdvanceTimer();
 	if (IsValid(ActiveMontageTask))
 	{
 		ActiveMontageTask->EndTask();
@@ -479,6 +559,20 @@ void UPRGameplayAbility_FaerinStagedMontagePattern::FinishStagedPattern(const bo
 
 void UPRGameplayAbility_FaerinStagedMontagePattern::HandleStageMontageCompleted()
 {
+	if (bAdvancingStageByFixedTimer)
+	{
+		return;
+	}
+
+	if (MontageStages.IsValidIndex(ActiveStageIndex)
+		&& MontageStages[ActiveStageIndex].bAdvanceAfterFixedTime
+		&& MontageStages[ActiveStageIndex].FixedAdvanceTime > 0.0f)
+	{
+		return;
+	}
+
+	ClearStageFixedAdvanceTimer();
+
 	if (MontageStages.IsValidIndex(ActiveStageIndex)
 		&& MontageStages[ActiveStageIndex].bWaitForCharacterEventToAdvance)
 	{
@@ -503,5 +597,10 @@ void UPRGameplayAbility_FaerinStagedMontagePattern::HandleStageMontageBlendOut()
 
 void UPRGameplayAbility_FaerinStagedMontagePattern::HandleStageMontageInterrupted()
 {
+	if (bAdvancingStageByFixedTimer)
+	{
+		return;
+	}
+
 	FinishStagedPattern(true);
 }

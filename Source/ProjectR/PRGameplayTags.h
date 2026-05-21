@@ -67,6 +67,7 @@ namespace PRGameplayTags
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Ability_Boss_Faerin_ShiftPlayerAway); // Faerin Shift Player Away 패턴 어빌리티
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Ability_Boss_Faerin_TeleportDownSequence); // Faerin TeleportDown 패턴 어빌리티
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Ability_Boss_Faerin_CrashSequence); // Faerin Crash 패턴 어빌리티
+	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Ability_Boss_Faerin_CrashDropSequence); // Faerin CrashDrop 패턴 어빌리티
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Ability_Boss_Faerin_ThrowSequence); // Faerin Throw 패턴 어빌리티
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Ability_Boss_Faerin_TeleportDash); // Faerin 텔레포트 대시
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Ability_Boss_Faerin_EnergyRain); // Faerin 범위 압박

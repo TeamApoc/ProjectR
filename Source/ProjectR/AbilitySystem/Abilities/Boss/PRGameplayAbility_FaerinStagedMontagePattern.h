@@ -123,6 +123,10 @@ struct FPRFaerinStagedMontageStage
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Faerin|Stage|Animation", meta = (ClampMin = "0.0"))
 	float MontagePlayRate = 1.0f;
 
+	// 원작 AnimSet의 StartTime처럼 몽타주를 중간 시간부터 시작할 때 사용하는 값이다.
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Faerin|Stage|Animation", meta = (ClampMin = "0.0"))
+	float MontageStartTimeSeconds = 0.0f;
+
 	// 스테이지 시작 전에 이동을 멈출지 여부다.
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Faerin|Stage|Movement")
 	bool bStopMovementBeforeStage = true;
@@ -139,6 +143,20 @@ struct FPRFaerinStagedMontageStage
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Faerin|Stage|Movement",
 		meta = (EditCondition = "bApplyDestinationBeforeStage"))
 	FPRFaerinStagedMontageDestinationConfig DestinationConfig;
+
+	// 원작 StateElapsedCondition처럼 몽타주 종료 전에 고정 시간으로 다음 stage에 진입할지 여부이다.
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Faerin|Stage|Timing")
+	bool bAdvanceAfterFixedTime = false;
+
+	// stage 시작 후 다음 stage로 넘어갈 고정 시간이다.
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Faerin|Stage|Timing",
+		meta = (EditCondition = "bAdvanceAfterFixedTime", ClampMin = "0.0"))
+	float FixedAdvanceTime = 0.0f;
+
+	// 고정 시간 전환 시 현재 몽타주 task를 종료할지 여부이다.
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Faerin|Stage|Timing",
+		meta = (EditCondition = "bAdvanceAfterFixedTime"))
+	bool bStopMontageOnFixedAdvance = true;
 
 	// 몽타주 종료가 아니라 CharacterEvent를 받아야 다음 스테이지로 넘어갈지 여부다.
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Faerin|Stage|Event")
@@ -230,8 +248,23 @@ protected:
 	// CharacterEvent 대기 시간이 초과되었을 때 패턴을 실패 처리한다.
 	void HandleStageEventTimeout();
 
+	// 원작 StateElapsedCondition 대응용 고정 시간 전환 타이머를 시작한다.
+	void StartStageFixedAdvanceTimer(const FPRFaerinStagedMontageStage& Stage);
+
+	// 고정 시간 전환 타이머를 정리한다.
+	void ClearStageFixedAdvanceTimer();
+
+	// 고정 시간이 지나면 다음 stage로 전환한다.
+	void HandleStageFixedAdvance();
+
 	// 패턴 Ability를 정상 또는 취소 상태로 종료한다.
 	void FinishStagedPattern(bool bWasCancelled);
+
+	// C++ 파생 패턴이 스테이지 시작 시점에 추가 로직을 실행하는 확장 지점이다.
+	virtual void NativeOnStageStarted(const FPRFaerinStagedMontageStage& Stage);
+
+	// C++ 파생 패턴이 CharacterEvent 수신 시점에 추가 로직을 실행하는 확장 지점이다.
+	virtual void NativeOnStageCharacterEvent(const FPRFaerinStagedMontageStage& Stage, FName EventName);
 
 	// 스테이지 시작 시 BP 보조 연출을 연결할 수 있는 확장 지점이다.
 	UFUNCTION(BlueprintImplementableEvent, Category = "ProjectR|AI|Boss|Faerin|Stage")
@@ -273,6 +306,7 @@ protected:
 
 private:
 	FTimerHandle StageEventTimeoutTimerHandle;
+	FTimerHandle StageFixedAdvanceTimerHandle;
 
 	UPROPERTY(Transient)
 	TObjectPtr<UAbilityTask_PlayMontageAndWait> ActiveMontageTask;
@@ -282,4 +316,5 @@ private:
 
 	int32 ActiveStageIndex = INDEX_NONE;
 	bool bStagedPatternFinished = false;
+	bool bAdvancingStageByFixedTimer = false;
 };

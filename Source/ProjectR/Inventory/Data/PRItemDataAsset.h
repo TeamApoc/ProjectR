@@ -28,6 +28,10 @@ public:
 	UFUNCTION(BlueprintPure, Category = "ProjectR|00_Item")
 	UTexture2D* GetIcon() const { return Icon; }
 
+	// 아이템 설명을 반환한다
+	UFUNCTION(BlueprintPure, Category = "ProjectR|00_Item")
+	const FText& GetDescription() const { return Description; }
+
 	// 아이템 타입을 반환한다
 	UFUNCTION(BlueprintPure, Category = "ProjectR|00_Item")
 	EPRItemType GetItemType() const { return ItemType; }
@@ -56,6 +60,10 @@ public:
 	// UI에 표시할 아이템 아이콘
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|00_Item")
 	TObjectPtr<UTexture2D> Icon = nullptr;
+
+	// UI 상세 패널에 표시할 아이템 설명
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|00_Item", meta = (MultiLine = "true"))
+	FText Description;
 	
 	// 아이템 최대 보유 개수
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|01_Consumable", meta = (ClampMin = "1"))

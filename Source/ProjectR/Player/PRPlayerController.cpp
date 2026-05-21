@@ -22,6 +22,7 @@
 #include "ProjectR/Character/PRPlayerCharacter.h"
 #include "ProjectR/Interaction/PRInteractableComponent.h"
 #include "ProjectR/Game/PRGameStateBase.h"
+#include "ProjectR/Shop/Components/PRShopComponent.h"
 #include "ProjectR/Weapon/Components/PRWeaponUpgradeComponent.h"
 #include "ProjectR/Weapon/Items/PRItemInstance_Weapon.h"
 
@@ -388,6 +389,26 @@ void APRPlayerController::ClientOpenWeaponUpgradeUI_Implementation(UPRWeaponUpgr
 	UIControllerComponent->OpenWeaponUpgrade(UpgradeComponent);
 }
 
+void APRPlayerController::ClientOpenShopUI_Implementation(UPRShopComponent* ShopComponent)
+{
+	if (!IsValid(UIControllerComponent))
+	{
+		return;
+	}
+
+	UIControllerComponent->OpenShop(ShopComponent);
+}
+
+void APRPlayerController::ClientNotifyShopBuyResult_Implementation(const FPRShopBuyResult& Result)
+{
+	OnShopBuyResult.Broadcast(Result);
+}
+
+void APRPlayerController::ClientNotifyShopSellResult_Implementation(const FPRShopSellResult& Result)
+{
+	OnShopSellResult.Broadcast(Result);
+}
+
 void APRPlayerController::RequestUpgradeWeapon(UPRWeaponUpgradeComponent* UpgradeComponent, UPRItemInstance_Weapon* WeaponItem)
 {
 	if (!IsValid(UpgradeComponent) || !IsValid(WeaponItem))
@@ -396,6 +417,26 @@ void APRPlayerController::RequestUpgradeWeapon(UPRWeaponUpgradeComponent* Upgrad
 	}
 
 	ServerRequestUpgradeWeapon(UpgradeComponent, WeaponItem);
+}
+
+void APRPlayerController::RequestBuyShopItem(UPRShopComponent* ShopComponent, FName EntryId, int32 Quantity)
+{
+	if (!IsValid(ShopComponent) || EntryId.IsNone() || Quantity <= 0)
+	{
+		return;
+	}
+
+	ServerRequestBuyShopItem(ShopComponent, EntryId, Quantity);
+}
+
+void APRPlayerController::RequestSellShopItem(UPRShopComponent* ShopComponent, FName EntryId, int32 Quantity)
+{
+	if (!IsValid(ShopComponent) || EntryId.IsNone() || Quantity <= 0)
+	{
+		return;
+	}
+
+	ServerRequestSellShopItem(ShopComponent, EntryId, Quantity);
 }
 
 void APRPlayerController::ServerRequestUpgradeWeapon_Implementation(UPRWeaponUpgradeComponent* UpgradeComponent, UPRItemInstance_Weapon* WeaponItem)
@@ -413,6 +454,40 @@ void APRPlayerController::ServerRequestUpgradeWeapon_Implementation(UPRWeaponUpg
 	}
 
 	UpgradeComponent->RequestUpgradeWeapon(this, WeaponItem);
+}
+
+void APRPlayerController::ServerRequestBuyShopItem_Implementation(UPRShopComponent* ShopComponent, FName EntryId, int32 Quantity)
+{
+	if (!IsValid(ShopComponent) || !IsValid(ShopComponent->GetOwner()))
+	{
+		FPRShopBuyResult Result;
+		Result.bSuccess = false;
+		Result.FailReason = EPRShopBuyFailReason::InvalidShopData;
+		Result.ShopComponent = ShopComponent;
+		Result.EntryId = EntryId;
+		Result.Quantity = Quantity;
+		ClientNotifyShopBuyResult(Result);
+		return;
+	}
+
+	ShopComponent->RequestBuyItem(this, EntryId, Quantity);
+}
+
+void APRPlayerController::ServerRequestSellShopItem_Implementation(UPRShopComponent* ShopComponent, FName EntryId, int32 Quantity)
+{
+	if (!IsValid(ShopComponent) || !IsValid(ShopComponent->GetOwner()))
+	{
+		FPRShopSellResult Result;
+		Result.bSuccess = false;
+		Result.FailReason = EPRShopSellFailReason::InvalidShopData;
+		Result.ShopComponent = ShopComponent;
+		Result.EntryId = EntryId;
+		Result.Quantity = Quantity;
+		ClientNotifyShopSellResult(Result);
+		return;
+	}
+
+	ShopComponent->RequestSellItem(this, EntryId, Quantity);
 }
 
 // ===== UI =====

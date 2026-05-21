@@ -8,6 +8,7 @@
 #include "ProjectR/Game/PRGameTypes.h"
 #include "PRPlayerController.generated.h"
 
+enum class EPRFadeColorPreset : uint8;
 class UPRInteractorComponent;
 class UPRProjectileManagerComponent;
 class UPRFloatingTextManager;
@@ -34,22 +35,25 @@ public:
 	/*~ AActor Interface ~*/
 	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
 	virtual void Tick(float DeltaSeconds) override;
+	virtual void BeginPlay() override;
 	
 	/*~ APlayerController Interface ~*/
 	virtual void AcknowledgePossession(APawn* InPawn) override;
-	virtual void BeginPlay() override;
 	virtual void SetupInputComponent() override;
 	virtual void PostProcessInput(const float DeltaTime, const bool bGamePaused) override;
 
+	/*~ APRPlayerController Interface ~*/
 	// 서버 권위에서 동작하는 치트 핸들러 조회. 본인 클라에는 복제로 전달
 	UPRCheatHandler* GetCheatHandler() const { return CheatHandler; }
 
 	// 로컬 플레이어 UI 흐름을 담당하는 컴포넌트 조회
 	UPRUIControllerComponent* GetUIController() const { return UIControllerComponent; }
-
 	
-	void UpdateCompanionHighlight();
-public:
+	UPRProjectileManagerComponent* GetProjectileManagerComponent() const {return ProjectileManager;}
+
+	// 플로팅 텍스트 매니저 컴포넌트를 반환
+	UPRFloatingTextManager* GetFloatingTextManager() const { return FloatingTextManager; }
+	
 	// 로컬 클라에서 호출. GameInstance의 LocalCharacter를 서버로 제출
 	// 자동 호출(BeginPlay)과 수동 호출(재제출) 모두 허용
 	UFUNCTION(BlueprintCallable, Category = "ProjectR|Session")
@@ -64,20 +68,47 @@ public:
 	UFUNCTION(Client, Reliable)
 	void ClientGrantReward(const FPRRewardGrant& Grant);
 
-	// 서버 -> 본인 클라. 현재 Pawn에 생존 상태 전환 Gameplay Event를 발행한다.
+	// 서버 -> 본인 클라. 현재 Pawn에 생존 상태 전환 Gameplay Event를 발행
 	UFUNCTION(Client, Reliable)
 	void ClientDispatchSurvivalGameplayEvent(FGameplayTag EventTag);
 
-	UPRProjectileManagerComponent* GetProjectileManagerComponent() const {return ProjectileManager;}
-
-	// 플로팅 텍스트 매니저 컴포넌트를 반환한다
-	UPRFloatingTextManager* GetFloatingTextManager() const { return FloatingTextManager; }
-
+	// 맵 이동 전 연출 시작 (FadeOut등)
+	UFUNCTION(Client, Reliable)
+	void ClientStartMapTransition(float Delay, bool bShouldFade);
+	
+	// 폰 -> PlayerState 경로로 ASC 조회
+	UPRAbilitySystemComponent* GetPRASC() const;
+	
 protected:
 	// 클라이언트 -> 서버. 로컬 캐릭터 페이로드 제출
 	UFUNCTION(Server, Reliable, WithValidation)
 	void ServerSubmitCharacter(const FPRCharacterSaveData& Payload);
+	
+	void OnMouseSensitivityActionUp();
 
+	void OnMouseSensitivityActionDown();
+	
+	// IA Pressed 콜백. InputTag를 ASC로 전달
+	void OnAbilityInputPressed(FGameplayTag InputTag);
+
+	// IA Released 콜백
+	void OnAbilityInputReleased(FGameplayTag InputTag);
+
+    // ====== UI =====
+	// 인벤토리 입력 시작을 처리
+	void OnInventoryInputStarted();
+	
+	// 퀵슬롯 입력 시작을 처리
+	void OnQuickSlotInputStarted(int32 SlotIndex);
+
+	// 플레이어 퀵슬롯 컴포넌트를 조회
+	UPRQuickSlotComponent* GetQuickSlotComponent() const;
+	
+private:
+	void UpdateCompanionHighlight();
+	
+protected:
+	// ====== Configs ======
 	// 치트 핸들러 클래스. BP에서 지정. 비어있으면 핸들러 미생성
 	UPROPERTY(EditDefaultsOnly, Category = "ProjectR|Cheat")
 	TSubclassOf<UPRCheatHandler> CheatHandlerClass;
@@ -86,24 +117,6 @@ protected:
 	UPROPERTY(EditDefaultsOnly, Category = "ProjectR|Input")
 	TObjectPtr<UPRInputConfigDataAsset> InputConfig;
 	
-	void OnMouseSensitivityActionUp();
-
-	void OnMouseSensitivityActionDown();
-
-
-	// IA Pressed 콜백. InputTag를 ASC로 전달
-	void OnAbilityInputPressed(FGameplayTag InputTag);
-
-	// IA Released 콜백
-	void OnAbilityInputReleased(FGameplayTag InputTag);
-
-	// 폰 -> PlayerState 경로로 ASC 조회
-	UPRAbilitySystemComponent* GetASC() const;
-
-    // ====== UI =====
-	// 인벤토리 입력 시작을 처리
-	void OnInventoryInputStarted();
-
 	// 인벤토리 열기 입력 액션
 	UPROPERTY(EditDefaultsOnly, Category = "ProjectR|Input")
 	TObjectPtr<const UInputAction> InventoryAction;
@@ -120,11 +133,8 @@ protected:
 	UPROPERTY(EditDefaultsOnly, Category = "ProjectR|Input|MouseSensitivity")
 	TObjectPtr<const UInputAction> MouseSensitivityActionDown;
 	
-	// 퀵슬롯 입력 시작을 처리
-	void OnQuickSlotInputStarted(int32 SlotIndex);
-
-	// 플레이어 퀵슬롯 컴포넌트를 조회
-	UPRQuickSlotComponent* GetQuickSlotComponent() const;
+	UPROPERTY(EditDefaultsOnly, Category = "ProjectR|Effect")
+	float FadeInDuration = 1.0f;
 	
 private:
 	// 캐릭터 페이로드를 이미 제출했는지 여부. 중복 제출 방지
@@ -135,14 +145,15 @@ private:
 	// 서버 권위에서 생성되어 본인 클라에 복제되는 치트 명령 처리 객체
 	UPROPERTY(Replicated)
 	TObjectPtr<UPRCheatHandler> CheatHandler;
-
+	
+	// ====== Components =====
+	
 	UPROPERTY(VisibleAnywhere)
 	TObjectPtr<UPRProjectileManagerComponent> ProjectileManager;
 
 	UPROPERTY(VisibleAnywhere)
 	TObjectPtr<UPRFloatingTextManager> FloatingTextManager;
 
-    // ====== UI =====
 	// 로컬 플레이어 UI 표시 흐름을 담당하는 컴포넌트
 	UPROPERTY(VisibleAnywhere, Category = "ProjectR|UI")
 	TObjectPtr<UPRUIControllerComponent> UIControllerComponent;

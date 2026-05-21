@@ -63,23 +63,20 @@ APRPlayerCharacter::APRPlayerCharacter()
 	MeshComp->SetRelativeLocation(FVector(0.0f, 0.0f, -90.0f));
 	MeshComp->SetRelativeRotation(FRotator(0.0f, -90.0f, 0.0f));
 	
-	
 	// 캐릭터 회전 설정
 	bUseControllerRotationPitch = false;
 	bUseControllerRotationYaw = false;
 	bUseControllerRotationRoll = false;
 
-	GetCharacterMovement()->bOrientRotationToMovement = true; // 이동 방향으로 캐릭터 회전 on off
-	GetCharacterMovement()->RotationRate = FRotator(0.0f, 500.0f, 0.0f);
-
-	// 앉기 기능 활성화
-	GetCharacterMovement()->NavAgentProps.bCanCrouch = true;
-
-	// 초기 속도 설정
-	GetCharacterMovement()->MaxWalkSpeed = JogSpeed;
-	
-	// 루트모션을 통한 회전 켜기
-	GetCharacterMovement()->bAllowPhysicsRotationDuringAnimRootMotion = true;
+	UCharacterMovementComponent* CMC = GetCharacterMovement();
+	CMC->bOrientRotationToMovement = true; // 이동 방향으로 캐릭터 회전 on off
+	CMC->RotationRate = FRotator(0.0f, 500.0f, 0.0f);
+	CMC->NavAgentProps.bCanCrouch = true; // 앉기 기능 활성화
+	CMC->MaxWalkSpeed = JogSpeed; // 초기 속도 설정
+	CMC->bAllowPhysicsRotationDuringAnimRootMotion = true; // 루트모션을 통한 회전 켜기
+	// TODO: 아래 설정은 클라이언트의 movement를 서버가 신뢰하는 모델, 안정성 테스트 필요
+	CMC->bIgnoreClientMovementErrorChecksAndCorrection = true;
+	CMC->bServerAcceptClientAuthoritativePosition = true;
 	
 	InteractableComponent = CreateDefaultSubobject<UPRInteractableComponent>(TEXT("InteractableComponent"));
 	InteractableComponent->bOnlyApplyDepthStencilOnAvailable = true;

@@ -87,6 +87,15 @@ void APRPlayerController::AcknowledgePossession(APawn* InPawn)
 	{
 		UIControllerComponent->RefreshForPawn(InPawn);
 	}
+	
+	// 게임 시작 or 맵 진입 후 FadeIn
+	if (IsLocalController())
+	{
+		if (APRCameraManager* CM = Cast<APRCameraManager>(PlayerCameraManager))
+		{
+			CM->FadeIn(EPRFadeColorPreset::Black, FadeInDuration, false);
+		}
+	}
 }
 
 void APRPlayerController::SetupInputComponent()
@@ -146,14 +155,25 @@ void APRPlayerController::SetupInputComponent()
 
 void APRPlayerController::PostProcessInput(const float DeltaTime, const bool bGamePaused)
 {
-	if (UPRAbilitySystemComponent* ASC = GetASC())
+	if (UPRAbilitySystemComponent* ASC = GetPRASC())
 	{
 		ASC->ProcessAbilityInput(DeltaTime, bGamePaused);
 	}
 	Super::PostProcessInput(DeltaTime, bGamePaused);
 }
 
-// =====  입력 콜백 =====
+void APRPlayerController::ClientStartMapTransition_Implementation(float Delay, bool bShouldFade)
+{
+	UIControllerComponent->RemoveAllWidget();
+	
+	if (bShouldFade)
+	{
+		if (APRCameraManager* CM = Cast<APRCameraManager>(PlayerCameraManager))
+		{
+			CM->FadeOut(EPRFadeColorPreset::White, Delay, false);
+		}
+	}
+}
 
 void APRPlayerController::OnMouseSensitivityActionUp()
 {
@@ -179,7 +199,7 @@ void APRPlayerController::OnMouseSensitivityActionDown()
 
 void APRPlayerController::OnAbilityInputPressed(FGameplayTag InputTag)
 {
-	if (UPRAbilitySystemComponent* ASC = GetASC())
+	if (UPRAbilitySystemComponent* ASC = GetPRASC())
 	{
 		ASC->AbilityInputPressed(InputTag);
 	}
@@ -187,13 +207,13 @@ void APRPlayerController::OnAbilityInputPressed(FGameplayTag InputTag)
 
 void APRPlayerController::OnAbilityInputReleased(FGameplayTag InputTag)
 {
-	if (UPRAbilitySystemComponent* ASC = GetASC())
+	if (UPRAbilitySystemComponent* ASC = GetPRASC())
 	{
 		ASC->AbilityInputReleased(InputTag);
 	}
 }
 
-UPRAbilitySystemComponent* APRPlayerController::GetASC() const
+UPRAbilitySystemComponent* APRPlayerController::GetPRASC() const
 {
 	if (CachedASC.IsValid())
 	{
@@ -210,8 +230,6 @@ UPRAbilitySystemComponent* APRPlayerController::GetASC() const
 	}
 	return nullptr;
 }
-
-// =====  캐릭터 페이로드 제출 =====
 
 void APRPlayerController::UpdateCompanionHighlight()
 {

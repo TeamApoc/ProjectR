@@ -1,7 +1,7 @@
 ﻿// Copyright (c) 2026 TeamApoc. All Rights Reserved.
 
 
-#include "PRInteraction_Crystal.h"
+#include "PRInteraction_Waypoint.h"
 
 #include "AbilitySystemBlueprintLibrary.h"
 #include "AbilitySystemComponent.h"
@@ -15,19 +15,21 @@
 #include "ProjectR/Game/PRGameInstance.h"
 #include "ProjectR/Game/PRGameStateBase.h"
 #include "ProjectR/Interaction/PRInteractorComponent.h"
+#include "ProjectR/Player/PRPlayerController.h"
 #include "ProjectR/Player/PRPlayerState.h"
 #include "ProjectR/Utils/PRGameplayStatics.h"
 
-UPRInteraction_Crystal::UPRInteraction_Crystal()
+UPRInteraction_Waypoint::UPRInteraction_Waypoint()
 {
 	InteractionType = EPRInteractionType::Sustained;
 	bRequiresRange = true;
 }
 
-void UPRInteraction_Crystal::Execute_Implementation(AActor* Interactor)
+void UPRInteraction_Waypoint::Execute_Implementation(AActor* Interactor)
 {
 	Super::Execute_Implementation(Interactor);
 
+	// 아래 코드는 서버에서만 실행됨
 	AActor* OwnerActor = GetOwner();
 	if (!IsValid(OwnerActor) || !OwnerActor->HasAuthority())
 	{
@@ -42,57 +44,87 @@ void UPRInteraction_Crystal::Execute_Implementation(AActor* Interactor)
 	
 	if (UPRAbilitySystemComponent* ASC = Cast<UPRAbilitySystemComponent>(UPRGameplayStatics::GetAbilitySystemComponent(Interactor)))
 	{
-		ASC->MulticastTriggerEvent(PRGameplayTags::Event_Ability_Crystal_Start);
+		// 서버와 클라 모두에게 Trigger
+		ASC->MulticastTriggerEvent(PRGameplayTags::Event_Ability_Waypoint_Start);
 	}
 
 	if (TravelCheckDelay <= 0.0f)
 	{
+		// 즉시 이동
 		CheckTravelCondition();
 		return;
 	}
 
+	// Delay 이후 체크
 	World->GetTimerManager().SetTimer(
 		TravelCheckTimerHandle,
 		this,
-		&UPRInteraction_Crystal::CheckTravelCondition,
+		&UPRInteraction_Waypoint::CheckTravelCondition,
 		TravelCheckDelay,
 		false);
 }
 
-void UPRInteraction_Crystal::EndInteraction_Implementation(AActor* Interactor, bool bCanceled)
+void UPRInteraction_Waypoint::EndInteraction_Implementation(AActor* Interactor, bool bCanceled)
 {
 	Super::EndInteraction_Implementation(Interactor, bCanceled);
 	
 	if (UPRAbilitySystemComponent* ASC = Cast<UPRAbilitySystemComponent>(UPRGameplayStatics::GetAbilitySystemComponent(Interactor)))
 	{
+		// bCanceled는 Interaction 어빌리티가 Cancel된 경우 true
 		if (bCanceled)
 		{
+			// Waypoint 활성화 어빌리티를 취소
 			FGameplayTagContainer CancelTags;
-			CancelTags.AddTag(PRGameplayTags::Ability_Player_Crystal);
+			CancelTags.AddTag(PRGameplayTags::Ability_Player_Waypoint);
 			ASC->CancelAbilities(&CancelTags);
 		}
 		else
 		{
-			ASC->MulticastTriggerEvent(PRGameplayTags::Event_Ability_Crystal_End);
+			// Waypoint 활성화 어빌리티 내에서 손을 떼는 모션 재생 후 EndAbility 하기위해 이벤트 전송
+			ASC->MulticastTriggerEvent(PRGameplayTags::Event_Ability_Waypoint_End);
 		}
 	}
 	
 	GetWorld()->GetTimerManager().ClearTimer(TravelCheckTimerHandle);
 }
 
-void UPRInteraction_Crystal::StartTravel()
+void UPRInteraction_Waypoint::StartTravel(TSoftObjectPtr<UWorld> MapToTravel)
 {
-	// TODO: 현재는 TargetMap을 Property에서 지정하지만, 추후 이동장소 선택 UI를 띄움
-	if (!TargetMap.IsNull())
+	if (MapToTravel.IsNull())
+	{
+		return;
+	}
+	
+	constexpr float TravelDelay = 1.5f;
+		
+	// 클라이언트 FadeOut
+	if (APRGameStateBase* GameState = GetWorld()->GetGameState<APRGameStateBase>())
+	{
+		for (APlayerState* PlayerState : GameState->PlayerArray)
+		{
+			APRPlayerController* Controller = Cast<APRPlayerController>(PlayerState->GetOwner());
+			if (!IsValid(Controller))
+			{
+				continue;
+			}
+				
+			Controller->ClientStartMapTransition(TravelDelay,true);
+				
+			// TODO: 무적 상태 추가?
+		}
+	}
+		
+	// ServerTravel 시작
+	GetWorld()->GetTimerManager().SetTimer(TravelDelayTimerHandle, FTimerDelegate::CreateWeakLambda(this,[this, MapToTravel]()
 	{
 		if (UPRGameInstance* GameInstance = GetWorld()->GetGameInstance<UPRGameInstance>())
 		{
-			GameInstance->ServerTravelToMap(TargetMap, false);
-		}
-	}
+			GameInstance->ServerTravelToMap(MapToTravel, false);
+		}	
+	}),TravelDelay,false);
 }
 
-void UPRInteraction_Crystal::CheckTravelCondition()
+void UPRInteraction_Waypoint::CheckTravelCondition()
 {
 	AActor* OwnerActor = GetOwner();
 	if (!IsValid(OwnerActor) || !OwnerActor->HasAuthority())
@@ -100,17 +132,18 @@ void UPRInteraction_Crystal::CheckTravelCondition()
 		return;
 	}
 
+	// 행동 가능한 인원이 모두 웨이포인트와 상호작용하는지 체크
 	const int32 FightCapablePlayerCount = CountFightCapablePlayers();
 	if (FightCapablePlayerCount > 0 && CountInteractingPlayers() == FightCapablePlayerCount)
 	{
-		StartTravel();
+		// TODO: 현재는 TargetMap을 Property에서 지정하지만, 추후 이동장소 선택 UI를 띄움
+		StartTravel(TargetMap);
 	}
 }
 
-int32 UPRInteraction_Crystal::CountInteractingPlayers() const
+int32 UPRInteraction_Waypoint::CountInteractingPlayers() const
 {
-	UWorld* World = GetWorld();
-	const APRGameStateBase* GameState = IsValid(World) ? World->GetGameState<APRGameStateBase>() : nullptr;
+	const APRGameStateBase* GameState = GetWorld()->GetGameState<APRGameStateBase>();
 	if (!IsValid(GameState))
 	{
 		return 0;
@@ -143,7 +176,7 @@ int32 UPRInteraction_Crystal::CountInteractingPlayers() const
 	return InteractingPlayerCount;
 }
 
-int32 UPRInteraction_Crystal::CountFightCapablePlayers() const
+int32 UPRInteraction_Waypoint::CountFightCapablePlayers() const
 {
 	UWorld* World = GetWorld();
 	const APRGameStateBase* GameState = IsValid(World) ? World->GetGameState<APRGameStateBase>() : nullptr;

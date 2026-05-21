@@ -4,18 +4,18 @@
 
 #include "CoreMinimal.h"
 #include "ProjectR/Interaction/PRInteractionAction.h"
-#include "PRInteraction_Crystal.generated.h"
+#include "PRInteraction_Waypoint.generated.h"
 
 /**
  * 
  */
 UCLASS()
-class PROJECTR_API UPRInteraction_Crystal : public UPRInteractionAction
+class PROJECTR_API UPRInteraction_Waypoint : public UPRInteractionAction
 {
 	GENERATED_BODY()
 
 public:
-	UPRInteraction_Crystal();
+	UPRInteraction_Waypoint();
 
 	/*~ UPRInteractionAction Interface ~*/
 	virtual void Execute_Implementation(AActor* Interactor) override;
@@ -23,7 +23,7 @@ public:
 
 protected:
 	// 목표 맵 이동 실행
-	void StartTravel();
+	void StartTravel(TSoftObjectPtr<UWorld> MapToTravel);
 
 private:
 	// 이동 조건 검사
@@ -45,4 +45,5 @@ protected:
 
 private:
 	FTimerHandle TravelCheckTimerHandle;
+	FTimerHandle TravelDelayTimerHandle;
 };

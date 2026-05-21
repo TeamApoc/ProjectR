@@ -141,6 +141,27 @@ void UPRUIControllerComponent::RefreshForPawn(APawn* InPawn)
 	RefreshWeaponScopeWidget();
 }
 
+void UPRUIControllerComponent::RemoveAllWidget()
+{
+	if (InventoryWidget)
+	{
+		InventoryWidget->RemoveFromParent();
+	}
+	if (HUDWidget)
+	{
+		HUDWidget->RemoveFromParent();
+	}
+	if (WeaponScopeWidget)
+	{
+		WeaponScopeWidget->RemoveFromParent();
+	}
+	
+	if (UPRUIManagerSubsystem* UIManager = GetUIManager())
+	{
+		UIManager->ResetSystem();
+	}
+}
+
 void UPRUIControllerComponent::HandleWeaponEquipmentChanged(UPRWeaponManagerComponent* WeaponManagerComponent, EPRWeaponSlotType ChangedSlot)
 {
 	RefreshWeaponScopeWidget();

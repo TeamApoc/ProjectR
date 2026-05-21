@@ -30,7 +30,7 @@ namespace PRGameplayTags
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Ability_Player_Down); // 플레이어 다운 어빌리티
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Ability_Player_GetUp); // 플레이어 기상 어빌리티
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Ability_Player_Revive); // 플레이어 동료 소생 어빌리티
-	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Ability_Player_Crystal); // 크리스탈 상호작용 어빌리티
+	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Ability_Player_Waypoint); // 크리스탈 상호작용 어빌리티
 	
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Ability_Player_Weapon_Zoom); // 플레이어 볼트액션 줌 어빌리티
 
@@ -127,8 +127,8 @@ namespace PRGameplayTags
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Event_Ability_Revive_Start); // 소생 이벤트.
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Event_Ability_Revive_Finished);
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Event_Ability_Revive_Canceled);
-	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Event_Ability_Crystal_Start); // 크리스탈 상호작용 시작
-	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Event_Ability_Crystal_End); // 크리스탈 상호작용 취소
+	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Event_Ability_Waypoint_Start); // 크리스탈 상호작용 시작
+	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Event_Ability_Waypoint_End); // 크리스탈 상호작용 취소
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Event_Ability_GroggyEntered); // 그로기 진입 이벤트.
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Event_Ability_PhaseTransition); // 페이즈 전환 이벤트.
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Event_Ability_PlayerHitReact_Weak); // 플레이어 약한 경직 이벤트

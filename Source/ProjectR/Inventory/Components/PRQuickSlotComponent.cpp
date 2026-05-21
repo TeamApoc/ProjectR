@@ -179,6 +179,53 @@ bool UPRQuickSlotComponent::IsRegisteredItem(UPRConsumableDataAsset* InConsumabl
 	return false;
 }
 
+FPRQuickSlotSaveData UPRQuickSlotComponent::MakeSaveData() const
+{
+	FPRQuickSlotSaveData SaveData;
+	SaveData.RegisteredConsumables.SetNum(MaxQuickSlotCount);
+	for (int32 SlotIndex = 0; SlotIndex < MaxQuickSlotCount; ++SlotIndex)
+	{
+		if (!QuickSlots.IsValidIndex(SlotIndex))
+		{
+			continue;
+		}
+
+		SaveData.RegisteredConsumables[SlotIndex] = QuickSlots[SlotIndex].ConsumableData;
+	}
+
+	return SaveData;
+}
+
+void UPRQuickSlotComponent::ApplySaveData(const FPRQuickSlotSaveData& InSaveData)
+{
+	if (!IsValid(GetOwner()) || !GetOwner()->HasAuthority())
+	{
+		return;
+	}
+
+	CachedInventoryComponent = ResolveInventoryComponent();
+	QuickSlots.SetNum(MaxQuickSlotCount);
+
+	for (int32 SlotIndex = 0; SlotIndex < MaxQuickSlotCount; ++SlotIndex)
+	{
+		UPRConsumableDataAsset* ConsumableData = InSaveData.RegisteredConsumables.IsValidIndex(SlotIndex)
+			? InSaveData.RegisteredConsumables[SlotIndex].LoadSynchronous()
+			: nullptr;
+
+		// 슬롯 등록 상태 복원
+		QuickSlots[SlotIndex].ConsumableData = ConsumableData;
+		QuickSlots[SlotIndex].CachedConsumableItem = nullptr;
+		RefreshCachedConsumableItem(SlotIndex);
+	}
+
+	if (IsValid(GetOwner()))
+	{
+		GetOwner()->ForceNetUpdate();
+	}
+
+	OnQuickSlotChanged.Broadcast(this, INDEX_NONE);
+}
+
 void UPRQuickSlotComponent::OnRep_QuickSlots()
 {
 	InitializeQuickSlots(ResolveInventoryComponent());

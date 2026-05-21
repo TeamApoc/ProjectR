@@ -97,13 +97,3 @@ void UPRCrosshairWidget::UnbindFromEventManager()
 	RecoilHandle.Reset();
 	ChangeCrosshairHandle.Reset();
 }
-
-UPREventManagerSubsystem* UPRCrosshairWidget::GetEventManager() const
-{
-	UWorld* World = GetWorld();
-	if (!IsValid(World))
-	{
-		return nullptr;
-	}
-	return World->GetSubsystem<UPREventManagerSubsystem>();
-}

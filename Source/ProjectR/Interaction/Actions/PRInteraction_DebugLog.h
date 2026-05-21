@@ -22,7 +22,7 @@ public:
 
 	/*~ UPRInteractionAction Interface ~*/
 	virtual void Execute_Implementation(AActor* Interactor) override;
-	virtual void EndInteraction_Implementation() override;
+	virtual void EndInteraction_Implementation(AActor* Interactor, bool bCanceled) override;
 	virtual void OnHoldStart_Implementation(AActor* Interactor) override;
 	virtual void OnHoldCanceled_Implementation(AActor* Interactor) override;
 	virtual void OnHoldFinished_Implementation(AActor* Interactor) override;

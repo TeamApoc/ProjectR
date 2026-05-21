@@ -30,6 +30,7 @@ namespace PRGameplayTags
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Ability_Player_Down); // 플레이어 다운 어빌리티
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Ability_Player_GetUp); // 플레이어 기상 어빌리티
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Ability_Player_Revive); // 플레이어 동료 소생 어빌리티
+	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Ability_Player_Waypoint); // 크리스탈 상호작용 어빌리티
 	
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Ability_Player_Weapon_Zoom); // 플레이어 볼트액션 줌 어빌리티
 
@@ -111,9 +112,8 @@ namespace PRGameplayTags
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(State_Mod_Primary_GaugeLocked); // 주무기 Mod 게이지 축적 차단 상태
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(State_Mod_Secondary_GaugeLocked); // 보조무기 Mod 게이지 축적 차단 상태
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(State_Mod_Fire_Enabled); // 발사형 모드 활성 상태
-
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(State_UsingConsumable); // 소비 아이템 사용중인 상태
-
+	UE_DECLARE_GAMEPLAY_TAG_EXTERN(State_Suppress_Fire_Primary); // 무기 기본 발사 억제 상태 (모드 스킬 발사로 전환된 상태) 
 	
 	// ===== Cooldown.* — 쿨다운 상태에서 부여 =====
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Cooldown_Ability_Dodge); // 구르기 쿨다운
@@ -134,12 +134,16 @@ namespace PRGameplayTags
 
 	// ===== Event.* — SendGameplayEventToActor 이벤트 키 =====
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Event_Hit); // 피격 이벤트.
+	
+	// Ability Triggers
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Event_Ability_Death); // 사망 이벤트.
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Event_Ability_Down); // 다운 이벤트.
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Event_Ability_GetUp); // 기상 이벤트.
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Event_Ability_Revive_Start); // 소생 이벤트.
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Event_Ability_Revive_Finished);
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Event_Ability_Revive_Canceled);
+	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Event_Ability_Waypoint_Start); // 크리스탈 상호작용 시작
+	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Event_Ability_Waypoint_End); // 크리스탈 상호작용 취소
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Event_Ability_GroggyEntered); // 그로기 진입 이벤트.
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Event_Ability_PhaseTransition); // 페이즈 전환 이벤트.
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Event_Ability_PlayerHitReact_Weak); // 플레이어 약한 경직 이벤트
@@ -156,7 +160,8 @@ namespace PRGameplayTags
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Event_Player_ReloadCommit); // 재장전 몽타주 노티파이가 발행하는 자원 이동 트리거
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Event_Player_ConsumableCommit); // 소비 아이템 몽타주 노티파이가 발행하는 사용 확정 트리거
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Event_Player_Interaction_Hold); // Hold 상호작용 단계 알림 (FPRInteractionHoldEventPayload 동반)
-	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Event_Player_Interactable);
+	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Event_Player_Interactable); // 상호작용 가능 알림
+	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Event_Player_ModActivation); // Mod On / Off 이벤트
 
 	// ===== Event.Boss.* — 보스 조우 이벤트 =====
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Event_Boss_Encounter_Begin); // 보스 조우 시작 (FPRBossEncounterEventPayload 동반)
@@ -167,7 +172,7 @@ namespace PRGameplayTags
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Cue_Critical_Boss_WeakpointOpen); // 보스 약점 창 오픈 연출 Cue
 
 	// ===== Input.Ability.* — 플레이어 InputTag (AbilitySpec DynamicTags 매칭 키) =====
-	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Input_Ability_Fire_Primary); // 주무기 발사 입력 태그
+	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Input_Ability_Fire_Primary); // 기본 발사 입력 태그 (모드 스킬의 발사가 아닌 무기의 기본 발사)
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Input_Ability_Dodge); // 구르기 입력 태그
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Input_Ability_Interact); // 상호작용 입력 태그
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Input_Ability_Crouch); // 앉기 입력 태그

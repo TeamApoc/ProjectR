@@ -48,6 +48,9 @@ protected:
 	// 사망 시각 연출을 모든 클라이언트에 요청한다.
 	void RequestDeathDissolveVisual();
 
+	// 서버 사망 확정 시 드롭 매니저에 드롭 처리를 요청한다.
+	void RequestMonsterDrop(const FGameplayEventData* TriggerEventData);
+
 	// 몽타주와 Dissolve 길이를 포함해 Actor 삭제까지 필요한 시간을 계산한다.
 	float CalculateDeathDestroyDelay() const;
 

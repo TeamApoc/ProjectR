@@ -104,7 +104,7 @@ public:
 	void OnInteractionReleased();
 	
 	// 활성 유지형 상호작용을 능동적으로 종료 요청 
-	void RequestEndInteract();
+	void RequestEndInteract(bool bCanceled);
 
 	// 현재 포커스 대상 반환
 	UPRInteractableComponent* GetFocusedComponent() const { return FocusedComponent; }
@@ -118,6 +118,9 @@ public:
 	
 	// 현재 유지 타입 Action이 설정되었는지
 	bool IsSustained() const;
+
+	// 현재 활성 액션 반환
+	UPRInteractionAction* GetActiveAction() const { return ActiveInteractionInfo.GetActiveAction(); }
 	
 	// 현재 Hold타입 Action이 설정되었는지
 	bool IsHolding() const;
@@ -130,7 +133,7 @@ public:
 	
 protected:
 	UFUNCTION(Server, Reliable)
-	void ServerEndInteract();
+	void ServerEndInteract(bool bCanceled);
 	
 	UFUNCTION(Client, Reliable)
 	void ClientEndInteract();
@@ -170,7 +173,7 @@ private:
 	void ClearPreviousInteraction();
 	
 	// 활성 유지형 상호작용을 종료한다
-	void Internal_EndActiveInteraction();
+	void Internal_EndActiveInteraction(bool bCanceled);
 
 	// 활성 유지형 상호작용 추적을 시작한다
 	void Internal_SetActiveInteraction(UPRInteractionAction* Action, UPRInteractableComponent* Interactable);

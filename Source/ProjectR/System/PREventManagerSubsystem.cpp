@@ -29,24 +29,25 @@ FDelegateHandle UPREventManagerSubsystem::Listen(FGameplayTag EventTag, FPREvent
 	return Multicast.Add(Callback);
 }
 
-void UPREventManagerSubsystem::Unlisten(FGameplayTag EventTag, FDelegateHandle Handle)
+void UPREventManagerSubsystem::Unlisten(FGameplayTag EventTag, FDelegateHandle& InHandle)
 {
 	if (FPREventMulticast* Multicast = Listeners.Find(EventTag))
 	{
-		Multicast->Remove(Handle);
+		Multicast->Remove(InHandle);
 		if (!Multicast->IsBound())
 		{
 			Listeners.Remove(EventTag);
 		}
 	}
+	InHandle.Reset();
 }
 
-void UPREventManagerSubsystem::UnlistenAll(FDelegateHandle Handle)
+void UPREventManagerSubsystem::UnlistenAll(FDelegateHandle& InHandle)
 {
 	TArray<FGameplayTag> EmptyTags;
 	for (auto& Pair : Listeners)
 	{
-		Pair.Value.Remove(Handle);
+		Pair.Value.Remove(InHandle);
 		if (!Pair.Value.IsBound())
 		{
 			EmptyTags.Add(Pair.Key);
@@ -56,6 +57,7 @@ void UPREventManagerSubsystem::UnlistenAll(FDelegateHandle Handle)
 	{
 		Listeners.Remove(Tag);
 	}
+	InHandle.Reset();
 }
 
 void UPREventManagerSubsystem::Broadcast(FGameplayTag EventTag, const FInstancedStruct& Payload)

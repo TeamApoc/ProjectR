@@ -3,8 +3,10 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "ProjectR/Weapon/Types/PRWeaponTypes.h"
 #include "PREventTypes.generated.h"
 
+enum class EPRWeaponSlotType : uint8;
 /**
  * 이벤트 페이로드 베이스 구조체.
  * 실제 페이로드는 이 구조체를 상속받아 정의한 뒤 FInstancedStruct로 래핑해 발송한다.
@@ -16,3 +18,14 @@ struct PROJECTR_API FPREventPayload
 	GENERATED_BODY()
 };
 
+USTRUCT(BlueprintType)
+struct PROJECTR_API FPRModActivationPayload : public FPREventPayload
+{
+	GENERATED_BODY()
+	
+	UPROPERTY(BlueprintReadWrite)
+	bool bActivated = false;
+	
+	UPROPERTY(BlueprintReadWrite)
+	EPRWeaponSlotType SlotType = EPRWeaponSlotType::None;
+};

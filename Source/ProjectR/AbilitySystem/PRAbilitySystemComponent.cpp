@@ -1,6 +1,8 @@
 // Copyright ProjectR. All Rights Reserved.
 
 #include "PRAbilitySystemComponent.h"
+
+#include "AbilitySystemBlueprintLibrary.h"
 #include "ProjectR/AbilitySystem/PRGameplayAbility.h"
 #include "ProjectR/PRGameplayTags.h"
 #include "Engine/DataTable.h"
@@ -137,7 +139,7 @@ void UPRAbilitySystemComponent::MulticastTagUpdated_Implementation(const FGamepl
 
 // =====  AbilitySet 부여/해제 =====
 
-void UPRAbilitySystemComponent::GiveAbilitySet(const UPRAbilitySet* AbilitySet, FPRAbilitySetHandles& OutHandles)
+void UPRAbilitySystemComponent::GiveAbilitySet(const UPRAbilitySet* AbilitySet, FPRAbilitySetHandles& OutHandles, UObject* InSourceObject)
 {
 	if (!IsValid(AbilitySet) || !IsOwnerActorAuthoritative())
 	{
@@ -153,6 +155,10 @@ void UPRAbilitySystemComponent::GiveAbilitySet(const UPRAbilitySet* AbilitySet, 
 
 		FGameplayAbilitySpec Spec(Entry.AbilityClass, Entry.Level);
 		Spec.GetDynamicSpecSourceTags().AppendTags(Entry.DynamicTags);
+		if (IsValid(InSourceObject))
+		{
+			Spec.SourceObject = InSourceObject;
+		}
 
 		// InputTag가 CDO에 설정되어 있으면 DynamicTags에 자동 주입 (AbilitySet이 누락해도 매칭되도록)
 		if (const UPRGameplayAbility* CDO = Cast<UPRGameplayAbility>(Entry.AbilityClass->GetDefaultObject()))
@@ -176,7 +182,10 @@ void UPRAbilitySystemComponent::GiveAbilitySet(const UPRAbilitySet* AbilitySet, 
 		}
 
 		FGameplayEffectContextHandle Context = MakeEffectContext();
-		Context.AddSourceObject(AbilitySet);
+		if (IsValid(InSourceObject))
+		{
+			Context.AddSourceObject(InSourceObject);	
+		}
 		const FGameplayEffectSpecHandle SpecHandle = MakeOutgoingSpec(Entry.EffectClass, Entry.Level, Context);
 		if (SpecHandle.IsValid())
 		{
@@ -267,6 +276,46 @@ bool UPRAbilitySystemComponent::InitializeAttributesFromRegistry(const UPRAbilit
 	return true;
 }
 
+FPRAttributeBaseSnapshot UPRAbilitySystemComponent::MakeAttributeBaseSnapshot(const TArray<FGameplayAttribute>& Attributes) const
+{
+	FPRAttributeBaseSnapshot Snapshot;
+	Snapshot.Entries.Reserve(Attributes.Num());
+
+	for (const FGameplayAttribute& Attribute : Attributes)
+	{
+		if (!Attribute.IsValid())
+		{
+			continue;
+		}
+
+		FPRAttributeBaseEntry Entry;
+		Entry.Attribute = Attribute;
+		Entry.BaseValue = GetNumericAttributeBase(Attribute);
+		Snapshot.Entries.Add(Entry);
+	}
+
+	return Snapshot;
+}
+
+void UPRAbilitySystemComponent::ApplyAttributeBaseSnapshot(const FPRAttributeBaseSnapshot& InSnapshot)
+{
+	if (!IsOwnerActorAuthoritative())
+	{
+		return;
+	}
+
+	for (const FPRAttributeBaseEntry& Entry : InSnapshot.Entries)
+	{
+		if (!Entry.Attribute.IsValid())
+		{
+			continue;
+		}
+
+		// Attribute Base 값 복원
+		SetNumericAttributeBase(Entry.Attribute, Entry.BaseValue);
+	}
+}
+
 void UPRAbilitySystemComponent::AbilityInputPressed(const FGameplayTag& InputTag)
 {
 	if (!InputTag.IsValid())
@@ -276,8 +325,23 @@ void UPRAbilitySystemComponent::AbilityInputPressed(const FGameplayTag& InputTag
 
 	for (const FGameplayAbilitySpec& Spec : ActivatableAbilities.Items)
 	{
-		if (Spec.Ability && Spec.GetDynamicSpecSourceTags().HasTagExact(InputTag))
+		if (!Spec.Ability)
 		{
+			continue;
+		}
+		
+		bool bHasInputTag = Spec.GetDynamicSpecSourceTags().HasTagExact(InputTag);
+		if (!bHasInputTag)
+		{
+			if (UPRGameplayAbility* PRGA = Cast<UPRGameplayAbility>(Spec.Ability))
+			{
+				bHasInputTag = PRGA->GetInputTag().MatchesTagExact(InputTag);
+			}
+		}
+		
+		if (bHasInputTag)
+		{
+			UE_LOG(LogTemp, Warning, TEXT("AbilityInputPressed %s"), *Spec.Ability->GetName());
 			InputPressedSpecHandles.AddUnique(Spec.Handle);
 			InputHeldSpecHandles.AddUnique(Spec.Handle);
 		}
@@ -293,7 +357,21 @@ void UPRAbilitySystemComponent::AbilityInputReleased(const FGameplayTag& InputTa
 
 	for (const FGameplayAbilitySpec& Spec : ActivatableAbilities.Items)
 	{
-		if (Spec.Ability && Spec.GetDynamicSpecSourceTags().HasTagExact(InputTag))
+		if (!Spec.Ability)
+		{
+			continue;
+		}
+		
+		bool bHasInputTag = Spec.GetDynamicSpecSourceTags().HasTagExact(InputTag);
+		if (!bHasInputTag)
+		{
+			if (UPRGameplayAbility* PRGA = Cast<UPRGameplayAbility>(Spec.Ability))
+			{
+				bHasInputTag = PRGA->GetInputTag().MatchesTagExact(InputTag);
+			}
+		}
+		
+		if (bHasInputTag)
 		{
 			InputReleasedSpecHandles.AddUnique(Spec.Handle);
 			InputHeldSpecHandles.Remove(Spec.Handle);
@@ -456,6 +534,11 @@ bool UPRAbilitySystemComponent::TryConsumeClientReplicatedTargetData(FGameplayAb
 		return bConsumed;
 	}
 	return false;
+}
+
+void UPRAbilitySystemComponent::MulticastTriggerEvent_Implementation(FGameplayTag EventTag)
+{
+	UAbilitySystemBlueprintLibrary::SendGameplayEventToActor(GetOwner(),EventTag,FGameplayEventData());
 }
 
 // =====  내부 =====

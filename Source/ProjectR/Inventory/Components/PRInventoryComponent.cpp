@@ -6,8 +6,11 @@
 #include "GameFramework/Controller.h"
 #include "GameFramework/Pawn.h"
 #include "Net/UnrealNetwork.h"
+#include "ProjectR/Character/PRPlayerCharacter.h"
 #include "ProjectR/Inventory/Data/PRConsumableDataAsset.h"
+#include "ProjectR/Inventory/Data/PRMaterialDataAsset.h"
 #include "ProjectR/Inventory/Items/PRItemInstance_Consumable.h"
+#include "ProjectR/Inventory/Items/PRItemInstance_Material.h"
 #include "ProjectR/Weapon/Components/PRWeaponManagerComponent.h"
 #include "ProjectR/Weapon/Data/PRWeaponDataAsset.h"
 #include "ProjectR/Weapon/Data/PRWeaponModDataAsset.h"
@@ -54,6 +57,7 @@ void UPRInventoryComponent::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>
 	DOREPLIFETIME_CONDITION(UPRInventoryComponent, InventoryWeaponItems, COND_OwnerOnly);
 	DOREPLIFETIME_CONDITION(UPRInventoryComponent, InventoryModItems, COND_OwnerOnly);
 	DOREPLIFETIME_CONDITION(UPRInventoryComponent, InventoryConsumableItems, COND_OwnerOnly);
+	DOREPLIFETIME_CONDITION(UPRInventoryComponent, InventoryMaterialItems, COND_OwnerOnly);
 }
 
 bool UPRInventoryComponent::ReplicateSubobjects(UActorChannel* Channel, FOutBunch* Bunch, FReplicationFlags* RepFlags)
@@ -95,6 +99,16 @@ bool UPRInventoryComponent::ReplicateSubobjects(UActorChannel* Channel, FOutBunc
 		bWroteSomething |= Channel->ReplicateSubobject(ConsumableItem, *Bunch, *RepFlags);
 	}
 
+	for (UPRItemInstance_Material* MaterialItem : InventoryMaterialItems)
+	{
+		if (!IsValid(MaterialItem))
+		{
+			continue;
+		}
+
+		bWroteSomething |= Channel->ReplicateSubobject(MaterialItem, *Bunch, *RepFlags);
+	}
+
 	return bWroteSomething;
 }
 
@@ -117,6 +131,10 @@ void UPRInventoryComponent::RequestAddItem(UPRItemDataAsset* InItemData, int32 A
 	else if (UPRConsumableDataAsset* ConsumableData = Cast<UPRConsumableDataAsset>(InItemData))
 	{
 		RequestAddConsumableItem(ConsumableData, Amount);
+	}
+	else if (UPRMaterialDataAsset* MaterialData = Cast<UPRMaterialDataAsset>(InItemData))
+	{
+		RequestAddMaterialItem(MaterialData, Amount);
 	}
 }
 
@@ -156,6 +174,10 @@ UPRItemInstance* UPRInventoryComponent::AddItem(UPRItemDataAsset* InItemData, in
 	else if (UPRConsumableDataAsset* ConsumableData = Cast<UPRConsumableDataAsset>(InItemData))
 	{
 		return AddConsumableItem(ConsumableData, Amount);
+	}
+	else if (UPRMaterialDataAsset* MaterialData = Cast<UPRMaterialDataAsset>(InItemData))
+	{
+		return AddMaterialItem(MaterialData, Amount);
 	}
 
 	return nullptr;
@@ -312,6 +334,80 @@ UPRItemInstance_Consumable* UPRInventoryComponent::AddConsumableItem(UPRConsumab
 	return NewConsumableItem;
 }
 
+void UPRInventoryComponent::RequestAddMaterialItem(UPRMaterialDataAsset* MaterialData, int32 AddCount)
+{
+	// 데이터가 없거나 수량이 잘못된 요청은 서버 RPC를 보내기 전에 중단한다
+	if (!IsValid(MaterialData) || AddCount <= 0)
+	{
+		return;
+	}
+
+	if (IsValid(GetOwner()) && GetOwner()->HasAuthority())
+	{
+		AddMaterialItem(MaterialData, AddCount);
+		return;
+	}
+
+	Server_RequestAddMaterialItem(MaterialData, AddCount);
+}
+
+UPRItemInstance_Material* UPRInventoryComponent::AddMaterialItem(UPRMaterialDataAsset* MaterialData, int32 AddCount)
+{
+	// 재료 Item 정적 데이터가 없거나 수량이 잘못되면 Item 생성을 진행하지 않는다
+	if (!IsValid(MaterialData) || AddCount <= 0)
+	{
+		return nullptr;
+	}
+
+	if (UPRItemInstance_Material* ExistingItem = FindMaterialItemByData(MaterialData))
+	{
+		ExistingItem->AddStack(AddCount);
+
+		if (IsValid(GetOwner()) && GetOwner()->HasAuthority())
+		{
+			UE_LOG(
+				LogTemp,
+				Log,
+				TEXT("[Inventory][Server] AddMaterialStack. Owner = %s | Item = %s | Material = %s | StackCount = %d"),
+				*GetNameSafe(GetOwner()),
+				*GetNameSafe(ExistingItem),
+				*GetNameSafe(MaterialData),
+				ExistingItem->GetStackCount());
+		}
+
+		return ExistingItem;
+	}
+
+	UPRItemInstance_Material* NewMaterialItem = NewObject<UPRItemInstance_Material>(this);
+	if (!IsValid(NewMaterialItem))
+	{
+		return nullptr;
+	}
+
+	NewMaterialItem->InitializeItem(MaterialData, AddCount);
+	RegisterInventoryMaterialItem(NewMaterialItem);
+
+	if (IsValid(GetOwner()) && GetOwner()->HasAuthority())
+	{
+		UE_LOG(
+			LogTemp,
+			Log,
+			TEXT("[Inventory][Server] AddMaterialItem. Owner = %s | Item = %s | Material = %s | StackCount = %d | Count = %d"),
+			*GetNameSafe(GetOwner()),
+			*GetNameSafe(NewMaterialItem),
+			*GetNameSafe(MaterialData),
+			NewMaterialItem->GetStackCount(),
+			InventoryMaterialItems.Num());
+	}
+
+	return NewMaterialItem;
+}
+
+bool UPRInventoryComponent::RemoveMaterialItemByData(UPRMaterialDataAsset* MaterialData, int32 RemoveCount)
+{
+	return RemoveMaterialItemByDataInternal(MaterialData, RemoveCount);
+}
+
 void UPRInventoryComponent::RequestRemoveConsumableItem(UPRItemInstance_Consumable* ConsumableItem, int32 RemoveCount)
 {
 	// 잘못된 소비 Item 제거 요청은 서버 RPC를 보내기 전에 중단한다
@@ -338,6 +434,11 @@ void UPRInventoryComponent::RequestRemoveConsumableItemByData(UPRConsumableDataA
 	}
 
 	Server_RequestRemoveConsumableItemByData(ConsumableData, RemoveCount);
+}
+
+bool UPRInventoryComponent::RemoveConsumableItemByData(UPRConsumableDataAsset* ConsumableData, int32 RemoveCount)
+{
+	return RemoveConsumableItemByDataInternal(ConsumableData, RemoveCount);
 }
 
 void UPRInventoryComponent::RequestUseConsumableItem(UPRItemInstance_Consumable* ConsumableItem, AActor* UserActor)
@@ -415,6 +516,49 @@ bool UPRInventoryComponent::RemoveConsumableItemByDataInternal(UPRConsumableData
 	}
 
 	return RemoveConsumableItemInternal(FindConsumableItemByData(ConsumableData), RemoveCount);
+}
+
+bool UPRInventoryComponent::RemoveMaterialItemInternal(UPRItemInstance_Material* MaterialItem, int32 RemoveCount)
+{
+	// 재료 Item 제거는 인벤토리가 소유한 인스턴스만 대상으로 처리한다
+	if (!IsValid(GetOwner()) || !GetOwner()->HasAuthority() || !IsValid(MaterialItem) || !OwnsMaterial(MaterialItem) || RemoveCount <= 0)
+	{
+		return false;
+	}
+
+	const int32 PreviousStackCount = MaterialItem->GetStackCount();
+	if (!MaterialItem->RemoveStack(RemoveCount))
+	{
+		return false;
+	}
+
+	UE_LOG(
+		LogTemp,
+		Log,
+		TEXT("[Inventory][Server] RemoveMaterialItem. Owner = %s | Item = %s | Material = %s | BeforeStackCount = %d | AfterStackCount = %d"),
+		*GetNameSafe(GetOwner()),
+		*GetNameSafe(MaterialItem),
+		*GetNameSafe(MaterialItem->GetMaterialData()),
+		PreviousStackCount,
+		MaterialItem->GetStackCount());
+
+	if (MaterialItem->GetStackCount() <= 0)
+	{
+		UnregisterMaterialItemInstance(MaterialItem);
+	}
+
+	return true;
+}
+
+bool UPRInventoryComponent::RemoveMaterialItemByDataInternal(UPRMaterialDataAsset* MaterialData, int32 RemoveCount)
+{
+	// 데이터 기반 제거는 현재 인벤토리의 재료 Item 인스턴스를 먼저 찾는다
+	if (!IsValid(MaterialData))
+	{
+		return false;
+	}
+
+	return RemoveMaterialItemInternal(FindMaterialItemByData(MaterialData), RemoveCount);
 }
 
 bool UPRInventoryComponent::UseConsumableItemInternal(UPRItemInstance_Consumable* ConsumableItem, AActor* UserActor)
@@ -702,6 +846,16 @@ UPRItemInstance_Consumable* UPRInventoryComponent::GetConsumableItemAtIndex(int3
 	return InventoryConsumableItems[ItemIndex];
 }
 
+UPRItemInstance_Material* UPRInventoryComponent::GetMaterialItemAtIndex(int32 ItemIndex) const
+{
+	if (!InventoryMaterialItems.IsValidIndex(ItemIndex))
+	{
+		return nullptr;
+	}
+
+	return InventoryMaterialItems[ItemIndex];
+}
+
 bool UPRInventoryComponent::OwnsWeapon(const UPRItemInstance_Weapon* WeaponItem) const
 {
 	// 유효하지 않은 Item은 소유권 검사에서 즉시 실패한다
@@ -735,6 +889,44 @@ bool UPRInventoryComponent::OwnsConsumable(const UPRItemInstance_Consumable* Con
 	return InventoryConsumableItems.Contains(ConsumableItem);
 }
 
+bool UPRInventoryComponent::OwnsMaterial(const UPRItemInstance_Material* MaterialItem) const
+{
+	// 유효하지 않은 Item은 소유권 검사에서 즉시 실패한다
+	if (!IsValid(MaterialItem))
+	{
+		return false;
+	}
+
+	return InventoryMaterialItems.Contains(MaterialItem);
+}
+
+UPRItemInstance* UPRInventoryComponent::FindItemByData(UPRItemDataAsset* InItemData)
+{
+	// 데이터가 없는 요청은 타입별 서버 요청으로 전달하지 않는다
+	if (!IsValid(InItemData))
+	{
+		return nullptr;
+	}
+
+	if (UPRWeaponDataAsset* WeaponData = Cast<UPRWeaponDataAsset>(InItemData))
+	{
+		return FindWeaponItemByData(WeaponData);
+	}
+	else if (UPRWeaponModDataAsset* ModData = Cast<UPRWeaponModDataAsset>(InItemData))
+	{
+		return FindModItemByData(ModData);
+	}
+	else if (UPRConsumableDataAsset* ConsumableData = Cast<UPRConsumableDataAsset>(InItemData))
+	{
+		return FindConsumableItemByData(ConsumableData);
+	}
+	else if (UPRMaterialDataAsset* MaterialData = Cast<UPRMaterialDataAsset>(InItemData))
+	{
+		return FindMaterialItemByData(MaterialData);
+	}
+	return nullptr;
+}
+
 UPRItemInstance_Consumable* UPRInventoryComponent::FindConsumableItemByData(const UPRConsumableDataAsset* ConsumableData) const
 {
 	// 유효하지 않은 데이터는 조회 대상이 아니다
@@ -753,6 +945,30 @@ UPRItemInstance_Consumable* UPRInventoryComponent::FindConsumableItemByData(cons
 		if (ConsumableItem->GetConsumableData() == ConsumableData)
 		{
 			return ConsumableItem;
+		}
+	}
+
+	return nullptr;
+}
+
+UPRItemInstance_Material* UPRInventoryComponent::FindMaterialItemByData(const UPRMaterialDataAsset* MaterialData) const
+{
+	// 유효하지 않은 데이터는 조회 대상이 아니다
+	if (!IsValid(MaterialData))
+	{
+		return nullptr;
+	}
+
+	for (UPRItemInstance_Material* MaterialItem : InventoryMaterialItems)
+	{
+		if (!IsValid(MaterialItem))
+		{
+			continue;
+		}
+
+		if (MaterialItem->GetMaterialData() == MaterialData)
+		{
+			return MaterialItem;
 		}
 	}
 
@@ -810,6 +1026,192 @@ UPRItemInstance_Mod* UPRInventoryComponent::FindModItemByData(const UPRWeaponMod
 void UPRInventoryComponent::OnInventoryChanged(const FPRInventoryChangeEventData& EventData)
 {
 	OnInventoryChangedDelegate.Broadcast(this, EventData);
+}
+
+FPRInventorySaveData UPRInventoryComponent::MakeSaveData() const
+{
+	FPRInventorySaveData SaveData;
+	SaveData.Weapons.Reserve(InventoryWeaponItems.Num());
+	SaveData.Mods.Reserve(InventoryModItems.Num());
+	SaveData.Consumables.Reserve(InventoryConsumableItems.Num());
+	SaveData.Materials.Reserve(InventoryMaterialItems.Num());
+
+	for (const UPRItemInstance_Weapon* WeaponItem : InventoryWeaponItems)
+	{
+		if (!IsValid(WeaponItem) || !IsValid(WeaponItem->GetWeaponData()))
+		{
+			continue;
+		}
+
+		FPRWeaponItemSaveEntry Entry;
+		WeaponItem->FillSaveEntry(Entry);
+		Entry.EquippedModIndex = GetModItemIndex(WeaponItem->GetEquippedModItem());
+		SaveData.Weapons.Add(Entry);
+	}
+
+	for (const UPRItemInstance_Mod* ModItem : InventoryModItems)
+	{
+		if (!IsValid(ModItem) || !IsValid(ModItem->GetModData()))
+		{
+			continue;
+		}
+
+		FPRModItemSaveEntry Entry;
+		ModItem->FillSaveEntry(Entry);
+		SaveData.Mods.Add(Entry);
+	}
+
+	for (const UPRItemInstance_Consumable* ConsumableItem : InventoryConsumableItems)
+	{
+		if (!IsValid(ConsumableItem) || !IsValid(ConsumableItem->GetConsumableData()))
+		{
+			continue;
+		}
+
+		FPRConsumableSaveEntry Entry;
+		Entry.ConsumableData = ConsumableItem->GetConsumableData();
+		Entry.StackCount = ConsumableItem->GetStackCount();
+		SaveData.Consumables.Add(Entry);
+	}
+
+	for (const UPRItemInstance_Material* MaterialItem : InventoryMaterialItems)
+	{
+		if (!IsValid(MaterialItem) || !IsValid(MaterialItem->GetMaterialData()))
+		{
+			continue;
+		}
+
+		FPRMaterialSaveEntry Entry;
+		Entry.MaterialData = MaterialItem->GetMaterialData();
+		Entry.StackCount = MaterialItem->GetStackCount();
+		SaveData.Materials.Add(Entry);
+	}
+
+	return SaveData;
+}
+
+void UPRInventoryComponent::ApplySaveData(const FPRInventorySaveData& InSaveData)
+{
+	if (!IsValid(GetOwner()) || !GetOwner()->HasAuthority())
+	{
+		return;
+	}
+
+	InventoryWeaponItems.Reset();
+	InventoryModItems.Reset();
+	InventoryConsumableItems.Reset();
+	InventoryMaterialItems.Reset();
+
+	for (const FPRModItemSaveEntry& Entry : InSaveData.Mods)
+	{
+		UPRWeaponModDataAsset* ModData = Entry.ModData.LoadSynchronous();
+		if (!IsValid(ModData))
+		{
+			continue;
+		}
+
+		UPRItemInstance_Mod* NewModItem = NewObject<UPRItemInstance_Mod>(this);
+		if (!IsValid(NewModItem))
+		{
+			continue;
+		}
+
+		// Mod 아이템 복원
+		NewModItem->InitializeItem(ModData, 1);
+		NewModItem->ApplySaveEntry(Entry);
+		InventoryModItems.Add(NewModItem);
+	}
+
+	for (const FPRWeaponItemSaveEntry& Entry : InSaveData.Weapons)
+	{
+		UPRWeaponDataAsset* WeaponData = Entry.WeaponData.LoadSynchronous();
+		if (!IsValid(WeaponData))
+		{
+			continue;
+		}
+
+		UPRItemInstance_Weapon* NewWeaponItem = NewObject<UPRItemInstance_Weapon>(this);
+		if (!IsValid(NewWeaponItem))
+		{
+			continue;
+		}
+
+		// 무기 아이템 복원
+		NewWeaponItem->InitializeItem(WeaponData, FMath::Max(Entry.StackCount, 1));
+		NewWeaponItem->ApplySaveEntry(Entry);
+
+		if (InventoryModItems.IsValidIndex(Entry.EquippedModIndex))
+		{
+			UPRItemInstance_Mod* ModItem = InventoryModItems[Entry.EquippedModIndex];
+			if (IsValid(ModItem) && IsValid(ModItem->GetModData()))
+			{
+				// Mod 장착 관계 복원
+				NewWeaponItem->SetEquippedModItem(ModItem);
+				NewWeaponItem->SetModData(ModItem->GetModData());
+				ModItem->MarkEquippedToWeaponItem(NewWeaponItem);
+			}
+		}
+
+		InventoryWeaponItems.Add(NewWeaponItem);
+	}
+
+	for (const FPRConsumableSaveEntry& Entry : InSaveData.Consumables)
+	{
+		UPRConsumableDataAsset* ConsumableData = Entry.ConsumableData.LoadSynchronous();
+		if (!IsValid(ConsumableData) || Entry.StackCount <= 0)
+		{
+			continue;
+		}
+
+		UPRItemInstance_Consumable* NewConsumableItem = NewObject<UPRItemInstance_Consumable>(this);
+		if (!IsValid(NewConsumableItem))
+		{
+			continue;
+		}
+
+		// 소비 아이템 복원
+		NewConsumableItem->InitializeItem(ConsumableData, Entry.StackCount);
+		InventoryConsumableItems.Add(NewConsumableItem);
+	}
+
+	for (const FPRMaterialSaveEntry& Entry : InSaveData.Materials)
+	{
+		UPRMaterialDataAsset* MaterialData = Entry.MaterialData.LoadSynchronous();
+		if (!IsValid(MaterialData) || Entry.StackCount <= 0)
+		{
+			continue;
+		}
+
+		UPRItemInstance_Material* NewMaterialItem = NewObject<UPRItemInstance_Material>(this);
+		if (!IsValid(NewMaterialItem))
+		{
+			continue;
+		}
+
+		// 재료 아이템 복원
+		NewMaterialItem->InitializeItem(MaterialData, Entry.StackCount);
+		InventoryMaterialItems.Add(NewMaterialItem);
+	}
+
+	if (IsValid(GetOwner()))
+	{
+		GetOwner()->ForceNetUpdate();
+	}
+
+	FPRInventoryChangeEventData EventData;
+	EventData.ChangeReason = EPRInventoryChangeReason::BulkRestored;
+	EventData.ItemInstance = nullptr;
+	OnInventoryChanged(EventData);
+}
+
+int32 UPRInventoryComponent::GetWeaponItemIndex(const UPRItemInstance_Weapon* WeaponItem) const
+{
+	return InventoryWeaponItems.IndexOfByKey(WeaponItem);
+}
+
+int32 UPRInventoryComponent::GetModItemIndex(const UPRItemInstance_Mod* ModItem) const
+{
+	return InventoryModItems.IndexOfByKey(ModItem);
 }
 
 void UPRInventoryComponent::OnRep_InventoryWeaponItems(const TArray<UPRItemInstance_Weapon*>& OldWeaponItems)
@@ -906,6 +1308,39 @@ void UPRInventoryComponent::OnRep_InventoryConsumableItems(const TArray<UPRItemI
 		FPRInventoryChangeEventData EventData;
 		EventData.ChangeReason = EPRInventoryChangeReason::ItemRemoved;
 		EventData.ItemInstance = OldConsumableItem;
+
+		OnInventoryChanged(EventData);
+	}
+}
+
+void UPRInventoryComponent::OnRep_InventoryMaterialItems(const TArray<UPRItemInstance_Material*>& OldMaterials)
+{
+	// 새로 추가된 재료 Item마다 ItemAdded 이벤트 발행
+	for (UPRItemInstance_Material* MaterialItem : InventoryMaterialItems)
+	{
+		if (!IsValid(MaterialItem) || OldMaterials.Contains(MaterialItem))
+		{
+			continue;
+		}
+
+		FPRInventoryChangeEventData EventData;
+		EventData.ChangeReason = EPRInventoryChangeReason::ItemAdded;
+		EventData.ItemInstance = MaterialItem;
+
+		OnInventoryChanged(EventData);
+	}
+
+	// 제거된 재료 Item마다 ItemRemoved 이벤트 발행
+	for (UPRItemInstance_Material* OldMaterialItem : OldMaterials)
+	{
+		if (!IsValid(OldMaterialItem) || InventoryMaterialItems.Contains(OldMaterialItem))
+		{
+			continue;
+		}
+
+		FPRInventoryChangeEventData EventData;
+		EventData.ChangeReason = EPRInventoryChangeReason::ItemRemoved;
+		EventData.ItemInstance = OldMaterialItem;
 
 		OnInventoryChanged(EventData);
 	}
@@ -1043,6 +1478,50 @@ void UPRInventoryComponent::UnregisterConsumableItemInstance(UPRItemInstance_Con
 	OnInventoryChanged(EventData);
 }
 
+void UPRInventoryComponent::RegisterInventoryMaterialItem(UPRItemInstance_Material* MaterialItem)
+{
+	// 인벤토리에 실제로 들어갈 재료 Item만 목록에 등록한다
+	if (!IsValid(MaterialItem))
+	{
+		return;
+	}
+
+	InventoryMaterialItems.AddUnique(MaterialItem);
+
+	if (IsValid(GetOwner()))
+	{
+		GetOwner()->ForceNetUpdate();
+	}
+
+	FPRInventoryChangeEventData EventData;
+	EventData.ChangeReason = EPRInventoryChangeReason::ItemAdded;
+	EventData.ItemInstance = MaterialItem;
+
+	OnInventoryChanged(EventData);
+}
+
+void UPRInventoryComponent::UnregisterMaterialItemInstance(UPRItemInstance_Material* MaterialItem)
+{
+	// 잘못된 재료 Item 요청이면 등록 해제를 시도하지 않는다
+	if (!IsValid(MaterialItem))
+	{
+		return;
+	}
+
+	InventoryMaterialItems.Remove(MaterialItem);
+
+	if (IsValid(GetOwner()))
+	{
+		GetOwner()->ForceNetUpdate();
+	}
+
+	FPRInventoryChangeEventData EventData;
+	EventData.ChangeReason = EPRInventoryChangeReason::ItemRemoved;
+	EventData.ItemInstance = MaterialItem;
+
+	OnInventoryChanged(EventData);
+}
+
 UPRWeaponManagerComponent* UPRInventoryComponent::ResolveOwnerWeaponManager() const
 {
 	AActor* OwnerActor = GetOwner();
@@ -1056,14 +1535,13 @@ UPRWeaponManagerComponent* UPRInventoryComponent::ResolveOwnerWeaponManager() co
 	{
 		return nullptr;
 	}
-
-	APawn* OwnerPawn = OwnerController->GetPawn();
-	if (!IsValid(OwnerPawn))
+	
+	if (APRPlayerCharacter* Player = Cast<APRPlayerCharacter>(OwnerController->GetPawn()))
 	{
-		return nullptr;
+		return Player->GetWeaponManager();
 	}
-
-	return OwnerPawn->FindComponentByClass<UPRWeaponManagerComponent>();
+	
+	return nullptr;
 }
 
 void UPRInventoryComponent::NotifyWeaponItemModChanged(UPRItemInstance_Weapon* WeaponItem)
@@ -1097,6 +1575,11 @@ void UPRInventoryComponent::Server_RequestAddModItem_Implementation(UPRWeaponMod
 void UPRInventoryComponent::Server_RequestAddConsumableItem_Implementation(UPRConsumableDataAsset* ConsumableData, int32 AddCount)
 {
 	AddConsumableItem(ConsumableData, AddCount);
+}
+
+void UPRInventoryComponent::Server_RequestAddMaterialItem_Implementation(UPRMaterialDataAsset* MaterialData, int32 AddCount)
+{
+	AddMaterialItem(MaterialData, AddCount);
 }
 
 void UPRInventoryComponent::Server_RequestRemoveConsumableItem_Implementation(UPRItemInstance_Consumable* ConsumableItem, int32 RemoveCount)

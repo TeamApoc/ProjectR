@@ -12,6 +12,7 @@ class AActor;
 class UPRItemInstance_Mod;
 class UPRWeaponDataAsset;
 class UPRWeaponModDataAsset;
+struct FPRWeaponItemSaveEntry;
 
 // 인벤토리가 소유하는 무기 1개의 지속 인스턴스다
 UCLASS(BlueprintType, EditInlineNew, DefaultToInstanced)
@@ -30,6 +31,12 @@ public:
 
 	// 현재 연결된 무기 데이터를 반환한다
 	UPRWeaponDataAsset* GetWeaponData() const;
+
+	// 무기 인스턴스 상태 저장 엔트리 작성
+	void FillSaveEntry(FPRWeaponItemSaveEntry& OutEntry) const;
+
+	// 저장 엔트리 기반 인스턴스 상태 복원
+	void ApplySaveEntry(const FPRWeaponItemSaveEntry& InEntry);
 
 	// 현재 연결된 Mod 데이터를 반환한다
 	UPRWeaponModDataAsset* GetModData() const { return ModData; }
@@ -70,6 +77,16 @@ public:
 	// 현재 시각 기준 남은 Mod 지속 시간을 계산한다
 	float GetRemainingModDurationSeconds(float ServerWorldTimeSeconds) const;
 
+	// 현재 강화 단계를 반환한다
+	UFUNCTION(BlueprintPure, Category = "ProjectR|WeaponUpgrade")
+	int32 GetUpgradeLevel() const { return UpgradeLevel; }
+
+	// 서버 권위에서 강화 단계를 지정한다
+	bool SetUpgradeLevel(int32 NewLevel);
+
+	// 서버 권위에서 강화 단계를 1 증가시킨다
+	bool IncreaseUpgradeLevel();
+
 protected:
 	// 무기 장착 시 기본 AbilitySet 부여 인터페이스
 	void GrantEquippedAbilitySets(AActor* OwnerActor);
@@ -98,6 +115,10 @@ private:
 	UFUNCTION()
 	void OnRep_EquippedModItem();
 
+	// 강화 단계 복제 완료 시 인벤토리 UI 갱신 신호를 발행한다
+	UFUNCTION()
+	void OnRep_UpgradeLevel();
+
 public:
 	// 현재 장착된 Mod 데이터
 	UPROPERTY(ReplicatedUsing = OnRep_ModData, VisibleInstanceOnly, BlueprintReadOnly, Category = "ProjectR|Weapon")
@@ -118,6 +139,10 @@ public:
 	// 현재 활성 무기 슬롯에 장착되어 어빌리티 부여 대상인지 여부
 	UPROPERTY(Replicated, Transient, VisibleInstanceOnly, BlueprintReadOnly, Category = "ProjectR|Weapon")
 	bool bIsEquippedCurrentWeaponSlot = false;
+
+	// 현재 무기 강화 단계
+	UPROPERTY(ReplicatedUsing = OnRep_UpgradeLevel, VisibleInstanceOnly, BlueprintReadOnly, Category = "ProjectR|WeaponUpgrade")
+	int32 UpgradeLevel = 0;
 
 	// 현재 활성 사격 상태 //note: 사격 전환 모드 어빌리티가 내부적으로 모드 사격 어빌리티가 부여됐는지 체크. 무기인스턴스의 FireModeState는 필요 없음
 	UPROPERTY(Transient)

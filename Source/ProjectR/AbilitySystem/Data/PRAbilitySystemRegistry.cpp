@@ -33,6 +33,17 @@ UDataTable* UPRAbilitySystemRegistry::GetStatTableSynchronous(EPRCharacterRole R
 	return nullptr;
 }
 
+const TArray<FGameplayAttribute>& UPRAbilitySystemRegistry::GetPersistentBaseAttributes(EPRCharacterRole Role) const
+{
+	if (const FPRPersistentAttributeList* AttributeList = PersistentBaseAttributes.Find(Role))
+	{
+		return AttributeList->Attributes;
+	}
+
+	static const TArray<FGameplayAttribute> EmptyAttributes;
+	return EmptyAttributes;
+}
+
 // =====  Data Validation =====
 
 #if WITH_EDITOR

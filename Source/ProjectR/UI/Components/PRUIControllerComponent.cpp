@@ -5,12 +5,17 @@
 #include "Blueprint/UserWidget.h"
 #include "Engine/LocalPlayer.h"
 #include "GameFramework/PlayerController.h"
+#include "ProjectR/Character/PRPlayerCharacter.h"
 #include "ProjectR/Inventory/Components/PRInventoryComponent.h"
 #include "ProjectR/Player/PRPlayerState.h"
 #include "ProjectR/Inventory/Components/PRQuickSlotComponent.h"
 #include "ProjectR/UI/HUD/PRHUDWidget.h"
 #include "ProjectR/UI/Inventory/PRInventoryWidget.h"
 #include "ProjectR/UI/PRUIManagerSubsystem.h"
+#include "ProjectR/UI/Shop/PRShopWidget.h"
+#include "ProjectR/UI/WeaponUpgrade/PRWeaponUpgradeWidget.h"
+#include "ProjectR/Shop/Components/PRShopComponent.h"
+#include "ProjectR/Weapon/Components/PRWeaponUpgradeComponent.h"
 #include "ProjectR/Weapon/Components/PRWeaponManagerComponent.h"
 #include "ProjectR/Weapon/Data/PRWeaponDataAsset.h"
 
@@ -79,6 +84,102 @@ void UPRUIControllerComponent::CloseInventory()
 	}
 }
 
+void UPRUIControllerComponent::OpenWeaponUpgrade(UPRWeaponUpgradeComponent* UpgradeComponent)
+{
+	if (!IsLocalPlayer() || !IsValid(UpgradeComponent))
+	{
+		return;
+	}
+
+	CloseShop();
+
+	UPRUIManagerSubsystem* UIManager = GetUIManager();
+	if (!IsValid(UIManager))
+	{
+		return;
+	}
+
+	UPRWeaponUpgradeWidget* CreatedWeaponUpgradeWidget = GetOrCreateWeaponUpgradeWidget();
+	if (!IsValid(CreatedWeaponUpgradeWidget))
+	{
+		return;
+	}
+
+	CreatedWeaponUpgradeWidget->SetUpgradeContext(UpgradeComponent);
+	UIManager->PushUIInstance(CreatedWeaponUpgradeWidget);
+}
+
+void UPRUIControllerComponent::OpenShop(UPRShopComponent* ShopComponent)
+{
+	if (!IsLocalPlayer() || !IsValid(ShopComponent))
+	{
+		return;
+	}
+
+	CloseWeaponUpgrade();
+
+	UPRUIManagerSubsystem* UIManager = GetUIManager();
+	if (!IsValid(UIManager))
+	{
+		return;
+	}
+
+	UPRShopWidget* CreatedShopWidget = GetOrCreateShopWidget();
+	if (!IsValid(CreatedShopWidget))
+	{
+		return;
+	}
+
+	CreatedShopWidget->SetShopContext(ShopComponent);
+	UIManager->PushUIInstance(CreatedShopWidget);
+}
+
+void UPRUIControllerComponent::CloseWeaponUpgrade()
+{
+	if (!IsLocalPlayer())
+	{
+		return;
+	}
+
+	if (!IsValid(WeaponUpgradeWidget) || !WeaponUpgradeWidget->IsInViewport())
+	{
+		return;
+	}
+
+	UPRUIManagerSubsystem* UIManager = GetUIManager();
+	if (IsValid(UIManager))
+	{
+		UIManager->PopUI(WeaponUpgradeWidget);
+	}
+	else
+	{
+		WeaponUpgradeWidget->RemoveFromParent();
+	}
+}
+
+void UPRUIControllerComponent::CloseShop()
+{
+	if (!IsLocalPlayer())
+	{
+		return;
+	}
+
+	if (!IsValid(ShopWidget) || !ShopWidget->IsInViewport())
+	{
+		return;
+	}
+
+	UPRUIManagerSubsystem* UIManager = GetUIManager();
+	if (IsValid(UIManager))
+	{
+		UIManager->PopUI(ShopWidget);
+	}
+	else
+	{
+		ShopWidget->RemoveFromParent();
+	}
+}
+
 void UPRUIControllerComponent::ShowWeaponScope()
 {
 	if (!IsLocalPlayer())
@@ -109,6 +210,10 @@ void UPRUIControllerComponent::EndPlay(const EEndPlayReason::Type EndPlayReason)
 {
 	CloseInventory();
 	InventoryWidget = nullptr;
+	CloseWeaponUpgrade();
+	WeaponUpgradeWidget = nullptr;
+	CloseShop();
+	ShopWidget = nullptr;
 
 	UnbindWeaponManager();
 	RemoveWeaponScopeWidget();
@@ -139,6 +244,27 @@ void UPRUIControllerComponent::RefreshForPawn(APawn* InPawn)
 
 	BindWeaponManager(GetWeaponManagerComponent());
 	RefreshWeaponScopeWidget();
+}
+
+void UPRUIControllerComponent::RemoveAllWidget()
+{
+	if (InventoryWidget)
+	{
+		InventoryWidget->RemoveFromParent();
+	}
+	if (HUDWidget)
+	{
+		HUDWidget->RemoveFromParent();
+	}
+	if (WeaponScopeWidget)
+	{
+		WeaponScopeWidget->RemoveFromParent();
+	}
+	
+	if (UPRUIManagerSubsystem* UIManager = GetUIManager())
+	{
+		UIManager->ResetSystem();
+	}
 }
 
 void UPRUIControllerComponent::HandleWeaponEquipmentChanged(UPRWeaponManagerComponent* WeaponManagerComponent, EPRWeaponSlotType ChangedSlot)
@@ -181,14 +307,13 @@ UPRWeaponManagerComponent* UPRUIControllerComponent::GetWeaponManagerComponent()
 	{
 		return nullptr;
 	}
-
-	APawn* ControlledPawn = PlayerController->GetPawn();
-	if (!IsValid(ControlledPawn))
+	
+	if (APRPlayerCharacter* Player = Cast<APRPlayerCharacter>(PlayerController->GetPawn()))
 	{
-		return nullptr;
+		return Player->GetWeaponManager();
 	}
-
-	return ControlledPawn->FindComponentByClass<UPRWeaponManagerComponent>();
+	
+	return nullptr;
 }
 
 UPRQuickSlotComponent* UPRUIControllerComponent::GetQuickSlotComponent() const
@@ -240,6 +365,40 @@ UPRInventoryWidget* UPRUIControllerComponent::GetOrCreateInventoryWidget()
 
 	InventoryWidget = CreateWidget<UPRInventoryWidget>(PlayerController, InventoryWidgetClass);
 	return InventoryWidget;
+}
+
+UPRWeaponUpgradeWidget* UPRUIControllerComponent::GetOrCreateWeaponUpgradeWidget()
+{
+	if (IsValid(WeaponUpgradeWidget))
+	{
+		return WeaponUpgradeWidget;
+	}
+
+	APlayerController* PlayerController = GetOwningPlayerController();
+	if (!IsValid(PlayerController) || !IsValid(WeaponUpgradeWidgetClass.Get()))
+	{
+		return nullptr;
+	}
+
+	WeaponUpgradeWidget = CreateWidget<UPRWeaponUpgradeWidget>(PlayerController, WeaponUpgradeWidgetClass);
+	return WeaponUpgradeWidget;
+}
+
+UPRShopWidget* UPRUIControllerComponent::GetOrCreateShopWidget()
+{
+	if (IsValid(ShopWidget))
+	{
+		return ShopWidget;
+	}
+
+	APlayerController* PlayerController = GetOwningPlayerController();
+	if (!IsValid(PlayerController) || !IsValid(ShopWidgetClass.Get()))
+	{
+		return nullptr;
+	}
+
+	ShopWidget = CreateWidget<UPRShopWidget>(PlayerController, ShopWidgetClass);
+	return ShopWidget;
 }
 
 void UPRUIControllerComponent::TearDownHUDWidget()

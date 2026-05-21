@@ -51,6 +51,10 @@ struct PROJECTR_API FPRDamageAppliedContext
 	UPROPERTY(BlueprintReadOnly, Category = "ProjectR|Combat")
 	FPRDamageRegionInfo Region;
 
+	// Effect Source
+	UPROPERTY(BlueprintReadOnly, Category = "ProjectR|Combat")
+	TWeakObjectPtr<UObject> SourceObject;
+	
 	// 공격을 발생시킨 액터 (소스 액터, 플레이어 어빌리티에서 발생한 경우 PlayerState가 되는 경우가 많음)
 	UPROPERTY(BlueprintReadOnly, Category = "ProjectR|Combat")
 	TWeakObjectPtr<AActor> Instigator;
@@ -62,6 +66,10 @@ struct PROJECTR_API FPRDamageAppliedContext
 	// 피격 지점 정보
 	UPROPERTY(BlueprintReadOnly, Category = "ProjectR|Combat")
 	FHitResult HitResult;
+	
+	// Effect의 AllTags
+	UPROPERTY(BlueprintReadOnly, Category = "ProjectR|Combat")
+	FGameplayTagContainer EffectTags;
 };
 
 // IAbilitySystemInterface 같은 UInterface 패턴

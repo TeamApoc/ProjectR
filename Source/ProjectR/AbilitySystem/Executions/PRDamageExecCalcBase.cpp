@@ -57,12 +57,14 @@ void UPRDamageExecCalcBase::DispatchPostDamageApplied(
 	const FGameplayEffectContextHandle& ContextHandle = OwningSpec.GetContext();
 
 	FPRDamageAppliedContext Context;
+	OwningSpec.GetAllAssetTags(Context.EffectTags);
 	Context.FinalDamage = Outputs.FinalDamage;
 	Context.FinalGroggyDamage = Outputs.GroggyDamage;
 	Context.HealthBeforeDamage = CurrentHealth;
 	Context.HealthAfterDamage = FMath::Clamp(CurrentHealth - Outputs.FinalDamage, 0.0f, MaxHealth);
 	Context.MaxHealth = MaxHealth;
 	Context.Region = Outputs.Region;
+	Context.SourceObject = OwningSpec.GetEffectContext().GetSourceObject();
 	Context.Instigator = ContextHandle.GetOriginalInstigator();
 	Context.InstigatorController = ResolveInstigatorPlayerController(ContextHandle);
 	Context.HitResult = HitResult;

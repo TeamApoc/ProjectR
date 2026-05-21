@@ -54,14 +54,14 @@ void UPRInteractionAction::Execute_Implementation(AActor* Interactor)
 	// 유지형인 경우 활성 상태로 전환
 	if (ShouldSustained())
 	{
-		bIsActive = true;
+		ActiveInteractors.AddUnique(Interactor);
 	}
 }
 
-void UPRInteractionAction::EndInteraction_Implementation()
+void UPRInteractionAction::EndInteraction_Implementation(AActor* Interactor, bool bCanceled)
 {
 	// 기본 구현: 활성 상태 해제만 수행. 하위 클래스에서 정리 로직 추가
-	bIsActive = false;
+	ActiveInteractors.Remove(Interactor);
 }
 
 void UPRInteractionAction::OnHoldStart_Implementation(AActor* Interactor)
@@ -115,6 +115,15 @@ void UPRInteractionAction::BroadcastHoldEvent(EPRInteractionHoldPhase Phase) con
 int32 UPRInteractionAction::GetPriority_Implementation() const
 {
 	return Priority;
+}
+
+bool UPRInteractionAction::IsActive(AActor* Interactor) const
+{
+	if (IsValid(Interactor))
+	{
+		return ActiveInteractors.Contains(Interactor);
+	}
+	return false;
 }
 
 bool UPRInteractionAction::IsLocalPlayer(AActor* Interactor) const

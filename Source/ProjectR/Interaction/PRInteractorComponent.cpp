@@ -7,6 +7,8 @@
 #include "GameFramework/Controller.h"
 #include "GameFramework/Pawn.h"
 #include "Net/UnrealNetwork.h"
+#include "ProjectR/PRGameplayTags.h"
+#include "ProjectR/System/PREventManagerSubsystem.h"
 
 void FPRActiveInteractionInfo::Reset()
 {
@@ -134,6 +136,18 @@ void UPRInteractorComponent::SetFocus(UPRInteractableComponent* NewFocus)
 void UPRInteractorComponent::ClearFocus()
 {
 	SetFocus(nullptr);
+	
+	UPREventManagerSubsystem* EventMgr = GetWorld()->GetSubsystem<UPREventManagerSubsystem>();
+	if (!IsValid(EventMgr))
+	{
+		return;
+	}
+	
+	FPRInteractableEventPayload Payload;
+	Payload.bShowPrompt = false;
+	Payload.bCanInteract =  false;
+
+	EventMgr->BroadcastTyped(PRGameplayTags::Event_Player_Interactable, Payload);
 }
 
 void UPRInteractorComponent::TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction)
@@ -145,7 +159,7 @@ void UPRInteractorComponent::TickComponent(float DeltaTime, ELevelTick TickType,
 		// 활성 상호작용이 무효화되었으면 정리
 		if (!ActiveInteractionInfo.IsValid())
 		{
-			Internal_EndActiveInteraction();
+			Internal_EndActiveInteraction(true);
 		}
 		// 거리 유지가 필요한 경우 범위 체크
 		else if (ActiveInteractionInfo.RequiresRange())
@@ -153,7 +167,7 @@ void UPRInteractorComponent::TickComponent(float DeltaTime, ELevelTick TickType,
 			AActor* TargetActor = ActiveInteractionInfo.ActiveInteractable->GetOwner();
 			if (!IsWithinRange(TargetActor))
 			{
-				Internal_EndActiveInteraction();
+				Internal_EndActiveInteraction(true);
 			}
 		}
 	}
@@ -337,7 +351,7 @@ void UPRInteractorComponent::ClientNotifyDenied_Implementation()
 	ActiveInteractionInfo.Reset();
 }
 
-void UPRInteractorComponent::RequestEndInteract()
+void UPRInteractorComponent::RequestEndInteract(bool bCanceled)
 {
 	// 오너 클라는 OwnerOnly 복제로 활성 정보를 보유하므로 로컬 선검사 가능
 	if (!ActiveInteractionInfo.IsValid())
@@ -345,7 +359,7 @@ void UPRInteractorComponent::RequestEndInteract()
 		return;
 	}
 
-	ServerEndInteract();
+	ServerEndInteract(bCanceled);
 }
 
 void UPRInteractorComponent::ClientEndInteract_Implementation()
@@ -357,14 +371,14 @@ void UPRInteractorComponent::ClientEndInteract_Implementation()
 	ActiveInteractionInfo.Reset();
 }
 
-void UPRInteractorComponent::ServerEndInteract_Implementation()
+void UPRInteractorComponent::ServerEndInteract_Implementation(bool bCanceled)
 {
 	if (!ActiveInteractionInfo.IsValid())
 	{
 		return;
 	}
 
-	Internal_EndActiveInteraction();
+	Internal_EndActiveInteraction(bCanceled);
 }
 
 bool UPRInteractorComponent::HasFocus() const
@@ -374,11 +388,23 @@ bool UPRInteractorComponent::HasFocus() const
 
 bool UPRInteractorComponent::IsWithinRange(const AActor* TargetActor) const
 {
-	if (!IsValid(TargetActor))
+	const IPRInteractionInterface* Interaction = Cast<IPRInteractionInterface>(TargetActor);
+	if (!Interaction)
 	{
 		return false;
 	}
+	
+	const UPRInteractableComponent* Interactable = Interaction->GetInteractableComponent();
+	return IsWithinRange(Interactable);
+}
 
+bool UPRInteractorComponent::IsWithinRange(const UPRInteractableComponent* TargetComponent) const
+{
+	if (!IsValid(TargetComponent))
+	{
+		return false;
+	}
+	
 	// 컨트롤러에 부착된 컴포넌트이므로 빙의 폰의 위치를 기준으로 거리 계산
 	const AController* Controller = Cast<AController>(GetOwner());
 	const APawn* Pawn = IsValid(Controller) ? Controller->GetPawn() : nullptr;
@@ -386,18 +412,9 @@ bool UPRInteractorComponent::IsWithinRange(const AActor* TargetActor) const
 	{
 		return false;
 	}
-
-	const float DistSq = FVector::DistSquared(Pawn->GetActorLocation(), TargetActor->GetActorLocation());
-	return DistSq <= FMath::Square(MaxInteractionDistance);
-}
-
-bool UPRInteractorComponent::IsWithinRange(const UPRInteractableComponent* TargetComponent) const
-{
-	if (IsValid(TargetComponent))
-	{
-		return IsWithinRange(TargetComponent->GetOwner());
-	}
-	return false;
+	
+	const float DistSq = FVector::DistSquared(Pawn->GetActorLocation(), TargetComponent->GetActorLocation());
+	return DistSq <= FMath::Square(MaxInteractionDistance * TargetComponent->InteractionRangeScale);
 }
 
 bool UPRInteractorComponent::IsSustained() const
@@ -415,11 +432,11 @@ bool UPRInteractorComponent::ShouldListenInputReleased() const
 	return HoldInfo.bIsHolding;
 }
 
-void UPRInteractorComponent::Internal_EndActiveInteraction()
+void UPRInteractorComponent::Internal_EndActiveInteraction(bool bCanceled)
 {
 	if (ActiveInteractionInfo.IsValid())
 	{
-		ActiveInteractionInfo.ActiveInteractable->EndActiveInteraction();
+		ActiveInteractionInfo.ActiveInteractable->EndActiveInteraction(GetOwner(), bCanceled);
 	}
 
 	ActiveInteractionInfo.Reset();
@@ -530,7 +547,7 @@ void UPRInteractorComponent::Internal_HandleInteraction(UPRInteractableComponent
 
 	// OnInteract 후 유지형 Action이 시작되었으면 추적 시작
 	UPRInteractionAction* NewActiveAction = Target->GetActiveAction();
-	if (IsValid(NewActiveAction) && NewActiveAction->ShouldSustained() && NewActiveAction->IsActive())
+	if (IsValid(NewActiveAction) && NewActiveAction->ShouldSustained() && NewActiveAction->IsActive(GetOwner()))
 	{
 		Internal_SetActiveInteraction(NewActiveAction, Target);
 	}
@@ -567,7 +584,7 @@ void UPRInteractorComponent::ClearPreviousInteraction()
 	// 이미 유지형 상호작용 중이면 먼저 종료
 	if (ActiveInteractionInfo.IsValid())
 	{
-		Internal_EndActiveInteraction();
+		Internal_EndActiveInteraction(true);
 	}
 	
 	// 이미 홀드 중인 대상이 있었으면 종료

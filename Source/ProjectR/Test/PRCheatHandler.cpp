@@ -67,7 +67,7 @@ void UPRCheatHandler::ServerCheatRespawn_Implementation()
 	// 상호작용 상태 초기화 (포커스 + 진행 중 Hold/Sustained)
 	if (UPRInteractorComponent* Interactor = PC->FindComponentByClass<UPRInteractorComponent>())
 	{
-		Interactor->RequestEndInteract();
+		Interactor->RequestEndInteract(true);
 		Interactor->ClearFocus();
 	}
 

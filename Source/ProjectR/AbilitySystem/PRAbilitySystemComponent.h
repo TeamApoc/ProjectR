@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "AbilitySystemComponent.h"
 #include "ProjectR/AbilitySystem/PRAbilityTypes.h"
+#include "ProjectR/Game/PRGameTypes.h"
 #include "PRAbilitySystemComponent.generated.h"
 
 struct FPRAbilitySetHandles;
@@ -35,7 +36,7 @@ protected:
 	
 public:
 	// AbilitySet 일괄 부여. 서버 전용. OutHandles에 Clear용 대칭 핸들 누적
-	void GiveAbilitySet(const UPRAbilitySet* AbilitySet, FPRAbilitySetHandles& OutHandles);
+	void GiveAbilitySet(const UPRAbilitySet* AbilitySet, FPRAbilitySetHandles& OutHandles, UObject* InSourceObject = nullptr);
 
 	// 이전 부여 시 받은 핸들로 ClearAbility · RemoveActiveGameplayEffect 후 Reset
 	void ClearAbilitySetByHandles(FPRAbilitySetHandles& Handles);
@@ -43,6 +44,12 @@ public:
 	// Registry 기반 Row 리플렉션 주입으로 속성 초기화. 서버 전용. 1회 호출
 	bool InitializeAttributesFromRegistry(const UPRAbilitySystemRegistry* Registry,
 	                                       EPRCharacterRole Role, FName RowName);
+
+	// 지정 Attribute 목록의 Base 값 스냅샷
+	FPRAttributeBaseSnapshot MakeAttributeBaseSnapshot(const TArray<FGameplayAttribute>& Attributes) const;
+
+	// 스냅샷 기반 Attribute Base 값 복원
+	void ApplyAttributeBaseSnapshot(const FPRAttributeBaseSnapshot& InSnapshot);
 
 	// 플레이어 입력 Pressed. DynamicSpecSourceTags에 InputTag 있는 Spec들을 Pressed/Held 목록에 추가
 	void AbilityInputPressed(const FGameplayTag& InputTag);
@@ -70,6 +77,9 @@ public:
 	 * 이 함수는 TargetData Consume 성공 여부 (호출 시점 TargetData 존재 여부)를 반환함으로써 Ability Task가 Consume에 실패한 경우 TargetData 수신을 계속 기다리게 할 수 있다.
 	 */
 	bool TryConsumeClientReplicatedTargetData(FGameplayAbilitySpecHandle AbilityHandle, FPredictionKey AbilityOriginalPredictionKey);
+	
+	UFUNCTION(NetMulticast, Reliable)
+	void MulticastTriggerEvent(FGameplayTag EventTag);
 	
 protected:
 	// 어빌리티 종료 시 델리게이트 브로드캐스트

@@ -8,6 +8,7 @@
 
 class UPRItemInstance_Weapon;
 class UPRWeaponModDataAsset;
+struct FPRModItemSaveEntry;
 
 // 인벤토리가 소유하는 무기 Mod 1개의 지속 인스턴스다
 UCLASS(BlueprintType, EditInlineNew, DefaultToInstanced)
@@ -25,6 +26,12 @@ public:
 	// 현재 연결된 Mod 데이터를 반환한다
 	UFUNCTION(BlueprintPure, Category = "ProjectR|Weapon")
 	UPRWeaponModDataAsset* GetModData() const;
+
+	// Mod 인스턴스 상태 저장 엔트리 작성
+	void FillSaveEntry(FPRModItemSaveEntry& OutEntry) const;
+
+	// 저장 엔트리 기반 인스턴스 상태 복원
+	void ApplySaveEntry(const FPRModItemSaveEntry& InEntry);
 
 	// 입력 데이터가 현재 Mod와 같은지 확인한다
 	bool MatchesModData(const UPRWeaponModDataAsset* InModData) const;

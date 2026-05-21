@@ -22,6 +22,9 @@
 #include "ProjectR/Character/PRPlayerCharacter.h"
 #include "ProjectR/Interaction/PRInteractableComponent.h"
 #include "ProjectR/Game/PRGameStateBase.h"
+#include "ProjectR/Shop/Components/PRShopComponent.h"
+#include "ProjectR/Weapon/Components/PRWeaponUpgradeComponent.h"
+#include "ProjectR/Weapon/Items/PRItemInstance_Weapon.h"
 
 
 APRPlayerController::APRPlayerController()
@@ -87,6 +90,15 @@ void APRPlayerController::AcknowledgePossession(APawn* InPawn)
 	{
 		UIControllerComponent->RefreshForPawn(InPawn);
 	}
+	
+	// 게임 시작 or 맵 진입 후 FadeIn
+	if (IsLocalController())
+	{
+		if (APRCameraManager* CM = Cast<APRCameraManager>(PlayerCameraManager))
+		{
+			CM->FadeIn(EPRFadeColorPreset::Black, FadeInDuration, false);
+		}
+	}
 }
 
 void APRPlayerController::SetupInputComponent()
@@ -146,14 +158,46 @@ void APRPlayerController::SetupInputComponent()
 
 void APRPlayerController::PostProcessInput(const float DeltaTime, const bool bGamePaused)
 {
-	if (UPRAbilitySystemComponent* ASC = GetASC())
+	if (UPRAbilitySystemComponent* ASC = GetPRASC())
 	{
 		ASC->ProcessAbilityInput(DeltaTime, bGamePaused);
 	}
 	Super::PostProcessInput(DeltaTime, bGamePaused);
 }
 
-// =====  입력 콜백 =====
+void APRPlayerController::ClientStartMapTransition_Implementation(float Delay, EPRMapTransitionType TransitionType)
+{
+	if (IsValid(UIControllerComponent))
+	{
+		// UI 정리
+		UIControllerComponent->RemoveAllWidget();
+	}
+
+	if (TransitionType == EPRMapTransitionType::None)
+	{
+		return;
+	}
+
+	APRCameraManager* CM = Cast<APRCameraManager>(PlayerCameraManager);
+	if (!IsValid(CM))
+	{
+		return;
+	}
+
+	switch (TransitionType)
+	{
+	case EPRMapTransitionType::MapTravel:
+		// 맵 이동 페이드
+		CM->FadeOut(EPRFadeColorPreset::White, Delay, false);
+		break;
+	case EPRMapTransitionType::Respawn:
+		// 리스폰 페이드
+		CM->FadeOut(EPRFadeColorPreset::Black, Delay, false);
+		break;
+	default:
+		break;
+	}
+}
 
 void APRPlayerController::OnMouseSensitivityActionUp()
 {
@@ -179,7 +223,7 @@ void APRPlayerController::OnMouseSensitivityActionDown()
 
 void APRPlayerController::OnAbilityInputPressed(FGameplayTag InputTag)
 {
-	if (UPRAbilitySystemComponent* ASC = GetASC())
+	if (UPRAbilitySystemComponent* ASC = GetPRASC())
 	{
 		ASC->AbilityInputPressed(InputTag);
 	}
@@ -187,13 +231,13 @@ void APRPlayerController::OnAbilityInputPressed(FGameplayTag InputTag)
 
 void APRPlayerController::OnAbilityInputReleased(FGameplayTag InputTag)
 {
-	if (UPRAbilitySystemComponent* ASC = GetASC())
+	if (UPRAbilitySystemComponent* ASC = GetPRASC())
 	{
 		ASC->AbilityInputReleased(InputTag);
 	}
 }
 
-UPRAbilitySystemComponent* APRPlayerController::GetASC() const
+UPRAbilitySystemComponent* APRPlayerController::GetPRASC() const
 {
 	if (CachedASC.IsValid())
 	{
@@ -210,8 +254,6 @@ UPRAbilitySystemComponent* APRPlayerController::GetASC() const
 	}
 	return nullptr;
 }
-
-// =====  캐릭터 페이로드 제출 =====
 
 void APRPlayerController::UpdateCompanionHighlight()
 {
@@ -369,6 +411,122 @@ void APRPlayerController::ClientDispatchSurvivalGameplayEvent_Implementation(FGa
 		ControlledPawn,
 		EventTag,
 		Payload);
+}
+
+void APRPlayerController::ClientNotifyWeaponUpgradeResult_Implementation(const FPRWeaponUpgradeResult& Result)
+{
+	OnWeaponUpgradeResult.Broadcast(Result);
+}
+
+void APRPlayerController::ClientOpenWeaponUpgradeUI_Implementation(UPRWeaponUpgradeComponent* UpgradeComponent)
+{
+	if (!IsValid(UIControllerComponent))
+	{
+		return;
+	}
+
+	UIControllerComponent->OpenWeaponUpgrade(UpgradeComponent);
+}
+
+void APRPlayerController::ClientOpenShopUI_Implementation(UPRShopComponent* ShopComponent)
+{
+	if (!IsValid(UIControllerComponent))
+	{
+		return;
+	}
+
+	UIControllerComponent->OpenShop(ShopComponent);
+}
+
+void APRPlayerController::ClientNotifyShopBuyResult_Implementation(const FPRShopBuyResult& Result)
+{
+	OnShopBuyResult.Broadcast(Result);
+}
+
+void APRPlayerController::ClientNotifyShopSellResult_Implementation(const FPRShopSellResult& Result)
+{
+	OnShopSellResult.Broadcast(Result);
+}
+
+void APRPlayerController::RequestUpgradeWeapon(UPRWeaponUpgradeComponent* UpgradeComponent, UPRItemInstance_Weapon* WeaponItem)
+{
+	if (!IsValid(UpgradeComponent) || !IsValid(WeaponItem))
+	{
+		return;
+	}
+
+	ServerRequestUpgradeWeapon(UpgradeComponent, WeaponItem);
+}
+
+void APRPlayerController::RequestBuyShopItem(UPRShopComponent* ShopComponent, FName EntryId, int32 Quantity)
+{
+	if (!IsValid(ShopComponent) || EntryId.IsNone() || Quantity <= 0)
+	{
+		return;
+	}
+
+	ServerRequestBuyShopItem(ShopComponent, EntryId, Quantity);
+}
+
+void APRPlayerController::RequestSellShopItem(UPRShopComponent* ShopComponent, FName EntryId, int32 Quantity)
+{
+	if (!IsValid(ShopComponent) || EntryId.IsNone() || Quantity <= 0)
+	{
+		return;
+	}
+
+	ServerRequestSellShopItem(ShopComponent, EntryId, Quantity);
+}
+
+void APRPlayerController::ServerRequestUpgradeWeapon_Implementation(UPRWeaponUpgradeComponent* UpgradeComponent, UPRItemInstance_Weapon* WeaponItem)
+{
+	if (!IsValid(UpgradeComponent) || !IsValid(UpgradeComponent->GetOwner()))
+	{
+		FPRWeaponUpgradeResult Result;
+		Result.bSuccess = false;
+		Result.FailReason = EPRWeaponUpgradeFailReason::InvalidUpgradeStation;
+		Result.UpgradeComponent = UpgradeComponent;
+		Result.WeaponItem = WeaponItem;
+		Result.UpgradeLevel = IsValid(WeaponItem) ? WeaponItem->GetUpgradeLevel() : 0;
+		ClientNotifyWeaponUpgradeResult(Result);
+		return;
+	}
+
+	UpgradeComponent->RequestUpgradeWeapon(this, WeaponItem);
+}
+
+void APRPlayerController::ServerRequestBuyShopItem_Implementation(UPRShopComponent* ShopComponent, FName EntryId, int32 Quantity)
+{
+	if (!IsValid(ShopComponent) || !IsValid(ShopComponent->GetOwner()))
+	{
+		FPRShopBuyResult Result;
+		Result.bSuccess = false;
+		Result.FailReason = EPRShopBuyFailReason::InvalidShopData;
+		Result.ShopComponent = ShopComponent;
+		Result.EntryId = EntryId;
+		Result.Quantity = Quantity;
+		ClientNotifyShopBuyResult(Result);
+		return;
+	}
+
+	ShopComponent->RequestBuyItem(this, EntryId, Quantity);
+}
+
+void APRPlayerController::ServerRequestSellShopItem_Implementation(UPRShopComponent* ShopComponent, FName EntryId, int32 Quantity)
+{
+	if (!IsValid(ShopComponent) || !IsValid(ShopComponent->GetOwner()))
+	{
+		FPRShopSellResult Result;
+		Result.bSuccess = false;
+		Result.FailReason = EPRShopSellFailReason::InvalidShopData;
+		Result.ShopComponent = ShopComponent;
+		Result.EntryId = EntryId;
+		Result.Quantity = Quantity;
+		ClientNotifyShopSellResult(Result);
+		return;
+	}
+
+	ShopComponent->RequestSellItem(this, EntryId, Quantity);
 }
 
 // ===== UI =====

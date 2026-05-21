@@ -17,13 +17,21 @@ namespace
 	// 소유 캐릭터 기준 프로젝트 ASC를 조회한다
 	UPRAbilitySystemComponent* ResolveOwnerAbilitySystem(AActor* OwnerActor)
 	{
-		APRCharacterBase* OwnerCharacter = Cast<APRCharacterBase>(OwnerActor);
-		if (!IsValid(OwnerCharacter))
+		if (IAbilitySystemInterface* ASI = Cast<IAbilitySystemInterface>(OwnerActor))
 		{
-			return nullptr;
+			if (UAbilitySystemComponent* ASC = ASI->GetAbilitySystemComponent())
+			{
+				return Cast<UPRAbilitySystemComponent>(ASC);
+			}
 		}
 
-		return OwnerCharacter->GetPRAbilitySystemComponent();
+		APRCharacterBase* OwnerCharacter = Cast<APRCharacterBase>(OwnerActor);
+		if (IsValid(OwnerCharacter))
+		{
+			return OwnerCharacter->GetPRAbilitySystemComponent();
+		}
+
+		return nullptr;
 	}
 }
 
@@ -34,6 +42,7 @@ void UPRItemInstance_Weapon::GetLifetimeReplicatedProps(TArray<FLifetimeProperty
 	DOREPLIFETIME(UPRItemInstance_Weapon, ModData);
 	DOREPLIFETIME(UPRItemInstance_Weapon, EquippedModItem);
 	DOREPLIFETIME(UPRItemInstance_Weapon, bIsEquippedCurrentWeaponSlot);
+	DOREPLIFETIME(UPRItemInstance_Weapon, UpgradeLevel);
 }
 
 void UPRItemInstance_Weapon::InitializeItem(UPRItemDataAsset* InItemData, int32 InitialStackCount)
@@ -53,6 +62,22 @@ void UPRItemInstance_Weapon::InitializeMod(UPRWeaponModDataAsset* InModData)
 UPRWeaponDataAsset* UPRItemInstance_Weapon::GetWeaponData() const
 {
 	return Cast<UPRWeaponDataAsset>(ItemData);
+}
+
+void UPRItemInstance_Weapon::FillSaveEntry(FPRWeaponItemSaveEntry& OutEntry) const
+{
+	// 저장 엔트리 기본값
+	OutEntry = FPRWeaponItemSaveEntry();
+	OutEntry.WeaponData = GetWeaponData();
+	OutEntry.StackCount = GetStackCount();
+	OutEntry.State.EnhancementLevel = UpgradeLevel;
+}
+
+void UPRItemInstance_Weapon::ApplySaveEntry(const FPRWeaponItemSaveEntry& InEntry)
+{
+	// v1 인스턴스 상태 복원
+	StackCount = FMath::Max(InEntry.StackCount, 0);
+	UpgradeLevel = FMath::Max(InEntry.State.EnhancementLevel, 0);
 }
 
 bool UPRItemInstance_Weapon::MatchesWeaponData(const UPRWeaponDataAsset* InWeaponData) const
@@ -135,12 +160,12 @@ void UPRItemInstance_Weapon::GrantEquippedAbilitySets(AActor* OwnerActor)
 
 	if (UPRAbilitySet* WeaponAbilitySet = GetWeaponAbilitySet())
 	{
-		ASC->GiveAbilitySet(WeaponAbilitySet, WeaponAbilityHandles);
+		ASC->GiveAbilitySet(WeaponAbilitySet, WeaponAbilityHandles, this);
 	}
 
 	if (UPRAbilitySet* ModAbilitySet = GetModAbilitySet())
 	{
-		ASC->GiveAbilitySet(ModAbilitySet, ModAbilityHandles);
+		ASC->GiveAbilitySet(ModAbilitySet, ModAbilityHandles, this);
 	}
 
 	LastWeaponFailReason = EPRWeaponActionFailReason::None;
@@ -229,7 +254,7 @@ void UPRItemInstance_Weapon::RebuildModAbility(AActor* OwnerActor, UPRWeaponModD
 	{
 		if (UPRAbilitySet* ModAbilitySet = GetModAbilitySet())
 		{
-			ASC->GiveAbilitySet(ModAbilitySet, ModAbilityHandles);
+			ASC->GiveAbilitySet(ModAbilitySet, ModAbilityHandles, this);
 		}
 	}
 
@@ -256,6 +281,28 @@ void UPRItemInstance_Weapon::ResetTransientRuntimeOnDeactivate()
 float UPRItemInstance_Weapon::GetRemainingModDurationSeconds(float ServerWorldTimeSeconds) const
 {
 	return FMath::Max(ModEffectEndServerWorldTimeSeconds - ServerWorldTimeSeconds, 0.0f);
+}
+
+bool UPRItemInstance_Weapon::SetUpgradeLevel(int32 NewLevel)
+{
+	if (NewLevel < 0)
+	{
+		return false;
+	}
+
+	if (UpgradeLevel == NewLevel)
+	{
+		return false;
+	}
+
+	UpgradeLevel = NewLevel;
+	NotifyInventoryChanged(EPRInventoryChangeReason::WeaponUpgradeChanged);
+	return true;
+}
+
+bool UPRItemInstance_Weapon::IncreaseUpgradeLevel()
+{
+	return SetUpgradeLevel(UpgradeLevel + 1);
 }
 
 UPRAbilitySet* UPRItemInstance_Weapon::GetWeaponAbilitySet()
@@ -313,4 +360,9 @@ void UPRItemInstance_Weapon::OnRep_EquippedModItem()
 		*GetNameSafe(EquippedModItem.Get()));
 
 	NotifyInventoryChanged(EPRInventoryChangeReason::ModEquipChanged);
+}
+
+void UPRItemInstance_Weapon::OnRep_UpgradeLevel()
+{
+	NotifyInventoryChanged(EPRInventoryChangeReason::WeaponUpgradeChanged);
 }

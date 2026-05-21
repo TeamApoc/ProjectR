@@ -5,6 +5,7 @@
 
 #include "Logging/LogMacros.h"
 #include "Net/UnrealNetwork.h"
+#include "ProjectR/Game/PRGameTypes.h"
 #include "ProjectR/Inventory/Components/PRInventoryComponent.h"
 #include "ProjectR/Weapon/Data/PRWeaponModDataAsset.h"
 #include "ProjectR/Weapon/Items/PRItemInstance_Weapon.h"
@@ -24,6 +25,17 @@ void UPRItemInstance_Mod::InitializeItem(UPRItemDataAsset* InItemData, int32 Ini
 UPRWeaponModDataAsset* UPRItemInstance_Mod::GetModData() const
 {
 	return Cast<UPRWeaponModDataAsset>(ItemData);
+}
+
+void UPRItemInstance_Mod::FillSaveEntry(FPRModItemSaveEntry& OutEntry) const
+{
+	// 저장 엔트리 기본값
+	OutEntry = FPRModItemSaveEntry();
+	OutEntry.ModData = GetModData();
+}
+
+void UPRItemInstance_Mod::ApplySaveEntry(const FPRModItemSaveEntry& InEntry)
+{
 }
 
 bool UPRItemInstance_Mod::MatchesModData(const UPRWeaponModDataAsset* InModData) const

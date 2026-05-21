@@ -7,6 +7,8 @@
 #include "ProjectR/UI/PRWidgetBase.h"
 #include "PRWeaponStatusWidget.generated.h"
 
+struct FInstancedStruct;
+struct FGameplayTag;
 class UImage;
 class UProgressBar;
 class UTextBlock;
@@ -19,6 +21,8 @@ class PROJECTR_API UPRWeaponStatusWidget : public UPRWidgetBase
 	GENERATED_BODY()
 
 public:
+	virtual void NativeConstruct() override;
+	
 	// 주무기 또는 보조무기 슬롯 타입을 고정한다
 	UFUNCTION(BlueprintCallable, Category = "ProjectR|HUD|Weapon")
 	void SetSlotType(EPRWeaponSlotType InSlotType);
@@ -59,6 +63,9 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "ProjectR|HUD|Weapon")
 	void ClearModStatus();
 
+	void BindHighlightEvent();
+	void UnbindHighlightEvent();
+	void HandleModActivation(FGameplayTag EventTag, const FInstancedStruct& Payload);
 protected:
 	// UMG에서 바인딩할 무기 아이콘 이미지
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "ProjectR|HUD|Weapon")
@@ -83,9 +90,17 @@ protected:
 	// UMG에서 바인딩할 Mod 스택 텍스트
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "ProjectR|HUD|Weapon")
 	TObjectPtr<UTextBlock> ModStackText;
-
+	
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "ProjectR|HUD|Weapon")
+	TObjectPtr<UPanelWidget> HighlightBorder;
+	
+	UPROPERTY(BlueprintReadOnly, Transient, meta = (BindWidgetAnimOptional), Category = "ProjectR|HUD|Weapon")
+	TObjectPtr<UWidgetAnimation> HighlightAnimation;
+	
 private:
 	// 이 위젯이 담당하는 무기 슬롯 타입
 	UPROPERTY(BlueprintReadOnly, Category = "ProjectR|HUD|Weapon", meta = (AllowPrivateAccess = "true"))
 	EPRWeaponSlotType SlotType = EPRWeaponSlotType::None;
+	
+	FDelegateHandle HighlightEventDelegateHandle;
 };

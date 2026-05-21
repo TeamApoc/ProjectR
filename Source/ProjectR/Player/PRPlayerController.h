@@ -6,6 +6,7 @@
 #include "GameFramework/PlayerController.h"
 #include "GameplayTagContainer.h"
 #include "ProjectR/Game/PRGameTypes.h"
+#include "ProjectR/Shop/Types/PRShopTypes.h"
 #include "ProjectR/Weapon/Types/PRWeaponUpgradeTypes.h"
 #include "PRPlayerController.generated.h"
 
@@ -22,9 +23,12 @@ class UPRUIControllerComponent;
 class UPRInteractionSensor;
 class UPRCheatHandler;
 class UPRItemInstance_Weapon;
+class UPRShopComponent;
 class UPRWeaponUpgradeComponent;
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FPRWeaponUpgradeResultSignature, const FPRWeaponUpgradeResult&, Result);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FPRShopBuyResultSignature, const FPRShopBuyResult&, Result);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FPRShopSellResultSignature, const FPRShopSellResult&, Result);
 
 // 플레이어 입력·UI 소유. Join 시 캐릭터 페이로드를 서버로 전송하고,
 // 인게임 중 발생한 보상 Grant를 연결이 살아있는 동안 즉시 수령하여 GameInstance에 반영한다
@@ -81,9 +85,29 @@ public:
 	UFUNCTION(Client, Reliable)
 	void ClientOpenWeaponUpgradeUI(UPRWeaponUpgradeComponent* UpgradeComponent);
 
+	// 서버 -> 본인 클라. 상점 UI를 열고 상점 컴포넌트 Context를 전달한다
+	UFUNCTION(Client, Reliable)
+	void ClientOpenShopUI(UPRShopComponent* ShopComponent);
+
+	// 서버 -> 본인 클라. 상점 구매 결과를 UI에 전달한다
+	UFUNCTION(Client, Reliable)
+	void ClientNotifyShopBuyResult(const FPRShopBuyResult& Result);
+
+	// 서버 -> 본인 클라. 상점 판매 결과를 UI에 전달한다
+	UFUNCTION(Client, Reliable)
+	void ClientNotifyShopSellResult(const FPRShopSellResult& Result);
+
 	// 강화 UI에서 선택한 무기 강화를 서버에 요청한다
 	UFUNCTION(BlueprintCallable, Category = "ProjectR|WeaponUpgrade")
 	void RequestUpgradeWeapon(UPRWeaponUpgradeComponent* UpgradeComponent, UPRItemInstance_Weapon* WeaponItem);
+
+	// 상점 UI에서 선택한 아이템 구매를 서버에 요청한다
+	UFUNCTION(BlueprintCallable, Category = "ProjectR|Shop")
+	void RequestBuyShopItem(UPRShopComponent* ShopComponent, FName EntryId, int32 Quantity);
+
+	// 상점 UI에서 선택한 아이템 판매를 서버에 요청한다
+	UFUNCTION(BlueprintCallable, Category = "ProjectR|Shop")
+	void RequestSellShopItem(UPRShopComponent* ShopComponent, FName EntryId, int32 Quantity);
 
 	UPRProjectileManagerComponent* GetProjectileManagerComponent() const {return ProjectileManager;}
 
@@ -98,6 +122,14 @@ protected:
 	// 클라이언트 -> 서버. 강화 NPC 또는 터미널 컴포넌트에 무기 강화를 위임한다
 	UFUNCTION(Server, Reliable)
 	void ServerRequestUpgradeWeapon(UPRWeaponUpgradeComponent* UpgradeComponent, UPRItemInstance_Weapon* WeaponItem);
+
+	// 클라이언트 -> 서버. 상점 컴포넌트에 아이템 구매를 위임한다
+	UFUNCTION(Server, Reliable)
+	void ServerRequestBuyShopItem(UPRShopComponent* ShopComponent, FName EntryId, int32 Quantity);
+
+	// 클라이언트 -> 서버. 상점 컴포넌트에 아이템 판매를 위임한다
+	UFUNCTION(Server, Reliable)
+	void ServerRequestSellShopItem(UPRShopComponent* ShopComponent, FName EntryId, int32 Quantity);
 
 	// 치트 핸들러 클래스. BP에서 지정. 비어있으면 핸들러 미생성
 	UPROPERTY(EditDefaultsOnly, Category = "ProjectR|Cheat")
@@ -180,4 +212,12 @@ public:
 	// 무기 강화 결과를 UI에 알린다
 	UPROPERTY(BlueprintAssignable, Category = "ProjectR|WeaponUpgrade")
 	FPRWeaponUpgradeResultSignature OnWeaponUpgradeResult;
+
+	// 상점 구매 결과를 UI에 알린다
+	UPROPERTY(BlueprintAssignable, Category = "ProjectR|Shop")
+	FPRShopBuyResultSignature OnShopBuyResult;
+
+	// 상점 판매 결과를 UI에 알린다
+	UPROPERTY(BlueprintAssignable, Category = "ProjectR|Shop")
+	FPRShopSellResultSignature OnShopSellResult;
 };

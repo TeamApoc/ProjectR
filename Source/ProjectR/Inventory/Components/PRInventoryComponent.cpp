@@ -435,6 +435,11 @@ void UPRInventoryComponent::RequestRemoveConsumableItemByData(UPRConsumableDataA
 	Server_RequestRemoveConsumableItemByData(ConsumableData, RemoveCount);
 }
 
+bool UPRInventoryComponent::RemoveConsumableItemByData(UPRConsumableDataAsset* ConsumableData, int32 RemoveCount)
+{
+	return RemoveConsumableItemByDataInternal(ConsumableData, RemoveCount);
+}
+
 void UPRInventoryComponent::RequestUseConsumableItem(UPRItemInstance_Consumable* ConsumableItem, AActor* UserActor)
 {
 	// 잘못된 소비 Item 사용 요청은 서버 RPC를 보내기 전에 중단한다

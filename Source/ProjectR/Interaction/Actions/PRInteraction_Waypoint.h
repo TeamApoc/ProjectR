@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "GameplayTagContainer.h"
 #include "ProjectR/Interaction/PRInteractionAction.h"
 #include "PRInteraction_Waypoint.generated.h"
 
@@ -35,6 +36,9 @@ private:
 	// 행동 가능 플레이어 수 반환
 	int32 CountFightCapablePlayers() const;
 
+	// 이동 대상 Waypoint 태그 반환
+	FGameplayTag ResolveTargetWaypointId() const;
+
 protected:
 	// 이동 판정 지연
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|Interaction|Crystal", meta = (ClampMin = "0.0"))
@@ -42,6 +46,10 @@ protected:
 	
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|Interaction|Crystal", meta = (ClampMin = "0.0"))
 	TSoftObjectPtr<UWorld> TargetMap;
+
+	// 목적지 맵 진입 Waypoint 태그
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|Interaction|Crystal")
+	FGameplayTag TargetWaypointId;
 
 private:
 	FTimerHandle TravelCheckTimerHandle;

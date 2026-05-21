@@ -9,6 +9,15 @@
 #include "PRPlayerController.generated.h"
 
 enum class EPRFadeColorPreset : uint8;
+
+UENUM(BlueprintType)
+enum class EPRMapTransitionType : uint8
+{
+	None,
+	MapTravel,
+	Respawn,
+};
+
 class UPRInteractorComponent;
 class UPRProjectileManagerComponent;
 class UPRFloatingTextManager;
@@ -72,9 +81,9 @@ public:
 	UFUNCTION(Client, Reliable)
 	void ClientDispatchSurvivalGameplayEvent(FGameplayTag EventTag);
 
-	// 맵 이동 전 연출 시작 (FadeOut등)
+	// 맵 이동 또는 리스폰 전환 연출 시작
 	UFUNCTION(Client, Reliable)
-	void ClientStartMapTransition(float Delay, bool bShouldFade);
+	void ClientStartMapTransition(float Delay, EPRMapTransitionType TransitionType);
 	
 	// 폰 -> PlayerState 경로로 ASC 조회
 	UPRAbilitySystemComponent* GetPRASC() const;

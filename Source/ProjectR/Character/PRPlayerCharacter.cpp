@@ -88,8 +88,6 @@ APRPlayerCharacter::APRPlayerCharacter()
 	InteractionSphere->SetupAttachment(RootComponent);
 }
 
-// =====  ASC 연동 =====
-
 UPRAbilitySystemComponent* APRPlayerCharacter::GetPRAbilitySystemComponent() const
 {
 	// 플레이어 ASC는 PlayerState에 있음
@@ -114,7 +112,7 @@ void APRPlayerCharacter::PossessedBy(AController* NewController)
 				UPRAssetManager::Get().GetAbilitySystemRegistry(),
 				EPRCharacterRole::Player,
 				PRRowNames::Player::Default);
-			ASC->GiveAbilitySet(AbilitySet, AbilitySetHandles);
+			PS->GrantCharacterAbilitySet(AbilitySet, this);
 			
 			// 이 시점에서 플레이어의 ASC 유효하므로 BindTagChangeEvent 호출
 			BindTagChangeEvent();

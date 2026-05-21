@@ -3,8 +3,8 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "PRInteractionInterface.h"
 #include "GameFramework/Actor.h"
+#include "ProjectR/Interaction/PRInteractionInterface.h"
 #include "PRInteractableActor.generated.h"
 
 UCLASS()

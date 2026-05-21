@@ -161,8 +161,6 @@ private:
 	bool bIsAiming = false;
 	bool bIsWalking = false;
 	bool bIsDodging = false;
-
-	FPRAbilitySetHandles AbilitySetHandles;
 	
 	bool bBlockMove = false;
 	

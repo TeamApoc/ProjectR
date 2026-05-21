@@ -279,3 +279,48 @@ void APRPlayerState::SendSurvivalGameplayEvent(const FGameplayTag& EventTag) con
 	// 	}
 	// }
 }
+
+void APRPlayerState::ResetSurvivalStateForRespawn()
+{
+	// 서버에서만 실행
+	if (!HasAuthority() || !IsValid(AbilitySystemComponent))
+	{
+		return;
+	}
+
+	// 생존 전환 Ability 정리
+	AbilitySystemComponent->CancelAllAbilities();
+	AbilitySystemComponent->ClearAbilityInput();
+
+	const FGameplayTag RespawnClearedTags[] =
+	{
+		PRGameplayTags::State_Dead,
+		PRGameplayTags::State_Down,
+		PRGameplayTags::State_Block_Move,
+		PRGameplayTags::State_PlayerInputLocked,
+		PRGameplayTags::State_PlayerHitReactLocked,
+	};
+
+	for (const FGameplayTag& Tag : RespawnClearedTags)
+	{
+		AbilitySystemComponent->RemoveLooseGameplayTag(Tag);
+		AbilitySystemComponent->RemoveReplicatedLooseGameplayTag(Tag);
+	}
+}
+
+void APRPlayerState::GrantCharacterAbilitySet(const UPRAbilitySet* InAbilitySet, UObject* InSourceObject)
+{
+	if (!HasAuthority() || !IsValid(AbilitySystemComponent))
+	{
+		return;
+	}
+
+	// 이전 Pawn AbilitySet 회수
+	AbilitySystemComponent->ClearAbilitySetByHandles(CharacterAbilitySetHandles);
+
+	if (IsValid(InAbilitySet))
+	{
+		// 새 Pawn AbilitySet 부여
+		AbilitySystemComponent->GiveAbilitySet(InAbilitySet, CharacterAbilitySetHandles, InSourceObject);
+	}
+}

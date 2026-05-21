@@ -18,6 +18,8 @@
 #include "ProjectR/Player/PRPlayerController.h"
 #include "ProjectR/Player/PRPlayerState.h"
 #include "ProjectR/Utils/PRGameplayStatics.h"
+#include "ProjectR/World/PRWaypointActor.h"
+#include "ProjectR/World/PRWaypointTags.h"
 
 UPRInteraction_Waypoint::UPRInteraction_Waypoint()
 {
@@ -108,7 +110,7 @@ void UPRInteraction_Waypoint::StartTravel(TSoftObjectPtr<UWorld> MapToTravel)
 				continue;
 			}
 				
-			Controller->ClientStartMapTransition(TravelDelay,true);
+			Controller->ClientStartMapTransition(TravelDelay, EPRMapTransitionType::MapTravel);
 				
 			// TODO: 무적 상태 추가?
 		}
@@ -119,6 +121,8 @@ void UPRInteraction_Waypoint::StartTravel(TSoftObjectPtr<UWorld> MapToTravel)
 	{
 		if (UPRGameInstance* GameInstance = GetWorld()->GetGameInstance<UPRGameInstance>())
 		{
+			// 목적지 Waypoint 예약
+			GameInstance->SetPendingTravelWaypointId(ResolveTargetWaypointId());
 			GameInstance->ServerTravelToMap(MapToTravel, false);
 		}	
 	}),TravelDelay,false);
@@ -136,9 +140,25 @@ void UPRInteraction_Waypoint::CheckTravelCondition()
 	const int32 FightCapablePlayerCount = CountFightCapablePlayers();
 	if (FightCapablePlayerCount > 0 && CountInteractingPlayers() == FightCapablePlayerCount)
 	{
+		// 활성 Waypoint 갱신
+		if (APRGameStateBase* GameState = GetWorld()->GetGameState<APRGameStateBase>())
+		{
+			if (const APRWaypointActor* WaypointActor = Cast<APRWaypointActor>(GetOwner()))
+			{
+				// 활성 Waypoint 기록
+				GameState->SetLastActiveWaypointId(WaypointActor->GetWaypointId());
+			}
+		}
+	
 		// TODO: 현재는 TargetMap을 Property에서 지정하지만, 추후 이동장소 선택 UI를 띄움
 		StartTravel(TargetMap);
 	}
+}
+
+FGameplayTag UPRInteraction_Waypoint::ResolveTargetWaypointId() const
+{
+	// 선택 UI 미구현 기본값
+	return TargetWaypointId.IsValid() ? TargetWaypointId : PRWaypointTags::Waypoint_Default;
 }
 
 int32 UPRInteraction_Waypoint::CountInteractingPlayers() const

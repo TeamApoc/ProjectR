@@ -3,7 +3,7 @@
 
 #include "PRInteractableActor.h"
 
-#include "PRInteractableComponent.h"
+#include "ProjectR/Interaction/PRInteractableComponent.h"
 
 
 // Sets default values

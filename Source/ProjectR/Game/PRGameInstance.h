@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "Engine/GameInstance.h"
+#include "GameplayTagContainer.h"
 #include "PRGameTypes.h"
 #include "PRGameInstance.generated.h"
 
@@ -38,6 +39,15 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "ProjectR|Session")
 	void ServerTravelToMap(TSoftObjectPtr<UWorld> MapAsset, bool bAbsolute = false);
 
+	// 다음 맵 진입 시 사용할 Waypoint 태그를 저장
+	void SetPendingTravelWaypointId(FGameplayTag WaypointId);
+
+	// 다음 맵 진입 Waypoint 태그를 반환하고 초기화
+	FGameplayTag ConsumePendingTravelWaypointId();
+
+	// 다음 맵 진입 Waypoint 태그 존재 여부 반환
+	bool HasPendingTravelWaypointId() const { return PendingTravelWaypointId.IsValid(); }
+
 	// 로컬 캐릭터 세이브 로드. 메뉴에서 "이어하기" 선택 시 호출
 	// 현재 단계에서는 스켈레톤 구현. 세이브 시스템 연동 시 본 메서드에서 SaveGame 로드 분기 추가
 	UFUNCTION(BlueprintCallable, Category = "ProjectR|Save")
@@ -62,4 +72,7 @@ protected:
 	// 현재 플레이어가 들고 다니는 캐릭터 스펙. Join 시 이 데이터가 호스트로 전송된다
 	UPROPERTY(VisibleInstanceOnly, Category = "ProjectR|Save")
 	FPRCharacterSaveData LocalCharacter;
+
+	// ServerTravel 이후 최초 스폰에 사용할 Waypoint 태그
+	FGameplayTag PendingTravelWaypointId;
 };

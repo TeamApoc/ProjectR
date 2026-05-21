@@ -1,8 +1,6 @@
 // Copyright (c) 2026 TeamD20. All Rights Reserved.
 
 #include "PRInteractionSensor.h"
-
-#include "PRInteractableActor.h"
 #include "PRInteractableComponent.h"
 #include "PRInteractionInterface.h"
 #include "PRInteractorComponent.h"
@@ -10,6 +8,7 @@
 #include "GameFramework/Pawn.h"
 #include "Kismet/KismetSystemLibrary.h"
 #include "ProjectR/ProjectR.h"
+#include "ProjectR/World/PRInteractableActor.h"
 
 UPRInteractionSensor::UPRInteractionSensor()
 {

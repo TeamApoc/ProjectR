@@ -162,16 +162,37 @@ void APRPlayerController::PostProcessInput(const float DeltaTime, const bool bGa
 	Super::PostProcessInput(DeltaTime, bGamePaused);
 }
 
-void APRPlayerController::ClientStartMapTransition_Implementation(float Delay, bool bShouldFade)
+void APRPlayerController::ClientStartMapTransition_Implementation(float Delay, EPRMapTransitionType TransitionType)
 {
-	UIControllerComponent->RemoveAllWidget();
-	
-	if (bShouldFade)
+	if (IsValid(UIControllerComponent))
 	{
-		if (APRCameraManager* CM = Cast<APRCameraManager>(PlayerCameraManager))
-		{
-			CM->FadeOut(EPRFadeColorPreset::White, Delay, false);
-		}
+		// UI 정리
+		UIControllerComponent->RemoveAllWidget();
+	}
+
+	if (TransitionType == EPRMapTransitionType::None)
+	{
+		return;
+	}
+
+	APRCameraManager* CM = Cast<APRCameraManager>(PlayerCameraManager);
+	if (!IsValid(CM))
+	{
+		return;
+	}
+
+	switch (TransitionType)
+	{
+	case EPRMapTransitionType::MapTravel:
+		// 맵 이동 페이드
+		CM->FadeOut(EPRFadeColorPreset::White, Delay, false);
+		break;
+	case EPRMapTransitionType::Respawn:
+		// 리스폰 페이드
+		CM->FadeOut(EPRFadeColorPreset::Black, Delay, false);
+		break;
+	default:
+		break;
 	}
 }
 

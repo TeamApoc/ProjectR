@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "GameFramework/PlayerState.h"
 #include "AbilitySystemInterface.h"
+#include "ProjectR/AbilitySystem/Data/PRAbilitySet.h"
 #include "ProjectR/Game/PRGameTypes.h"
 #include "ProjectR/Weapon/Types/PRWeaponTypes.h"
 #include "PRPlayerState.generated.h"
@@ -104,6 +105,12 @@ public:
 
 	// 현재 플레이어 Pawn에게 생존 상태 전환 이벤트를 보낸다.
 	void SendSurvivalGameplayEvent(const FGameplayTag& EventTag) const;
+
+	// 리스폰 전 생존 상태 태그와 입력 캐시를 초기화한다
+	void ResetSurvivalStateForRespawn();
+
+	// 현재 캐릭터 Pawn 기준 AbilitySet을 재부여한다
+	void GrantCharacterAbilitySet(const UPRAbilitySet* InAbilitySet, UObject* InSourceObject = nullptr);
 	
 	// 기본 정보 적용 (맵 전환시 유지하기 위해)
 	void InitializePrimaryInfoFromSaveData(const FPRCharacterSaveData& InSaveData);
@@ -192,6 +199,9 @@ protected:
 
 	// 보조무기 슬롯 예비탄 보존 비율
 	float CachedSecondaryReserveAmmoRatio = 1.0f;
+
+	// 현재 캐릭터 Pawn에서 부여한 AbilitySet 핸들
+	FPRAbilitySetHandles CharacterAbilitySetHandles;
 	
 	/** 카메라 감도 */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "PR|Camera")

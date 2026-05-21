@@ -1,0 +1,178 @@
+// Copyright ProjectR. All Rights Reserved.
+
+#pragma once
+
+#include "CoreMinimal.h"
+#include "Engine/DataAsset.h"
+#include "GameplayTagContainer.h"
+#include "ProjectR/AI/Data/PREnemyCombatDataAsset.h"
+#include "ProjectR/AI/PREnemyAITypes.h"
+#include "PRFaerinCombatLoopDataAsset.generated.h"
+
+class UPRAbilitySystemComponent;
+class UPRPatternDataAsset;
+
+UENUM(BlueprintType)
+enum class EPRFaerinTeleportWrapperPolicy : uint8
+{
+	None				UMETA(DisplayName = "None"),
+	TeleportOutOnly		UMETA(DisplayName = "Teleport Out Only"),
+	TeleportOutAndIn	UMETA(DisplayName = "Teleport Out And In"),
+	TeleportOutVFXOnly	UMETA(DisplayName = "Teleport Out VFX Only")
+};
+
+UENUM(BlueprintType)
+enum class EPRFaerinApproachPolicy : uint8
+{
+	None				UMETA(DisplayName = "None"),
+	KeepCurrentRange	UMETA(DisplayName = "Keep Current Range"),
+	SprintToMeleeRange	UMETA(DisplayName = "Sprint To Melee Range"),
+	ShiftClose			UMETA(DisplayName = "Shift Close")
+};
+
+UENUM(BlueprintType)
+enum class EPRFaerinPostPatternPolicy : uint8
+{
+	PhaseDefault		UMETA(DisplayName = "Phase Default"),
+	ForceStrafe			UMETA(DisplayName = "Force Strafe"),
+	ForceImmediateNext	UMETA(DisplayName = "Force Immediate Next")
+};
+
+USTRUCT(BlueprintType)
+struct PROJECTR_API FPRFaerinPhaseLoopConfig
+{
+	GENERATED_BODY()
+
+	// 이 설정이 적용되는 보스 페이즈다.
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Faerin")
+	EPRBossPhase Phase = EPRBossPhase::Phase1;
+
+	// 패턴 종료 후 원작형 횡이동 구간을 사용할지 결정한다.
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Faerin")
+	bool bUsePostPatternStrafe = true;
+
+	// 체력이 높은 기준점에서 사용할 횡이동 시간이다.
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Faerin", meta = (ClampMin = "0.0"))
+	float StrafeDurationAtHighHealth = 1.35f;
+
+	// 체력이 낮은 기준점에서 사용할 횡이동 시간이다.
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Faerin", meta = (ClampMin = "0.0"))
+	float StrafeDurationAtLowHealth = 0.55f;
+
+	// 높은 체력 시간 보간에 사용할 체력 비율 기준점이다.
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Faerin", meta = (ClampMin = "0.0", ClampMax = "1.0"))
+	float HighHealthRatioReference = 1.0f;
+
+	// 낮은 체력 시간 보간에 사용할 체력 비율 기준점이다.
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Faerin", meta = (ClampMin = "0.0", ClampMax = "1.0"))
+	float LowHealthRatioReference = 0.25f;
+
+	// 현재 거리 대신 강제로 유지할 횡이동 반경이다. 0이면 현재 거리 기반으로 계산한다.
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Faerin", meta = (ClampMin = "0.0"))
+	float StrafeRadiusOverride = 0.0f;
+
+	// 한 번의 횡이동에서 타깃을 기준으로 회전할 각도다.
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Faerin", meta = (ClampMin = "1.0", ClampMax = "120.0"))
+	float StrafeArcAngleDegrees = 34.0f;
+
+	// AI MoveTo 도착 판정 반경이다.
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Faerin", meta = (ClampMin = "0.0"))
+	float StrafeAcceptanceRadius = 80.0f;
+
+	// 횡이동 목적지를 NavMesh 위로 보정할 때 사용하는 검색 범위다.
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Faerin", meta = (ClampMin = "0.0"))
+	FVector StrafeNavProjectExtent = FVector(220.0f, 220.0f, 360.0f);
+
+	// 연속 횡이동 시 좌우 방향을 번갈아 사용할지 결정한다.
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Faerin")
+	bool bAlternateStrafeDirection = true;
+
+	// 횡이동 중 애니메이션/이동 표현에 적용할 설정이다.
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Faerin")
+	FPREnemyMovePresentationConfig StrafePresentationConfig;
+};
+
+USTRUCT(BlueprintType)
+struct PROJECTR_API FPRFaerinPatternLoopMetadata
+{
+	GENERATED_BODY()
+
+	// PatternData의 AbilityTag와 1:1로 대응되는 패턴 식별자다.
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Faerin", meta = (Categories = "Ability.Boss.Faerin"))
+	FGameplayTag AbilityTag;
+
+	// 현재 리팩터링 루프에서 선택 가능한 패턴인지 결정한다.
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Faerin")
+	bool bEnabled = true;
+
+	// 선택 가중치에 추가로 곱할 보정값이다.
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Faerin", meta = (ClampMin = "0.0"))
+	float SelectionWeightScale = 1.0f;
+
+	// 원작 재현용 텔레포트 전/후처리 정책이다.
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Faerin")
+	EPRFaerinTeleportWrapperPolicy TeleportWrapperPolicy = EPRFaerinTeleportWrapperPolicy::None;
+
+	// 공격 전 거리 보정 방식이다.
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Faerin")
+	EPRFaerinApproachPolicy ApproachPolicy = EPRFaerinApproachPolicy::KeepCurrentRange;
+
+	// 공격 종료 후 루프 진행 방식이다.
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Faerin")
+	EPRFaerinPostPatternPolicy PostPatternPolicy = EPRFaerinPostPatternPolicy::PhaseDefault;
+
+	// 설계 검토용 메모다. 런타임 판정에는 사용하지 않는다.
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Faerin")
+	FString DesignNote;
+};
+
+USTRUCT(BlueprintType)
+struct PROJECTR_API FPRFaerinPatternPlan
+{
+	GENERATED_BODY()
+
+	// 이번 루프에서 실행할 AbilityTag다.
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Faerin")
+	FGameplayTag AbilityTag;
+
+	// PatternData에서 복사한 선택 규칙이다.
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Faerin")
+	FPRPatternRule PatternRule;
+
+	// LoopData에서 복사한 실행 메타데이터다.
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Faerin")
+	FPRFaerinPatternLoopMetadata LoopMetadata;
+
+	// 최종 선택에 사용한 가중치다.
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Faerin")
+	float FinalSelectionWeight = 0.0f;
+};
+
+// Faerin 전용 전투 루프가 PatternData/AbilitySet을 원작형 순서로 엮는 데 사용하는 데이터다.
+UCLASS(BlueprintType)
+class PROJECTR_API UPRFaerinCombatLoopDataAsset : public UPrimaryDataAsset
+{
+	GENERATED_BODY()
+
+public:
+	// 페이즈별 루프 설정을 찾는다.
+	const FPRFaerinPhaseLoopConfig* FindPhaseConfig(EPRBossPhase Phase) const;
+
+	// AbilityTag에 대응되는 패턴 메타데이터를 찾는다.
+	const FPRFaerinPatternLoopMetadata* FindPatternMetadata(const FGameplayTag& AbilityTag) const;
+
+	// PatternData/AbilitySet 정합성을 점검하고 발견된 문제를 반환한다.
+	bool ValidateLoopData(
+		const UPRPatternDataAsset* PatternDataAsset,
+		UPRAbilitySystemComponent* AbilitySystemComponent,
+		TArray<FString>& OutErrors) const;
+
+public:
+	// 페이즈별 공격 후 루프 설정이다.
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Faerin")
+	TArray<FPRFaerinPhaseLoopConfig> PhaseConfigs;
+
+	// PatternData의 Rule과 1:1 대응되는 패턴 실행 메타데이터다.
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Faerin")
+	TArray<FPRFaerinPatternLoopMetadata> PatternMetadata;
+};

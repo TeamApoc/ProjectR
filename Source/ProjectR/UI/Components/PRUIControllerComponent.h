@@ -143,11 +143,7 @@ protected:
 	// 상점 위젯 클래스
 	UPROPERTY(EditDefaultsOnly, Category = "ProjectR|Shop")
 	TSubclassOf<UPRShopWidget> ShopWidgetClass;
-
-	// 상점 위젯 클래스
-	UPROPERTY(EditDefaultsOnly, Category = "ProjectR|Shop")
-	TSubclassOf<UPRShopWidget> ShopWidgetClass;
-
+	
 	// 생성 후 재사용할 상점 위젯
 	UPROPERTY(Transient)
 	TObjectPtr<UPRShopWidget> ShopWidget;
@@ -174,9 +170,6 @@ private:
 	UPROPERTY(Transient)
 	TObjectPtr<UPRWeaponUpgradeWidget> WeaponUpgradeWidget;
 	
-	// 생성 후 재사용할 상점 위젯
-	UPROPERTY(Transient)
-	TObjectPtr<UPRShopWidget> ShopWidget;
 	
 	// ====== Variables =======
 	// 현재 바인딩된 무기 매니저

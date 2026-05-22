@@ -35,6 +35,10 @@ public:
 	UFUNCTION(Exec)
 	void PR_InfiniteMode(int32 bEnable);
 
+	// 플라이 모드 토글. 1이면 비행, 0이면 보행. PRCheatHandler의 Server RPC로 라우팅
+	UFUNCTION(Exec)
+	void PR_Fly(int32 bEnable);
+
 private:
 	// 본인 PlayerController에 등록된 PRCheatHandler 조회
 	UPRCheatHandler* GetCheatHandler() const;

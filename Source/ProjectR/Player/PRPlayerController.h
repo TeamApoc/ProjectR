@@ -178,6 +178,9 @@ protected:
 	// IA Released 콜백
 	void OnAbilityInputReleased(FGameplayTag InputTag);
 
+	// 플래시라이트 토글
+	void ToggleFlashlight(const FInputActionValue& Value);
+	
     // ====== UI =====
 	// 인벤토리 입력 시작을 처리
 	void OnInventoryInputStarted();
@@ -220,6 +223,10 @@ protected:
 	UPROPERTY(EditDefaultsOnly, Category = "ProjectR|Input")
 	TObjectPtr<UPRInputConfigDataAsset> InputConfig;
 	
+	// 플래시 라이트 On/Off 액션
+	UPROPERTY(EditDefaultsOnly, Category = "ProjectR|Input")
+	TObjectPtr<UInputAction> FlashlightAction;
+	
 	// 인벤토리 열기 입력 액션
 	UPROPERTY(EditDefaultsOnly, Category = "ProjectR|Input")
 	TObjectPtr<const UInputAction> InventoryAction;
@@ -231,7 +238,7 @@ protected:
 	// 퀵슬롯 입력 액션 목록. 배열 인덱스가 퀵슬롯 인덱스와 일치한다
 	UPROPERTY(EditDefaultsOnly, Category = "ProjectR|Input")
 	TArray<UInputAction*> QuickSlotActions;
-
+	
 	// 마우스 감도 조절 액션 목록 
 	UPROPERTY(EditDefaultsOnly, Category = "ProjectR|Input|MouseSensitivity")
 	TObjectPtr<const UInputAction> MouseSensitivityActionUp;

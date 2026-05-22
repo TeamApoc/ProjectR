@@ -9,6 +9,7 @@
 #include "GameFramework/SpringArmComponent.h"
 #include "EnhancedInputComponent.h"
 #include "EnhancedInputSubsystems.h"
+#include "Components/CapsuleComponent.h"
 #include "Components/SphereComponent.h"
 #include "Kismet/KismetMathLibrary.h"
 #include "ProjectR/ProjectR.h"
@@ -21,6 +22,7 @@
 #include "ProjectR/Player/PRCameraModifier.h"
 #include "ProjectR/Weapon/Components/PRWeaponManagerComponent.h"
 #include "ProjectR/Player/Components/PRActionInputRouterComponent.h"
+#include "ProjectR/Player/Components/PRFlashlightComponent.h"
 #include "ProjectR/Player/Components/PRSpringArmComponent.h"
 #include "ProjectR/Projectile/PRProjectileTrajectoryPreviewComponent.h"
 #include "ProjectR/System/PREventManagerSubsystem.h"
@@ -57,6 +59,11 @@ APRPlayerCharacter::APRPlayerCharacter()
 
 	ActionInputRouterComponent = CreateDefaultSubobject<UPRActionInputRouterComponent>(TEXT("ActionInputRouterComponent"));
 	ProjectileTrajectoryPreviewComponent = CreateDefaultSubobject<UPRProjectileTrajectoryPreviewComponent>(TEXT("ProjectileTrajectoryPreviewComponent"));
+
+	// 캡슐 기준 플래시라이트 부착
+	FlashlightComponent = CreateDefaultSubobject<UPRFlashlightComponent>(TEXT("FlashlightComponent"));
+	FlashlightComponent->SetupAttachment(GetCapsuleComponent());
+	FlashlightComponent->SetRelativeLocation(FVector(50.0f, 0.0f, 55.0f));
 	
 	// 캡슐 설정
 	USkeletalMeshComponent* MeshComp = GetMesh();
@@ -73,6 +80,7 @@ APRPlayerCharacter::APRPlayerCharacter()
 	CMC->RotationRate = FRotator(0.0f, 500.0f, 0.0f);
 	CMC->NavAgentProps.bCanCrouch = true; // 앉기 기능 활성화
 	CMC->MaxWalkSpeed = JogSpeed; // 초기 속도 설정
+	CMC->MaxFlySpeed = 1500.f;
 	CMC->bAllowPhysicsRotationDuringAnimRootMotion = true; // 루트모션을 통한 회전 켜기
 	// TODO: 아래 설정은 클라이언트의 movement를 서버가 신뢰하는 모델, 안정성 테스트 필요
 	CMC->bIgnoreClientMovementErrorChecksAndCorrection = true;
@@ -218,6 +226,13 @@ void APRPlayerCharacter::BeginPlay()
 	if (IsValid(DefaultAnimLayerClass) && IsValid(GetMesh()))
 	{
 		GetMesh()->LinkAnimClassLayers(DefaultAnimLayerClass);
+	}
+
+	if (IsValid(FlashlightComponent))
+	{
+		// 로컬 플레이어 전용 활성화
+		FlashlightComponent->SetFlashlightEnabled(IsLocallyControlled());
+		FlashlightComponent->SetRelativeLocation(IsCrouching() ? FlashlightCrouchingLocation : FlashlightStandingLocation);
 	}
 }
 
@@ -371,6 +386,26 @@ void APRPlayerCharacter::HandleGameplayTagUpdated(const FGameplayTag& ChangedTag
 	}
 }
 
+void APRPlayerCharacter::Crouch(bool bClientSimulation)
+{
+	Super::Crouch(bClientSimulation);
+	
+	if (FlashlightComponent)
+	{
+		FlashlightComponent->SetRelativeLocation(FlashlightCrouchingLocation);
+	}
+}
+
+void APRPlayerCharacter::UnCrouch(bool bClientSimulation)
+{
+	Super::UnCrouch(bClientSimulation);
+	
+	if (FlashlightComponent)
+	{
+		FlashlightComponent->SetRelativeLocation(FlashlightStandingLocation);
+	}
+}
+
 void APRPlayerCharacter::Move(const FInputActionValue& Value)
 {
 	// 사망 상태 등 움직임 비활성화시 움직임 수신 안함
@@ -397,9 +432,19 @@ void APRPlayerCharacter::Move(const FInputActionValue& Value)
 	if (IsValid(Controller))
 	{
 		const FRotator Rotation = Controller->GetControlRotation();
+		FRotator ForwardRotation = FRotator(0.0f, Rotation.Yaw, 0.0f);
 		const FRotator YawRotation(0, Rotation.Yaw, 0);
 
-		const FVector ForwardDirection = FRotationMatrix(YawRotation).GetUnitAxis(EAxis::X);
+#if !UE_BUILD_SHIPPING
+		const UCharacterMovementComponent* MoveComp = GetCharacterMovement();
+		if (IsValid(MoveComp) && MoveComp->MovementMode == MOVE_Flying)
+		{
+			// 플라이 모드 카메라 Pitch 반영
+			ForwardRotation = Rotation;
+		}
+#endif
+
+		const FVector ForwardDirection = FRotationMatrix(ForwardRotation).GetUnitAxis(EAxis::X);
 		const FVector RightDirection = FRotationMatrix(YawRotation).GetUnitAxis(EAxis::Y);
 
 		AddMovementInput(ForwardDirection, MovementVector.Y);
@@ -516,5 +561,28 @@ void APRPlayerCharacter::HandleMouseSensitivityChanged(float NewSensitivity)
 void APRPlayerCharacter::SetSprintingFromAbility(bool bNewSprinting)
 {
 	bIsSprinting = bNewSprinting;
+	UpdateMaxWalkSpeed();
+}
+
+void APRPlayerCharacter::SetFlashlightEnabled(bool bEnabled) const
+{
+	if (IsLocallyControlled())
+	{
+		FlashlightComponent->SetFlashlightEnabled(bEnabled);
+	}
+	else
+	{
+		FlashlightComponent->SetFlashlightEnabled(false);
+	}
+}
+
+bool APRPlayerCharacter::IsFlashlightEnabled() const
+{
+	return FlashlightComponent->IsFlashlightEnabled();
+}
+
+void APRPlayerCharacter::MulticastSetMovementMode_Implementation(EMovementMode NewMovementMode)
+{
+	GetCharacterMovement()->SetMovementMode(NewMovementMode);
 	UpdateMaxWalkSpeed();
 }

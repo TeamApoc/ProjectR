@@ -76,6 +76,20 @@ void UPRPlaygroundCheatManager::PR_InfiniteMode(int32 bEnable)
 #endif
 }
 
+void UPRPlaygroundCheatManager::PR_Fly(int32 bEnable)
+{
+#if !UE_BUILD_SHIPPING
+	UPRCheatHandler* Handler = GetCheatHandler();
+	if (!IsValid(Handler))
+	{
+		UE_LOG(LogTemp, Warning, TEXT("PR_Fly: CheatHandler 없음. PC의 CheatHandlerClass 확인 필요"));
+		return;
+	}
+
+	Handler->ServerCheatFly(bEnable != 0);
+#endif
+}
+
 
 /*~ 내부 헬퍼 ~*/
 

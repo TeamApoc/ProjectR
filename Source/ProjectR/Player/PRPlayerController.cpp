@@ -111,9 +111,24 @@ void APRPlayerController::SetupInputComponent()
 		return;
 	}
 
-	if (IsValid(InventoryAction.Get()))
+	if (IsValid(InventoryAction))
 	{
-		EIC->BindAction(InventoryAction.Get(), ETriggerEvent::Started, this, &APRPlayerController::OnInventoryInputStarted);
+		EIC->BindAction(InventoryAction, ETriggerEvent::Started, this, &APRPlayerController::OnInventoryInputStarted);
+	}
+	
+	if (IsValid(MouseSensitivityActionUp))
+	{
+		EIC->BindAction(MouseSensitivityActionUp, ETriggerEvent::Started, this, &APRPlayerController::OnMouseSensitivityActionUp);
+	}
+	
+	if (IsValid(MouseSensitivityActionDown))
+	{
+		EIC->BindAction(MouseSensitivityActionDown, ETriggerEvent::Started, this, &APRPlayerController::OnMouseSensitivityActionDown);
+	}
+	
+	if (IsValid(FlashlightAction))
+	{
+		EIC->BindAction(FlashlightAction, ETriggerEvent::Started, this, &APRPlayerController::ToggleFlashlight);
 	}
 
 	if (IsValid(TraitWindowAction.Get()))
@@ -121,6 +136,7 @@ void APRPlayerController::SetupInputComponent()
 		EIC->BindAction(TraitWindowAction.Get(), ETriggerEvent::Started, this, &APRPlayerController::OnTraitWindowInputStarted);
 	}
 
+	
 	for (int32 SlotIndex = 0; SlotIndex < QuickSlotActions.Num(); ++SlotIndex)
 	{
 		if (!IsValid(QuickSlotActions[SlotIndex]))
@@ -130,34 +146,22 @@ void APRPlayerController::SetupInputComponent()
 
 		EIC->BindAction(QuickSlotActions[SlotIndex], ETriggerEvent::Started, this, &APRPlayerController::OnQuickSlotInputStarted, SlotIndex);
 	}
-	
-	if (IsValid(MouseSensitivityActionUp.Get()))
-	{
-		EIC->BindAction(MouseSensitivityActionUp.Get(), ETriggerEvent::Started, this, &APRPlayerController::OnMouseSensitivityActionUp);
-	}
-	
-	if (IsValid(MouseSensitivityActionDown.Get()))
-	{
-		EIC->BindAction(MouseSensitivityActionDown.Get(), ETriggerEvent::Started, this, &APRPlayerController::OnMouseSensitivityActionDown);
-	}
 
-	if (!IsValid(InputConfig))
+	if (IsValid(InputConfig))
 	{
-		return;
-	}
-
-	// IA별로 Started/Completed에 InputTag 포함 콜백을 바인딩
-	for (const FPRInputActionBinding& Binding : InputConfig->AbilityInputBindings)
-	{
-		if (!IsValid(Binding.InputAction.Get()) || !Binding.InputTag.IsValid())
+		// IA별로 Started/Completed에 InputTag 포함 콜백을 바인딩
+		for (const FPRInputActionBinding& Binding : InputConfig->AbilityInputBindings)
 		{
-			continue;
-		}
+			if (!IsValid(Binding.InputAction.Get()) || !Binding.InputTag.IsValid())
+			{
+				continue;
+			}
 
-		EIC->BindAction(Binding.InputAction.Get(), ETriggerEvent::Started, this,
-			&APRPlayerController::OnAbilityInputPressed, Binding.InputTag);
-		EIC->BindAction(Binding.InputAction.Get(), ETriggerEvent::Completed, this,
-			&APRPlayerController::OnAbilityInputReleased, Binding.InputTag);
+			EIC->BindAction(Binding.InputAction.Get(), ETriggerEvent::Started, this,
+				&APRPlayerController::OnAbilityInputPressed, Binding.InputTag);
+			EIC->BindAction(Binding.InputAction.Get(), ETriggerEvent::Completed, this,
+				&APRPlayerController::OnAbilityInputReleased, Binding.InputTag);
+		}
 	}
 }
 
@@ -240,6 +244,17 @@ void APRPlayerController::OnAbilityInputReleased(FGameplayTag InputTag)
 	{
 		ASC->AbilityInputReleased(InputTag);
 	}
+}
+
+void APRPlayerController::ToggleFlashlight(const FInputActionValue& Value)
+{
+	APRPlayerCharacter* PlayerCharacter = Cast<APRPlayerCharacter>(GetPawn());
+	if (!IsValid(PlayerCharacter))
+	{
+		return;
+	}
+	
+	PlayerCharacter->SetFlashlightEnabled(!PlayerCharacter->IsFlashlightEnabled());
 }
 
 UPRAbilitySystemComponent* APRPlayerController::GetPRASC() const

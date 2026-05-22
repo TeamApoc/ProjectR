@@ -73,6 +73,9 @@ public:
 	void SetFlashlightEnabled(bool bEnabled) const;
 	bool IsFlashlightEnabled() const;
 	
+	UFUNCTION(NetMulticast, Reliable)
+	void MulticastSetMovementMode(EMovementMode NewMovementMode);
+	
 	// ===== Component getters =====
 	
 	/** 액션 입력 라우터 컴포넌트를 반환 */

@@ -10,6 +10,7 @@
 #include "GameplayEffect.h"
 #include "ProjectR/AbilitySystem/PRAbilitySystemComponent.h"
 #include "ProjectR/AbilitySystem/AttributeSets/PRAttributeSet_Weapon.h"
+#include "ProjectR/Character/PRPlayerCharacter.h"
 #include "ProjectR/Interaction/PRInteractorComponent.h"
 #include "ProjectR/Player/PRPlayerController.h"
 #include "ProjectR/Player/PRPlayerState.h"
@@ -192,20 +193,12 @@ void UPRCheatHandler::ServerCheatFly_Implementation(bool bEnable)
 		return;
 	}
 
-	ACharacter* Character = Cast<ACharacter>(PC->GetPawn());
+	APRPlayerCharacter* Character = Cast<APRPlayerCharacter>(PC->GetPawn());
 	if (!IsValid(Character))
 	{
 		return;
 	}
-
-	UCharacterMovementComponent* MovementComponent = Character->GetCharacterMovement();
-	if (!IsValid(MovementComponent))
-	{
-		return;
-	}
-
-	// 플라이 모드 전환
-	MovementComponent->SetMovementMode(bEnable ? MOVE_Flying : MOVE_Walking);
+	Character->MulticastSetMovementMode(bEnable ? MOVE_Flying : MOVE_Walking);
 #endif
 }
 

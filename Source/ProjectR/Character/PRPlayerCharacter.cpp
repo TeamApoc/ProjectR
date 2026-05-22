@@ -79,6 +79,7 @@ APRPlayerCharacter::APRPlayerCharacter()
 	CMC->RotationRate = FRotator(0.0f, 500.0f, 0.0f);
 	CMC->NavAgentProps.bCanCrouch = true; // 앉기 기능 활성화
 	CMC->MaxWalkSpeed = JogSpeed; // 초기 속도 설정
+	CMC->MaxFlySpeed = 1500.f;
 	CMC->bAllowPhysicsRotationDuringAnimRootMotion = true; // 루트모션을 통한 회전 켜기
 	// TODO: 아래 설정은 클라이언트의 movement를 서버가 신뢰하는 모델, 안정성 테스트 필요
 	CMC->bIgnoreClientMovementErrorChecksAndCorrection = true;
@@ -421,9 +422,19 @@ void APRPlayerCharacter::Move(const FInputActionValue& Value)
 	if (IsValid(Controller))
 	{
 		const FRotator Rotation = Controller->GetControlRotation();
+		FRotator ForwardRotation = FRotator(0.0f, Rotation.Yaw, 0.0f);
 		const FRotator YawRotation(0, Rotation.Yaw, 0);
 
-		const FVector ForwardDirection = FRotationMatrix(YawRotation).GetUnitAxis(EAxis::X);
+#if !UE_BUILD_SHIPPING
+		const UCharacterMovementComponent* MoveComp = GetCharacterMovement();
+		if (IsValid(MoveComp) && MoveComp->MovementMode == MOVE_Flying)
+		{
+			// 플라이 모드 카메라 Pitch 반영
+			ForwardRotation = Rotation;
+		}
+#endif
+
+		const FVector ForwardDirection = FRotationMatrix(ForwardRotation).GetUnitAxis(EAxis::X);
 		const FVector RightDirection = FRotationMatrix(YawRotation).GetUnitAxis(EAxis::Y);
 
 		AddMovementInput(ForwardDirection, MovementVector.Y);
@@ -527,4 +538,10 @@ void APRPlayerCharacter::SetFlashlightEnabled(bool bEnabled) const
 bool APRPlayerCharacter::IsFlashlightEnabled() const
 {
 	return FlashlightComponent->IsFlashlightEnabled();
+}
+
+void APRPlayerCharacter::MulticastSetMovementMode_Implementation(EMovementMode NewMovementMode)
+{
+	GetCharacterMovement()->SetMovementMode(NewMovementMode);
+	UpdateMaxWalkSpeed();
 }

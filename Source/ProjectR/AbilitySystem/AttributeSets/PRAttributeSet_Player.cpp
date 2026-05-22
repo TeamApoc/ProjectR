@@ -122,7 +122,8 @@ void UPRAttributeSet_Player::PreAttributeChange(const FGameplayAttribute& Attrib
 		|| Attribute == GetPoiseStrongHitReactThresholdAttribute()
 		|| Attribute == GetPoiseDamageMaxAttribute()
 		|| Attribute == GetCriticalHitChanceAttribute()
-		|| Attribute == GetCriticalDamageMultiplierAttribute())
+		|| Attribute == GetCriticalDamageMultiplierAttribute()
+		|| Attribute == GetPlayerAttackPowerAttribute())
 	{
 		NewValue = FMath::Max(NewValue, 0.0f);
 	}
@@ -232,6 +233,7 @@ void UPRAttributeSet_Player::GetLifetimeReplicatedProps(TArray<FLifetimeProperty
 	DOREPLIFETIME_CONDITION_NOTIFY(UPRAttributeSet_Player, PoiseDamageMax, COND_None, REPNOTIFY_Always);
 	DOREPLIFETIME_CONDITION_NOTIFY(UPRAttributeSet_Player, CriticalHitChance, COND_None, REPNOTIFY_Always);
 	DOREPLIFETIME_CONDITION_NOTIFY(UPRAttributeSet_Player, CriticalDamageMultiplier, COND_None, REPNOTIFY_Always);
+	DOREPLIFETIME_CONDITION_NOTIFY(UPRAttributeSet_Player, PlayerAttackPower, COND_None, REPNOTIFY_Always);
 
 }
 
@@ -289,4 +291,9 @@ void UPRAttributeSet_Player::OnRep_CriticalHitChance(const FGameplayAttributeDat
 void UPRAttributeSet_Player::OnRep_CriticalDamageMultiplier(const FGameplayAttributeData& OldValue)
 {
 	GAMEPLAYATTRIBUTE_REPNOTIFY(UPRAttributeSet_Player, CriticalDamageMultiplier, OldValue);
+}
+
+void UPRAttributeSet_Player::OnRep_PlayerAttackPower(const FGameplayAttributeData& OldValue)
+{
+	GAMEPLAYATTRIBUTE_REPNOTIFY(UPRAttributeSet_Player, PlayerAttackPower, OldValue);
 }

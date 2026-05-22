@@ -31,6 +31,9 @@ protected:
 	// 확정 보상을 즉시 지급하거나 월드 픽업으로 생성한다
 	void CommitResolvedReward(const FPRResolvedDropReward& Reward, const FPRMonsterDeathDropRequest& Request);
 
+	// 몬스터 처치 경험치를 지급한다
+	void GrantExperienceReward(const FPRMonsterDropTableRow& DropRow, const FPRMonsterDeathDropRequest& Request) const;
+
 	// 확정 보상 픽업을 월드에 생성한다
 	APRRewardPickupActor* SpawnRewardPickup(const FPRResolvedDropReward& Reward, const FVector& DropLocation, const AActor* IgnoredActor, APRPlayerState* PersonalRecipient, AController* PersonalController) const;
 

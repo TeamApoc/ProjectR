@@ -10,6 +10,7 @@ enum class EPRCrosshairType : uint8;
 enum class EPRFloatingTextType : uint8;
 class UPRAbilitySystemRegistry;
 class UPRFloatingTextWidget;
+class UGameplayEffect;
 class UUserWidget;
 class UDataTable;
 class APRRewardPickupActor;
@@ -63,6 +64,18 @@ public:
 	// 몬스터별 드롭 보상 테이블
 	UPROPERTY(EditAnywhere, Config, Category = "Registries", meta = (RequiredAssetDataTags = "RowStructure=/Script/ProjectR.PRMonsterDropTableRow"))
 	TSoftObjectPtr<UDataTable> MonsterDropTable;
+
+	// 레벨별 누적 필요 경험치 테이블
+	UPROPERTY(EditAnywhere, Config, Category = "Registries", meta = (RequiredAssetDataTags = "RowStructure=/Script/ProjectR.PRLevelExperienceRow"))
+	TSoftObjectPtr<UDataTable> LevelExperienceTable;
+
+	// 특성별 투자 공식 테이블
+	UPROPERTY(EditAnywhere, Config, Category = "Registries", meta = (RequiredAssetDataTags = "RowStructure=/Script/ProjectR.PRTraitStatRuleRow"))
+	TSoftObjectPtr<UDataTable> TraitStatRuleTable;
+
+	// 특성 보너스 적용에 사용할 에디터 작성 GameplayEffect
+	UPROPERTY(EditAnywhere, Config, Category = "Registries", meta = (AllowedClasses = "/Script/GameplayAbilities.GameplayEffect"))
+	TSoftClassPtr<UGameplayEffect> TraitBonusEffectClass;
 
 	// 드롭 보상 픽업에 사용할 액터 클래스
 	UPROPERTY(EditAnywhere, Config, Category = "Registries", meta = (AllowedClasses = "/Script/ProjectR.PRRewardPickupActor"))

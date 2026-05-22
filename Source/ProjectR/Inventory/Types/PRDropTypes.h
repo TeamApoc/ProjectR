@@ -70,6 +70,14 @@ struct FPRMonsterDropTableRow : public FTableRowBase
 {
 	GENERATED_BODY()
 
+	// 처치 시 지급할 고정 경험치
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (ClampMin = "0"))
+	int32 Experience = 0;
+
+	// 경험치 보상을 받을 대상 산정 규칙
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	EPRRewardDistributionRule ExperienceDistributionRule = EPRRewardDistributionRule::PartyShared;
+
 	// 몬스터 사망 시 독립 판정할 보상 목록
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	TArray<FPRDropRewardEntry> Rewards;

@@ -20,6 +20,7 @@ class UPRWeaponManagerComponent;
 class UPRSpringArmComponent;
 class UPRActionInputRouterComponent;
 class UPRProjectileTrajectoryPreviewComponent;
+class UPRFlashlightComponent;
 struct FInputActionValue;
 //무기 테스트용
 class UPRWeaponDataAsset;
@@ -38,6 +39,10 @@ public:
 	/*~ APawn Interface ~*/
 	virtual void PossessedBy(AController* NewController) override;
 	virtual void OnRep_PlayerState() override;
+	
+	/*~ ACharacter Interface ~*/
+	virtual void Crouch(bool bClientSimulation = false) override;
+	virtual void UnCrouch(bool bClientSimulation = false) override;
 	
 	/*~ APRCharacterBase Interface ~*/
 	virtual UPRAbilitySystemComponent* GetPRAbilitySystemComponent() const override;
@@ -65,11 +70,18 @@ public:
 	/** Sprint Ability가 질주 상태를 캐릭터 이동 상태에 반영 */
 	void SetSprintingFromAbility(bool bNewSprinting);
 	
+	void SetFlashlightEnabled(bool bEnabled) const;
+	bool IsFlashlightEnabled() const;
+	
 	// ===== Component getters =====
 	
 	/** 액션 입력 라우터 컴포넌트를 반환 */
 	UPRActionInputRouterComponent* GetActionInputRouter() const { return ActionInputRouterComponent; }
-	// TODO: UPRWeaponManagerComponent::GetAimOffsetWeaponSlot() 을 사용해야 함 (애니메이션에서 참조 시)
+
+	/** 플래시라이트 컴포넌트 반환 */
+	UFUNCTION(BlueprintPure, Category = "PR|Flashlight")
+	UPRFlashlightComponent* GetFlashlightComponent() const { return FlashlightComponent; }
+	
 	UFUNCTION(BlueprintPure, Category = "PR|Weapon")
 	UPRWeaponManagerComponent* GetWeaponManager() const;
 
@@ -80,7 +92,7 @@ protected:
 
 	/*~ APRCharacterBase Interface ~*/
 	virtual void HandleGameplayTagUpdated(const FGameplayTag& ChangedTag, bool bTagExists) override;
-	
+
 	/*~ APRPlayerCharacter Interface ~*/
 	/** 입력 처리 함수 */
 	void Move(const FInputActionValue& Value);
@@ -108,6 +120,10 @@ public:
 	/** 투사체 발사 예측 경로 표시 컴포넌트. 로컬 시각 효과 전용 */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Projectile")
 	TObjectPtr<UPRProjectileTrajectoryPreviewComponent> ProjectileTrajectoryPreviewComponent;
+
+	/** 로컬 플레이어 조준 방향 플래시라이트 */
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Light")
+	TObjectPtr<UPRFlashlightComponent> FlashlightComponent;
 	
 	// 상호작용 타겟 컴포넌트
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Interaction")
@@ -155,6 +171,13 @@ protected:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "PR|Camera")
 	float CachedCameraSensitivity = 0.5f;
 
+	/** 플래시 라이트 위치 설정 */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "PR|Flashlight")
+	FVector FlashlightStandingLocation = FVector(50.0f, 0.0f, 55.0f);
+	
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "PR|Flashlight")
+	FVector FlashlightCrouchingLocation = FVector(50.0f, 0.0f, 22.0f);
+	
 private:
 	bool bIsSprinting = false;
 	bool bIsAiming = false;

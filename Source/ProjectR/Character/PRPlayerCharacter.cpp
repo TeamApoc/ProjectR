@@ -8,6 +8,7 @@
 #include "GameFramework/SpringArmComponent.h"
 #include "EnhancedInputComponent.h"
 #include "EnhancedInputSubsystems.h"
+#include "Components/CapsuleComponent.h"
 #include "Components/SphereComponent.h"
 #include "Kismet/KismetMathLibrary.h"
 #include "ProjectR/ProjectR.h"
@@ -20,6 +21,7 @@
 #include "ProjectR/Player/PRCameraModifier.h"
 #include "ProjectR/Weapon/Components/PRWeaponManagerComponent.h"
 #include "ProjectR/Player/Components/PRActionInputRouterComponent.h"
+#include "ProjectR/Player/Components/PRFlashlightComponent.h"
 #include "ProjectR/Player/Components/PRSpringArmComponent.h"
 #include "ProjectR/Projectile/PRProjectileTrajectoryPreviewComponent.h"
 #include "ProjectR/System/PREventManagerSubsystem.h"
@@ -56,6 +58,11 @@ APRPlayerCharacter::APRPlayerCharacter()
 
 	ActionInputRouterComponent = CreateDefaultSubobject<UPRActionInputRouterComponent>(TEXT("ActionInputRouterComponent"));
 	ProjectileTrajectoryPreviewComponent = CreateDefaultSubobject<UPRProjectileTrajectoryPreviewComponent>(TEXT("ProjectileTrajectoryPreviewComponent"));
+
+	// 캡슐 기준 플래시라이트 부착
+	FlashlightComponent = CreateDefaultSubobject<UPRFlashlightComponent>(TEXT("FlashlightComponent"));
+	FlashlightComponent->SetupAttachment(GetCapsuleComponent());
+	FlashlightComponent->SetRelativeLocation(FVector(50.0f, 0.0f, 55.0f));
 	
 	// 캡슐 설정
 	USkeletalMeshComponent* MeshComp = GetMesh();
@@ -216,6 +223,13 @@ void APRPlayerCharacter::BeginPlay()
 	{
 		GetMesh()->LinkAnimClassLayers(DefaultAnimLayerClass);
 	}
+
+	if (IsValid(FlashlightComponent))
+	{
+		// 로컬 플레이어 전용 활성화
+		FlashlightComponent->SetFlashlightEnabled(IsLocallyControlled());
+		FlashlightComponent->SetRelativeLocation(IsCrouching() ? FlashlightCrouchingLocation : FlashlightStandingLocation);
+	}
 }
 
 // Called to bind functionality to input
@@ -361,6 +375,26 @@ void APRPlayerCharacter::HandleGameplayTagUpdated(const FGameplayTag& ChangedTag
 	}
 }
 
+void APRPlayerCharacter::Crouch(bool bClientSimulation)
+{
+	Super::Crouch(bClientSimulation);
+	
+	if (FlashlightComponent)
+	{
+		FlashlightComponent->SetRelativeLocation(FlashlightCrouchingLocation);
+	}
+}
+
+void APRPlayerCharacter::UnCrouch(bool bClientSimulation)
+{
+	Super::UnCrouch(bClientSimulation);
+	
+	if (FlashlightComponent)
+	{
+		FlashlightComponent->SetRelativeLocation(FlashlightStandingLocation);
+	}
+}
+
 void APRPlayerCharacter::Move(const FInputActionValue& Value)
 {
 	// 사망 상태 등 움직임 비활성화시 움직임 수신 안함
@@ -476,4 +510,21 @@ void APRPlayerCharacter::SetSprintingFromAbility(bool bNewSprinting)
 {
 	bIsSprinting = bNewSprinting;
 	UpdateMaxWalkSpeed();
+}
+
+void APRPlayerCharacter::SetFlashlightEnabled(bool bEnabled) const
+{
+	if (IsLocallyControlled())
+	{
+		FlashlightComponent->SetFlashlightEnabled(bEnabled);
+	}
+	else
+	{
+		FlashlightComponent->SetFlashlightEnabled(false);
+	}
+}
+
+bool APRPlayerCharacter::IsFlashlightEnabled() const
+{
+	return FlashlightComponent->IsFlashlightEnabled();
 }

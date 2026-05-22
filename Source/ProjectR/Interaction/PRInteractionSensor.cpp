@@ -91,7 +91,7 @@ void UPRInteractionSensor::UpdateFocus()
 	TArray<AActor*> Candidates;
 	CollectCandidates(Pawn->GetActorLocation(), FocusableRange, Candidates);
 
-	// 1) 화면 중앙 후보가 있으면 히스테리시스 무시하고 즉시 전환
+	// 1) 상호작용 가능한 화면 중앙 후보가 있으면 히스테리시스 무시하고 즉시 전환
 	if (AActor* ScreenPick = FindScreenCenterCandidate(Candidates))
 	{
 		FocusedActor = ScreenPick;
@@ -237,7 +237,7 @@ AActor* UPRInteractionSensor::FindScreenCenterCandidate(const TArray<AActor*>& C
 		{
 			continue;
 		}
-
+		
 		FVector2D Screen;
 		const bool bOnScreen = PC->ProjectWorldLocationToScreen(Actor->GetActorLocation(), Screen);
 		if (!bOnScreen)
@@ -302,6 +302,11 @@ bool UPRInteractionSensor::ShouldRetainFocus(AActor* Actor) const
 	}
 	
 	const UPRInteractableComponent* Interactable = Interaction->GetInteractableComponent();
+	if (!Interactable->CanBeInteractedBy(GetOwner()))
+	{
+		return false;
+	}
+	
 	const APlayerController* PC = GetOwningPlayerController();
 	const APawn* Pawn = PC ? PC->GetPawn() : nullptr;
 	if (!IsValid(Pawn))

@@ -4,6 +4,8 @@
 #include "PRCheatHandler.h"
 
 #include "Engine/NetDriver.h"
+#include "GameFramework/Character.h"
+#include "GameFramework/CharacterMovementComponent.h"
 #include "GameFramework/GameModeBase.h"
 #include "GameplayEffect.h"
 #include "ProjectR/AbilitySystem/PRAbilitySystemComponent.h"
@@ -175,6 +177,35 @@ void UPRCheatHandler::ServerCheatInfiniteMode_Implementation(bool bEnable)
 		ASC->RemoveActiveGameplayEffect(InfiniteModeEffectHandle);
 		InfiniteModeEffectHandle.Invalidate();
 	}
+#endif
+}
+
+
+/*~ 플라이 모드 ~*/
+
+void UPRCheatHandler::ServerCheatFly_Implementation(bool bEnable)
+{
+#if !UE_BUILD_SHIPPING
+	APRPlayerController* PC = GetTypedOuter<APRPlayerController>();
+	if (!IsValid(PC))
+	{
+		return;
+	}
+
+	ACharacter* Character = Cast<ACharacter>(PC->GetPawn());
+	if (!IsValid(Character))
+	{
+		return;
+	}
+
+	UCharacterMovementComponent* MovementComponent = Character->GetCharacterMovement();
+	if (!IsValid(MovementComponent))
+	{
+		return;
+	}
+
+	// 플라이 모드 전환
+	MovementComponent->SetMovementMode(bEnable ? MOVE_Flying : MOVE_Walking);
 #endif
 }
 

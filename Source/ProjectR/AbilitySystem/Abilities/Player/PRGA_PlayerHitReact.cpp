@@ -151,6 +151,7 @@ void UPRGA_PlayerHitReact::ActivateAbility(const FGameplayAbilitySpecHandle Hand
 	}
 
 	ActiveMontageTask->OnCompleted.AddDynamic(this, &UPRGA_PlayerHitReact::HandleHitReactMontageCompleted);
+	ActiveMontageTask->OnBlendOut.AddDynamic(this, &UPRGA_PlayerHitReact::HandleHitReactMontageCompleted);
 	ActiveMontageTask->OnInterrupted.AddDynamic(this, &UPRGA_PlayerHitReact::HandleHitReactMontageInterrupted);
 	ActiveMontageTask->OnCancelled.AddDynamic(this, &UPRGA_PlayerHitReact::HandleHitReactMontageInterrupted);
 	ActiveMontageTask->ReadyForActivation();

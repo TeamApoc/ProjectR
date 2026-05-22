@@ -39,6 +39,10 @@ public:
 	UFUNCTION(Server, Reliable)
 	void ServerCheatInfiniteMode(bool bEnable);
 
+	// 클라 요청 수신 후 서버에서 본인 폰 플라이 모드 토글
+	UFUNCTION(Server, Reliable)
+	void ServerCheatFly(bool bEnable);
+
 private:
 	// 컨트롤러 소유 PlayerState의 ASC 조회
 	UPRAbilitySystemComponent* GetOwningPlayerASC() const;

@@ -61,11 +61,11 @@ protected:
 	// 현재 타깃을 향해 런지 방식의 직접 이동을 수행한다.
 	bool MoveDirectlyTowardTarget(float DeltaTime);
 
+	// 현재 타깃 방향을 기준으로 burst 돌진 방향을 갱신한다.
+	bool UpdateBurstDirectionFromTarget();
+
 	// sprint 접근의 실제 이동 속도를 계산한다.
 	float ResolveSprintMoveSpeed() const;
-
-	// 타깃을 바라보도록 포커스를 설정한다.
-	void ApplyFocusToTarget() const;
 
 	// 스프린트 접근을 멈추고 End 섹션으로 전환한다.
 	void BeginEndSection(bool bWasCancelled);
@@ -128,6 +128,14 @@ protected:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Faerin|Movement", meta = (ClampMin = "0.0"))
 	float MinimumLoopDurationBeforeTimeout = 1.25f;
 
+	// TeleportLunge처럼 타깃 방향을 추적하는 초반 시간이다.
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Faerin|Movement", meta = (ClampMin = "0.0"))
+	float DirectionTrackingDuration = 0.18f;
+
+	// 추적 이후 고정 방향으로 돌진을 유지하는 시간이다.
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Faerin|Movement", meta = (ClampMin = "0.0"))
+	float StraightBurstDuration = 0.72f;
+
 private:
 	UPROPERTY(Transient)
 	TObjectPtr<UAbilityTask_PlayMontageAndWait> ActiveMontageTask;
@@ -138,7 +146,10 @@ private:
 	FPRFaerinApproachSprintRequest ActiveRequest;
 	FTimerHandle DistanceCheckTimerHandle;
 	FTimerHandle TimeoutTimerHandle;
+	FVector CachedBurstDirection = FVector::ZeroVector;
 	float LastMovementUpdateTime = 0.0f;
+	float BurstElapsedSeconds = 0.0f;
+	bool bHasCachedBurstDirection = false;
 	bool bApproachFinished = false;
 	bool bEndingSprint = false;
 	bool bPendingEndCancelled = false;

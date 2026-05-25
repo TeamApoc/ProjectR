@@ -3,6 +3,8 @@
 #include "PRGameplayAbility_FaerinShiftSequence.h"
 
 #include "Abilities/Tasks/AbilityTask_PlayMontageAndWait.h"
+#include "AbilitySystemBlueprintLibrary.h"
+#include "AbilitySystemComponent.h"
 #include "Animation/AnimMontage.h"
 #include "DrawDebugHelpers.h"
 #include "Engine/World.h"
@@ -12,6 +14,8 @@
 #include "ProjectR/AI/PREnemyEQSSelectionUtils.h"
 #include "ProjectR/Character/Enemy/PRBossBaseCharacter.h"
 #include "ProjectR/Character/Enemy/Boss/PRFaerinCharacterEventRouterComponent.h"
+#include "ProjectR/PRGameplayTags.h"
+#include "TimerManager.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogPRFaerinShiftSequence, Log, All);
 
@@ -41,7 +45,13 @@ void UPRGameplayAbility_FaerinShiftSequence::ActivateAbility(
 	}
 
 	bShiftApplied = false;
+	bShiftResolved = false;
+	bShiftMoveInProgress = false;
+	bFinishWhenShiftMoveCompletes = false;
 	bShiftSequenceFinished = false;
+	ActiveShiftTarget = nullptr;
+	SmoothShiftElapsedSeconds = 0.0f;
+	LastSmoothShiftUpdateTime = 0.0f;
 	if (!RegisterCharacterEventListener() && bRequireCharacterEventForShift)
 	{
 		UE_LOG(LogPRFaerinShiftSequence, Warning,
@@ -59,11 +69,26 @@ void UPRGameplayAbility_FaerinShiftSequence::ActivateAbility(
 			FVector Destination = FVector::ZeroVector;
 			if (ResolveShiftDestination(Destination))
 			{
-				bShiftApplied = ApplyShiftToTarget(Destination);
+				const bool bShiftStartedOrApplied = ApplyShiftToTarget(Destination);
+				if (!bShiftStartedOrApplied)
+				{
+					FinishShiftSequence(true);
+					return;
+				}
+
+				if (bShiftMoveInProgress)
+				{
+					bShiftResolved = true;
+					bFinishWhenShiftMoveCompletes = true;
+					return;
+				}
+
+				bShiftApplied = true;
+				bShiftResolved = true;
 			}
 		}
 
-		FinishShiftSequence(!bShiftApplied);
+		FinishShiftSequence(!bShiftResolved);
 		return;
 	}
 
@@ -96,6 +121,11 @@ void UPRGameplayAbility_FaerinShiftSequence::EndAbility(
 {
 	UnregisterCharacterEventListener();
 
+	if (UWorld* World = GetWorld())
+	{
+		World->GetTimerManager().ClearTimer(SmoothShiftTimerHandle);
+	}
+
 	if (IsValid(ActiveShiftMontageTask))
 	{
 		ActiveShiftMontageTask->EndTask();
@@ -103,7 +133,13 @@ void UPRGameplayAbility_FaerinShiftSequence::EndAbility(
 	}
 
 	bShiftApplied = false;
+	bShiftResolved = false;
+	bShiftMoveInProgress = false;
+	bFinishWhenShiftMoveCompletes = false;
 	bShiftSequenceFinished = false;
+	ActiveShiftTarget = nullptr;
+	SmoothShiftElapsedSeconds = 0.0f;
+	LastSmoothShiftUpdateTime = 0.0f;
 
 	Super::EndAbility(Handle, ActorInfo, ActivationInfo, bReplicateEndAbility, bWasCancelled);
 }
@@ -141,8 +177,15 @@ void UPRGameplayAbility_FaerinShiftSequence::UnregisterCharacterEventListener()
 
 void UPRGameplayAbility_FaerinShiftSequence::HandleFaerinCharacterEvent(FName EventName)
 {
-	if (bShiftApplied || EventName != ShiftCharacterEventName)
+	if (bShiftResolved || bShiftMoveInProgress || EventName != ShiftCharacterEventName)
 	{
+		return;
+	}
+
+	AActor* TargetActor = GetBossPatternTarget();
+	if (ShouldTargetAvoidShift(TargetActor))
+	{
+		bShiftResolved = true;
 		return;
 	}
 
@@ -157,11 +200,30 @@ void UPRGameplayAbility_FaerinShiftSequence::HandleFaerinCharacterEvent(FName Ev
 		return;
 	}
 
-	bShiftApplied = ApplyShiftToTarget(Destination);
-	if (!bShiftApplied)
+	const bool bShiftStartedOrApplied = ApplyShiftToTarget(Destination);
+	if (!bShiftStartedOrApplied)
 	{
 		FinishShiftSequence(true);
+		return;
 	}
+
+	if (!bShiftMoveInProgress)
+	{
+		bShiftApplied = true;
+	}
+
+	bShiftResolved = true;
+}
+
+bool UPRGameplayAbility_FaerinShiftSequence::ShouldTargetAvoidShift(AActor* TargetActor) const
+{
+	if (!bDodgingTargetAvoidsShift || !IsValid(TargetActor))
+	{
+		return false;
+	}
+
+	const UAbilitySystemComponent* TargetAbilitySystem = UAbilitySystemBlueprintLibrary::GetAbilitySystemComponent(TargetActor);
+	return IsValid(TargetAbilitySystem) && TargetAbilitySystem->HasMatchingGameplayTag(PRGameplayTags::State_Dodging);
 }
 
 bool UPRGameplayAbility_FaerinShiftSequence::ResolveShiftDestination(FVector& OutDestination) const
@@ -271,15 +333,25 @@ bool UPRGameplayAbility_FaerinShiftSequence::ProjectShiftDestinationToGround(
 
 bool UPRGameplayAbility_FaerinShiftSequence::ApplyShiftToTarget(const FVector& Destination)
 {
-	APRBossBaseCharacter* BossCharacter = GetBossAvatarCharacter();
-	AActor* TargetActor = GetBossPatternTarget();
-	if (!IsValid(BossCharacter) || !IsValid(TargetActor))
+	if (TargetMoveMode == EPRFaerinShiftMoveMode::SmoothPull && SmoothPullDuration > 0.0f)
 	{
-		return false;
+		return StartSmoothTargetShift(Destination);
+	}
+
+	return ApplyInstantShiftToTarget(Destination);
+}
+
+FRotator UPRGameplayAbility_FaerinShiftSequence::ResolveTargetRotationAfterShift(const FVector& Destination) const
+{
+	const APRBossBaseCharacter* BossCharacter = GetBossAvatarCharacter();
+	const AActor* TargetActor = GetBossPatternTarget();
+	if (!IsValid(TargetActor))
+	{
+		return FRotator::ZeroRotator;
 	}
 
 	FRotator TargetRotation = TargetActor->GetActorRotation();
-	if (bFaceBossAfterShift)
+	if (bFaceBossAfterShift && IsValid(BossCharacter))
 	{
 		const FVector ToBoss = BossCharacter->GetActorLocation() - Destination;
 		TargetRotation = ToBoss.Rotation();
@@ -287,6 +359,18 @@ bool UPRGameplayAbility_FaerinShiftSequence::ApplyShiftToTarget(const FVector& D
 		TargetRotation.Roll = 0.0f;
 	}
 
+	return TargetRotation;
+}
+
+bool UPRGameplayAbility_FaerinShiftSequence::ApplyInstantShiftToTarget(const FVector& Destination)
+{
+	AActor* TargetActor = GetBossPatternTarget();
+	if (!IsValid(TargetActor))
+	{
+		return false;
+	}
+
+	const FRotator TargetRotation = ResolveTargetRotationAfterShift(Destination);
 	FHitResult SweepHit;
 	const bool bMoved = TargetActor->SetActorLocationAndRotation(
 		Destination,
@@ -300,16 +384,7 @@ bool UPRGameplayAbility_FaerinShiftSequence::ApplyShiftToTarget(const FVector& D
 		return false;
 	}
 
-	if (bStopTargetMovementAfterShift)
-	{
-		if (ACharacter* TargetCharacter = Cast<ACharacter>(TargetActor))
-		{
-			if (UCharacterMovementComponent* MovementComponent = TargetCharacter->GetCharacterMovement())
-			{
-				MovementComponent->StopMovementImmediately();
-			}
-		}
-	}
+	StopShiftedTargetMovement(TargetActor);
 
 	if (bDrawDebug)
 	{
@@ -317,6 +392,156 @@ bool UPRGameplayAbility_FaerinShiftSequence::ApplyShiftToTarget(const FVector& D
 	}
 
 	return true;
+}
+
+bool UPRGameplayAbility_FaerinShiftSequence::StartSmoothTargetShift(const FVector& Destination)
+{
+	AActor* TargetActor = GetBossPatternTarget();
+	UWorld* World = GetWorld();
+	if (!IsValid(TargetActor) || !IsValid(World))
+	{
+		return false;
+	}
+
+	World->GetTimerManager().ClearTimer(SmoothShiftTimerHandle);
+
+	ActiveShiftTarget = TargetActor;
+	SmoothShiftStartLocation = TargetActor->GetActorLocation();
+	SmoothShiftEndLocation = Destination;
+	SmoothShiftStartRotation = TargetActor->GetActorRotation();
+	SmoothShiftEndRotation = ResolveTargetRotationAfterShift(Destination);
+	SmoothShiftElapsedSeconds = 0.0f;
+	LastSmoothShiftUpdateTime = World->GetTimeSeconds();
+	bShiftMoveInProgress = true;
+	bFinishWhenShiftMoveCompletes = false;
+
+	World->GetTimerManager().SetTimer(
+		SmoothShiftTimerHandle,
+		this,
+		&UPRGameplayAbility_FaerinShiftSequence::TickSmoothTargetShift,
+		FMath::Max(SmoothPullTickInterval, 0.005f),
+		true);
+
+	TickSmoothTargetShift();
+	return true;
+}
+
+void UPRGameplayAbility_FaerinShiftSequence::TickSmoothTargetShift()
+{
+	AActor* TargetActor = ActiveShiftTarget.Get();
+	UWorld* World = GetWorld();
+	if (!bShiftMoveInProgress || !IsValid(TargetActor) || !IsValid(World))
+	{
+		CompleteSmoothTargetShift(true);
+		return;
+	}
+
+	const float CurrentTime = World->GetTimeSeconds();
+	const float DeltaTime = LastSmoothShiftUpdateTime > 0.0f
+		? CurrentTime - LastSmoothShiftUpdateTime
+		: FMath::Max(SmoothPullTickInterval, 0.005f);
+	LastSmoothShiftUpdateTime = CurrentTime;
+	SmoothShiftElapsedSeconds += FMath::Max(DeltaTime, 0.0f);
+
+	const float Alpha = SmoothPullDuration > 0.0f
+		? FMath::Clamp(SmoothShiftElapsedSeconds / SmoothPullDuration, 0.0f, 1.0f)
+		: 1.0f;
+	const float EasedAlpha = FMath::InterpEaseInOut(
+		0.0f,
+		1.0f,
+		Alpha,
+		FMath::Max(SmoothPullEaseExponent, 0.1f));
+
+	const FVector NewLocation = FMath::Lerp(SmoothShiftStartLocation, SmoothShiftEndLocation, EasedAlpha);
+	const FQuat NewRotation = FQuat::Slerp(
+		SmoothShiftStartRotation.Quaternion(),
+		SmoothShiftEndRotation.Quaternion(),
+		EasedAlpha);
+
+	FHitResult SweepHit;
+	const bool bMoved = TargetActor->SetActorLocationAndRotation(
+		NewLocation,
+		NewRotation.Rotator(),
+		bSweepTargetMove,
+		bSweepTargetMove ? &SweepHit : nullptr,
+		ETeleportType::TeleportPhysics);
+
+	if (!bMoved)
+	{
+		CompleteSmoothTargetShift(true);
+		return;
+	}
+
+	if (Alpha >= 1.0f)
+	{
+		CompleteSmoothTargetShift(false);
+	}
+}
+
+void UPRGameplayAbility_FaerinShiftSequence::CompleteSmoothTargetShift(bool bWasCancelled)
+{
+	if (!bShiftMoveInProgress)
+	{
+		return;
+	}
+
+	if (UWorld* World = GetWorld())
+	{
+		World->GetTimerManager().ClearTimer(SmoothShiftTimerHandle);
+	}
+
+	AActor* TargetActor = ActiveShiftTarget.Get();
+	bool bFinalMoveSucceeded = true;
+	if (!bWasCancelled && IsValid(TargetActor))
+	{
+		FHitResult SweepHit;
+		bFinalMoveSucceeded = TargetActor->SetActorLocationAndRotation(
+			SmoothShiftEndLocation,
+			SmoothShiftEndRotation,
+			bSweepTargetMove,
+			bSweepTargetMove ? &SweepHit : nullptr,
+			ETeleportType::TeleportPhysics);
+	}
+
+	bShiftMoveInProgress = false;
+	ActiveShiftTarget = nullptr;
+	SmoothShiftElapsedSeconds = 0.0f;
+	LastSmoothShiftUpdateTime = 0.0f;
+
+	if (!bWasCancelled && bFinalMoveSucceeded)
+	{
+		bShiftApplied = true;
+		StopShiftedTargetMovement(TargetActor);
+		if (bDrawDebug)
+		{
+			DrawDebugSphere(GetWorld(), SmoothShiftEndLocation, 60.0f, 16, FColor::Cyan, false, DebugDrawDuration);
+		}
+	}
+	else
+	{
+		bWasCancelled = true;
+	}
+
+	if (bWasCancelled || bFinishWhenShiftMoveCompletes)
+	{
+		FinishShiftSequence(bWasCancelled);
+	}
+}
+
+void UPRGameplayAbility_FaerinShiftSequence::StopShiftedTargetMovement(AActor* TargetActor) const
+{
+	if (!bStopTargetMovementAfterShift)
+	{
+		return;
+	}
+
+	if (ACharacter* TargetCharacter = Cast<ACharacter>(TargetActor))
+	{
+		if (UCharacterMovementComponent* MovementComponent = TargetCharacter->GetCharacterMovement())
+		{
+			MovementComponent->StopMovementImmediately();
+		}
+	}
 }
 
 void UPRGameplayAbility_FaerinShiftSequence::FinishShiftSequence(bool bWasCancelled)
@@ -339,7 +564,13 @@ void UPRGameplayAbility_FaerinShiftSequence::FinishShiftSequence(bool bWasCancel
 
 void UPRGameplayAbility_FaerinShiftSequence::HandleShiftMontageCompleted()
 {
-	if (bRequireCharacterEventForShift && !bShiftApplied)
+	if (bShiftMoveInProgress)
+	{
+		bFinishWhenShiftMoveCompletes = true;
+		return;
+	}
+
+	if (bRequireCharacterEventForShift && !bShiftResolved)
 	{
 		FinishShiftSequence(true);
 		return;
@@ -350,7 +581,13 @@ void UPRGameplayAbility_FaerinShiftSequence::HandleShiftMontageCompleted()
 
 void UPRGameplayAbility_FaerinShiftSequence::HandleShiftMontageBlendOut()
 {
-	if (bRequireCharacterEventForShift && !bShiftApplied)
+	if (bShiftMoveInProgress)
+	{
+		bFinishWhenShiftMoveCompletes = true;
+		return;
+	}
+
+	if (bRequireCharacterEventForShift && !bShiftResolved)
 	{
 		FinishShiftSequence(true);
 		return;

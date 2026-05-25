@@ -47,9 +47,15 @@ void UPRGameplayAbility_FaerinApproachSprint::ActivateAbility(
 	bEndingSprint = false;
 	bPendingEndCancelled = false;
 	LastMovementUpdateTime = 0.0f;
+	BurstElapsedSeconds = 0.0f;
+	CachedBurstDirection = FVector::ZeroVector;
+	bHasCachedBurstDirection = false;
 
-	EnemyCharacter->ApplyCombatMovePresentationContext(ActiveRequest.PresentationConfig);
-	ApplyFocusToTarget();
+	FPREnemyMovePresentationConfig BurstPresentationConfig = ActiveRequest.PresentationConfig;
+	BurstPresentationConfig.bMaintainTargetFocus = false;
+	BurstPresentationConfig.bUseControllerDesiredRotation = false;
+	BurstPresentationConfig.bOrientRotationToMovement = false;
+	EnemyCharacter->ApplyCombatMovePresentationContext(BurstPresentationConfig);
 	PlaySprintMontage();
 	StartApproachMovement();
 }
@@ -77,8 +83,11 @@ void UPRGameplayAbility_FaerinApproachSprint::EndAbility(
 
 	ActiveDirectorComponent = nullptr;
 	ActiveRequest = FPRFaerinApproachSprintRequest();
+	CachedBurstDirection = FVector::ZeroVector;
 	bApproachFinished = true;
 	bEndingSprint = false;
+	BurstElapsedSeconds = 0.0f;
+	bHasCachedBurstDirection = false;
 
 	Super::EndAbility(Handle, ActorInfo, ActivationInfo, bReplicateEndAbility, bWasCancelled);
 }
@@ -233,8 +242,16 @@ void UPRGameplayAbility_FaerinApproachSprint::TickApproachMovement()
 		? CurrentTime - LastMovementUpdateTime
 		: FMath::Max(DistanceCheckInterval, 0.005f);
 	LastMovementUpdateTime = CurrentTime;
+	BurstElapsedSeconds += FMath::Max(DeltaTime, 0.005f);
 
 	if (!MoveDirectlyTowardTarget(FMath::Max(DeltaTime, 0.005f)))
+	{
+		BeginEndSection(false);
+		return;
+	}
+
+	const float MaxBurstSeconds = FMath::Max(DirectionTrackingDuration, 0.0f) + FMath::Max(StraightBurstDuration, 0.0f);
+	if (MaxBurstSeconds > 0.0f && BurstElapsedSeconds >= MaxBurstSeconds)
 	{
 		BeginEndSection(false);
 		return;
@@ -259,26 +276,26 @@ bool UPRGameplayAbility_FaerinApproachSprint::MoveDirectlyTowardTarget(float Del
 		return false;
 	}
 
-	ApplyFocusToTarget();
-
-	FVector MoveDirection = TargetActor->GetActorLocation() - EnemyCharacter->GetActorLocation();
-	if (bConstrainMovementToGround)
-	{
-		MoveDirection.Z = 0.0f;
-	}
-
-	const float DistanceToTarget = MoveDirection.Size();
+	const float DistanceToTarget = CalculateDistanceToTarget();
 	if (DistanceToTarget <= ActiveRequest.StopDistance)
 	{
 		return true;
 	}
 
-	if (!MoveDirection.Normalize())
+	if (!bHasCachedBurstDirection || BurstElapsedSeconds <= DirectionTrackingDuration)
+	{
+		if (!UpdateBurstDirectionFromTarget())
+		{
+			return false;
+		}
+	}
+
+	if (!bHasCachedBurstDirection || CachedBurstDirection.IsNearlyZero())
 	{
 		return false;
 	}
 
-	EnemyCharacter->SetActorRotation(MoveDirection.Rotation());
+	EnemyCharacter->SetActorRotation(CachedBurstDirection.Rotation());
 
 	const float MaxMoveDistance = FMath::Max(DistanceToTarget - ActiveRequest.StopDistance, 0.0f);
 	const float MoveDistance = FMath::Min(ResolveSprintMoveSpeed() * DeltaTime, MaxMoveDistance);
@@ -288,23 +305,38 @@ bool UPRGameplayAbility_FaerinApproachSprint::MoveDirectlyTowardTarget(float Del
 	}
 
 	FHitResult SweepHit;
-	EnemyCharacter->AddActorWorldOffset(MoveDirection * MoveDistance, true, &SweepHit);
+	EnemyCharacter->AddActorWorldOffset(CachedBurstDirection * MoveDistance, true, &SweepHit);
 	return !SweepHit.bBlockingHit;
+}
+
+bool UPRGameplayAbility_FaerinApproachSprint::UpdateBurstDirectionFromTarget()
+{
+	ACharacter* EnemyCharacter = Cast<ACharacter>(GetAvatarActorFromActorInfo());
+	AActor* TargetActor = ActiveRequest.TargetActor.Get();
+	if (!IsValid(EnemyCharacter) || !IsValid(TargetActor))
+	{
+		return false;
+	}
+
+	FVector MoveDirection = TargetActor->GetActorLocation() - EnemyCharacter->GetActorLocation();
+	if (bConstrainMovementToGround)
+	{
+		MoveDirection.Z = 0.0f;
+	}
+
+	if (!MoveDirection.Normalize())
+	{
+		return false;
+	}
+
+	CachedBurstDirection = MoveDirection;
+	bHasCachedBurstDirection = true;
+	return true;
 }
 
 float UPRGameplayAbility_FaerinApproachSprint::ResolveSprintMoveSpeed() const
 {
 	return FMath::Max(SprintMoveSpeed, 0.0f);
-}
-
-void UPRGameplayAbility_FaerinApproachSprint::ApplyFocusToTarget() const
-{
-	APawn* OwnerPawn = Cast<APawn>(GetAvatarActorFromActorInfo());
-	AAIController* AIController = IsValid(OwnerPawn) ? Cast<AAIController>(OwnerPawn->GetController()) : nullptr;
-	if (IsValid(AIController) && IsValid(ActiveRequest.TargetActor))
-	{
-		AIController->SetFocus(ActiveRequest.TargetActor, EAIFocusPriority::Gameplay);
-	}
 }
 
 void UPRGameplayAbility_FaerinApproachSprint::BeginEndSection(bool bWasCancelled)

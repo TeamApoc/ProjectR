@@ -168,6 +168,9 @@ protected:
 	// 패턴 메타데이터와 페이즈 설정을 합쳐 최종 접근 정책을 결정한다.
 	EPRFaerinApproachPolicy ResolveApproachPolicy(const FPRFaerinPatternPlan& PatternPlan, const FPRFaerinPhaseLoopConfig& PhaseConfig) const;
 
+	// 직전 sprint 접근 이후 너무 짧은 시간 안에 다시 접근하려는지 확인한다.
+	bool IsApproachSprintRepeatBlocked() const;
+
 	// 현재 접근 요청 캐시를 초기화한다.
 	void ClearActiveApproachSprintRequest();
 
@@ -212,6 +215,10 @@ protected:
 	// 한 루프 단계가 멈췄을 때 강제로 실패 처리할 시간이다.
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Faerin", meta = (ClampMin = "0.0"))
 	float LoopStepFailSafeSeconds = 12.0f;
+
+	// 플레이어가 계속 멀어질 때 ApproachSprint가 연속 반복되는 것을 막는 최소 간격이다.
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Faerin", meta = (ClampMin = "0.0"))
+	float ApproachSprintRepeatBlockSeconds = 1.25f;
 
 	// 패턴 선택 시 사용할 카테고리 필터다.
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Faerin")
@@ -263,6 +270,7 @@ private:
 	EPRFaerinCombatLoopState LoopState = EPRFaerinCombatLoopState::Idle;
 	EPRFaerinObservedAbilityRole ObservedAbilityRole = EPRFaerinObservedAbilityRole::None;
 	int32 NextStrafeDirectionSign = 1;
+	float LastApproachSprintEndTime = -TNumericLimits<float>::Max();
 	bool bHasLoggedRuntimeValidationErrors = false;
 	bool bHasLoggedInitializationError = false;
 };

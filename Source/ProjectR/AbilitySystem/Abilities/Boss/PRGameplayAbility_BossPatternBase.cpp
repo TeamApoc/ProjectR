@@ -47,5 +47,35 @@ AActor* UPRGameplayAbility_BossPatternBase::GetBossPatternTarget() const
 	}
 
 	const UPREnemyThreatComponent* ThreatComponent = BossCharacter->GetEnemyThreatComponent();
-	return IsValid(ThreatComponent) ? ThreatComponent->GetCurrentTarget() : nullptr;
+	return IsValid(ThreatComponent) ? ThreatComponent->GetAttackTarget() : nullptr;
+}
+
+void UPRGameplayAbility_BossPatternBase::BeginBossPatternAttackCommit()
+{
+	APRBossBaseCharacter* BossCharacter = GetBossAvatarCharacter();
+	UPREnemyThreatComponent* ThreatComponent = IsValid(BossCharacter)
+		? BossCharacter->GetEnemyThreatComponent()
+		: nullptr;
+	if (!IsValid(ThreatComponent))
+	{
+		return;
+	}
+
+	AActor* TargetActor = ThreatComponent->GetAttackTarget();
+	const FVector TargetLocation = IsValid(TargetActor) ? TargetActor->GetActorLocation() : FVector::ZeroVector;
+	ThreatComponent->BeginAttackCommit(TargetActor, TargetLocation);
+}
+
+void UPRGameplayAbility_BossPatternBase::EndBossPatternAttackCommit()
+{
+	APRBossBaseCharacter* BossCharacter = GetBossAvatarCharacter();
+	UPREnemyThreatComponent* ThreatComponent = IsValid(BossCharacter)
+		? BossCharacter->GetEnemyThreatComponent()
+		: nullptr;
+	if (!IsValid(ThreatComponent))
+	{
+		return;
+	}
+
+	ThreatComponent->EndAttackCommit();
 }

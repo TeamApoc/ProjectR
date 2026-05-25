@@ -58,6 +58,7 @@ namespace PRGameplayTags
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Ability_Boss_Faerin_Pattern); // Faerin 전투 패턴 루트
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Ability_Boss_Faerin_PhaseTransition); // Faerin 페이즈 전환
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Ability_Boss_Faerin_MeleeQuickCombo); // Faerin 빠른 근접 콤보
+	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Ability_Boss_Faerin_SpokeCombo); // Faerin Spoke R/L 1타 연계 콤보
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Ability_Boss_Faerin_PortalPairSequence); // Faerin 포털 연계
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Ability_Boss_Faerin_PortalMissileSequence); // Faerin 원작형 미사일 포털 소환
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Ability_Boss_Faerin_PortalBarrageSequence); // Faerin 포털 연속 포격
@@ -65,7 +66,6 @@ namespace PRGameplayTags
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Ability_Boss_Faerin_PortalTorrentSequence); // Faerin Torrent 포털 소환
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Ability_Boss_Faerin_TeleportLungeSequence); // Faerin 원작형 텔레포트 런지
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Ability_Boss_Faerin_ShiftPlayerClose); // Faerin Shift Player Close 패턴 어빌리티
-	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Ability_Boss_Faerin_ShiftPlayerAway); // Faerin Shift Player Away 패턴 어빌리티
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Ability_Boss_Faerin_TeleportDownSequence); // Faerin TeleportDown 패턴 어빌리티
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Ability_Boss_Faerin_CrashSequence); // Faerin Crash 패턴 어빌리티
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Ability_Boss_Faerin_CrashDropSequence); // Faerin CrashDrop 패턴 어빌리티
@@ -132,6 +132,7 @@ namespace PRGameplayTags
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Cooldown_Boss_Faerin_TeleportDown); // Faerin TeleportDown 패턴 쿨다운
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Cooldown_Boss_Faerin_Crash); // Faerin Crash 패턴 쿨다운
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Cooldown_Boss_Faerin_Throw); // Faerin Throw 패턴 쿨다운
+	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Cooldown_Boss_Faerin_SpokeCombo); // Faerin Spoke Combo 패턴 쿨다운
 
 	// ===== Event.* — SendGameplayEventToActor 이벤트 키 =====
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Event_Hit); // 피격 이벤트.

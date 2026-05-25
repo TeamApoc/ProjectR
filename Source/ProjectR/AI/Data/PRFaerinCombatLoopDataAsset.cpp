@@ -154,16 +154,6 @@ bool UPRFaerinCombatLoopDataAsset::ValidateLoopData(
 
 		if (PhaseConfig.bUsePostStrafeApproach
 			&& PhaseConfig.DefaultApproachPolicy == EPRFaerinApproachPolicy::SprintToMeleeRange
-			&& PhaseConfig.ApproachStopDistance > 400.0f)
-		{
-			OutErrors.Add(FString::Printf(
-				TEXT("Faerin sprint 근접 접근의 정지 거리가 너무 멀다. 초근접 돌진 검증 기준은 180~260 권장. Phase=%s, StopDistance=%.1f"),
-				*StaticEnum<EPRBossPhase>()->GetNameStringByValue(static_cast<int64>(PhaseConfig.Phase)),
-				PhaseConfig.ApproachStopDistance));
-		}
-
-		if (PhaseConfig.bUsePostStrafeApproach
-			&& PhaseConfig.DefaultApproachPolicy == EPRFaerinApproachPolicy::SprintToMeleeRange
 			&& PhaseConfig.ApproachTimeoutSeconds <= 0.0f)
 		{
 			OutErrors.Add(FString::Printf(

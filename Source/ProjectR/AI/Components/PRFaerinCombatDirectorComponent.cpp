@@ -303,6 +303,11 @@ bool UPRFaerinCombatDirectorComponent::SelectPatternPlan(UBehaviorTreeComponent&
 
 bool UPRFaerinCombatDirectorComponent::StartOutOfRangeApproach(UBehaviorTreeComponent& OwnerComp)
 {
+	if (IsApproachSprintRepeatBlocked())
+	{
+		return false;
+	}
+
 	if (!IsValid(LoopDataAsset))
 	{
 		return false;
@@ -527,6 +532,11 @@ void UPRFaerinCombatDirectorComponent::HandleObservedAbilityEnded(const FAbility
 
 	if (FinishedRole == EPRFaerinObservedAbilityRole::Approach)
 	{
+		if (UWorld* World = GetWorld())
+		{
+			LastApproachSprintEndTime = World->GetTimeSeconds();
+		}
+
 		ClearActiveApproachSprintRequest();
 		FinishLoopStep(bSucceeded);
 		return;
@@ -788,6 +798,11 @@ bool UPRFaerinCombatDirectorComponent::ShouldRunPostStrafeApproach(
 
 bool UPRFaerinCombatDirectorComponent::StartPostStrafeApproach(const FPRFaerinPhaseLoopConfig& PhaseConfig)
 {
+	if (IsApproachSprintRepeatBlocked())
+	{
+		return false;
+	}
+
 	if (!ShouldRunPostStrafeApproach(ActivePatternPlan, PhaseConfig))
 	{
 		return false;
@@ -878,6 +893,22 @@ EPRFaerinApproachPolicy UPRFaerinCombatDirectorComponent::ResolveApproachPolicy(
 	}
 
 	return PatternPlan.LoopMetadata.ApproachPolicy;
+}
+
+bool UPRFaerinCombatDirectorComponent::IsApproachSprintRepeatBlocked() const
+{
+	if (ApproachSprintRepeatBlockSeconds <= 0.0f)
+	{
+		return false;
+	}
+
+	const UWorld* World = GetWorld();
+	if (World == nullptr)
+	{
+		return false;
+	}
+
+	return World->GetTimeSeconds() - LastApproachSprintEndTime < ApproachSprintRepeatBlockSeconds;
 }
 
 void UPRFaerinCombatDirectorComponent::HandleLoopStepFailSafeElapsed()

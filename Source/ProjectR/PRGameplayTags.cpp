@@ -56,6 +56,7 @@ namespace PRGameplayTags
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Ability_Boss_Faerin_Pattern, "Ability.Boss.Faerin.Pattern", "Faerin 전투 패턴 루트");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Ability_Boss_Faerin_PhaseTransition, "Ability.Boss.Faerin.PhaseTransition", "Faerin 페이즈 전환");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Ability_Boss_Faerin_MeleeQuickCombo, "Ability.Boss.Faerin.MeleeQuickCombo", "Faerin 빠른 근접 콤보");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Ability_Boss_Faerin_SpokeCombo, "Ability.Boss.Faerin.SpokeCombo", "Faerin Spoke R/L 1타 연계 콤보");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Ability_Boss_Faerin_PortalPairSequence, "Ability.Boss.Faerin.PortalPairSequence", "Faerin 포털 연계");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Ability_Boss_Faerin_PortalMissileSequence, "Ability.Boss.Faerin.PortalMissileSequence", "Faerin 원작형 미사일 포털 소환");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Ability_Boss_Faerin_PortalBarrageSequence, "Ability.Boss.Faerin.PortalBarrageSequence", "Faerin 포털 연속 포격");
@@ -63,7 +64,6 @@ namespace PRGameplayTags
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Ability_Boss_Faerin_PortalTorrentSequence, "Ability.Boss.Faerin.PortalTorrentSequence", "Faerin Torrent 포털 소환");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Ability_Boss_Faerin_TeleportLungeSequence, "Ability.Boss.Faerin.TeleportLungeSequence", "Faerin 원작형 텔레포트 런지");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Ability_Boss_Faerin_ShiftPlayerClose, "Ability.Boss.Faerin.ShiftPlayerClose", "Faerin Shift Player Close 패턴 어빌리티");
-	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Ability_Boss_Faerin_ShiftPlayerAway, "Ability.Boss.Faerin.ShiftPlayerAway", "Faerin Shift Player Away 패턴 어빌리티");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Ability_Boss_Faerin_TeleportDownSequence, "Ability.Boss.Faerin.TeleportDownSequence", "Faerin TeleportDown 패턴 어빌리티");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Ability_Boss_Faerin_CrashSequence, "Ability.Boss.Faerin.CrashSequence", "Faerin Crash 패턴 어빌리티");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Ability_Boss_Faerin_CrashDropSequence, "Ability.Boss.Faerin.CrashDropSequence", "Faerin CrashDrop 패턴 어빌리티");
@@ -135,6 +135,7 @@ namespace PRGameplayTags
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Cooldown_Boss_Faerin_TeleportDown, "Cooldown.Boss.Faerin.TeleportDown", "Faerin TeleportDown 패턴 쿨다운");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Cooldown_Boss_Faerin_Crash, "Cooldown.Boss.Faerin.Crash", "Faerin Crash 패턴 쿨다운");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Cooldown_Boss_Faerin_Throw, "Cooldown.Boss.Faerin.Throw", "Faerin Throw 패턴 쿨다운");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Cooldown_Boss_Faerin_SpokeCombo, "Cooldown.Boss.Faerin.SpokeCombo", "Faerin Spoke Combo 패턴 쿨다운");
 
 	// ===== Event.* =====
 

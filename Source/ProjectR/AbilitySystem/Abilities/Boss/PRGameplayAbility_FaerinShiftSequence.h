@@ -8,6 +8,7 @@
 #include "ProjectR/AI/Data/PREnemyCombatDataAsset.h"
 #include "PRGameplayAbility_FaerinShiftSequence.generated.h"
 
+class AActor;
 class UAbilityTask_PlayMontageAndWait;
 class UAnimMontage;
 class UEnvQuery;
@@ -21,8 +22,16 @@ enum class EPRFaerinShiftDestinationMode : uint8
 	DirectionFromBossToTarget	UMETA(DisplayName = "Direction From Boss To Target")
 };
 
-// Faerin ShiftPlayerClose / ShiftPlayerAway를 하나의 공용 Ability로 처리한다.
-// Close/Away 차이는 BP 파생 클래스의 이벤트명, EQS, 거리 설정으로만 나눈다.
+// Faerin Shift가 플레이어를 목적지로 이동시키는 방식이다.
+UENUM(BlueprintType)
+enum class EPRFaerinShiftMoveMode : uint8
+{
+	InstantTeleport	UMETA(DisplayName = "Instant Teleport"),
+	SmoothPull		UMETA(DisplayName = "Smooth Pull")
+};
+
+// Faerin Shift 계열 CharacterEvent를 받아 타깃 위치 이동을 처리하는 공용 Ability다.
+// 현재 Phase1 런타임 경로에서는 ShiftPlayerClose 전용 파생 클래스만 사용한다.
 UCLASS(Abstract)
 class PROJECTR_API UPRGameplayAbility_FaerinShiftSequence : public UPRGameplayAbility_BossPatternBase
 {
@@ -53,8 +62,11 @@ protected:
 	// 등록한 Shift 이벤트 listener를 제거한다.
 	void UnregisterCharacterEventListener();
 
-	// ShiftPlayerClose / ShiftPlayerAway 이벤트를 받아 실제 타겟 이동을 수행한다.
+	// 설정된 CharacterEvent를 받아 실제 타겟 이동을 수행한다.
 	void HandleFaerinCharacterEvent(FName EventName);
+
+	// 현재 타겟이 Shift 판정을 회피할 수 있는 상태인지 확인한다.
+	bool ShouldTargetAvoidShift(AActor* TargetActor) const;
 
 	// 현재 설정에 맞춰 타겟 이동 목적지를 계산한다.
 	bool ResolveShiftDestination(FVector& OutDestination) const;
@@ -70,6 +82,24 @@ protected:
 
 	// 현재 타겟을 계산된 목적지로 이동시킨다.
 	bool ApplyShiftToTarget(const FVector& Destination);
+
+	// 목적지 기준 최종 회전값을 계산한다.
+	FRotator ResolveTargetRotationAfterShift(const FVector& Destination) const;
+
+	// 대상을 목적지로 즉시 이동시킨다.
+	bool ApplyInstantShiftToTarget(const FVector& Destination);
+
+	// 대상을 짧은 시간 동안 목적지로 당기는 이동을 시작한다.
+	bool StartSmoothTargetShift(const FVector& Destination);
+
+	// 진행 중인 Smooth Shift 이동을 갱신한다.
+	void TickSmoothTargetShift();
+
+	// Smooth Shift 이동을 완료하거나 취소한다.
+	void CompleteSmoothTargetShift(bool bWasCancelled);
+
+	// Shift 이후 대상의 이동 속도를 정리한다.
+	void StopShiftedTargetMovement(AActor* TargetActor) const;
 
 	// Ability를 정상/취소 상태로 마무리한다.
 	void FinishShiftSequence(bool bWasCancelled);
@@ -171,6 +201,25 @@ protected:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Faerin|Shift|Target")
 	bool bSweepTargetMove = false;
 
+	// Shift 대상 이동 방식이다. 기존 파생 BP의 동작이 자동 변경되지 않도록 기본값은 즉시 이동으로 둔다.
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Faerin|Shift|Target")
+	EPRFaerinShiftMoveMode TargetMoveMode = EPRFaerinShiftMoveMode::InstantTeleport;
+
+	// SmoothPull이 목적지까지 도달하는 시간이다.
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Faerin|Shift|Target",
+		meta = (EditCondition = "TargetMoveMode == EPRFaerinShiftMoveMode::SmoothPull", ClampMin = "0.0"))
+	float SmoothPullDuration = 0.3f;
+
+	// SmoothPull 갱신 주기다.
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Faerin|Shift|Target",
+		meta = (EditCondition = "TargetMoveMode == EPRFaerinShiftMoveMode::SmoothPull", ClampMin = "0.005"))
+	float SmoothPullTickInterval = 0.016f;
+
+	// SmoothPull 보간 곡선의 강도다.
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Faerin|Shift|Target",
+		meta = (EditCondition = "TargetMoveMode == EPRFaerinShiftMoveMode::SmoothPull", ClampMin = "0.1"))
+	float SmoothPullEaseExponent = 2.0f;
+
 	// Shift 후 타겟 CharacterMovement 속도를 정지할지 여부다.
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Faerin|Shift|Target")
 	bool bStopTargetMovementAfterShift = true;
@@ -178,6 +227,10 @@ protected:
 	// Shift 후 타겟이 보스를 바라보도록 회전을 보정할지 여부다.
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Faerin|Shift|Target")
 	bool bFaceBossAfterShift = true;
+
+	// 타겟이 회피 상태일 때 Shift 이동 판정을 무효화할지 여부다.
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Faerin|Shift|Target")
+	bool bDodgingTargetAvoidsShift = false;
 
 	// Shift 목적지 디버그 표시 여부다.
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Faerin|Shift|Debug")
@@ -194,6 +247,19 @@ private:
 	UPROPERTY(Transient)
 	TObjectPtr<UPRFaerinCharacterEventRouterComponent> ActiveEventRouter;
 
+	UPROPERTY(Transient)
+	TObjectPtr<AActor> ActiveShiftTarget;
+
+	FTimerHandle SmoothShiftTimerHandle;
+	FVector SmoothShiftStartLocation = FVector::ZeroVector;
+	FVector SmoothShiftEndLocation = FVector::ZeroVector;
+	FRotator SmoothShiftStartRotation = FRotator::ZeroRotator;
+	FRotator SmoothShiftEndRotation = FRotator::ZeroRotator;
+	float SmoothShiftElapsedSeconds = 0.0f;
+	float LastSmoothShiftUpdateTime = 0.0f;
 	bool bShiftApplied = false;
+	bool bShiftResolved = false;
+	bool bShiftMoveInProgress = false;
+	bool bFinishWhenShiftMoveCompletes = false;
 	bool bShiftSequenceFinished = false;
 };

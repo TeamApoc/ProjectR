@@ -110,7 +110,7 @@ struct PROJECTR_API FPRFaerinPhaseLoopConfig
 
 	// sprint 접근으로 유지하려는 타깃과의 거리다.
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Faerin", meta = (ClampMin = "0.0"))
-	float ApproachStopDistance = 220.0f;
+	float ApproachStopDistance = 500.0f;
 
 	// 접근 이동을 유지할 최대 시간이다.
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Faerin", meta = (ClampMin = "0.0"))

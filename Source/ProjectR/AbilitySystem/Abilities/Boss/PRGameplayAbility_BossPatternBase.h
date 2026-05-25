@@ -30,4 +30,10 @@ protected:
 	// 보스가 현재 위협 대상으로 삼는 패턴 타겟을 반환한다.
 	UFUNCTION(BlueprintPure, Category = "ProjectR|AI|Boss")
 	AActor* GetBossPatternTarget() const;
+
+	// 현재 패턴 공격 대상이 중간에 바뀌지 않도록 ThreatComponent에 고정한다.
+	void BeginBossPatternAttackCommit();
+
+	// 패턴 공격 대상 고정을 해제하고 보류된 타겟 전환을 처리한다.
+	void EndBossPatternAttackCommit();
 };

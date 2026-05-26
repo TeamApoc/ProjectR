@@ -14,11 +14,6 @@
 #include "ProjectR/PRGameplayTags.h"
 #include "ProjectR/System/PRDeveloperSettings.h"
 
-namespace
-{
-	constexpr int32 TraitPointPerLevel = 2;
-}
-
 UPRPlayerGrowthComponent::UPRPlayerGrowthComponent()
 {
 	PrimaryComponentTick.bCanEverTick = false;
@@ -243,7 +238,35 @@ int32 UPRPlayerGrowthComponent::ResolveLevelFromExperience(int64 InExperience) c
 
 int32 UPRPlayerGrowthComponent::GetTotalEarnedPoint(int32 InLevel) const
 {
-	return FMath::Max(InLevel - 1, 0) * TraitPointPerLevel;
+	UDataTable* Table = ResolveLevelExperienceTable();
+	if (!IsValid(Table))
+	{
+		return 0;
+	}
+
+	int32 TotalEarnedPoint = 0;
+	for (const TPair<FName, uint8*>& RowPair : Table->GetRowMap())
+	{
+		const FPRLevelExperienceRow* Row = reinterpret_cast<const FPRLevelExperienceRow*>(RowPair.Value);
+		if (Row == nullptr)
+		{
+			continue;
+		}
+
+		int32 RowLevel = 0;
+		if (!LexTryParseString(RowLevel, *RowPair.Key.ToString()) || RowLevel < 1)
+		{
+			UE_LOG(LogTemp, Warning, TEXT("[Growth] 레벨 경험치 테이블 RowName은 1 이상의 숫자여야 합니다. RowName = %s"), *RowPair.Key.ToString());
+			continue;
+		}
+
+		if (RowLevel > 1 && RowLevel <= InLevel)
+		{
+			TotalEarnedPoint += FMath::Max(Row->TraitPointReward, 0);
+		}
+	}
+
+	return TotalEarnedPoint;
 }
 
 int32 UPRPlayerGrowthComponent::GetInvestmentPoint(const FPRTraitInvestmentInfo& InvestmentInfo, EPRTraitStatType TraitType) const

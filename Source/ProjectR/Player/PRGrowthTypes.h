@@ -73,6 +73,10 @@ public:
 	// 해당 레벨에 도달하기 위한 누적 경험치
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, meta = (ClampMin = "0"))
 	int32 RequiredTotalExperience = 0;
+
+	// 해당 레벨업으로 지급할 특성 포인트
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, meta = (ClampMin = "0"))
+	int32 TraitPointReward = 2;
 };
 
 // 특성별 투자 공식 Row

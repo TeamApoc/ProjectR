@@ -85,6 +85,14 @@ void APRProjectileBase::SetProjectileInitialVelocity(const FVector& Direction, f
 	SetActorRotation(SafeDirection.Rotation());
 }
 
+float APRProjectileBase::GetProjectileInitialSpeed() const
+{
+	// BP 기본 투사체 속도 조회
+	return IsValid(ProjectileMovementComponent)
+		? ProjectileMovementComponent->InitialSpeed
+		: 0.0f;
+}
+
 void APRProjectileBase::ConfigureProjectileHoming(USceneComponent* HomingTargetComponent, float HomingAcceleration)
 {
 	if (!IsValid(ProjectileMovementComponent))

@@ -43,6 +43,12 @@ void UPRGameplayAbility_EnemyMeleeAttack::ActivateAbility(const FGameplayAbility
 		return;
 	}
 
+	if (UAbilitySystemComponent* AbilitySystemComponent = GetAbilitySystemComponentFromActorInfo())
+	{
+		// 공격 실행 상태 태그
+		AbilitySystemComponent->AddLooseGameplayTag(PRGameplayTags::State_Enemy_Attacking);
+	}
+
 	DamagedActors.Reset();
 	bMeleeAttackFinished = false;
 	bMeleeHitTriggered = false;
@@ -226,6 +232,12 @@ void UPRGameplayAbility_EnemyMeleeAttack::EndAbility(const FGameplayAbilitySpecH
 	bHasPreviousMeleeWindowTracePoint = false;
 	PreviousMeleeWindowTracePoint = FVector::ZeroVector;
 	PreviousMeleeWindowPhysicsBodyTracePoints.Reset();
+
+	if (UAbilitySystemComponent* AbilitySystemComponent = GetAbilitySystemComponentFromActorInfo())
+	{
+		// 공격 실행 상태 태그 정리
+		AbilitySystemComponent->RemoveLooseGameplayTag(PRGameplayTags::State_Enemy_Attacking);
+	}
 
 	EndThreatAttackCommit();
 	Super::EndAbility(Handle, ActorInfo, ActivationInfo, bReplicateEndAbility, bWasCancelled);

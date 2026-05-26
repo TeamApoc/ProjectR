@@ -28,6 +28,13 @@ public:
 
 	/*~ UGameplayAbility Interface ~*/
 public:
+	// 투사체 공격 Ability의 활성화 가능 여부를 확인한다.
+	virtual bool CanActivateAbility(const FGameplayAbilitySpecHandle Handle,
+		const FGameplayAbilityActorInfo* ActorInfo,
+		const FGameplayTagContainer* SourceTags,
+		const FGameplayTagContainer* TargetTags,
+		FGameplayTagContainer* OptionalRelevantTags) const override;
+
 	// 투사체 공격 Ability를 활성화하고 몽타주와 발사 타이머를 시작한다.
 	virtual void ActivateAbility(const FGameplayAbilitySpecHandle Handle,
 		const FGameplayAbilityActorInfo* ActorInfo,
@@ -74,6 +81,9 @@ protected:
 	// 투사체 조준 방향을 계산한다.
 	virtual FVector CalculateProjectileAimDirection(const FVector& SpawnLocation) const;
 
+	// 조준 보정에 사용할 투사체 속도를 계산한다.
+	float ResolveProjectileSpeedForAiming() const;
+
 	// 현재 공격 타겟을 반환한다.
 	AActor* GetCurrentThreatTarget() const;
 
@@ -88,6 +98,9 @@ protected:
 
 	// 공격 종료 처리를 수행한다.
 	void FinishProjectileAttack();
+
+	// 설정된 쿨다운 GE를 자기 ASC에 적용한다.
+	void ApplyConfiguredCooldown();
 
 private:
 	uint32 GenerateProjectileId();
@@ -115,7 +128,7 @@ protected:
 
 	// 투사체 속도 Override. 0 이하면 투사체 BP 기본 속도를 사용한다.
 	UPROPERTY(EditDefaultsOnly, Category = "ProjectR|Projectile", meta = (ClampMin = "0.0"))
-	float ProjectileSpeedOverride = 2600.0f;
+	float ProjectileSpeedOverride = 0.0f;
 
 	// 타겟 속도 예측 계수. 0이면 현재 위치만 조준한다.
 	UPROPERTY(EditDefaultsOnly, Category = "ProjectR|Projectile", meta = (ClampMin = "0.0"))
@@ -161,6 +174,14 @@ protected:
 	UPROPERTY(EditDefaultsOnly, Category = "ProjectR|Facing")
 	bool bFaceTargetOnAbilityStart = true;
 
+	// 공격 모션 시작 후 EndAbility에서 적용할 쿨다운 GE
+	UPROPERTY(EditDefaultsOnly, Category = "ProjectR|Cooldown")
+	TSubclassOf<UGameplayEffect> CooldownEffectClass;
+
+	// 쿨다운 GE가 부여하는 활성화 차단 태그
+	UPROPERTY(EditDefaultsOnly, Category = "ProjectR|Cooldown")
+	FGameplayTag CooldownBlockedTag;
+
 private:
 	UPROPERTY(Transient)
 	TObjectPtr<UAbilityTask_PlayMontageAndWait> ActiveMontageTask;
@@ -178,4 +199,5 @@ private:
 	bool bProjectileFired = false;
 	bool bProjectileAttackFinished = false;
 	bool bWaitingProjectileFireNotify = false;
+	bool bCooldownEligibleAfterMontageStart = false;
 };

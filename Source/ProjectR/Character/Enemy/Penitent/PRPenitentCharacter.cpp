@@ -2,13 +2,30 @@
 
 #include "PRPenitentCharacter.h"
 
-#include "GameFramework/CharacterMovementComponent.h"
+#include "ProjectR/Actors/Enemy/PRPenitentBarrierActor.h"
 
 APRPenitentCharacter::APRPenitentCharacter()
 {
 	// 스탯 Registry / DT_EnemyStats의 RowName과 맞아야 한다.
 	CharacterID = TEXT("Penitent");
+}
 
-	GetCharacterMovement()->MaxWalkSpeed = 260.0f;
-	GetCharacterMovement()->RotationRate = FRotator(0.0f, 420.0f, 0.0f);
+void APRPenitentCharacter::SetSpawnedBarrierActor(APRPenitentBarrierActor* InBarrierActor)
+{
+	SpawnedBarrierActor = InBarrierActor;
+}
+
+void APRPenitentCharacter::ClearSpawnedBarrierActor(APRPenitentBarrierActor* BarrierActorToClear)
+{
+	if (IsValid(BarrierActorToClear) && SpawnedBarrierActor != BarrierActorToClear)
+	{
+		return;
+	}
+
+	SpawnedBarrierActor = nullptr;
+}
+
+bool APRPenitentCharacter::HasActiveBarrier() const
+{
+	return IsValid(SpawnedBarrierActor);
 }

@@ -27,21 +27,58 @@ UPRGameplayAbility_EnemyProjectileAttack::UPRGameplayAbility_EnemyProjectileAtta
 	ActivationBlockedTags.AddTag(PRGameplayTags::State_PhaseTransitioning);
 }
 
+bool UPRGameplayAbility_EnemyProjectileAttack::CanActivateAbility(const FGameplayAbilitySpecHandle Handle,
+	const FGameplayAbilityActorInfo* ActorInfo,
+	const FGameplayTagContainer* SourceTags,
+	const FGameplayTagContainer* TargetTags,
+	FGameplayTagContainer* OptionalRelevantTags) const
+{
+	if (!Super::CanActivateAbility(Handle, ActorInfo, SourceTags, TargetTags, OptionalRelevantTags))
+	{
+		return false;
+	}
+
+	if (!CooldownBlockedTag.IsValid() || ActorInfo == nullptr)
+	{
+		return true;
+	}
+
+	const UAbilitySystemComponent* ASC = ActorInfo->AbilitySystemComponent.Get();
+	if (IsValid(ASC) && ASC->HasMatchingGameplayTag(CooldownBlockedTag))
+	{
+		// 재사용 차단 태그 검사
+		if (OptionalRelevantTags != nullptr)
+		{
+			OptionalRelevantTags->AddTag(PRGameplayTags::Fail_Cooldown);
+		}
+		return false;
+	}
+
+	return true;
+}
+
 void UPRGameplayAbility_EnemyProjectileAttack::ActivateAbility(const FGameplayAbilitySpecHandle Handle,
 	const FGameplayAbilityActorInfo* ActorInfo,
 	const FGameplayAbilityActivationInfo ActivationInfo,
 	const FGameplayEventData* TriggerEventData)
 {
 	AActor* AvatarActor = GetAvatarActorFromActorInfo();
-	if (!IsValid(AvatarActor) || !AvatarActor->HasAuthority() || !CommitAbility(Handle, ActorInfo, ActivationInfo))
+	if (!IsValid(AvatarActor) || !AvatarActor->HasAuthority() || !IsValid(GetCurrentThreatTarget()) || !CommitAbility(Handle, ActorInfo, ActivationInfo))
 	{
 		EndAbility(Handle, ActorInfo, ActivationInfo, true, true);
 		return;
 	}
 
+	if (UAbilitySystemComponent* AbilitySystemComponent = GetAbilitySystemComponentFromActorInfo())
+	{
+		// 공격 실행 상태 태그
+		AbilitySystemComponent->AddLooseGameplayTag(PRGameplayTags::State_Enemy_Attacking);
+	}
+
 	bProjectileFired = false;
 	bProjectileAttackFinished = false;
 	bWaitingProjectileFireNotify = false;
+	bCooldownEligibleAfterMontageStart = false;
 	SelectedAttackMontage = SelectAttackMontage();
 
 	if (ACharacter* SourceCharacter = Cast<ACharacter>(AvatarActor))
@@ -77,7 +114,17 @@ void UPRGameplayAbility_EnemyProjectileAttack::ActivateAbility(const FGameplayAb
 			ActiveMontageTask->OnInterrupted.AddDynamic(this, &UPRGameplayAbility_EnemyProjectileAttack::HandleAttackMontageInterrupted);
 			ActiveMontageTask->OnCancelled.AddDynamic(this, &UPRGameplayAbility_EnemyProjectileAttack::HandleAttackMontageInterrupted);
 			ActiveMontageTask->ReadyForActivation();
+			bCooldownEligibleAfterMontageStart = true;
 		}
+		else
+		{
+			EndAbility(Handle, ActorInfo, ActivationInfo, true, true);
+			return;
+		}
+	}
+	else
+	{
+		bCooldownEligibleAfterMontageStart = true;
 	}
 
 	if (bHasAttackMontage && bUseAnimationNotifyForFire)
@@ -152,11 +199,23 @@ void UPRGameplayAbility_EnemyProjectileAttack::EndAbility(const FGameplayAbility
 		ActiveProjectileFireEventTask = nullptr;
 	}
 
+	if (bCooldownEligibleAfterMontageStart)
+	{
+		ApplyConfiguredCooldown();
+	}
+
 	EndThreatAttackCommit();
 	bProjectileFired = false;
 	bProjectileAttackFinished = false;
 	bWaitingProjectileFireNotify = false;
+	bCooldownEligibleAfterMontageStart = false;
 	SelectedAttackMontage = nullptr;
+
+	if (UAbilitySystemComponent* AbilitySystemComponent = GetAbilitySystemComponentFromActorInfo())
+	{
+		// 공격 실행 상태 태그 정리
+		AbilitySystemComponent->RemoveLooseGameplayTag(PRGameplayTags::State_Enemy_Attacking);
+	}
 
 	Super::EndAbility(Handle, ActorInfo, ActivationInfo, bReplicateEndAbility, bWasCancelled);
 }
@@ -347,7 +406,7 @@ FVector UPRGameplayAbility_EnemyProjectileAttack::CalculateProjectileAimDirectio
 	}
 
 	FVector AimLocation = TargetActor->GetActorLocation();
-	const float ResolvedSpeed = ProjectileSpeedOverride > 0.0f ? ProjectileSpeedOverride : 3500.0f;
+	const float ResolvedSpeed = ResolveProjectileSpeedForAiming();
 	const float Distance = FVector::Distance(SpawnLocation, AimLocation);
 	if (ResolvedSpeed > 0.0f && ProjectileTargetLead > 0.0f)
 	{
@@ -358,6 +417,30 @@ FVector UPRGameplayAbility_EnemyProjectileAttack::CalculateProjectileAimDirectio
 
 	const FVector AimDirection = (AimLocation - SpawnLocation).GetSafeNormal();
 	return AimDirection.IsNearlyZero() ? AvatarActor->GetActorForwardVector() : AimDirection;
+}
+
+float UPRGameplayAbility_EnemyProjectileAttack::ResolveProjectileSpeedForAiming() const
+{
+	if (ProjectileSpeedOverride > 0.0f)
+	{
+		return ProjectileSpeedOverride;
+	}
+
+	const APRProjectileBase* ProjectileCDO = IsValid(ProjectileClass)
+		? ProjectileClass->GetDefaultObject<APRProjectileBase>()
+		: nullptr;
+
+	// 투사체 BP 속도 기반 조준 보정
+	if (IsValid(ProjectileCDO))
+	{
+		const float ProjectileInitialSpeed = ProjectileCDO->GetProjectileInitialSpeed();
+		if (ProjectileInitialSpeed > 0.0f)
+		{
+			return ProjectileInitialSpeed;
+		}
+	}
+
+	return 3500.0f;
 }
 
 AActor* UPRGameplayAbility_EnemyProjectileAttack::GetCurrentThreatTarget() const
@@ -453,6 +536,35 @@ void UPRGameplayAbility_EnemyProjectileAttack::FinishProjectileAttack()
 
 	bProjectileAttackFinished = true;
 	EndAbility(CurrentSpecHandle, CurrentActorInfo, CurrentActivationInfo, true, false);
+}
+
+void UPRGameplayAbility_EnemyProjectileAttack::ApplyConfiguredCooldown()
+{
+	if (!IsValid(CooldownEffectClass))
+	{
+		return;
+	}
+
+	UAbilitySystemComponent* ASC = GetAbilitySystemComponentFromActorInfo();
+	AActor* AvatarActor = GetAvatarActorFromActorInfo();
+	if (!IsValid(ASC) || !IsValid(AvatarActor) || !AvatarActor->HasAuthority())
+	{
+		return;
+	}
+
+	FGameplayEffectContextHandle EffectContext = ASC->MakeEffectContext();
+	EffectContext.AddSourceObject(AvatarActor);
+
+	FGameplayEffectSpecHandle SpecHandle = ASC->MakeOutgoingSpec(
+		CooldownEffectClass,
+		GetAbilityLevel(),
+		EffectContext);
+
+	// 공격 시작 후 쿨다운 GE 적용
+	if (SpecHandle.IsValid())
+	{
+		ASC->ApplyGameplayEffectSpecToSelf(*SpecHandle.Data.Get());
+	}
 }
 
 uint32 UPRGameplayAbility_EnemyProjectileAttack::GenerateProjectileId()

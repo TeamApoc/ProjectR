@@ -33,6 +33,8 @@ public:
 	/*~ IAbilitySystemInterface ~*/
 	virtual UAbilitySystemComponent* GetAbilitySystemComponent() const override;
 
+	/*~ IPRCombatInterface ~*/
+	virtual bool IsDead() const override;
 public:
 	// 프로젝트 ASC 타입으로 반환
 	virtual UPRAbilitySystemComponent* GetPRAbilitySystemComponent() const;

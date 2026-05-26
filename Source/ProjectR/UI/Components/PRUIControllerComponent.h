@@ -167,7 +167,7 @@ protected:
 	// 생성 후 재사용할 상점 위젯
 	UPROPERTY(Transient)
 	TObjectPtr<UPRShopWidget> ShopWidget;
-
+	
 	// HUD 위젯 클래스. BP에서 지정
 	UPROPERTY(EditDefaultsOnly, Category = "ProjectR|HUD")
 	TSubclassOf<UPRHUDWidget> HUDWidgetClass;

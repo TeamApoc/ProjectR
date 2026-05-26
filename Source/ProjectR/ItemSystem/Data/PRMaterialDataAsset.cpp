@@ -6,7 +6,7 @@
 
 UPRMaterialDataAsset::UPRMaterialDataAsset()
 {
-	SetItemType(EPRItemType::Material);
+	ItemType = EPRItemType::Material;
 	ItemInstanceClass = UPRItemInstance_Material::StaticClass();
 	MaxStackCount = 999;
 }

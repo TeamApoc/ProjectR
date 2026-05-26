@@ -32,5 +32,4 @@ public:
 protected:
 	// 사용 가능한 상태인지 확인
 	virtual bool CanUseItem(AActor* UserActor) const;
-
 };

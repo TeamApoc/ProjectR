@@ -924,7 +924,7 @@ void UPRWeaponManagerComponent::ApplyEquipModGE(EPRWeaponSlotType SlotType, cons
 	}
 
 	const float MaxGauge = FMath::Max(ModData->MaxModGauge, 0.0f);
-	const float MaxStack = FMath::Max(ModData->MaxModStck, 0.0f);
+	const float MaxStack = FMath::Max(ModData->MaxModStack, 0.0f);
 
 	if (SlotType == EPRWeaponSlotType::Primary)
 	{

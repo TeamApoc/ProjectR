@@ -6,6 +6,7 @@
 #include "GameplayEffectTypes.h"
 #include "GameplayTagContainer.h"
 #include "ProjectR/ItemSystem/Types/PRWeaponTypes.h"
+#include "ProjectR/ItemSystem/Types/PREquipmentTypes.h"
 #include "PRGameTypes.generated.h"
 
 /*~ 세이브 포맷 버전 ~*/
@@ -290,11 +291,30 @@ struct FPRQuickSlotSaveData
 	TArray<TSoftObjectPtr<UPRConsumableDataAsset>> RegisteredConsumables;
 };
 
+// 장비 슬롯 저장 엔트리
+USTRUCT(BlueprintType)
+struct FPREquipmentSlotSaveEntry
+{
+	GENERATED_BODY()
+
+	// 장착 슬롯
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	EPREquipmentSlotType SlotType = EPREquipmentSlotType::None;
+
+	// 인벤토리 내 장비 아이템 인덱스
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	int32 EquipmentItemIndex = INDEX_NONE;
+};
+
 // 비무기 장비 저장 데이터
 USTRUCT(BlueprintType)
 struct FPREquipmentSaveData
 {
 	GENERATED_BODY()
+
+	// 슬롯별 장착 장비 인덱스 목록
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	TArray<FPREquipmentSlotSaveEntry> EquippedSlots;
 };
 
 // 재화 저장 데이터

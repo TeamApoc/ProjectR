@@ -295,7 +295,7 @@ bool UPRQuickSlotComponent::UseQuickSlotInternal(int32 SlotIndex)
 		return false;
 	}
 
-	AActor* UseActor = ResolveUseActor();
+	AActor* UseActor = GetOwner();
 	if (!IsValid(UseActor))
 	{
 		return false;
@@ -353,23 +353,6 @@ UPRInventoryComponent* UPRQuickSlotComponent::ResolveInventoryComponent() const
 	}
 
 	return OwnerActor->FindComponentByClass<UPRInventoryComponent>();
-}
-
-AActor* UPRQuickSlotComponent::ResolveUseActor() const
-{
-	AActor* OwnerActor = GetOwner();
-	if (!IsValid(OwnerActor))
-	{
-		return nullptr;
-	}
-
-	AController* OwnerController = Cast<AController>(OwnerActor->GetOwner());
-	if (!IsValid(OwnerController))
-	{
-		return nullptr;
-	}
-
-	return OwnerController->GetPawn();
 }
 
 bool UPRQuickSlotComponent::IsValidSlotIndex(int32 SlotIndex) const

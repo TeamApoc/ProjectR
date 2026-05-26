@@ -106,10 +106,49 @@ UPRWeaponManagerComponent* UPRGameplayStatics::GetWeaponManagerComponent(AActor*
 	
 	if (AsPawn)
 	{
-		if (APRPlayerCharacter* PlayerCharacter = Cast<APRPlayerCharacter>(AsPawn))
+		if (APRPlayerState* PS = Cast<APRPlayerState>(AsPawn->GetPlayerState()))
 		{
-			return PlayerCharacter->GetWeaponManager();
+			return PS->GetWeaponManagerComponent();
 		}
+	}
+	
+	if (APRPlayerState* PS = Cast<APRPlayerState>(Actor))
+	{
+		return PS->GetWeaponManagerComponent();
+	}
+	
+	return nullptr;
+}
+
+UPREquipmentManagerComponent* UPRGameplayStatics::GetEquipmentManagerComponent(AActor* Actor)
+{
+	if (!IsValid(Actor))
+	{
+		return nullptr;
+	}
+	
+	APawn* AsPawn = nullptr;
+	
+	if (APawn* Pawn = Cast<APawn>(Actor))
+	{
+		AsPawn = Pawn;
+	}
+	else if (AController* Controller = Cast<AController>(Actor))
+	{
+		AsPawn = Controller->GetPawn();
+	}
+	
+	if (AsPawn)
+	{
+		if (APRPlayerState* PS = Cast<APRPlayerState>(AsPawn->GetPlayerState()))
+		{
+			return PS->GetEquipmentManagerComponent();
+		}
+	}
+	
+	if (APRPlayerState* PS = Cast<APRPlayerState>(Actor))
+	{
+		return PS->GetEquipmentManagerComponent();
 	}
 	
 	return nullptr;

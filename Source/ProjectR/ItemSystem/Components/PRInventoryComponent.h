@@ -38,8 +38,10 @@ enum class EPRInventoryChangeReason : uint8
 	WeaponUpgradeChanged,
 	// 아이템 보유 개수가 변경되었다
 	StackChanged,
-	// 세이브 복원 기반 인벤토리 전체 갱신
-	BulkRestored
+	// 인벤토리 전체 갱신
+	BulkRestored,
+	// 장비 장착 상태 변경
+	EquipmentChanged
 };
 
 USTRUCT(BlueprintType)

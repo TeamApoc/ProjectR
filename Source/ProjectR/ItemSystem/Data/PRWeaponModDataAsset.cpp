@@ -6,6 +6,29 @@
 
 UPRWeaponModDataAsset::UPRWeaponModDataAsset()
 {
-	SetItemType(EPRItemType::Mod);
+	ItemType =EPRItemType::Mod;
 	ItemInstanceClass = UPRItemInstance_Mod::StaticClass();
+}
+
+void UPRWeaponModDataAsset::GiveToAbilitySystem(UAbilitySystemComponent* TargetASC,  FPRAbilitySetHandles& OutHandles, UObject* InSourceObject)
+{
+	for (const FPRAbilityEntry& Entry :EquippedAbilities)
+	{
+		if (!Entry.IsValid())
+		{
+			continue;
+		}
+
+		Entry.GiveToAbilitySystem(TargetASC, OutHandles, InSourceObject);
+	}
+
+	for (const FPREffectEntry& Entry :EquippedEffects)
+	{
+		if (!Entry.IsValid())
+		{
+			continue;
+		}
+		
+		Entry.GiveToAbilitySystem(TargetASC, OutHandles, InSourceObject);
+	}
 }

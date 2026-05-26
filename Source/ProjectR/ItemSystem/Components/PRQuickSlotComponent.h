@@ -92,9 +92,6 @@ protected:
 	// 현재 소유자의 인벤토리 컴포넌트를 조회한다
 	UPRInventoryComponent* ResolveInventoryComponent() const;
 
-	// 현재 소유자의 사용 대상 액터를 조회한다
-	AActor* ResolveUseActor() const;
-
 	// 슬롯 인덱스가 유효한지 확인한다
 	bool IsValidSlotIndex(int32 SlotIndex) const;
 

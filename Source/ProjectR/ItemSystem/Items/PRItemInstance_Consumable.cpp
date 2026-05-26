@@ -1,29 +1,12 @@
 // Copyright (c) 2026 TeamApoc. All Rights Reserved.
 
 #include "PRItemInstance_Consumable.h"
-
 #include "AbilitySystemComponent.h"
 #include "GameFramework/Actor.h"
-#include "Net/UnrealNetwork.h"
 #include "ProjectR/AbilitySystem/Abilities/Player/Consumable/PRGA_UseConsumable.h"
-#include "ProjectR/Character/PRCharacterBase.h"
 #include "ProjectR/ItemSystem/Components/PRInventoryComponent.h"
 #include "ProjectR/ItemSystem/Data/PRConsumableDataAsset.h"
-
-namespace
-{
-	// 소비 아이템 사용 대상의 ASC를 조회
-	UAbilitySystemComponent* ResolveUseTargetAbilitySystem(AActor* UserActor)
-	{
-		APRCharacterBase* UserCharacter = Cast<APRCharacterBase>(UserActor);
-		if (!IsValid(UserCharacter))
-		{
-			return nullptr;
-		}
-
-		return UserCharacter->GetAbilitySystemComponent();
-	}
-}
+#include "ProjectR/Utils/PRGameplayStatics.h"
 
 void UPRItemInstance_Consumable::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const
 {
@@ -65,7 +48,7 @@ bool UPRItemInstance_Consumable::UseItem(AActor* UserActor)
 		return false;
 	}
 
-	UAbilitySystemComponent* ASC = ResolveUseTargetAbilitySystem(UserActor);
+	UAbilitySystemComponent* ASC = UPRGameplayStatics::GetAbilitySystemComponent(UserActor);
 	if (!IsValid(ASC) || !IsValid(ConsumableData->UseAbilityClass))
 	{
 		UE_LOG(

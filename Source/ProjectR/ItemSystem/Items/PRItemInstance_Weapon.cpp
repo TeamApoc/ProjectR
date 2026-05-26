@@ -55,8 +55,6 @@ void UPRItemInstance_Weapon::InitializeMod(UPRWeaponModDataAsset* InModData)
 	ModData = InModData;
 	ClearEquippedModItem();
 	bIsEquippedCurrentWeaponSlot = false;
-	CachedWeaponAbilitySet = nullptr;
-	CachedModAbilitySet = nullptr;
 }
 
 UPRWeaponDataAsset* UPRItemInstance_Weapon::GetWeaponData() const
@@ -93,7 +91,6 @@ bool UPRItemInstance_Weapon::HasEquippedModItem() const
 void UPRItemInstance_Weapon::SetModData(UPRWeaponModDataAsset* NewModData)
 {
 	ModData = NewModData;
-	CachedModAbilitySet = nullptr;
 }
 
 void UPRItemInstance_Weapon::SetEquippedModItem(UPRItemInstance_Mod* NewModItem)
@@ -157,15 +154,15 @@ void UPRItemInstance_Weapon::GrantEquippedAbilitySets(AActor* OwnerActor)
 	{
 		return;
 	}
-
-	if (UPRAbilitySet* WeaponAbilitySet = GetWeaponAbilitySet())
+	
+	if (UPRWeaponDataAsset* WeaponData = GetWeaponData())
 	{
-		ASC->GiveAbilitySet(WeaponAbilitySet, WeaponAbilityHandles, this);
+		WeaponData->GiveToAbilitySystem(ASC,WeaponAbilityHandles,this);
 	}
 
-	if (UPRAbilitySet* ModAbilitySet = GetModAbilitySet())
+	if (IsValid(ModData))
 	{
-		ASC->GiveAbilitySet(ModAbilitySet, ModAbilityHandles, this);
+		ModData->GiveToAbilitySystem(ASC,ModAbilityHandles,this);
 	}
 
 	LastWeaponFailReason = EPRWeaponActionFailReason::None;
@@ -252,10 +249,7 @@ void UPRItemInstance_Weapon::RebuildModAbility(AActor* OwnerActor, UPRWeaponModD
 
 	if (bWasEquipped)
 	{
-		if (UPRAbilitySet* ModAbilitySet = GetModAbilitySet())
-		{
-			ASC->GiveAbilitySet(ModAbilitySet, ModAbilityHandles, this);
-		}
+		NewModData->GiveToAbilitySystem(ASC,ModAbilityHandles,this);
 	}
 
 	UE_LOG(
@@ -303,43 +297,6 @@ bool UPRItemInstance_Weapon::SetUpgradeLevel(int32 NewLevel)
 bool UPRItemInstance_Weapon::IncreaseUpgradeLevel()
 {
 	return SetUpgradeLevel(UpgradeLevel + 1);
-}
-
-UPRAbilitySet* UPRItemInstance_Weapon::GetWeaponAbilitySet()
-{
-	auto WeaponData = GetWeaponData();
-	if (!IsValid(WeaponData))
-	{
-		return nullptr;
-	}
-
-	if (!IsValid(CachedWeaponAbilitySet))
-	{
-		CachedWeaponAbilitySet = CreateRuntimeAbilitySet(
-			this,
-			WeaponData->EquippedAbilities,
-			WeaponData->EquippedEffects);
-	}
-
-	return CachedWeaponAbilitySet;
-}
-
-UPRAbilitySet* UPRItemInstance_Weapon::GetModAbilitySet()
-{
-	if (!IsValid(ModData))
-	{
-		return nullptr;
-	}
-
-	if (!IsValid(CachedModAbilitySet))
-	{
-		CachedModAbilitySet = CreateRuntimeAbilitySet(
-			this,
-			ModData->EquippedAbilities,
-			ModData->EquippedEffects);
-	}
-
-	return CachedModAbilitySet;
 }
 
 void UPRItemInstance_Weapon::OnRep_ModData()

@@ -3,7 +3,7 @@
 
 UPRConsumableDataAsset::UPRConsumableDataAsset()
 {
-	SetItemType(EPRItemType::Consumable);
+	ItemType = EPRItemType::Consumable;
 	ItemInstanceClass = UPRItemInstance_Consumable::StaticClass();
 	MaxStackCount = 99;
 }

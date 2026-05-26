@@ -20,13 +20,13 @@
 #include "ProjectR/AbilitySystem/AttributeSets/PRAttributeSet_Common.h"
 #include "ProjectR/Interaction/PRInteractableComponent.h"
 #include "ProjectR/Player/PRCameraModifier.h"
-#include "ProjectR/Weapon/Components/PRWeaponManagerComponent.h"
+#include "ProjectR/ItemSystem/Components/PRWeaponManagerComponent.h"
 #include "ProjectR/Player/Components/PRActionInputRouterComponent.h"
 #include "ProjectR/Player/Components/PRFlashlightComponent.h"
 #include "ProjectR/Player/Components/PRSpringArmComponent.h"
 #include "ProjectR/Projectile/PRProjectileTrajectoryPreviewComponent.h"
 #include "ProjectR/System/PREventManagerSubsystem.h"
-#include "ProjectR/Weapon/Actors/PRWeaponActor.h"
+#include "ProjectR/ItemSystem/Actors/PRWeaponActor.h"
 
 
 // Sets default values

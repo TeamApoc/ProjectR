@@ -4,8 +4,8 @@
 
 #include "CoreMinimal.h"
 #include "ProjectR/AbilitySystem/Data/PRAbilitySet.h"
-#include "ProjectR/Inventory/Items/PRItemInstance.h"
-#include "ProjectR/Weapon/Types/PRWeaponTypes.h"
+#include "ProjectR/ItemSystem/Items/PRItemInstance.h"
+#include "ProjectR/ItemSystem/Types/PRWeaponTypes.h"
 #include "PRItemInstance_Weapon.generated.h"
 
 class AActor;
@@ -14,7 +14,7 @@ class UPRWeaponDataAsset;
 class UPRWeaponModDataAsset;
 struct FPRWeaponItemSaveEntry;
 
-// 인벤토리가 소유하는 무기 1개의 지속 인스턴스다
+// 인벤토리가 소유하는 무기 1개의 지속 인스턴스
 UCLASS(BlueprintType, EditInlineNew, DefaultToInstanced)
 class PROJECTR_API UPRItemInstance_Weapon : public UPRItemInstance
 {

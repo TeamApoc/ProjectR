@@ -6,9 +6,9 @@
 #include "Logging/LogMacros.h"
 #include "Net/UnrealNetwork.h"
 #include "ProjectR/Game/PRGameTypes.h"
-#include "ProjectR/Inventory/Components/PRInventoryComponent.h"
-#include "ProjectR/Weapon/Data/PRWeaponModDataAsset.h"
-#include "ProjectR/Weapon/Items/PRItemInstance_Weapon.h"
+#include "ProjectR/ItemSystem/Components/PRInventoryComponent.h"
+#include "ProjectR/ItemSystem/Data/PRWeaponModDataAsset.h"
+#include "ProjectR/ItemSystem/Items/PRItemInstance_Weapon.h"
 
 void UPRItemInstance_Mod::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const
 {

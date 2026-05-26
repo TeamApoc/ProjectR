@@ -37,9 +37,9 @@
 #include "Components/CapsuleComponent.h"
 #include "ProjectR/AbilitySystem/PRGameplayAbility.h"
 #include "ProjectR/Combat/PRCombatGameplayTags.h"
-#include "ProjectR/Weapon/Data/PRWeaponDataAsset.h"
-#include "ProjectR/Weapon/Items/PRItemInstance_Mod.h"
-#include "ProjectR/Weapon/Items/PRItemInstance_Weapon.h"
+#include "ProjectR/ItemSystem/Data/PRWeaponDataAsset.h"
+#include "ProjectR/ItemSystem/Items/PRItemInstance_Mod.h"
+#include "ProjectR/ItemSystem/Items/PRItemInstance_Weapon.h"
 
 namespace
 {

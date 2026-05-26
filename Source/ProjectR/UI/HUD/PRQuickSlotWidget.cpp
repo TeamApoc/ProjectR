@@ -2,10 +2,10 @@
 
 #include "PRQuickSlotWidget.h"
 
-#include "ProjectR/Inventory/Data/PRConsumableDataAsset.h"
-#include "ProjectR/Inventory/Items/PRItemInstance_Consumable.h"
+#include "ProjectR/ItemSystem/Data/PRConsumableDataAsset.h"
+#include "ProjectR/ItemSystem/Items/PRItemInstance_Consumable.h"
 #include "ProjectR/Player/PRPlayerState.h"
-#include "ProjectR/Inventory/Components/PRQuickSlotComponent.h"
+#include "ProjectR/ItemSystem/Components/PRQuickSlotComponent.h"
 #include "ProjectR/UI/Inventory/PRItemSlotWidget.h"
 
 void UPRQuickSlotWidget::SetQuickSlotComponent(UPRQuickSlotComponent* InQuickSlotComponent)

@@ -4,7 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "Engine/DataAsset.h"
-#include "ProjectR/Inventory/Types/PRItemTypes.h"
+#include "ProjectR/ItemSystem/Types/PRItemTypes.h"
 #include "PRItemDataAsset.generated.h"
 
 class UTexture2D;

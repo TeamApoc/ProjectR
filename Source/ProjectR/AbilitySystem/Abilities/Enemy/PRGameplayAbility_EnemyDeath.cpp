@@ -13,7 +13,7 @@
 #include "TimerManager.h"
 #include "ProjectR/AI/Components/PREnemyThreatComponent.h"
 #include "ProjectR/Character/Enemy/PREnemyBaseCharacter.h"
-#include "ProjectR/Inventory/Types/PRDropTypes.h"
+#include "ProjectR/ItemSystem/Types/PRDropTypes.h"
 #include "ProjectR/PRGameplayTags.h"
 #include "ProjectR/World/Drop/PRItemDropManagerSubsystem.h"
 

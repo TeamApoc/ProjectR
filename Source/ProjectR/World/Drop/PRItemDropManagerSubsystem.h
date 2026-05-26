@@ -4,7 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "Subsystems/WorldSubsystem.h"
-#include "ProjectR/Inventory/Types/PRDropTypes.h"
+#include "ProjectR/ItemSystem/Types/PRDropTypes.h"
 #include "PRItemDropManagerSubsystem.generated.h"
 
 class APRPlayerState;

@@ -16,14 +16,14 @@
 #include "ProjectR/AbilitySystem/Data/PRAbilitySystemRegistry.h"
 #include "ProjectR/Character/PRCharacterBase.h"
 #include "ProjectR/Combat/PRCombatGameplayTags.h"
-#include "ProjectR/Inventory/Components/PRInventoryComponent.h"
+#include "ProjectR/ItemSystem/Components/PRInventoryComponent.h"
 #include "ProjectR/Player/PRPlayerState.h"
 #include "ProjectR/System/PRAssetManager.h"
-#include "ProjectR/Weapon/Actors/PRWeaponActor.h"
-#include "ProjectR/Weapon/Data/PRWeaponDataAsset.h"
-#include "ProjectR/Weapon/Data/PRWeaponModDataAsset.h"
-#include "ProjectR/Weapon/Items/PRItemInstance_Mod.h"
-#include "ProjectR/Weapon/Items/PRItemInstance_Weapon.h"
+#include "ProjectR/ItemSystem/Actors/PRWeaponActor.h"
+#include "ProjectR/ItemSystem/Data/PRWeaponDataAsset.h"
+#include "ProjectR/ItemSystem/Data/PRWeaponModDataAsset.h"
+#include "ProjectR/ItemSystem/Items/PRItemInstance_Mod.h"
+#include "ProjectR/ItemSystem/Items/PRItemInstance_Weapon.h"
 
 namespace
 {

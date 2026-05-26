@@ -8,7 +8,7 @@
 #include "ProjectR/Game/PRGameTypes.h"
 #include "ProjectR/Player/Components/PRPlayerGrowthComponent.h"
 #include "ProjectR/Shop/Types/PRShopTypes.h"
-#include "ProjectR/Weapon/Types/PRWeaponUpgradeTypes.h"
+#include "ProjectR/ItemSystem/Types/PRWeaponUpgradeTypes.h"
 #include "PRPlayerController.generated.h"
 
 enum class EPRFadeColorPreset : uint8;

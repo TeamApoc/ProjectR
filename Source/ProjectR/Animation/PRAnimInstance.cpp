@@ -9,9 +9,9 @@
 #include "ProjectR/AbilitySystem/PRAbilitySystemComponent.h"
 #include "ProjectR/Character/PRPlayerCharacter.h"
 #include "ProjectR/PRGameplayTags.h"
-#include "ProjectR/Weapon/Actors/PRWeaponActor.h"
-#include "ProjectR/Weapon/Components/PRWeaponManagerComponent.h"
-#include "ProjectR/Weapon/Data/PRWeaponDataAsset.h"
+#include "ProjectR/ItemSystem/Actors/PRWeaponActor.h"
+#include "ProjectR/ItemSystem/Components/PRWeaponManagerComponent.h"
+#include "ProjectR/ItemSystem/Data/PRWeaponDataAsset.h"
 
 /*~ 초기화 및 업데이트 ~*/
 

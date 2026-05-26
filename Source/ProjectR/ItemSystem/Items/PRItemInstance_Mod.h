@@ -3,7 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "ProjectR/Inventory/Items/PRItemInstance.h"
+#include "ProjectR/ItemSystem/Items/PRItemInstance.h"
 #include "PRItemInstance_Mod.generated.h"
 
 class UPRItemInstance_Weapon;

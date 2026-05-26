@@ -14,7 +14,7 @@
 #include "ProjectR/Interaction/PRInteractorComponent.h"
 #include "ProjectR/Player/PRPlayerController.h"
 #include "ProjectR/Player/PRPlayerState.h"
-#include "ProjectR/Weapon/Types/PRWeaponTypes.h"
+#include "ProjectR/ItemSystem/Types/PRWeaponTypes.h"
 
 
 /*~ RPC 라우팅 ~*/

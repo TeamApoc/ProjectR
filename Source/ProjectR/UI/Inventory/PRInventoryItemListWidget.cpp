@@ -7,7 +7,7 @@
 #include "Components/GridPanel.h"
 #include "Components/PanelWidget.h"
 #include "Components/TextBlock.h"
-#include "ProjectR/Inventory/Items/PRItemInstance.h"
+#include "ProjectR/ItemSystem/Items/PRItemInstance.h"
 #include "ProjectR/UI/Inventory/PRItemSlotWidget.h"
 
 void UPRInventoryItemListWidget::SetItemList(EPRItemType InListType, const TArray<FPRInventoryItemSlotViewData>& InItems)

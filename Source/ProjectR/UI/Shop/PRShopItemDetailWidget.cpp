@@ -4,7 +4,7 @@
 
 #include "Components/Image.h"
 #include "Components/TextBlock.h"
-#include "ProjectR/Inventory/Data/PRItemDataAsset.h"
+#include "ProjectR/ItemSystem/Data/PRItemDataAsset.h"
 
 void UPRShopItemDetailWidget::SetSelectedItemDetails(const FPRShopItemSlotViewData& InViewData, EPRShopTabType InCurrentTabType, int32 InOwnedStackCount)
 {

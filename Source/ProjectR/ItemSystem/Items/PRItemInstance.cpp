@@ -3,8 +3,8 @@
 #include "PRItemInstance.h"
 
 #include "Net/UnrealNetwork.h"
-#include "ProjectR/Inventory/Components/PRInventoryComponent.h"
-#include "ProjectR/Inventory/Data/PRItemDataAsset.h"
+#include "ProjectR/ItemSystem/Components/PRInventoryComponent.h"
+#include "ProjectR/ItemSystem/Data/PRItemDataAsset.h"
 
 UPRItemInstance::UPRItemInstance()
 {

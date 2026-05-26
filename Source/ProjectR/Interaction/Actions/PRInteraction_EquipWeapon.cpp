@@ -5,11 +5,11 @@
 
 #include "GameFramework/Pawn.h"
 #include "ProjectR/Character/PRPlayerCharacter.h"
-#include "ProjectR/Inventory/Components/PRInventoryComponent.h"
+#include "ProjectR/ItemSystem/Components/PRInventoryComponent.h"
 #include "ProjectR/Utils/PRGameplayStatics.h"
-#include "ProjectR/Weapon/Components/PRWeaponManagerComponent.h"
-#include "ProjectR/Weapon/Data/PRWeaponDataAsset.h"
-#include "ProjectR/Weapon/Items/PRItemInstance_Weapon.h"
+#include "ProjectR/ItemSystem/Components/PRWeaponManagerComponent.h"
+#include "ProjectR/ItemSystem/Data/PRWeaponDataAsset.h"
+#include "ProjectR/ItemSystem/Items/PRItemInstance_Weapon.h"
 #include "ProjectR/World/Pickable/PRPickableWeapon.h"
 
 bool UPRInteraction_EquipWeapon::CanInteract_Implementation(AActor* Interactor) const

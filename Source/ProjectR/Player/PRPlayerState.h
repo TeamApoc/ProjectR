@@ -7,7 +7,7 @@
 #include "AbilitySystemInterface.h"
 #include "ProjectR/AbilitySystem/Data/PRAbilitySet.h"
 #include "ProjectR/Game/PRGameTypes.h"
-#include "ProjectR/Weapon/Types/PRWeaponTypes.h"
+#include "ProjectR/ItemSystem/Types/PRWeaponTypes.h"
 #include "PRPlayerState.generated.h"
 
 struct FPRInventoryChangeEventData;

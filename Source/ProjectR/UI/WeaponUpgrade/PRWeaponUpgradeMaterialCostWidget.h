@@ -4,7 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "ProjectR/UI/PRWidgetBase.h"
-#include "ProjectR/Weapon/Types/PRWeaponUpgradeTypes.h"
+#include "ProjectR/ItemSystem/Types/PRWeaponUpgradeTypes.h"
 #include "PRWeaponUpgradeMaterialCostWidget.generated.h"
 
 class UImage;

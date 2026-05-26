@@ -4,7 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "Components/ActorComponent.h"
-#include "ProjectR/Weapon/Types/PRWeaponUpgradeTypes.h"
+#include "ProjectR/ItemSystem/Types/PRWeaponUpgradeTypes.h"
 #include "PRWeaponUpgradeComponent.generated.h"
 
 class APRPlayerController;

@@ -8,11 +8,11 @@
 #include "ProjectR/Character/PRPlayerCharacter.h"
 #include "ProjectR/Combat/PRCombatGameplayTags.h"
 #include "ProjectR/System/PRAssetManager.h"
-#include "ProjectR/Weapon/Components/PRWeaponManagerComponent.h"
-#include "ProjectR/Weapon/Data/PRWeaponDataAsset.h"
-#include "ProjectR/Weapon/Items/PRItemInstance_Mod.h"
-#include "ProjectR/Weapon/Items/PRItemInstance_Weapon.h"
-#include "ProjectR/Weapon/Types/PRWeaponTypes.h"
+#include "ProjectR/ItemSystem/Components/PRWeaponManagerComponent.h"
+#include "ProjectR/ItemSystem/Data/PRWeaponDataAsset.h"
+#include "ProjectR/ItemSystem/Items/PRItemInstance_Mod.h"
+#include "ProjectR/ItemSystem/Items/PRItemInstance_Weapon.h"
+#include "ProjectR/ItemSystem/Types/PRWeaponTypes.h"
 
 // =====  UGameplayAbility Interface =====
 

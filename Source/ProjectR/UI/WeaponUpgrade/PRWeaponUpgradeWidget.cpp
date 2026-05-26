@@ -245,7 +245,7 @@ void UPRWeaponUpgradeWidget::RefreshWeaponList()
 	TArray<FPRInventoryItemSlotViewData> ListItems;
 	if (IsValid(InventoryComponent))
 	{
-		for (UPRItemInstance_Weapon* WeaponItem : InventoryComponent->GetWeaponItems())
+		for (UPRItemInstance_Weapon* WeaponItem : InventoryComponent->GetItemsByType<UPRItemInstance_Weapon>(EPRItemType::Weapon))
 		{
 			if (!IsValid(WeaponItem))
 			{
@@ -466,7 +466,7 @@ void UPRWeaponUpgradeWidget::HandleInventoryChanged(UPRInventoryComponent* Chang
 		return;
 	}
 
-	if (IsValid(SelectedWeaponItem) && !InventoryComponent->OwnsWeapon(SelectedWeaponItem))
+	if (IsValid(SelectedWeaponItem) && !InventoryComponent->OwnsItem(SelectedWeaponItem))
 	{
 		SelectedWeaponItem = nullptr;
 	}

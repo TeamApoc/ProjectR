@@ -83,7 +83,7 @@ void UPRInteraction_Revive::Execute_Implementation(AActor* Interactor)
 	
 	if (UPRInventoryComponent* InteractorInventory = UPRGameplayStatics::GetInventoryComponent(Interactor))
 	{
-		InteractorInventory->RequestRemoveConsumableItemByData(CostItem,1);
+		InteractorInventory->RequestRemoveItemByData(CostItem, 1);
 	}
 }
 
@@ -114,7 +114,7 @@ bool UPRInteraction_Revive::CanInteract_Implementation(AActor* Interactor) const
 		return false;
 	}
 	
-	if (UPRItemInstance_Consumable* CostItemInstance = InteractorInventory->FindConsumableItemByData(CostItem))
+	if (UPRItemInstance_Consumable* CostItemInstance = InteractorInventory->FindItemByData<UPRItemInstance_Consumable>(CostItem))
 	{
 		return CostItemInstance->GetStackCount() > 0;
 	}

@@ -9,8 +9,9 @@
 
 class UTexture2D;
 class UStaticMesh;
+class UPRItemInstance;
 
-// 아이템 공통 표시 데이터를 담는 기반 데이터 에셋이다
+// 아이템 공통 표시 데이터를 담는 기반 데이터 에셋
 UCLASS(Abstract, BlueprintType)
 class PROJECTR_API UPRItemDataAsset : public UPrimaryDataAsset
 {
@@ -20,36 +21,40 @@ public:
 	UPRItemDataAsset();
 
 public:
-	// 아이템 표시 이름을 반환한다
+	// 아이템 표시 이름을 반환
 	UFUNCTION(BlueprintPure, Category = "ProjectR|00_Item")
 	const FText& GetDisplayName() const { return DisplayName; }
 
-	// 아이템 아이콘을 반환한다
+	// 아이템 아이콘을 반환
 	UFUNCTION(BlueprintPure, Category = "ProjectR|00_Item")
 	UTexture2D* GetIcon() const { return Icon; }
 
-	// 아이템 설명을 반환한다
+	// 아이템 설명을 반환
 	UFUNCTION(BlueprintPure, Category = "ProjectR|00_Item")
 	const FText& GetDescription() const { return Description; }
 
-	// 아이템 타입을 반환한다
+	// 아이템 타입을 반환
 	UFUNCTION(BlueprintPure, Category = "ProjectR|00_Item")
 	EPRItemType GetItemType() const { return ItemType; }
 
-	// 아이템 희귀도를 반환한다
+	// 아이템 인스턴스 클래스 반환
+	UFUNCTION(BlueprintPure, Category = "ProjectR|00_Item")
+	TSubclassOf<UPRItemInstance> GetItemInstanceClass() const { return ItemInstanceClass; }
+
+	// 아이템 희귀도를 반환
 	UFUNCTION(BlueprintPure, Category = "ProjectR|00_Item")
 	EPRItemRarity GetRarity() const { return Rarity; }
 
-	// 월드 픽업에 표시할 메시를 반환한다
+	// 월드 픽업에 표시할 메시를 반환
 	UFUNCTION(BlueprintPure, Category = "ProjectR|00_Item")
 	UStaticMesh* GetPickupMesh() const { return PickupMesh; }
 
-	// 월드 픽업에 표시할 메시 스케일을 반환한다
+	// 월드 픽업에 표시할 메시 스케일을 반환
 	UFUNCTION(BlueprintPure, Category = "ProjectR|00_Item")
 	const FVector& GetPickupMeshScale() const { return PickupMeshScale; }
 
 protected:
-	// 파생 데이터 에셋 생성자에서 아이템 타입을 고정한다
+	// 파생 데이터 에셋 생성자에서 아이템 타입을 고정
 	void SetItemType(EPRItemType NewItemType);
 
 public:
@@ -80,6 +85,10 @@ public:
 	// 월드 픽업에 표시할 메시 스케일
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|00_Item", meta = (ClampMin = "0.0"))
 	FVector PickupMeshScale = FVector::OneVector;
+
+	// 인벤토리 생성 Item 인스턴스 클래스
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "ProjectR|00_Item")
+	TSubclassOf<UPRItemInstance> ItemInstanceClass;
 
 private:
 	// 아이템 타입

@@ -61,7 +61,7 @@ void UPRQuickSlotComponent::InitializeQuickSlots(UPRInventoryComponent* InInvent
 
 void UPRQuickSlotComponent::RequestRegisterQuickSlotItem(int32 SlotIndex, UPRConsumableDataAsset* ConsumableData)
 {
-	// 잘못된 슬롯 또는 데이터 요청은 서버 RPC 전송 전에 중단한다
+	// 잘못된 슬롯 또는 데이터 요청은 서버 RPC 전송 전에 중단
 	if (!IsValidSlotIndex(SlotIndex) || !IsValid(ConsumableData))
 	{
 		return;
@@ -78,7 +78,7 @@ void UPRQuickSlotComponent::RequestRegisterQuickSlotItem(int32 SlotIndex, UPRCon
 
 void UPRQuickSlotComponent::RequestClearQuickSlotItem(int32 SlotIndex)
 {
-	// 잘못된 슬롯 요청은 서버 RPC 전송 전에 중단한다
+	// 잘못된 슬롯 요청은 서버 RPC 전송 전에 중단
 	if (!IsValidSlotIndex(SlotIndex))
 	{
 		return;
@@ -95,7 +95,7 @@ void UPRQuickSlotComponent::RequestClearQuickSlotItem(int32 SlotIndex)
 
 void UPRQuickSlotComponent::RequestUseQuickSlot(int32 SlotIndex)
 {
-	// 잘못된 슬롯 요청은 서버 RPC 전송 전에 중단한다
+	// 잘못된 슬롯 요청은 서버 RPC 전송 전에 중단
 	if (!IsValidSlotIndex(SlotIndex))
 	{
 		return;
@@ -290,7 +290,7 @@ bool UPRQuickSlotComponent::UseQuickSlotInternal(int32 SlotIndex)
 	RefreshCachedConsumableItem(SlotIndex);
 
 	const FPRQuickSlotEntry& Entry = QuickSlots[SlotIndex];
-	if (!IsValid(Entry.ConsumableData) || !IsValid(CachedInventoryComponent))
+	if (!IsValid(Entry.ConsumableData) || !IsValid(Entry.CachedConsumableItem) || !IsValid(CachedInventoryComponent))
 	{
 		return false;
 	}
@@ -301,7 +301,10 @@ bool UPRQuickSlotComponent::UseQuickSlotInternal(int32 SlotIndex)
 		return false;
 	}
 
-	CachedInventoryComponent->RequestUseConsumableItemByData(Entry.ConsumableData, UseActor);
+	FPRItemActivationContext ActivationContext;
+	ActivationContext.UserActor = UseActor;
+	ActivationContext.SlotIndex = SlotIndex;
+	CachedInventoryComponent->RequestActivateItem(Entry.CachedConsumableItem, ActivationContext);
 	RefreshCachedConsumableItem(SlotIndex);
 	OnQuickSlotChanged.Broadcast(this, SlotIndex);
 	return true;
@@ -329,7 +332,7 @@ void UPRQuickSlotComponent::RefreshCachedConsumableItem(int32 SlotIndex)
 
 	if (IsValid(CachedInventoryComponent))
 	{
-		Entry.CachedConsumableItem = CachedInventoryComponent->FindConsumableItemByData(Entry.ConsumableData);
+		Entry.CachedConsumableItem = CachedInventoryComponent->FindItemByData<UPRItemInstance_Consumable>(Entry.ConsumableData);
 	}
 }
 

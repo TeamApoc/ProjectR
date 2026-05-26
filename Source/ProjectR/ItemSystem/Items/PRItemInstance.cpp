@@ -34,6 +34,16 @@ void UPRItemInstance::InitializeItem(UPRItemDataAsset* InItemData, int32 Initial
 	}
 }
 
+bool UPRItemInstance::ActivateItem(const FPRItemActivationContext& ActivationContext)
+{
+	return false;
+}
+
+bool UPRItemInstance::DeactivateItem(const FPRItemActivationContext& ActivationContext)
+{
+	return false;
+}
+
 void UPRItemInstance::NotifyInventoryChanged(EPRInventoryChangeReason ChangeReason)
 {
 	if (UPRInventoryComponent* InventoryComponent = GetTypedOuter<UPRInventoryComponent>())
@@ -47,7 +57,7 @@ void UPRItemInstance::NotifyInventoryChanged(EPRInventoryChangeReason ChangeReas
 
 void UPRItemInstance::OnRep_StackCount(const int32& OldStackCount)
 {
-	// 동일한 값으로 갱신된 경우 알림을 생략한다
+	// 동일한 값으로 갱신된 경우 알림을 생략
 	if (StackCount == OldStackCount)
 	{
 		return;

@@ -70,10 +70,10 @@ void UPRInteraction_EquipWeapon::Execute_Implementation(AActor* Interactor)
 		return;
 	}
 	
-	UPRItemInstance_Weapon* Item = InventoryComponent->FindWeaponItemByData(WeaponData);
+	UPRItemInstance_Weapon* Item = InventoryComponent->FindItemByData<UPRItemInstance_Weapon>(WeaponData);
 	if (!IsValid(Item))
 	{
-		Item = InventoryComponent->AddWeaponItem(WeaponData);
+		Item = InventoryComponent->AddItem<UPRItemInstance_Weapon>(WeaponData);
 	}
 	if (!IsValid(Item))
 	{

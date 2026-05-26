@@ -112,7 +112,7 @@ FPRShopBuyResult UPRShopComponent::RequestBuyItem(APRPlayerController* Requestin
 		{
 			Result = MakeBuyFailureResult(RequestingController, EntryId, Quantity, EPRShopBuyFailReason::ConsumeFailed);
 		}
-		else if (!IsValid(InventoryComponent->AddItem(ItemData, TotalItemQuantity)))
+		else if (!IsValid(InventoryComponent->AddItem<UPRItemInstance>(ItemData, TotalItemQuantity)))
 		{
 			if (TotalScrapPrice > 0)
 			{
@@ -199,18 +199,18 @@ FPRShopSellResult UPRShopComponent::RequestSellItem(APRPlayerController* Request
 		}
 		else if (UPRConsumableDataAsset* ConsumableData = Cast<UPRConsumableDataAsset>(ItemData))
 		{
-			UPRItemInstance_Consumable* ConsumableItem = InventoryComponent->FindConsumableItemByData(ConsumableData);
+			UPRItemInstance_Consumable* ConsumableItem = InventoryComponent->FindItemByData<UPRItemInstance_Consumable>(ConsumableData);
 			if (!IsValid(ConsumableItem) || ConsumableItem->GetStackCount() < TotalItemQuantity)
 			{
 				Result = MakeSellFailureResult(RequestingController, EntryId, Quantity, EPRShopSellFailReason::NotEnoughItem);
 			}
-			else if (!InventoryComponent->RemoveConsumableItemByData(ConsumableData, TotalItemQuantity))
+			else if (!InventoryComponent->RemoveItemByData(ConsumableData, TotalItemQuantity))
 			{
 				Result = MakeSellFailureResult(RequestingController, EntryId, Quantity, EPRShopSellFailReason::RemoveFailed);
 			}
 			else if (!CurrencyComponent->AddScrap(TotalScrapReward))
 			{
-				InventoryComponent->AddConsumableItem(ConsumableData, TotalItemQuantity);
+				InventoryComponent->AddItem<UPRItemInstance_Consumable>(ConsumableData, TotalItemQuantity);
 				Result = MakeSellFailureResult(RequestingController, EntryId, Quantity, EPRShopSellFailReason::GrantScrapFailed);
 			}
 			else
@@ -220,18 +220,18 @@ FPRShopSellResult UPRShopComponent::RequestSellItem(APRPlayerController* Request
 		}
 		else if (UPRMaterialDataAsset* MaterialData = Cast<UPRMaterialDataAsset>(ItemData))
 		{
-			UPRItemInstance_Material* MaterialItem = InventoryComponent->FindMaterialItemByData(MaterialData);
+			UPRItemInstance_Material* MaterialItem = InventoryComponent->FindItemByData<UPRItemInstance_Material>(MaterialData);
 			if (!IsValid(MaterialItem) || MaterialItem->GetStackCount() < TotalItemQuantity)
 			{
 				Result = MakeSellFailureResult(RequestingController, EntryId, Quantity, EPRShopSellFailReason::NotEnoughItem);
 			}
-			else if (!InventoryComponent->RemoveMaterialItemByData(MaterialData, TotalItemQuantity))
+			else if (!InventoryComponent->RemoveItemByData(MaterialData, TotalItemQuantity))
 			{
 				Result = MakeSellFailureResult(RequestingController, EntryId, Quantity, EPRShopSellFailReason::RemoveFailed);
 			}
 			else if (!CurrencyComponent->AddScrap(TotalScrapReward))
 			{
-				InventoryComponent->AddMaterialItem(MaterialData, TotalItemQuantity);
+				InventoryComponent->AddItem<UPRItemInstance_Material>(MaterialData, TotalItemQuantity);
 				Result = MakeSellFailureResult(RequestingController, EntryId, Quantity, EPRShopSellFailReason::GrantScrapFailed);
 			}
 			else
@@ -489,14 +489,14 @@ bool UPRShopComponent::CanGrantItem(UPRInventoryComponent* InventoryComponent, U
 
 	if (UPRConsumableDataAsset* ConsumableData = Cast<UPRConsumableDataAsset>(ItemData))
 	{
-		const UPRItemInstance_Consumable* ConsumableItem = InventoryComponent->FindConsumableItemByData(ConsumableData);
+		const UPRItemInstance_Consumable* ConsumableItem = InventoryComponent->FindItemByData<UPRItemInstance_Consumable>(ConsumableData);
 		const int32 CurrentStackCount = IsValid(ConsumableItem) ? ConsumableItem->GetStackCount() : 0;
 		return CurrentStackCount + TotalItemQuantity <= ConsumableData->MaxStackCount;
 	}
 
 	if (UPRMaterialDataAsset* MaterialData = Cast<UPRMaterialDataAsset>(ItemData))
 	{
-		const UPRItemInstance_Material* MaterialItem = InventoryComponent->FindMaterialItemByData(MaterialData);
+		const UPRItemInstance_Material* MaterialItem = InventoryComponent->FindItemByData<UPRItemInstance_Material>(MaterialData);
 		const int32 CurrentStackCount = IsValid(MaterialItem) ? MaterialItem->GetStackCount() : 0;
 		return CurrentStackCount + TotalItemQuantity <= MaterialData->MaxStackCount;
 	}

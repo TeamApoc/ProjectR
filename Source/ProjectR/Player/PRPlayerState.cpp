@@ -74,7 +74,7 @@ void APRPlayerState::BeginPlay()
 			}
 			else
 			{
-				InventoryComponent->AddItem(StartUpItem.ItemData, StartUpItem.Amount);
+				InventoryComponent->AddItem<UPRItemInstance>(StartUpItem.ItemData, StartUpItem.Amount);
 			}
 		}
 		

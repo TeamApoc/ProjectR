@@ -12,7 +12,7 @@
 
 namespace
 {
-	// 소비 아이템 사용 대상의 ASC를 조회한다
+	// 소비 아이템 사용 대상의 ASC를 조회
 	UAbilitySystemComponent* ResolveUseTargetAbilitySystem(AActor* UserActor)
 	{
 		APRCharacterBase* UserCharacter = Cast<APRCharacterBase>(UserActor);
@@ -30,6 +30,10 @@ void UPRItemInstance_Consumable::GetLifetimeReplicatedProps(TArray<FLifetimeProp
 	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
 }
 
+bool UPRItemInstance_Consumable::ActivateItem(const FPRItemActivationContext& ActivationContext)
+{
+	return UseItem(ActivationContext.UserActor);
+}
 
 bool UPRItemInstance_Consumable::UseItem(AActor* UserActor)
 {
@@ -94,16 +98,7 @@ bool UPRItemInstance_Consumable::UseItem(AActor* UserActor)
 			StackCount);
 		return false;
 	}
-
-	UE_LOG(
-		LogTemp,
-		Log,
-		TEXT("[ConsumableItem][Server] 사용 요청 성공. UseItem() | Owner = %s | User = %s | Item = %s | Count = %d | Ability = %s"),
-		*GetNameSafe(GetTypedOuter<UPRInventoryComponent>()),
-		*GetNameSafe(UserActor),
-		*GetNameSafe(ConsumableData),
-		StackCount,
-		*GetNameSafe(ConsumableData->UseAbilityClass));
+	// 스택 소모는 Use Consumable 어빌리티 내에서 관리 
 
 	return true;
 }

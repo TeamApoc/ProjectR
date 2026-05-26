@@ -6,8 +6,29 @@
 #include "UObject/Object.h"
 #include "PRItemInstance.generated.h"
 
+class AActor;
+class UPRInventoryComponent;
 class UPRItemDataAsset;
 enum class EPRInventoryChangeReason : uint8;
+
+// Item 활성화 요청 컨텍스트
+USTRUCT(BlueprintType)
+struct FPRItemActivationContext
+{
+	GENERATED_BODY()
+
+	// 사용 주체 Actor
+	UPROPERTY(BlueprintReadWrite)
+	TObjectPtr<AActor> UserActor = nullptr;
+
+	// 요청 인벤토리 컴포넌트
+	UPROPERTY(BlueprintReadWrite)
+	TObjectPtr<UPRInventoryComponent> InventoryComponent = nullptr;
+
+	// 요청 슬롯 인덱스
+	UPROPERTY(BlueprintReadWrite)
+	int32 SlotIndex = INDEX_NONE;
+};
 
 // 인벤토리가 소유하는 공용 Item 인스턴스의 최소 기반 클래스다
 UCLASS(BlueprintType)
@@ -24,12 +45,22 @@ public:
 
 	/*~UPRItemInstance Interface ~*/
 	virtual void InitializeItem(UPRItemDataAsset* InItemData, int32 InitialStackCount);
+
+	// Item 활성화
+	virtual bool ActivateItem(const FPRItemActivationContext& ActivationContext);
+
+	// Item 비활성화
+	virtual bool DeactivateItem(const FPRItemActivationContext& ActivationContext);
 	
-	// 현재 보유 개수를 반환한다
+	// 현재 보유 개수를 반환
 	UFUNCTION(BlueprintPure, Category = "ProjectR|Inventory")
 	int32 GetStackCount() const { return StackCount; }
 
-	// 보유 개수가 1 이상인지 확인한다
+	// 현재 연결된 Item 데이터를 반환
+	UFUNCTION(BlueprintPure, Category = "ProjectR|Inventory")
+	UPRItemDataAsset* GetItemData() const { return ItemData; }
+
+	// 보유 개수가 1 이상인지 확인
 	UFUNCTION(BlueprintPure, Category = "ProjectR|Inventory")
 	bool HasAnyStack() const;
 

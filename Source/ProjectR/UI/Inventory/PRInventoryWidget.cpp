@@ -389,7 +389,7 @@ void UPRInventoryWidget::HandleItemListSelection(const FPRInventoryItemSlotViewD
 	}
 	else if (CurrentListType == EPRItemType::Material)
 	{
-		// 재료는 현재 인벤토리에서 상세 행동 없이 보유 목록만 확인한다
+		// 재료는 현재 인벤토리에서 상세 행동 없이 보유 목록만 확인
 	}
 
 	CloseItemList();
@@ -470,7 +470,7 @@ void UPRInventoryWidget::OpenWeaponList(EPRWeaponSlotType TargetSlot)
 		ListItems.Add(BuildUnequipViewData(ItemListType));
 	}
 
-	for (UPRItemInstance_Weapon* WeaponItem : InventoryComponent->InventoryWeaponItems)
+	for (UPRItemInstance_Weapon* WeaponItem : InventoryComponent->GetItemsByType<UPRItemInstance_Weapon>(EPRItemType::Weapon))
 	{
 		if (!IsValid(WeaponItem) || !IsValid(WeaponItem->GetWeaponData()))
 		{
@@ -508,7 +508,7 @@ void UPRInventoryWidget::OpenModList(UPRItemInstance_Weapon* TargetWeaponItem)
 		ListItems.Add(BuildUnequipViewData(EPRItemType::Mod));
 	}
 
-	for (UPRItemInstance_Mod* ModItem : InventoryComponent->InventoryModItems)
+	for (UPRItemInstance_Mod* ModItem : InventoryComponent->GetItemsByType<UPRItemInstance_Mod>(EPRItemType::Mod))
 	{
 		if (!IsModCompatibleWithWeapon(ModItem, TargetWeaponItem))
 		{
@@ -536,7 +536,7 @@ void UPRInventoryWidget::OpenConsumableListForQuickSlot(int32 SlotIndex)
 	PendingQuickSlotIndex = SlotIndex;
 
 	TArray<FPRInventoryItemSlotViewData> ListItems;
-	for (UPRItemInstance_Consumable* ConsumableItem : InventoryComponent->InventoryConsumableItems)
+	for (UPRItemInstance_Consumable* ConsumableItem : InventoryComponent->GetItemsByType<UPRItemInstance_Consumable>(EPRItemType::Consumable))
 	{
 		if (!IsValid(ConsumableItem))
 		{
@@ -563,7 +563,7 @@ void UPRInventoryWidget::OpenMaterialList()
 	PendingQuickSlotIndex = INDEX_NONE;
 
 	TArray<FPRInventoryItemSlotViewData> ListItems;
-	for (UPRItemInstance_Material* MaterialItem : InventoryComponent->InventoryMaterialItems)
+	for (UPRItemInstance_Material* MaterialItem : InventoryComponent->GetItemsByType<UPRItemInstance_Material>(EPRItemType::Material))
 	{
 		if (!IsValid(MaterialItem))
 		{

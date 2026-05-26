@@ -183,6 +183,9 @@ protected:
 	// 포털 생명주기 타이머를 모두 정리한다.
 	void ClearPortalLifecycleTimers();
 
+	// 포털에서 생성한 투사체에 원작형 충돌/추적 정책을 적용한다.
+	void ConfigureSpawnedPortalProjectile(APRProjectileBase* SpawnedProjectile);
+
 	// 포털 투사체에 적용할 GE Spec을 만든다.
 	FGameplayEffectSpecHandle BuildProjectileEffectSpec() const;
 
@@ -242,6 +245,14 @@ protected:
 	// 추적 투사체 Homing 가속도다.
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Portal|Projectile", meta = (ClampMin = "0.0", EditCondition = "bUseTrackingProjectile"))
 	float ProjectileHomingAcceleration = 12000.0f;
+
+	// Homing을 유지할 시간이다. 0 이하면 타격/만료 전까지 계속 추적한다.
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Portal|Projectile", meta = (ClampMin = "0.0", EditCondition = "bUseTrackingProjectile"))
+	float ProjectileHomingDuration = 0.3f;
+
+	// 포털 투사체가 보스/몬스터 계열을 통과하도록 충돌 무시 목록에 등록할지 여부다.
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Portal|Projectile")
+	bool bIgnoreEnemyActorsForProjectile = true;
 
 	// 투사체 스폰 위치의 로컬 오프셋이다.
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Portal|Projectile")

@@ -4,11 +4,13 @@
 
 #include "AbilitySystemComponent.h"
 #include "Engine/World.h"
+#include "EngineUtils.h"
 #include "GameplayEffect.h"
 #include "Net/UnrealNetwork.h"
 #include "TimerManager.h"
 #include "ProjectR/AbilitySystem/Data/PRAbilitySystemRegistry.h"
 #include "ProjectR/AbilitySystem/PRAbilitySystemComponent.h"
+#include "ProjectR/Character/Enemy/PREnemyBaseCharacter.h"
 #include "ProjectR/Character/Enemy/PRBossBaseCharacter.h"
 #include "ProjectR/Combat/PRCombatGameplayTags.h"
 #include "ProjectR/Projectile/PRBossProjectileActor.h"
@@ -350,6 +352,7 @@ void APRBossPortalActor::FirePortalProjectile()
 	{
 		SpawnedProjectile->ConfigureProjectileHoming(LockedTarget->GetRootComponent(), ProjectileHomingAcceleration);
 	}
+	ConfigureSpawnedPortalProjectile(SpawnedProjectile);
 
 	const FGameplayEffectSpecHandle EffectSpecHandle = ProjectileEffectSpecHandle.IsValid()
 		? ProjectileEffectSpecHandle
@@ -561,6 +564,44 @@ void APRBossPortalActor::ClearPortalLifecycleTimers()
 		World->GetTimerManager().ClearTimer(PortalActivationTimerHandle);
 		World->GetTimerManager().ClearTimer(PortalExpireTimerHandle);
 		World->GetTimerManager().ClearTimer(PortalFireTimerHandle);
+	}
+}
+
+void APRBossPortalActor::ConfigureSpawnedPortalProjectile(APRProjectileBase* SpawnedProjectile)
+{
+	if (!IsValid(SpawnedProjectile))
+	{
+		return;
+	}
+
+	SpawnedProjectile->AddProjectileIgnoredActor(this);
+
+	if (bIgnoreEnemyActorsForProjectile)
+	{
+		if (UWorld* World = GetWorld())
+		{
+			for (TActorIterator<APREnemyBaseCharacter> EnemyIt(World); EnemyIt; ++EnemyIt)
+			{
+				SpawnedProjectile->AddProjectileIgnoredActor(*EnemyIt);
+			}
+		}
+	}
+
+	if (bUseTrackingProjectile && ProjectileHomingDuration > 0.0f)
+	{
+		TWeakObjectPtr<APRProjectileBase> ProjectileWeak(SpawnedProjectile);
+		FTimerHandle HomingStopTimerHandle;
+		GetWorldTimerManager().SetTimer(
+			HomingStopTimerHandle,
+			FTimerDelegate::CreateWeakLambda(this, [ProjectileWeak]()
+			{
+				if (APRProjectileBase* Projectile = ProjectileWeak.Get())
+				{
+					Projectile->ConfigureProjectileHoming(nullptr, 0.0f);
+				}
+			}),
+			ProjectileHomingDuration,
+			false);
 	}
 }
 

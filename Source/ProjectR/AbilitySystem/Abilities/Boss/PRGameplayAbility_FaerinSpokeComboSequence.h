@@ -199,6 +199,9 @@ protected:
 	// Spoke 콤보에서 사용하는 모든 타이머를 정리한다.
 	void ClearSpokeComboTimers();
 
+	// Ability 종료 시 남아 있는 SpokeCombo 몽타주를 정리한다.
+	void StopSpokeComboMontage() const;
+
 	// 이동과 검 hitbox를 멈춘다.
 	void StopSpokeComboMovement() const;
 
@@ -250,6 +253,10 @@ protected:
 	// Spoke 콤보 몽타주 재생 속도다.
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Faerin|SpokeCombo|Animation", meta = (ClampMin = "0.01"))
 	float MontagePlayRate = 1.0f;
+
+	// Ability가 중간 종료될 때 SpokeCombo 몽타주를 정리하는 블렌드아웃 시간이다.
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Faerin|SpokeCombo|Animation", meta = (ClampMin = "0.0"))
+	float MontageStopBlendOutTime = 0.12f;
 
 	// 첫 1타 방향 선택 기준이다.
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Faerin|SpokeCombo|Combo")

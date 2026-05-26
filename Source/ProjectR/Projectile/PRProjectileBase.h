@@ -54,6 +54,9 @@ public:
 	// 서버가 직접 생성한 투사체의 Homing 타겟을 설정한다.
 	void ConfigureProjectileHoming(USceneComponent* HomingTargetComponent, float HomingAcceleration);
 
+	// 투사체 이동/충돌에서 지정 Actor를 무시하도록 등록한다.
+	void AddProjectileIgnoredActor(AActor* ActorToIgnore);
+
 	// 서버 권위 투사체를 클라이언트 발사 시점까지 전진. HasAuthority() && bUseFastForward인 경우만 실행
 	void ApplyFastForward(float ForwardSeconds);
 

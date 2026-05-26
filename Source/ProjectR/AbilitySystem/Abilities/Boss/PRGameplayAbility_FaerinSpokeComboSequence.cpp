@@ -86,6 +86,7 @@ void UPRGameplayAbility_FaerinSpokeComboSequence::EndAbility(
 	EndMeleeHitWindowEventTasks();
 	EndComboWindowEventTask();
 	StopSpokeComboMovement();
+	StopSpokeComboMontage();
 
 	if (IsValid(ActiveMontageTask))
 	{
@@ -959,6 +960,24 @@ void UPRGameplayAbility_FaerinSpokeComboSequence::ClearSpokeComboTimers()
 	{
 		World->GetTimerManager().ClearTimer(SlamLoopTrackingTimerHandle);
 	}
+}
+
+void UPRGameplayAbility_FaerinSpokeComboSequence::StopSpokeComboMontage() const
+{
+	if (!IsValid(SpokeComboMontage))
+	{
+		return;
+	}
+
+	const APRBossBaseCharacter* BossCharacter = GetBossAvatarCharacter();
+	USkeletalMeshComponent* MeshComponent = IsValid(BossCharacter) ? BossCharacter->GetMesh() : nullptr;
+	UAnimInstance* AnimInstance = IsValid(MeshComponent) ? MeshComponent->GetAnimInstance() : nullptr;
+	if (!IsValid(AnimInstance) || !AnimInstance->Montage_IsPlaying(SpokeComboMontage))
+	{
+		return;
+	}
+
+	AnimInstance->Montage_Stop(FMath::Max(MontageStopBlendOutTime, 0.0f), SpokeComboMontage);
 }
 
 void UPRGameplayAbility_FaerinSpokeComboSequence::StopSpokeComboMovement() const

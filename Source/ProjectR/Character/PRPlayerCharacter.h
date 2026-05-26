@@ -64,6 +64,10 @@ public:
 	
 	/** Sprint Ability가 질주 상태를 캐릭터 이동 상태에 반영 */
 	void SetSprintingFromAbility(bool bNewSprinting);
+
+	/** 서버가 결정한 외부 강제 이동을 소유 클라이언트에서도 동일하게 재생한다. */
+	UFUNCTION(Client, Reliable)
+	void ClientStartExternalForcedMove(FVector_NetQuantize Destination, FRotator Rotation, float Duration, float TickInterval, float EaseExponent, bool bSweep, bool bStopMovement);
 	
 	// ===== Component getters =====
 	
@@ -92,6 +96,15 @@ protected:
 private:
 	/** 상태 태그 기준으로 이동 입력이 차단되는지 반환한다 */
 	bool IsMoveInputLockedByState() const;
+
+	/** 외부 강제 이동을 현재 머신에서 시작한다. */
+	void StartExternalForcedMoveLocal(const FVector& Destination, const FRotator& Rotation, float Duration, float TickInterval, float EaseExponent, bool bSweep, bool bStopMovement);
+
+	/** 외부 강제 이동 보간을 갱신한다. */
+	void TickExternalForcedMove();
+
+	/** 외부 강제 이동을 종료하고 최종 위치를 보정한다. */
+	void CompleteExternalForcedMove(bool bWasCancelled);
 
 public:
 	/** 컴포넌트 */
@@ -165,4 +178,18 @@ private:
 	
 	UPROPERTY()
 	TObjectPtr<UPRCameraModifier> CrouchCameraModifier; 
+
+	FTimerHandle ExternalForcedMoveTimerHandle;
+	FVector ExternalForcedMoveStartLocation = FVector::ZeroVector;
+	FVector ExternalForcedMoveEndLocation = FVector::ZeroVector;
+	FRotator ExternalForcedMoveStartRotation = FRotator::ZeroRotator;
+	FRotator ExternalForcedMoveEndRotation = FRotator::ZeroRotator;
+	float ExternalForcedMoveDuration = 0.0f;
+	float ExternalForcedMoveElapsedSeconds = 0.0f;
+	float ExternalForcedMoveLastUpdateTime = 0.0f;
+	float ExternalForcedMoveTickInterval = 0.016f;
+	float ExternalForcedMoveEaseExponent = 2.0f;
+	bool bExternalForcedMoveSweep = false;
+	bool bExternalForcedMoveStopMovement = true;
+	bool bExternalForcedMoveActive = false;
 };

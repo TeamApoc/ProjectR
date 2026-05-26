@@ -12,6 +12,7 @@
 #include "GameFramework/Character.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "ProjectR/AI/PREnemyEQSSelectionUtils.h"
+#include "ProjectR/Character/PRPlayerCharacter.h"
 #include "ProjectR/Character/Enemy/PRBossBaseCharacter.h"
 #include "ProjectR/Character/Enemy/Boss/PRFaerinCharacterEventRouterComponent.h"
 #include "ProjectR/PRGameplayTags.h"
@@ -341,6 +342,43 @@ bool UPRGameplayAbility_FaerinShiftSequence::ApplyShiftToTarget(const FVector& D
 	return ApplyInstantShiftToTarget(Destination);
 }
 
+void UPRGameplayAbility_FaerinShiftSequence::ApplyShiftImpactToTarget(AActor* TargetActor)
+{
+	if (ShiftImpactPoiseDamage <= 0.0f || !IsValid(TargetActor))
+	{
+		return;
+	}
+
+	ApplyAttackPowerDamage(TargetActor, 0.0f, ShiftImpactPoiseDamage);
+}
+
+void UPRGameplayAbility_FaerinShiftSequence::MirrorShiftMoveToOwningClient(
+	AActor* TargetActor,
+	const FVector& Destination,
+	const FRotator& Rotation,
+	float Duration) const
+{
+	if (!bMirrorTargetMoveToOwningClient)
+	{
+		return;
+	}
+
+	APRPlayerCharacter* PlayerCharacter = Cast<APRPlayerCharacter>(TargetActor);
+	if (!IsValid(PlayerCharacter) || PlayerCharacter->IsLocallyControlled())
+	{
+		return;
+	}
+
+	PlayerCharacter->ClientStartExternalForcedMove(
+		Destination,
+		Rotation,
+		Duration,
+		SmoothPullTickInterval,
+		SmoothPullEaseExponent,
+		bSweepTargetMove,
+		bStopTargetMovementAfterShift);
+}
+
 FRotator UPRGameplayAbility_FaerinShiftSequence::ResolveTargetRotationAfterShift(const FVector& Destination) const
 {
 	const APRBossBaseCharacter* BossCharacter = GetBossAvatarCharacter();
@@ -385,6 +423,8 @@ bool UPRGameplayAbility_FaerinShiftSequence::ApplyInstantShiftToTarget(const FVe
 	}
 
 	StopShiftedTargetMovement(TargetActor);
+	ApplyShiftImpactToTarget(TargetActor);
+	MirrorShiftMoveToOwningClient(TargetActor, Destination, TargetRotation, 0.0f);
 
 	if (bDrawDebug)
 	{
@@ -422,6 +462,8 @@ bool UPRGameplayAbility_FaerinShiftSequence::StartSmoothTargetShift(const FVecto
 		FMath::Max(SmoothPullTickInterval, 0.005f),
 		true);
 
+	ApplyShiftImpactToTarget(TargetActor);
+	MirrorShiftMoveToOwningClient(TargetActor, Destination, SmoothShiftEndRotation, SmoothPullDuration);
 	TickSmoothTargetShift();
 	return true;
 }

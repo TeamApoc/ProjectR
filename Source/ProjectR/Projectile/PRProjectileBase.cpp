@@ -104,6 +104,19 @@ void APRProjectileBase::ConfigureProjectileHoming(USceneComponent* HomingTargetC
 	ProjectileMovementComponent->HomingAccelerationMagnitude = HomingAcceleration;
 }
 
+void APRProjectileBase::AddProjectileIgnoredActor(AActor* ActorToIgnore)
+{
+	if (!IsValid(ActorToIgnore))
+	{
+		return;
+	}
+
+	if (IsValid(SphereComponent))
+	{
+		SphereComponent->IgnoreActorWhenMoving(ActorToIgnore, true);
+	}
+}
+
 void APRProjectileBase::ApplyFastForward(float ForwardSeconds)
 {
 	if (!HasAuthority() || !bUseFastForward || ForwardSeconds <= 0.f)

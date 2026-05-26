@@ -927,6 +927,12 @@ void UPRFaerinCombatDirectorComponent::HandleLoopStepFailSafeElapsed()
 		AIController->ClearFocus(EAIFocusPriority::Gameplay);
 	}
 
+	if (IsObservedAbilityActive())
+	{
+		ClearAbilityEndDelegate();
+		AbilitySystemComponent->CancelAbilityHandle(ActiveAbilityHandle);
+	}
+
 	if (IsValid(OwnerEnemy))
 	{
 		OwnerEnemy->ClearCombatMovePresentationContext();

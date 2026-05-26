@@ -24,4 +24,6 @@ UPRGameplayAbility_FaerinShiftPlayerCloseSequence::UPRGameplayAbility_FaerinShif
 	bStopTargetMovementAfterShift = true;
 	bFaceBossAfterShift = true;
 	bDodgingTargetAvoidsShift = true;
+	bMirrorTargetMoveToOwningClient = true;
+	ShiftImpactPoiseDamage = 100.0f;
 }

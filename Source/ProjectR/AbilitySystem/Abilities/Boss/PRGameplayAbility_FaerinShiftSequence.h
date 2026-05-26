@@ -83,6 +83,12 @@ protected:
 	// 현재 타겟을 계산된 목적지로 이동시킨다.
 	bool ApplyShiftToTarget(const FVector& Destination);
 
+	// Shift 적중 시 플레이어 강인도 피해를 적용한다.
+	void ApplyShiftImpactToTarget(AActor* TargetActor);
+
+	// 클라이언트 권위 이동 설정을 쓰는 플레이어에게 서버 이동을 동일하게 미러링한다.
+	void MirrorShiftMoveToOwningClient(AActor* TargetActor, const FVector& Destination, const FRotator& Rotation, float Duration) const;
+
 	// 목적지 기준 최종 회전값을 계산한다.
 	FRotator ResolveTargetRotationAfterShift(const FVector& Destination) const;
 
@@ -231,6 +237,14 @@ protected:
 	// 타겟이 회피 상태일 때 Shift 이동 판정을 무효화할지 여부다.
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Faerin|Shift|Target")
 	bool bDodgingTargetAvoidsShift = false;
+
+	// 클라이언트 소유 플레이어에게도 같은 Shift 이동을 실행할지 여부다.
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Faerin|Shift|Target")
+	bool bMirrorTargetMoveToOwningClient = true;
+
+	// Shift 적중 시 플레이어 강인도 피해로 HitReact를 유도한다. 체력 피해는 주지 않는다.
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Faerin|Shift|Impact", meta = (ClampMin = "0.0"))
+	float ShiftImpactPoiseDamage = 0.0f;
 
 	// Shift 목적지 디버그 표시 여부다.
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Faerin|Shift|Debug")

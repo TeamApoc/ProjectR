@@ -8,6 +8,7 @@
 
 class UPRFaerinDebugDrawComponent;
 class UPRFaerinCombatDirectorComponent;
+class UPRFaerinGodFallComponent;
 class UMotionWarpingComponent;
 
 // Faerin 보스 본체 클래스다.
@@ -19,6 +20,10 @@ class PROJECTR_API APRFaerinCharacter : public APRBossBaseCharacter
 
 public:
 	APRFaerinCharacter();
+
+	// God Fall 맵 배치 Rig 전환과 지속 검 hazard를 담당하는 component를 반환한다.
+	UFUNCTION(BlueprintPure, Category = "ProjectR|AI|Boss|Faerin|GodFall")
+	UPRFaerinGodFallComponent* GetGodFallComponent() const { return GodFallComponent; }
 
 protected:
 	/*~ AActor Interface ~*/
@@ -33,6 +38,10 @@ protected:
 	// Faerin 원작형 공격 루프를 실행하는 전투 디렉터 컴포넌트다.
 	UPROPERTY(VisibleAnywhere, Category = "ProjectR|AI|Boss|Faerin")
 	TObjectPtr<UPRFaerinCombatDirectorComponent> CombatDirectorComponent;
+
+	// Phase2 God Fall 진입과 StaticSword hazard 생명주기를 관리하는 컴포넌트다.
+	UPROPERTY(VisibleAnywhere, Category = "ProjectR|AI|Boss|Faerin|GodFall")
+	TObjectPtr<UPRFaerinGodFallComponent> GodFallComponent;
 
 	// 공격 루트모션 방향 보정을 위한 Motion Warping 컴포넌트다.
 	UPROPERTY(VisibleAnywhere, Category = "ProjectR|Animation")

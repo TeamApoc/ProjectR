@@ -18,7 +18,8 @@ enum class EPRBossPortalPatternType : uint8
 	Missile		UMETA(DisplayName = "Missile"),
 	Barrage		UMETA(DisplayName = "Barrage"),
 	Attached	UMETA(DisplayName = "Attached"),
-	Torrent		UMETA(DisplayName = "Torrent")
+	Torrent		UMETA(DisplayName = "Torrent"),
+	Pair		UMETA(DisplayName = "Pair")
 };
 
 // 포털 Helper Actor를 어느 타이밍에 생성할지 정의한다.

@@ -105,6 +105,8 @@ FGameplayEffectSpecHandle UPRGA_FireProjectile::MakeWeaponEffectSpec(const FHitR
 		return FGameplayEffectSpecHandle();
 	}
 
+	AddCurrentWeaponDamageData(SpecHandle);
+
 	if (HitResult != nullptr && HitResult->bBlockingHit)
 	{
 		SpecHandle.Data->GetContext().AddHitResult(*HitResult, true);

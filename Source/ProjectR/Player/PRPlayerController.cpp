@@ -130,6 +130,12 @@ void APRPlayerController::SetupInputComponent()
 	{
 		EIC->BindAction(FlashlightAction, ETriggerEvent::Started, this, &APRPlayerController::ToggleFlashlight);
 	}
+
+	if (IsValid(TraitWindowAction.Get()))
+	{
+		EIC->BindAction(TraitWindowAction.Get(), ETriggerEvent::Started, this, &APRPlayerController::OnTraitWindowInputStarted);
+	}
+
 	
 	for (int32 SlotIndex = 0; SlotIndex < QuickSlotActions.Num(); ++SlotIndex)
 	{
@@ -462,6 +468,11 @@ void APRPlayerController::ClientNotifyShopSellResult_Implementation(const FPRSho
 	OnShopSellResult.Broadcast(Result);
 }
 
+void APRPlayerController::ClientNotifyTraitInvestmentResult_Implementation(const FPRTraitInvestmentResult& Result)
+{
+	OnTraitInvestmentResult.Broadcast(Result);
+}
+
 void APRPlayerController::RequestUpgradeWeapon(UPRWeaponUpgradeComponent* UpgradeComponent, UPRItemInstance_Weapon* WeaponItem)
 {
 	if (!IsValid(UpgradeComponent) || !IsValid(WeaponItem))
@@ -490,6 +501,16 @@ void APRPlayerController::RequestSellShopItem(UPRShopComponent* ShopComponent, F
 	}
 
 	ServerRequestSellShopItem(ShopComponent, EntryId, Quantity);
+}
+
+void APRPlayerController::RequestConfirmTraitInvestment(const FPRTraitInvestmentInfo& DesiredInvestment)
+{
+	ServerRequestConfirmTraitInvestment(DesiredInvestment);
+}
+
+void APRPlayerController::RequestResetTraitInvestment()
+{
+	ServerRequestResetTraitInvestment();
 }
 
 void APRPlayerController::ServerRequestUpgradeWeapon_Implementation(UPRWeaponUpgradeComponent* UpgradeComponent, UPRItemInstance_Weapon* WeaponItem)
@@ -543,6 +564,38 @@ void APRPlayerController::ServerRequestSellShopItem_Implementation(UPRShopCompon
 	ShopComponent->RequestSellItem(this, EntryId, Quantity);
 }
 
+void APRPlayerController::ServerRequestConfirmTraitInvestment_Implementation(const FPRTraitInvestmentInfo& DesiredInvestment)
+{
+	APRPlayerState* PRPlayerState = GetPlayerState<APRPlayerState>();
+	UPRPlayerGrowthComponent* GrowthComponent = IsValid(PRPlayerState) ? PRPlayerState->GetGrowthComponent() : nullptr;
+	FPRTraitInvestmentResult Result;
+	if (!IsValid(GrowthComponent))
+	{
+		Result.FailReason = EPRTraitInvestmentFailReason::InvalidGrowthComponent;
+		ClientNotifyTraitInvestmentResult(Result);
+		return;
+	}
+
+	Result = GrowthComponent->ConfirmTraitInvestment(DesiredInvestment);
+	ClientNotifyTraitInvestmentResult(Result);
+}
+
+void APRPlayerController::ServerRequestResetTraitInvestment_Implementation()
+{
+	APRPlayerState* PRPlayerState = GetPlayerState<APRPlayerState>();
+	UPRPlayerGrowthComponent* GrowthComponent = IsValid(PRPlayerState) ? PRPlayerState->GetGrowthComponent() : nullptr;
+	FPRTraitInvestmentResult Result;
+	if (!IsValid(GrowthComponent))
+	{
+		Result.FailReason = EPRTraitInvestmentFailReason::InvalidGrowthComponent;
+		ClientNotifyTraitInvestmentResult(Result);
+		return;
+	}
+
+	Result = GrowthComponent->ResetTraitInvestment();
+	ClientNotifyTraitInvestmentResult(Result);
+}
+
 // ===== UI =====
 void APRPlayerController::OnInventoryInputStarted()
 {
@@ -552,6 +605,16 @@ void APRPlayerController::OnInventoryInputStarted()
 	}
     // 인벤토리 UI 토글 
 	UIControllerComponent->ToggleInventory();
+}
+
+void APRPlayerController::OnTraitWindowInputStarted()
+{
+	if (!IsValid(UIControllerComponent))
+	{
+		return;
+	}
+
+	UIControllerComponent->ToggleTraitWindow();
 }
 
 void APRPlayerController::OnQuickSlotInputStarted(int32 SlotIndex)

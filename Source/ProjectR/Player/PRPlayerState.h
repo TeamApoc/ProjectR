@@ -14,6 +14,7 @@ struct FPRInventoryChangeEventData;
 enum class EPRInventoryChangeReason : uint8;
 class UPRAbilitySystemComponent;
 class UPRAttributeSet_Common;
+class UPRAttributeSet_Growth;
 class UPRAttributeSet_Player;
 class UPRAttributeSet_Weapon;
 class UPRInventoryComponent;
@@ -21,6 +22,7 @@ class UPREquipmentManagerComponent;
 class UPRWeaponManagerComponent;
 class UPRQuickSlotComponent;
 class UPRCurrencyComponent;
+class UPRPlayerGrowthComponent;
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnMouseSensitivityChanged, float, NewSensitivity);
 
@@ -55,6 +57,9 @@ public:
 	// 플레이어 AttributeSet 조회
 	UPRAttributeSet_Player* GetPlayerSet() const { return PlayerSet; }
 
+	// 성장 AttributeSet 조회
+	UPRAttributeSet_Growth* GetGrowthSet() const { return GrowthSet; }
+
 	// 무기 자원 AttributeSet 조회
 	UPRAttributeSet_Weapon* GetWeaponSet() const { return WeaponSet; }
 
@@ -77,6 +82,10 @@ public:
 	// 플레이어 재화 컴포넌트를 반환
 	UFUNCTION(BlueprintPure, Category = "ProjectR|Currency")
 	UPRCurrencyComponent* GetCurrencyComponent() const { return CurrencyComponent; }
+
+	// 플레이어 성장 컴포넌트를 반환
+	UFUNCTION(BlueprintPure, Category = "ProjectR|Growth")
+	UPRPlayerGrowthComponent* GetGrowthComponent() const { return GrowthComponent; }
 
 	// 지정 무기 슬롯의 캐시된 탄창과 예비탄 비율을 반환한다
 	void GetCachedAmmoRatios(EPRWeaponSlotType SlotType, float& OutMagazineRatio, float& OutReserveRatio) const;
@@ -128,6 +137,9 @@ public:
 	
 	void ApplySaveData(const FPRCharacterSaveData& InSaveData);
 	FPRCharacterSaveData MakeSaveData() const;
+
+	// 성장 Attribute 기준의 캐시 값을 기존 저장/표시 필드에 반영한다
+	void SyncGrowthCache(int64 NewExperience, int32 NewLevel, const FPRCharacterStatUpgradeInfo& NewStats);
 	
 	// 마우스 감도
 	float GetCameraSensitivity() const { return CameraSensitivity; }
@@ -183,6 +195,10 @@ protected:
 	UPROPERTY()
 	TObjectPtr<UPRAttributeSet_Weapon> WeaponSet;
 
+	// 성장 속성
+	UPROPERTY()
+	TObjectPtr<UPRAttributeSet_Growth> GrowthSet;
+
 	// 플레이어가 소유한 Item 인스턴스 정본 컨테이너
 	UPROPERTY(VisibleAnywhere, Category = "ProjectR|Inventory")
 	TObjectPtr<UPRInventoryComponent> InventoryComponent;
@@ -202,6 +218,10 @@ protected:
 	// 플레이어가 보유한 고철 재화 컨테이너
 	UPROPERTY(VisibleAnywhere, Category = "ProjectR|Currency")
 	TObjectPtr<UPRCurrencyComponent> CurrencyComponent;
+
+	// 플레이어 성장 상태 컨테이너
+	UPROPERTY(VisibleAnywhere, Category = "ProjectR|Growth")
+	TObjectPtr<UPRPlayerGrowthComponent> GrowthComponent;
 
 	// 주무기 슬롯 탄창 보존 비율
 	float CachedPrimaryMagazineAmmoRatio = 1.0f;

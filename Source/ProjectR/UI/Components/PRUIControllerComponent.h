@@ -15,6 +15,7 @@ class UPRInventoryWidget;
 class UPRQuickSlotComponent;
 class UPRShopComponent;
 class UPRShopWidget;
+class UPRTraitWindowWidget;
 class UPRUIManagerSubsystem;
 class UPRWeaponUpgradeComponent;
 class UPRWeaponUpgradeWidget;
@@ -34,9 +35,17 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "ProjectR|UI")
 	void ToggleInventory();
 
+	// 특성 투자 위젯을 열거나 닫는다
+	UFUNCTION(BlueprintCallable, Category = "ProjectR|UI")
+	void ToggleTraitWindow();
+
 	// 인벤토리 위젯이 열려 있으면 닫는다
 	UFUNCTION(BlueprintCallable, Category = "ProjectR|UI")
 	void CloseInventory();
+
+	// 특성 투자 위젯이 열려 있으면 닫는다
+	UFUNCTION(BlueprintCallable, Category = "ProjectR|UI")
+	void CloseTraitWindow();
 
 	// 강화 위젯을 열고 강화 컴포넌트 Context를 전달한다
 	UFUNCTION(BlueprintCallable, Category = "ProjectR|UI")
@@ -112,6 +121,9 @@ private:
 	// 상점 위젯 인스턴스를 생성하거나 캐시된 인스턴스를 반환한다
 	UPRShopWidget* GetOrCreateShopWidget();
 
+	// 특성 투자 위젯 인스턴스를 생성하거나 캐시된 인스턴스를 반환한다
+	UPRTraitWindowWidget* GetOrCreateTraitWindowWidget();
+
 	// 현재 HUD 위젯을 UIManager에서 Pop하고 참조 정리
 	void TearDownHUDWidget();
 
@@ -144,14 +156,14 @@ protected:
 	UPROPERTY(EditDefaultsOnly, Category = "ProjectR|Shop")
 	TSubclassOf<UPRShopWidget> ShopWidgetClass;
 
-	// 상점 위젯 클래스
-	UPROPERTY(EditDefaultsOnly, Category = "ProjectR|Shop")
-	TSubclassOf<UPRShopWidget> ShopWidgetClass;
-
 	// 생성 후 재사용할 상점 위젯
 	UPROPERTY(Transient)
 	TObjectPtr<UPRShopWidget> ShopWidget;
 
+	// 특성 투자 위젯 클래스
+	UPROPERTY(EditDefaultsOnly, Category = "ProjectR|Growth")
+	TSubclassOf<UPRTraitWindowWidget> TraitWindowWidgetClass;
+	
 	// HUD 위젯 클래스. BP에서 지정
 	UPROPERTY(EditDefaultsOnly, Category = "ProjectR|HUD")
 	TSubclassOf<UPRHUDWidget> HUDWidgetClass;
@@ -173,10 +185,11 @@ private:
 	// 생성 후 재사용할 강화 위젯
 	UPROPERTY(Transient)
 	TObjectPtr<UPRWeaponUpgradeWidget> WeaponUpgradeWidget;
-	
-	// 생성 후 재사용할 상점 위젯
+
+	// 생성 후 재사용할 특성 투자 위젯
 	UPROPERTY(Transient)
-	TObjectPtr<UPRShopWidget> ShopWidget;
+	TObjectPtr<UPRTraitWindowWidget> TraitWindowWidget;
+	
 	
 	// ====== Variables =======
 	// 현재 바인딩된 무기 매니저

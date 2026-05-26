@@ -7,7 +7,6 @@
 #include "GameplayTagContainer.h"
 #include "ProjectR/ItemSystem/Types/PRWeaponTypes.h"
 #include "ProjectR/Player/PRGrowthTypes.h"
-#include "ProjectR/Weapon/Types/PRWeaponTypes.h"
 #include "PRGameTypes.generated.h"
 
 /*~ 세이브 포맷 버전 ~*/

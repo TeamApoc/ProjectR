@@ -24,6 +24,9 @@ public:
 	/*~ UObject Interface ~*/
 	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
 
+	/*~ UPRItemInstance Interface ~*/
+	virtual bool ActivateItem(const FPRItemActivationContext& ActivationContext) override;
+	virtual bool DeactivateItem(const FPRItemActivationContext& ActivationContext) override;
 public:
 	// 무기와 초기 Mod 데이터를 연결한다
 	virtual void InitializeItem(UPRItemDataAsset* InItemData, int32 InitialStackCount = 1) override;

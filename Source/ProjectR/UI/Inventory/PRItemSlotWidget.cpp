@@ -89,7 +89,7 @@ void UPRItemSlotWidget::RefreshNativeDisplay()
 	if (IsValid(EquippedIndicatorImage))
 	{
 		// 아이템 장착중 여부에 따라 이미지 숨김/표시
-		const ESlateVisibility EquippedIndicatorVisibility = ViewData.bEquipped
+		const ESlateVisibility EquippedIndicatorVisibility = ViewData.bActivated
 			? ESlateVisibility::Visible
 			: ESlateVisibility::Hidden;
 		EquippedIndicatorImage->SetVisibility(EquippedIndicatorVisibility);

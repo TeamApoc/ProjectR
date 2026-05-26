@@ -295,16 +295,13 @@ bool UPRQuickSlotComponent::UseQuickSlotInternal(int32 SlotIndex)
 		return false;
 	}
 
-	AActor* UseActor = GetOwner();
-	if (!IsValid(UseActor))
+	AActor* UserActor = GetOwner();
+	if (!IsValid(UserActor))
 	{
 		return false;
 	}
-
-	FPRItemActivationContext ActivationContext;
-	ActivationContext.UserActor = UseActor;
-	ActivationContext.SlotIndex = SlotIndex;
-	CachedInventoryComponent->RequestActivateItem(Entry.CachedConsumableItem, ActivationContext);
+	
+	Entry.CachedConsumableItem->UseItem(UserActor);
 	RefreshCachedConsumableItem(SlotIndex);
 	OnQuickSlotChanged.Broadcast(this, SlotIndex);
 	return true;

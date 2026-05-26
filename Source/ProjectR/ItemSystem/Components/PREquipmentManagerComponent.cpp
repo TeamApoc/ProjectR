@@ -85,7 +85,7 @@ void UPREquipmentManagerComponent::GetLifetimeReplicatedProps(TArray<FLifetimePr
 	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
 
 	DOREPLIFETIME_CONDITION(UPREquipmentManagerComponent, EquippedList, COND_OwnerOnly);
-	DOREPLIFETIME(UPREquipmentManagerComponent, EquippedVisualInfos);
+	DOREPLIFETIME(UPREquipmentManagerComponent, ReplicatedEquipmentInfos);
 }
 
 bool UPREquipmentManagerComponent::ReplicateSubobjects(UActorChannel* Channel, FOutBunch* Bunch, FReplicationFlags* RepFlags)
@@ -128,23 +128,23 @@ bool UPREquipmentManagerComponent::EquipItem(UPRItemInstance_Equipment* Equipmen
 	EquipmentItem->OnEquipped(GetOwner());
 
 	// 시각 정보 업데이트
-	FPREquipmentVisualInfo NewVisualInfo;
-	NewVisualInfo.SlotType = SlotType;
-	NewVisualInfo.EquipmentData = EquipmentItem->GetEquipmentData();
+	FPRReplicatedEquipmentInfo NewEquipmentInfo;
+	NewEquipmentInfo.SlotType = SlotType;
+	NewEquipmentInfo.EquipmentData = EquipmentItem->GetEquipmentData();
 
 	bool bFound = false;
-	for (FPREquipmentVisualInfo& Info : EquippedVisualInfos)
+	for (FPRReplicatedEquipmentInfo& Info : ReplicatedEquipmentInfos)
 	{
 		if (Info.SlotType == SlotType)
 		{
-			Info = NewVisualInfo;
+			Info = NewEquipmentInfo;
 			bFound = true;
 			break;
 		}
 	}
 	if (!bFound)
 	{
-		EquippedVisualInfos.Add(NewVisualInfo);
+		ReplicatedEquipmentInfos.Add(NewEquipmentInfo);
 	}
 
 	if (IsValid(GetOwner()))
@@ -171,11 +171,11 @@ bool UPREquipmentManagerComponent::UnequipSlot(EPREquipmentSlotType SlotType)
 	}
 
 	// 시각 정보 제거
-	for (int32 i = EquippedVisualInfos.Num() - 1; i >= 0; --i)
+	for (int32 i = ReplicatedEquipmentInfos.Num() - 1; i >= 0; --i)
 	{
-		if (EquippedVisualInfos[i].SlotType == SlotType)
+		if (ReplicatedEquipmentInfos[i].SlotType == SlotType)
 		{
-			EquippedVisualInfos.RemoveAt(i);
+			ReplicatedEquipmentInfos.RemoveAt(i);
 			break;
 		}
 	}
@@ -251,8 +251,8 @@ void UPREquipmentManagerComponent::ApplySaveData(const FPREquipmentSaveData& InS
 	}
 }
 
-void UPREquipmentManagerComponent::OnRep_EquippedVisualInfos()
+void UPREquipmentManagerComponent::OnRep_EquipmentInfos()
 {
 	// 클라이언트에서 시각적 장착 정보가 복제되었을 때 캐릭터 외형 갱신 (추후 ChildMesh 연동)
-	UE_LOG(LogTemp, Log, TEXT("[Equipment] 장비 시각 정보 복제됨. 아이템 개수: %d"), EquippedVisualInfos.Num());
+	UE_LOG(LogTemp, Log, TEXT("[Equipment] 장비 시각 정보 복제됨. 아이템 개수: %d"), ReplicatedEquipmentInfos.Num());
 }

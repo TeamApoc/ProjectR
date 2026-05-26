@@ -20,6 +20,9 @@ public:
 	/*~ UObject Interface ~*/
 	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
 
+	/*~ UPRItemInstance Interface ~*/
+	virtual bool ActivateItem(const FPRItemActivationContext& ActivationContext) override;
+	virtual bool DeactivateItem(const FPRItemActivationContext& ActivationContext) override;
 public:
 	virtual void InitializeItem(UPRItemDataAsset* InItemData, int32 InitialStackCount) override;
 

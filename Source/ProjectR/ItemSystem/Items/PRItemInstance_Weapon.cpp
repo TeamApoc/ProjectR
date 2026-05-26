@@ -45,6 +45,18 @@ void UPRItemInstance_Weapon::GetLifetimeReplicatedProps(TArray<FLifetimeProperty
 	DOREPLIFETIME(UPRItemInstance_Weapon, UpgradeLevel);
 }
 
+bool UPRItemInstance_Weapon::ActivateItem(const FPRItemActivationContext& ActivationContext)
+{
+	// TODO: 무기 장착
+	return Super::ActivateItem(ActivationContext);
+}
+
+bool UPRItemInstance_Weapon::DeactivateItem(const FPRItemActivationContext& ActivationContext)
+{
+	// TODO: 무기 해제
+	return Super::DeactivateItem(ActivationContext);
+}
+
 void UPRItemInstance_Weapon::InitializeItem(UPRItemDataAsset* InItemData, int32 InitialStackCount)
 {
 	Super::InitializeItem(InItemData, InitialStackCount);

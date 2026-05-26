@@ -72,7 +72,7 @@ public:
 	virtual bool ReplicateSubobjects(UActorChannel* Channel, FOutBunch* Bunch, FReplicationFlags* RepFlags) override;
 
 	// 현재 공개 비주얼 정보 배열 반환
-	const TArray<FPREquipmentVisualInfo>& GetEquippedVisualInfos() const { return EquippedVisualInfos; }
+	const TArray<FPRReplicatedEquipmentInfo>& GetEquippedVisualInfos() const { return ReplicatedEquipmentInfos; }
 
 public:
 	// 슬롯에 장비 아이템 장착 (서버 전용)
@@ -103,7 +103,7 @@ public:
 protected:
 	// 장착 시각 정보 복제 알림
 	UFUNCTION()
-	void OnRep_EquippedVisualInfos();
+	void OnRep_EquipmentInfos();
 
 private:
 	// 장착 아이템 관리 구조체 (Owner 전용)
@@ -111,6 +111,6 @@ private:
 	FPREquipmentList EquippedList;
 
 	// 장착 장비의 시각적 공개 정보 배열 (모두에게 복제)
-	UPROPERTY(ReplicatedUsing = OnRep_EquippedVisualInfos, Transient)
-	TArray<FPREquipmentVisualInfo> EquippedVisualInfos;
+	UPROPERTY(ReplicatedUsing = OnRep_EquipmentInfos, Transient)
+	TArray<FPRReplicatedEquipmentInfo> ReplicatedEquipmentInfos;
 };

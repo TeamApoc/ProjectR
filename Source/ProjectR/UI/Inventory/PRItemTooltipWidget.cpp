@@ -41,7 +41,7 @@ void UPRItemTooltipWidget::RefreshNativeDisplay()
 		{
 			Description = FText::FromString(TEXT("현재 장착을 해제합니다."));
 		}
-		else if (ViewData.bEquipped)
+		else if (ViewData.bActivated)
 		{
 			Description = FText::FromString(TEXT("현재 장착 중입니다."));
 		}

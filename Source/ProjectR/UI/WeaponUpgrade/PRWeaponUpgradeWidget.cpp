@@ -425,7 +425,7 @@ FPRInventoryItemSlotViewData UPRWeaponUpgradeWidget::BuildWeaponItemViewData(UPR
 	ViewData.ItemData = WeaponData;
 	ViewData.ItemInstance = WeaponItem;
 	ViewData.ItemType = EPRItemType::Weapon;
-	ViewData.bEquipped = bSelected;
+	ViewData.bActivated = bSelected;
 	ViewData.bShowStackCount = false;
 
 	if (IsValid(WeaponData))

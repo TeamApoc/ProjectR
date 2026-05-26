@@ -23,7 +23,7 @@ class UPREquipmentDataAsset;
 
 // 장비 시각적 공개 정보
 USTRUCT(BlueprintType)
-struct FPREquipmentVisualInfo
+struct FPRReplicatedEquipmentInfo
 {
 	GENERATED_BODY()
 

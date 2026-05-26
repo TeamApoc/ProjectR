@@ -87,7 +87,7 @@ void UPRShopItemSlotWidget::RefreshNativeDisplay()
 
 	if (IsValid(SelectedIndicatorImage))
 	{
-		SelectedIndicatorImage->SetVisibility(ItemViewData.bEquipped ? ESlateVisibility::Visible : ESlateVisibility::Hidden);
+		SelectedIndicatorImage->SetVisibility(ItemViewData.bActivated ? ESlateVisibility::Visible : ESlateVisibility::Hidden);
 	}
 }
 

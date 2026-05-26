@@ -16,6 +16,18 @@ void UPRItemInstance_Mod::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& 
 	DOREPLIFETIME(UPRItemInstance_Mod, EquippedWeaponItem);
 }
 
+bool UPRItemInstance_Mod::ActivateItem(const FPRItemActivationContext& ActivationContext)
+{
+	// TODO: 모드 장착
+	return Super::ActivateItem(ActivationContext);
+}
+
+bool UPRItemInstance_Mod::DeactivateItem(const FPRItemActivationContext& ActivationContext)
+{
+	// TODO: 모드 해제
+	return Super::DeactivateItem(ActivationContext);
+}
+
 void UPRItemInstance_Mod::InitializeItem(UPRItemDataAsset* InItemData, int32 InitialStackCount)
 {
 	Super::InitializeItem(InItemData, InitialStackCount);

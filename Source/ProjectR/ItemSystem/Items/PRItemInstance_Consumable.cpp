@@ -15,6 +15,9 @@ void UPRItemInstance_Consumable::GetLifetimeReplicatedProps(TArray<FLifetimeProp
 
 bool UPRItemInstance_Consumable::ActivateItem(const FPRItemActivationContext& ActivationContext)
 {
+	// TODO: 퀵슬롯 등록
+	
+	return false;
 	return UseItem(ActivationContext.UserActor);
 }
 

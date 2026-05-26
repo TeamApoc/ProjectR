@@ -56,7 +56,7 @@ public:
 
 	// Mod 리스트 대상 무기를 반환한다
 	UFUNCTION(BlueprintPure, Category = "ProjectR|Inventory")
-	UPRItemInstance_Weapon* GetPendingModTargetWeapon() const {return PendingModTargetWeaponItem;}
+	UPRItemInstance_Weapon* GetPendingModTargetWeapon() const {return LastFocusedItem;}
 	// =========================
 protected:
 	/*~ UUserWidget Interface ~*/
@@ -142,7 +142,7 @@ private:
 	void OpenWeaponList(EPRWeaponSlotType TargetSlot);
 
 	// 지정 무기의 Mod 목록을 연다
-	void OpenModList(UPRItemInstance_Weapon* TargetWeaponItem);
+	void OpenModList(UPRItemInstance* TargetItem);
 
 	// 지정 퀵슬롯에 등록할 소비 아이템 목록을 연다
 	void OpenConsumableListForQuickSlot(int32 SlotIndex);
@@ -275,7 +275,7 @@ private:
 
 	// Mod 장착 타겟 무기 Item
 	UPROPERTY(BlueprintReadOnly, Category = "ProjectR|Inventory", meta = (AllowPrivateAccess = "true"))
-	TObjectPtr<UPRItemInstance_Weapon> PendingModTargetWeaponItem;
+	TObjectPtr<UPRItemInstance> LastFocusedItem;
 
 	// 소비 아이템 목록 선택 결과를 등록할 퀵슬롯 인덱스
 	UPROPERTY(BlueprintReadOnly, Category = "ProjectR|Inventory", meta = (AllowPrivateAccess = "true"))

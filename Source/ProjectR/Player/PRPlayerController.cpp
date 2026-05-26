@@ -473,6 +473,16 @@ void APRPlayerController::ClientNotifyTraitInvestmentResult_Implementation(const
 	OnTraitInvestmentResult.Broadcast(Result);
 }
 
+void APRPlayerController::ClientNotifyPlayerLevelUp_Implementation(int32 PreviousLevel, int32 CurrentLevel)
+{
+	if (!IsValid(UIControllerComponent))
+	{
+		return;
+	}
+
+	UIControllerComponent->ShowLevelUpPopup(PreviousLevel, CurrentLevel);
+}
+
 void APRPlayerController::RequestUpgradeWeapon(UPRWeaponUpgradeComponent* UpgradeComponent, UPRItemInstance_Weapon* WeaponItem)
 {
 	if (!IsValid(UpgradeComponent) || !IsValid(WeaponItem))

@@ -71,6 +71,10 @@ public:
 	UFUNCTION(BlueprintPure, Category = "ProjectR|UI")
 	UPRHUDWidget* GetHUDWidget() const { return HUDWidget; }
 
+	// 레벨업 팝업 생성 및 표시 요청
+	UFUNCTION(BlueprintCallable, Category = "ProjectR|UI")
+	void ShowLevelUpPopup(int32 PreviousLevel, int32 CurrentLevel);
+
 	// 장착 무기에 맞는 스코프 위젯을 표시한다.
 	UFUNCTION(BlueprintCallable, Category = "ProjectR|UI")
 	void ShowWeaponScope();
@@ -159,7 +163,7 @@ protected:
 	// 특성 투자 위젯 클래스
 	UPROPERTY(EditDefaultsOnly, Category = "ProjectR|Growth")
 	TSubclassOf<UPRTraitWindowWidget> TraitWindowWidgetClass;
-	
+
 	// 생성 후 재사용할 상점 위젯
 	UPROPERTY(Transient)
 	TObjectPtr<UPRShopWidget> ShopWidget;
@@ -189,8 +193,7 @@ private:
 	// 생성 후 재사용할 특성 투자 위젯
 	UPROPERTY(Transient)
 	TObjectPtr<UPRTraitWindowWidget> TraitWindowWidget;
-	
-	
+
 	// ====== Variables =======
 	// 현재 바인딩된 무기 매니저
 	UPROPERTY(Transient)

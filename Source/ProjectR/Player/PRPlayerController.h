@@ -123,6 +123,10 @@ public:
 	UFUNCTION(Client, Reliable)
 	void ClientNotifyTraitInvestmentResult(const FPRTraitInvestmentResult& Result);
 
+	// 서버에서 owning client로 레벨업 팝업 표시 요청
+	UFUNCTION(Client, Reliable)
+	void ClientNotifyPlayerLevelUp(int32 PreviousLevel, int32 CurrentLevel);
+
 	// 강화 UI에서 선택한 무기 강화를 서버에 요청한다
 	UFUNCTION(BlueprintCallable, Category = "ProjectR|WeaponUpgrade")
 	void RequestUpgradeWeapon(UPRWeaponUpgradeComponent* UpgradeComponent, UPRItemInstance_Weapon* WeaponItem);

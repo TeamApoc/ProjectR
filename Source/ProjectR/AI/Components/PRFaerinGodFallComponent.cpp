@@ -103,6 +103,7 @@ bool UPRFaerinGodFallComponent::StartGodFallEntry(AActor* InPatternTarget)
 	}
 
 	ActivePatternTargets.Reset();
+	NextTargetAssignmentIndex = 0;
 	RefreshGodFallTargets(InPatternTarget);
 	ActiveStaticSwords.Reset();
 
@@ -161,6 +162,7 @@ void UPRFaerinGodFallComponent::CancelGodFallHazards()
 	TArray<TObjectPtr<APRFaerinGodFallStaticSwordActor>> SwordsToCancel = ActiveStaticSwords;
 	ActiveStaticSwords.Reset();
 	ActivePatternTargets.Reset();
+	NextTargetAssignmentIndex = 0;
 
 	for (APRFaerinGodFallStaticSwordActor* StaticSword : SwordsToCancel)
 	{
@@ -831,9 +833,12 @@ void UPRFaerinGodFallComponent::TryAssignNextSword()
 		return;
 	}
 
-	for (const TWeakObjectPtr<AActor>& TargetPtr : ActivePatternTargets)
+	const int32 TargetCount = ActivePatternTargets.Num();
+	const int32 StartTargetIndex = NextTargetAssignmentIndex % TargetCount;
+	for (int32 TargetOffset = 0; TargetOffset < TargetCount; ++TargetOffset)
 	{
-		AActor* TargetActor = TargetPtr.Get();
+		const int32 TargetIndex = (StartTargetIndex + TargetOffset) % TargetCount;
+		AActor* TargetActor = ActivePatternTargets[TargetIndex].Get();
 		if (!IsValid(TargetActor) || IsTargetAlreadyAssigned(TargetActor))
 		{
 			continue;
@@ -849,10 +854,14 @@ void UPRFaerinGodFallComponent::TryAssignNextSword()
 		ChargedSwords.RemoveAtSwap(SelectedIndex);
 		if (IsValid(SelectedSword))
 		{
-			SelectedSword->StartAssignedAttack(
+			const bool bAssigned = SelectedSword->StartAssignedAttack(
 				TargetActor,
 				ResolveWarningSeconds(),
 				ResolveTargetOverheadMoveSeconds());
+			if (bAssigned)
+			{
+				AdvanceTargetAssignmentCursor(TargetIndex);
+			}
 		}
 	}
 }
@@ -878,6 +887,14 @@ void UPRFaerinGodFallComponent::RefreshGodFallTargets(AActor* FallbackTarget)
 	{
 		ActivePatternTargets.Add(FallbackTarget);
 	}
+
+	if (ActivePatternTargets.IsEmpty())
+	{
+		NextTargetAssignmentIndex = 0;
+		return;
+	}
+
+	NextTargetAssignmentIndex %= ActivePatternTargets.Num();
 }
 
 bool UPRFaerinGodFallComponent::IsValidGodFallTarget(AActor* CandidateTarget) const
@@ -909,6 +926,18 @@ bool UPRFaerinGodFallComponent::IsTargetAlreadyAssigned(const AActor* CandidateT
 	}
 
 	return false;
+}
+
+void UPRFaerinGodFallComponent::AdvanceTargetAssignmentCursor(const int32 AssignedTargetIndex)
+{
+	const int32 TargetCount = ActivePatternTargets.Num();
+	if (TargetCount <= 0)
+	{
+		NextTargetAssignmentIndex = 0;
+		return;
+	}
+
+	NextTargetAssignmentIndex = (AssignedTargetIndex + 1) % TargetCount;
 }
 
 float UPRFaerinGodFallComponent::ResolveSwordChargeSeconds() const

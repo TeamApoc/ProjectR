@@ -265,6 +265,11 @@ bool UPRFaerinCombatDirectorComponent::SelectPatternPlan(UBehaviorTreeComponent&
 			continue;
 		}
 
+		if (!CanActivatePatternAbilityTag(PatternRule->AbilityTag))
+		{
+			continue;
+		}
+
 		FPRFaerinPatternCandidate Candidate;
 		Candidate.PatternRule = PatternRule;
 		Candidate.LoopMetadata = LoopMetadata;
@@ -387,6 +392,11 @@ bool UPRFaerinCombatDirectorComponent::SelectOutOfRangeApproachPlan(
 			continue;
 		}
 
+		if (!CanActivatePatternAbilityTag(PatternRule->AbilityTag))
+		{
+			continue;
+		}
+
 		const float CandidateWeight = PatternRule->SelectionWeight * LoopMetadata->SelectionWeightScale;
 		const bool bPreferCandidate = BestRule == nullptr
 			|| CandidateWeight > BestWeight
@@ -423,6 +433,17 @@ bool UPRFaerinCombatDirectorComponent::SelectOutOfRangeApproachPlan(
 	}
 
 	return true;
+}
+
+bool UPRFaerinCombatDirectorComponent::CanActivatePatternAbilityTag(const FGameplayTag& AbilityTag) const
+{
+	if (!IsValid(AbilitySystemComponent) || !AbilityTag.IsValid())
+	{
+		return false;
+	}
+
+	FGameplayTagContainer FailureTags;
+	return AbilitySystemComponent->CanActivateAbilityByTag(AbilityTag, FailureTags);
 }
 
 bool UPRFaerinCombatDirectorComponent::ActivatePatternAbility(const FPRFaerinPatternPlan& PatternPlan)

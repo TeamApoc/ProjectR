@@ -126,6 +126,7 @@ namespace PRGameplayTags
 	
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Cooldown_Boss_Faerin_TeleportLunge, "Cooldown.Boss.Faerin.TeleportLunge", "Faerin Teleport Lunge 패턴 쿨다운");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Cooldown_Boss_Faerin_PortalMissile, "Cooldown.Boss.Faerin.PortalMissile", "Faerin 포털 미사일 패턴 쿨다운");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Cooldown_Boss_Faerin_PortalPair, "Cooldown.Boss.Faerin.PortalPair", "Faerin 포털 2개 설치 패턴 쿨다운");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Cooldown_Boss_Faerin_PortalBarrage, "Cooldown.Boss.Faerin.PortalBarrage", "Faerin 포털 연속 포격 패턴 쿨다운");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Cooldown_Boss_Faerin_PortalAttached, "Cooldown.Boss.Faerin.PortalAttached", "Faerin 부착 포털 패턴 쿨다운");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Cooldown_Boss_Faerin_PortalTorrent, "Cooldown.Boss.Faerin.PortalTorrent", "Faerin Torrent 포털 패턴 쿨다운");

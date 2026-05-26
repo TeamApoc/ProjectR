@@ -123,6 +123,9 @@ protected:
 		const FPRFaerinPhaseLoopConfig& PhaseConfig,
 		FPRFaerinPatternPlan& OutPlan);
 
+	// 현재 ASC 상태에서 지정 AbilityTag를 가진 패턴을 활성화할 수 있는지 확인한다.
+	bool CanActivatePatternAbilityTag(const FGameplayTag& AbilityTag) const;
+
 	// 선택된 패턴 Ability를 서버 ASC에서 실행한다.
 	bool ActivatePatternAbility(const FPRFaerinPatternPlan& PatternPlan);
 

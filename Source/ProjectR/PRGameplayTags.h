@@ -124,6 +124,7 @@ namespace PRGameplayTags
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Cooldown_Enemy_Evade); // 일반 적 회피 쿨다운
 	
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Cooldown_Boss_Faerin_PortalMissile); // Faerin 포털 미사일 패턴 쿨다운
+	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Cooldown_Boss_Faerin_PortalPair); // Faerin 포털 2개 설치 패턴 쿨다운
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Cooldown_Boss_Faerin_PortalBarrage); // Faerin 포털 연속 포격 패턴 쿨다운
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Cooldown_Boss_Faerin_PortalAttached); // Faerin 부착 포털 패턴 쿨다운
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Cooldown_Boss_Faerin_PortalTorrent); // Faerin Torrent 포털 패턴 쿨다운

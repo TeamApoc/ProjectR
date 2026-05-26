@@ -8,6 +8,7 @@
 UPRGameplayAbility_FaerinPortalPairSequence::UPRGameplayAbility_FaerinPortalPairSequence()
 {
 	SetAssetTags(PRBossAbility::MakePatternAssetTags(PRGameplayTags::Ability_Boss_Faerin_PortalPairSequence));
+	ActivationBlockedTags.AddTag(PRGameplayTags::Cooldown_Boss_Faerin_PortalPair);
 
 	PortalPatternType = EPRBossPortalPatternType::Pair;
 	SpawnTimingMode = EPRBossPortalSpawnTimingMode::OnCharacterEvent;

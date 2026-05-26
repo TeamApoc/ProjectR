@@ -107,6 +107,7 @@ private:
 	void RefreshGodFallTargets(AActor* FallbackTarget = nullptr);
 	bool IsValidGodFallTarget(AActor* CandidateTarget) const;
 	bool IsTargetAlreadyAssigned(const AActor* CandidateTarget) const;
+	void AdvanceTargetAssignmentCursor(int32 AssignedTargetIndex);
 	float ResolveSwordChargeSeconds() const;
 	float ResolveTargetOverheadMoveSeconds() const;
 	float ResolveWarningSeconds() const;
@@ -200,6 +201,7 @@ private:
 	FTimerHandle RigChargeTimerHandle;
 	FTimerHandle RigTiltPullTimerHandle;
 	FTimerHandle BossDropTimerHandle;
+	int32 NextTargetAssignmentIndex = 0;
 	FVector BossCastGroundLocation = FVector::ZeroVector;
 	FVector BossChargeApexLocation = FVector::ZeroVector;
 	FRotator BossCastRotation = FRotator::ZeroRotator;

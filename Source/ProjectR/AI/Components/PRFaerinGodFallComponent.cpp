@@ -2,6 +2,8 @@
 
 #include "PRFaerinGodFallComponent.h"
 
+#include "AbilitySystemBlueprintLibrary.h"
+#include "AbilitySystemComponent.h"
 #include "Animation/AnimSequenceBase.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "EngineUtils.h"
@@ -11,6 +13,7 @@
 #include "ProjectR/AI/Data/PRFaerinGodFallDataAsset.h"
 #include "ProjectR/Character/Enemy/PRBossBaseCharacter.h"
 #include "ProjectR/Character/PRPlayerCharacter.h"
+#include "ProjectR/PRGameplayTags.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogPRFaerinGodFall, Log, All);
 
@@ -864,17 +867,30 @@ void UPRFaerinGodFallComponent::RefreshGodFallTargets(AActor* FallbackTarget)
 		for (TActorIterator<APRPlayerCharacter> It(World); It; ++It)
 		{
 			APRPlayerCharacter* PlayerCharacter = *It;
-			if (IsValid(PlayerCharacter))
+			if (IsValidGodFallTarget(PlayerCharacter))
 			{
 				ActivePatternTargets.Add(PlayerCharacter);
 			}
 		}
 	}
 
-	if (ActivePatternTargets.IsEmpty() && IsValid(FallbackTarget))
+	if (ActivePatternTargets.IsEmpty() && IsValidGodFallTarget(FallbackTarget))
 	{
 		ActivePatternTargets.Add(FallbackTarget);
 	}
+}
+
+bool UPRFaerinGodFallComponent::IsValidGodFallTarget(AActor* CandidateTarget) const
+{
+	if (!IsValid(CandidateTarget))
+	{
+		return false;
+	}
+
+	const UAbilitySystemComponent* TargetAbilitySystem = UAbilitySystemBlueprintLibrary::GetAbilitySystemComponent(CandidateTarget);
+	return IsValid(TargetAbilitySystem)
+		&& !TargetAbilitySystem->HasMatchingGameplayTag(PRGameplayTags::State_Down)
+		&& !TargetAbilitySystem->HasMatchingGameplayTag(PRGameplayTags::State_Dead);
 }
 
 bool UPRFaerinGodFallComponent::IsTargetAlreadyAssigned(const AActor* CandidateTarget) const

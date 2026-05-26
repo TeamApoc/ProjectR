@@ -105,6 +105,7 @@ private:
 	void HandleStaticSwordAssignedAttackFinished(APRFaerinGodFallStaticSwordActor* FinishedSword);
 	void TryAssignNextSword();
 	void RefreshGodFallTargets(AActor* FallbackTarget = nullptr);
+	bool IsValidGodFallTarget(AActor* CandidateTarget) const;
 	bool IsTargetAlreadyAssigned(const AActor* CandidateTarget) const;
 	float ResolveSwordChargeSeconds() const;
 	float ResolveTargetOverheadMoveSeconds() const;

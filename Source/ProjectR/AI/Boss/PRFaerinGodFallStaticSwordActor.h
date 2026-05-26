@@ -128,6 +128,7 @@ private:
 	void FinishReturning();
 	void UpdateSegmentMovement(float DeltaSeconds);
 	void UpdateTargetOverheadMovement(float DeltaSeconds);
+	bool IsValidAssignedTarget(AActor* CandidateTarget) const;
 	void UpdateClientSwordPresentation(float DeltaSeconds);
 	void UpdateClientSegmentMovement(float DeltaSeconds);
 	void UpdateClientTargetOverheadMovement(float DeltaSeconds);

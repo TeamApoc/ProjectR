@@ -17,6 +17,7 @@
 #include "ProjectR/Character/Enemy/PRBossBaseCharacter.h"
 #include "ProjectR/Combat/PRCombatGameplayTags.h"
 #include "ProjectR/Combat/PRCombatStatics.h"
+#include "ProjectR/PRGameplayTags.h"
 #include "ProjectR/System/PRAssetManager.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogPRFaerinGodFallSword, Log, All);
@@ -208,7 +209,7 @@ bool APRFaerinGodFallStaticSwordActor::StartAssignedAttack(AActor* InAssignedTar
 	const float InWarningSeconds,
 	const float InOverheadMoveSeconds)
 {
-	if (!HasAuthority() || !CanStartAssignedAttack() || !IsValid(InAssignedTarget))
+	if (!HasAuthority() || !CanStartAssignedAttack() || !IsValidAssignedTarget(InAssignedTarget))
 	{
 		return false;
 	}
@@ -365,6 +366,12 @@ void APRFaerinGodFallStaticSwordActor::BeginDropping()
 		return;
 	}
 
+	if (!IsValidAssignedTarget(PatternTarget.Get()))
+	{
+		BeginReturning();
+		return;
+	}
+
 	if (!bHasAssignedAttackLocation)
 	{
 		UE_LOG(LogPRFaerinGodFallSword, Warning,
@@ -494,6 +501,12 @@ void APRFaerinGodFallStaticSwordActor::UpdateTargetOverheadMovement(const float 
 		return;
 	}
 
+	if (!IsValidAssignedTarget(PatternTarget.Get()))
+	{
+		BeginReturning();
+		return;
+	}
+
 	RefreshAssignedAttackLocations();
 	OverheadMoveElapsedSeconds += DeltaSeconds;
 	OverheadMoveSpeed += OverheadMoveAcceleration * DeltaSeconds;
@@ -529,10 +542,29 @@ bool APRFaerinGodFallStaticSwordActor::RefreshAssignedAttackLocations()
 	return true;
 }
 
+bool APRFaerinGodFallStaticSwordActor::IsValidAssignedTarget(AActor* CandidateTarget) const
+{
+	if (!IsValid(CandidateTarget))
+	{
+		return false;
+	}
+
+	const UAbilitySystemComponent* TargetAbilitySystem = UAbilitySystemBlueprintLibrary::GetAbilitySystemComponent(CandidateTarget);
+	return IsValid(TargetAbilitySystem)
+		&& !TargetAbilitySystem->HasMatchingGameplayTag(PRGameplayTags::State_Down)
+		&& !TargetAbilitySystem->HasMatchingGameplayTag(PRGameplayTags::State_Dead);
+}
+
 void APRFaerinGodFallStaticSwordActor::FinishMoveToTargetOverhead()
 {
 	if (!HasAuthority())
 	{
+		return;
+	}
+
+	if (!IsValidAssignedTarget(PatternTarget.Get()))
+	{
+		BeginReturning();
 		return;
 	}
 
@@ -546,6 +578,12 @@ void APRFaerinGodFallStaticSwordActor::BeginTelegraph()
 {
 	if (!HasAuthority())
 	{
+		return;
+	}
+
+	if (!IsValidAssignedTarget(PatternTarget.Get()))
+	{
+		BeginReturning();
 		return;
 	}
 

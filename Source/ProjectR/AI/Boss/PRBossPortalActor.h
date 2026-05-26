@@ -262,6 +262,14 @@ protected:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Portal|Projectile")
 	FRotator ProjectileRotationOffset = FRotator::ZeroRotator;
 
+	// true면 target 조준 대신 FixedProjectileDirectionLocal을 actor 기준 고정 발사 방향으로 사용한다.
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Portal|Projectile")
+	bool bUseFixedProjectileDirection = false;
+
+	// 고정 발사 모드에서 사용할 actor local 방향이다.
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Portal|Projectile", meta = (EditCondition = "bUseFixedProjectileDirection"))
+	FVector FixedProjectileDirectionLocal = FVector::ForwardVector;
+
 	// 포털 투사체에 적용할 피해 GE다. 비어 있으면 AbilitySystemRegistry의 적 피해 GE를 사용한다.
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Portal|Damage")
 	TSubclassOf<UGameplayEffect> ProjectileDamageEffectClass;

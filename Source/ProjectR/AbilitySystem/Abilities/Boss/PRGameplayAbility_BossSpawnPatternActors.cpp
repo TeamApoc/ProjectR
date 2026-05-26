@@ -107,16 +107,20 @@ bool UPRGameplayAbility_BossSpawnPatternActors::BuildOriginOffsetSpawnTransform(
 		return false;
 	}
 
-	const AActor* OriginActor = BossCharacter;
-	if (SpawnConfig.SpawnOrigin == EPRBossPatternSpawnOrigin::Target && IsValid(PatternTarget))
+	const AActor* OriginActor = ResolveSpawnOriginActor(SpawnConfig);
+	if (!IsValid(OriginActor))
 	{
-		OriginActor = PatternTarget;
+		return false;
 	}
 
 	const FTransform OriginTransform = OriginActor->GetActorTransform();
-	const FVector SpawnLocation = OriginTransform.TransformPositionNoScale(SpawnConfig.LocalOffset);
+	const FVector SpawnLocation = SpawnConfig.bUseWorldSpaceOffset
+		? OriginActor->GetActorLocation() + SpawnConfig.LocalOffset
+		: OriginTransform.TransformPositionNoScale(SpawnConfig.LocalOffset);
 
-	FRotator SpawnRotation = OriginTransform.GetRotation().Rotator();
+	FRotator SpawnRotation = SpawnConfig.bUseWorldSpaceRotation
+		? FRotator::ZeroRotator
+		: OriginTransform.GetRotation().Rotator();
 	if (SpawnConfig.bFaceTarget && IsValid(PatternTarget))
 	{
 		const FVector DirectionToTarget = PatternTarget->GetActorLocation() - SpawnLocation;
@@ -199,7 +203,44 @@ APRBossPatternActor* UPRGameplayAbility_BossSpawnPatternActors::SpawnPatternActo
 	if (IsValid(SpawnedActor))
 	{
 		SpawnedActor->InitializeBossPatternActor(BossCharacter, GetBossPatternTarget());
+		ApplyPostSpawnAttachment(SpawnedActor, SpawnConfig);
 	}
 
 	return SpawnedActor;
+}
+
+AActor* UPRGameplayAbility_BossSpawnPatternActors::ResolveSpawnOriginActor(
+	const FPRBossPatternActorSpawnConfig& SpawnConfig) const
+{
+	APRBossBaseCharacter* BossCharacter = GetBossAvatarCharacter();
+	if (!IsValid(BossCharacter))
+	{
+		return nullptr;
+	}
+
+	AActor* PatternTarget = GetBossPatternTarget();
+	if (SpawnConfig.SpawnOrigin == EPRBossPatternSpawnOrigin::Target && IsValid(PatternTarget))
+	{
+		return PatternTarget;
+	}
+
+	return BossCharacter;
+}
+
+void UPRGameplayAbility_BossSpawnPatternActors::ApplyPostSpawnAttachment(
+	APRBossPatternActor* SpawnedActor,
+	const FPRBossPatternActorSpawnConfig& SpawnConfig) const
+{
+	if (!IsValid(SpawnedActor) || !SpawnConfig.bAttachToOriginAfterSpawn)
+	{
+		return;
+	}
+
+	AActor* OriginActor = ResolveSpawnOriginActor(SpawnConfig);
+	if (!IsValid(OriginActor))
+	{
+		return;
+	}
+
+	SpawnedActor->AttachToActor(OriginActor, FAttachmentTransformRules::KeepWorldTransform);
 }

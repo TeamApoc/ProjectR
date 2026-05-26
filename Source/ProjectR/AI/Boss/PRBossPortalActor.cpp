@@ -408,6 +408,11 @@ bool APRBossPortalActor::BuildProjectileSpawnTransform(FTransform& OutTransform)
 FVector APRBossPortalActor::CalculateProjectileAimDirection() const
 {
 	const FVector SpawnLocation = GetActorTransform().TransformPositionNoScale(ProjectileSpawnLocalOffset);
+	if (bUseFixedProjectileDirection)
+	{
+		return GetActorTransform().TransformVectorNoScale(FixedProjectileDirectionLocal).GetSafeNormal();
+	}
+
 	const AActor* TargetActor = IsValid(LockedTarget) ? LockedTarget.Get() : PatternTarget.Get();
 	if (!IsValid(TargetActor))
 	{

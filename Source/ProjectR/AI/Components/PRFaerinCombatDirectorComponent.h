@@ -274,6 +274,6 @@ private:
 	EPRFaerinObservedAbilityRole ObservedAbilityRole = EPRFaerinObservedAbilityRole::None;
 	int32 NextStrafeDirectionSign = 1;
 	float LastApproachSprintEndTime = -TNumericLimits<float>::Max();
-	bool bHasLoggedRuntimeValidationErrors = false;
+	TSet<uint8> RuntimeValidatedPhaseValues;
 	bool bHasLoggedInitializationError = false;
 };

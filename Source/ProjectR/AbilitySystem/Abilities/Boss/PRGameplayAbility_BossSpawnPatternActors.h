@@ -49,9 +49,17 @@ struct PROJECTR_API FPRBossPatternActorSpawnConfig
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "ProjectR|AI|Boss")
 	FVector LocalOffset = FVector::ZeroVector;
 
+	// true면 LocalOffset을 Origin 회전에 영향받지 않는 월드 좌표 오프셋으로 사용한다.
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "ProjectR|AI|Boss")
+	bool bUseWorldSpaceOffset = false;
+
 	// 계산된 회전에 추가로 적용할 회전 오프셋이다.
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "ProjectR|AI|Boss")
 	FRotator RotationOffset = FRotator::ZeroRotator;
+
+	// true면 RotationOffset을 Origin 회전에 영향받지 않는 월드 회전으로 사용한다.
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "ProjectR|AI|Boss")
+	bool bUseWorldSpaceRotation = false;
 
 	// 생성 위치에서 타겟을 바라보도록 회전을 보정할지 여부다.
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "ProjectR|AI|Boss")
@@ -88,6 +96,10 @@ struct PROJECTR_API FPRBossPatternActorSpawnConfig
 	// EQS 실패 시 OriginOffset 방식으로 대체할지 여부다.
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "ProjectR|AI|Boss|EQS", meta = (EditCondition = "SpawnLocationMode == EPRBossPatternSpawnLocationMode::EnvQuery"))
 	bool bFallbackToOriginOffsetWhenQueryFails = true;
+
+	// true면 스폰 직후 Origin Actor에 KeepWorldTransform으로 부착해 함께 움직이게 한다.
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Attach")
+	bool bAttachToOriginAfterSpawn = false;
 };
 
 // 보스 패턴 Helper Actor들을 설정 배열 기준으로 생성하는 공용 Ability다.
@@ -117,6 +129,12 @@ protected:
 
 	// Helper Actor를 하나 생성하고 초기화한다.
 	APRBossPatternActor* SpawnPatternActor(const FPRBossPatternActorSpawnConfig& SpawnConfig);
+
+	// SpawnConfig 기준 Origin Actor를 반환한다.
+	AActor* ResolveSpawnOriginActor(const FPRBossPatternActorSpawnConfig& SpawnConfig) const;
+
+	// SpawnConfig에 따라 스폰 직후 부착 처리를 수행한다.
+	void ApplyPostSpawnAttachment(APRBossPatternActor* SpawnedActor, const FPRBossPatternActorSpawnConfig& SpawnConfig) const;
 
 	// Helper Actor 생성이 끝난 뒤 BP 후처리를 연결하는 이벤트다.
 	UFUNCTION(BlueprintImplementableEvent, Category = "ProjectR|AI|Boss")

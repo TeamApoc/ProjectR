@@ -5,6 +5,56 @@
 #include "GameplayAbilitySpec.h"
 #include "ProjectR/AbilitySystem/PRAbilitySystemComponent.h"
 #include "ProjectR/AI/Data/PRPatternDataAsset.h"
+#include "ProjectR/Character/Enemy/PRBossBaseCharacter.h"
+
+namespace
+{
+	EPRBossPhase ResolveValidationPhase(UPRAbilitySystemComponent* AbilitySystemComponent)
+	{
+		if (!IsValid(AbilitySystemComponent))
+		{
+			return EPRBossPhase::Phase1;
+		}
+
+		const APRBossBaseCharacter* BossAvatar = Cast<APRBossBaseCharacter>(AbilitySystemComponent->GetAvatarActor());
+		return IsValid(BossAvatar)
+			? BossAvatar->GetCurrentPhase()
+			: EPRBossPhase::Phase1;
+	}
+
+	bool IsPatternRuleAllowedInPhase(const FPRPatternRule& PatternRule, EPRBossPhase Phase)
+	{
+		return !PatternRule.bRestrictBossPhases || PatternRule.AllowedBossPhases.Contains(Phase);
+	}
+
+	bool ShouldValidateAbilitySpecForPhase(
+		const FGameplayTag& AbilityTag,
+		const UPRPatternDataAsset* PatternDataAsset,
+		EPRBossPhase ValidationPhase)
+	{
+		if (!IsValid(PatternDataAsset))
+		{
+			return true;
+		}
+
+		bool bHasMatchingRule = false;
+		for (const FPRPatternRule& PatternRule : PatternDataAsset->PatternRules)
+		{
+			if (!PatternRule.IsValid() || !PatternRule.AbilityTag.MatchesTagExact(AbilityTag))
+			{
+				continue;
+			}
+
+			bHasMatchingRule = true;
+			if (IsPatternRuleAllowedInPhase(PatternRule, ValidationPhase))
+			{
+				return true;
+			}
+		}
+
+		return !bHasMatchingRule;
+	}
+}
 
 const FPRFaerinPhaseLoopConfig* UPRFaerinCombatLoopDataAsset::FindPhaseConfig(EPRBossPhase Phase) const
 {
@@ -48,6 +98,9 @@ bool UPRFaerinCombatLoopDataAsset::ValidateLoopData(
 	{
 		OutErrors.Add(TEXT("PatternDataAsset이 비어 있다."));
 	}
+
+	const bool bValidateCurrentAbilitySet = IsValid(AbilitySystemComponent);
+	const EPRBossPhase ValidationPhase = ResolveValidationPhase(AbilitySystemComponent);
 
 	TSet<FGameplayTag> PatternRuleTags;
 	if (IsValid(PatternDataAsset))
@@ -93,7 +146,8 @@ bool UPRFaerinCombatLoopDataAsset::ValidateLoopData(
 				*Metadata.AbilityTag.ToString()));
 		}
 
-		if (IsValid(AbilitySystemComponent))
+		if (bValidateCurrentAbilitySet
+			&& ShouldValidateAbilitySpecForPhase(Metadata.AbilityTag, PatternDataAsset, ValidationPhase))
 		{
 			FGameplayTagContainer QueryTags;
 			QueryTags.AddTag(Metadata.AbilityTag);
@@ -127,7 +181,8 @@ bool UPRFaerinCombatLoopDataAsset::ValidateLoopData(
 
 		if (PhaseConfig.bUsePostStrafeApproach
 			&& PhaseConfig.ApproachAbilityTag.IsValid()
-			&& IsValid(AbilitySystemComponent))
+			&& PhaseConfig.Phase == ValidationPhase
+			&& bValidateCurrentAbilitySet)
 		{
 			FGameplayTagContainer QueryTags;
 			QueryTags.AddTag(PhaseConfig.ApproachAbilityTag);

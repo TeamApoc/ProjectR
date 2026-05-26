@@ -98,12 +98,14 @@ bool UPRFaerinCombatDirectorComponent::RunNextLoopStep(UBehaviorTreeComponent& O
 		return false;
 	}
 
-	if (!bHasLoggedRuntimeValidationErrors && IsValid(LoopDataAsset))
+	const EPRBossPhase CurrentPhase = ResolveCurrentPhase();
+	const uint8 CurrentPhaseValue = static_cast<uint8>(CurrentPhase);
+	if (IsValid(LoopDataAsset) && !RuntimeValidatedPhaseValues.Contains(CurrentPhaseValue))
 	{
 		TArray<FString> ValidationErrors;
 		LoopDataAsset->ValidateLoopData(PatternDataAsset, AbilitySystemComponent, ValidationErrors);
 		LogValidationErrors(ValidationErrors);
-		bHasLoggedRuntimeValidationErrors = true;
+		RuntimeValidatedPhaseValues.Add(CurrentPhaseValue);
 	}
 
 	LoopState = EPRFaerinCombatLoopState::SelectingPattern;

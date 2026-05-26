@@ -55,7 +55,7 @@ protected:
 	bool SpawnConfiguredPortals();
 
 	// 생성된 포털들의 텔레그래프 시작을 설정값에 맞춰 예약한다.
-	void StartSpawnedPortals();
+	virtual void StartSpawnedPortals();
 
 	// 포털 시퀀스 유지 시간이 끝났을 때 Ability를 정상 종료한다.
 	void FinishPortalSequence();

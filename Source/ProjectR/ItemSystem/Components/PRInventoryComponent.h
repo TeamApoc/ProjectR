@@ -120,7 +120,10 @@ public:
 	// Item 데이터 타입에 맞는 추가 요청을 서버 권위 경로로 전달
 	UFUNCTION(BlueprintCallable, Category = "ProjectR|Inventory")
 	void RequestAddItem(UPRItemDataAsset* InItemData, int32 Amount = 1);
-
+	
+	// Item 추가
+	UPRItemInstance* AddItem(UPRItemDataAsset* InItemData, int32 Amount = 1);
+	
 	// Item 데이터 타입 기반 추가
 	template<typename InstanceType>
 	InstanceType* AddItem(UPRItemDataAsset* InItemData, int32 Amount = 1);
@@ -247,7 +250,7 @@ protected:
 
 private:
 	// Item 데이터 타입 기반 추가
-	UPRItemInstance* AddItemInternal(UPRItemDataAsset* InItemData, int32 Amount, TSubclassOf<UPRItemInstance> ExpectedItemClass);
+	UPRItemInstance* AddItemInternal(UPRItemDataAsset* InItemData, int32 Amount);
 
 	// 현재 인벤토리에 Item 인스턴스를 등록
 	void RegisterInventoryItem(UPRItemInstance* ItemInstance);
@@ -286,7 +289,7 @@ InstanceType* UPRInventoryComponent::AddItem(UPRItemDataAsset* InItemData, int32
 {
 	static_assert(TIsDerivedFrom<InstanceType, UPRItemInstance>::IsDerived, "InstanceType must derive from UPRItemInstance");
 
-	return Cast<InstanceType>(AddItemInternal(InItemData, Amount, InstanceType::StaticClass()));
+	return Cast<InstanceType>(AddItem(InItemData, Amount));
 }
 
 template<typename InstanceType>

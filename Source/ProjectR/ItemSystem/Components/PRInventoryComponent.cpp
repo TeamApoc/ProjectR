@@ -42,19 +42,6 @@ namespace
 
 		return WeaponData->SupportedModTags.HasAny(ModData->ModTags);
 	}
-
-	// 요청 반환 클래스 호환성
-	bool IsItemClassCompatible(TSubclassOf<UPRItemInstance> ExpectedItemClass, TSubclassOf<UPRItemInstance> ActualItemClass)
-	{
-		UClass* ExpectedClass = ExpectedItemClass.Get() ? ExpectedItemClass.Get() : UPRItemInstance::StaticClass();
-		UClass* ActualClass = ActualItemClass.Get();
-		if (!IsValid(ExpectedClass) || !IsValid(ActualClass))
-		{
-			return false;
-		}
-
-		return ActualClass->IsChildOf(ExpectedClass);
-	}
 }
 
 void FPRInventoryItemCache::Reset()
@@ -199,12 +186,17 @@ void UPRInventoryComponent::RequestAddItem(UPRItemDataAsset* InItemData, int32 A
 	Server_RequestAddItem(InItemData, Amount);
 }
 
-UPRItemInstance* UPRInventoryComponent::BP_AddItem(UPRItemDataAsset* InItemData, TSubclassOf<UPRItemInstance> ItemInstanceClass, int32 Amount)
+UPRItemInstance* UPRInventoryComponent::AddItem(UPRItemDataAsset* InItemData, int32 Amount)
 {
-	return AddItemInternal(InItemData, Amount, ItemInstanceClass);
+	return AddItemInternal(InItemData, Amount);
 }
 
-UPRItemInstance* UPRInventoryComponent::AddItemInternal(UPRItemDataAsset* InItemData, int32 Amount, TSubclassOf<UPRItemInstance> ExpectedItemClass)
+UPRItemInstance* UPRInventoryComponent::BP_AddItem(UPRItemDataAsset* InItemData, TSubclassOf<UPRItemInstance> ItemInstanceClass, int32 Amount)
+{
+	return AddItemInternal(InItemData, Amount);
+}
+
+UPRItemInstance* UPRInventoryComponent::AddItemInternal(UPRItemDataAsset* InItemData, int32 Amount)
 {
 	// 데이터 없는 생성 제외
 	if (!IsValid(InItemData) || Amount <= 0)
@@ -213,7 +205,7 @@ UPRItemInstance* UPRInventoryComponent::AddItemInternal(UPRItemDataAsset* InItem
 	}
 
 	TSubclassOf<UPRItemInstance> ItemInstanceClass = InItemData->GetItemInstanceClass();
-	if (!IsItemClassCompatible(ExpectedItemClass, ItemInstanceClass))
+	if (!ensureMsgf(IsValid(ItemInstanceClass),TEXT("%s: Invalid Item Instance Type"), *InItemData->GetName()))
 	{
 		return nullptr;
 	}
@@ -801,11 +793,6 @@ void UPRInventoryComponent::ApplySaveData(const FPRInventorySaveData& InSaveData
 			continue;
 		}
 
-		if (!IsItemClassCompatible(UPRItemInstance_Mod::StaticClass(), ModData->GetItemInstanceClass()))
-		{
-			continue;
-		}
-
 		UPRItemInstance_Mod* NewModItem = Cast<UPRItemInstance_Mod>(NewObject<UPRItemInstance>(this, ModData->GetItemInstanceClass()));
 		if (!IsValid(NewModItem))
 		{
@@ -823,11 +810,6 @@ void UPRInventoryComponent::ApplySaveData(const FPRInventorySaveData& InSaveData
 	{
 		UPRWeaponDataAsset* WeaponData = Entry.WeaponData.LoadSynchronous();
 		if (!IsValid(WeaponData))
-		{
-			continue;
-		}
-
-		if (!IsItemClassCompatible(UPRItemInstance_Weapon::StaticClass(), WeaponData->GetItemInstanceClass()))
 		{
 			continue;
 		}
@@ -865,11 +847,6 @@ void UPRInventoryComponent::ApplySaveData(const FPRInventorySaveData& InSaveData
 			continue;
 		}
 
-		if (!IsItemClassCompatible(UPRItemInstance_Consumable::StaticClass(), ConsumableData->GetItemInstanceClass()))
-		{
-			continue;
-		}
-
 		UPRItemInstance_Consumable* NewConsumableItem = Cast<UPRItemInstance_Consumable>(NewObject<UPRItemInstance>(this, ConsumableData->GetItemInstanceClass()));
 		if (!IsValid(NewConsumableItem))
 		{
@@ -885,11 +862,6 @@ void UPRInventoryComponent::ApplySaveData(const FPRInventorySaveData& InSaveData
 	{
 		UPRMaterialDataAsset* MaterialData = Entry.MaterialData.LoadSynchronous();
 		if (!IsValid(MaterialData) || Entry.StackCount <= 0)
-		{
-			continue;
-		}
-
-		if (!IsItemClassCompatible(UPRItemInstance_Material::StaticClass(), MaterialData->GetItemInstanceClass()))
 		{
 			continue;
 		}

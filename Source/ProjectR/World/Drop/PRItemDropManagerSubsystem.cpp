@@ -364,7 +364,7 @@ bool UPRItemDropManagerSubsystem::GrantRewardToPlayer(APRPlayerState* PlayerStat
 	{
 		UPRInventoryComponent* InventoryComponent = PlayerState->GetInventoryComponent();
 		UPRItemInstance* AddedItem = IsValid(InventoryComponent) && IsValid(Reward.ItemData)
-			? InventoryComponent->AddItem<UPRItemInstance>(Reward.ItemData, Reward.Quantity)
+			? InventoryComponent->AddItem(Reward.ItemData, Reward.Quantity)
 			: nullptr;
 		return IsValid(AddedItem);
 	}

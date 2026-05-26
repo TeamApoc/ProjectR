@@ -112,7 +112,7 @@ FPRShopBuyResult UPRShopComponent::RequestBuyItem(APRPlayerController* Requestin
 		{
 			Result = MakeBuyFailureResult(RequestingController, EntryId, Quantity, EPRShopBuyFailReason::ConsumeFailed);
 		}
-		else if (!IsValid(InventoryComponent->AddItem<UPRItemInstance>(ItemData, TotalItemQuantity)))
+		else if (!IsValid(InventoryComponent->AddItem(ItemData, TotalItemQuantity)))
 		{
 			if (TotalScrapPrice > 0)
 			{
@@ -210,7 +210,7 @@ FPRShopSellResult UPRShopComponent::RequestSellItem(APRPlayerController* Request
 			}
 			else if (!CurrencyComponent->AddScrap(TotalScrapReward))
 			{
-				InventoryComponent->AddItem<UPRItemInstance_Consumable>(ConsumableData, TotalItemQuantity);
+				InventoryComponent->AddItem(ConsumableData, TotalItemQuantity);
 				Result = MakeSellFailureResult(RequestingController, EntryId, Quantity, EPRShopSellFailReason::GrantScrapFailed);
 			}
 			else
@@ -231,7 +231,7 @@ FPRShopSellResult UPRShopComponent::RequestSellItem(APRPlayerController* Request
 			}
 			else if (!CurrencyComponent->AddScrap(TotalScrapReward))
 			{
-				InventoryComponent->AddItem<UPRItemInstance_Material>(MaterialData, TotalItemQuantity);
+				InventoryComponent->AddItem(MaterialData, TotalItemQuantity);
 				Result = MakeSellFailureResult(RequestingController, EntryId, Quantity, EPRShopSellFailReason::GrantScrapFailed);
 			}
 			else

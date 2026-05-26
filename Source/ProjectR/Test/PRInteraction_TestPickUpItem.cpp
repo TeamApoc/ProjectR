@@ -27,7 +27,7 @@ void UPRInteraction_TestPickUpItem::Execute_Implementation(AActor* Interactor)
 		return;
 	}
 	
-	if (InventoryComponent->AddItem<UPRItemInstance>(ItemData, Amount))
+	if (InventoryComponent->AddItem(ItemData, Amount))
 	{
 		if (bDestroyOnPickUp)
 		{

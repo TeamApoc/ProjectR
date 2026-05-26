@@ -5,11 +5,11 @@
 #include "Components/Button.h"
 #include "Components/Image.h"
 #include "Components/TextBlock.h"
-#include "ProjectR/Inventory/Data/PRConsumableDataAsset.h"
-#include "ProjectR/Inventory/Data/PRItemDataAsset.h"
-#include "ProjectR/Inventory/Data/PRMaterialDataAsset.h"
-#include "ProjectR/Inventory/Items/PRItemInstance_Consumable.h"
-#include "ProjectR/Inventory/Items/PRItemInstance_Material.h"
+#include "ProjectR/ItemSystem/Data/PRConsumableDataAsset.h"
+#include "ProjectR/ItemSystem/Data/PRItemDataAsset.h"
+#include "ProjectR/ItemSystem/Data/PRMaterialDataAsset.h"
+#include "ProjectR/ItemSystem/Items/PRItemInstance_Consumable.h"
+#include "ProjectR/ItemSystem/Items/PRItemInstance_Material.h"
 #include "ProjectR/Player/PRPlayerController.h"
 #include "ProjectR/Player/PRPlayerState.h"
 #include "ProjectR/Shop/Components/PRShopComponent.h"
@@ -19,7 +19,7 @@
 #include "ProjectR/UI/Inventory/PRCurrencyDisplayWidget.h"
 #include "ProjectR/UI/Shop/PRShopItemDetailWidget.h"
 #include "ProjectR/UI/Shop/PRShopItemListWidget.h"
-#include "ProjectR/Weapon/Data/PRWeaponModDataAsset.h"
+#include "ProjectR/ItemSystem/Data/PRWeaponModDataAsset.h"
 
 void UPRShopWidget::SetShopContext(UPRShopComponent* InShopComponent)
 {

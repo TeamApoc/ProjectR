@@ -18,9 +18,9 @@
 #include "ProjectR/System/PREventTypes.h"
 #include "ProjectR/UI/Crosshair/PRCrosshairTypes.h"
 #include "ProjectR/Utils/PRGameplayStatics.h"
-#include "ProjectR/Weapon/Actors/PRWeaponActor.h"
-#include "ProjectR/Weapon/Components/PRWeaponManagerComponent.h"
-#include "ProjectR/Weapon/Data/PRWeaponDataAsset.h"
+#include "ProjectR/ItemSystem/Actors/PRWeaponActor.h"
+#include "ProjectR/ItemSystem/Components/PRWeaponManagerComponent.h"
+#include "ProjectR/ItemSystem/Data/PRWeaponDataAsset.h"
 
 DEFINE_LOG_CATEGORY(LogFire);
 

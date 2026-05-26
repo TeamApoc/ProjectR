@@ -4,7 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "Animation/AnimNotifies/AnimNotify.h"
-#include "ProjectR/Weapon/Types/PRWeaponAnimationTypes.h"
+#include "ProjectR/ItemSystem/Types/PRWeaponAnimationTypes.h"
 #include "PRAnimNotify_WeaponAnimationState.generated.h"
 
 // 캐릭터 몽타주의 특정 프레임에 활성 슬롯 무기 메시 애니메이션 상태를 요청하는 Notify다.

@@ -11,7 +11,7 @@
 #include "ProjectR/Player/PRCameraModifier.h"
 #include "ProjectR/Player/Components/PRActionInputRouterComponent.h"
 #include "ProjectR/PRGameplayTags.h"
-#include "ProjectR/Weapon/Components/PRWeaponManagerComponent.h"
+#include "ProjectR/ItemSystem/Components/PRWeaponManagerComponent.h"
 #include "TimerManager.h"
 
 /*~ 초기화 ~*/

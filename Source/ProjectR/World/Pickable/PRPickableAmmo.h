@@ -4,7 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "PRPickableActor.h"
-#include "ProjectR/Weapon/Types/PRWeaponTypes.h"
+#include "ProjectR/ItemSystem/Types/PRWeaponTypes.h"
 #include "PRPickableAmmo.generated.h"
 
 class UAbilitySystemComponent;

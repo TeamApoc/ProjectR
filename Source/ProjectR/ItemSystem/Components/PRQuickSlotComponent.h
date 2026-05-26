@@ -5,8 +5,8 @@
 #include "CoreMinimal.h"
 #include "Components/ActorComponent.h"
 #include "ProjectR/Game/PRGameTypes.h"
-#include "ProjectR/Inventory/Components/PRInventoryComponent.h"
-#include "ProjectR/Inventory/Types/PRQuickSlotTypes.h"
+#include "ProjectR/ItemSystem/Components/PRInventoryComponent.h"
+#include "ProjectR/ItemSystem/Types/PRQuickSlotTypes.h"
 #include "PRQuickSlotComponent.generated.h"
 
 class UPRConsumableDataAsset;

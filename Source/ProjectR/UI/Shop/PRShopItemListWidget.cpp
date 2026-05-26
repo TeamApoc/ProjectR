@@ -6,7 +6,7 @@
 #include "Components/GridPanel.h"
 #include "Components/PanelWidget.h"
 #include "Components/TextBlock.h"
-#include "ProjectR/Inventory/Data/PRItemDataAsset.h"
+#include "ProjectR/ItemSystem/Data/PRItemDataAsset.h"
 #include "ProjectR/UI/Shop/PRShopItemSlotWidget.h"
 
 void UPRShopItemListWidget::SetShopItemList(EPRShopTabType InTabType, const TArray<FPRShopItemSlotViewData>& InItems)

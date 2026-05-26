@@ -13,9 +13,9 @@
 #include "ProjectR/UI/Inventory/PRInventoryItemListWidget.h"
 #include "ProjectR/UI/Inventory/PRItemSlotWidget.h"
 #include "ProjectR/UI/WeaponUpgrade/PRWeaponUpgradeMaterialCostWidget.h"
-#include "ProjectR/Weapon/Components/PRWeaponUpgradeComponent.h"
-#include "ProjectR/Weapon/Data/PRWeaponDataAsset.h"
-#include "ProjectR/Weapon/Items/PRItemInstance_Weapon.h"
+#include "ProjectR/ItemSystem/Components/PRWeaponUpgradeComponent.h"
+#include "ProjectR/ItemSystem/Data/PRWeaponDataAsset.h"
+#include "ProjectR/ItemSystem/Items/PRItemInstance_Weapon.h"
 
 namespace
 {

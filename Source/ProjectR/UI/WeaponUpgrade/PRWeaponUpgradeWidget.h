@@ -3,10 +3,10 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "ProjectR/Inventory/Components/PRInventoryComponent.h"
+#include "ProjectR/ItemSystem/Components/PRInventoryComponent.h"
 #include "ProjectR/UI/Inventory/PRInventoryUITypes.h"
 #include "ProjectR/UI/PRWidgetBase.h"
-#include "ProjectR/Weapon/Types/PRWeaponUpgradeTypes.h"
+#include "ProjectR/ItemSystem/Types/PRWeaponUpgradeTypes.h"
 #include "PRWeaponUpgradeWidget.generated.h"
 
 class UButton;

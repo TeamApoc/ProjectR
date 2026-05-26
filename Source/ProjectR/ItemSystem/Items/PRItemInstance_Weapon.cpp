@@ -7,10 +7,10 @@
 #include "Net/UnrealNetwork.h"
 #include "ProjectR/AbilitySystem/PRAbilitySystemComponent.h"
 #include "ProjectR/Character/PRCharacterBase.h"
-#include "ProjectR/Inventory/Components/PRInventoryComponent.h"
-#include "ProjectR/Weapon/Data/PRWeaponDataAsset.h"
-#include "ProjectR/Weapon/Data/PRWeaponModDataAsset.h"
-#include "ProjectR/Weapon/Items/PRItemInstance_Mod.h"
+#include "ProjectR/ItemSystem/Components/PRInventoryComponent.h"
+#include "ProjectR/ItemSystem/Data/PRWeaponDataAsset.h"
+#include "ProjectR/ItemSystem/Data/PRWeaponModDataAsset.h"
+#include "ProjectR/ItemSystem/Items/PRItemInstance_Mod.h"
 
 namespace
 {

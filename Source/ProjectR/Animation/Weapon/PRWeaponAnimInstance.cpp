@@ -3,7 +3,7 @@
 #include "PRWeaponAnimInstance.h"
 
 #include "Components/SkeletalMeshComponent.h"
-#include "ProjectR/Weapon/Actors/PRWeaponActor.h"
+#include "ProjectR/ItemSystem/Actors/PRWeaponActor.h"
 
 void UPRWeaponAnimInstance::NativeInitializeAnimation()
 {

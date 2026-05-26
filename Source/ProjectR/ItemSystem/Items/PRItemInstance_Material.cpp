@@ -2,7 +2,7 @@
 
 #include "PRItemInstance_Material.h"
 
-#include "ProjectR/Inventory/Data/PRMaterialDataAsset.h"
+#include "ProjectR/ItemSystem/Data/PRMaterialDataAsset.h"
 
 UPRMaterialDataAsset* UPRItemInstance_Material::GetMaterialData() const
 {

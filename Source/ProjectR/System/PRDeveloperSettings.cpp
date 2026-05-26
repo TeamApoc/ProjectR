@@ -26,3 +26,22 @@ FPRFloatingTextStyle UPRDeveloperSettings::GetFloatingTextStyleSync(EPRFloatingT
 
 	return FPRFloatingTextStyle();
 }
+
+FPRWorldMarkerVisualData UPRDeveloperSettings::GetWorldMarkerPreset(EPRWorldMarkerPreset InPresetType) const
+{
+	if (auto Found = WorldMarkerPresets.Find(InPresetType))
+	{
+		return *Found;
+	}
+	
+	// Fallback: Default
+	if (auto Found = WorldMarkerPresets.Find(EPRWorldMarkerPreset::Default))
+	{
+		return *Found;
+	}
+	
+	// Fallback: Hard Coded Preset
+	UE_LOG(LogTemp,Warning,TEXT("UPRDeveloperSettings: Default World Marker Preset이 설정되지 않음."));
+	FPRWorldMarkerVisualData FallbackData;
+	return FallbackData;
+}

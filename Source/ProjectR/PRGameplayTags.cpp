@@ -21,6 +21,7 @@ namespace PRGameplayTags
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Ability_Player_Aim, "Ability.Player.Aim", "플레이어 구르기 어빌리티");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Ability_Player_Sprint, "Ability.Player.Sprint", "플레이어 질주 어빌리티");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Ability_Player_Interaction, "Ability.Player.Interaction", "플레이어 상호작용 어빌리티");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Ability_Player_Ping, "Ability.Player.Ping", "플레이어 핑 어빌리티");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Ability_Player_Reload, "Ability.Player.Reload", "플레이어 재장전 어빌리티");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Ability_Player_UseConsumable, "Ability.Player.UseConsumable", "플레이어 소비 아이템 사용 어빌리티");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Ability_Player_HitReact, "Ability.Player.HitReact", "플레이어 피격 리액션 어빌리티");
@@ -148,6 +149,7 @@ namespace PRGameplayTags
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Event_Player_Interaction_Hold, "Event.Player.Interaction.Hold", "Hold 상호작용 단계 알림");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Event_Player_Interactable, "Event.Player.Interactable", "상호작용 가능 알림");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Event_Player_ModActivation, "Event.Player.ModActivation", "Mod On/Off 이벤트");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Event_Player_WorldMarker, "Event.Player.WorldMarker", "월드 마커 추가 제거 알림");
 
 	// ===== Event.Boss.* =====
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Event_Boss_Encounter_Begin, "Event.Boss.Encounter.Begin", "보스 조우 시작 (FPRBossEncounterEventPayload 동반)");
@@ -172,6 +174,7 @@ namespace PRGameplayTags
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Input_Ability_Fire_Primary, "Input.Ability.Fire.Primary", "기본 발사 입력 태그 (모드 스킬의 발사가 아닌 무기의 기본 발사)");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Input_Ability_Dodge, "Input.Ability.Dodge", "구르기 입력 태그");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Input_Ability_Interact, "Input.Ability.Interact", "상호작용용 입력 태그");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Input_Ability_Ping, "Input.Ability.Ping", "핑 입력 태그");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Input_Ability_Crouch, "Input.Ability.Crouch", "앉기용 입력 태그");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Input_Ability_Aim, "Input.Ability.Aim", "에이밍 입력 태그");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Input_Ability_Sprint, "Input.Ability.Sprint", "질주 입력 태그");

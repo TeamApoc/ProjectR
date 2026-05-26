@@ -1,6 +1,8 @@
 // Copyright ProjectR. All Rights Reserved.
 
 #include "PRCharacterBase.h"
+
+#include "ProjectR/PRGameplayTags.h"
 #include "ProjectR/AbilitySystem/PRAbilitySystemComponent.h"
 
 APRCharacterBase::APRCharacterBase()
@@ -68,6 +70,15 @@ void APRCharacterBase::SetupPlayerInputComponent(UInputComponent* PlayerInputCom
 UAbilitySystemComponent* APRCharacterBase::GetAbilitySystemComponent() const
 {
 	return GetPRAbilitySystemComponent();
+}
+
+bool APRCharacterBase::IsDead() const
+{
+	if (UAbilitySystemComponent* ASC = GetAbilitySystemComponent())
+	{
+		return ASC->HasMatchingGameplayTag(PRGameplayTags::State_Dead);
+	}
+	return false;
 }
 
 UPRAbilitySystemComponent* APRCharacterBase::GetPRAbilitySystemComponent() const

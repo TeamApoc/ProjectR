@@ -6,6 +6,8 @@
 #include "GameplayEffectTypes.h"
 #include "GameplayTagContainer.h"
 #include "ProjectR/ItemSystem/Types/PRWeaponTypes.h"
+#include "ProjectR/Player/PRGrowthTypes.h"
+#include "ProjectR/Weapon/Types/PRWeaponTypes.h"
 #include "PRGameTypes.generated.h"
 
 /*~ 세이브 포맷 버전 ~*/
@@ -339,6 +341,14 @@ USTRUCT(BlueprintType)
 struct FPRCharacterStatUpgradeInfo
 {
 	GENERATED_BODY()
+
+	// 미사용 특성 포인트. 로드 시 참고값이며 최종값은 서버가 레벨과 투자 내역으로 재계산
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	int32 UnspentTraitPoint = 0;
+
+	// 능력치별 특성 투자 내역
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	FPRTraitInvestmentInfo TraitInvestment;
 };
 
 // 게스트가 Join 시 호스트에 전송하는 캐릭터 스펙 번들

@@ -196,6 +196,11 @@ void UPRTraitWindowWidget::RefreshTraitWindowView()
 		RemainingPointText->SetText(FText::AsNumber(RemainingPoint));
 	}
 
+	if (IsValid(LevelText))
+	{
+		LevelText->SetText(FText::AsNumber(GetCurrentLevel()));
+	}
+
 	if (IsValid(SpentPointText))
 	{
 		SpentPointText->SetText(FText::FromString(FString::Printf(TEXT("%d / %d"), PreviewSpentPoint, TotalEarnedPoint)));
@@ -500,6 +505,18 @@ void UPRTraitWindowWidget::UnbindGrowthComponent()
 	{
 		GrowthComponent->OnTraitInvestmentChanged.RemoveDynamic(this, &ThisClass::HandleTraitInvestmentChanged);
 	}
+}
+
+int32 UPRTraitWindowWidget::GetCurrentLevel() const
+{
+	const APRPlayerState* PlayerState = BoundPlayerState.Get();
+	const UPRAbilitySystemComponent* ASC = IsValid(PlayerState) ? PlayerState->GetPRAbilitySystemComponent() : nullptr;
+	if (!IsValid(ASC))
+	{
+		return 1;
+	}
+
+	return FMath::Max(FMath::RoundToInt(ASC->GetNumericAttribute(UPRAttributeSet_Growth::GetLevelAttribute())), 1);
 }
 
 int32 UPRTraitWindowWidget::GetTotalEarnedPoint() const

@@ -304,6 +304,10 @@ protected:
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "ProjectR|Growth")
 	TObjectPtr<UTextBlock> RemainingPointText;
 
+	// UMG에서 바인딩할 현재 레벨 텍스트
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "ProjectR|Growth")
+	TObjectPtr<UTextBlock> LevelText;
+
 	// UMG에서 바인딩할 사용 특성 포인트 텍스트
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "ProjectR|Growth")
 	TObjectPtr<UTextBlock> SpentPointText;
@@ -534,6 +538,7 @@ protected:
 
 private:
 	void UnbindGrowthComponent();
+	int32 GetCurrentLevel() const;
 	int32 GetTotalEarnedPoint() const;
 	int32 GetInvestmentPoint(const FPRTraitInvestmentInfo& InvestmentInfo, EPRTraitStatType TraitType) const;
 	void SetInvestmentPoint(FPRTraitInvestmentInfo& InvestmentInfo, EPRTraitStatType TraitType, int32 Point) const;

@@ -100,6 +100,24 @@ UPRWeaponDataAsset* UPRGameplayAbility::GetActiveWeaponData(const FGameplayAbili
 	return nullptr;
 }
 
+void UPRGameplayAbility::AddCurrentWeaponDamageData(const FGameplayEffectSpecHandle& SpecHandle) const
+{
+	if (!SpecHandle.IsValid())
+	{
+		return;
+	}
+
+	const UPRWeaponManagerComponent* WeaponManager = GetWeaponManager(GetCurrentActorInfo());
+	if (!IsValid(WeaponManager))
+	{
+		return;
+	}
+
+	SpecHandle.Data->SetSetByCallerMagnitude(
+		PRCombatGameplayTags::SetByCaller_CurrentWeapon_BaseDamage,
+		WeaponManager->GetCurrentWeaponBaseDamage());
+}
+
 FGameplayEffectSpecHandle UPRGameplayAbility::MakePlayerEffectSpec(const FHitResult* HitResult, float Damage,
 	float GroggyDamage)
 {
@@ -145,6 +163,8 @@ FGameplayEffectSpecHandle UPRGameplayAbility::MakeWeaponEffectSpec(const FHitRes
 			SpecHandle.Data->AddDynamicAssetTag(PRCombatGameplayTags::Ability_Source_Weapon_Secondary);
 		}
 	}
+
+	AddCurrentWeaponDamageData(SpecHandle);
 	
 	// HitResult가 있으면 EffectContext에 포함시켜 ExecCalc에서 부위 판정에 활용한다
 	if (HitResult != nullptr && HitResult->bBlockingHit)

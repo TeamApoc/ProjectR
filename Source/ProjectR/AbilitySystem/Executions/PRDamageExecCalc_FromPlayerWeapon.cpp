@@ -132,6 +132,15 @@ void UPRDamageExecCalc_FromPlayerWeapon::Execute_Implementation(const FGameplayE
 	ExecutionParams.AttemptCalculateCapturedAttributeMagnitude(Defs.CriticalHitChanceDef, EvalParams, CriticalHitChance);
 	ExecutionParams.AttemptCalculateCapturedAttributeMagnitude(Defs.CriticalDamageMultiplierDef, EvalParams, CriticalDamageMultiplier);
 	ExecutionParams.AttemptCalculateCapturedAttributeMagnitude(Defs.PlayerAttackPowerDef, EvalParams, PlayerAttackPower);
+
+	const float SpecWeaponBaseDamage = OwningSpec.GetSetByCallerMagnitude(
+		PRCombatGameplayTags::SetByCaller_CurrentWeapon_BaseDamage,
+		false,
+		-1.0f);
+	if (SpecWeaponBaseDamage >= 0.0f)
+	{
+		WeaponBaseDamage = SpecWeaponBaseDamage;
+	}
 	
 	AActor* SourceActor = IsValid(SourceASC) ? SourceASC->GetAvatarActor() : nullptr;
 	AActor* TargetActor = TargetASC->GetAvatarActor();

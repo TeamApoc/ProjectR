@@ -10,8 +10,8 @@
 #include "ProjectR/AbilitySystem/AttributeSets/PRAttributeSet_Growth.h"
 #include "ProjectR/AbilitySystem/AttributeSets/PRAttributeSet_Player.h"
 #include "ProjectR/AbilitySystem/PRAbilitySystemComponent.h"
-#include "ProjectR/Player/PRGrowthGameplayTags.h"
 #include "ProjectR/Player/PRPlayerState.h"
+#include "ProjectR/PRGameplayTags.h"
 #include "ProjectR/System/PRDeveloperSettings.h"
 
 namespace
@@ -477,25 +477,25 @@ void UPRPlayerGrowthComponent::BuildTraitBonusMap(TMap<FGameplayTag, float>& Out
 		switch (TraitType)
 		{
 		case EPRTraitStatType::MaxHealth:
-			OutBonusMap.Add(PRGrowthGameplayTags::SetByCaller_Trait_MaxHealth, BonusValue);
+			OutBonusMap.Add(PRGameplayTags::SetByCaller_Trait_MaxHealth, BonusValue);
 			break;
 		case EPRTraitStatType::Armor:
-			OutBonusMap.Add(PRGrowthGameplayTags::SetByCaller_Trait_Armor, BonusValue);
+			OutBonusMap.Add(PRGameplayTags::SetByCaller_Trait_Armor, BonusValue);
 			break;
 		case EPRTraitStatType::MovementSpeed:
-			OutBonusMap.Add(PRGrowthGameplayTags::SetByCaller_Trait_MovementSpeed, BonusValue);
+			OutBonusMap.Add(PRGameplayTags::SetByCaller_Trait_MovementSpeed, BonusValue);
 			break;
 		case EPRTraitStatType::AttackPower:
-			OutBonusMap.Add(PRGrowthGameplayTags::SetByCaller_Trait_PlayerAttackPower, BonusValue);
+			OutBonusMap.Add(PRGameplayTags::SetByCaller_Trait_PlayerAttackPower, BonusValue);
 			break;
 		case EPRTraitStatType::MaxStamina:
-			OutBonusMap.Add(PRGrowthGameplayTags::SetByCaller_Trait_MaxStamina, BonusValue);
+			OutBonusMap.Add(PRGameplayTags::SetByCaller_Trait_MaxStamina, BonusValue);
 			break;
 		case EPRTraitStatType::CriticalHitChance:
-			OutBonusMap.Add(PRGrowthGameplayTags::SetByCaller_Trait_CriticalHitChance, BonusValue);
+			OutBonusMap.Add(PRGameplayTags::SetByCaller_Trait_CriticalHitChance, BonusValue);
 			break;
 		case EPRTraitStatType::CriticalDamageMultiplier:
-			OutBonusMap.Add(PRGrowthGameplayTags::SetByCaller_Trait_CriticalDamageMultiplier, BonusValue);
+			OutBonusMap.Add(PRGameplayTags::SetByCaller_Trait_CriticalDamageMultiplier, BonusValue);
 			break;
 		default:
 			break;

@@ -7,8 +7,8 @@
 #include "Net/UnrealNetwork.h"
 #include "ProjectR/AbilitySystem/Abilities/Player/Consumable/PRGA_UseConsumable.h"
 #include "ProjectR/Character/PRCharacterBase.h"
-#include "ProjectR/Inventory/Components/PRInventoryComponent.h"
-#include "ProjectR/Inventory/Data/PRConsumableDataAsset.h"
+#include "ProjectR/ItemSystem/Components/PRInventoryComponent.h"
+#include "ProjectR/ItemSystem/Data/PRConsumableDataAsset.h"
 
 namespace
 {

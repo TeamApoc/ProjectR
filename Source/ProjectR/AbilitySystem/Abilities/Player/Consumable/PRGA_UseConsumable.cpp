@@ -5,8 +5,8 @@
 #include "AbilitySystemComponent.h"
 #include "Abilities/Tasks/AbilityTask_PlayMontageAndWait.h"
 #include "Abilities/Tasks/AbilityTask_WaitGameplayEvent.h"
-#include "ProjectR/Inventory/Components/PRInventoryComponent.h"
-#include "ProjectR/Inventory/Items/PRItemInstance_Consumable.h"
+#include "ProjectR/ItemSystem/Components/PRInventoryComponent.h"
+#include "ProjectR/ItemSystem/Items/PRItemInstance_Consumable.h"
 #include "ProjectR/PRGameplayTags.h"
 
 UPRGA_UseConsumable::UPRGA_UseConsumable()

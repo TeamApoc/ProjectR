@@ -4,7 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "ProjectR/AbilitySystem/PRGameplayAbility.h"
-#include "ProjectR/Weapon/Types/PRWeaponTypes.h"
+#include "ProjectR/ItemSystem/Types/PRWeaponTypes.h"
 #include "PRGA_PlayerHitReact.generated.h"
 
 class UAbilityTask_PlayMontageAndWait;

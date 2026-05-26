@@ -9,9 +9,9 @@
 #include "ProjectR/Player/PRPlayerState.h"
 #include "ProjectR/UI/PRUserInterfaceStatics.h"
 #include "ProjectR/UI/WeaponStatusHUD/PRWeaponStatusWidget.h"
-#include "ProjectR/Weapon/Components/PRWeaponManagerComponent.h"
-#include "ProjectR/Weapon/Data/PRWeaponDataAsset.h"
-#include "ProjectR/Weapon/Data/PRWeaponModDataAsset.h"
+#include "ProjectR/ItemSystem/Components/PRWeaponManagerComponent.h"
+#include "ProjectR/ItemSystem/Data/PRWeaponDataAsset.h"
+#include "ProjectR/ItemSystem/Data/PRWeaponModDataAsset.h"
 
 void UPRWeaponHUDWidget::InitializeWeaponHUD()
 {

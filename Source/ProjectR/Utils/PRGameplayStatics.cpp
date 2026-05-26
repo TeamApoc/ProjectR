@@ -14,7 +14,7 @@
 #include "ProjectR/Combat/PRCombatGameplayTags.h"
 #include "ProjectR/Player/PRPlayerState.h"
 #include "ProjectR/Game/PRGameInstance.h"
-#include "ProjectR/Weapon/Components/PRWeaponManagerComponent.h"
+#include "ProjectR/ItemSystem/Components/PRWeaponManagerComponent.h"
 
 void UPRGameplayStatics::GetAllMeshComponents(AActor* Actor, TArray<UMeshComponent*>& OutMeshes)
 {

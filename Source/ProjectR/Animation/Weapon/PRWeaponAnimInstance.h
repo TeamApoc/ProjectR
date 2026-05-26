@@ -4,7 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "Animation/AnimInstance.h"
-#include "ProjectR/Weapon/Types/PRWeaponAnimationTypes.h"
+#include "ProjectR/ItemSystem/Types/PRWeaponAnimationTypes.h"
 #include "PRWeaponAnimInstance.generated.h"
 
 class APRCharacterBase;

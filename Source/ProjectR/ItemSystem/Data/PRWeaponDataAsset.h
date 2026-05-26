@@ -6,12 +6,12 @@
 #include "Engine/DataAsset.h"
 #include "GameplayTagContainer.h"
 #include "ProjectR/AbilitySystem/Data/PRAbilitySet.h"
-#include "ProjectR/Weapon/Types/PRWeaponTypes.h"
-#include "ProjectR/Weapon/Types/PRRecoilTypes.h"
+#include "ProjectR/ItemSystem/Types/PRWeaponTypes.h"
+#include "ProjectR/ItemSystem/Types/PRRecoilTypes.h"
 #include "GameplayTagContainer.h"
 #include "ProjectR/AbilitySystem/Data/PRAbilitySet.h"
-#include "ProjectR/Inventory/Data/PRItemDataAsset.h"
-#include "ProjectR/Weapon/Types/PRWeaponTypes.h"
+#include "ProjectR/ItemSystem/Data/PRItemDataAsset.h"
+#include "ProjectR/ItemSystem/Types/PRWeaponTypes.h"
 #include "PRWeaponDataAsset.generated.h"
 
 class APRWeaponActor;

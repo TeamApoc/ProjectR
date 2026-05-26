@@ -1,6 +1,6 @@
 ﻿#pragma once
 #include "ProjectR/System/PREventTypes.h"
-#include "ProjectR/Weapon/Types/PRRecoilTypes.h"
+#include "ProjectR/ItemSystem/Types/PRRecoilTypes.h"
 #include "PRCrosshairTypes.generated.h"
 
 UENUM(BlueprintType)

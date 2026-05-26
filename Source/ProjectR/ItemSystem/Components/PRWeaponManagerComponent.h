@@ -6,8 +6,8 @@
 #include "ActiveGameplayEffectHandle.h"
 #include "Components/ActorComponent.h"
 #include "ProjectR/Game/PRGameTypes.h"
-#include "ProjectR/Weapon/Types/PRWeaponAnimationTypes.h"
-#include "ProjectR/Weapon/Types/PRWeaponTypes.h"
+#include "ProjectR/ItemSystem/Types/PRWeaponAnimationTypes.h"
+#include "ProjectR/ItemSystem/Types/PRWeaponTypes.h"
 #include "PRWeaponManagerComponent.generated.h"
 
 class UNiagaraSystem;

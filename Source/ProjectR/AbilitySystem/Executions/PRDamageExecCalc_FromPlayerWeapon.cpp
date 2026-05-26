@@ -10,7 +10,7 @@
 #include "ProjectR/PRGameplayTags.h"
 #include "ProjectR/AbilitySystem/PRGameplayAbility.h"
 #include "ProjectR/Combat/PRCombatGameplayTags.h"
-#include "ProjectR/Weapon/Data/PRWeaponDataAsset.h"
+#include "ProjectR/ItemSystem/Data/PRWeaponDataAsset.h"
 
 struct FFromPlayerCaptureDefs
 {

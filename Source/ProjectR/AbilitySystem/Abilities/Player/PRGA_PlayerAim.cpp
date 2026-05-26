@@ -8,7 +8,7 @@
 #include "ProjectR/PRGameplayTags.h"
 #include "ProjectR/System/PREventManagerSubsystem.h"
 #include "ProjectR/UI/Crosshair/PRCrosshairConfig.h"
-#include "ProjectR/Weapon/Components/PRWeaponManagerComponent.h"
+#include "ProjectR/ItemSystem/Components/PRWeaponManagerComponent.h"
 
 UPRGA_PlayerAim::UPRGA_PlayerAim()
 {

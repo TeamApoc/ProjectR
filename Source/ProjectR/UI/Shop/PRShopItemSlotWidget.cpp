@@ -6,7 +6,7 @@
 #include "Components/Image.h"
 #include "Components/TextBlock.h"
 #include "InputCoreTypes.h"
-#include "ProjectR/Inventory/Data/PRItemDataAsset.h"
+#include "ProjectR/ItemSystem/Data/PRItemDataAsset.h"
 
 void UPRShopItemSlotWidget::SetSlotViewData(const FPRShopItemSlotViewData& InViewData)
 {

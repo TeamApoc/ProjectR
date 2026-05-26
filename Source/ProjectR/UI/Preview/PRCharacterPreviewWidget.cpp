@@ -10,7 +10,7 @@
 #include "Materials/MaterialInterface.h"
 #include "ProjectR/Character/PRPlayerCharacter.h"
 #include "ProjectR/UI/Preview/PRCharacterPreviewActor.h"
-#include "ProjectR/Weapon/Components/PRWeaponManagerComponent.h"
+#include "ProjectR/ItemSystem/Components/PRWeaponManagerComponent.h"
 
 void UPRCharacterPreviewWidget::SetPreviewSources(APRPlayerCharacter* InSourceCharacter, UPRWeaponManagerComponent* InWeaponManagerComponent)
 {

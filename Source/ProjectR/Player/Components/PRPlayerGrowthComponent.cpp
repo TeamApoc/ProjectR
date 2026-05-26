@@ -10,6 +10,7 @@
 #include "ProjectR/AbilitySystem/AttributeSets/PRAttributeSet_Growth.h"
 #include "ProjectR/AbilitySystem/AttributeSets/PRAttributeSet_Player.h"
 #include "ProjectR/AbilitySystem/PRAbilitySystemComponent.h"
+#include "ProjectR/Player/PRPlayerController.h"
 #include "ProjectR/Player/PRPlayerState.h"
 #include "ProjectR/PRGameplayTags.h"
 #include "ProjectR/System/PRDeveloperSettings.h"
@@ -41,9 +42,20 @@ bool UPRPlayerGrowthComponent::AddExperience(int32 Amount)
 	}
 
 	const int64 CurrentExperience = FMath::Max(static_cast<int64>(ASC->GetNumericAttribute(UPRAttributeSet_Growth::GetExperienceAttribute())), 0);
+	const int32 PreviousLevel = FMath::Max(FMath::RoundToInt(ASC->GetNumericAttribute(UPRAttributeSet_Growth::GetLevelAttribute())), 1);
 	const int64 NewExperience = CurrentExperience + static_cast<int64>(Amount);
 	const int32 NewLevel = ResolveLevelFromExperience(NewExperience);
 	ApplyGrowthAttributes(NewExperience, NewLevel, TraitInvestmentInfo);
+	if (NewLevel > PreviousLevel)
+	{
+		if (APRPlayerState* PlayerState = Cast<APRPlayerState>(GetOwner()))
+		{
+			if (APRPlayerController* PlayerController = Cast<APRPlayerController>(PlayerState->GetOwner()))
+			{
+				PlayerController->ClientNotifyPlayerLevelUp(PreviousLevel, NewLevel);
+			}
+		}
+	}
 	return true;
 }
 

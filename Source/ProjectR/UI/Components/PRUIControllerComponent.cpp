@@ -266,6 +266,19 @@ void UPRUIControllerComponent::HideWeaponScope()
 	}
 }
 
+void UPRUIControllerComponent::ShowLevelUpPopup(int32 PreviousLevel, int32 CurrentLevel)
+{
+	if (!IsLocalPlayer() || CurrentLevel <= PreviousLevel)
+	{
+		return;
+	}
+
+	if (IsValid(HUDWidget))
+	{
+		HUDWidget->ShowLevelUpPopup(PreviousLevel, CurrentLevel);
+	}
+}
+
 void UPRUIControllerComponent::EndPlay(const EEndPlayReason::Type EndPlayReason)
 {
 	CloseInventory();
@@ -322,7 +335,6 @@ void UPRUIControllerComponent::RemoveAllWidget()
 	{
 		WeaponScopeWidget->RemoveFromParent();
 	}
-	
 	if (UPRUIManagerSubsystem* UIManager = GetUIManager())
 	{
 		UIManager->ResetSystem();

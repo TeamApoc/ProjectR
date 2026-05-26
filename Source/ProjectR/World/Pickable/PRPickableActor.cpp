@@ -6,6 +6,7 @@
 #include "Components/SphereComponent.h"
 #include "ProjectR/Interaction/PRInteractableComponent.h"
 #include "ProjectR/Interaction/Actions/PRInteraction_PickUpAmmo.h"
+#include "ProjectR/System/PRDeveloperSettings.h"
 
 APRPickableActor::APRPickableActor()
 {

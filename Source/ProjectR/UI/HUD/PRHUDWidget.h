@@ -15,6 +15,7 @@ class UPRBossHealthBarWidget;
 class UPRHealthBarWidget;
 class UPRPartyHealthListWidget;
 class UPRStaminaBarWidget;
+class UPRWorldMarkerLayerWidget;
 class UPREventManagerSubsystem;
 class APRBossBaseCharacter;
 struct FInstancedStruct;
@@ -119,6 +120,11 @@ protected:
 	// 보스 조우 흐름에서 BindBossHealthBar 호출 시 화면 상단 보스 HP를 표시한다
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "HUD")
 	TObjectPtr<UPRBossHealthBarWidget> BossHealthBar;
+
+	// UMG 트리에서 동일 이름("WorldMarkerLayer")의 자식이 있을 때 자동 바인딩.
+	// 핑 마커 추가·제거 이벤트 구독과 화면 투영 처리
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "HUD")
+	TObjectPtr<UPRWorldMarkerLayerWidget> WorldMarkerLayer;
 
 private:
 	TArray<FDelegateHandle> EventHandles;

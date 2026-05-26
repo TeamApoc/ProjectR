@@ -8,6 +8,7 @@
 #include "ProjectR/AbilitySystem/Data/PRStatRows.h"
 #include "ProjectR/Character/PRCharacterBase.h"
 #include "ProjectR/Character/Enemy/PREnemyInterface.h"
+#include "ProjectR/UI/WorldMarker/PRPingMarkerTargetInterface.h"
 #include "PREnemyBaseCharacter.generated.h"
 
 class UBehaviorTree;
@@ -30,7 +31,7 @@ struct FPREnemyMovePresentationConfig;
 // 모든 일반 몬스터가 공유하는 베이스 캐릭터다.
 // ASC/AttributeSet/Threat/BT/Perception을 소유하고, 서버 Possess 시 AbilitySet과 AI를 초기화한다.
 UCLASS(Abstract)
-class PROJECTR_API APREnemyBaseCharacter : public APRCharacterBase, public IPREnemyInterface
+class PROJECTR_API APREnemyBaseCharacter : public APRCharacterBase, public IPREnemyInterface, public IPRPingMarkerTargetInterface
 {
 	GENERATED_BODY()
 
@@ -48,6 +49,10 @@ public:
 	virtual FPRDamageRegionInfo GetDamageRegionInfo(FName BoneName) const override;
 	virtual void OnPostDamageApplied(const FPRDamageAppliedContext& Context) override;
 	
+	/*~ IPRPingMarkerTargetInterface ~*/
+	virtual FPRWorldMarkerVisualData GetPingMarkerVisualData_Implementation() const override;
+	virtual FVector GetPingMarkerWorldLocation_Implementation() const override;
+	virtual bool ShouldPingMarkerVisible_Implementation() const override;
 public:
 	virtual UPRAbilitySystemComponent* GetEnemyAbilitySystemComponent() const override;
 	virtual UPREnemyThreatComponent* GetEnemyThreatComponent() const override;
@@ -164,8 +169,10 @@ protected:
 	void FreezeDeathDissolvePose();
 	
 	void GiveModGauge(const FPRDamageAppliedContext& Context) const;
+
 protected:
-	// 적은 PlayerState가 아니라 캐릭터 자신이 ASC를 소유한다.
+	// ====== Components ======
+	// 적은 PlayerState가 아니라 캐릭터 자신이 ASC를 소유
 	UPROPERTY(VisibleAnywhere, Category = "ProjectR|Ability")
 	TObjectPtr<UPRAbilitySystemComponent> AbilitySystemComponent;
 
@@ -186,10 +193,14 @@ protected:
 	UPROPERTY(VisibleAnywhere, Category = "ProjectR|UI")
 	TObjectPtr<UPREnemyWorldHealthBarComponent> EnemyWorldHealthBarComponent;
 
+	// ====== Configs ======
 	// 월드 HP 바 사용 여부다. 보스나 특수 적은 비활성화할 수 있다.
 	UPROPERTY(EditDefaultsOnly, Category = "ProjectR|UI")
 	bool bUseWorldHealthBar = true;
-
+	
+	UPROPERTY(EditDefaultsOnly, Category = "ProjectR|UI")
+	FVector PingMarkerOffset = FVector(0.f,0.f,25.f);
+	
 	// 이 몬스터가 Possess될 때 실행할 BT
 	UPROPERTY(EditDefaultsOnly, Category = "ProjectR|AI")
 	TObjectPtr<UBehaviorTree> BehaviorTreeAsset;
@@ -205,7 +216,8 @@ protected:
 	// 시야/청각 감지 설정 데이터다.
 	UPROPERTY(EditDefaultsOnly, Category = "ProjectR|AI")
 	TObjectPtr<UPRPerceptionConfig> PerceptionConfig;
-
+	
+	// ====== States ======
 	// AI 복귀 기준 위치다. Possess/BeginPlay 중 먼저 도달한 시점의 현재 위치로 저장한다.
 	UPROPERTY(VisibleInstanceOnly, Category = "ProjectR|AI")
 	FVector HomeLocation = FVector::ZeroVector;

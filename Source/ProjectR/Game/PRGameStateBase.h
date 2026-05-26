@@ -5,7 +5,9 @@
 #include "CoreMinimal.h"
 #include "GameplayTagContainer.h"
 #include "GameFramework/GameStateBase.h"
+#include "TimerManager.h"
 #include "PRGameTypes.h"
+#include "ProjectR/UI/WorldMarker/PRWorldMarkerTypes.h"
 #include "PRGameStateBase.generated.h"
 
 class APRPlayerCharacter;
@@ -57,10 +59,23 @@ public:
 	// 서버 전용. 보스 처치 반영
 	void MarkBossDefeated(FName BossId);
 
+	// 서버 전용. 월드 마커 생성 요청 처리
+	void ServerSubmitWorldMarker(const FPRWorldMarkerRequest& Request);
+
 protected:
 	// ActiveCheckpoint 복제 콜백. 클라이언트에서 UI·리스폰 지점 갱신 트리거
 	UFUNCTION()
 	void OnRep_ActiveCheckpoint(FName OldCheckpoint);
+
+	// 월드 마커 이벤트 전파
+	UFUNCTION(NetMulticast, Reliable)
+	void MulticastWorldMarkerEvent(const FPRWorldMarkerEventPayload& Payload);
+
+	// 플레이어별 마커 개수 제한 적용
+	void EnforceMarkerLimit(APlayerState* SourcePlayerState);
+
+	// 월드 마커 제거
+	void RemoveWorldMarker(FGuid MarkerId);
 
 public:
 	// 체크포인트 활성화 이벤트
@@ -72,6 +87,10 @@ public:
 	FOnBossDefeatedSignature OnBossDefeated;
 
 protected:
+	// 플레이어별 최대 활성 핑 개수
+	UPROPERTY(EditDefaultsOnly, Category = "ProjectR|WorldMarker", meta = (ClampMin = "1"))
+	int32 MaxActiveMarkersPerPlayer = 1;
+
 	// 현재 활성 체크포인트. 변경 시 OnRep으로 UI/리스폰 지점 갱신
 	UPROPERTY(ReplicatedUsing = OnRep_ActiveCheckpoint)
 	FName ActiveCheckpoint;
@@ -91,4 +110,13 @@ protected:
 	// 호스트 기준 월드 세이브 버전. 디버그·불일치 진단용
 	UPROPERTY(Replicated)
 	EPRSaveVersion WorldSaveVersion = EPRSaveVersion::None;
+
+	// 플레이어별 활성 마커 목록
+	TMap<TWeakObjectPtr<APlayerState>, FPRActiveWorldMarkerList> ActiveMarkerIdsByPlayer;
+
+	// 활성 마커 데이터
+	TMap<FGuid, FPRWorldMarkerData> ActiveWorldMarkers;
+
+	// 마커 만료 타이머
+	TMap<FGuid, FTimerHandle> WorldMarkerExpireTimers;
 };

@@ -27,7 +27,7 @@
 
 namespace
 {
-	// 무기와 Mod의 태그 호환 여부를 판정한다
+	// 무기와 Mod의 태그 호환 여부 판정
 	bool IsModCompatible(const UPRWeaponDataAsset* WeaponData, const UPRWeaponModDataAsset* ModData)
 	{
 		// 무기 데이터나 Mod 데이터가 없는 경우
@@ -80,7 +80,7 @@ namespace
 		}
 	}
 
-	// 강화 단계가 반영된 최종 기본 피해량을 계산한다
+	// 강화 단계가 반영된 최종 기본 피해량을 계산
 	float CalculateUpgradedBaseDamage(const UPRWeaponDataAsset* WeaponData, const UPRItemInstance_Weapon* WeaponItem)
 	{
 		if (!IsValid(WeaponData))
@@ -110,7 +110,7 @@ void UPRWeaponManagerComponent::EndPlay(const EEndPlayReason::Type EndPlayReason
 		CurrentWeaponInstance->OnUnequipped(GetOwner());
 	}
 
-	// PlayerState ASC에 남은 장착 지속 효과를 모두 회수한다
+	// PlayerState ASC에 남은 장착 지속 효과를 모두 회수
 	RemoveAllEquipEffects();
 
 	// 컴포넌트 종료 시 남아 있는 주무기 Actor 정리
@@ -182,8 +182,8 @@ FPRWeaponManagerSaveData UPRWeaponManagerComponent::MakeSaveData() const
 	{
 		return SaveData;
 	}
-	SaveData.PrimaryWeaponIndex = Inventory->GetWeaponItemIndex(PrimaryWeaponInstance);
-	SaveData.SecondaryWeaponIndex = Inventory->GetWeaponItemIndex(SecondaryWeaponInstance);
+	SaveData.PrimaryWeaponIndex = Inventory->GetItemIndexByType(PrimaryWeaponInstance, EPRItemType::Weapon);
+	SaveData.SecondaryWeaponIndex = Inventory->GetItemIndexByType(SecondaryWeaponInstance, EPRItemType::Weapon);
 	SaveData.CurrentWeaponSlot = CurrentWeaponSlot;
 	SaveData.ArmedState = ArmedState;
 	const UPRAbilitySystemComponent* SaveASC = CachedASC.IsValid()
@@ -232,12 +232,12 @@ void UPRWeaponManagerComponent::ApplySaveData(const FPRWeaponManagerSaveData& In
 	ArmedState = EPRArmedState::Unarmed;
 	UPRItemInstance_Weapon* RestoredPrimaryItem = nullptr;
 	UPRItemInstance_Weapon* RestoredSecondaryItem = nullptr;
-	if (UPRItemInstance_Weapon* PrimaryItem = CachedInventory->GetWeaponItemAtIndex(InSaveData.PrimaryWeaponIndex))
+	if (UPRItemInstance_Weapon* PrimaryItem = CachedInventory->GetItemAtIndexByType<UPRItemInstance_Weapon>(EPRItemType::Weapon, InSaveData.PrimaryWeaponIndex))
 	{
 		RestoredPrimaryItem = PrimaryItem;
 		EquipWeaponInternal(RestoredPrimaryItem);
 	}
-	if (UPRItemInstance_Weapon* SecondaryItem = CachedInventory->GetWeaponItemAtIndex(InSaveData.SecondaryWeaponIndex))
+	if (UPRItemInstance_Weapon* SecondaryItem = CachedInventory->GetItemAtIndexByType<UPRItemInstance_Weapon>(EPRItemType::Weapon, InSaveData.SecondaryWeaponIndex))
 	{
 		RestoredSecondaryItem = SecondaryItem;
 		EquipWeaponInternal(RestoredSecondaryItem);
@@ -357,7 +357,7 @@ bool UPRWeaponManagerComponent::EquipInventoryWeaponAtIndex(int32 InventoryIndex
 	}
 
 	// 인덱스 기반 UI 요청을 실제 Item 참조 요청으로 변환하기 위한 Item 조회
-	UPRItemInstance_Weapon* WeaponItem = CachedInventory->GetWeaponItemAtIndex(InventoryIndex);
+	UPRItemInstance_Weapon* WeaponItem = CachedInventory->GetItemAtIndexByType<UPRItemInstance_Weapon>(EPRItemType::Weapon, InventoryIndex);
 
 	// 인덱스에 대응하는 무기 Item이 없는 경우
 	if (!IsValid(WeaponItem))
@@ -508,7 +508,7 @@ APRWeaponActor* UPRWeaponManagerComponent::GetActiveWeaponActor() const
 //
 // EPRWeaponSlotType UPRWeaponManagerComponent::GetAimOffsetWeaponSlot() const
 // {
-// 	// 비무장 상태에서는 맨손 AimOffset을 사용하도록 빈 슬롯을 반환한다
+// 	// 비무장 상태에서는 맨손 AimOffset을 사용하도록 빈 슬롯을 반환
 // 	if (ArmedState != EPRArmedState::Armed)
 // 	{
 // 		return EPRWeaponSlotType::None;
@@ -522,7 +522,7 @@ APRWeaponActor* UPRWeaponManagerComponent::GetActiveWeaponActor() const
 //
 // 	const FPRWeaponVisualInfo& CurrentVisualInfo = GetCurrentWeaponVisualInfo();
 //
-// 	// 현재 활성 슬롯에 공개 무기 데이터가 없으면 맨손 AimOffset으로 처리한다
+// 	// 현재 활성 슬롯에 공개 무기 데이터가 없으면 맨손 AimOffset으로 처리
 // 	if (CurrentVisualInfo.IsEmpty())
 // 	{
 // 		return EPRWeaponSlotType::None;
@@ -538,14 +538,14 @@ bool UPRWeaponManagerComponent::IsManagingWeaponItem(const UPRItemInstance_Weapo
 
 void UPRWeaponManagerComponent::HandleInventoryWeaponModChanged(UPRItemInstance_Weapon* WeaponItem)
 {
-	// PlayerState 기반 런타임 캐시가 늦게 연결된 경우를 대비해 반응 처리 전에 갱신한다
+	// PlayerState 기반 런타임 캐시가 늦게 연결된 경우를 대비해 반응 처리 전에 갱신
 	InitializeRuntimeLinks();
 
-	// 인벤토리 변경 반응은 현재 매니저가 슬롯 원본으로 들고 있는 무기만 처리한다
+	// 인벤토리 변경 반응은 현재 매니저가 슬롯 원본으로 들고 있는 무기만 처리
 	const EPRWeaponSlotType TargetSlot = ResolveWeaponItemSlot(WeaponItem);
 	if (TargetSlot == EPRWeaponSlotType::None)
 	{
-		// 함수 조기 종료. 현재 캐릭터가 장착 중인 무기 Item이 아니다
+		// 함수 조기 종료. 현재 캐릭터가 장착 중인 무기 Item이 아님
 		return;
 	}
 
@@ -556,21 +556,21 @@ void UPRWeaponManagerComponent::HandleInventoryWeaponModChanged(UPRItemInstance_
 		return;
 	}
 
-	// 현재 활성 중인 무기라면 기존 Mod 어빌리티를 회수하고 새 Mod 어빌리티를 부여한다
+	// 현재 활성 중인 무기라면 기존 Mod 어빌리티를 회수하고 새 Mod 어빌리티를 부여
 	WeaponItem->OnModChanged(GetOwner(), WeaponItem->GetModData());
 	ApplyEquipModGE(TargetSlot, WeaponItem->GetModData(), WeaponItem);
 	ApplyOverrideModResourceGE(TargetSlot, 0.0f, 0.0f, WeaponItem);
 
-	// Mod 장착 여부에 맞춰 최근 Mod 실패 사유를 정리한다
+	// Mod 장착 여부에 맞춰 최근 Mod 실패 사유를 정리
 	WeaponItem->LastModFailReason = IsValid(WeaponItem->GetModData()) ? EPRWeaponModFailReason::None : EPRWeaponModFailReason::MissingMod;
 
-	// 인벤토리 정본 변경 결과를 복제 공개 비주얼 정보에 반영한다
+	// 인벤토리 정본 변경 결과를 복제 공개 비주얼 정보에 반영
 	RefreshVisualInfosFromCurrentState();
 
-	// 서버 로컬 Actor도 Mod 변경 결과에 맞춰 즉시 최신화한다
+	// 서버 로컬 Actor도 Mod 변경 결과에 맞춰 즉시 최신화
 	RefreshAllWeaponActors();
 
-	// 현재 활성 무기의 애니메이션 레이어 캐시를 재확인한다
+	// 현재 활성 무기의 애니메이션 레이어 캐시를 재확인
 	RefreshAnimLayer();
 
 	// 장착 중인 무기의 Mod 표시 상태가 바뀌었음을 HUD와 인벤토리 UI에 알린다
@@ -590,7 +590,7 @@ void UPRWeaponManagerComponent::HandleInventoryWeaponModChanged(UPRItemInstance_
 
 void UPRWeaponManagerComponent::RefreshCurrentWeaponUpgradeState(UPRItemInstance_Weapon* WeaponItem)
 {
-	// 강화 반영은 현재 활성 무기 원본에 대해서만 즉시 전투 GE를 갱신한다
+	// 강화 반영은 현재 활성 무기 원본에 대해서만 즉시 전투 GE를 갱신
 	if (!IsValid(WeaponItem) || GetWeaponInstanceBySlotType(CurrentWeaponSlot) != WeaponItem)
 	{
 		return;
@@ -678,7 +678,7 @@ bool UPRWeaponManagerComponent::EquipWeaponInternal(UPRItemInstance_Weapon* Weap
 	if (!IsSupportedSlot(WeaponSlot)
 		|| !IsValid(WeaponItem)
 		|| !CachedInventory.IsValid()
-		|| !CachedInventory->OwnsWeapon(WeaponItem)
+		|| !CachedInventory->OwnsItem(WeaponItem)
 		|| !IsValid(WeaponData))
 	{
 		// 장착 실패. 장착 전 검증 실패
@@ -714,7 +714,7 @@ bool UPRWeaponManagerComponent::EquipWeaponInternal(UPRItemInstance_Weapon* Weap
 		}
 	}
 
-	// 새 무기 장착 전에 기존 슬롯 지속 효과를 회수해 최대치 누적을 방지한다
+	// 새 무기 장착 전에 기존 슬롯 지속 효과를 회수해 최대치 누적을 방지
 	RemoveSlotEquipEffects(WeaponSlot);
 
 	// 장착 검증이 끝난 뒤 장착 슬롯 원본을 새 무기로 확정
@@ -731,13 +731,13 @@ bool UPRWeaponManagerComponent::EquipWeaponInternal(UPRItemInstance_Weapon* Weap
 		WeaponItem->OnEquipped(GetOwner());
 	}
 
-	// 무기 슬롯 최대 자원과 현재 자원을 GE로 적용한다
+	// 무기 슬롯 최대 자원과 현재 자원을 GE로 적용
 	ApplyEquipAmmoGE(WeaponData, WeaponItem);
 	ApplyEquipModGE(WeaponSlot, WeaponItem->GetModData(), WeaponItem);
 	ApplyOverrideModResourceGE(WeaponSlot, 0.0f, 0.0f, WeaponItem);
 	if (CurrentWeaponSlot == WeaponSlot)
 	{
-		// 활성 슬롯에 새 무기를 장착한 경우에만 현재 무기 전투 스탯을 갱신한다
+		// 활성 슬롯에 새 무기를 장착한 경우에만 현재 무기 전투 스탯을 갱신
 		ApplyCurrentWeaponGE(WeaponItem);
 	}
 
@@ -773,7 +773,7 @@ void UPRWeaponManagerComponent::ApplyEquipAmmoGE(const UPRWeaponDataAsset* Weapo
 		return;
 	}
 
-	// 현재 적용된 Ammo Equip GE를 제거한다 
+	// 현재 적용된 Ammo Equip GE를 제거
 	FPREquipSlotEffectHandles& SlotHandles = GetMutableEquipEffectHandlesBySlot(WeaponData->SlotType);
 	RemoveEquipEffectHandle(SlotHandles.AmmoMaxHandle);
 
@@ -825,7 +825,7 @@ void UPRWeaponManagerComponent::ApplyEquipAmmoGE(const UPRWeaponDataAsset* Weapo
 		SpecHandle.Data->SetSetByCallerMagnitude(PRCombatGameplayTags::SetByCaller_Equip_SecondaryMaxReserveAmmo, MaxReserveAmmo);
 	}
 
-	// 이펙트 적용과 슬롯 핸들에 등록을 동시에 한다
+	// 이펙트 적용과 슬롯 핸들에 등록을 동시 수행
 	SlotHandles.AmmoMaxHandle = CachedASC->ApplyGameplayEffectSpecToSelf(*SpecHandle.Data);
 	
 	// 기록된 CurrentAmmo 값 복구
@@ -931,7 +931,7 @@ void UPRWeaponManagerComponent::ApplyEquipModGE(EPRWeaponSlotType SlotType, cons
 	}
 
 	const float MaxGauge = FMath::Max(ModData->MaxModGauge, 0.0f);
-	const float MaxStack = FMath::Max(ModData->MaxModStck, 0.0f);
+	const float MaxStack = FMath::Max(ModData->MaxModStack, 0.0f);
 
 	if (SlotType == EPRWeaponSlotType::Primary)
 	{
@@ -970,7 +970,7 @@ void UPRWeaponManagerComponent::ApplyOverrideAmmoGE(EPRWeaponSlotType SlotType, 
 		return;
 	}
 
-	// 무기 아이템을 소스 오브젝트로 콘텍스트에 추가한다
+	// 무기 아이템을 소스 오브젝트로 콘텍스트에 추가
 	FGameplayEffectContextHandle Context = CachedASC->MakeEffectContext();
 	if (IsValid(SourceObject))
 	{
@@ -1022,7 +1022,7 @@ void UPRWeaponManagerComponent::ApplyOverrideModResourceGE(EPRWeaponSlotType Slo
 		return;
 	}
 
-	// 무기 아이템을 소스 오브젝트로 콘텍스트에 추가한다
+	// 무기 아이템을 소스 오브젝트로 콘텍스트에 추가
 	FGameplayEffectContextHandle Context = CachedASC->MakeEffectContext();
 	if (IsValid(SourceObject))
 	{
@@ -1104,13 +1104,13 @@ bool UPRWeaponManagerComponent::UnequipWeaponFromSlotInternal(EPRWeaponSlotType 
 		}
 	}
 
-	// 해제 이후 대상 슬롯 지속 효과와 현재 자원을 정리한다
+	// 해제 이후 대상 슬롯 지속 효과와 현재 자원을 정리
 	RemoveSlotEquipEffects(TargetSlot);
 	ClearAmmoAttributesForSlot(TargetSlot, CurrentWeaponInstance);
 	ApplyOverrideModResourceGE(TargetSlot, 0.0f, 0.0f, CurrentWeaponInstance);
 	if (bWasTargetSlotCurrent)
 	{
-		// 활성 슬롯이 바뀐 경우 현재 무기 전투 스탯도 새 활성 슬롯 기준으로 갱신한다
+		// 활성 슬롯이 바뀐 경우 현재 무기 전투 스탯도 새 활성 슬롯 기준으로 갱신
 		ApplyCurrentWeaponGE(CurrentWeaponInstance);
 	}
 
@@ -1275,7 +1275,7 @@ void UPRWeaponManagerComponent::SetCurrentWeaponSlotInternal(EPRWeaponSlotType T
 	// 새 활성 무기의 어빌리티셋을 플레이어에게 부여
 	TargetWeaponInstance->OnEquipped(GetOwner());
 
-	// 활성 슬롯 기준 전투 값을 새 무기 데이터로 갱신한다
+	// 활성 슬롯 기준 전투 값을 새 무기 데이터로 갱신
 	ApplyCurrentWeaponGE(TargetWeaponInstance);
 
 	// 슬롯 전환은 Actor를 재생성하지 않고 소켓 부착만 최신화하는 경로 유지
@@ -1841,7 +1841,7 @@ void UPRWeaponManagerComponent::RestoreAmmoFromCachedRatios(EPRWeaponSlotType Sl
 	const float MaxMagazineAmmo = CachedWeaponSet->GetMaxMagazineAmmoByType(AmmoType);
 	const float MaxReserveAmmo = CachedWeaponSet->GetMaxReserveAmmoByType(AmmoType);
 
-	// 비율에 맞는 CurrentAmmo 값을 오버라이드 한다
+	// 비율에 맞는 CurrentAmmo 값을 오버라이드
 	ApplyOverrideAmmoGE(
 		SlotType,
 		FMath::Clamp(MaxMagazineAmmo * MagazineRatio, 0.0f, MaxMagazineAmmo),

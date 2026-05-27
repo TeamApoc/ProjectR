@@ -7,9 +7,49 @@ bool FPRAbilityEntry::IsValid() const
 	return ::IsValid(AbilityClass);
 }
 
+void FPRAbilityEntry::GiveToAbilitySystem(UAbilitySystemComponent* TargetASC, FPRAbilitySetHandles& OutHandles, UObject* InSourceObject) const
+{
+	FGameplayAbilitySpec Spec(AbilityClass, Level);
+	Spec.GetDynamicSpecSourceTags().AppendTags(DynamicTags);
+	if (::IsValid(InSourceObject))
+	{
+		Spec.SourceObject = InSourceObject;
+	}
+
+	// InputTag가 CDO에 설정되어 있으면 DynamicTags에 자동 주입 (AbilitySet이 누락해도 매칭되도록)
+	if (const UPRGameplayAbility* CDO = Cast<UPRGameplayAbility>(AbilityClass->GetDefaultObject()))
+	{
+		const FGameplayTag& CDOInputTag = CDO->GetInputTag();
+		if (CDOInputTag.IsValid() && !Spec.GetDynamicSpecSourceTags().HasTagExact(CDOInputTag))
+		{
+			Spec.GetDynamicSpecSourceTags().AddTag(CDOInputTag);
+		}
+	}
+
+	const FGameplayAbilitySpecHandle Handle =  TargetASC->GiveAbility(Spec);
+	OutHandles.AbilityHandles.Add(Handle);
+}
+
 bool FPREffectEntry::IsValid() const
 {
 	return ::IsValid(EffectClass);
+}
+
+void FPREffectEntry::GiveToAbilitySystem(UAbilitySystemComponent* TargetASC, FPRAbilitySetHandles& OutHandles, const UObject* InSourceObject) const
+{
+	FGameplayEffectContextHandle Context = TargetASC->MakeEffectContext();
+	if (::IsValid(InSourceObject))
+	{
+		Context.AddSourceObject(InSourceObject);	
+	}
+	
+	const FGameplayEffectSpecHandle SpecHandle = TargetASC->MakeOutgoingSpec(EffectClass, Level, Context);
+	if (SpecHandle.IsValid())
+	{
+		SpecHandle.Data->DynamicGrantedTags.AppendTags(DynamicTags);
+		const FActiveGameplayEffectHandle ActiveHandle = TargetASC->ApplyGameplayEffectSpecToSelf(*SpecHandle.Data);
+		OutHandles.EffectHandles.Add(ActiveHandle);
+	}
 }
 
 UPRAbilitySet* CreateRuntimeAbilitySet(

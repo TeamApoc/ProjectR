@@ -1,6 +1,8 @@
 // Copyright ProjectR. All Rights Reserved.
 
 #include "PRAbilitySystemComponent.h"
+
+#include "AbilitySystemBlueprintLibrary.h"
 #include "ProjectR/AbilitySystem/PRGameplayAbility.h"
 #include "ProjectR/PRGameplayTags.h"
 #include "Engine/DataTable.h"
@@ -274,6 +276,46 @@ bool UPRAbilitySystemComponent::InitializeAttributesFromRegistry(const UPRAbilit
 	return true;
 }
 
+FPRAttributeBaseSnapshot UPRAbilitySystemComponent::MakeAttributeBaseSnapshot(const TArray<FGameplayAttribute>& Attributes) const
+{
+	FPRAttributeBaseSnapshot Snapshot;
+	Snapshot.Entries.Reserve(Attributes.Num());
+
+	for (const FGameplayAttribute& Attribute : Attributes)
+	{
+		if (!Attribute.IsValid())
+		{
+			continue;
+		}
+
+		FPRAttributeBaseEntry Entry;
+		Entry.Attribute = Attribute;
+		Entry.BaseValue = GetNumericAttributeBase(Attribute);
+		Snapshot.Entries.Add(Entry);
+	}
+
+	return Snapshot;
+}
+
+void UPRAbilitySystemComponent::ApplyAttributeBaseSnapshot(const FPRAttributeBaseSnapshot& InSnapshot)
+{
+	if (!IsOwnerActorAuthoritative())
+	{
+		return;
+	}
+
+	for (const FPRAttributeBaseEntry& Entry : InSnapshot.Entries)
+	{
+		if (!Entry.Attribute.IsValid())
+		{
+			continue;
+		}
+
+		// Attribute Base 값 복원
+		SetNumericAttributeBase(Entry.Attribute, Entry.BaseValue);
+	}
+}
+
 void UPRAbilitySystemComponent::AbilityInputPressed(const FGameplayTag& InputTag)
 {
 	if (!InputTag.IsValid())
@@ -492,6 +534,11 @@ bool UPRAbilitySystemComponent::TryConsumeClientReplicatedTargetData(FGameplayAb
 		return bConsumed;
 	}
 	return false;
+}
+
+void UPRAbilitySystemComponent::MulticastTriggerEvent_Implementation(FGameplayTag EventTag)
+{
+	UAbilitySystemBlueprintLibrary::SendGameplayEventToActor(GetOwner(),EventTag,FGameplayEventData());
 }
 
 // =====  내부 =====

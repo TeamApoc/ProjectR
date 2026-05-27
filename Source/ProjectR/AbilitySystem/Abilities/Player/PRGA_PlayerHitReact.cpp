@@ -12,8 +12,8 @@
 #include "GameFramework/CharacterMovementComponent.h"
 #include "ProjectR/Character/PRPlayerCharacter.h"
 #include "ProjectR/PRGameplayTags.h"
-#include "ProjectR/Weapon/Components/PRWeaponManagerComponent.h"
-#include "ProjectR/Weapon/Data/PRWeaponDataAsset.h"
+#include "ProjectR/ItemSystem/Components/PRWeaponManagerComponent.h"
+#include "ProjectR/ItemSystem/Data/PRWeaponDataAsset.h"
 #include "TimerManager.h"
 
 namespace
@@ -151,6 +151,7 @@ void UPRGA_PlayerHitReact::ActivateAbility(const FGameplayAbilitySpecHandle Hand
 	}
 
 	ActiveMontageTask->OnCompleted.AddDynamic(this, &UPRGA_PlayerHitReact::HandleHitReactMontageCompleted);
+	ActiveMontageTask->OnBlendOut.AddDynamic(this, &UPRGA_PlayerHitReact::HandleHitReactMontageCompleted);
 	ActiveMontageTask->OnInterrupted.AddDynamic(this, &UPRGA_PlayerHitReact::HandleHitReactMontageInterrupted);
 	ActiveMontageTask->OnCancelled.AddDynamic(this, &UPRGA_PlayerHitReact::HandleHitReactMontageInterrupted);
 	ActiveMontageTask->ReadyForActivation();

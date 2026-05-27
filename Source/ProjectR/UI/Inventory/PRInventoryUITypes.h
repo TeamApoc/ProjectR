@@ -3,7 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "ProjectR/Inventory/Types/PRItemTypes.h"
+#include "ProjectR/ItemSystem/Types/PRItemTypes.h"
 #include "PRInventoryUITypes.generated.h"
 
 class UPRItemDataAsset;

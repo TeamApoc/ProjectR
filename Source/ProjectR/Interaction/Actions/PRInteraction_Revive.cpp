@@ -6,9 +6,9 @@
 #include "AbilitySystemBlueprintLibrary.h"
 #include "AbilitySystemComponent.h"
 #include "ProjectR/PRGameplayTags.h"
-#include "ProjectR/Inventory/Components/PRInventoryComponent.h"
-#include "ProjectR/Inventory/Data/PRConsumableDataAsset.h"
-#include "ProjectR/Inventory/Items/PRItemInstance_Consumable.h"
+#include "ProjectR/ItemSystem/Components/PRInventoryComponent.h"
+#include "ProjectR/ItemSystem/Data/PRConsumableDataAsset.h"
+#include "ProjectR/ItemSystem/Items/PRItemInstance_Consumable.h"
 #include "ProjectR/Utils/PRGameplayStatics.h"
 
 void UPRInteraction_Revive::OnHoldStart_Implementation(AActor* Interactor)

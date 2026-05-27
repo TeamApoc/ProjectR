@@ -7,8 +7,8 @@
 #include "Components/SphereComponent.h"
 #include "ProjectR/Interaction/PRInteractableComponent.h"
 #include "ProjectR/Interaction/Actions/PRInteraction_EquipWeapon.h"
-#include "ProjectR/Weapon/Actors/PRWeaponActor.h"
-#include "ProjectR/Weapon/Data/PRWeaponDataAsset.h"
+#include "ProjectR/ItemSystem/Actors/PRWeaponActor.h"
+#include "ProjectR/ItemSystem/Data/PRWeaponDataAsset.h"
 
 APRPickableWeapon::APRPickableWeapon()
 {

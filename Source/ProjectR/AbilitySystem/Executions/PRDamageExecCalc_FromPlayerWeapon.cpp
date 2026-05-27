@@ -10,7 +10,7 @@
 #include "ProjectR/PRGameplayTags.h"
 #include "ProjectR/AbilitySystem/PRGameplayAbility.h"
 #include "ProjectR/Combat/PRCombatGameplayTags.h"
-#include "ProjectR/Weapon/Data/PRWeaponDataAsset.h"
+#include "ProjectR/ItemSystem/Data/PRWeaponDataAsset.h"
 
 struct FFromPlayerCaptureDefs
 {
@@ -32,6 +32,7 @@ struct FFromPlayerCaptureDefs
 	// Source(공격자) 캡처 - Player AttributeSet
 	DECLARE_ATTRIBUTE_CAPTUREDEF(CriticalHitChance);
 	DECLARE_ATTRIBUTE_CAPTUREDEF(CriticalDamageMultiplier);
+	DECLARE_ATTRIBUTE_CAPTUREDEF(PlayerAttackPower);
 
 	FFromPlayerCaptureDefs()
 	{
@@ -46,6 +47,7 @@ struct FFromPlayerCaptureDefs
 		DEFINE_ATTRIBUTE_CAPTUREDEF(UPRAttributeSet_Weapon, GroggyDamageMultiplier, Source, false);
 		DEFINE_ATTRIBUTE_CAPTUREDEF(UPRAttributeSet_Player, CriticalHitChance, Source, false);
 		DEFINE_ATTRIBUTE_CAPTUREDEF(UPRAttributeSet_Player, CriticalDamageMultiplier, Source, false);
+		DEFINE_ATTRIBUTE_CAPTUREDEF(UPRAttributeSet_Player, PlayerAttackPower, Source, false);
 	}
 };
 
@@ -69,6 +71,7 @@ UPRDamageExecCalc_FromPlayerWeapon::UPRDamageExecCalc_FromPlayerWeapon()
 	RelevantAttributesToCapture.Add(Defs.GroggyDamageMultiplierDef);
 	RelevantAttributesToCapture.Add(Defs.CriticalHitChanceDef);
 	RelevantAttributesToCapture.Add(Defs.CriticalDamageMultiplierDef);
+	RelevantAttributesToCapture.Add(Defs.PlayerAttackPowerDef);
 }
 
 void UPRDamageExecCalc_FromPlayerWeapon::Execute_Implementation(const FGameplayEffectCustomExecutionParameters& ExecutionParams,
@@ -113,6 +116,7 @@ void UPRDamageExecCalc_FromPlayerWeapon::Execute_Implementation(const FGameplayE
 	float WeaponGroggyDamageMultiplier = 1.0f;
 	float CriticalHitChance = 0.0f;
 	float CriticalDamageMultiplier = 1.0f;
+	float PlayerAttackPower = 0.0f;
 	
 	// AttemptCalculateCapturedAttributeMagnitude는 캡처 실패 시 false를 반환하지만
 	// 이 ExecCalc에서는 캡처 실패해도 기본값으로 진행한다(예: friendly fire에서 Enemy AttributeSet 부재 시 GroggyGauge=0)
@@ -127,6 +131,16 @@ void UPRDamageExecCalc_FromPlayerWeapon::Execute_Implementation(const FGameplayE
 	ExecutionParams.AttemptCalculateCapturedAttributeMagnitude(Defs.GroggyDamageMultiplierDef, EvalParams, WeaponGroggyDamageMultiplier);
 	ExecutionParams.AttemptCalculateCapturedAttributeMagnitude(Defs.CriticalHitChanceDef, EvalParams, CriticalHitChance);
 	ExecutionParams.AttemptCalculateCapturedAttributeMagnitude(Defs.CriticalDamageMultiplierDef, EvalParams, CriticalDamageMultiplier);
+	ExecutionParams.AttemptCalculateCapturedAttributeMagnitude(Defs.PlayerAttackPowerDef, EvalParams, PlayerAttackPower);
+
+	const float SpecWeaponBaseDamage = OwningSpec.GetSetByCallerMagnitude(
+		PRCombatGameplayTags::SetByCaller_CurrentWeapon_BaseDamage,
+		false,
+		-1.0f);
+	if (SpecWeaponBaseDamage >= 0.0f)
+	{
+		WeaponBaseDamage = SpecWeaponBaseDamage;
+	}
 	
 	AActor* SourceActor = IsValid(SourceASC) ? SourceASC->GetAvatarActor() : nullptr;
 	AActor* TargetActor = TargetASC->GetAvatarActor();
@@ -141,7 +155,7 @@ void UPRDamageExecCalc_FromPlayerWeapon::Execute_Implementation(const FGameplayE
 	Inputs.CriticalDamageMultiplier = CriticalDamageMultiplier;
 	if (WeaponDamageMultiplier > 0.0f)
 	{
-		Inputs.BaseDamage = WeaponBaseDamage * WeaponDamageMultiplier;
+		Inputs.BaseDamage = FMath::Max(WeaponBaseDamage + PlayerAttackPower, 0.0f) * WeaponDamageMultiplier;
 	}
 	if (Inputs.BaseDamage > 0.0f)
 	{

@@ -1,14 +1,14 @@
 // Copyright (c) 2026 TeamD20. All Rights Reserved.
 
 #include "PRInteractionSensor.h"
-
-#include "PRInteractableActor.h"
+#include "PRInteractableComponent.h"
 #include "PRInteractionInterface.h"
 #include "PRInteractorComponent.h"
 #include "GameFramework/PlayerController.h"
 #include "GameFramework/Pawn.h"
 #include "Kismet/KismetSystemLibrary.h"
 #include "ProjectR/ProjectR.h"
+#include "ProjectR/World/PRInteractableActor.h"
 
 UPRInteractionSensor::UPRInteractionSensor()
 {
@@ -91,7 +91,7 @@ void UPRInteractionSensor::UpdateFocus()
 	TArray<AActor*> Candidates;
 	CollectCandidates(Pawn->GetActorLocation(), FocusableRange, Candidates);
 
-	// 1) 화면 중앙 후보가 있으면 히스테리시스 무시하고 즉시 전환
+	// 1) 상호작용 가능한 화면 중앙 후보가 있으면 히스테리시스 무시하고 즉시 전환
 	if (AActor* ScreenPick = FindScreenCenterCandidate(Candidates))
 	{
 		FocusedActor = ScreenPick;
@@ -186,8 +186,12 @@ bool UPRInteractionSensor::HasLineOfSight(const AActor* Target) const
 
 	FCollisionQueryParams Params(SCENE_QUERY_STAT(PRInteractionLOS), false);
 	Params.AddIgnoredActor(Pawn);
+	
+	FVector BoxOrigin;
+	FVector BoxExtent;
+	Target->GetActorBounds(true,BoxOrigin,BoxExtent,true);
 
-	const FVector TargetLoc = Target->GetActorLocation();
+	const FVector TargetLoc = BoxOrigin;
 
 	auto TraceVisible = [&](const FVector& Origin) -> bool
 	{
@@ -233,7 +237,7 @@ AActor* UPRInteractionSensor::FindScreenCenterCandidate(const TArray<AActor*>& C
 		{
 			continue;
 		}
-
+		
 		FVector2D Screen;
 		const bool bOnScreen = PC->ProjectWorldLocationToScreen(Actor->GetActorLocation(), Screen);
 		if (!bOnScreen)
@@ -291,25 +295,27 @@ AActor* UPRInteractionSensor::FindNearestCandidate(const TArray<AActor*>& Candid
 
 bool UPRInteractionSensor::ShouldRetainFocus(AActor* Actor) const
 {
-	if (!IsValid(Actor))
+	IPRInteractionInterface* Interaction = Cast<IPRInteractionInterface>(Actor);
+	if (!Interaction)
 	{
 		return false;
 	}
-
-	if (!Actor->Implements<UPRInteractionInterface>())
+	
+	const UPRInteractableComponent* Interactable = Interaction->GetInteractableComponent();
+	if (!Interactable->CanBeInteractedBy(GetOwner()))
 	{
 		return false;
 	}
-
+	
 	const APlayerController* PC = GetOwningPlayerController();
 	const APawn* Pawn = PC ? PC->GetPawn() : nullptr;
 	if (!IsValid(Pawn))
 	{
 		return false;
 	}
-
+	
 	const float DistSq = (Actor->GetActorLocation() - Pawn->GetActorLocation()).SizeSquared();
-	const float ReleaseRange = FocusableRange * HysteresisFactor;
+	const float ReleaseRange = FocusableRange * Interactable->InteractionRangeScale * HysteresisFactor;
 	return DistSq <= FMath::Square(ReleaseRange);
 }
 

@@ -7,6 +7,7 @@
 #include "PRHUDWidget.generated.h"
 
 class UPRInteractionHintWidget;
+class UPRLevelUpPopupWidget;
 class UPRQuickSlotWidget;
 class UPRWeaponHUDWidget;
 class UPRCrosshairWidget;
@@ -15,6 +16,7 @@ class UPRBossHealthBarWidget;
 class UPRHealthBarWidget;
 class UPRPartyHealthListWidget;
 class UPRStaminaBarWidget;
+class UPRWorldMarkerLayerWidget;
 class UPREventManagerSubsystem;
 class APRBossBaseCharacter;
 struct FInstancedStruct;
@@ -40,6 +42,10 @@ public:
 	// 보스 HP 바 바인딩을 해제하고 숨긴다.
 	UFUNCTION(BlueprintCallable, Category = "ProjectR|HUD|Boss")
 	void ClearBossHealthBar();
+
+	// 레벨업 팝업 표시 요청
+	UFUNCTION(BlueprintCallable, Category = "ProjectR|HUD|Growth")
+	void ShowLevelUpPopup(int32 PreviousLevel, int32 CurrentLevel);
 
 protected:
 	/*~ UUserWidget Interface ~*/
@@ -119,6 +125,15 @@ protected:
 	// 보스 조우 흐름에서 BindBossHealthBar 호출 시 화면 상단 보스 HP를 표시한다
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "HUD")
 	TObjectPtr<UPRBossHealthBarWidget> BossHealthBar;
+
+	// UMG 트리에서 동일 이름("WorldMarkerLayer")의 자식이 있을 때 자동 바인딩.
+	// 핑 마커 추가·제거 이벤트 구독과 화면 투영 처리
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "HUD")
+	TObjectPtr<UPRWorldMarkerLayerWidget> WorldMarkerLayer;
+
+	// UMG 트리에서 동일 이름("LevelUpPopupWidget")의 자식이 있을 때 자동 바인딩
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "HUD")
+	TObjectPtr<UPRLevelUpPopupWidget> LevelUpPopupWidget;
 
 private:
 	TArray<FDelegateHandle> EventHandles;

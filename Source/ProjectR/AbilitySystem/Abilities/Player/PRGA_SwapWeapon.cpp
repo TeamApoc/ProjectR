@@ -5,8 +5,8 @@
 
 #include "ProjectR/Character/PRPlayerCharacter.h"
 #include "ProjectR/PRGameplayTags.h"
-#include "ProjectR/Weapon/Components/PRWeaponManagerComponent.h"
-#include "ProjectR/Weapon/Items/PRItemInstance_Weapon.h"
+#include "ProjectR/ItemSystem/Components/PRWeaponManagerComponent.h"
+#include "ProjectR/ItemSystem/Items/PRItemInstance_Weapon.h"
 
 UPRGA_SwapWeapon::UPRGA_SwapWeapon()
 {

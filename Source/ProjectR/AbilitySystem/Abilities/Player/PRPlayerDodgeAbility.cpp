@@ -11,7 +11,7 @@
 #include "ProjectR/Player/PRCameraModifier.h"
 #include "ProjectR/Player/Components/PRActionInputRouterComponent.h"
 #include "ProjectR/PRGameplayTags.h"
-#include "ProjectR/Weapon/Components/PRWeaponManagerComponent.h"
+#include "ProjectR/ItemSystem/Components/PRWeaponManagerComponent.h"
 #include "TimerManager.h"
 
 /*~ 초기화 ~*/
@@ -255,9 +255,12 @@ void UPRPlayerDodgeAbility::HandleIFrameStartTimer(int32 FinishedDodgeExecutionI
 		return;
 	}
 
+	float RateScale = FMath::Clamp(DodgeMontagePlayRate, 0.3f, 2.0f); 
+	float FinalIFameDuration = IFrameDuration / RateScale;
+	
 	FTimerDelegate IFrameEndDelegate;
 	IFrameEndDelegate.BindUObject(this, &UPRPlayerDodgeAbility::HandleIFrameEndTimer, FinishedDodgeExecutionId);
-	World->GetTimerManager().SetTimer(IFrameEndTimerHandle, IFrameEndDelegate, IFrameDuration, false);
+	World->GetTimerManager().SetTimer(IFrameEndTimerHandle, IFrameEndDelegate, FinalIFameDuration, false);
 }
 
 void UPRPlayerDodgeAbility::HandleIFrameEndTimer(int32 FinishedDodgeExecutionId)

@@ -11,7 +11,7 @@
 #include "Net/UnrealNetwork.h"
 #include "GameFramework/Controller.h"
 #include "GameFramework/Pawn.h"
-#include "ProjectR/Inventory/Data/PRItemDataAsset.h"
+#include "ProjectR/ItemSystem/Data/PRItemDataAsset.h"
 #include "ProjectR/Interaction/PRInteractableComponent.h"
 #include "ProjectR/Interaction/Actions/PRInteraction_ClaimRewardPickup.h"
 #include "ProjectR/Player/PRPlayerState.h"

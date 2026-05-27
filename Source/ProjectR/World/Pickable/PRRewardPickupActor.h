@@ -4,8 +4,8 @@
 
 #include "CoreMinimal.h"
 #include "PRPickableActor.h"
-#include "ProjectR/Inventory/Types/PRDropTypes.h"
-#include "ProjectR/Inventory/Types/PRItemTypes.h"
+#include "ProjectR/ItemSystem/Types/PRDropTypes.h"
+#include "ProjectR/ItemSystem/Types/PRItemTypes.h"
 #include "PRRewardPickupActor.generated.h"
 
 class UStaticMeshComponent;

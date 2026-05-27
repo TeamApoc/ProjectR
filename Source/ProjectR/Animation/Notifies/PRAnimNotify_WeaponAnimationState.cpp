@@ -4,7 +4,7 @@
 
 #include "Components/SkeletalMeshComponent.h"
 #include "ProjectR/Character/PRPlayerCharacter.h"
-#include "ProjectR/Weapon/Components/PRWeaponManagerComponent.h"
+#include "ProjectR/ItemSystem/Components/PRWeaponManagerComponent.h"
 
 FString UPRAnimNotify_WeaponAnimationState::GetNotifyName_Implementation() const
 {

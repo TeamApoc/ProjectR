@@ -4,8 +4,8 @@
 #include "PRDeveloperSettings.h"
 #include "Engine/DataTable.h"
 #include "ProjectR/AbilitySystem/Data/PRAbilitySystemRegistry.h"
-#include "ProjectR/Inventory/Data/PRItemDataAsset.h"
-#include "ProjectR/Inventory/Types/PRDropTypes.h"
+#include "ProjectR/ItemSystem/Data/PRItemDataAsset.h"
+#include "ProjectR/ItemSystem/Types/PRDropTypes.h"
 
 UPRAssetManager& UPRAssetManager::Get()
 {

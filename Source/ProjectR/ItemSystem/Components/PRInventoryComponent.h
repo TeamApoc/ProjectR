@@ -1,0 +1,350 @@
+// Copyright ProjectR. All Rights Reserved.
+
+#pragma once
+
+#include "CoreMinimal.h"
+#include "Components/ActorComponent.h"
+#include "ProjectR/Game/PRGameTypes.h"
+#include "PRInventoryComponent.generated.h"
+
+class UPRItemInstance;
+class UPRItemDataAsset;
+class UPRConsumableDataAsset;
+class UPRItemInstance_Mod;
+class UPRItemInstance_Weapon;
+class UPRItemInstance_Consumable;
+class UPRItemInstance_Material;
+class UPRInventoryComponent;
+class UPRWeaponManagerComponent;
+class UPRWeaponDataAsset;
+class UPRWeaponModDataAsset;
+class UPRMaterialDataAsset;
+class AActor;
+class UActorChannel;
+class FOutBunch;
+struct FReplicationFlags;
+
+// 인벤토리 변경 신호의 원인이다
+UENUM(BlueprintType)
+enum class EPRInventoryChangeReason : uint8
+{
+	// 아이템 목록이 변경되었다
+	ItemAdded,
+	ItemRemoved,
+	// Mod 장착 상태가 변경되었다
+	ModEquipChanged,
+	// 무기 강화 단계가 변경되었다
+	WeaponUpgradeChanged,
+	// 아이템 보유 개수가 변경되었다
+	StackChanged,
+	// 세이브 복원 기반 인벤토리 전체 갱신
+	BulkRestored
+};
+
+USTRUCT(BlueprintType)
+struct FPRInventoryChangeEventData
+{
+	GENERATED_BODY()
+	
+	UPROPERTY(BlueprintReadWrite)
+	EPRInventoryChangeReason ChangeReason;
+	
+	UPROPERTY(BlueprintReadWrite)
+	TObjectPtr<UPRItemInstance> ItemInstance;
+};
+
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FPRInventoryChangedSignature, UPRInventoryComponent*, InventoryComponent, const FPRInventoryChangeEventData&, EventData);
+
+// 플레이어가 소유한 Item 인스턴스의 정본 컨테이너다
+UCLASS(ClassGroup = (ProjectR), meta = (BlueprintSpawnableComponent))
+class PROJECTR_API UPRInventoryComponent : public UActorComponent
+{
+	GENERATED_BODY()
+
+public:
+	UPRInventoryComponent();
+
+	/*~ UActorComponent Interface ~*/
+public:
+	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
+	virtual bool ReplicateSubobjects(UActorChannel* Channel, FOutBunch* Bunch, FReplicationFlags* RepFlags) override;
+
+public:
+	
+	// Item 데이터 타입에 맞는 추가 요청을 서버 권위 경로로 전달한다
+	UFUNCTION(BlueprintCallable, Category = "ProjectR|Inventory")
+	void RequestAddItem(UPRItemDataAsset* InItemData, int32 Amount = 1);
+
+	// 무기 Item 추가를 서버 권위 경로로 요청한다
+	UFUNCTION(BlueprintCallable, Category = "ProjectR|Inventory")
+	void RequestAddWeaponItem(UPRWeaponDataAsset* WeaponData);
+
+	// Item 데이터 타입에 맞는 인벤토리 Item을 추가한다
+	UPRItemInstance* AddItem(UPRItemDataAsset* InItemData, int32 Amount = 1);
+
+	// 새 무기 Item을 생성해 인벤토리에 추가한다
+	UPRItemInstance_Weapon* AddWeaponItem(UPRWeaponDataAsset* WeaponData);
+
+	// 무기 Mod Item 추가를 서버 권위 경로로 요청한다
+	UFUNCTION(BlueprintCallable, Category = "ProjectR|Inventory")
+	void RequestAddModItem(UPRWeaponModDataAsset* ModData);
+
+	// 새 무기 Mod Item을 생성해 인벤토리에 추가한다
+	UPRItemInstance_Mod* AddModItem(UPRWeaponModDataAsset* ModData);
+
+	// 소비 Item 추가를 서버 권위 경로로 요청한다
+	UFUNCTION(BlueprintCallable, Category = "ProjectR|Inventory")
+	void RequestAddConsumableItem(UPRConsumableDataAsset* ConsumableData, int32 AddCount);
+
+	// 새 소비 Item을 생성하거나 기존 소비 Item의 보유 개수를 증가시킨다
+	UPRItemInstance_Consumable* AddConsumableItem(UPRConsumableDataAsset* ConsumableData, int32 AddCount);
+
+	// 재료 Item 추가를 서버 권위 경로로 요청한다
+	UFUNCTION(BlueprintCallable, Category = "ProjectR|Inventory")
+	void RequestAddMaterialItem(UPRMaterialDataAsset* MaterialData, int32 AddCount);
+
+	// 새 재료 Item을 생성하거나 기존 재료 Item의 보유 개수를 증가시킨다
+	UPRItemInstance_Material* AddMaterialItem(UPRMaterialDataAsset* MaterialData, int32 AddCount);
+
+	// 재료 Item 데이터 기반으로 보유 개수를 감소시키고 0개가 되면 제거한다
+	bool RemoveMaterialItemByData(UPRMaterialDataAsset* MaterialData, int32 RemoveCount);
+
+	// 소비 Item 제거를 서버 권위 경로로 요청한다
+	UFUNCTION(BlueprintCallable, Category = "ProjectR|Inventory")
+	void RequestRemoveConsumableItem(UPRItemInstance_Consumable* ConsumableItem, int32 RemoveCount);
+
+	// 소비 Item 데이터 기반 제거를 서버 권위 경로로 요청한다
+	UFUNCTION(BlueprintCallable, Category = "ProjectR|Inventory")
+	void RequestRemoveConsumableItemByData(UPRConsumableDataAsset* ConsumableData, int32 RemoveCount);
+
+	// 소비 Item 데이터 기반으로 보유 개수를 감소시키고 0개가 되면 제거한다
+	bool RemoveConsumableItemByData(UPRConsumableDataAsset* ConsumableData, int32 RemoveCount);
+
+	// 소비 Item 사용을 서버 권위 경로로 요청한다
+	UFUNCTION(BlueprintCallable, Category = "ProjectR|Inventory")
+	void RequestUseConsumableItem(UPRItemInstance_Consumable* ConsumableItem, AActor* UserActor);
+
+	// 소비 Item 데이터 기반 사용을 서버 권위 경로로 요청한다
+	UFUNCTION(BlueprintCallable, Category = "ProjectR|Inventory")
+	void RequestUseConsumableItemByData(UPRConsumableDataAsset* ConsumableData, AActor* UserActor);
+
+	// Mod Item을 지정 무기 Item에 장착하도록 서버 권위 경로로 요청한다
+	UFUNCTION(BlueprintCallable, Category = "ProjectR|Inventory")
+	void RequestEquipModItemToWeapon(UPRItemInstance_Mod* ModItem, UPRItemInstance_Weapon* TargetWeaponItem);
+
+	// 지정 무기 Item의 Mod Item 장착을 해제하도록 서버 권위 경로로 요청한다
+	UFUNCTION(BlueprintCallable, Category = "ProjectR|Inventory")
+	void RequestUnequipModFromWeapon(UPRItemInstance_Weapon* TargetWeaponItem);
+
+	// Mod Item을 지정 무기 Item에 장착한다
+	bool EquipModItemToWeapon(UPRItemInstance_Mod* ModItem, UPRItemInstance_Weapon* TargetWeaponItem);
+
+	// 지정 무기 Item의 Mod Item 장착을 해제한다
+	bool UnequipModFromWeapon(UPRItemInstance_Weapon* TargetWeaponItem);
+
+	// 인벤토리 인덱스로 무기 Item을 조회한다
+	UFUNCTION(BlueprintPure, Category = "ProjectR|Inventory")
+	UPRItemInstance_Weapon* GetWeaponItemAtIndex(int32 ItemIndex) const;
+
+	// 인벤토리 인덱스로 무기 Mod Item을 조회한다
+	UFUNCTION(BlueprintPure, Category = "ProjectR|Inventory")
+	UPRItemInstance_Mod* GetModItemAtIndex(int32 ItemIndex) const;
+
+	// 인벤토리 인덱스로 소비 Item을 조회한다
+	UFUNCTION(BlueprintPure, Category = "ProjectR|Inventory")
+	UPRItemInstance_Consumable* GetConsumableItemAtIndex(int32 ItemIndex) const;
+
+	// 인벤토리 인덱스로 재료 Item을 조회한다
+	UFUNCTION(BlueprintPure, Category = "ProjectR|Inventory")
+	UPRItemInstance_Material* GetMaterialItemAtIndex(int32 ItemIndex) const;
+
+	// 인자로 받은 무기 Item을 현재 인벤토리가 소유하는지 확인한다
+	bool OwnsWeapon(const UPRItemInstance_Weapon* WeaponItem) const;
+
+	// 인자로 받은 무기 Mod Item을 현재 인벤토리가 소유하는지 확인한다
+	bool OwnsMod(const UPRItemInstance_Mod* ModItem) const;
+
+	// 인자로 받은 소비 Item을 현재 인벤토리가 소유하는지 확인한다
+	bool OwnsConsumable(const UPRItemInstance_Consumable* ConsumableItem) const;
+
+	// 인자로 받은 재료 Item을 현재 인벤토리가 소유하는지 확인한다
+	bool OwnsMaterial(const UPRItemInstance_Material* MaterialItem) const;
+
+	// Item 데이터로 인벤토리 내 Item을 조회
+	UFUNCTION(BlueprintCallable, Category = "ProjectR|Inventory")
+	UPRItemInstance* FindItemByData(UPRItemDataAsset* InItemData);
+	
+	// 소비 Item 데이터로 인벤토리 내 소비 Item을 조회한다
+	UFUNCTION(BlueprintCallable, Category = "ProjectR|Inventory")
+	UPRItemInstance_Consumable* FindConsumableItemByData(const UPRConsumableDataAsset* ConsumableData) const;
+
+	// 재료 Item 데이터로 인벤토리 내 재료 Item을 조회한다
+	UFUNCTION(BlueprintCallable, Category = "ProjectR|Inventory")
+	UPRItemInstance_Material* FindMaterialItemByData(const UPRMaterialDataAsset* MaterialData) const;
+
+	// 무기 Item 데이터로 인벤토리 내 무기 Item을 조회한다
+	UFUNCTION(BlueprintCallable, Category = "ProjectR|Inventory")
+	UPRItemInstance_Weapon* FindWeaponItemByData(const UPRWeaponDataAsset* WeaponData);
+
+	// 무기 Mod Item 데이터로 인벤토리 내 Mod Item을 조회한다
+	UFUNCTION(BlueprintCallable, Category = "ProjectR|Inventory")
+	UPRItemInstance_Mod* FindModItemByData(const UPRWeaponModDataAsset* ItemData);
+
+	// 인벤토리 변경 이벤트를 발행한다
+	void OnInventoryChanged(const FPRInventoryChangeEventData& EventData);
+
+	// 인벤토리 변경 델리게이트를 반환한다
+	FPRInventoryChangedSignature& GetOnInventoryChanged() { return OnInventoryChangedDelegate; }
+
+	UFUNCTION(BlueprintCallable)
+	TArray<UPRItemInstance_Consumable*> GetConsumableItems() const {return InventoryConsumableItems;}
+	
+	UFUNCTION(BlueprintCallable)
+	TArray<UPRItemInstance_Mod*> GetModItems() const {return InventoryModItems;}
+	
+	UFUNCTION(BlueprintCallable)
+	TArray<UPRItemInstance_Weapon*> GetWeaponItems() const {return InventoryWeaponItems;}
+
+	// 현재 인벤토리가 소유한 재료 Item 목록을 반환한다
+	UFUNCTION(BlueprintCallable)
+	TArray<UPRItemInstance_Material*> GetMaterialItems() const { return InventoryMaterialItems; }
+
+	// 현재 인벤토리 상태 저장 데이터
+	FPRInventorySaveData MakeSaveData() const;
+
+	// 저장 데이터 기반 인벤토리 복원
+	void ApplySaveData(const FPRInventorySaveData& InSaveData);
+
+	// 무기 Item 인벤토리 인덱스
+	int32 GetWeaponItemIndex(const UPRItemInstance_Weapon* WeaponItem) const;
+
+	// Mod Item 인벤토리 인덱스
+	int32 GetModItemIndex(const UPRItemInstance_Mod* ModItem) const;
+	
+protected:
+	// 클라이언트에서 무기 Item 목록 복제 결과를 확인한다
+	UFUNCTION()
+	void OnRep_InventoryWeaponItems(const TArray<UPRItemInstance_Weapon*>& OldWeaponItems);
+
+	// 클라이언트에서 무기 Mod Item 목록 복제 결과를 확인한다
+	UFUNCTION()
+	void OnRep_InventoryModItems(const TArray<UPRItemInstance_Mod*>& OldModItems);
+
+	// 클라이언트에서 소비 Item 목록 복제 결과를 확인한다
+	UFUNCTION()
+	void OnRep_InventoryConsumableItems(const TArray<UPRItemInstance_Consumable*>& OldConsumables);
+
+	// 클라이언트에서 재료 Item 목록 복제 결과를 확인한다
+	UFUNCTION()
+	void OnRep_InventoryMaterialItems(const TArray<UPRItemInstance_Material*>& OldMaterials);
+
+	// 현재 인벤토리에 무기 Item을 등록한다
+	void RegisterInventoryWeaponItem(UPRItemInstance_Weapon* WeaponItem);
+
+	// 현재 인벤토리에서 무기 Item 등록을 해제한다
+	void UnregisterInventoryWeaponItem(UPRItemInstance_Weapon* WeaponItem);
+
+	// 현재 인벤토리에 무기 Mod Item을 등록한다
+	void RegisterInventoryModItem(UPRItemInstance_Mod* ModItem);
+
+	// 현재 인벤토리에서 무기 Mod Item 등록을 해제한다
+	void UnregisterInventoryModItem(UPRItemInstance_Mod* ModItem);
+
+	// 현재 인벤토리에 소비 Item을 등록한다
+	void RegisterInventoryConsumableItem(UPRItemInstance_Consumable* ConsumableItem);
+
+	// 현재 인벤토리에서 소비 Item 등록을 해제한다
+	void UnregisterConsumableItemInstance(UPRItemInstance_Consumable* ConsumableItem);
+
+	// 현재 인벤토리에 재료 Item을 등록한다
+	void RegisterInventoryMaterialItem(UPRItemInstance_Material* MaterialItem);
+
+	// 현재 인벤토리에서 재료 Item 등록을 해제한다
+	void UnregisterMaterialItemInstance(UPRItemInstance_Material* MaterialItem);
+
+	// 소비 Item의 보유 개수를 감소시키고 0개가 되면 인벤토리에서 제거한다
+	bool RemoveConsumableItemInternal(UPRItemInstance_Consumable* ConsumableItem, int32 RemoveCount);
+
+	// 소비 Item 데이터로 보유 개수를 감소시키고 0개가 되면 인벤토리에서 제거한다
+	bool RemoveConsumableItemByDataInternal(UPRConsumableDataAsset* ConsumableData, int32 RemoveCount);
+
+	// 재료 Item의 보유 개수를 감소시키고 0개가 되면 인벤토리에서 제거한다
+	bool RemoveMaterialItemInternal(UPRItemInstance_Material* MaterialItem, int32 RemoveCount);
+
+	// 재료 Item 데이터로 보유 개수를 감소시키고 0개가 되면 인벤토리에서 제거한다
+	bool RemoveMaterialItemByDataInternal(UPRMaterialDataAsset* MaterialData, int32 RemoveCount);
+
+	// 소비 Item을 사용하고 0개가 되면 인벤토리에서 제거한다
+	bool UseConsumableItemInternal(UPRItemInstance_Consumable* ConsumableItem, AActor* UserActor);
+
+	// 소비 Item 데이터로 인스턴스를 찾아 사용한다
+	bool UseConsumableItemByDataInternal(UPRConsumableDataAsset* ConsumableData, AActor* UserActor);
+
+	// 클라이언트 요청을 서버의 Item 추가 처리로 전달한다
+	UFUNCTION(Server, Reliable)
+	void Server_RequestAddWeaponItem(UPRWeaponDataAsset* WeaponData);
+
+	// 클라이언트 요청을 서버의 무기 Mod Item 추가 처리로 전달한다
+	UFUNCTION(Server, Reliable)
+	void Server_RequestAddModItem(UPRWeaponModDataAsset* ModData);
+
+	// 클라이언트 요청을 서버의 소비 Item 추가 처리로 전달한다
+	UFUNCTION(Server, Reliable)
+	void Server_RequestAddConsumableItem(UPRConsumableDataAsset* ConsumableData, int32 AddCount);
+
+	// 클라이언트 요청을 서버의 재료 Item 추가 처리로 전달한다
+	UFUNCTION(Server, Reliable)
+	void Server_RequestAddMaterialItem(UPRMaterialDataAsset* MaterialData, int32 AddCount);
+
+	// 클라이언트 요청을 서버의 소비 Item 제거 처리로 전달한다
+	UFUNCTION(Server, Reliable)
+	void Server_RequestRemoveConsumableItem(UPRItemInstance_Consumable* ConsumableItem, int32 RemoveCount);
+
+	// 클라이언트 요청을 서버의 소비 Item 데이터 기반 제거 처리로 전달한다
+	UFUNCTION(Server, Reliable)
+	void Server_RequestRemoveConsumableItemByData(UPRConsumableDataAsset* ConsumableData, int32 RemoveCount);
+
+	// 클라이언트 요청을 서버의 소비 Item 사용 처리로 전달한다
+	UFUNCTION(Server, Reliable)
+	void Server_RequestUseConsumableItem(UPRItemInstance_Consumable* ConsumableItem, AActor* UserActor);
+
+	// 클라이언트 요청을 서버의 소비 Item 데이터 기반 사용 처리로 전달한다
+	UFUNCTION(Server, Reliable)
+	void Server_RequestUseConsumableItemByData(UPRConsumableDataAsset* ConsumableData, AActor* UserActor);
+
+	// 클라이언트 Mod 장착 요청을 서버의 인벤토리 장착 처리로 전달한다
+	UFUNCTION(Server, Reliable)
+	void Server_RequestEquipModItemToWeapon(UPRItemInstance_Mod* ModItem, UPRItemInstance_Weapon* TargetWeaponItem);
+
+	// 클라이언트 Mod 해제 요청을 서버의 인벤토리 해제 처리로 전달한다
+	UFUNCTION(Server, Reliable)
+	void Server_RequestUnequipModFromWeapon(UPRItemInstance_Weapon* TargetWeaponItem);
+
+private:
+	// 현재 인벤토리 소유자의 무기 매니저 컴포넌트를 조회한다
+	UPRWeaponManagerComponent* ResolveOwnerWeaponManager() const;
+
+	// 현재 장착 중인 무기라면 런타임 Mod 변경 반응을 전달한다
+	void NotifyWeaponItemModChanged(UPRItemInstance_Weapon* WeaponItem);
+
+public:
+	// 현재 인벤토리가 소유한 무기 Item 목록
+	UPROPERTY(ReplicatedUsing = OnRep_InventoryWeaponItems, VisibleInstanceOnly, BlueprintReadOnly, Category = "ProjectR|Inventory")
+	TArray<UPRItemInstance_Weapon*> InventoryWeaponItems;
+
+	// 현재 인벤토리가 소유한 무기 Mod Item 목록
+	UPROPERTY(ReplicatedUsing = OnRep_InventoryModItems, VisibleInstanceOnly, BlueprintReadOnly, Category = "ProjectR|Inventory")
+	TArray<UPRItemInstance_Mod*> InventoryModItems;
+
+	// 현재 인벤토리가 소유한 소비 Item 목록
+	UPROPERTY(ReplicatedUsing = OnRep_InventoryConsumableItems, VisibleInstanceOnly, BlueprintReadOnly, Category = "ProjectR|Inventory")
+	TArray<UPRItemInstance_Consumable*> InventoryConsumableItems;
+
+	// 현재 인벤토리가 소유한 재료 Item 목록
+	UPROPERTY(ReplicatedUsing = OnRep_InventoryMaterialItems, VisibleInstanceOnly, BlueprintReadOnly, Category = "ProjectR|Inventory")
+	TArray<UPRItemInstance_Material*> InventoryMaterialItems;
+
+private:
+	// 인벤토리 목록 또는 Item 장착 상태가 변경되었을 때 알린다
+	FPRInventoryChangedSignature OnInventoryChangedDelegate;
+};

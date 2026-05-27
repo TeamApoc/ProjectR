@@ -6,6 +6,17 @@
 #include "Camera/PlayerCameraManager.h"
 #include "PRCameraManager.generated.h"
 
+/** 
+ * 페이드 인-아웃 컬러 프리셋
+ */
+UENUM(BlueprintType)
+enum class EPRFadeColorPreset : uint8
+{
+	None,
+	Black,
+	White,
+};
+
 /**
  * FOV 트랜지션과 숄더스왑 로직의 중앙 제어소 역할을 합니다.
  */
@@ -28,6 +39,15 @@ public:
 	
 	// 어빌리티가 조준 중일 때 덮어씌울 목표 FOV (0.0f이면 조준 안 함)
 	float OverrideAimFOV = 0.0f;
+
+	static FLinearColor GetFadeColor(EPRFadeColorPreset InPresetColor);
+	
+	UFUNCTION(BlueprintCallable)
+	void FadeOut(EPRFadeColorPreset ColorPreset, float InDuration, bool bShouldFadeAudio = false);
+	
+	UFUNCTION(BlueprintCallable)
+	void FadeIn(EPRFadeColorPreset ColorPreset, float InDuration, bool bShouldFadeAudio = false);
+	
 protected:
 	/*~ APlayerCameraManager Interface ~*/
 	virtual void UpdateViewTarget(FTViewTarget& OutVT, float DeltaTime) override;

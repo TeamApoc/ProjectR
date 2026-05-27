@@ -3,7 +3,8 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "ProjectR/Interaction/PRInteractableActor.h"
+#include "ProjectR/UI/WorldMarker/PRPingMarkerTargetInterface.h"
+#include "ProjectR/World/PRInteractableActor.h"
 #include "PRPickableActor.generated.h"
 
 class USphereComponent;
@@ -15,8 +16,9 @@ class PROJECTR_API APRPickableActor : public APRInteractableActor
 
 public:
 	APRPickableActor();
-	
+
 protected:
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Interaction")
+	// ===== Components =====
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "ProjectR|UI")
 	TObjectPtr<USphereComponent> InteractionCollision;
 };

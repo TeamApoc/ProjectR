@@ -5,7 +5,7 @@
 #include "CoreMinimal.h"
 #include "PRAnimationTypes.h"
 #include "Animation/AnimInstance.h"
-#include "ProjectR/Weapon/Types/PRWeaponTypes.h"
+#include "ProjectR/ItemSystem/Types/PRWeaponTypes.h"
 #include "PRLinkedAnimInstance.generated.h"
 
 class UPRAnimInstance;

@@ -10,9 +10,10 @@
 #include "GameFramework/Actor.h"
 #include "GameFramework/Pawn.h"
 #include "Kismet/GameplayStatics.h"
+#include "ProjectR/Character/PRPlayerCharacter.h"
 #include "ProjectR/Utils/PRGameplayStatics.h"
-#include "ProjectR/Weapon/Actors/PRWeaponActor.h"
-#include "ProjectR/Weapon/Components/PRWeaponManagerComponent.h"
+#include "ProjectR/ItemSystem/Actors/PRWeaponActor.h"
+#include "ProjectR/ItemSystem/Components/PRWeaponManagerComponent.h"
 #include "UObject/ConstructorHelpers.h"
 
 UPRProjectileTrajectoryPreviewComponent::UPRProjectileTrajectoryPreviewComponent()
@@ -38,8 +39,11 @@ void UPRProjectileTrajectoryPreviewComponent::BeginPlay()
 	{
 		return;
 	}
-
-	CachedWeaponManager = Owner->FindComponentByClass<UPRWeaponManagerComponent>();
+	
+	if (APRPlayerCharacter* Player = Cast<APRPlayerCharacter>(Owner))
+	{
+		CachedWeaponManager = Player->GetWeaponManager();
+	}
 
 	// Lazy 생성. 첫 호출 시 owner 액터에 ISMC을 동적 생성/등록.
 	// 런타임 SceneComponent 생성 표준 패턴: NewObject 후 Mobility 설정과 SetupAttachment를 RegisterComponent 이전에 수행

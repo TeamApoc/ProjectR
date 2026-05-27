@@ -68,7 +68,7 @@ public:
 	bool HasAvailableAction(AActor* Interactor) const;
 
 	// 활성 유지형 상호작용을 종료
-	void EndActiveInteraction();
+	void EndActiveInteraction(AActor* Interactor, bool bCanceled);
 
 	// 현재 활성 Action 반환 (nullptr이면 비활성)
 	UPRInteractionAction* GetActiveAction() const { return ActiveAction; }
@@ -113,6 +113,8 @@ public:
 	
 	// 홀딩 여부
 	bool IsHolding() const {return bIsHolding; }
+	
+	FVector GetActorLocation() const;
 protected:
 	UFUNCTION()
 	void OnRep_CurrentInteractor();
@@ -135,6 +137,9 @@ public:
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Interaction")
 	bool bOnlyApplyDepthStencilOnAvailable = false;
+	
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Interaction")
+	float InteractionRangeScale = 1.0f;
 	
 private:
 	// 현재 포커스 상태 여부

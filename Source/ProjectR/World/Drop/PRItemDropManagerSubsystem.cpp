@@ -5,10 +5,11 @@
 #include "GameFramework/Controller.h"
 #include "GameFramework/GameStateBase.h"
 #include "GameFramework/Pawn.h"
-#include "ProjectR/Inventory/Components/PRInventoryComponent.h"
-#include "ProjectR/Inventory/Data/PRItemDataAsset.h"
-#include "ProjectR/Inventory/Items/PRItemInstance.h"
+#include "ProjectR/ItemSystem/Components/PRInventoryComponent.h"
+#include "ProjectR/ItemSystem/Data/PRItemDataAsset.h"
+#include "ProjectR/ItemSystem/Items/PRItemInstance.h"
 #include "ProjectR/Player/Components/PRCurrencyComponent.h"
+#include "ProjectR/Player/Components/PRPlayerGrowthComponent.h"
 #include "ProjectR/Player/PRPlayerState.h"
 #include "ProjectR/ProjectR.h"
 #include "ProjectR/System/PRAssetManager.h"
@@ -49,6 +50,8 @@ void UPRItemDropManagerSubsystem::HandleMonsterDied(const FPRMonsterDeathDropReq
 		UE_LOG(LogTemp, Verbose, TEXT("[Drop][Server] 드롭 Row 없음. MonsterId = %s"), *Request.MonsterId.ToString());
 		return;
 	}
+
+	GrantExperienceReward(*DropRow, Request);
 
 	for (const FPRDropRewardEntry& Entry : DropRow->Rewards)
 	{
@@ -190,6 +193,39 @@ void UPRItemDropManagerSubsystem::CommitResolvedReward(const FPRResolvedDropRewa
 	for (APRPlayerState* Recipient : Recipients)
 	{
 		GrantRewardToPlayer(Recipient, Reward);
+	}
+}
+
+void UPRItemDropManagerSubsystem::GrantExperienceReward(const FPRMonsterDropTableRow& DropRow, const FPRMonsterDeathDropRequest& Request) const
+{
+	if (DropRow.Experience <= 0)
+	{
+		return;
+	}
+
+	TArray<APRPlayerState*> Recipients;
+	ResolveRecipients(DropRow.ExperienceDistributionRule, Request.KillerController.Get(), Recipients);
+	if (Recipients.IsEmpty())
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[Drop][Server] 경험치 지급 대상 없음. MonsterId = %s"), *Request.MonsterId.ToString());
+		return;
+	}
+
+	for (APRPlayerState* Recipient : Recipients)
+	{
+		if (!IsValid(Recipient))
+		{
+			continue;
+		}
+
+		UPRPlayerGrowthComponent* GrowthComponent = Recipient->GetGrowthComponent();
+		if (!IsValid(GrowthComponent))
+		{
+			UE_LOG(LogTemp, Warning, TEXT("[Drop][Server] 경험치 지급 실패. GrowthComponent 없음. PlayerState = %s"), *GetNameSafe(Recipient));
+			continue;
+		}
+
+		GrowthComponent->AddExperience(DropRow.Experience);
 	}
 }
 

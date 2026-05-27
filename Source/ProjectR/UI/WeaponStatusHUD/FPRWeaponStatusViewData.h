@@ -3,7 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "ProjectR/Weapon/Types/PRWeaponTypes.h"
+#include "ProjectR/ItemSystem/Types/PRWeaponTypes.h"
 #include "FPRWeaponStatusViewData.generated.h"
 
 class UTexture2D;

@@ -59,6 +59,7 @@ public:
 	virtual void BeginPlay() override;
 	
 	/*~ APlayerController Interface ~*/
+	virtual void ReceivedPlayer() override;
 	virtual void AcknowledgePossession(APawn* InPawn) override;
 	virtual void SetupInputComponent() override;
 	virtual void PostProcessInput(const float DeltaTime, const bool bGamePaused) override;
@@ -78,8 +79,8 @@ public:
 	// 폰 -> PlayerState 경로로 ASC 조회
 	UPRAbilitySystemComponent* GetPRASC() const;
 	
-	// 로컬 클라에서 호출. GameInstance의 LocalCharacter를 서버로 제출
-	// 자동 호출(BeginPlay)과 수동 호출(재제출) 모두 허용
+	// 로컬 클라에서 호출. GameInstance의 LocalCharacterSave를 서버로 제출
+	// ReceivedPlayer 조기 제출과 possession fallback 재시도 허용
 	UFUNCTION(BlueprintCallable, Category = "ProjectR|Session")
 	void SubmitLocalCharacterToServer();
 

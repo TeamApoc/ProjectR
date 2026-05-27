@@ -90,6 +90,10 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "ProjectR|Save")
 	bool EnsureEmptyLocalCharacterSaveSlot();
 
+	// 세션 진입 직전 로컬 캐릭터 페이로드 준비
+	UFUNCTION(BlueprintCallable, Category = "ProjectR|Save")
+	bool EnsureLocalCharacterReadyForSession();
+
 	// 보상 이벤트 발생 시 서버가 푸시한 Grant를 로컬 캐릭터에 즉시 반영
 	// PlayerController.ClientGrantReward 수신 경로의 종착점
 	UFUNCTION(BlueprintCallable, Category = "ProjectR|Save")

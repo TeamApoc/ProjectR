@@ -288,6 +288,43 @@ bool UPRGameInstance::EnsureEmptyLocalCharacterSaveSlot()
 	return bSaved;
 }
 
+bool UPRGameInstance::EnsureLocalCharacterReadyForSession()
+{
+	// 메뉴 미경유 PIE 대비 최소 저장 파일 보장
+	EnsureInitialLocalCharacterSave();
+
+	if (HasActiveLocalCharacterSlot())
+	{
+		// 메뉴에서 선택한 슬롯 우선 재로드
+		if (LoadLocalCharacterSlot(ActiveLocalCharacterSlotIndex))
+		{
+			return true;
+		}
+
+		// 삭제 또는 손상 슬롯 대비
+		ActiveLocalCharacterSlotIndex = INDEX_NONE;
+	}
+
+	for (int32 SlotIndex = MinLocalCharacterSlotIndex; SlotIndex <= MaxLocalCharacterSlotIndex; ++SlotIndex)
+	{
+		if (!DoesLocalCharacterSaveExist(SlotIndex))
+		{
+			continue;
+		}
+
+		// 직접 플레이 시작 시 첫 로드 가능 슬롯 사용
+		if (LoadLocalCharacterSlot(SlotIndex))
+		{
+			return true;
+		}
+	}
+
+	// 모든 저장 슬롯 로드 실패 시 런타임 기본 페이로드 사용
+	LocalCharacterSave = FPRCharacterSaveData();
+	ActiveLocalCharacterSlotIndex = INDEX_NONE;
+	return true;
+}
+
 void UPRGameInstance::ApplyRewardGrant(const FPRRewardGrant& Grant)
 {
 	// 즉시 지급. 경험치는 로컬 캐릭터에 바로 반영

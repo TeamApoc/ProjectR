@@ -7,7 +7,6 @@
 #include "Components/ActorComponent.h"
 #include "GameplayTagContainer.h"
 #include "ProjectR/Game/PRGameTypes.h"
-#include "ProjectR/Player/PRGrowthTypes.h"
 #include "PRPlayerGrowthComponent.generated.h"
 
 class UDataTable;

@@ -3,8 +3,8 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "ProjectR/Game/PRGameTypes.h"
 #include "ProjectR/Player/Components/PRPlayerGrowthComponent.h"
-#include "ProjectR/Player/PRGrowthTypes.h"
 #include "ProjectR/UI/PRWidgetBase.h"
 #include "PRTraitWindowWidget.generated.h"
 

@@ -49,6 +49,9 @@ protected:
 	// 플레이어에게 확정 보상을 지급한다
 	bool GrantRewardToPlayer(APRPlayerState* PlayerState, const FPRResolvedDropReward& Reward) const;
 
+	// 지급에 성공한 드롭 보상 알림을 대상 클라이언트로 전달
+	void NotifyPickupRewardGranted(APRPlayerState* PlayerState, const FPRResolvedDropReward& Reward) const;
+
 private:
 	// 이미 드롭 처리한 사망 몬스터 목록
 	TSet<TWeakObjectPtr<AActor>> ProcessedDeadMonsters;

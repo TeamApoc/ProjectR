@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "Components/ActorComponent.h"
+#include "ProjectR/ItemSystem/Types/PRDropTypes.h"
 #include "ProjectR/ItemSystem/Types/PRWeaponTypes.h"
 #include "PRUIControllerComponent.generated.h"
 
@@ -74,6 +75,10 @@ public:
 	// 레벨업 팝업 생성 및 표시 요청
 	UFUNCTION(BlueprintCallable, Category = "ProjectR|UI")
 	void ShowLevelUpPopup(int32 PreviousLevel, int32 CurrentLevel);
+
+	// 드롭 보상 획득 알림을 현재 HUD에 전달
+	UFUNCTION(BlueprintCallable, Category = "ProjectR|UI")
+	void ShowPickupRewardNotification(const FPRPickupNotificationPayload& Payload);
 
 	// 장착 무기에 맞는 스코프 위젯을 표시한다.
 	UFUNCTION(BlueprintCallable, Category = "ProjectR|UI")

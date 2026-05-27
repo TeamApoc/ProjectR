@@ -138,3 +138,21 @@ struct FPRResolvedDropReward
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly)
 	bool bSpawnPickup = true;
 };
+
+USTRUCT(BlueprintType)
+struct FPRPickupNotificationPayload
+{
+	GENERATED_BODY()
+
+	// HUD에 표시할 보상 종류
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly)
+	EPRRewardType RewardType = EPRRewardType::None;
+
+	// 아이템 보상일 때 표시 데이터를 조회할 Primary Asset Id
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly)
+	FPrimaryAssetId ItemAssetId;
+
+	// 아이템 수량 또는 고철 획득량
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly)
+	int32 Quantity = 0;
+};

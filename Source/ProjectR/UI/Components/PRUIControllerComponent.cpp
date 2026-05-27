@@ -279,6 +279,19 @@ void UPRUIControllerComponent::ShowLevelUpPopup(int32 PreviousLevel, int32 Curre
 	}
 }
 
+void UPRUIControllerComponent::ShowPickupRewardNotification(const FPRPickupNotificationPayload& Payload)
+{
+	if (!IsLocalPlayer() || Payload.Quantity <= 0)
+	{
+		return;
+	}
+
+	if (IsValid(HUDWidget))
+	{
+		HUDWidget->ShowPickupRewardNotification(Payload);
+	}
+}
+
 void UPRUIControllerComponent::EndPlay(const EEndPlayReason::Type EndPlayReason)
 {
 	CloseInventory();

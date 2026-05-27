@@ -97,6 +97,9 @@ public:
 	UFUNCTION(BlueprintPure, Category = "PR|Equipment")
 	UPREquipmentManagerComponent* GetEquipmentManager() const;
 
+	// 지정 장비 슬롯에 대응하는 기본 메시 조회
+	USkeletalMesh* GetDefaultEquipmentMesh(EPREquipmentSlotType SlotType) const;
+
 	
 protected:
 	virtual void BeginPlay() override;
@@ -144,9 +147,6 @@ private:
 
 	// 지정 장비 슬롯에 대응하는 파츠 컴포넌트 조회
 	USkeletalMeshComponent* GetEquipmentMeshComponent(EPREquipmentSlotType SlotType) const;
-
-	// 지정 장비 슬롯에 대응하는 기본 메시 조회
-	USkeletalMesh* GetDefaultEquipmentMesh(EPREquipmentSlotType SlotType) const;
 
 	// 장비 외형 정보 변경 알림 처리
 	UFUNCTION()

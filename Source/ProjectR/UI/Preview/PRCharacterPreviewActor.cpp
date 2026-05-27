@@ -3,7 +3,11 @@
 
 #include "PRCharacterPreviewActor.h"
 
+#include "Components/DirectionalLightComponent.h"
+#include "Components/LightComponent.h"
+#include "Components/PrimitiveComponent.h"
 #include "Components/SceneCaptureComponent2D.h"
+#include "Components/SceneComponent.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "Components/SpotLightComponent.h"
 #include "Engine/TextureRenderTarget2D.h"
@@ -12,10 +16,38 @@
 #include "ProjectR/Character/PRPlayerCharacter.h"
 #include "ProjectR/ItemSystem/Actors/PRWeaponActor.h"
 #include "ProjectR/ItemSystem/Components/PRWeaponManagerComponent.h"
+#include "ProjectR/ItemSystem/Data/PREquipmentDataAsset.h"
 #include "ProjectR/ItemSystem/Data/PRWeaponDataAsset.h"
+#include "ProjectR/ItemSystem/Data/PRWeaponModDataAsset.h"
 
 namespace
 {
+	void ConfigurePreviewLightingChannel(UPrimitiveComponent* PrimitiveComponent)
+	{
+		if (!IsValid(PrimitiveComponent))
+		{
+			return;
+		}
+
+		// 프리뷰 전용 3번 라이트 채널
+		PrimitiveComponent->LightingChannels.bChannel0 = false;
+		PrimitiveComponent->LightingChannels.bChannel1 = false;
+		PrimitiveComponent->LightingChannels.bChannel2 = true;
+	}
+
+	void ConfigurePreviewLightingChannel(ULightComponent* LightComponent)
+	{
+		if (!IsValid(LightComponent))
+		{
+			return;
+		}
+
+		// 프리뷰 전용 3번 라이트 채널
+		LightComponent->LightingChannels.bChannel0 = false;
+		LightComponent->LightingChannels.bChannel1 = false;
+		LightComponent->LightingChannels.bChannel2 = true;
+	}
+
 	void ConfigurePreviewPartMeshComponent(USkeletalMeshComponent* PartMeshComponent, USkeletalMeshComponent* LeaderMeshComponent)
 	{
 		if (!IsValid(PartMeshComponent) || !IsValid(LeaderMeshComponent))
@@ -30,6 +62,7 @@ namespace
 		PartMeshComponent->SetGenerateOverlapEvents(false);
 		PartMeshComponent->VisibilityBasedAnimTickOption = EVisibilityBasedAnimTickOption::AlwaysTickPoseAndRefreshBones;
 		PartMeshComponent->bUseAttachParentBound = true;
+		ConfigurePreviewLightingChannel(PartMeshComponent);
 	}
 
 	void AddPreviewPartToCapture(USceneCaptureComponent2D* SceneCaptureComponent, USkeletalMeshComponent* PartMeshComponent)
@@ -93,14 +126,20 @@ APRCharacterPreviewActor::APRCharacterPreviewActor()
 {
 	PrimaryActorTick.bCanEverTick = false;
 	bReplicates = false;
+	PreviewCharacterClass = APRPlayerCharacter::StaticClass();
+
+	// 카메라와 조명이 캐릭터 메시 회전에 종속되지 않도록 분리된 기준 루트
+	PreviewRootComponent = CreateDefaultSubobject<USceneComponent>(TEXT("PreviewRootComponent"));
+	SetRootComponent(PreviewRootComponent);
 
 	// 숨김 리더 메시
 	PreviewMeshComponent = CreateDefaultSubobject<USkeletalMeshComponent>(TEXT("PreviewMeshComponent"));
-	SetRootComponent(PreviewMeshComponent);
+	PreviewMeshComponent->SetupAttachment(PreviewRootComponent);
 	PreviewMeshComponent->SetVisibility(false);
 	PreviewMeshComponent->SetCollisionEnabled(ECollisionEnabled::NoCollision);
 	PreviewMeshComponent->SetGenerateOverlapEvents(false);
 	PreviewMeshComponent->VisibilityBasedAnimTickOption = EVisibilityBasedAnimTickOption::AlwaysTickPoseAndRefreshBones;
+	ConfigurePreviewLightingChannel(PreviewMeshComponent);
 
 	// 플레이어 캐릭터의 모듈러 파츠 구조와 같은 프리뷰 파츠
 	PreviewHeadMeshComponent = CreateDefaultSubobject<USkeletalMeshComponent>(TEXT("PreviewHeadMeshComponent"));
@@ -117,7 +156,7 @@ APRCharacterPreviewActor::APRCharacterPreviewActor()
 
 	// 씬 캡처 컴포넌트 스프링 암
 	CaptureSpringArmComponent = CreateDefaultSubobject<USpringArmComponent>(TEXT("CaptureSpringArmComponent"));
-	CaptureSpringArmComponent->SetupAttachment(PreviewMeshComponent);
+	CaptureSpringArmComponent->SetupAttachment(PreviewRootComponent);
 	CaptureSpringArmComponent->TargetArmLength = 230.0f;
 	CaptureSpringArmComponent->SetRelativeLocation(FVector(0.0f, 0.0f, 130.0f));
 	CaptureSpringArmComponent->SetRelativeRotation(FRotator(0.0f, -7.0f, -90.0f));
@@ -138,7 +177,7 @@ APRCharacterPreviewActor::APRCharacterPreviewActor()
 	SceneCaptureComponent->CaptureSource = SCS_SceneColorHDR;
 	SceneCaptureComponent->PrimitiveRenderMode = ESceneCapturePrimitiveRenderMode::PRM_UseShowOnlyList;
 
-	// 월드 환경 요소 차단 — 전용 채널 1 DirectionalLight만 사용
+	// 월드 환경 요소 차단과 프리뷰 전용 3번 라이트 채널 사용
 	SceneCaptureComponent->ShowFlags.SetAtmosphere(false);
 	SceneCaptureComponent->ShowFlags.SetFog(false);
 	SceneCaptureComponent->ShowFlags.SetVolumetricFog(false);
@@ -169,7 +208,7 @@ APRCharacterPreviewActor::APRCharacterPreviewActor()
 
 	// ===== 라이트 스프링 암 =====
 	LightSpringArmComponent = CreateDefaultSubobject<USpringArmComponent>(TEXT("LightSpringArmComponent"));
-	LightSpringArmComponent->SetupAttachment(PreviewMeshComponent);
+	LightSpringArmComponent->SetupAttachment(PreviewRootComponent);
 	LightSpringArmComponent->TargetArmLength = 320.0f;
 	LightSpringArmComponent->SetRelativeLocation(FVector(0.0f, 0.0f, 130.0f));
 	LightSpringArmComponent->SetRelativeRotation(FRotator(0.0f, 0.0f, -90.0f));
@@ -187,6 +226,15 @@ APRCharacterPreviewActor::APRCharacterPreviewActor()
 	KeyLightComponent->SetIntensity(16000.0f);
 	KeyLightComponent->SetAttenuationRadius(650.0f);
 	KeyLightComponent->SetOuterConeAngle(55.0f);
+	ConfigurePreviewLightingChannel(KeyLightComponent);
+
+	// ===== 전용 방향광 컴포넌트 =====
+	DirectionalLightComponent = CreateDefaultSubobject<UDirectionalLightComponent>(TEXT("DirectionalLightComponent"));
+	DirectionalLightComponent->SetupAttachment(PreviewRootComponent);
+	DirectionalLightComponent->SetRelativeRotation(FRotator(-35.0f, -45.0f, 0.0f));
+	DirectionalLightComponent->SetIntensity(4.0f);
+	DirectionalLightComponent->bAffectsWorld = true;
+	ConfigurePreviewLightingChannel(DirectionalLightComponent);
 }
 
 void APRCharacterPreviewActor::SetRenderTargetToSceneCapture(UTextureRenderTarget2D* InRenderTarget)
@@ -196,7 +244,7 @@ void APRCharacterPreviewActor::SetRenderTargetToSceneCapture(UTextureRenderTarge
 		return;
 	}
 
-	// 씬 캡쳐 컴포넌트의 텍스처 타겟을 설정한다
+	// 씬 캡쳐 컴포넌트의 텍스처 타겟 설정
 	SceneCaptureComponent->TextureTarget = InRenderTarget;
 }
 
@@ -204,6 +252,13 @@ void APRCharacterPreviewActor::RefreshPreviewActorFromPlayer(APRPlayerCharacter*
 {
 	RefreshCharacterMesh(SourceCharacter);
 	RefreshWeaponPreview(WeaponManagerComponent);
+	CapturePreview();
+}
+
+void APRCharacterPreviewActor::RefreshPreviewActorFromSaveData(const FPRCharacterSaveData& SaveData)
+{
+	RefreshCharacterMeshFromSaveData(SaveData);
+	RefreshWeaponPreviewFromSaveData(SaveData);
 	CapturePreview();
 }
 
@@ -312,7 +367,6 @@ void APRCharacterPreviewActor::RefreshCharacterPartMesh(USkeletalMeshComponent* 
 
 	// 플레이어 캐릭터 파츠 컴포넌트에 이미 적용된 최종 메시 복사
 	PreviewPartMeshComponent->SetSkeletalMesh(SourcePartMeshComponent->GetSkeletalMeshAsset());
-	PreviewPartMeshComponent->SetRelativeTransform(SourcePartMeshComponent->GetRelativeTransform());
 	PreviewPartMeshComponent->UpdateBounds();
 }
 
@@ -333,6 +387,207 @@ void APRCharacterPreviewActor::RefreshWeaponPreview(UPRWeaponManagerComponent* W
 	// 프리뷰 무기 갱신
 	RefreshWeaponActorForSlot(EPRWeaponSlotType::Primary, PrimaryVisualInfo);
 	RefreshWeaponActorForSlot(EPRWeaponSlotType::Secondary, SecondaryVisualInfo);
+}
+
+void APRCharacterPreviewActor::RefreshWeaponPreviewFromSaveData(const FPRCharacterSaveData& SaveData)
+{
+	// 저장 데이터 기반 주무기와 보조무기 공개 비주얼 정보
+	const FPRWeaponVisualInfo PrimaryVisualInfo = ResolveWeaponVisualInfoFromSaveData(SaveData, EPRWeaponSlotType::Primary);
+	const FPRWeaponVisualInfo SecondaryVisualInfo = ResolveWeaponVisualInfoFromSaveData(SaveData, EPRWeaponSlotType::Secondary);
+
+	RefreshWeaponActorForSlot(EPRWeaponSlotType::Primary, PrimaryVisualInfo);
+	RefreshWeaponActorForSlot(EPRWeaponSlotType::Secondary, SecondaryVisualInfo);
+}
+
+void APRCharacterPreviewActor::RefreshCharacterMeshFromSaveData(const FPRCharacterSaveData& SaveData)
+{
+	if (!IsValid(PreviewMeshComponent))
+	{
+		return;
+	}
+
+	ApplyDefaultPreviewCharacterMesh();
+
+	// 저장 데이터의 장비 메시가 있으면 기본 파츠 메시를 대체
+	if (IsValid(PreviewHeadMeshComponent))
+	{
+		if (USkeletalMesh* HeadMesh = ResolveEquipmentMeshFromSaveData(SaveData, EPREquipmentSlotType::Head))
+		{
+			PreviewHeadMeshComponent->SetSkeletalMesh(HeadMesh);
+		}
+	}
+
+	if (IsValid(PreviewBodyMeshComponent))
+	{
+		if (USkeletalMesh* BodyMesh = ResolveEquipmentMeshFromSaveData(SaveData, EPREquipmentSlotType::Body))
+		{
+			PreviewBodyMeshComponent->SetSkeletalMesh(BodyMesh);
+		}
+	}
+
+	if (IsValid(PreviewHandsMeshComponent))
+	{
+		if (USkeletalMesh* HandsMesh = ResolveEquipmentMeshFromSaveData(SaveData, EPREquipmentSlotType::Hands))
+		{
+			PreviewHandsMeshComponent->SetSkeletalMesh(HandsMesh);
+		}
+	}
+
+	if (IsValid(PreviewLegsMeshComponent))
+	{
+		if (USkeletalMesh* LegsMesh = ResolveEquipmentMeshFromSaveData(SaveData, EPREquipmentSlotType::Legs))
+		{
+			PreviewLegsMeshComponent->SetSkeletalMesh(LegsMesh);
+		}
+	}
+
+	PreviewMeshComponent->UpdateBounds();
+}
+
+const APRPlayerCharacter* APRCharacterPreviewActor::GetPreviewCharacterDefaultObject() const
+{
+	const TSubclassOf<APRPlayerCharacter> CharacterClass = PreviewCharacterClass;
+	if (!IsValid(CharacterClass.Get()))
+	{
+		return nullptr;
+	}
+
+	return CharacterClass->GetDefaultObject<APRPlayerCharacter>();
+}
+
+void APRCharacterPreviewActor::ApplyDefaultPreviewCharacterMesh()
+{
+	const APRPlayerCharacter* DefaultCharacter = GetPreviewCharacterDefaultObject();
+	const USkeletalMeshComponent* SourceLeaderMeshComponent = IsValid(DefaultCharacter)
+		? DefaultCharacter->GetMesh()
+		: nullptr;
+	USkeletalMesh* LeaderMesh = IsValid(SourceLeaderMeshComponent)
+		? SourceLeaderMeshComponent->GetSkeletalMeshAsset()
+		: nullptr;
+	if (!IsValid(LeaderMesh))
+	{
+		LeaderMesh = DefaultPreviewMesh.Get();
+	}
+
+	if (!IsValid(LeaderMesh))
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[CharacterPreviewActor] 저장 데이터 프리뷰 기본 리더 메시 설정 없음"));
+	}
+
+	// 플레이어 캐릭터 기본 오브젝트 기반 리더 메시 적용
+	PreviewMeshComponent->SetSkeletalMesh(LeaderMesh);
+
+	ApplyDefaultPreviewPartMesh(
+		PreviewHeadMeshComponent,
+		DefaultCharacter,
+		IsValid(DefaultCharacter) ? DefaultCharacter->Mesh_Head.Get() : nullptr,
+		EPREquipmentSlotType::Head,
+		DefaultPreviewHeadMesh.Get());
+	ApplyDefaultPreviewPartMesh(
+		PreviewBodyMeshComponent,
+		DefaultCharacter,
+		IsValid(DefaultCharacter) ? DefaultCharacter->Mesh_Body.Get() : nullptr,
+		EPREquipmentSlotType::Body,
+		DefaultPreviewBodyMesh.Get());
+	ApplyDefaultPreviewPartMesh(
+		PreviewHandsMeshComponent,
+		DefaultCharacter,
+		IsValid(DefaultCharacter) ? DefaultCharacter->Mesh_Hands.Get() : nullptr,
+		EPREquipmentSlotType::Hands,
+		DefaultPreviewHandsMesh.Get());
+	ApplyDefaultPreviewPartMesh(
+		PreviewLegsMeshComponent,
+		DefaultCharacter,
+		IsValid(DefaultCharacter) ? DefaultCharacter->Mesh_Legs.Get() : nullptr,
+		EPREquipmentSlotType::Legs,
+		DefaultPreviewLegsMesh.Get());
+
+	const bool bHasAnyPartMesh =
+		(IsValid(PreviewHeadMeshComponent) && IsValid(PreviewHeadMeshComponent->GetSkeletalMeshAsset()))
+		|| (IsValid(PreviewBodyMeshComponent) && IsValid(PreviewBodyMeshComponent->GetSkeletalMeshAsset()))
+		|| (IsValid(PreviewHandsMeshComponent) && IsValid(PreviewHandsMeshComponent->GetSkeletalMeshAsset()))
+		|| (IsValid(PreviewLegsMeshComponent) && IsValid(PreviewLegsMeshComponent->GetSkeletalMeshAsset()));
+	if (!bHasAnyPartMesh)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[CharacterPreviewActor] 저장 데이터 프리뷰 기본 파츠 메시 설정 없음"));
+	}
+}
+
+void APRCharacterPreviewActor::ApplyDefaultPreviewPartMesh(USkeletalMeshComponent* PreviewPartMeshComponent, const APRPlayerCharacter* DefaultCharacter, const USkeletalMeshComponent* SourcePartMeshComponent, EPREquipmentSlotType SlotType, USkeletalMesh* FallbackMesh) const
+{
+	if (!IsValid(PreviewPartMeshComponent))
+	{
+		return;
+	}
+
+	USkeletalMesh* PartMesh = IsValid(DefaultCharacter)
+		? DefaultCharacter->GetDefaultEquipmentMesh(SlotType)
+		: nullptr;
+	if (!IsValid(PartMesh))
+	{
+		PartMesh = FallbackMesh;
+	}
+
+	// 플레이어 캐릭터 기본 장비 메시 기반 파츠 메시 적용
+	PreviewPartMeshComponent->SetSkeletalMesh(PartMesh);
+	PreviewPartMeshComponent->UpdateBounds();
+}
+
+USkeletalMesh* APRCharacterPreviewActor::ResolveEquipmentMeshFromSaveData(const FPRCharacterSaveData& SaveData, EPREquipmentSlotType SlotType) const
+{
+	for (const FPREquipmentSlotSaveEntry& EquippedSlot : SaveData.Equipment.EquippedSlots)
+	{
+		if (EquippedSlot.SlotType != SlotType)
+		{
+			continue;
+		}
+
+		if (!SaveData.Inventory.Equipments.IsValidIndex(EquippedSlot.EquipmentItemIndex))
+		{
+			return nullptr;
+		}
+
+		// 장비 저장 인덱스 기반 메시 조회
+		const FPREquipmentItemSaveEntry& EquipmentEntry = SaveData.Inventory.Equipments[EquippedSlot.EquipmentItemIndex];
+		const UPREquipmentDataAsset* EquipmentData = EquipmentEntry.EquipmentData.LoadSynchronous();
+		return IsValid(EquipmentData) ? EquipmentData->GetEquipmentMesh().LoadSynchronous() : nullptr;
+	}
+
+	return nullptr;
+}
+
+FPRWeaponVisualInfo APRCharacterPreviewActor::ResolveWeaponVisualInfoFromSaveData(const FPRCharacterSaveData& SaveData, EPRWeaponSlotType SlotType) const
+{
+	FPRWeaponVisualInfo VisualInfo;
+	VisualInfo.SlotType = SlotType;
+
+	int32 WeaponIndex = INDEX_NONE;
+	if (SlotType == EPRWeaponSlotType::Primary)
+	{
+		WeaponIndex = SaveData.WeaponManager.PrimaryWeaponIndex;
+	}
+	else if (SlotType == EPRWeaponSlotType::Secondary)
+	{
+		WeaponIndex = SaveData.WeaponManager.SecondaryWeaponIndex;
+	}
+
+	if (!SaveData.Inventory.Weapons.IsValidIndex(WeaponIndex))
+	{
+		VisualInfo.Reset(SlotType);
+		return VisualInfo;
+	}
+
+	// 무기 저장 인덱스 기반 공개 비주얼 정보 구성
+	const FPRWeaponItemSaveEntry& WeaponEntry = SaveData.Inventory.Weapons[WeaponIndex];
+	VisualInfo.WeaponData = WeaponEntry.WeaponData.LoadSynchronous();
+
+	if (SaveData.Inventory.Mods.IsValidIndex(WeaponEntry.EquippedModIndex))
+	{
+		const FPRModItemSaveEntry& ModEntry = SaveData.Inventory.Mods[WeaponEntry.EquippedModIndex];
+		VisualInfo.ModData = ModEntry.ModData.LoadSynchronous();
+	}
+
+	return VisualInfo;
 }
 
 void APRCharacterPreviewActor::RefreshWeaponActorForSlot(EPRWeaponSlotType SlotType, const FPRWeaponVisualInfo& VisualInfo)
@@ -385,6 +640,10 @@ void APRCharacterPreviewActor::RefreshWeaponActorForSlot(EPRWeaponSlotType SlotT
 	// 무기액터 콜리전, 히든 끄기
 	WeaponActor->SetActorEnableCollision(false);
 	WeaponActor->SetActorHiddenInGame(false);
+	if (USkeletalMeshComponent* WeaponMeshComponent = WeaponActor->GetWeaponMeshComponent())
+	{
+		ConfigurePreviewLightingChannel(WeaponMeshComponent);
+	}
 	AttachWeaponActorToPreviewMesh(WeaponActor, PreviewMeshComponent, VisualInfo.WeaponData, EPRArmedState::Unarmed);
 }
 

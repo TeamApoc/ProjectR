@@ -64,6 +64,8 @@ public:
 	float GetJogSpeed() const { return JogSpeed; }
 	float GetSprintSpeed() const { return SprintSpeed; }
 	float GetDownSpeed() const { return DownSpeed; }
+	/** 애니메이션 재생 속도에 사용할 이동속도 배율 반환 */
+	float GetMovementSpeedMultiplier() const;
 	bool IsAiming() const;
 	bool IsDown() const;
 	bool IsMovementBlocked() const {return bBlockMove;}

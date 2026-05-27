@@ -44,6 +44,7 @@ private:
 	void UpdateDirection();
 	void UpdateFlags();
 	void UpdateMovementMode();
+	void UpdateMovementSpeedMultiplier();
 	void UpdateAim();
 	// 현재 무기의 왼손 그립 소켓을 FABRIK Effector 값으로 캐시한다
 	void UpdateLeftHandIK();
@@ -85,6 +86,9 @@ public:
 
 	UPROPERTY(BlueprintReadOnly, Category = "Movement")
 	float XYSpeed;
+
+	UPROPERTY(BlueprintReadOnly, Category = "Movement")
+	float MovementSpeedMultiplier = 1.0f;
 
 	UPROPERTY(BlueprintReadOnly, Category = "Movement")
 	float CameraX;

@@ -58,4 +58,16 @@ protected:
 
 	UPROPERTY(EditAnywhere, Category = "ProjectR|Pattern", meta = (EditCondition = "bSetTacticalModeOnSelection"))
 	EPRTacticalMode TacticalModeOnSelection = EPRTacticalMode::Attack;
+
+	// true면 직전 실행 패턴의 선택 가중치를 낮춘다.
+	UPROPERTY(EditAnywhere, Category = "ProjectR|Pattern")
+	bool bLowerLastUsedPatternWeight = false;
+
+	// 직전 실행 AbilityTag 이름을 읽는 Blackboard 키
+	UPROPERTY(EditAnywhere, Category = "ProjectR|Pattern", meta = (EditCondition = "bLowerLastUsedPatternWeight"))
+	FName LastUsedAbilityTagKey = TEXT("last_used_ranged_ability");
+
+	// 직전 실행 패턴에 적용할 가중치 배율
+	UPROPERTY(EditAnywhere, Category = "ProjectR|Pattern", meta = (ClampMin = "0.01", ClampMax = "1.0", EditCondition = "bLowerLastUsedPatternWeight"))
+	float LastUsedPatternWeightMultiplier = 0.25f;
 };

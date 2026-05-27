@@ -2,12 +2,18 @@
 
 #include "PRPenitentCharacter.h"
 
-#include "ProjectR/Actors/Enemy/PRPenitentBarrierActor.h"
+#include "ProjectR/AbilitySystem/Abilities/Enemy/Penitent/PRPenitentBarrierActor.h"
 
 APRPenitentCharacter::APRPenitentCharacter()
 {
-	// 스탯 Registry / DT_EnemyStats의 RowName과 맞아야 한다.
+	// 스탯 Registry / DT_EnemyStats의 RowName과 일치
 	CharacterID = TEXT("Penitent");
+	
+	BarrierAttachPoint = CreateDefaultSubobject<USceneComponent>(TEXT("BarrierAttachPoint"));
+	BarrierAttachPoint->SetupAttachment(RootComponent);
+	BarrierAttachPoint->SetRelativeLocation(FVector(120.0f, 0.0f, 0.0f));
+	BarrierAttachPoint->SetRelativeRotation(FRotator(0.0f, -90.0f, 0.0f));
+	
 }
 
 void APRPenitentCharacter::SetSpawnedBarrierActor(APRPenitentBarrierActor* InBarrierActor)

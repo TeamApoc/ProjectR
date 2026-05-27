@@ -4,7 +4,7 @@
 
 #include "AbilitySystemComponent.h"
 #include "Components/SkeletalMeshComponent.h"
-#include "ProjectR/Actors/Enemy/PRPenitentBarrierActor.h"
+#include "ProjectR/AbilitySystem/Abilities/Enemy/Penitent/PRPenitentBarrierActor.h"
 #include "ProjectR/Character/Enemy/Penitent/PRPenitentCharacter.h"
 #include "ProjectR/PRGameplayTags.h"
 
@@ -45,6 +45,7 @@ void UPRGameplayAbility_PenitentBarrierSummon::ActivateAbility(const FGameplayAb
 	APRPenitentCharacter* PenitentCharacter = Cast<APRPenitentCharacter>(GetAvatarActorFromActorInfo());
 	UAbilitySystemComponent* AbilitySystemComponent = GetAbilitySystemComponentFromActorInfo();
 	UWorld* World = GetWorld();
+	// 유효성 체크, 서버 실행 확인
 	if (!IsValid(PenitentCharacter)
 		|| !PenitentCharacter->HasAuthority()
 		|| !IsValid(AbilitySystemComponent)
@@ -55,6 +56,7 @@ void UPRGameplayAbility_PenitentBarrierSummon::ActivateAbility(const FGameplayAb
 		return;
 	}
 
+	// 이미 배리어를 소환했다면 종료
 	if (PenitentCharacter->HasActiveBarrier()
 		|| AbilitySystemComponent->HasMatchingGameplayTag(PRGameplayTags::State_Enemy_Penitent_BarrierSummon))
 	{
@@ -62,12 +64,12 @@ void UPRGameplayAbility_PenitentBarrierSummon::ActivateAbility(const FGameplayAb
 		return;
 	}
 
+	//
 	const USkeletalMeshComponent* MeshComponent = PenitentCharacter->GetMesh();
-	const bool bHasAttachSocket = IsValid(MeshComponent)
-		&& BarrierAttachSocketName != NAME_None
-		&& MeshComponent->DoesSocketExist(BarrierAttachSocketName);
-	const FTransform SpawnTransform = bHasAttachSocket
-		? MeshComponent->GetSocketTransform(BarrierAttachSocketName)
+	USceneComponent* BarrierAttachPoint = PenitentCharacter->GetBarrierAttachPoint();
+	const bool bHasAttachPoint = IsValid(BarrierAttachPoint);
+	const FTransform SpawnTransform = bHasAttachPoint
+		? BarrierAttachPoint->GetComponentTransform()
 		: FTransform(PenitentCharacter->GetActorRotation(), PenitentCharacter->GetActorTransform().TransformPositionNoScale(BarrierSpawnOffset));
 
 	FActorSpawnParameters SpawnParameters;
@@ -86,10 +88,10 @@ void UPRGameplayAbility_PenitentBarrierSummon::ActivateAbility(const FGameplayAb
 		return;
 	}
 
-	if (bHasAttachSocket)
+	if (bHasAttachPoint)
 	{
 		// 소켓 부착
-		BarrierActor->AttachToComponent(PenitentCharacter->GetMesh(), FAttachmentTransformRules::KeepWorldTransform, BarrierAttachSocketName);
+		BarrierActor->AttachToComponent(BarrierAttachPoint, FAttachmentTransformRules::KeepWorldTransform);
 	}
 	else
 	{

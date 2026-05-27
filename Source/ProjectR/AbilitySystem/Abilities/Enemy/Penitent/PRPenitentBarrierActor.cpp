@@ -117,10 +117,10 @@ void APRPenitentBarrierActor::FireBarrier(const FVector& LaunchDirection)
 	DetachFromActor(FDetachmentTransformRules::KeepWorldTransform);
 	bDamageEnabled = true;
 
-	if (IsValid(SphereComponent))
-	{
-		SphereComponent->SetCollisionProfileName(FiredCollisionProfileName);
-	}
+	// if (IsValid(SphereComponent))
+	// {
+	// 	SphereComponent->SetCollisionProfileName(FiredCollisionProfileName);
+	// }
 
 	const FVector SafeLaunchDirection = LaunchDirection.GetSafeNormal();
 	if (IsValid(ProjectileMovementComponent) && !SafeLaunchDirection.IsNearlyZero())
@@ -129,7 +129,6 @@ void APRPenitentBarrierActor::FireBarrier(const FVector& LaunchDirection)
 		ProjectileMovementComponent->MaxSpeed = FMath::Max(ProjectileMovementComponent->MaxSpeed, LaunchSpeed);
 		ProjectileMovementComponent->Velocity = SafeLaunchDirection * LaunchSpeed;
 		ProjectileMovementComponent->Activate(true);
-		SetActorRotation(SafeLaunchDirection.Rotation());
 	}
 
 	if (FiredLifeSpan > 0.0f)

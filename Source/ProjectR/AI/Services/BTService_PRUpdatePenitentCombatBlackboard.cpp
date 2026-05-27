@@ -6,7 +6,7 @@
 #include "AIController.h"
 #include "BehaviorTree/BlackboardComponent.h"
 #include "ProjectR/AI/Data/UPRPenitentCombatDataAsset.h"
-#include "ProjectR/Actors/Enemy/PRPenitentBarrierActor.h"
+#include "ProjectR/AbilitySystem/Abilities/Enemy/Penitent/PRPenitentBarrierActor.h"
 #include "ProjectR/AbilitySystem/PRAbilitySystemComponent.h"
 #include "ProjectR/Character/Enemy/PREnemyInterface.h"
 #include "ProjectR/Character/Enemy/Penitent/PRPenitentCharacter.h"

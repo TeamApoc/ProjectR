@@ -5,7 +5,7 @@
 #include "AbilitySystemComponent.h"
 #include "GameplayEffect.h"
 #include "ProjectR/AbilitySystem/Data/PRAbilitySystemRegistry.h"
-#include "ProjectR/Actors/Enemy/PRPenitentBarrierActor.h"
+#include "PRPenitentBarrierActor.h"
 #include "ProjectR/Character/Enemy/Penitent/PRPenitentCharacter.h"
 #include "ProjectR/Combat/PRCombatGameplayTags.h"
 #include "ProjectR/PRGameplayTags.h"

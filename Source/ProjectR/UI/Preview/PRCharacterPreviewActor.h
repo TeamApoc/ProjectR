@@ -51,6 +51,9 @@ private:
 	// 캐릭터 메시를 소스 캐릭터 기준으로 갱신한다
 	void RefreshCharacterMesh(APRPlayerCharacter* SourceCharacter);
 
+	// 프리뷰 파츠 메시를 소스 파츠 메시 기준으로 갱신
+	void RefreshCharacterPartMesh(USkeletalMeshComponent* PreviewPartMeshComponent, USkeletalMeshComponent* SourcePartMeshComponent);
+
 	// 무기 매니저의 공개 비주얼 상태를 기준으로 무기 프리뷰를 갱신한다
 	void RefreshWeaponPreview(UPRWeaponManagerComponent* WeaponManagerComponent);
 
@@ -70,9 +73,25 @@ private:
 	void ClearWeaponActorBySlot(EPRWeaponSlotType SlotType);
 
 protected:
-	// 프리뷰 액터 루트로 사용하는 캐릭터 메시
+	// 프리뷰 포즈와 무기 소켓 기준으로 사용하는 숨김 메시
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "ProjectR|Inventory|Preview")
 	TObjectPtr<USkeletalMeshComponent> PreviewMeshComponent;
+
+	// 프리뷰 머리 파츠 메시
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "ProjectR|Inventory|Preview")
+	TObjectPtr<USkeletalMeshComponent> PreviewHeadMeshComponent;
+
+	// 프리뷰 몸통 파츠 메시
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "ProjectR|Inventory|Preview")
+	TObjectPtr<USkeletalMeshComponent> PreviewBodyMeshComponent;
+
+	// 프리뷰 손 파츠 메시
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "ProjectR|Inventory|Preview")
+	TObjectPtr<USkeletalMeshComponent> PreviewHandsMeshComponent;
+
+	// 프리뷰 다리 파츠 메시
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "ProjectR|Inventory|Preview")
+	TObjectPtr<USkeletalMeshComponent> PreviewLegsMeshComponent;
 
 	// 프리뷰 캡처 거리와 각도를 제어하는 스프링 암
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "ProjectR|Inventory|Preview")

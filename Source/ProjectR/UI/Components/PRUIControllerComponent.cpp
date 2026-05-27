@@ -55,10 +55,6 @@ void UPRUIControllerComponent::ToggleInventory()
 	UPRWeaponManagerComponent* WeaponManagerComponent = GetWeaponManagerComponent();
 	UPRQuickSlotComponent* QuickSlotComponent = GetQuickSlotComponent();
 	UPREquipmentManagerComponent* EquipmentManagerComponent = GetEquipmentManagerComponent();
-	if (!IsValid(InventoryComponent) || !IsValid(WeaponManagerComponent) || !IsValid(QuickSlotComponent) || !IsValid(EquipmentManagerComponent))
-	{
-		return;
-	}
 
 	CreatedInventoryWidget->SetInventorySources(InventoryComponent, WeaponManagerComponent, QuickSlotComponent, EquipmentManagerComponent);
 	UIManager->PushUIInstance(CreatedInventoryWidget);

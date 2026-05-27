@@ -134,6 +134,10 @@ private:
 	UFUNCTION()
 	void HandleEquipmentChanged(EPREquipmentSlotType ChangedSlot, UPRItemInstance_Equipment* EquipmentItem);
 
+	// 장비 외형 정보 변경 알림을 받아 캐릭터 프리뷰를 갱신
+	UFUNCTION()
+	void HandleEquipmentVisualInfosChanged(UPREquipmentManagerComponent* ChangedEquipmentManagerComponent);
+
 	// 고철 수량 변경 알림을 받아 화면을 갱신한다
 	UFUNCTION()
 	void HandleScrapChanged(int32 NewScrap);

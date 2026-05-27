@@ -7,6 +7,7 @@
 #include "ProjectR/Game/PRGameTypes.h"
 #include "ProjectR/ItemSystem/Items/PRItemInstance.h"
 #include "ProjectR/ItemSystem/Items/PRItemInstance_Consumable.h"
+#include "ProjectR/ItemSystem/Items/PRItemInstance_Equipment.h"
 #include "ProjectR/ItemSystem/Items/PRItemInstance_Material.h"
 #include "ProjectR/ItemSystem/Items/PRItemInstance_Mod.h"
 #include "ProjectR/ItemSystem/Items/PRItemInstance_Weapon.h"

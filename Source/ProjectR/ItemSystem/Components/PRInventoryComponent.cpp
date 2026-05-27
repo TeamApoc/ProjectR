@@ -7,8 +7,10 @@
 #include "GameFramework/Pawn.h"
 #include "Net/UnrealNetwork.h"
 #include "ProjectR/Character/PRPlayerCharacter.h"
+#include "ProjectR/ItemSystem/Data/PREquipmentDataAsset.h"
 #include "ProjectR/ItemSystem/Data/PRConsumableDataAsset.h"
 #include "ProjectR/ItemSystem/Data/PRMaterialDataAsset.h"
+#include "ProjectR/ItemSystem/Items/PRItemInstance_Equipment.h"
 #include "ProjectR/ItemSystem/Items/PRItemInstance_Consumable.h"
 #include "ProjectR/ItemSystem/Items/PRItemInstance_Material.h"
 #include "ProjectR/ItemSystem/Components/PRWeaponManagerComponent.h"
@@ -713,10 +715,12 @@ FPRInventorySaveData UPRInventoryComponent::MakeSaveData() const
 	const TArray<UPRItemInstance_Mod*> ModItems = GetItemsByType<UPRItemInstance_Mod>(EPRItemType::Mod);
 	const TArray<UPRItemInstance_Consumable*> ConsumableItems = GetItemsByType<UPRItemInstance_Consumable>(EPRItemType::Consumable);
 	const TArray<UPRItemInstance_Material*> MaterialItems = GetItemsByType<UPRItemInstance_Material>(EPRItemType::Material);
+	const TArray<UPRItemInstance_Equipment*> EquipmentItems = GetItemsByType<UPRItemInstance_Equipment>(EPRItemType::Equipment);
 	SaveData.Weapons.Reserve(WeaponItems.Num());
 	SaveData.Mods.Reserve(ModItems.Num());
 	SaveData.Consumables.Reserve(ConsumableItems.Num());
 	SaveData.Materials.Reserve(MaterialItems.Num());
+	SaveData.Equipments.Reserve(EquipmentItems.Num());
 
 	for (const UPRItemInstance_Weapon* WeaponItem : WeaponItems)
 	{
@@ -767,6 +771,19 @@ FPRInventorySaveData UPRInventoryComponent::MakeSaveData() const
 		Entry.MaterialData = MaterialItem->GetMaterialData();
 		Entry.StackCount = MaterialItem->GetStackCount();
 		SaveData.Materials.Add(Entry);
+	}
+
+	for (const UPRItemInstance_Equipment* EquipmentItem : EquipmentItems)
+	{
+		if (!IsValid(EquipmentItem) || !IsValid(EquipmentItem->GetEquipmentData()))
+		{
+			continue;
+		}
+
+		FPREquipmentItemSaveEntry Entry;
+		Entry.EquipmentData = EquipmentItem->GetEquipmentData();
+		Entry.StackCount = FMath::Max(EquipmentItem->GetStackCount(), 1);
+		SaveData.Equipments.Add(Entry);
 	}
 
 	return SaveData;
@@ -837,6 +854,25 @@ void UPRInventoryComponent::ApplySaveData(const FPRInventorySaveData& InSaveData
 		}
 
 		InventoryItems.Add(NewWeaponItem);
+	}
+
+	for (const FPREquipmentItemSaveEntry& Entry : InSaveData.Equipments)
+	{
+		UPREquipmentDataAsset* EquipmentData = Entry.EquipmentData.LoadSynchronous();
+		if (!IsValid(EquipmentData))
+		{
+			continue;
+		}
+
+		UPRItemInstance_Equipment* NewEquipmentItem = Cast<UPRItemInstance_Equipment>(NewObject<UPRItemInstance>(this, EquipmentData->GetItemInstanceClass()));
+		if (!IsValid(NewEquipmentItem))
+		{
+			continue;
+		}
+
+		// 장비 아이템 복원
+		NewEquipmentItem->InitializeItem(EquipmentData, FMath::Max(Entry.StackCount, 1));
+		InventoryItems.Add(NewEquipmentItem);
 	}
 
 	for (const FPRConsumableSaveEntry& Entry : InSaveData.Consumables)

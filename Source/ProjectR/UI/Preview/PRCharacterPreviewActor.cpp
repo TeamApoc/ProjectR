@@ -16,6 +16,33 @@
 
 namespace
 {
+	void ConfigurePreviewPartMeshComponent(USkeletalMeshComponent* PartMeshComponent, USkeletalMeshComponent* LeaderMeshComponent)
+	{
+		if (!IsValid(PartMeshComponent) || !IsValid(LeaderMeshComponent))
+		{
+			return;
+		}
+
+		// 실제 플레이어 파츠와 같은 포즈 기준
+		PartMeshComponent->SetupAttachment(LeaderMeshComponent);
+		PartMeshComponent->SetLeaderPoseComponent(LeaderMeshComponent);
+		PartMeshComponent->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+		PartMeshComponent->SetGenerateOverlapEvents(false);
+		PartMeshComponent->VisibilityBasedAnimTickOption = EVisibilityBasedAnimTickOption::AlwaysTickPoseAndRefreshBones;
+		PartMeshComponent->bUseAttachParentBound = true;
+	}
+
+	void AddPreviewPartToCapture(USceneCaptureComponent2D* SceneCaptureComponent, USkeletalMeshComponent* PartMeshComponent)
+	{
+		if (!IsValid(SceneCaptureComponent) || !IsValid(PartMeshComponent))
+		{
+			return;
+		}
+
+		// ShowOnly 캡처 대상 파츠
+		SceneCaptureComponent->ShowOnlyComponent(PartMeshComponent);
+	}
+
 	bool IsPreviewSupportedSlot(EPRWeaponSlotType SlotType)
 	{
 		return SlotType == EPRWeaponSlotType::Primary || SlotType == EPRWeaponSlotType::Secondary;
@@ -67,12 +94,26 @@ APRCharacterPreviewActor::APRCharacterPreviewActor()
 	PrimaryActorTick.bCanEverTick = false;
 	bReplicates = false;
 
-	// 캐릭터 프리뷰 메시
+	// 숨김 리더 메시
 	PreviewMeshComponent = CreateDefaultSubobject<USkeletalMeshComponent>(TEXT("PreviewMeshComponent"));
 	SetRootComponent(PreviewMeshComponent);
+	PreviewMeshComponent->SetVisibility(false);
 	PreviewMeshComponent->SetCollisionEnabled(ECollisionEnabled::NoCollision);
 	PreviewMeshComponent->SetGenerateOverlapEvents(false);
 	PreviewMeshComponent->VisibilityBasedAnimTickOption = EVisibilityBasedAnimTickOption::AlwaysTickPoseAndRefreshBones;
+
+	// 플레이어 캐릭터의 모듈러 파츠 구조와 같은 프리뷰 파츠
+	PreviewHeadMeshComponent = CreateDefaultSubobject<USkeletalMeshComponent>(TEXT("PreviewHeadMeshComponent"));
+	ConfigurePreviewPartMeshComponent(PreviewHeadMeshComponent, PreviewMeshComponent);
+
+	PreviewBodyMeshComponent = CreateDefaultSubobject<USkeletalMeshComponent>(TEXT("PreviewBodyMeshComponent"));
+	ConfigurePreviewPartMeshComponent(PreviewBodyMeshComponent, PreviewMeshComponent);
+
+	PreviewHandsMeshComponent = CreateDefaultSubobject<USkeletalMeshComponent>(TEXT("PreviewHandsMeshComponent"));
+	ConfigurePreviewPartMeshComponent(PreviewHandsMeshComponent, PreviewMeshComponent);
+
+	PreviewLegsMeshComponent = CreateDefaultSubobject<USkeletalMeshComponent>(TEXT("PreviewLegsMeshComponent"));
+	ConfigurePreviewPartMeshComponent(PreviewLegsMeshComponent, PreviewMeshComponent);
 
 	// 씬 캡처 컴포넌트 스프링 암
 	CaptureSpringArmComponent = CreateDefaultSubobject<USpringArmComponent>(TEXT("CaptureSpringArmComponent"));
@@ -191,10 +232,11 @@ void APRCharacterPreviewActor::CapturePreview()
 
 	SceneCaptureComponent->ClearShowOnlyComponents();
 
-	if (IsValid(PreviewMeshComponent))
-	{
-		SceneCaptureComponent->ShowOnlyComponent(PreviewMeshComponent);
-	}
+	// 실제 표시 대상은 숨김 리더가 아닌 모듈러 파츠 메시
+	AddPreviewPartToCapture(SceneCaptureComponent, PreviewHeadMeshComponent);
+	AddPreviewPartToCapture(SceneCaptureComponent, PreviewBodyMeshComponent);
+	AddPreviewPartToCapture(SceneCaptureComponent, PreviewHandsMeshComponent);
+	AddPreviewPartToCapture(SceneCaptureComponent, PreviewLegsMeshComponent);
 
 	if (APRWeaponActor* PrimaryWeapon = GetWeaponActorBySlot(EPRWeaponSlotType::Primary))
 	{
@@ -235,14 +277,43 @@ void APRCharacterPreviewActor::RefreshCharacterMesh(APRPlayerCharacter* SourceCh
 	if (!IsValid(SourceCharacter) || !IsValid(SourceCharacter->GetMesh()))
 	{
 		PreviewMeshComponent->SetSkeletalMesh(nullptr);
+		RefreshCharacterPartMesh(PreviewHeadMeshComponent, nullptr);
+		RefreshCharacterPartMesh(PreviewBodyMeshComponent, nullptr);
+		RefreshCharacterPartMesh(PreviewHandsMeshComponent, nullptr);
+		RefreshCharacterPartMesh(PreviewLegsMeshComponent, nullptr);
 		return;
 	}
 
-	// 원본 캐릭터의 메시를 프리뷰 액터에 적용한다
+	// 원본 캐릭터의 숨김 리더 메시 복사
 	USkeletalMeshComponent* SourceMeshComponent = SourceCharacter->GetMesh();
 	PreviewMeshComponent->SetSkeletalMesh(SourceMeshComponent->GetSkeletalMeshAsset());
 
+	// 장비 장착으로 교체된 실제 표시 파츠 복사
+	RefreshCharacterPartMesh(PreviewHeadMeshComponent, SourceCharacter->Mesh_Head);
+	RefreshCharacterPartMesh(PreviewBodyMeshComponent, SourceCharacter->Mesh_Body);
+	RefreshCharacterPartMesh(PreviewHandsMeshComponent, SourceCharacter->Mesh_Hands);
+	RefreshCharacterPartMesh(PreviewLegsMeshComponent, SourceCharacter->Mesh_Legs);
+
 	PreviewMeshComponent->UpdateBounds();
+}
+
+void APRCharacterPreviewActor::RefreshCharacterPartMesh(USkeletalMeshComponent* PreviewPartMeshComponent, USkeletalMeshComponent* SourcePartMeshComponent)
+{
+	if (!IsValid(PreviewPartMeshComponent))
+	{
+		return;
+	}
+
+	if (!IsValid(SourcePartMeshComponent))
+	{
+		PreviewPartMeshComponent->SetSkeletalMesh(nullptr);
+		return;
+	}
+
+	// 플레이어 캐릭터 파츠 컴포넌트에 이미 적용된 최종 메시 복사
+	PreviewPartMeshComponent->SetSkeletalMesh(SourcePartMeshComponent->GetSkeletalMeshAsset());
+	PreviewPartMeshComponent->SetRelativeTransform(SourcePartMeshComponent->GetRelativeTransform());
+	PreviewPartMeshComponent->UpdateBounds();
 }
 
 void APRCharacterPreviewActor::RefreshWeaponPreview(UPRWeaponManagerComponent* WeaponManagerComponent)

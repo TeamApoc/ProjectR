@@ -1,4 +1,4 @@
-﻿// Copyright (c) 2026 TeamApoc. All Rights Reserved.
+// Copyright (c) 2026 TeamApoc. All Rights Reserved.
 
 #pragma once
 
@@ -82,4 +82,12 @@ private:
 	// 장착 무기 상태를 읽을 무기 매니저
 	UPROPERTY(Transient)
 	TObjectPtr<UPRWeaponManagerComponent> WeaponManagerComponent;
+
+	// 동적으로 복제된 고유 렌더 타겟 (PIE 환경에서 여러 클라가 에셋을 공유하는 문제 방지)
+	UPROPERTY(Transient)
+	TObjectPtr<UTextureRenderTarget2D> DynamicRenderTarget;
+
+	// 동적으로 생성된 UI 머티리얼 인스턴스
+	UPROPERTY(Transient)
+	TObjectPtr<UMaterialInstanceDynamic> DynamicMaterial;
 };

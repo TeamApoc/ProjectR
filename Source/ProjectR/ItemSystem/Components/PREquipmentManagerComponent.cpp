@@ -152,6 +152,7 @@ bool UPREquipmentManagerComponent::EquipItem(UPRItemInstance_Equipment* Equipmen
 		GetOwner()->ForceNetUpdate();
 	}
 
+	OnEquipmentVisualInfosChanged.Broadcast(this);
 	OnEquipmentChanged.Broadcast(SlotType, EquipmentItem);
 	return true;
 }
@@ -185,6 +186,7 @@ bool UPREquipmentManagerComponent::UnequipSlot(EPREquipmentSlotType SlotType)
 		GetOwner()->ForceNetUpdate();
 	}
 
+	OnEquipmentVisualInfosChanged.Broadcast(this);
 	OnEquipmentChanged.Broadcast(SlotType, nullptr);
 	return true;
 }
@@ -253,6 +255,9 @@ void UPREquipmentManagerComponent::ApplySaveData(const FPREquipmentSaveData& InS
 
 void UPREquipmentManagerComponent::OnRep_EquipmentInfos()
 {
-	// 클라이언트에서 시각적 장착 정보가 복제되었을 때 캐릭터 외형 갱신 (추후 ChildMesh 연동)
+	// 클라이언트에서 시각적 장착 정보가 복제되었을 때 캐릭터 파츠 메시 갱신
+	OnEquipmentVisualInfosChanged.Broadcast(this);
+
+	// 장비 외형 복제 흐름 확인용 로그
 	UE_LOG(LogTemp, Log, TEXT("[Equipment] 장비 시각 정보 복제됨. 아이템 개수: %d"), ReplicatedEquipmentInfos.Num());
 }

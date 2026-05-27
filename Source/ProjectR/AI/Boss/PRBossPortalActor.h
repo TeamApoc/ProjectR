@@ -186,8 +186,17 @@ protected:
 	// 포털에서 생성한 투사체에 원작형 충돌/추적 정책을 적용한다.
 	void ConfigureSpawnedPortalProjectile(APRProjectileBase* SpawnedProjectile);
 
+	// 포탈 투사체 Spawn payload에 포함할 homing 스케줄을 설정한다.
+	void ConfigurePortalProjectileHomingSchedule(APRProjectileBase* SpawnedProjectile);
+
 	// 포털 투사체에 적용할 GE Spec을 만든다.
 	FGameplayEffectSpecHandle BuildProjectileEffectSpec() const;
+
+	// 실제 발사에 사용할 초기 진행 방향을 계산한다.
+	FVector CalculateProjectileLaunchDirection() const;
+
+	// 지정된 발사 방향으로 projectile spawn transform을 만든다.
+	bool BuildProjectileSpawnTransformFromDirection(const FVector& LaunchDirection, FTransform& OutTransform) const;
 
 protected:
 	// BeginPlay에서 자동으로 텔레그래프를 시작할지 여부다.
@@ -244,11 +253,27 @@ protected:
 
 	// 추적 투사체 Homing 가속도다.
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Portal|Projectile", meta = (ClampMin = "0.0", EditCondition = "bUseTrackingProjectile"))
-	float ProjectileHomingAcceleration = 12000.0f;
+	float ProjectileHomingAcceleration = 26000.0f;
 
 	// Homing을 유지할 시간이다. 0 이하면 타격/만료 전까지 계속 추적한다.
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Portal|Projectile", meta = (ClampMin = "0.0", EditCondition = "bUseTrackingProjectile"))
 	float ProjectileHomingDuration = 0.3f;
+
+	// 투사체가 생성된 뒤 homing을 켜기까지 기다리는 시간이다.
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Portal|Projectile", meta = (ClampMin = "0.0", EditCondition = "bUseTrackingProjectile"))
+	float ProjectileHomingStartDelay = 0.0f;
+
+	// true면 homing projectile의 초기 발사 방향을 포탈 전방 원뿔 안에서 랜덤으로 정한다.
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Portal|Projectile", meta = (EditCondition = "bUseTrackingProjectile"))
+	bool bUseTrackingConeLaunch = true;
+
+	// homing projectile 초기 발사가 전방 축에서 최소한 이 각도 이상 벗어나도록 한다.
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Portal|Projectile", meta = (ClampMin = "0.0", ClampMax = "90.0", EditCondition = "bUseTrackingProjectile && bUseTrackingConeLaunch"))
+	float TrackingLaunchConeMinAngleDegrees = 0.0f;
+
+	// homing projectile 초기 발사가 전방 축에서 최대한 이 각도 이하로 벗어나도록 한다.
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Portal|Projectile", meta = (ClampMin = "0.0", ClampMax = "90.0", EditCondition = "bUseTrackingProjectile && bUseTrackingConeLaunch"))
+	float TrackingLaunchConeMaxAngleDegrees = 80.0f;
 
 	// 포털 투사체가 보스/몬스터 계열을 통과하도록 충돌 무시 목록에 등록할지 여부다.
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Portal|Projectile")

@@ -8,9 +8,40 @@
 #include "ProjectR/ProjectR.h"
 #include "PRProjectileTypes.generated.h"
 
+class AActor;
 class APRProjectileBase;
 
 DECLARE_DYNAMIC_DELEGATE_OneParam(FProjectileSpawnedDelegate, APRProjectileBase*, SpawnedProjectile);
+
+// 투사체 Spawn 시점에 함께 전달되는 homing 프레젠테이션 스케줄
+USTRUCT()
+struct FPRProjectileRepHomingSchedule
+{
+	GENERATED_BODY()
+
+	// 호밍 대상 액터. nullptr이면 스케줄을 사용하지 않는다.
+	UPROPERTY()
+	TObjectPtr<AActor> HomingTargetActor = nullptr;
+
+	// 호밍 가속도. 0 이하이면 스케줄을 사용하지 않는다.
+	UPROPERTY()
+	float HomingAcceleration = 0.0f;
+
+	// 투사체 Spawn 이후 호밍을 시작하기까지의 지연 시간
+	UPROPERTY()
+	float StartDelay = 0.0f;
+
+	// 호밍 유지 시간. 0 이하이면 투사체가 끝날 때까지 유지한다.
+	UPROPERTY()
+	float Duration = 0.0f;
+
+	// 스케줄 변경 번호. Spawn payload에서 같은 값 조합도 명시적으로 구분할 때 사용한다.
+	UPROPERTY()
+	uint8 Revision = 0;
+
+	bool IsEnabled() const;
+	void Reset();
+};
 
 // 투사체 이동 동기화 이벤트 종류
 UENUM()
@@ -42,6 +73,10 @@ struct FPRProjectileRepMovement
 	// 이벤트 종류
 	UPROPERTY()
 	EPRRepMovementEvent Event = EPRRepMovementEvent::Spawn;
+
+	// Spawn 이벤트와 함께 전달할 homing 프레젠테이션 스케줄
+	UPROPERTY()
+	FPRProjectileRepHomingSchedule HomingSchedule;
 
 	bool NetSerialize(FArchive& Ar, UPackageMap* Map, bool& bOutSuccess);
 };

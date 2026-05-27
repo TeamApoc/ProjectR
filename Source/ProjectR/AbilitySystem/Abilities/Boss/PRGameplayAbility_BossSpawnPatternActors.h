@@ -10,6 +10,7 @@
 
 class APRBossPatternActor;
 class UEnvQuery;
+class USceneComponent;
 
 // 보스 패턴 Helper Actor를 어느 기준점에 생성할지 정의한다.
 UENUM(BlueprintType)
@@ -44,6 +45,10 @@ struct PROJECTR_API FPRBossPatternActorSpawnConfig
 	// 생성 기준점이다.
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "ProjectR|AI|Boss")
 	EPRBossPatternSpawnOrigin SpawnOrigin = EPRBossPatternSpawnOrigin::Target;
+
+	// 값이 있으면 SpawnOrigin Actor 안의 해당 SceneComponent를 스폰/부착 기준으로 사용한다.
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "ProjectR|AI|Boss")
+	FName OriginComponentName = NAME_None;
 
 	// 기준 Actor의 로컬 좌표계에서 적용할 위치 오프셋이다.
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "ProjectR|AI|Boss")
@@ -85,6 +90,10 @@ struct PROJECTR_API FPRBossPatternActorSpawnConfig
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "ProjectR|AI|Boss|EQS", meta = (EditCondition = "SpawnLocationMode == EPRBossPatternSpawnLocationMode::EnvQuery"))
 	TArray<FPREnemyEQSFloatParam> FloatParams;
 
+	// 값이 있으면 같은 키를 쓰는 EnvQuery SpawnConfig들이 한 번 계산한 기준 위치를 공유한다.
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "ProjectR|AI|Boss|EQS", meta = (EditCondition = "SpawnLocationMode == EPRBossPatternSpawnLocationMode::EnvQuery"))
+	FName SharedEnvQueryResultKey = NAME_None;
+
 	// 상위 후보 최대 선택 개수다. 0 이하면 개수 제한이 없다.
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "ProjectR|AI|Boss|EQS", meta = (EditCondition = "SpawnLocationMode == EPRBossPatternSpawnLocationMode::EnvQuery", ClampMin = "0"))
 	int32 TopCandidateCount = 0;
@@ -119,7 +128,7 @@ public:
 
 protected:
 	// 지정한 설정으로 Helper Actor 생성 Transform을 계산한다.
-	bool BuildPatternActorSpawnTransform(const FPRBossPatternActorSpawnConfig& SpawnConfig, FTransform& OutSpawnTransform) const;
+	bool BuildPatternActorSpawnTransform(const FPRBossPatternActorSpawnConfig& SpawnConfig, FTransform& OutSpawnTransform);
 
 	// OriginOffset 방식으로 Helper Actor 생성 Transform을 계산한다.
 	bool BuildOriginOffsetSpawnTransform(const FPRBossPatternActorSpawnConfig& SpawnConfig, FTransform& OutSpawnTransform) const;
@@ -127,14 +136,35 @@ protected:
 	// EQS 방식으로 Helper Actor 생성 위치를 계산한다.
 	bool RunSpawnLocationQuery(const FPRBossPatternActorSpawnConfig& SpawnConfig, FVector& OutSpawnLocation) const;
 
+	// EnvQuery 기준 위치를 얻고, 공유 키가 있으면 같은 실행 안에서 재사용한다.
+	bool ResolveEnvQueryBaseLocation(const FPRBossPatternActorSpawnConfig& SpawnConfig, FVector& OutBaseLocation);
+
+	// 기준 위치에 SpawnConfig의 offset을 적용한다.
+	FVector ApplySpawnLocationOffset(
+		const FPRBossPatternActorSpawnConfig& SpawnConfig,
+		const FVector& BaseLocation,
+		const FRotator& OffsetRotation) const;
+
+	// SpawnConfig의 최종 회전을 계산한다.
+	FRotator BuildSpawnRotation(
+		const FPRBossPatternActorSpawnConfig& SpawnConfig,
+		const FVector& SpawnLocation,
+		const FRotator& BaseRotation) const;
+
 	// Helper Actor를 하나 생성하고 초기화한다.
 	APRBossPatternActor* SpawnPatternActor(const FPRBossPatternActorSpawnConfig& SpawnConfig);
 
 	// SpawnConfig 기준 Origin Actor를 반환한다.
 	AActor* ResolveSpawnOriginActor(const FPRBossPatternActorSpawnConfig& SpawnConfig) const;
 
+	// SpawnConfig 기준 Origin SceneComponent를 반환한다.
+	USceneComponent* ResolveSpawnOriginComponent(const FPRBossPatternActorSpawnConfig& SpawnConfig) const;
+
 	// SpawnConfig에 따라 스폰 직후 부착 처리를 수행한다.
 	void ApplyPostSpawnAttachment(APRBossPatternActor* SpawnedActor, const FPRBossPatternActorSpawnConfig& SpawnConfig) const;
+
+	// Ability 실행마다 공유 EQS 기준 위치 캐시를 초기화한다.
+	void ResetSharedEnvQueryResultCache();
 
 	// Helper Actor 생성이 끝난 뒤 BP 후처리를 연결하는 이벤트다.
 	UFUNCTION(BlueprintImplementableEvent, Category = "ProjectR|AI|Boss")
@@ -148,4 +178,8 @@ protected:
 	// 이번 활성화에서 생성된 Helper Actor 목록이다.
 	UPROPERTY(BlueprintReadOnly, Category = "ProjectR|AI|Boss")
 	TArray<TObjectPtr<APRBossPatternActor>> SpawnedPatternActors;
+
+	// 같은 실행 안에서 공유하는 EQS 기준 위치 캐시다.
+	UPROPERTY(Transient)
+	TMap<FName, FVector> SharedEnvQueryResultLocations;
 };

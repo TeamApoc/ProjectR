@@ -25,17 +25,17 @@ UPRGameplayAbility_FaerinPortalAttachedSequence::UPRGameplayAbility_FaerinPortal
 	FPRBossPatternActorSpawnConfig& LeftPortalConfig = PatternActorSpawnConfigs.AddDefaulted_GetRef();
 	LeftPortalConfig.SpawnLocationMode = EPRBossPatternSpawnLocationMode::OriginOffset;
 	LeftPortalConfig.SpawnOrigin = EPRBossPatternSpawnOrigin::Boss;
-	LeftPortalConfig.LocalOffset = FVector(80.0f, -260.0f, 320.0f);
-	LeftPortalConfig.bFaceTarget = true;
-	LeftPortalConfig.bUseYawOnlyFacing = true;
+	LeftPortalConfig.OriginComponentName = TEXT("PortalAttach_Left");
+	LeftPortalConfig.LocalOffset = FVector::ZeroVector;
+	LeftPortalConfig.bFaceTarget = false;
 	LeftPortalConfig.bAttachToOriginAfterSpawn = true;
 
 	FPRBossPatternActorSpawnConfig& RightPortalConfig = PatternActorSpawnConfigs.AddDefaulted_GetRef();
 	RightPortalConfig.SpawnLocationMode = EPRBossPatternSpawnLocationMode::OriginOffset;
 	RightPortalConfig.SpawnOrigin = EPRBossPatternSpawnOrigin::Boss;
-	RightPortalConfig.LocalOffset = FVector(80.0f, 260.0f, 320.0f);
-	RightPortalConfig.bFaceTarget = true;
-	RightPortalConfig.bUseYawOnlyFacing = true;
+	RightPortalConfig.OriginComponentName = TEXT("PortalAttach_Right");
+	RightPortalConfig.LocalOffset = FVector::ZeroVector;
+	RightPortalConfig.bFaceTarget = false;
 	RightPortalConfig.bAttachToOriginAfterSpawn = true;
 }
 

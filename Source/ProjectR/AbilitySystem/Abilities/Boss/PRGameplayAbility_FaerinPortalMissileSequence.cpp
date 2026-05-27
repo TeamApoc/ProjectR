@@ -21,9 +21,10 @@ UPRGameplayAbility_FaerinPortalMissileSequence::UPRGameplayAbility_FaerinPortalM
 
 	PatternActorSpawnConfigs.Reset();
 	FPRBossPatternActorSpawnConfig& SpawnConfig = PatternActorSpawnConfigs.AddDefaulted_GetRef();
-	SpawnConfig.SpawnLocationMode = EPRBossPatternSpawnLocationMode::OriginOffset;
+	SpawnConfig.SpawnLocationMode = EPRBossPatternSpawnLocationMode::EnvQuery;
 	SpawnConfig.SpawnOrigin = EPRBossPatternSpawnOrigin::Target;
-	SpawnConfig.LocalOffset = FVector(-350.0f, 0.0f, 450.0f);
+	SpawnConfig.LocalOffset = FVector(0.0f, 0.0f, 450.0f);
+	SpawnConfig.bUseWorldSpaceOffset = true;
 	SpawnConfig.bFaceTarget = true;
 	SpawnConfig.bUseYawOnlyFacing = true;
 }

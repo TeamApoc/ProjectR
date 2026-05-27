@@ -294,8 +294,9 @@ void APRBossPortalActor::FirePortalProjectile()
 			*GetNameSafe(ProjectileClass.Get()));
 	}
 
+	const FVector LaunchDirection = CalculateProjectileLaunchDirection();
 	FTransform ProjectileSpawnTransform;
-	if (!BuildProjectileSpawnTransform(ProjectileSpawnTransform))
+	if (!BuildProjectileSpawnTransformFromDirection(LaunchDirection, ProjectileSpawnTransform))
 	{
 		UE_LOG(LogPRBossPortal, Warning,
 			TEXT("Portal fire failed because spawn transform could not be built. Portal=%s"),
@@ -347,12 +348,9 @@ void APRBossPortalActor::FirePortalProjectile()
 		return;
 	}
 
-	SpawnedProjectile->SetProjectileInitialVelocity(CalculateProjectileAimDirection(), ProjectileSpeedOverride);
-	if (bUseTrackingProjectile && IsValid(LockedTarget))
-	{
-		SpawnedProjectile->ConfigureProjectileHoming(LockedTarget->GetRootComponent(), ProjectileHomingAcceleration);
-	}
+	SpawnedProjectile->SetProjectileInitialVelocity(LaunchDirection, ProjectileSpeedOverride);
 	ConfigureSpawnedPortalProjectile(SpawnedProjectile);
+	ConfigurePortalProjectileHomingSchedule(SpawnedProjectile);
 
 	const FGameplayEffectSpecHandle EffectSpecHandle = ProjectileEffectSpecHandle.IsValid()
 		? ProjectileEffectSpecHandle
@@ -394,15 +392,7 @@ void APRBossPortalActor::ClearPortalFireTimer()
 
 bool APRBossPortalActor::BuildProjectileSpawnTransform(FTransform& OutTransform) const
 {
-	const FVector SpawnLocation = GetActorTransform().TransformPositionNoScale(ProjectileSpawnLocalOffset);
-	const FVector AimDirection = CalculateProjectileAimDirection();
-	if (AimDirection.IsNearlyZero())
-	{
-		return false;
-	}
-
-	OutTransform = FTransform((AimDirection.Rotation() + ProjectileRotationOffset), SpawnLocation);
-	return true;
+	return BuildProjectileSpawnTransformFromDirection(CalculateProjectileAimDirection(), OutTransform);
 }
 
 FVector APRBossPortalActor::CalculateProjectileAimDirection() const
@@ -430,6 +420,56 @@ FVector APRBossPortalActor::CalculateProjectileAimDirection() const
 	}
 
 	return (AimLocation - SpawnLocation).GetSafeNormal();
+}
+
+FVector APRBossPortalActor::CalculateProjectileLaunchDirection() const
+{
+	if (bUseFixedProjectileDirection || !bUseTrackingProjectile || !bUseTrackingConeLaunch)
+	{
+		return CalculateProjectileAimDirection();
+	}
+
+	FVector ConeForward = GetActorForwardVector();
+	if (ConeForward.IsNearlyZero())
+	{
+		ConeForward = CalculateProjectileAimDirection();
+	}
+
+	if (ConeForward.IsNearlyZero())
+	{
+		return FVector::ForwardVector;
+	}
+
+	const float MinAngleDegrees = FMath::Clamp(TrackingLaunchConeMinAngleDegrees, 0.0f, 90.0f);
+	const float MaxAngleDegrees = FMath::Clamp(TrackingLaunchConeMaxAngleDegrees, MinAngleDegrees, 90.0f);
+	const float LaunchAngleRadians = FMath::DegreesToRadians(FMath::RandRange(MinAngleDegrees, MaxAngleDegrees));
+	const float LaunchAzimuthRadians = FMath::RandRange(0.0f, UE_TWO_PI);
+
+	const FVector Forward = ConeForward.GetSafeNormal();
+	FVector Right = FVector::CrossProduct(FVector::UpVector, Forward).GetSafeNormal();
+	if (Right.IsNearlyZero())
+	{
+		Right = FVector::RightVector;
+	}
+	const FVector Up = FVector::CrossProduct(Forward, Right).GetSafeNormal();
+
+	return ((Forward * FMath::Cos(LaunchAngleRadians))
+		+ (Right * FMath::Cos(LaunchAzimuthRadians) * FMath::Sin(LaunchAngleRadians))
+		+ (Up * FMath::Sin(LaunchAzimuthRadians) * FMath::Sin(LaunchAngleRadians))).GetSafeNormal();
+}
+
+bool APRBossPortalActor::BuildProjectileSpawnTransformFromDirection(
+	const FVector& LaunchDirection,
+	FTransform& OutTransform) const
+{
+	if (LaunchDirection.IsNearlyZero())
+	{
+		return false;
+	}
+
+	const FVector SpawnLocation = GetActorTransform().TransformPositionNoScale(ProjectileSpawnLocalOffset);
+	OutTransform = FTransform((LaunchDirection.Rotation() + ProjectileRotationOffset), SpawnLocation);
+	return true;
 }
 
 bool APRBossPortalActor::CanFirePortalProjectile() const
@@ -592,22 +632,27 @@ void APRBossPortalActor::ConfigureSpawnedPortalProjectile(APRProjectileBase* Spa
 		}
 	}
 
-	if (bUseTrackingProjectile && ProjectileHomingDuration > 0.0f)
+}
+
+void APRBossPortalActor::ConfigurePortalProjectileHomingSchedule(APRProjectileBase* SpawnedProjectile)
+{
+	if (!bUseTrackingProjectile || !IsValid(SpawnedProjectile) || !IsValid(LockedTarget))
 	{
-		TWeakObjectPtr<APRProjectileBase> ProjectileWeak(SpawnedProjectile);
-		FTimerHandle HomingStopTimerHandle;
-		GetWorldTimerManager().SetTimer(
-			HomingStopTimerHandle,
-			FTimerDelegate::CreateWeakLambda(this, [ProjectileWeak]()
-			{
-				if (APRProjectileBase* Projectile = ProjectileWeak.Get())
-				{
-					Projectile->ConfigureProjectileHoming(nullptr, 0.0f);
-				}
-			}),
-			ProjectileHomingDuration,
-			false);
+		return;
 	}
+
+	AActor* HomingTargetActor = LockedTarget.Get();
+	if (!IsValid(HomingTargetActor) || !IsValid(HomingTargetActor->GetRootComponent()))
+	{
+		return;
+	}
+
+	const float ResolvedHomingAcceleration = FMath::Max(ProjectileHomingAcceleration, 0.0f);
+	SpawnedProjectile->ConfigureProjectileHomingSchedule(
+		HomingTargetActor,
+		ResolvedHomingAcceleration,
+		ProjectileHomingStartDelay,
+		ProjectileHomingDuration);
 }
 
 FGameplayEffectSpecHandle APRBossPortalActor::BuildProjectileEffectSpec() const

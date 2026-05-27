@@ -114,6 +114,8 @@ bool UPRGameplayAbility_BossPortalSequence::SpawnConfiguredPortals()
 		return false;
 	}
 
+	ResetSharedEnvQueryResultCache();
+
 	AActor* PatternTarget = GetBossPatternTarget();
 	for (const FPRBossPatternActorSpawnConfig& SpawnConfig : PatternActorSpawnConfigs)
 	{

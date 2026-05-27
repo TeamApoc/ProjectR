@@ -22,17 +22,23 @@ UPRGameplayAbility_FaerinPortalPairSequence::UPRGameplayAbility_FaerinPortalPair
 
 	PatternActorSpawnConfigs.Reset();
 
+	const FName SharedPairQueryKey = TEXT("PortalPair");
+
 	FPRBossPatternActorSpawnConfig& LeftPortalConfig = PatternActorSpawnConfigs.AddDefaulted_GetRef();
-	LeftPortalConfig.SpawnLocationMode = EPRBossPatternSpawnLocationMode::OriginOffset;
+	LeftPortalConfig.SpawnLocationMode = EPRBossPatternSpawnLocationMode::EnvQuery;
 	LeftPortalConfig.SpawnOrigin = EPRBossPatternSpawnOrigin::Target;
-	LeftPortalConfig.LocalOffset = FVector(-350.0f, -260.0f, 450.0f);
+	LeftPortalConfig.LocalOffset = FVector(0.0f, 0.0f, 450.0f);
+	LeftPortalConfig.bUseWorldSpaceOffset = true;
+	LeftPortalConfig.SharedEnvQueryResultKey = SharedPairQueryKey;
 	LeftPortalConfig.bFaceTarget = true;
 	LeftPortalConfig.bUseYawOnlyFacing = true;
 
 	FPRBossPatternActorSpawnConfig& RightPortalConfig = PatternActorSpawnConfigs.AddDefaulted_GetRef();
-	RightPortalConfig.SpawnLocationMode = EPRBossPatternSpawnLocationMode::OriginOffset;
+	RightPortalConfig.SpawnLocationMode = EPRBossPatternSpawnLocationMode::EnvQuery;
 	RightPortalConfig.SpawnOrigin = EPRBossPatternSpawnOrigin::Target;
-	RightPortalConfig.LocalOffset = FVector(-350.0f, 260.0f, 450.0f);
+	RightPortalConfig.LocalOffset = FVector(0.0f, 0.0f, 900.0f);
+	RightPortalConfig.bUseWorldSpaceOffset = true;
+	RightPortalConfig.SharedEnvQueryResultKey = SharedPairQueryKey;
 	RightPortalConfig.bFaceTarget = true;
 	RightPortalConfig.bUseYawOnlyFacing = true;
 }

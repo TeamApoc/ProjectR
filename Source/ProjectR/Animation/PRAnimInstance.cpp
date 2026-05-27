@@ -47,6 +47,7 @@ void UPRAnimInstance::NativeUpdateAnimation(float DeltaSeconds)
 	UpdateAcceleration();
 	UpdateDirection();
 	UpdateFlags();
+	UpdateMovementSpeedMultiplier();
 	UpdateMovementMode();
 	UpdateTurnInPlace();
 	UpdateRootYawOffset();
@@ -228,6 +229,11 @@ void UPRAnimInstance::UpdateMovementMode()
 
 	const float Threshold = (PlayerCharacter->GetWalkSpeed() + PlayerCharacter->GetJogSpeed()) * 0.5f;
 	MovementMode = XYSpeed <= Threshold ? EPRMovementMode::Walking : EPRMovementMode::Jogging;
+}
+
+void UPRAnimInstance::UpdateMovementSpeedMultiplier()
+{
+	MovementSpeedMultiplier = PlayerCharacter->GetMovementSpeedMultiplier();
 }
 
 /*~ 회전 및 조준 상태 갱신 ~*/

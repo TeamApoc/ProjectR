@@ -60,7 +60,7 @@ FPRWeaponUpgradeResult UPRWeaponUpgradeComponent::RequestUpgradeWeapon(APRPlayer
 	APRPlayerState* PlayerState = RequestingController->GetPlayerState<APRPlayerState>();
 	UPRInventoryComponent* InventoryComponent = IsValid(PlayerState) ? PlayerState->GetInventoryComponent() : nullptr;
 	UPRCurrencyComponent* CurrencyComponent = IsValid(PlayerState) ? PlayerState->GetCurrencyComponent() : nullptr;
-	if (!IsValid(InventoryComponent) || !IsValid(CurrencyComponent) || !IsValid(WeaponItem) || !InventoryComponent->OwnsWeapon(WeaponItem))
+	if (!IsValid(InventoryComponent) || !IsValid(CurrencyComponent) || !IsValid(WeaponItem) || !InventoryComponent->OwnsItem(WeaponItem))
 	{
 		bUpgradeRequestInProgress = false;
 		return MakeFailureResult(RequestingController, WeaponItem, EPRWeaponUpgradeFailReason::InvalidWeapon);
@@ -96,7 +96,7 @@ FPRWeaponUpgradeResult UPRWeaponUpgradeComponent::RequestUpgradeWeapon(APRPlayer
 
 	for (const TPair<UPRMaterialDataAsset*, int32>& MaterialCost : MaterialCosts)
 	{
-		const UPRItemInstance_Material* MaterialItem = InventoryComponent->FindMaterialItemByData(MaterialCost.Key);
+		const UPRItemInstance_Material* MaterialItem = InventoryComponent->FindItemByData<UPRItemInstance_Material>(MaterialCost.Key);
 		if (!IsValid(MaterialItem) || MaterialItem->GetStackCount() < MaterialCost.Value)
 		{
 			bUpgradeRequestInProgress = false;
@@ -113,11 +113,11 @@ FPRWeaponUpgradeResult UPRWeaponUpgradeComponent::RequestUpgradeWeapon(APRPlayer
 	TArray<TPair<UPRMaterialDataAsset*, int32>> ConsumedMaterials;
 	for (const TPair<UPRMaterialDataAsset*, int32>& MaterialCost : MaterialCosts)
 	{
-		if (!InventoryComponent->RemoveMaterialItemByData(MaterialCost.Key, MaterialCost.Value))
+		if (!InventoryComponent->RemoveItemByData(MaterialCost.Key, MaterialCost.Value))
 		{
 			for (const TPair<UPRMaterialDataAsset*, int32>& ConsumedMaterial : ConsumedMaterials)
 			{
-				InventoryComponent->AddMaterialItem(ConsumedMaterial.Key, ConsumedMaterial.Value);
+				InventoryComponent->AddItem<UPRItemInstance_Material>(ConsumedMaterial.Key, ConsumedMaterial.Value);
 			}
 
 			if (UpgradeRow->Cost.Scrap > 0)
@@ -136,7 +136,7 @@ FPRWeaponUpgradeResult UPRWeaponUpgradeComponent::RequestUpgradeWeapon(APRPlayer
 	{
 		for (const TPair<UPRMaterialDataAsset*, int32>& ConsumedMaterial : ConsumedMaterials)
 		{
-			InventoryComponent->AddMaterialItem(ConsumedMaterial.Key, ConsumedMaterial.Value);
+			InventoryComponent->AddItem<UPRItemInstance_Material>(ConsumedMaterial.Key, ConsumedMaterial.Value);
 		}
 
 		if (UpgradeRow->Cost.Scrap > 0)
@@ -197,7 +197,7 @@ FPRWeaponUpgradePreview UPRWeaponUpgradeComponent::BuildUpgradePreview(APRPlayer
 	UPRInventoryComponent* InventoryComponent = IsValid(PlayerState) ? PlayerState->GetInventoryComponent() : nullptr;
 	UPRCurrencyComponent* CurrencyComponent = IsValid(PlayerState) ? PlayerState->GetCurrencyComponent() : nullptr;
 
-	Preview.bOwnsWeapon = IsValid(InventoryComponent) && InventoryComponent->OwnsWeapon(WeaponItem);
+	Preview.bOwnsWeapon = IsValid(InventoryComponent) && InventoryComponent->OwnsItem(WeaponItem);
 	Preview.OwnedScrap = IsValid(CurrencyComponent) ? CurrencyComponent->GetScrap() : 0;
 
 	const FPRWeaponUpgradeRow* UpgradeRow = FindNextUpgradeRow(WeaponItem, Preview.CurrentLevel);
@@ -227,7 +227,7 @@ FPRWeaponUpgradePreview UPRWeaponUpgradeComponent::BuildUpgradePreview(APRPlayer
 		MaterialCostViewData.Icon = IsValid(MaterialCost.Key) ? MaterialCost.Key->GetIcon() : nullptr;
 
 		const UPRItemInstance_Material* MaterialItem = IsValid(InventoryComponent)
-			? InventoryComponent->FindMaterialItemByData(MaterialCost.Key)
+			? InventoryComponent->FindItemByData<UPRItemInstance_Material>(MaterialCost.Key)
 			: nullptr;
 		MaterialCostViewData.OwnedQuantity = IsValid(MaterialItem) ? MaterialItem->GetStackCount() : 0;
 		MaterialCostViewData.bEnough = MaterialCostViewData.OwnedQuantity >= MaterialCostViewData.RequiredQuantity;

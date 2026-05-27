@@ -24,6 +24,9 @@ public:
 	/*~ UObject Interface ~*/
 	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
 
+	/*~ UPRItemInstance Interface ~*/
+	virtual bool ActivateItem(const FPRItemActivationContext& ActivationContext) override;
+	virtual bool DeactivateItem(const FPRItemActivationContext& ActivationContext) override;
 public:
 	// 무기와 초기 Mod 데이터를 연결한다
 	virtual void InitializeItem(UPRItemDataAsset* InItemData, int32 InitialStackCount = 1) override;
@@ -101,12 +104,6 @@ protected:
 	void ResetTransientRuntimeOnDeactivate();
 
 private:
-	// 무기 데이터 배열로 생성한 장착 AbilitySet을 반환한다
-	UPRAbilitySet* GetWeaponAbilitySet();
-
-	// Mod 데이터 배열로 생성한 장착 AbilitySet을 반환한다
-	UPRAbilitySet* GetModAbilitySet();
-	
 	// 장착 Mod 데이터 복제 완료 시 인벤토리 UI 갱신 신호를 발행한다
 	UFUNCTION()
 	void OnRep_ModData();
@@ -159,13 +156,4 @@ public:
 	// 버프형 Mod의 종료 예정 시각 // 무기 인스턴스에 있어야하는지 확인 필요
 	UPROPERTY(Transient)
 	float ModEffectEndServerWorldTimeSeconds = 0.0f;
-
-private:
-	// 무기 데이터 배열로 생성한 장착 어빌리티 세트 캐시
-	UPROPERTY(Transient)
-	TObjectPtr<UPRAbilitySet> CachedWeaponAbilitySet = nullptr;
-
-	// Mod 데이터 배열로 생성한 장착 어빌리티 세트 캐시
-	UPROPERTY(Transient)
-	TObjectPtr<UPRAbilitySet> CachedModAbilitySet = nullptr;
 };

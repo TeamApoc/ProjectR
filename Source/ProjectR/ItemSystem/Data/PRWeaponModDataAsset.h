@@ -18,24 +18,26 @@ class PROJECTR_API UPRWeaponModDataAsset : public UPRItemDataAsset
 public:
 	UPRWeaponModDataAsset();
 
+	void GiveToAbilitySystem(UAbilitySystemComponent* TargetASC, FPRAbilitySetHandles& OutHandles, UObject* InSourceObject);
+	
 public:
 	// Mod 분류와 호환성 검증에 사용할 태그 목록
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|Weapon")
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Item|Mod")
 	FGameplayTagContainer ModTags;
 
 	// 슬롯 초기화 시 사용할 최대 게이지
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|Weapon|Stat", meta = (ClampMin = "0.0"))
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Item|Mod|Stat", meta = (ClampMin = "0.0"))
 	float MaxModGauge = 1000.0f;
 	
 	// 슬롯 초기화 시 사용할 최대 스택
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|Weapon|Stat", meta = (ClampMin = "0.0"))
-	float MaxModStck = 0.0f;
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Item|Mod|Stat", meta = (ClampMin = "0.0"))
+	float MaxModStack = 0.0f;
 
 	// 활성 슬롯 장착 시 부여할 Mod 어빌리티 목록. 순서대로 GiveAbility
-	UPROPERTY(EditAnywhere, Category = "ProjectR|Weapon")
+	UPROPERTY(EditAnywhere, Category = "Item|Mod")
 	TArray<FPRAbilityEntry> EquippedAbilities;
 
 	// 활성 슬롯 장착 시 부여 직후 자동 적용할 Mod Startup GE 목록
-	UPROPERTY(EditAnywhere, Category = "ProjectR|Weapon")
+	UPROPERTY(EditAnywhere, Category = "Item|Mod")
 	TArray<FPREffectEntry> EquippedEffects;
 };

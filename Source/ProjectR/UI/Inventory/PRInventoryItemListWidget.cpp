@@ -35,6 +35,9 @@ void UPRInventoryItemListWidget::SetItemList(EPRItemType InListType, const TArra
 		case EPRItemType::Material:
 		ItemTypeString = TEXT("재료");
 		break;
+		case EPRItemType::Equipment:
+		ItemTypeString = TEXT("장비");
+		break;
 		case EPRItemType::Weapon:
 		ItemTypeString = TEXT("무기");
 		break;
@@ -202,7 +205,7 @@ void UPRInventoryItemListWidget::AddGeneratedItemSlot(UPRItemSlotWidget* ItemSlo
 void UPRInventoryItemListWidget::HandleItemSlotLeftClicked(const FPRInventoryItemSlotViewData& ViewData)
 {
 	// 슬롯이 비어있으면
-	if (!IsValid(ViewData.ItemInstance.Get()) && !ViewData.bUnequipEntry)
+	if (!IsValid(ViewData.ItemInstance.Get()) && ViewData.InventoryAction == EPRInventoryAction::None)
 	{
 		// 아무 것도 하지 않음
 		return;
@@ -215,7 +218,7 @@ void UPRInventoryItemListWidget::HandleItemSlotLeftClicked(const FPRInventoryIte
 void UPRInventoryItemListWidget::HandleItemSlotRightClicked(const FPRInventoryItemSlotViewData& ViewData)
 {
 	// 슬롯이 비어있으면
-	if (!IsValid(ViewData.ItemInstance.Get()) && !ViewData.bUnequipEntry)
+	if (!IsValid(ViewData.ItemInstance.Get()) && ViewData.InventoryAction == EPRInventoryAction::None)
 	{
 		// 아무것도 하지 않음
 		return;

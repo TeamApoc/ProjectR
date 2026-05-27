@@ -9,11 +9,16 @@
 #include "PREquipmentManagerComponent.generated.h"
 
 class UPRItemInstance_Equipment;
+class UPREquipmentManagerComponent;
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(
 	FPREquipmentChangedSignature,
 	EPREquipmentSlotType, SlotType,
 	UPRItemInstance_Equipment*, EquipmentItem);
+
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(
+	FPREquipmentVisualInfosChangedSignature,
+	UPREquipmentManagerComponent*, EquipmentManagerComponent);
 
 // 단일 장비 슬롯 정보
 USTRUCT(BlueprintType)
@@ -99,6 +104,10 @@ public:
 	// 장비 슬롯 변경 델리게이트
 	UPROPERTY(BlueprintAssignable, Category = "ProjectR|Equipment")
 	FPREquipmentChangedSignature OnEquipmentChanged;
+
+	// 장비 외형 정보 변경 델리게이트
+	UPROPERTY(BlueprintAssignable, Category = "ProjectR|Equipment")
+	FPREquipmentVisualInfosChangedSignature OnEquipmentVisualInfosChanged;
 
 protected:
 	// 장착 시각 정보 복제 알림

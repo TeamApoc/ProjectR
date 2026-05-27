@@ -1,10 +1,12 @@
-﻿// Copyright (c) 2026 TeamApoc. All Rights Reserved.
+// Copyright (c) 2026 TeamApoc. All Rights Reserved.
 
 
 #include "PRInventoryWidget.h"
 
 #include "GameFramework/PlayerController.h"
 #include "Components/TextBlock.h"
+#include "Engine/World.h"
+#include "TimerManager.h"
 #include "ProjectR/Character/PRPlayerCharacter.h"
 #include "ProjectR/ItemSystem/Components/PREquipmentManagerComponent.h"
 #include "ProjectR/ItemSystem/Components/PRInventoryComponent.h"
@@ -58,8 +60,6 @@ void UPRInventoryWidget::NativeConstruct()
 	CloseItemList();
 	// 인벤토리 화면 갱신
 	RefreshInventoryView();
-	// 캐릭터 프리뷰 갱신
-	RefreshCharacterPreviewWidget();
 }
 
 void UPRInventoryWidget::NativeDestruct()
@@ -207,6 +207,12 @@ void UPRInventoryWidget::UnbindChildWidgetEvents()
 
 void UPRInventoryWidget::BindInventorySourceEvents()
 {
+	APlayerController* OwningPlayerController = GetOwningPlayer();
+	if (!IsValid(OwningPlayerController) || !OwningPlayerController->IsLocalController())
+	{
+		return;
+	}
+	
 	if (IsValid(InventoryComponent))
 	{
 		InventoryComponent->GetOnInventoryChanged().RemoveDynamic(this, &UPRInventoryWidget::HandleInventoryChanged);
@@ -229,6 +235,8 @@ void UPRInventoryWidget::BindInventorySourceEvents()
 	{
 		EquipmentManagerComponent->OnEquipmentChanged.RemoveDynamic(this, &UPRInventoryWidget::HandleEquipmentChanged);
 		EquipmentManagerComponent->OnEquipmentChanged.AddDynamic(this, &UPRInventoryWidget::HandleEquipmentChanged);
+		EquipmentManagerComponent->OnEquipmentVisualInfosChanged.RemoveDynamic(this, &UPRInventoryWidget::HandleEquipmentVisualInfosChanged);
+		EquipmentManagerComponent->OnEquipmentVisualInfosChanged.AddDynamic(this, &UPRInventoryWidget::HandleEquipmentVisualInfosChanged);
 	}
 
 	CurrencyComponent = ResolveCurrencyComponent();
@@ -259,6 +267,7 @@ void UPRInventoryWidget::UnbindInventorySourceEvents()
 	if (IsValid(EquipmentManagerComponent))
 	{
 		EquipmentManagerComponent->OnEquipmentChanged.RemoveDynamic(this, &UPRInventoryWidget::HandleEquipmentChanged);
+		EquipmentManagerComponent->OnEquipmentVisualInfosChanged.RemoveDynamic(this, &UPRInventoryWidget::HandleEquipmentVisualInfosChanged);
 	}
 
 	if (IsValid(CurrencyComponent))
@@ -440,18 +449,31 @@ void UPRInventoryWidget::HandleQuickSlotChanged(UPRQuickSlotComponent* ChangedQu
 
 void UPRInventoryWidget::HandleEquipmentChanged(EPREquipmentSlotType ChangedSlot, UPRItemInstance_Equipment* EquipmentItem)
 {
-	static_cast<void>(ChangedSlot);
-	static_cast<void>(EquipmentItem);
-
 	// 장비 변경은 슬롯 표시, 열린 장비 목록의 장착 표시, 캐릭터 프리뷰가 함께 변하는 외부 상태
 	RefreshInventoryView();
 	RefreshCharacterPreviewWidget();
 }
 
+void UPRInventoryWidget::HandleEquipmentVisualInfosChanged(UPREquipmentManagerComponent* ChangedEquipmentManagerComponent)
+{
+	if (ChangedEquipmentManagerComponent != EquipmentManagerComponent)
+	{
+		return;
+	}
+
+	UWorld* World = GetWorld();
+	if (!IsValid(World))
+	{
+		return;
+	}
+
+	// 같은 외형 이벤트를 플레이어 캐릭터와 인벤토리 위젯이 함께 수신하는 구조
+	// 델리게이트 실행 순서와 무관하게 캐릭터 파츠 메시 갱신 이후 프리뷰를 복사하기 위한 다음 틱 예약
+	World->GetTimerManager().SetTimerForNextTick(FTimerDelegate::CreateUObject(this, &ThisClass::RefreshCharacterPreviewWidget));
+}
+
 void UPRInventoryWidget::HandleScrapChanged(int32 NewScrap)
 {
-	static_cast<void>(NewScrap);
-
 	RefreshCurrencyText();
 }
 
@@ -802,7 +824,7 @@ void UPRInventoryWidget::RefreshCharacterPreviewWidget()
 APRPlayerCharacter* UPRInventoryWidget::GetPreviewSourceCharacter() const
 {
 	APlayerController* OwningPlayerController = GetOwningPlayer();
-	if (!IsValid(OwningPlayerController))
+	if (!IsValid(OwningPlayerController) || !OwningPlayerController->IsLocalController())
 	{
 		return nullptr;
 	}

@@ -5,7 +5,6 @@
 #include "AbilitySystemComponent.h"
 #include "Abilities/Tasks/AbilityTask_PlayMontageAndWait.h"
 #include "Abilities/Tasks/AbilityTask_WaitGameplayEvent.h"
-#include "ProjectR/ItemSystem/Components/PRInventoryComponent.h"
 #include "ProjectR/ItemSystem/Items/PRItemInstance_Consumable.h"
 #include "ProjectR/PRGameplayTags.h"
 
@@ -17,7 +16,7 @@ UPRGA_UseConsumable::UPRGA_UseConsumable()
 	// 소비템 사용중 태그 부여
 	ActivationOwnedTags.AddTag(PRGameplayTags::State_UsingConsumable);
 	
-	// 아래의 행동을 차단한다
+	// 아래의 행동 차단
 	BlockAbilitiesWithTag.AddTag(PRGameplayTags::Ability_Player_Aim);
 	BlockAbilitiesWithTag.AddTag(PRGameplayTags::Ability_Player_Crouch);
 	BlockAbilitiesWithTag.AddTag(PRGameplayTags::Ability_Player_SwapWeapon);
@@ -129,6 +128,7 @@ void UPRGA_UseConsumable::OnConsumableCommitEvent(FGameplayEventData EventData)
 
 	if (!IsValid(ActiveConsumableItem) || !ActiveConsumableItem->HasAnyStack())
 	{
+		K2_CancelAbility();
 		return;
 	}
 
@@ -140,6 +140,7 @@ void UPRGA_UseConsumable::OnConsumableCommitEvent(FGameplayEventData EventData)
 			TEXT("[ConsumableAbility][Server] 효과 적용 실패. Ability = %s | Item = %s"),
 			*GetNameSafe(this),
 			*GetNameSafe(ActiveConsumableItem));
+		K2_CancelAbility();
 		return;
 	}
 
@@ -151,6 +152,7 @@ void UPRGA_UseConsumable::OnConsumableCommitEvent(FGameplayEventData EventData)
 			TEXT("[ConsumableAbility][Server] 스택 소모 실패. Ability = %s | Item = %s"),
 			*GetNameSafe(this),
 			*GetNameSafe(ActiveConsumableItem));
+		K2_CancelAbility();
 		return;
 	}
 
@@ -193,19 +195,11 @@ bool UPRGA_UseConsumable::ApplyConsumableEffect()
 
 bool UPRGA_UseConsumable::ConsumeActiveItem()
 {
-	if (!IsValid(ActiveConsumableItem))
+	if (IsValid(ActiveConsumableItem))
 	{
-		return false;
+		return ActiveConsumableItem->RemoveStack(1);
 	}
-
-	UPRInventoryComponent* InventoryComponent = ActiveConsumableItem->GetTypedOuter<UPRInventoryComponent>();
-	if (!IsValid(InventoryComponent))
-	{
-		return false;
-	}
-
-	InventoryComponent->RequestRemoveConsumableItem(ActiveConsumableItem, 1);
-	return true;
+	return false;
 }
 
 UPRItemInstance_Consumable* UPRGA_UseConsumable::ResolveConsumableItemFromEventData(const FGameplayEventData* TriggerEventData) const

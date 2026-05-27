@@ -14,7 +14,8 @@ enum class EPRItemType : uint8
 	PrimaryWeapon,
 	SecondaryWeapon,
 	Consumable,
-	Material
+	Material,
+	Equipment
 };
 
 UENUM(BlueprintType)

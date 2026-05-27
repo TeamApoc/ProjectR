@@ -10,6 +10,7 @@
 #include "ProjectR/ItemSystem/Items/PRItemInstance.h"
 #include "ProjectR/Player/Components/PRCurrencyComponent.h"
 #include "ProjectR/Player/Components/PRPlayerGrowthComponent.h"
+#include "ProjectR/Player/PRPlayerController.h"
 #include "ProjectR/Player/PRPlayerState.h"
 #include "ProjectR/ProjectR.h"
 #include "ProjectR/System/PRAssetManager.h"
@@ -375,6 +376,7 @@ bool UPRItemDropManagerSubsystem::GrantRewardToPlayer(APRPlayerState* PlayerStat
 		const bool bGranted = CurrencyComponent->AddScrap(Reward.ScrapAmount);
 		if (bGranted)
 		{
+			NotifyPickupRewardGranted(PlayerState, Reward);
 			UE_LOG(
 				LogTemp,
 				Log,
@@ -402,8 +404,35 @@ bool UPRItemDropManagerSubsystem::GrantRewardToPlayer(APRPlayerState* PlayerStat
 		UPRItemInstance* AddedItem = IsValid(InventoryComponent) && IsValid(Reward.ItemData)
 			? InventoryComponent->AddItem(Reward.ItemData, Reward.Quantity)
 			: nullptr;
-		return IsValid(AddedItem);
+		const bool bGranted = IsValid(AddedItem);
+		if (bGranted)
+		{
+			NotifyPickupRewardGranted(PlayerState, Reward);
+		}
+		return bGranted;
 	}
 
 	return false;
+}
+
+void UPRItemDropManagerSubsystem::NotifyPickupRewardGranted(APRPlayerState* PlayerState, const FPRResolvedDropReward& Reward) const
+{
+	APRPlayerController* PlayerController = IsValid(PlayerState)
+		? Cast<APRPlayerController>(PlayerState->GetOwner())
+		: nullptr;
+	if (!IsValid(PlayerController))
+	{
+		return;
+	}
+
+	FPRPickupNotificationPayload Payload;
+	Payload.RewardType = Reward.RewardType;
+	Payload.ItemAssetId = Reward.ItemAssetId;
+	Payload.Quantity = Reward.RewardType == EPRRewardType::Currency ? Reward.ScrapAmount : Reward.Quantity;
+	if (Payload.Quantity <= 0)
+	{
+		return;
+	}
+
+	PlayerController->ClientNotifyPickupReward(Payload);
 }

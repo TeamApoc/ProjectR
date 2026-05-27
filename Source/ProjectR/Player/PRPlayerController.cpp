@@ -483,6 +483,16 @@ void APRPlayerController::ClientNotifyPlayerLevelUp_Implementation(int32 Previou
 	UIControllerComponent->ShowLevelUpPopup(PreviousLevel, CurrentLevel);
 }
 
+void APRPlayerController::ClientNotifyPickupReward_Implementation(const FPRPickupNotificationPayload& Payload)
+{
+	if (!IsValid(UIControllerComponent))
+	{
+		return;
+	}
+
+	UIControllerComponent->ShowPickupRewardNotification(Payload);
+}
+
 void APRPlayerController::RequestUpgradeWeapon(UPRWeaponUpgradeComponent* UpgradeComponent, UPRItemInstance_Weapon* WeaponItem)
 {
 	if (!IsValid(UpgradeComponent) || !IsValid(WeaponItem))

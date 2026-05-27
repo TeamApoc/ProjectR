@@ -16,6 +16,7 @@
 #include "ProjectR/UI/HUD/PRBossHealthBarWidget.h"
 #include "ProjectR/UI/HUD/PRHealthBarWidget.h"
 #include "ProjectR/UI/HUD/PRPartyHealthListWidget.h"
+#include "ProjectR/UI/HUD/PRPickupNotificationListWidget.h"
 #include "ProjectR/UI/HUD/PRStaminaBarWidget.h"
 #include "ProjectR/UI/HUD/PRQuickSlotWidget.h"
 #include "ProjectR/UI/Growth/PRLevelUpPopupWidget.h"
@@ -59,6 +60,16 @@ void UPRHUDWidget::ShowLevelUpPopup(int32 PreviousLevel, int32 CurrentLevel)
 	}
 
 	LevelUpPopupWidget->ShowLevelUp(PreviousLevel, CurrentLevel);
+}
+
+void UPRHUDWidget::ShowPickupRewardNotification(const FPRPickupNotificationPayload& Payload)
+{
+	if (!IsValid(PickupNotificationListWidget))
+	{
+		return;
+	}
+
+	PickupNotificationListWidget->AddNotification(Payload);
 }
 
 void UPRHUDWidget::NativeOnInitialized()

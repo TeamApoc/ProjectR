@@ -55,6 +55,10 @@ void UPRUIControllerComponent::ToggleInventory()
 	UPRWeaponManagerComponent* WeaponManagerComponent = GetWeaponManagerComponent();
 	UPRQuickSlotComponent* QuickSlotComponent = GetQuickSlotComponent();
 	UPREquipmentManagerComponent* EquipmentManagerComponent = GetEquipmentManagerComponent();
+	if (!IsValid(InventoryComponent) || !IsValid(WeaponManagerComponent) || !IsValid(QuickSlotComponent) || !IsValid(EquipmentManagerComponent))
+	{
+		return;
+	}
 
 	CreatedInventoryWidget->SetInventorySources(InventoryComponent, WeaponManagerComponent, QuickSlotComponent, EquipmentManagerComponent);
 	UIManager->PushUIInstance(CreatedInventoryWidget);
@@ -274,6 +278,19 @@ void UPRUIControllerComponent::ShowLevelUpPopup(int32 PreviousLevel, int32 Curre
 	if (IsValid(HUDWidget))
 	{
 		HUDWidget->ShowLevelUpPopup(PreviousLevel, CurrentLevel);
+	}
+}
+
+void UPRUIControllerComponent::ShowPickupRewardNotification(const FPRPickupNotificationPayload& Payload)
+{
+	if (!IsLocalPlayer() || Payload.Quantity <= 0)
+	{
+		return;
+	}
+
+	if (IsValid(HUDWidget))
+	{
+		HUDWidget->ShowPickupRewardNotification(Payload);
 	}
 }
 

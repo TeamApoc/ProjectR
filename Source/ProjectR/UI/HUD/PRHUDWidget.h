@@ -3,11 +3,13 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "ProjectR/ItemSystem/Types/PRDropTypes.h"
 #include "ProjectR/UI/PRWidgetBase.h"
 #include "PRHUDWidget.generated.h"
 
 class UPRInteractionHintWidget;
 class UPRLevelUpPopupWidget;
+class UPRPickupNotificationListWidget;
 class UPRQuickSlotWidget;
 class UPRWeaponHUDWidget;
 class UPRCrosshairWidget;
@@ -46,6 +48,10 @@ public:
 	// 레벨업 팝업 표시 요청
 	UFUNCTION(BlueprintCallable, Category = "ProjectR|HUD|Growth")
 	void ShowLevelUpPopup(int32 PreviousLevel, int32 CurrentLevel);
+
+	// 드롭 보상 획득 알림 표시 요청
+	UFUNCTION(BlueprintCallable, Category = "ProjectR|HUD|Pickup")
+	void ShowPickupRewardNotification(const FPRPickupNotificationPayload& Payload);
 
 protected:
 	/*~ UUserWidget Interface ~*/
@@ -134,6 +140,10 @@ protected:
 	// UMG 트리에서 동일 이름("LevelUpPopupWidget")의 자식이 있을 때 자동 바인딩
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "HUD")
 	TObjectPtr<UPRLevelUpPopupWidget> LevelUpPopupWidget;
+
+	// W_HUD에 배치한 픽업 알림 목록 위젯
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "HUD")
+	TObjectPtr<UPRPickupNotificationListWidget> PickupNotificationListWidget;
 
 private:
 	TArray<FDelegateHandle> EventHandles;

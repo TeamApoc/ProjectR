@@ -11,6 +11,7 @@
 #include "PRStartMenuWidget.generated.h"
 
 class UButton;
+class UEditableTextBox;
 class UPRItemSlotWidget;
 class UTextBlock;
 class UPRCharacterPreviewWidget;
@@ -42,8 +43,29 @@ private:
 	// 세이브 슬롯 버튼 이벤트 바인딩을 해제함
 	void UnbindSaveSlotButtonEvents();
 
+	// 시작 버튼 이벤트 바인딩
+	void BindStartButtonEvents();
+
+	// 시작 버튼 이벤트 바인딩 해제
+	void UnbindStartButtonEvents();
+
+	// 세션 상태 이벤트 바인딩
+	void BindSessionEvents();
+
+	// 세션 상태 이벤트 바인딩 해제
+	void UnbindSessionEvents();
+
+	// 세션 입력 기본값 설정
+	void ConfigureSessionInputDefaults();
+
 	// 세이브 슬롯 버튼과 라벨을 현재 파일 상태 기준으로 갱신함
 	void RefreshSaveSlotButtons();
+
+	// 시작 버튼 활성 상태 갱신
+	void RefreshStartButtonEnabled(bool bEnabled);
+
+	// 세션 상태 표시 텍스트 갱신
+	void RefreshSessionStatusText(const FText& StatusText);
 
 	// 선택된 세이브 데이터 기준으로 무기와 장비 슬롯을 갱신함
 	void RefreshSelectedSavePreview(const FPRCharacterSaveData& SaveData);
@@ -74,6 +96,18 @@ private:
 
 	// 현재 GameInstance를 ProjectR 타입으로 반환함
 	UPRGameInstance* GetProjectRGameInstance() const;
+
+	// 시작 버튼 클릭 처리
+	UFUNCTION()
+	void HandleStartButtonClicked();
+
+	// 세션 상태 변경 처리
+	UFUNCTION()
+	void HandleSessionStateChanged(EPRSessionState NewState);
+
+	// 세션 실패 처리
+	UFUNCTION()
+	void HandleSessionFailed(EPRSessionFailReason Reason, FString Detail);
 
 	// 1번 세이브 슬롯 클릭 처리
 	UFUNCTION()
@@ -123,6 +157,26 @@ protected:
 	// UMG에서 바인딩할 4번 세이브 슬롯 텍스트
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "ProjectR|StartMenu")
 	TObjectPtr<UTextBlock> SaveSlotText4;
+
+	// UMG에서 바인딩할 호스트 IP 입력창
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidget), Category = "ProjectR|StartMenu")
+	TObjectPtr<UEditableTextBox> HostAddressTextBox;
+
+	// UMG에서 바인딩할 세션 시작 버튼
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidget), Category = "ProjectR|StartMenu")
+	TObjectPtr<UButton> StartButton;
+
+	// UMG에서 바인딩할 세션 상태 텍스트
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "ProjectR|StartMenu")
+	TObjectPtr<UTextBlock> SessionStatusText;
+
+	// 호스트 시작 시 사용할 기본 맵
+	UPROPERTY(EditDefaultsOnly, Category = "ProjectR|StartMenu")
+	FName HostMapName = TEXT("L_Playground");
+
+	// 호스트 시작 시 허용할 최대 인원
+	UPROPERTY(EditDefaultsOnly, Category = "ProjectR|StartMenu", meta = (ClampMin = "1"))
+	int32 HostMaxPlayers = 4;
 
 	// UMG에서 바인딩할 주무기 슬롯 위젯
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidget), Category = "ProjectR|StartMenu")

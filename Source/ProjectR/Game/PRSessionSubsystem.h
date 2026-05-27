@@ -72,8 +72,8 @@ protected:
 	// 호스트 개시 시 보관된 파라미터. 맵 전이 이후 로직에서 참조
 	FPRHostSessionParams PendingHostParams;
 
-	// 메뉴 복귀 시 사용할 맵 이름. 프로젝트 설정에서 주입
-	FName MenuMapName = TEXT("MainMenu");
+	// 메뉴 복귀 시 사용할 기본 메뉴 맵
+	FName MenuMapName = TEXT("/Game/1_Maps/L_Menu");
 
 	// 호스트 리슨 포트와 클라 접속 포트 통일값. 프로젝트 단일 진입점 고정
 	static constexpr int32 SessionPort = 7777;

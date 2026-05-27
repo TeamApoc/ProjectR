@@ -136,6 +136,11 @@ void APRPlayerController::SetupInputComponent()
 		EIC->BindAction(TraitWindowAction.Get(), ETriggerEvent::Started, this, &APRPlayerController::OnTraitWindowInputStarted);
 	}
 
+	if (IsValid(InGameMenuAction.Get()))
+	{
+		EIC->BindAction(InGameMenuAction.Get(), ETriggerEvent::Started, this, &APRPlayerController::OnInGameMenuInputStarted);
+	}
+
 	
 	for (int32 SlotIndex = 0; SlotIndex < QuickSlotActions.Num(); ++SlotIndex)
 	{
@@ -635,6 +640,16 @@ void APRPlayerController::OnTraitWindowInputStarted()
 	}
 
 	UIControllerComponent->ToggleTraitWindow();
+}
+
+void APRPlayerController::OnInGameMenuInputStarted()
+{
+	if (!IsValid(UIControllerComponent))
+	{
+		return;
+	}
+
+	UIControllerComponent->ToggleInGameMenu();
 }
 
 void APRPlayerController::OnQuickSlotInputStarted(int32 SlotIndex)

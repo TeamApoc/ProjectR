@@ -196,6 +196,9 @@ protected:
 
 	// 특성 투자창 입력 시작을 처리
 	void OnTraitWindowInputStarted();
+
+	// 인게임 메뉴 입력 시작을 처리
+	void OnInGameMenuInputStarted();
 	
 	// 퀵슬롯 입력 시작을 처리
 	void OnQuickSlotInputStarted(int32 SlotIndex);
@@ -243,6 +246,10 @@ protected:
 	// 특성 투자창 열기 입력 액션
 	UPROPERTY(EditDefaultsOnly, Category = "ProjectR|Input")
 	TObjectPtr<const UInputAction> TraitWindowAction;
+
+	// 인게임 메뉴 열기 입력 액션
+	UPROPERTY(EditDefaultsOnly, Category = "ProjectR|Input")
+	TObjectPtr<const UInputAction> InGameMenuAction;
 
 	// 퀵슬롯 입력 액션 목록. 배열 인덱스가 퀵슬롯 인덱스와 일치한다
 	UPROPERTY(EditDefaultsOnly, Category = "ProjectR|Input")

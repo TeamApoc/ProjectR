@@ -124,7 +124,7 @@ bool UPRGameInstance::LoadLocalCharacter(FName SlotName)
 		return false;
 	}
 
-	LocalCharacter = LoadedPRSaveGame->CharacterSaveData;
+	LocalCharacterSave = LoadedPRSaveGame->CharacterSaveData;
 	return true;
 }
 
@@ -142,7 +142,7 @@ bool UPRGameInstance::SaveLocalCharacter(FName SlotName)
 		return false;
 	}
 
-	NewSaveGame->CharacterSaveData = LocalCharacter;
+	NewSaveGame->CharacterSaveData = LocalCharacterSave;
 	return UGameplayStatics::SaveGameToSlot(NewSaveGame, SlotName.ToString(), LocalCharacterSaveUserIndex);
 }
 
@@ -164,7 +164,14 @@ bool UPRGameInstance::LoadLocalCharacterSlot(int32 SlotIndex)
 	}
 
 	const FString SlotName = BuildLocalCharacterSlotName(SlotIndex);
-	return LoadLocalCharacter(FName(*SlotName));
+	const bool bLoaded = LoadLocalCharacter(FName(*SlotName));
+	if (bLoaded)
+	{
+		// 플레이 중 저장 대상 슬롯 기록
+		ActiveLocalCharacterSlotIndex = SlotIndex;
+	}
+
+	return bLoaded;
 }
 
 bool UPRGameInstance::TryGetLocalCharacterSaveSlotData(int32 SlotIndex, FPRCharacterSaveData& OutSaveData) const
@@ -200,7 +207,24 @@ bool UPRGameInstance::SaveLocalCharacterSlot(int32 SlotIndex)
 	}
 
 	const FString SlotName = BuildLocalCharacterSlotName(SlotIndex);
-	return SaveLocalCharacter(FName(*SlotName));
+	const bool bSaved = SaveLocalCharacter(FName(*SlotName));
+	if (bSaved)
+	{
+		// 플레이 중 저장 대상 슬롯 기록
+		ActiveLocalCharacterSlotIndex = SlotIndex;
+	}
+
+	return bSaved;
+}
+
+bool UPRGameInstance::SaveActiveLocalCharacterSlot()
+{
+	if (!HasActiveLocalCharacterSlot())
+	{
+		return false;
+	}
+
+	return SaveLocalCharacterSlot(ActiveLocalCharacterSlotIndex);
 }
 
 bool UPRGameInstance::EnsureInitialLocalCharacterSave()
@@ -214,14 +238,60 @@ bool UPRGameInstance::EnsureInitialLocalCharacterSave()
 	}
 
 	// 모든 슬롯이 비어 있는 최초 실행 상태
-	LocalCharacter = FPRCharacterSaveData();
-	return SaveLocalCharacterSlot(MinLocalCharacterSlotIndex);
+	LocalCharacterSave = FPRCharacterSaveData();
+	const bool bSaved = SaveLocalCharacterSlot(MinLocalCharacterSlotIndex);
+	if (!bSaved)
+	{
+		ActiveLocalCharacterSlotIndex = INDEX_NONE;
+	}
+
+	return bSaved;
+}
+
+bool UPRGameInstance::EnsureEmptyLocalCharacterSaveSlot()
+{
+	int32 FirstEmptySlotIndex = INDEX_NONE;
+	for (int32 SlotIndex = MinLocalCharacterSlotIndex; SlotIndex <= MaxLocalCharacterSlotIndex; ++SlotIndex)
+	{
+		if (!DoesLocalCharacterSaveExist(SlotIndex))
+		{
+			if (FirstEmptySlotIndex == INDEX_NONE)
+			{
+				// 가장 낮은 빈 슬롯 후보 보관
+				FirstEmptySlotIndex = SlotIndex;
+			}
+			continue;
+		}
+
+		FPRCharacterSaveData SaveData;
+		if (TryGetLocalCharacterSaveSlotData(SlotIndex, SaveData) && IsDefaultLocalCharacterSaveData(SaveData))
+		{
+			// 이미 신규 게임용 기본 슬롯 존재
+			return true;
+		}
+	}
+
+	if (FirstEmptySlotIndex == INDEX_NONE)
+	{
+		// 모든 슬롯 사용 중
+		return true;
+	}
+
+	const FPRCharacterSaveData PreviousLocalCharacter = LocalCharacterSave;
+	const int32 PreviousActiveLocalCharacterSlotIndex = ActiveLocalCharacterSlotIndex;
+	LocalCharacterSave = FPRCharacterSaveData();
+
+	// 기존 진행 슬롯을 덮어쓰지 않는 첫 빈 슬롯 저장
+	const bool bSaved = SaveLocalCharacterSlot(FirstEmptySlotIndex);
+	LocalCharacterSave = PreviousLocalCharacter;
+	ActiveLocalCharacterSlotIndex = PreviousActiveLocalCharacterSlotIndex;
+	return bSaved;
 }
 
 void UPRGameInstance::ApplyRewardGrant(const FPRRewardGrant& Grant)
 {
 	// 즉시 지급. 경험치는 로컬 캐릭터에 바로 반영
-	LocalCharacter.Experience += Grant.Experience;
+	LocalCharacterSave.Experience += Grant.Experience;
 	// 재화는 인벤토리 시스템 구현 후 반영 (현재는 스텁)
 }
 
@@ -233,4 +303,11 @@ FString UPRGameInstance::BuildLocalCharacterSlotName(int32 SlotIndex) const
 bool UPRGameInstance::IsValidLocalCharacterSlotIndex(int32 SlotIndex) const
 {
 	return SlotIndex >= MinLocalCharacterSlotIndex && SlotIndex <= MaxLocalCharacterSlotIndex;
+}
+
+bool UPRGameInstance::IsDefaultLocalCharacterSaveData(const FPRCharacterSaveData& SaveData) const
+{
+	const FPRCharacterSaveData DefaultSaveData;
+	// 구조체 전체 기본값 비교로 신규 게임 슬롯 판별
+	return FPRCharacterSaveData::StaticStruct()->CompareScriptStruct(&SaveData, &DefaultSaveData, PPF_None);
 }

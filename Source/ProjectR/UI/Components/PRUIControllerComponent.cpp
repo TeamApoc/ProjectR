@@ -12,6 +12,7 @@
 #include "ProjectR/ItemSystem/Components/PRQuickSlotComponent.h"
 #include "ProjectR/UI/HUD/PRHUDWidget.h"
 #include "ProjectR/UI/Inventory/PRInventoryWidget.h"
+#include "ProjectR/UI/Growth/PRTraitWindowWidget.h"
 #include "ProjectR/UI/PRUIManagerSubsystem.h"
 #include "ProjectR/UI/Shop/PRShopWidget.h"
 #include "ProjectR/UI/WeaponUpgrade/PRWeaponUpgradeWidget.h"
@@ -83,6 +84,65 @@ void UPRUIControllerComponent::CloseInventory()
 	else
 	{
 		InventoryWidget->RemoveFromParent();
+	}
+}
+
+void UPRUIControllerComponent::ToggleTraitWindow()
+{
+	if (!IsLocalPlayer())
+	{
+		return;
+	}
+
+	UPRUIManagerSubsystem* UIManager = GetUIManager();
+	if (!IsValid(UIManager))
+	{
+		return;
+	}
+
+	if (IsValid(TraitWindowWidget) && TraitWindowWidget->IsInViewport())
+	{
+		UIManager->PopUI(TraitWindowWidget);
+		return;
+	}
+
+	UPRTraitWindowWidget* CreatedTraitWindowWidget = GetOrCreateTraitWindowWidget();
+	if (!IsValid(CreatedTraitWindowWidget))
+	{
+		return;
+	}
+
+	APlayerController* PlayerController = GetOwningPlayerController();
+	APRPlayerState* PlayerState = IsValid(PlayerController) ? PlayerController->GetPlayerState<APRPlayerState>() : nullptr;
+	if (!IsValid(PlayerState))
+	{
+		return;
+	}
+
+	CreatedTraitWindowWidget->SetGrowthSource(PlayerState);
+	UIManager->PushUIInstance(CreatedTraitWindowWidget);
+}
+
+void UPRUIControllerComponent::CloseTraitWindow()
+{
+	if (!IsLocalPlayer())
+	{
+		return;
+	}
+
+	if (!IsValid(TraitWindowWidget) || !TraitWindowWidget->IsInViewport())
+	{
+		return;
+	}
+
+	UPRUIManagerSubsystem* UIManager = GetUIManager();
+	if (IsValid(UIManager))
+	{
+		UIManager->PopUI(TraitWindowWidget);
+	}
+	else
+	{
+		TraitWindowWidget->RemoveFromParent();
 	}
 }
 
@@ -208,10 +268,25 @@ void UPRUIControllerComponent::HideWeaponScope()
 	}
 }
 
+void UPRUIControllerComponent::ShowLevelUpPopup(int32 PreviousLevel, int32 CurrentLevel)
+{
+	if (!IsLocalPlayer() || CurrentLevel <= PreviousLevel)
+	{
+		return;
+	}
+
+	if (IsValid(HUDWidget))
+	{
+		HUDWidget->ShowLevelUpPopup(PreviousLevel, CurrentLevel);
+	}
+}
+
 void UPRUIControllerComponent::EndPlay(const EEndPlayReason::Type EndPlayReason)
 {
 	CloseInventory();
 	InventoryWidget = nullptr;
+	CloseTraitWindow();
+	TraitWindowWidget = nullptr;
 	CloseWeaponUpgrade();
 	WeaponUpgradeWidget = nullptr;
 	CloseShop();
@@ -262,7 +337,6 @@ void UPRUIControllerComponent::RemoveAllWidget()
 	{
 		WeaponScopeWidget->RemoveFromParent();
 	}
-	
 	if (UPRUIManagerSubsystem* UIManager = GetUIManager())
 	{
 		UIManager->ResetSystem();
@@ -418,6 +492,23 @@ UPRShopWidget* UPRUIControllerComponent::GetOrCreateShopWidget()
 
 	ShopWidget = CreateWidget<UPRShopWidget>(PlayerController, ShopWidgetClass);
 	return ShopWidget;
+}
+
+UPRTraitWindowWidget* UPRUIControllerComponent::GetOrCreateTraitWindowWidget()
+{
+	if (IsValid(TraitWindowWidget))
+	{
+		return TraitWindowWidget;
+	}
+
+	APlayerController* PlayerController = GetOwningPlayerController();
+	if (!IsValid(PlayerController) || !IsValid(TraitWindowWidgetClass.Get()))
+	{
+		return nullptr;
+	}
+
+	TraitWindowWidget = CreateWidget<UPRTraitWindowWidget>(PlayerController, TraitWindowWidgetClass);
+	return TraitWindowWidget;
 }
 
 void UPRUIControllerComponent::TearDownHUDWidget()

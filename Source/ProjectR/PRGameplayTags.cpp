@@ -160,6 +160,15 @@ namespace PRGameplayTags
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Cue_Critical_Boss_PhaseTransition, "Cue.Critical.Boss.PhaseTransition", "보스 페이즈 전환 연출 Cue");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Cue_Critical_Boss_WeakpointOpen, "Cue.Critical.Boss.WeakpointOpen", "보스 약점 창 오픈 연출 Cue");
 
+	// ===== SetByCaller.Trait.* =====
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(SetByCaller_Trait_MaxHealth, "SetByCaller.Trait.MaxHealth", "특성 최대 체력 보너스");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(SetByCaller_Trait_Armor, "SetByCaller.Trait.Armor", "특성 방어력 보너스");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(SetByCaller_Trait_MovementSpeed, "SetByCaller.Trait.MovementSpeed", "특성 이동속도 보너스");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(SetByCaller_Trait_PlayerAttackPower, "SetByCaller.Trait.PlayerAttackPower", "특성 플레이어 공격력 보너스");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(SetByCaller_Trait_MaxStamina, "SetByCaller.Trait.MaxStamina", "특성 최대 스태미너 보너스");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(SetByCaller_Trait_CriticalHitChance, "SetByCaller.Trait.CriticalHitChance", "특성 치명타 확률 보너스");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(SetByCaller_Trait_CriticalDamageMultiplier, "SetByCaller.Trait.CriticalDamageMultiplier", "특성 치명타 피해 배율 보너스");
+
 	// ===== Input.Ability.* =====
 
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Input_Ability_Fire_Primary, "Input.Ability.Fire.Primary", "기본 발사 입력 태그 (모드 스킬의 발사가 아닌 무기의 기본 발사)");

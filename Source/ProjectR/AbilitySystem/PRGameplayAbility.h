@@ -81,6 +81,9 @@ public:
 	virtual void ApplySourceModCost() const;
 	
 protected:
+	// 현재 무기의 강화 반영 기본 피해량을 데미지 Spec에 기록한다
+	void AddCurrentWeaponDamageData(const FGameplayEffectSpecHandle& SpecHandle) const;
+
 	// AvatarActor를 지정한 캐릭터 타입으로 캐스팅하여 반환. CharacterType은 APRCharacterBase 파생만 허용
 	template <typename CharacterType>
 	CharacterType* GetPRCharacter() const

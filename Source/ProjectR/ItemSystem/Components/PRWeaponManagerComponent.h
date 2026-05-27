@@ -87,6 +87,9 @@ public:
 	UFUNCTION(BlueprintPure, Category = "ProjectR|Weapon")
 	UPRWeaponDataAsset* GetWeaponDataBySlotType(EPRWeaponSlotType SlotType) const;
 
+	// 현재 활성 무기의 강화 단계가 반영된 기본 피해량을 반환한다
+	float GetCurrentWeaponBaseDamage() const;
+
 	// 대상 슬롯의 현재 공개 비주얼 정보를 반환한다
 	const FPRWeaponVisualInfo& GetVisualInfoBySlotType(EPRWeaponSlotType SlotType) const;
 

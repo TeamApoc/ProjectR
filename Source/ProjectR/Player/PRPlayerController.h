@@ -6,6 +6,7 @@
 #include "GameFramework/PlayerController.h"
 #include "GameplayTagContainer.h"
 #include "ProjectR/Game/PRGameTypes.h"
+#include "ProjectR/Player/Components/PRPlayerGrowthComponent.h"
 #include "ProjectR/Shop/Types/PRShopTypes.h"
 #include "ProjectR/ItemSystem/Types/PRWeaponUpgradeTypes.h"
 #include "PRPlayerController.generated.h"
@@ -39,6 +40,7 @@ class UPRWeaponUpgradeComponent;
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FPRWeaponUpgradeResultSignature, const FPRWeaponUpgradeResult&, Result);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FPRShopBuyResultSignature, const FPRShopBuyResult&, Result);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FPRShopSellResultSignature, const FPRShopSellResult&, Result);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FPRTraitInvestmentResultSignature, const FPRTraitInvestmentResult&, Result);
 
 // 플레이어 입력·UI 소유. Join 시 캐릭터 페이로드를 서버로 전송하고,
 // 인게임 중 발생한 보상 Grant를 연결이 살아있는 동안 즉시 수령하여 GameInstance에 반영한다
@@ -117,6 +119,14 @@ public:
 	UFUNCTION(Client, Reliable)
 	void ClientNotifyShopSellResult(const FPRShopSellResult& Result);
 
+	// 서버 -> 본인 클라. 특성 투자 결과를 UI에 전달한다
+	UFUNCTION(Client, Reliable)
+	void ClientNotifyTraitInvestmentResult(const FPRTraitInvestmentResult& Result);
+
+	// 서버에서 owning client로 레벨업 팝업 표시 요청
+	UFUNCTION(Client, Reliable)
+	void ClientNotifyPlayerLevelUp(int32 PreviousLevel, int32 CurrentLevel);
+
 	// 강화 UI에서 선택한 무기 강화를 서버에 요청한다
 	UFUNCTION(BlueprintCallable, Category = "ProjectR|WeaponUpgrade")
 	void RequestUpgradeWeapon(UPRWeaponUpgradeComponent* UpgradeComponent, UPRItemInstance_Weapon* WeaponItem);
@@ -128,6 +138,14 @@ public:
 	// 상점 UI에서 선택한 아이템 판매를 서버에 요청한다
 	UFUNCTION(BlueprintCallable, Category = "ProjectR|Shop")
 	void RequestSellShopItem(UPRShopComponent* ShopComponent, FName EntryId, int32 Quantity);
+
+	// 성장 UI에서 특성 투자 확정을 서버에 요청한다
+	UFUNCTION(BlueprintCallable, Category = "ProjectR|Growth")
+	void RequestConfirmTraitInvestment(const FPRTraitInvestmentInfo& DesiredInvestment);
+
+	// 성장 UI에서 특성 투자 초기화를 서버에 요청한다
+	UFUNCTION(BlueprintCallable, Category = "ProjectR|Growth")
+	void RequestResetTraitInvestment();
 	
 protected:
 	// 클라이언트 -> 서버. 로컬 캐릭터 페이로드 제출
@@ -148,6 +166,14 @@ protected:
 	UFUNCTION(Server, Reliable)
 	void ServerRequestSellShopItem(UPRShopComponent* ShopComponent, FName EntryId, int32 Quantity);
 
+	// 클라이언트 -> 서버. 성장 컴포넌트에 특성 투자 확정을 위임한다
+	UFUNCTION(Server, Reliable)
+	void ServerRequestConfirmTraitInvestment(const FPRTraitInvestmentInfo& DesiredInvestment);
+
+	// 클라이언트 -> 서버. 성장 컴포넌트에 특성 투자 초기화를 위임한다
+	UFUNCTION(Server, Reliable)
+	void ServerRequestResetTraitInvestment();
+
 	void OnMouseSensitivityActionDown();
 	
 	// IA Pressed 콜백. InputTag를 ASC로 전달
@@ -162,6 +188,9 @@ protected:
     // ====== UI =====
 	// 인벤토리 입력 시작을 처리
 	void OnInventoryInputStarted();
+
+	// 특성 투자창 입력 시작을 처리
+	void OnTraitWindowInputStarted();
 	
 	// 퀵슬롯 입력 시작을 처리
 	void OnQuickSlotInputStarted(int32 SlotIndex);
@@ -184,6 +213,10 @@ public:
 	// 상점 판매 결과를 UI에 알린다
 	UPROPERTY(BlueprintAssignable, Category = "ProjectR|Shop")
 	FPRShopSellResultSignature OnShopSellResult;
+
+	// 특성 투자 결과를 UI에 알린다
+	UPROPERTY(BlueprintAssignable, Category = "ProjectR|Growth")
+	FPRTraitInvestmentResultSignature OnTraitInvestmentResult;
 protected:
 	// ====== Configs ======
 	// 치트 핸들러 클래스. BP에서 지정. 비어있으면 핸들러 미생성
@@ -201,6 +234,10 @@ protected:
 	// 인벤토리 열기 입력 액션
 	UPROPERTY(EditDefaultsOnly, Category = "ProjectR|Input")
 	TObjectPtr<const UInputAction> InventoryAction;
+
+	// 특성 투자창 열기 입력 액션
+	UPROPERTY(EditDefaultsOnly, Category = "ProjectR|Input")
+	TObjectPtr<const UInputAction> TraitWindowAction;
 
 	// 퀵슬롯 입력 액션 목록. 배열 인덱스가 퀵슬롯 인덱스와 일치한다
 	UPROPERTY(EditDefaultsOnly, Category = "ProjectR|Input")

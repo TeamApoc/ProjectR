@@ -3,6 +3,7 @@
 
 #include "PRPlayerCharacter.h"
 
+#include "AbilitySystemComponent.h"
 #include "Camera/CameraComponent.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "GameFramework/SpringArmComponent.h"
@@ -132,6 +133,7 @@ void APRPlayerCharacter::PossessedBy(AController* NewController)
 			
 			// 이 시점에서 플레이어의 ASC 유효하므로 BindTagChangeEvent 호출
 			BindTagChangeEvent();
+			BindMovementSpeedAttributeChange();
 		}
 		
 		if (PS->HasPendingSaveDataApply())
@@ -167,6 +169,7 @@ void APRPlayerCharacter::OnRep_PlayerState()
 		{
 			ASC->InitAbilityActorInfo(PS, this);
 			BindTagChangeEvent();
+			BindMovementSpeedAttributeChange();
 		}
 
 		if (UPRWeaponManagerComponent* WeaponManager = GetWeaponManager())
@@ -231,6 +234,13 @@ void APRPlayerCharacter::BeginPlay()
 		FlashlightComponent->SetFlashlightEnabled(IsLocallyControlled());
 		FlashlightComponent->SetRelativeLocation(IsCrouching() ? FlashlightCrouchingLocation : FlashlightStandingLocation);
 	}
+}
+
+void APRPlayerCharacter::EndPlay(const EEndPlayReason::Type EndPlayReason)
+{
+	UnbindMovementSpeedAttributeChange();
+
+	Super::EndPlay(EndPlayReason);
 }
 
 // Called to bind functionality to input
@@ -508,6 +518,37 @@ bool APRPlayerCharacter::IsMoveInputLockedByState() const
 {
 	const UPRAbilitySystemComponent* ASC = GetPRAbilitySystemComponent();
 	return IsValid(ASC) && ASC->HasMatchingGameplayTag(PRGameplayTags::State_PlayerHitReactLocked);
+}
+
+void APRPlayerCharacter::BindMovementSpeedAttributeChange()
+{
+	UPRAbilitySystemComponent* ASC = GetPRAbilitySystemComponent();
+	if (!IsValid(ASC))
+	{
+		return;
+	}
+
+	ASC->GetGameplayAttributeValueChangeDelegate(UPRAttributeSet_Common::GetMovementSpeedMultiplierAttribute()).RemoveAll(this);
+	ASC->GetGameplayAttributeValueChangeDelegate(UPRAttributeSet_Common::GetMovementSpeedMultiplierAttribute()).AddUObject(
+		this,
+		&ThisClass::HandleMovementSpeedMultiplierChanged);
+	UpdateMaxWalkSpeed();
+}
+
+void APRPlayerCharacter::UnbindMovementSpeedAttributeChange()
+{
+	UPRAbilitySystemComponent* ASC = GetPRAbilitySystemComponent();
+	if (!IsValid(ASC))
+	{
+		return;
+	}
+
+	ASC->GetGameplayAttributeValueChangeDelegate(UPRAttributeSet_Common::GetMovementSpeedMultiplierAttribute()).RemoveAll(this);
+}
+
+void APRPlayerCharacter::HandleMovementSpeedMultiplierChanged(const FOnAttributeChangeData& ChangeData)
+{
+	UpdateMaxWalkSpeed();
 }
 
 void APRPlayerCharacter::HandleMouseSensitivityChanged(float NewSensitivity)

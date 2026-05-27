@@ -312,6 +312,13 @@ UPRWeaponDataAsset* UPRWeaponManagerComponent::GetWeaponDataBySlotType(EPRWeapon
 	return VisualInfo.WeaponData;
 }
 
+float UPRWeaponManagerComponent::GetCurrentWeaponBaseDamage() const
+{
+	const UPRItemInstance_Weapon* CurrentWeapon = GetWeaponInstanceBySlotType(CurrentWeaponSlot);
+	const UPRWeaponDataAsset* CurrentWeaponData = IsValid(CurrentWeapon) ? CurrentWeapon->GetWeaponData() : nullptr;
+	return CalculateUpgradedBaseDamage(CurrentWeaponData, CurrentWeapon);
+}
+
 const FPRWeaponVisualInfo& UPRWeaponManagerComponent::GetCurrentWeaponVisualInfo() const
 {
 	// 현재 활성 슬롯에 대응하는 공개 비주얼 정보 리턴

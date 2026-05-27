@@ -22,6 +22,7 @@ class UPRActionInputRouterComponent;
 class UPRProjectileTrajectoryPreviewComponent;
 class UPRFlashlightComponent;
 struct FInputActionValue;
+struct FOnAttributeChangeData;
 //무기 테스트용
 class UPRWeaponDataAsset;
 
@@ -91,6 +92,7 @@ public:
 	
 protected:
 	virtual void BeginPlay() override;
+	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 	virtual void SetupPlayerInputComponent(class UInputComponent* PlayerInputComponent) override;
 
 	/*~ APRCharacterBase Interface ~*/
@@ -107,6 +109,15 @@ protected:
 private:
 	/** 상태 태그 기준으로 이동 입력이 차단되는지 반환한다 */
 	bool IsMoveInputLockedByState() const;
+
+	/** 이동속도 배율 Attribute 변경 시 MaxWalkSpeed를 갱신하도록 바인딩한다 */
+	void BindMovementSpeedAttributeChange();
+
+	/** 이동속도 배율 Attribute 변경 바인딩을 해제한다 */
+	void UnbindMovementSpeedAttributeChange();
+
+	/** 이동속도 배율 Attribute 변경을 캐릭터 이동속도에 반영한다 */
+	void HandleMovementSpeedMultiplierChanged(const FOnAttributeChangeData& ChangeData);
 
 public:
 	/** 컴포넌트 */

@@ -18,6 +18,7 @@
 #include "ProjectR/UI/HUD/PRPartyHealthListWidget.h"
 #include "ProjectR/UI/HUD/PRStaminaBarWidget.h"
 #include "ProjectR/UI/HUD/PRQuickSlotWidget.h"
+#include "ProjectR/UI/Growth/PRLevelUpPopupWidget.h"
 #include "ProjectR/UI/WeaponStatusHUD/PRWeaponHUDWidget.h"
 
 UPRHUDWidget::UPRHUDWidget()
@@ -48,6 +49,16 @@ void UPRHUDWidget::ClearBossHealthBar()
 	}
 
 	BossHealthBar->ClearBoss();
+}
+
+void UPRHUDWidget::ShowLevelUpPopup(int32 PreviousLevel, int32 CurrentLevel)
+{
+	if (CurrentLevel <= PreviousLevel || !IsValid(LevelUpPopupWidget))
+	{
+		return;
+	}
+
+	LevelUpPopupWidget->ShowLevelUp(PreviousLevel, CurrentLevel);
 }
 
 void UPRHUDWidget::NativeOnInitialized()

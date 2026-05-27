@@ -8,6 +8,7 @@
 #include "Components/TextBlock.h"
 #include "InputCoreTypes.h"
 #include "ProjectR/ItemSystem/Data/PRItemDataAsset.h"
+#include "ProjectR/ItemSystem/Items/PRItemInstance.h"
 #include "ProjectR/UI/Inventory/PRItemTooltipWidget.h"
 
 void UPRItemSlotWidget::SetSlotViewData(const FPRInventoryItemSlotViewData& InViewData)
@@ -88,8 +89,12 @@ void UPRItemSlotWidget::RefreshNativeDisplay()
 
 	if (IsValid(EquippedIndicatorImage))
 	{
-		// 아이템 장착중 여부에 따라 이미지 숨김/표시
-		const ESlateVisibility EquippedIndicatorVisibility = ViewData.bActivated
+		// 실제 아이템 항목의 장착 상태 표시와 명령 항목 표시 분리
+		const bool bShowEquippedIndicator = ViewData.InventoryAction == EPRInventoryAction::Deactivate
+			&& IsValid(ViewData.ItemInstance)
+			&& IsValid(ViewData.ItemData);
+		const bool bShowIndicator = bShowEquippedIndicator || ViewData.bSelected;
+		const ESlateVisibility EquippedIndicatorVisibility = bShowIndicator
 			? ESlateVisibility::Visible
 			: ESlateVisibility::Hidden;
 		EquippedIndicatorImage->SetVisibility(EquippedIndicatorVisibility);
@@ -105,7 +110,8 @@ void UPRItemSlotWidget::RefreshNativeDisplay()
 
 void UPRItemSlotWidget::RefreshTooltipWidget()
 {
-	if (!IsValid(TooltipWidgetClass) || !IsValid(ViewData.ItemData.Get()))
+	const bool bHasTooltipSource = IsValid(ViewData.ItemData.Get()) || ViewData.InventoryAction != EPRInventoryAction::None;
+	if (!IsValid(TooltipWidgetClass) || !bHasTooltipSource)
 	{
 		SetToolTip(nullptr);
 		return;

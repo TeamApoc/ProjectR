@@ -10,6 +10,20 @@ class UPRItemDataAsset;
 class UPRItemInstance;
 class UTexture2D;
 
+// 인벤토리 슬롯 선택 실행 동작
+UENUM(BlueprintType)
+enum class EPRInventoryAction : uint8
+{
+	// 실행 동작 없음
+	None,
+
+	// 활성화 요청
+	Activate,
+
+	// 비활성화 요청
+	Deactivate
+};
+
 // 인벤토리 UI에서 아이템 한 칸을 표시하기 위한 데이터다
 USTRUCT(BlueprintType)
 struct PROJECTR_API FPRInventoryItemSlotViewData
@@ -37,9 +51,17 @@ public:
 	UPROPERTY(BlueprintReadOnly, Category = "ProjectR|Inventory")
 	EPRItemType ItemType = EPRItemType::None;
 
-	// 현재 장착 상태인지 여부
+	// 선택 시 실행할 인벤토리 동작
 	UPROPERTY(BlueprintReadOnly, Category = "ProjectR|Inventory")
-	bool bActivated = false;
+	EPRInventoryAction InventoryAction = EPRInventoryAction::None;
+
+	// 슬롯 클릭 후 목록 처리에 필요한 숫자 컨텍스트
+	UPROPERTY(BlueprintReadOnly, Category = "ProjectR|Inventory")
+	int32 ContextIndex = INDEX_NONE;
+
+	// 도메인별 선택 표시 상태
+	UPROPERTY(BlueprintReadOnly, Category = "ProjectR|Inventory")
+	bool bSelected = false;
 
 	// 수량 표시가 필요한 아이템의 현재 보유 개수
 	UPROPERTY(BlueprintReadOnly, Category = "ProjectR|Inventory")

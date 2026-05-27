@@ -373,7 +373,7 @@ FPRShopItemSlotViewData UPRShopWidget::BuildShopSlotViewData(const FPRShopEntry&
 	ViewData.ItemViewData.ItemType = ItemData->GetItemType();
 	ViewData.ItemViewData.StackCount = GetOwnedStackCount(ItemData);
 	ViewData.ItemViewData.bShowStackCount = true;
-	ViewData.ItemViewData.bActivated = SelectedItem.EntryId == Entry.EntryId && SelectedItem.TabType == TabType;
+	ViewData.bSelected = SelectedItem.EntryId == Entry.EntryId && SelectedItem.TabType == TabType;
 	ViewData.UnitScrapPrice = TabType == EPRShopTabType::Buy
 		? Entry.BaseScrapPrice
 		: IsValid(ShopComponent) ? ShopComponent->CalculateSellScrapPrice(Entry) : 0;

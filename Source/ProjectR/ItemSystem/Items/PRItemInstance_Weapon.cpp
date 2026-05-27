@@ -11,6 +11,8 @@
 #include "ProjectR/ItemSystem/Data/PRWeaponDataAsset.h"
 #include "ProjectR/ItemSystem/Data/PRWeaponModDataAsset.h"
 #include "ProjectR/ItemSystem/Items/PRItemInstance_Mod.h"
+#include "ProjectR/ItemSystem/Components/PRWeaponManagerComponent.h"
+#include "ProjectR/Utils/PRGameplayStatics.h"
 
 namespace
 {
@@ -47,14 +49,50 @@ void UPRItemInstance_Weapon::GetLifetimeReplicatedProps(TArray<FLifetimeProperty
 
 bool UPRItemInstance_Weapon::ActivateItem(const FPRItemActivationContext& ActivationContext)
 {
-	// TODO: 무기 장착
-	return Super::ActivateItem(ActivationContext);
+	// 인벤토리 UI 선택이나 장비 상호작용은 InventoryComponent 요청을 거쳐 이 함수로 도착함
+	// 여기서는 무기 장착 방식을 결정하지 않고 플레이어의 WeaponManager에 실제 장착 처리를 맡김
+	if (!IsValid(ActivationContext.UserActor) || !ActivationContext.UserActor->HasAuthority())
+	{
+		return false;
+	}
+
+	// WeaponManager는 PlayerState에 있으며 슬롯 소유권 검증, 무기 Actor 갱신, AbilitySet 부여를 함께 처리함
+	// ItemInstance가 직접 슬롯 상태를 바꾸면 장착 표시, 복제 상태, 어빌리티 부여 순서가 갈라질 수 있음
+	UPRWeaponManagerComponent* WeaponManager = UPRGameplayStatics::GetWeaponManagerComponent(ActivationContext.UserActor);
+	if (!IsValid(WeaponManager))
+	{
+		return false;
+	}
+
+	return WeaponManager->EquipWeapon(this);
 }
 
 bool UPRItemInstance_Weapon::DeactivateItem(const FPRItemActivationContext& ActivationContext)
 {
-	// TODO: 무기 해제
-	return Super::DeactivateItem(ActivationContext);
+	// 인벤토리 UI의 무기 해제 항목은 표시만 명령처럼 보이고 실제로는 이 무기 ItemInstance를 비활성화함
+	// 따라서 UI가 WeaponManager를 직접 호출하지 않아도 장착 무기 클릭과 해제 항목 클릭이 같은 경로를 사용함
+	if (!IsValid(ActivationContext.UserActor) || !ActivationContext.UserActor->HasAuthority())
+	{
+		return false;
+	}
+
+	// 해제할 슬롯은 UI가 마지막으로 연 목록이 아니라 무기 데이터가 가진 슬롯 타입으로 결정함
+	// 목록 상태가 갱신되거나 닫혀도 ItemInstance 자기 데이터만으로 해제 대상을 다시 찾을 수 있음
+	const UPRWeaponDataAsset* WeaponData = GetWeaponData();
+	if (!IsValid(WeaponData))
+	{
+		return false;
+	}
+
+	// WeaponManager의 해제 처리에는 활성 슬롯 전환, 무기 Actor 갱신, AbilitySet 회수가 묶여 있음
+	// 이 순서를 한 곳에 모아 두기 위해 ItemInstance는 해제 대상 슬롯만 알려 줌
+	UPRWeaponManagerComponent* WeaponManager = UPRGameplayStatics::GetWeaponManagerComponent(ActivationContext.UserActor);
+	if (!IsValid(WeaponManager))
+	{
+		return false;
+	}
+
+	return WeaponManager->UnequipWeaponFromSlot(WeaponData->SlotType);
 }
 
 void UPRItemInstance_Weapon::InitializeItem(UPRItemDataAsset* InItemData, int32 InitialStackCount)

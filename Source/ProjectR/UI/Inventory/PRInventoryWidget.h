@@ -5,11 +5,14 @@
 #include "CoreMinimal.h"
 #include "ProjectR/ItemSystem/Components/PRInventoryComponent.h"
 #include "ProjectR/UI/Inventory/PRInventoryUITypes.h"
+#include "ProjectR/ItemSystem/Types/PREquipmentTypes.h"
 #include "ProjectR/ItemSystem/Types/PRWeaponTypes.h"
 #include "ProjectR/UI/PRWidgetBase.h"
 #include "PRInventoryWidget.generated.h"
 
+class UPREquipmentManagerComponent;
 class UPRItemInstance_Mod;
+class UPRItemInstance_Equipment;
 class UPRConsumableDataAsset;
 class UPRItemDataAsset;
 class UPRInventoryComponent;
@@ -33,9 +36,9 @@ class PROJECTR_API UPRInventoryWidget : public UPRWidgetBase
 	GENERATED_BODY()
 
 public:
-	// 인벤토리 위젯에 표시할 아이템 소스 보유 컴포넌트(인벤토리, 무기 매니저)를 설정한다
+	// 인벤토리 위젯에 표시할 Item 소스와 장착 상태 컴포넌트를 설정한다
 	UFUNCTION(BlueprintCallable, Category = "ProjectR|Inventory")
-	void SetInventorySources(UPRInventoryComponent* InInventoryComponent, UPRWeaponManagerComponent* InWeaponManagerComponent, UPRQuickSlotComponent* InQuickSlotComponent);
+	void SetInventorySources(UPRInventoryComponent* InInventoryComponent, UPRWeaponManagerComponent* InWeaponManagerComponent, UPRQuickSlotComponent* InQuickSlotComponent, UPREquipmentManagerComponent* InEquipmentManagerComponent);
 
 	// ============ Getter =============
 	// 현재 인벤토리 컴포넌트를 반환한다
@@ -50,13 +53,13 @@ public:
 	UFUNCTION(BlueprintPure, Category = "ProjectR|Inventory")
 	UPRQuickSlotComponent* GetQuickSlotComponent() const { return QuickSlotComponent; }
 
+	// 현재 장비 매니저 컴포넌트를 반환한다
+	UFUNCTION(BlueprintPure, Category = "ProjectR|Inventory")
+	UPREquipmentManagerComponent* GetEquipmentManagerComponent() const { return EquipmentManagerComponent; }
+
 	// 무기 리스트 대상 슬롯을 반환한다
 	UFUNCTION(BlueprintPure, Category = "ProjectR|Inventory")
 	EPRWeaponSlotType GetPendingWeaponListSlot() const {return PendingWeaponListSlot;}
-
-	// Mod 리스트 대상 무기를 반환한다
-	UFUNCTION(BlueprintPure, Category = "ProjectR|Inventory")
-	UPRItemInstance_Weapon* GetPendingModTargetWeapon() const {return LastFocusedItem;}
 	// =========================
 protected:
 	/*~ UUserWidget Interface ~*/
@@ -67,6 +70,9 @@ protected:
 	virtual void NativeDestruct() override;
 
 private:
+	// BindWidgetOptional 슬롯들을 반복 처리용 배열로 캐싱한다
+	void CacheChildWidgetLists();
+
 	// 하위 슬롯과 리스트 이벤트를 바인딩한다
 	void BindChildWidgetEvents();
 
@@ -96,21 +102,13 @@ private:
 	UFUNCTION()
 	void HandleSecondaryWeaponSlotRightClicked(const FPRInventoryItemSlotViewData& ViewData);
 
-	// 1번 퀵슬롯 좌클릭을 처리한다
+	// 퀵슬롯 좌클릭을 처리한다
 	UFUNCTION()
-	void HandleQuickSlot0LeftClicked(const FPRInventoryItemSlotViewData& ViewData);
+	void HandleQuickSlotLeftClicked(const FPRInventoryItemSlotViewData& ViewData);
 
-	// 2번 퀵슬롯 좌클릭을 처리한다
+	// 장비 슬롯 좌클릭을 처리한다
 	UFUNCTION()
-	void HandleQuickSlot1LeftClicked(const FPRInventoryItemSlotViewData& ViewData);
-
-	// 3번 퀵슬롯 좌클릭을 처리한다
-	UFUNCTION()
-	void HandleQuickSlot2LeftClicked(const FPRInventoryItemSlotViewData& ViewData);
-
-	// 4번 퀵슬롯 좌클릭을 처리한다
-	UFUNCTION()
-	void HandleQuickSlot3LeftClicked(const FPRInventoryItemSlotViewData& ViewData);
+	void HandleEquipmentSlotLeftClicked(const FPRInventoryItemSlotViewData& ViewData);
 
 	// 재료 슬롯 좌클릭을 처리한다
 	UFUNCTION()
@@ -132,6 +130,10 @@ private:
 	UFUNCTION()
 	void HandleQuickSlotChanged(UPRQuickSlotComponent* ChangedQuickSlotComponent, int32 ChangedSlotIndex);
 
+	// 장비 슬롯 변경 알림을 받아 화면을 갱신한다
+	UFUNCTION()
+	void HandleEquipmentChanged(EPREquipmentSlotType ChangedSlot, UPRItemInstance_Equipment* EquipmentItem);
+
 	// 고철 수량 변경 알림을 받아 화면을 갱신한다
 	UFUNCTION()
 	void HandleScrapChanged(int32 NewScrap);
@@ -147,6 +149,9 @@ private:
 	// 지정 퀵슬롯에 등록할 소비 아이템 목록을 연다
 	void OpenConsumableListForQuickSlot(int32 SlotIndex);
 
+	// 지정 장비 슬롯에 장착할 장비 아이템 목록을 연다
+	void OpenEquipmentListForSlot(EPREquipmentSlotType SlotType);
+
 	// 보유 재료 아이템 목록을 연다
 	void OpenMaterialList();
 
@@ -161,6 +166,9 @@ private:
 
 	// 현재 퀵슬롯 위젯을 갱신한다
 	void RefreshQuickSlotWidgets();
+
+	// 현재 장비 슬롯 위젯을 갱신한다
+	void RefreshEquipmentSlotWidgets();
 
 	// 재료 목록 진입 슬롯을 갱신한다
 	void RefreshMaterialSlotWidget();
@@ -198,8 +206,17 @@ private:
 	// 퀵슬롯 뷰 데이터를 만든다
 	FPRInventoryItemSlotViewData BuildQuickSlotViewData(int32 SlotIndex) const;
 
-	// 장착 해제 항목 뷰 데이터를 만든다
-	FPRInventoryItemSlotViewData BuildUnequipViewData(EPRItemType ListType) const;
+	// 장비 슬롯 뷰 데이터를 만든다
+	FPRInventoryItemSlotViewData BuildEquipmentSlotViewData(EPREquipmentSlotType SlotType) const;
+
+	// 장비 아이템 뷰 데이터를 만든다
+	FPRInventoryItemSlotViewData BuildEquipmentItemViewData(UPRItemInstance_Equipment* EquipmentItem, bool bEquipped) const;
+
+	// 비활성화 명령 항목 뷰 데이터를 만든다
+	FPRInventoryItemSlotViewData BuildDeactivateActionViewData(EPRItemType ListType, UPRItemInstance* TargetItem) const;
+
+	// 장비 슬롯 표시 이름을 반환한다
+	FText GetEquipmentSlotDisplayName(EPREquipmentSlotType SlotType) const;
 
 	// 지정 무기에 Mod가 장착 가능한지 확인한다
 	bool IsModCompatibleWithWeapon(const UPRItemInstance_Mod* ModItem, const UPRItemInstance_Weapon* WeaponItem) const;
@@ -231,6 +248,34 @@ protected:
 	// UMG에서 바인딩할 4번 퀵슬롯 위젯
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "ProjectR|Inventory")
 	TObjectPtr<UPRItemSlotWidget> QuickSlotItemSlotWidget3;
+
+	// UMG에서 바인딩할 머리 장비 슬롯 위젯
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "ProjectR|Inventory")
+	TObjectPtr<UPRItemSlotWidget> HeadEquipmentSlotWidget;
+
+	// UMG에서 바인딩할 몸통 장비 슬롯 위젯
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "ProjectR|Inventory")
+	TObjectPtr<UPRItemSlotWidget> BodyEquipmentSlotWidget;
+
+	// UMG에서 바인딩할 손 장비 슬롯 위젯
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "ProjectR|Inventory")
+	TObjectPtr<UPRItemSlotWidget> HandsEquipmentSlotWidget;
+
+	// UMG에서 바인딩할 다리 장비 슬롯 위젯
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "ProjectR|Inventory")
+	TObjectPtr<UPRItemSlotWidget> LegsEquipmentSlotWidget;
+
+	// UMG에서 바인딩할 목걸이 장비 슬롯 위젯
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "ProjectR|Inventory")
+	TObjectPtr<UPRItemSlotWidget> AmuletEquipmentSlotWidget;
+
+	// UMG에서 바인딩할 반지 1 장비 슬롯 위젯
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "ProjectR|Inventory")
+	TObjectPtr<UPRItemSlotWidget> Ring1EquipmentSlotWidget;
+
+	// UMG에서 바인딩할 반지 2 장비 슬롯 위젯
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "ProjectR|Inventory")
+	TObjectPtr<UPRItemSlotWidget> Ring2EquipmentSlotWidget;
 
 	// UMG에서 바인딩할 재료 목록 진입 슬롯 위젯
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "ProjectR|Inventory")
@@ -265,6 +310,10 @@ private:
 	UPROPERTY(BlueprintReadOnly, Category = "ProjectR|Inventory", meta = (AllowPrivateAccess = "true"))
 	TObjectPtr<UPRQuickSlotComponent> QuickSlotComponent;
 
+	// 비무기 장비 장착 상태 컴포넌트
+	UPROPERTY(BlueprintReadOnly, Category = "ProjectR|Inventory", meta = (AllowPrivateAccess = "true"))
+	TObjectPtr<UPREquipmentManagerComponent> EquipmentManagerComponent;
+
 	// 고철 보유량을 제공하는 재화 컴포넌트
 	UPROPERTY(BlueprintReadOnly, Category = "ProjectR|Inventory", meta = (AllowPrivateAccess = "true"))
 	TObjectPtr<UPRCurrencyComponent> CurrencyComponent;
@@ -277,7 +326,19 @@ private:
 	UPROPERTY(BlueprintReadOnly, Category = "ProjectR|Inventory", meta = (AllowPrivateAccess = "true"))
 	TObjectPtr<UPRItemInstance> LastFocusedItem;
 
-	// 소비 아이템 목록 선택 결과를 등록할 퀵슬롯 인덱스
+	// 현재 열린 리스트가 선택 결과 처리에 사용할 숫자 컨텍스트
 	UPROPERTY(BlueprintReadOnly, Category = "ProjectR|Inventory", meta = (AllowPrivateAccess = "true"))
-	int32 PendingQuickSlotIndex = INDEX_NONE;
+	int32 LastFocusedIndex = INDEX_NONE;
+
+	// 반복 처리용 퀵슬롯 위젯 캐시
+	UPROPERTY(Transient)
+	TArray<TObjectPtr<UPRItemSlotWidget>> QuickSlotWidgets;
+
+	// 반복 처리용 장비 슬롯 위젯 캐시
+	UPROPERTY(Transient)
+	TArray<TObjectPtr<UPRItemSlotWidget>> EquipmentSlotWidgets;
+
+	// 장비 슬롯 위젯 캐시와 같은 인덱스를 사용하는 슬롯 타입 캐시
+	UPROPERTY(Transient)
+	TArray<EPREquipmentSlotType> EquipmentSlotTypes;
 };

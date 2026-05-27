@@ -5,6 +5,7 @@
 #include "GameFramework/Actor.h"
 #include "ProjectR/AbilitySystem/Abilities/Player/Consumable/PRGA_UseConsumable.h"
 #include "ProjectR/ItemSystem/Components/PRInventoryComponent.h"
+#include "ProjectR/ItemSystem/Components/PRQuickSlotComponent.h"
 #include "ProjectR/ItemSystem/Data/PRConsumableDataAsset.h"
 #include "ProjectR/Utils/PRGameplayStatics.h"
 
@@ -15,10 +16,29 @@ void UPRItemInstance_Consumable::GetLifetimeReplicatedProps(TArray<FLifetimeProp
 
 bool UPRItemInstance_Consumable::ActivateItem(const FPRItemActivationContext& ActivationContext)
 {
-	// TODO: 퀵슬롯 등록
-	
-	return false;
-	return UseItem(ActivationContext.UserActor);
+	// 권위 검증
+	if (!IsValid(ActivationContext.UserActor) || !ActivationContext.UserActor->HasAuthority())
+	{
+		return false;
+	}
+
+	// 소비 아이템 데이터와 등록 대상 슬롯 번호 확인
+	// 인벤토리 UI는 소비 아이템 리스트를 열 때 클릭한 퀵슬롯 번호를 ContextIndex로 넘김
+	UPRConsumableDataAsset* ConsumableData = GetConsumableData();
+	if (!IsValid(ConsumableData) || ActivationContext.ContextIndex == INDEX_NONE)
+	{
+		return false;
+	}
+
+	// 퀵슬롯 컴포넌트 조회
+	UPRQuickSlotComponent* QuickSlotComponent = UPRGameplayStatics::GetQuickSlotComponent(ActivationContext.UserActor);
+	if (!IsValid(QuickSlotComponent))
+	{
+		return false;
+	}
+
+	QuickSlotComponent->RequestRegisterQuickSlotItem(ActivationContext.ContextIndex, ConsumableData);
+	return true;
 }
 
 bool UPRItemInstance_Consumable::UseItem(AActor* UserActor)

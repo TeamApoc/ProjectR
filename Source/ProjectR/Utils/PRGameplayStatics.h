@@ -14,6 +14,7 @@ class APawn;
 class UAbilitySystemComponent;
 class UPRAbilitySystemComponent;
 class UPRInventoryComponent;
+class UPRQuickSlotComponent;
 /**
  *
  */
@@ -33,6 +34,10 @@ public:
 	/** 액터의 WeaponManagerComponent 찾아 반환 */
 	UFUNCTION(BlueprintCallable, Category = "PR|Utils")
 	static UPRWeaponManagerComponent* GetWeaponManagerComponent(AActor* Actor);
+
+	/** 액터의 QuickSlotComponent 찾아 반환 */
+	UFUNCTION(BlueprintCallable, Category = "PR|Utils")
+	static UPRQuickSlotComponent* GetQuickSlotComponent(AActor* Actor);
 	
 	/** 액터의 EquipmentManagerComponent 찾아 반환 */
 	static UPREquipmentManagerComponent* GetEquipmentManagerComponent(AActor* Actor);

@@ -15,6 +15,7 @@
 #include "ProjectR/Player/PRPlayerState.h"
 #include "ProjectR/Game/PRGameInstance.h"
 #include "ProjectR/ItemSystem/Components/PRWeaponManagerComponent.h"
+#include "ProjectR/ItemSystem/Components/PRQuickSlotComponent.h"
 
 void UPRGameplayStatics::GetAllMeshComponents(AActor* Actor, TArray<UMeshComponent*>& OutMeshes)
 {
@@ -117,6 +118,40 @@ UPRWeaponManagerComponent* UPRGameplayStatics::GetWeaponManagerComponent(AActor*
 		return PS->GetWeaponManagerComponent();
 	}
 	
+	return nullptr;
+}
+
+UPRQuickSlotComponent* UPRGameplayStatics::GetQuickSlotComponent(AActor* Actor)
+{
+	if (!IsValid(Actor))
+	{
+		return nullptr;
+	}
+
+	APawn* AsPawn = nullptr;
+
+	if (APawn* Pawn = Cast<APawn>(Actor))
+	{
+		AsPawn = Pawn;
+	}
+	else if (AController* Controller = Cast<AController>(Actor))
+	{
+		AsPawn = Controller->GetPawn();
+	}
+
+	if (AsPawn)
+	{
+		if (APRPlayerState* PS = Cast<APRPlayerState>(AsPawn->GetPlayerState()))
+		{
+			return PS->GetQuickSlotComponent();
+		}
+	}
+
+	if (APRPlayerState* PS = Cast<APRPlayerState>(Actor))
+	{
+		return PS->GetQuickSlotComponent();
+	}
+
 	return nullptr;
 }
 

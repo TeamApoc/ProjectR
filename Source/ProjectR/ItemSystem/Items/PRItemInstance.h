@@ -28,6 +28,10 @@ struct FPRItemActivationContext
 	// 요청 인벤토리 컴포넌트
 	UPROPERTY(BlueprintReadWrite)
 	TObjectPtr<UPRInventoryComponent> InventoryComponent = nullptr;
+
+	// 추가 컨텍스트 인덱스
+	UPROPERTY(BlueprintReadWrite)
+	int32 ContextIndex = INDEX_NONE;
 };
 
 // 인벤토리가 소유하는 공용 Item 인스턴스의 최소 기반 클래스다

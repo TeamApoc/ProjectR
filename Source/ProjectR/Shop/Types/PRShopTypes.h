@@ -156,6 +156,10 @@ struct PROJECTR_API FPRShopItemSlotViewData
 	// UI 입력상 거래 요청이 가능한지 여부
 	UPROPERTY(BlueprintReadOnly, Category = "ProjectR|Shop")
 	bool bCanRequestTransaction = false;
+
+	// 상점 목록 선택 표시 상태
+	UPROPERTY(BlueprintReadOnly, Category = "ProjectR|Shop")
+	bool bSelected = false;
 };
 
 // 상점 구매 처리 결과

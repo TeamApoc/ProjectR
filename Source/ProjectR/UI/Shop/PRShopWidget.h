@@ -3,7 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "ProjectR/Inventory/Components/PRInventoryComponent.h"
+#include "ProjectR/ItemSystem/Components/PRInventoryComponent.h"
 #include "ProjectR/Player/Components/PRCurrencyComponent.h"
 #include "ProjectR/Shop/Types/PRShopTypes.h"
 #include "ProjectR/UI/PRWidgetBase.h"

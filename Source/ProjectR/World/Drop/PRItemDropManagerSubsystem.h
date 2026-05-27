@@ -4,7 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "Subsystems/WorldSubsystem.h"
-#include "ProjectR/Inventory/Types/PRDropTypes.h"
+#include "ProjectR/ItemSystem/Types/PRDropTypes.h"
 #include "PRItemDropManagerSubsystem.generated.h"
 
 class APRPlayerState;
@@ -31,6 +31,9 @@ protected:
 	// 확정 보상을 즉시 지급하거나 월드 픽업으로 생성한다
 	void CommitResolvedReward(const FPRResolvedDropReward& Reward, const FPRMonsterDeathDropRequest& Request);
 
+	// 몬스터 처치 경험치를 지급한다
+	void GrantExperienceReward(const FPRMonsterDropTableRow& DropRow, const FPRMonsterDeathDropRequest& Request) const;
+
 	// 확정 보상 픽업을 월드에 생성한다
 	APRRewardPickupActor* SpawnRewardPickup(const FPRResolvedDropReward& Reward, const FVector& DropLocation, const AActor* IgnoredActor, APRPlayerState* PersonalRecipient, AController* PersonalController) const;
 
@@ -45,6 +48,9 @@ protected:
 
 	// 플레이어에게 확정 보상을 지급한다
 	bool GrantRewardToPlayer(APRPlayerState* PlayerState, const FPRResolvedDropReward& Reward) const;
+
+	// 지급에 성공한 드롭 보상 알림을 대상 클라이언트로 전달
+	void NotifyPickupRewardGranted(APRPlayerState* PlayerState, const FPRResolvedDropReward& Reward) const;
 
 private:
 	// 이미 드롭 처리한 사망 몬스터 목록

@@ -128,6 +128,20 @@ void APRMovingTarget::OnPostDamageApplied(const FPRDamageAppliedContext& Context
 	FloatingTextManager->ClientShowFloatingText_Unreliable(Request);
 }
 
+FVector APRMovingTarget::GetPingMarkerWorldLocation_Implementation() const
+{
+	return GetActorLocation();
+}
+
+FPRWorldMarkerVisualData APRMovingTarget::GetPingMarkerVisualData_Implementation() const
+{
+	if (const UPRDeveloperSettings* Settings = GetDefault<UPRDeveloperSettings>())
+	{
+		return Settings->GetWorldMarkerPreset(EPRWorldMarkerPreset::Enemy);
+	}
+	return FPRWorldMarkerVisualData();
+}
+
 void APRMovingTarget::OnRep_ServerLocation()
 {
 	// OnRep에서는 보간을 수행하지 않고 Tick에서 수행한다.

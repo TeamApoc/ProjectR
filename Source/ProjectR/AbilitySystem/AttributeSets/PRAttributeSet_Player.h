@@ -6,7 +6,7 @@
 #include "AbilitySystemComponent.h"
 #include "AttributeSet.h"
 #include "ProjectR/AbilitySystem/PRAbilityTypes.h"
-#include "ProjectR/Weapon/Types/PRWeaponTypes.h"
+#include "ProjectR/ItemSystem/Types/PRWeaponTypes.h"
 #include "PRAttributeSet_Player.generated.h"
 
 class UPRWeaponDataAsset;
@@ -97,6 +97,11 @@ public:
 	FGameplayAttributeData CriticalDamageMultiplier;
 	PR_ATTRIBUTE_ACCESSORS(UPRAttributeSet_Player, CriticalDamageMultiplier)
 
+	// 플레이어 공격력 보너스
+	UPROPERTY(BlueprintReadOnly, ReplicatedUsing = OnRep_PlayerAttackPower, Category = "ProjectR|Attributes|Player")
+	FGameplayAttributeData PlayerAttackPower;
+	PR_ATTRIBUTE_ACCESSORS(UPRAttributeSet_Player, PlayerAttackPower)
+
 protected:
 	UFUNCTION()
 	void OnRep_Stamina(const FGameplayAttributeData& OldValue);
@@ -130,6 +135,9 @@ protected:
 
 	UFUNCTION()
 	void OnRep_CriticalDamageMultiplier(const FGameplayAttributeData& OldValue);
+
+	UFUNCTION()
+	void OnRep_PlayerAttackPower(const FGameplayAttributeData& OldValue);
 
 
 };

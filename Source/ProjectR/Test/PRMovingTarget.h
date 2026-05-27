@@ -6,6 +6,7 @@
 #include "GameFramework/Actor.h"
 #include "AbilitySystemInterface.h"
 #include "ProjectR/Combat/PRCombatInterface.h"
+#include "ProjectR/UI/WorldMarker/PRPingMarkerTargetInterface.h"
 #include "PRMovingTarget.generated.h"
 
 class UPRAbilitySystemComponent;
@@ -17,7 +18,7 @@ class UBoxComponent;
  * 데미지 표시를 위해 IAbilitySystemInterface와 IPRCombatInterface를 구현한다.
  */
 UCLASS()
-class PROJECTR_API APRMovingTarget : public AActor, public IAbilitySystemInterface, public IPRCombatInterface
+class PROJECTR_API APRMovingTarget : public AActor, public IAbilitySystemInterface, public IPRCombatInterface, public IPRPingMarkerTargetInterface
 {
 	GENERATED_BODY()
 	
@@ -35,7 +36,11 @@ public:
 	virtual EPRTeam GetTeam() const override { return EPRTeam::Enemy; }
 	virtual FPRDamageRegionInfo GetDamageRegionInfo(FName BoneName) const override;
 	virtual void OnPostDamageApplied(const FPRDamageAppliedContext& Context) override;
-
+	
+	/*~ IPRPingMarkerTargetInterface ~*/
+	virtual FVector GetPingMarkerWorldLocation_Implementation() const override;
+	virtual FPRWorldMarkerVisualData GetPingMarkerVisualData_Implementation() const override;
+	
 protected:
 	UPROPERTY(VisibleAnywhere, Category = "ProjectR|Components")
 	TObjectPtr<UBoxComponent> RootCollision;

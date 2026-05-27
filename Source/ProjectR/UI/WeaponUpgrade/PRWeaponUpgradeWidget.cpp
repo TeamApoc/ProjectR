@@ -13,9 +13,9 @@
 #include "ProjectR/UI/Inventory/PRInventoryItemListWidget.h"
 #include "ProjectR/UI/Inventory/PRItemSlotWidget.h"
 #include "ProjectR/UI/WeaponUpgrade/PRWeaponUpgradeMaterialCostWidget.h"
-#include "ProjectR/Weapon/Components/PRWeaponUpgradeComponent.h"
-#include "ProjectR/Weapon/Data/PRWeaponDataAsset.h"
-#include "ProjectR/Weapon/Items/PRItemInstance_Weapon.h"
+#include "ProjectR/ItemSystem/Components/PRWeaponUpgradeComponent.h"
+#include "ProjectR/ItemSystem/Data/PRWeaponDataAsset.h"
+#include "ProjectR/ItemSystem/Items/PRItemInstance_Weapon.h"
 
 namespace
 {
@@ -245,7 +245,7 @@ void UPRWeaponUpgradeWidget::RefreshWeaponList()
 	TArray<FPRInventoryItemSlotViewData> ListItems;
 	if (IsValid(InventoryComponent))
 	{
-		for (UPRItemInstance_Weapon* WeaponItem : InventoryComponent->GetWeaponItems())
+		for (UPRItemInstance_Weapon* WeaponItem : InventoryComponent->GetItemsByType<UPRItemInstance_Weapon>(EPRItemType::Weapon))
 		{
 			if (!IsValid(WeaponItem))
 			{
@@ -425,7 +425,7 @@ FPRInventoryItemSlotViewData UPRWeaponUpgradeWidget::BuildWeaponItemViewData(UPR
 	ViewData.ItemData = WeaponData;
 	ViewData.ItemInstance = WeaponItem;
 	ViewData.ItemType = EPRItemType::Weapon;
-	ViewData.bEquipped = bSelected;
+	ViewData.bSelected = bSelected;
 	ViewData.bShowStackCount = false;
 
 	if (IsValid(WeaponData))
@@ -466,7 +466,7 @@ void UPRWeaponUpgradeWidget::HandleInventoryChanged(UPRInventoryComponent* Chang
 		return;
 	}
 
-	if (IsValid(SelectedWeaponItem) && !InventoryComponent->OwnsWeapon(SelectedWeaponItem))
+	if (IsValid(SelectedWeaponItem) && !InventoryComponent->OwnsItem(SelectedWeaponItem))
 	{
 		SelectedWeaponItem = nullptr;
 	}

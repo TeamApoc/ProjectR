@@ -4,7 +4,7 @@
 #include "PRGA_FireSingle.h"
 
 #include "ProjectR/PRGameplayTags.h"
-#include "ProjectR/Weapon/Data/PRWeaponDataAsset.h"
+#include "ProjectR/ItemSystem/Data/PRWeaponDataAsset.h"
 
 UPRGA_FireSingle::UPRGA_FireSingle()
 {

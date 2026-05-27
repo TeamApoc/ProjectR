@@ -5,11 +5,11 @@
 #include "Components/Button.h"
 #include "Components/Image.h"
 #include "Components/TextBlock.h"
-#include "ProjectR/Inventory/Data/PRConsumableDataAsset.h"
-#include "ProjectR/Inventory/Data/PRItemDataAsset.h"
-#include "ProjectR/Inventory/Data/PRMaterialDataAsset.h"
-#include "ProjectR/Inventory/Items/PRItemInstance_Consumable.h"
-#include "ProjectR/Inventory/Items/PRItemInstance_Material.h"
+#include "ProjectR/ItemSystem/Data/PRConsumableDataAsset.h"
+#include "ProjectR/ItemSystem/Data/PRItemDataAsset.h"
+#include "ProjectR/ItemSystem/Data/PRMaterialDataAsset.h"
+#include "ProjectR/ItemSystem/Items/PRItemInstance_Consumable.h"
+#include "ProjectR/ItemSystem/Items/PRItemInstance_Material.h"
 #include "ProjectR/Player/PRPlayerController.h"
 #include "ProjectR/Player/PRPlayerState.h"
 #include "ProjectR/Shop/Components/PRShopComponent.h"
@@ -19,7 +19,7 @@
 #include "ProjectR/UI/Inventory/PRCurrencyDisplayWidget.h"
 #include "ProjectR/UI/Shop/PRShopItemDetailWidget.h"
 #include "ProjectR/UI/Shop/PRShopItemListWidget.h"
-#include "ProjectR/Weapon/Data/PRWeaponModDataAsset.h"
+#include "ProjectR/ItemSystem/Data/PRWeaponModDataAsset.h"
 
 void UPRShopWidget::SetShopContext(UPRShopComponent* InShopComponent)
 {
@@ -373,7 +373,7 @@ FPRShopItemSlotViewData UPRShopWidget::BuildShopSlotViewData(const FPRShopEntry&
 	ViewData.ItemViewData.ItemType = ItemData->GetItemType();
 	ViewData.ItemViewData.StackCount = GetOwnedStackCount(ItemData);
 	ViewData.ItemViewData.bShowStackCount = true;
-	ViewData.ItemViewData.bEquipped = SelectedItem.EntryId == Entry.EntryId && SelectedItem.TabType == TabType;
+	ViewData.bSelected = SelectedItem.EntryId == Entry.EntryId && SelectedItem.TabType == TabType;
 	ViewData.UnitScrapPrice = TabType == EPRShopTabType::Buy
 		? Entry.BaseScrapPrice
 		: IsValid(ShopComponent) ? ShopComponent->CalculateSellScrapPrice(Entry) : 0;
@@ -391,13 +391,13 @@ int32 UPRShopWidget::GetOwnedStackCount(const UPRItemDataAsset* ItemData) const
 
 	if (const UPRConsumableDataAsset* ConsumableData = Cast<UPRConsumableDataAsset>(ItemData))
 	{
-		const UPRItemInstance_Consumable* ConsumableItem = InventoryComponent->FindConsumableItemByData(ConsumableData);
+		const UPRItemInstance_Consumable* ConsumableItem = InventoryComponent->FindItemByData<UPRItemInstance_Consumable>(ConsumableData);
 		return IsValid(ConsumableItem) ? ConsumableItem->GetStackCount() : 0;
 	}
 
 	if (const UPRMaterialDataAsset* MaterialData = Cast<UPRMaterialDataAsset>(ItemData))
 	{
-		const UPRItemInstance_Material* MaterialItem = InventoryComponent->FindMaterialItemByData(MaterialData);
+		const UPRItemInstance_Material* MaterialItem = InventoryComponent->FindItemByData<UPRItemInstance_Material>(MaterialData);
 		return IsValid(MaterialItem) ? MaterialItem->GetStackCount() : 0;
 	}
 

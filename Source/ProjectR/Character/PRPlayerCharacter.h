@@ -5,12 +5,17 @@
 #include "CoreMinimal.h"
 #include "PRCharacterBase.h"
 #include "Net/UnrealNetwork.h"
+#include "TimerManager.h"
 #include "ProjectR/AbilitySystem/Data/PRAbilitySet.h"
 #include "ProjectR/Interaction/PRInteractionInterface.h"
+#include "ProjectR/ItemSystem/Types/PREquipmentTypes.h"
 #include "PRPlayerCharacter.generated.h"
 
 class UPRCameraModifier;
+class UPREquipmentDataAsset;
+class UPREquipmentManagerComponent;
 class USphereComponent;
+class USkeletalMesh;
 class UPRInteractableComponent;
 class USpringArmComponent;
 class UCameraComponent;
@@ -20,7 +25,9 @@ class UPRWeaponManagerComponent;
 class UPRSpringArmComponent;
 class UPRActionInputRouterComponent;
 class UPRProjectileTrajectoryPreviewComponent;
+class UPRFlashlightComponent;
 struct FInputActionValue;
+struct FOnAttributeChangeData;
 //무기 테스트용
 class UPRWeaponDataAsset;
 
@@ -38,6 +45,10 @@ public:
 	/*~ APawn Interface ~*/
 	virtual void PossessedBy(AController* NewController) override;
 	virtual void OnRep_PlayerState() override;
+
+	/*~ ACharacter Interface ~*/
+	virtual void Crouch(bool bClientSimulation = false) override;
+	virtual void UnCrouch(bool bClientSimulation = false) override;
 	
 	/*~ APRCharacterBase Interface ~*/
 	virtual UPRAbilitySystemComponent* GetPRAbilitySystemComponent() const override;
@@ -58,6 +69,8 @@ public:
 	float GetJogSpeed() const { return JogSpeed; }
 	float GetSprintSpeed() const { return SprintSpeed; }
 	float GetDownSpeed() const { return DownSpeed; }
+	/** 애니메이션 재생 속도에 사용할 이동속도 배율 반환 */
+	float GetMovementSpeedMultiplier() const;
 	bool IsAiming() const;
 	bool IsDown() const;
 	bool IsMovementBlocked() const {return bBlockMove;}
@@ -68,23 +81,38 @@ public:
 	/** 서버가 결정한 외부 강제 이동을 소유 클라이언트에서도 동일하게 재생한다. */
 	UFUNCTION(Client, Reliable)
 	void ClientStartExternalForcedMove(FVector_NetQuantize Destination, FRotator Rotation, float Duration, float TickInterval, float EaseExponent, bool bSweep, bool bStopMovement);
-	
+
+	void SetFlashlightEnabled(bool bEnabled) const;
+	bool IsFlashlightEnabled() const;
+
+	UFUNCTION(NetMulticast, Reliable)
+	void MulticastSetMovementMode(EMovementMode NewMovementMode);
+
 	// ===== Component getters =====
 	
 	/** 액션 입력 라우터 컴포넌트를 반환 */
 	UPRActionInputRouterComponent* GetActionInputRouter() const { return ActionInputRouterComponent; }
-	// TODO: UPRWeaponManagerComponent::GetAimOffsetWeaponSlot() 을 사용해야 함 (애니메이션에서 참조 시)
+
+	/** 플래시라이트 컴포넌트 반환 */
+	UFUNCTION(BlueprintPure, Category = "PR|Flashlight")
+	UPRFlashlightComponent* GetFlashlightComponent() const { return FlashlightComponent; }
+
 	UFUNCTION(BlueprintPure, Category = "PR|Weapon")
 	UPRWeaponManagerComponent* GetWeaponManager() const;
+
+	// 장비 매니저 컴포넌트 반환
+	UFUNCTION(BlueprintPure, Category = "PR|Equipment")
+	UPREquipmentManagerComponent* GetEquipmentManager() const;
 
 	
 protected:
 	virtual void BeginPlay() override;
+	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 	virtual void SetupPlayerInputComponent(class UInputComponent* PlayerInputComponent) override;
 
 	/*~ APRCharacterBase Interface ~*/
 	virtual void HandleGameplayTagUpdated(const FGameplayTag& ChangedTag, bool bTagExists) override;
-	
+
 	/*~ APRPlayerCharacter Interface ~*/
 	/** 입력 처리 함수 */
 	void Move(const FInputActionValue& Value);
@@ -105,9 +133,54 @@ private:
 
 	/** 외부 강제 이동을 종료하고 최종 위치를 보정한다. */
 	void CompleteExternalForcedMove(bool bWasCancelled);
+	/** 이동속도 배율 Attribute 변경 시 MaxWalkSpeed를 갱신하도록 바인딩한다 */
+	void BindMovementSpeedAttributeChange();
+
+	/** 이동속도 배율 Attribute 변경 바인딩을 해제한다 */
+	void UnbindMovementSpeedAttributeChange();
+
+	/** 이동속도 배율 Attribute 변경을 캐릭터 이동속도에 반영한다 */
+	void HandleMovementSpeedMultiplierChanged(const FOnAttributeChangeData& ChangeData);
+
+	// 장비 매니저 외형 변경 이벤트 바인딩
+	void BindEquipmentManager();
+
+	// 장비 매니저 외형 변경 이벤트 해제
+	void UnbindEquipmentManager();
+
+	// 현재 장비 외형 정보로 파츠 메시 갱신
+	void ApplyEquipmentVisualsFromManager();
+
+	// BP 파츠 컴포넌트에 지정된 메시를 기본 메시로 보관
+	void CacheDefaultEquipmentMeshes();
+
+	// 지정 슬롯에 장비 메시 또는 기본 메시 적용
+	void ApplyEquipmentVisual(EPREquipmentSlotType SlotType, const UPREquipmentDataAsset* EquipmentData);
+
+	// 지정 장비 슬롯에 대응하는 파츠 컴포넌트 조회
+	USkeletalMeshComponent* GetEquipmentMeshComponent(EPREquipmentSlotType SlotType) const;
+
+	// 지정 장비 슬롯에 대응하는 기본 메시 조회
+	USkeletalMesh* GetDefaultEquipmentMesh(EPREquipmentSlotType SlotType) const;
+
+	// 장비 외형 정보 변경 알림 처리
+	UFUNCTION()
+	void HandleEquipmentVisualInfosChanged(UPREquipmentManagerComponent* ChangedEquipmentManagerComponent);
 
 public:
 	/** 컴포넌트 */
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Mesh")
+	TObjectPtr<USkeletalMeshComponent> Mesh_Head;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Mesh")
+	TObjectPtr<USkeletalMeshComponent> Mesh_Body;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Mesh")
+	TObjectPtr<USkeletalMeshComponent> Mesh_Hands;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Mesh")
+	TObjectPtr<USkeletalMeshComponent> Mesh_Legs;
+
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Camera")
 	TObjectPtr<UPRSpringArmComponent> CameraBoom;
 
@@ -121,6 +194,10 @@ public:
 	/** 투사체 발사 예측 경로 표시 컴포넌트. 로컬 시각 효과 전용 */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Projectile")
 	TObjectPtr<UPRProjectileTrajectoryPreviewComponent> ProjectileTrajectoryPreviewComponent;
+
+	/** 로컬 플레이어 조준 방향 플래시라이트 */
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Light")
+	TObjectPtr<UPRFlashlightComponent> FlashlightComponent;
 	
 	// 상호작용 타겟 컴포넌트
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Interaction")
@@ -168,6 +245,29 @@ protected:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "PR|Camera")
 	float CachedCameraSensitivity = 0.5f;
 
+	/** 플래시 라이트 위치 설정 */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "PR|Flashlight")
+	FVector FlashlightStandingLocation = FVector(50.0f, 0.0f, 55.0f);
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "PR|Flashlight")
+	FVector FlashlightCrouchingLocation = FVector(50.0f, 0.0f, 22.0f);
+
+	// 머리 슬롯 해제 시 복원할 기본 메시
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "PR|Equipment")
+	TObjectPtr<USkeletalMesh> DefaultHeadMesh;
+
+	// 몸통 슬롯 해제 시 복원할 기본 메시
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "PR|Equipment")
+	TObjectPtr<USkeletalMesh> DefaultBodyMesh;
+
+	// 손 슬롯 해제 시 복원할 기본 메시
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "PR|Equipment")
+	TObjectPtr<USkeletalMesh> DefaultHandsMesh;
+
+	// 다리 슬롯 해제 시 복원할 기본 메시
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "PR|Equipment")
+	TObjectPtr<USkeletalMesh> DefaultLegsMesh;
+
 private:
 	bool bIsSprinting = false;
 	bool bIsAiming = false;
@@ -192,4 +292,7 @@ private:
 	bool bExternalForcedMoveSweep = false;
 	bool bExternalForcedMoveStopMovement = true;
 	bool bExternalForcedMoveActive = false;
+	// 현재 외형 변경 이벤트를 받고 있는 장비 매니저
+	UPROPERTY(Transient)
+	TObjectPtr<UPREquipmentManagerComponent> BoundEquipmentManager;
 };

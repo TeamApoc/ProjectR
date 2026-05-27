@@ -6,7 +6,7 @@
 #include "ProjectR/AbilitySystem/Tasks/PRAT_SpawnPredictedProjectile.h"
 #include "ProjectR/Combat/PRCombatGameplayTags.h"
 #include "ProjectR/Projectile/PRProjectileBase.h"
-#include "ProjectR/Weapon/Components/PRWeaponManagerComponent.h"
+#include "ProjectR/ItemSystem/Components/PRWeaponManagerComponent.h"
 
 UPRGA_Mod_FireProjectile::UPRGA_Mod_FireProjectile()
 {

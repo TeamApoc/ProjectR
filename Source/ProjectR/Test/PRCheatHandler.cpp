@@ -4,14 +4,17 @@
 #include "PRCheatHandler.h"
 
 #include "Engine/NetDriver.h"
+#include "GameFramework/Character.h"
+#include "GameFramework/CharacterMovementComponent.h"
 #include "GameFramework/GameModeBase.h"
 #include "GameplayEffect.h"
 #include "ProjectR/AbilitySystem/PRAbilitySystemComponent.h"
 #include "ProjectR/AbilitySystem/AttributeSets/PRAttributeSet_Weapon.h"
+#include "ProjectR/Character/PRPlayerCharacter.h"
 #include "ProjectR/Interaction/PRInteractorComponent.h"
 #include "ProjectR/Player/PRPlayerController.h"
 #include "ProjectR/Player/PRPlayerState.h"
-#include "ProjectR/Weapon/Types/PRWeaponTypes.h"
+#include "ProjectR/ItemSystem/Types/PRWeaponTypes.h"
 
 
 /*~ RPC 라우팅 ~*/
@@ -175,6 +178,27 @@ void UPRCheatHandler::ServerCheatInfiniteMode_Implementation(bool bEnable)
 		ASC->RemoveActiveGameplayEffect(InfiniteModeEffectHandle);
 		InfiniteModeEffectHandle.Invalidate();
 	}
+#endif
+}
+
+
+/*~ 플라이 모드 ~*/
+
+void UPRCheatHandler::ServerCheatFly_Implementation(bool bEnable)
+{
+#if !UE_BUILD_SHIPPING
+	APRPlayerController* PC = GetTypedOuter<APRPlayerController>();
+	if (!IsValid(PC))
+	{
+		return;
+	}
+
+	APRPlayerCharacter* Character = Cast<APRPlayerCharacter>(PC->GetPawn());
+	if (!IsValid(Character))
+	{
+		return;
+	}
+	Character->MulticastSetMovementMode(bEnable ? MOVE_Flying : MOVE_Walking);
 #endif
 }
 

@@ -22,6 +22,7 @@ namespace PRGameplayTags
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Ability_Player_Aim); // 플레이어 에임 어빌리티
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Ability_Player_Sprint); // 플레이어 질주 어빌리티
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Ability_Player_Interaction); // 플레이어 상호작용 어빌리티
+	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Ability_Player_Ping); // 플레이어 핑 어빌리티
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Ability_Player_Reload); // 플레이어 재장전 어빌리티
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Ability_Player_UseConsumable); // 플레이어 소비 아이템 사용 어빌리티
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Ability_Player_HitReact); // 플레이어 피격 리액션 어빌리티
@@ -165,6 +166,7 @@ namespace PRGameplayTags
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Event_Player_Interaction_Hold); // Hold 상호작용 단계 알림 (FPRInteractionHoldEventPayload 동반)
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Event_Player_Interactable); // 상호작용 가능 알림
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Event_Player_ModActivation); // Mod On / Off 이벤트
+	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Event_Player_WorldMarker); // 월드 마커 추가·제거 알림
 
 	// ===== Event.Boss.* — 보스 조우 이벤트 =====
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Event_Boss_Encounter_Begin); // 보스 조우 시작 (FPRBossEncounterEventPayload 동반)
@@ -174,10 +176,20 @@ namespace PRGameplayTags
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Cue_Critical_Boss_PhaseTransition); // 보스 페이즈 전환 연출 Cue
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Cue_Critical_Boss_WeakpointOpen); // 보스 약점 창 오픈 연출 Cue
 
+	// ===== SetByCaller.Trait.* — 특성 보너스 GameplayEffect 전달 값 =====
+	UE_DECLARE_GAMEPLAY_TAG_EXTERN(SetByCaller_Trait_MaxHealth); // 특성 최대 체력 보너스
+	UE_DECLARE_GAMEPLAY_TAG_EXTERN(SetByCaller_Trait_Armor); // 특성 방어력 보너스
+	UE_DECLARE_GAMEPLAY_TAG_EXTERN(SetByCaller_Trait_MovementSpeed); // 특성 이동속도 보너스
+	UE_DECLARE_GAMEPLAY_TAG_EXTERN(SetByCaller_Trait_PlayerAttackPower); // 특성 플레이어 공격력 보너스
+	UE_DECLARE_GAMEPLAY_TAG_EXTERN(SetByCaller_Trait_MaxStamina); // 특성 최대 스태미너 보너스
+	UE_DECLARE_GAMEPLAY_TAG_EXTERN(SetByCaller_Trait_CriticalHitChance); // 특성 치명타 확률 보너스
+	UE_DECLARE_GAMEPLAY_TAG_EXTERN(SetByCaller_Trait_CriticalDamageMultiplier); // 특성 치명타 피해 배율 보너스
+
 	// ===== Input.Ability.* — 플레이어 InputTag (AbilitySpec DynamicTags 매칭 키) =====
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Input_Ability_Fire_Primary); // 기본 발사 입력 태그 (모드 스킬의 발사가 아닌 무기의 기본 발사)
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Input_Ability_Dodge); // 구르기 입력 태그
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Input_Ability_Interact); // 상호작용 입력 태그
+	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Input_Ability_Ping); // 핑 입력 태그
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Input_Ability_Crouch); // 앉기 입력 태그
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Input_Ability_Aim); // 에임 입력 태그
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Input_Ability_Sprint); // 질주 입력 태그

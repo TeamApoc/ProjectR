@@ -3,7 +3,7 @@
 #include "PRInteraction_OpenWeaponUpgradeUI.h"
 
 #include "ProjectR/Player/PRPlayerController.h"
-#include "ProjectR/Weapon/Components/PRWeaponUpgradeComponent.h"
+#include "ProjectR/ItemSystem/Components/PRWeaponUpgradeComponent.h"
 
 UPRInteraction_OpenWeaponUpgradeUI::UPRInteraction_OpenWeaponUpgradeUI()
 {

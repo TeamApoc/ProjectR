@@ -6,7 +6,7 @@
 #include "AbilitySystemComponent.h"
 #include "AttributeSet.h"
 #include "ProjectR/AbilitySystem/PRAbilityTypes.h"
-#include "ProjectR/Weapon/Types/PRWeaponTypes.h"
+#include "ProjectR/ItemSystem/Types/PRWeaponTypes.h"
 #include "PRAttributeSet_Weapon.generated.h"
 
 class UPRWeaponDataAsset;

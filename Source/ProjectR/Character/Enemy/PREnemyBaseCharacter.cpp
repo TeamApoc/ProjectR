@@ -8,7 +8,6 @@
 #include "Animation/AnimInstance.h"
 #include "Animation/AnimMontage.h"
 #include "BrainComponent.h"
-#include "BehaviorTree/BehaviorTree.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "GameFramework/Controller.h"
@@ -22,8 +21,6 @@
 #include "ProjectR/AI/Components/PREnemyCombatEventRelayComponent.h"
 #include "ProjectR/AI/Components/PREnemyThreatComponent.h"
 #include "ProjectR/AI/Data/PREnemyCombatDataAsset.h"
-#include "ProjectR/AI/Data/PRPatternDataAsset.h"
-#include "ProjectR/AI/Data/PRPerceptionConfig.h"
 #include "ProjectR/AbilitySystem/PRAbilitySystemComponent.h"
 #include "ProjectR/AbilitySystem/AttributeSets/PRAttributeSet_Common.h"
 #include "ProjectR/AbilitySystem/AttributeSets/PRAttributeSet_Enemy.h"
@@ -37,12 +34,12 @@
 #include "ProjectR/UI/HUD/PREnemyWorldHealthBarComponent.h"
 #include "Net/UnrealNetwork.h"
 #include "TimerManager.h"
+#include "Components/CapsuleComponent.h"
 #include "ProjectR/AbilitySystem/PRGameplayAbility.h"
-#include "ProjectR/AbilitySystem/AttributeSets/PRAttributeSet_Weapon.h"
 #include "ProjectR/Combat/PRCombatGameplayTags.h"
-#include "ProjectR/Weapon/Data/PRWeaponDataAsset.h"
-#include "ProjectR/Weapon/Items/PRItemInstance_Mod.h"
-#include "ProjectR/Weapon/Items/PRItemInstance_Weapon.h"
+#include "ProjectR/ItemSystem/Data/PRWeaponDataAsset.h"
+#include "ProjectR/ItemSystem/Items/PRItemInstance_Mod.h"
+#include "ProjectR/ItemSystem/Items/PRItemInstance_Weapon.h"
 
 namespace
 {
@@ -707,6 +704,29 @@ void APREnemyBaseCharacter::OnPostDamageApplied(const FPRDamageAppliedContext& C
 	Request.WorldLocation = Context.HitResult.ImpactPoint;
 
 	FloatingTextManager->ClientShowFloatingText_Unreliable(Request);
+}
+
+FPRWorldMarkerVisualData APREnemyBaseCharacter::GetPingMarkerVisualData_Implementation() const
+{
+	if (const UPRDeveloperSettings* Settings = GetDefault<UPRDeveloperSettings>())
+	{
+		return Settings->GetWorldMarkerPreset(EPRWorldMarkerPreset::Enemy);
+	}
+	
+	UE_LOG(LogTemp,Warning,TEXT("PRDeveloperSettings를 찾을 수 없음"));
+	return FPRWorldMarkerVisualData();
+}
+
+FVector APREnemyBaseCharacter::GetPingMarkerWorldLocation_Implementation() const
+{
+	FVector ActorLocation = GetActorLocation();
+	float HalfHeight = GetCapsuleComponent()->GetScaledCapsuleHalfHeight();
+	return ActorLocation + PingMarkerOffset + FVector(0, 0, HalfHeight);
+}
+
+bool APREnemyBaseCharacter::ShouldPingMarkerVisible_Implementation() const
+{
+	return !IsDead();
 }
 
 void APREnemyBaseCharacter::HandleGameplayTagUpdated(const FGameplayTag& ChangedTag, bool TagExists)

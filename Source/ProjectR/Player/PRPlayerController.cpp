@@ -14,7 +14,7 @@
 #include "ProjectR/Input/PRInputConfigDataAsset.h"
 #include "ProjectR/Player/PRPlayerState.h"
 #include "ProjectR/Projectile/PRProjectileManagerComponent.h"
-#include "ProjectR/Inventory/Components/PRQuickSlotComponent.h"
+#include "ProjectR/ItemSystem/Components/PRQuickSlotComponent.h"
 #include "ProjectR/UI/Components/PRUIControllerComponent.h"
 #include "ProjectR/UI/FloatingText/PRFloatingTextManager.h"
 #include "ProjectR/Interaction/PRInteractionSensor.h"
@@ -23,8 +23,8 @@
 #include "ProjectR/Interaction/PRInteractableComponent.h"
 #include "ProjectR/Game/PRGameStateBase.h"
 #include "ProjectR/Shop/Components/PRShopComponent.h"
-#include "ProjectR/Weapon/Components/PRWeaponUpgradeComponent.h"
-#include "ProjectR/Weapon/Items/PRItemInstance_Weapon.h"
+#include "ProjectR/ItemSystem/Components/PRWeaponUpgradeComponent.h"
+#include "ProjectR/ItemSystem/Items/PRItemInstance_Weapon.h"
 
 
 APRPlayerController::APRPlayerController()
@@ -111,11 +111,32 @@ void APRPlayerController::SetupInputComponent()
 		return;
 	}
 
-	if (IsValid(InventoryAction.Get()))
+	if (IsValid(InventoryAction))
 	{
-		EIC->BindAction(InventoryAction.Get(), ETriggerEvent::Started, this, &APRPlayerController::OnInventoryInputStarted);
+		EIC->BindAction(InventoryAction, ETriggerEvent::Started, this, &APRPlayerController::OnInventoryInputStarted);
+	}
+	
+	if (IsValid(MouseSensitivityActionUp))
+	{
+		EIC->BindAction(MouseSensitivityActionUp, ETriggerEvent::Started, this, &APRPlayerController::OnMouseSensitivityActionUp);
+	}
+	
+	if (IsValid(MouseSensitivityActionDown))
+	{
+		EIC->BindAction(MouseSensitivityActionDown, ETriggerEvent::Started, this, &APRPlayerController::OnMouseSensitivityActionDown);
+	}
+	
+	if (IsValid(FlashlightAction))
+	{
+		EIC->BindAction(FlashlightAction, ETriggerEvent::Started, this, &APRPlayerController::ToggleFlashlight);
 	}
 
+	if (IsValid(TraitWindowAction.Get()))
+	{
+		EIC->BindAction(TraitWindowAction.Get(), ETriggerEvent::Started, this, &APRPlayerController::OnTraitWindowInputStarted);
+	}
+
+	
 	for (int32 SlotIndex = 0; SlotIndex < QuickSlotActions.Num(); ++SlotIndex)
 	{
 		if (!IsValid(QuickSlotActions[SlotIndex]))
@@ -125,34 +146,22 @@ void APRPlayerController::SetupInputComponent()
 
 		EIC->BindAction(QuickSlotActions[SlotIndex], ETriggerEvent::Started, this, &APRPlayerController::OnQuickSlotInputStarted, SlotIndex);
 	}
-	
-	if (IsValid(MouseSensitivityActionUp.Get()))
-	{
-		EIC->BindAction(MouseSensitivityActionUp.Get(), ETriggerEvent::Started, this, &APRPlayerController::OnMouseSensitivityActionUp);
-	}
-	
-	if (IsValid(MouseSensitivityActionDown.Get()))
-	{
-		EIC->BindAction(MouseSensitivityActionDown.Get(), ETriggerEvent::Started, this, &APRPlayerController::OnMouseSensitivityActionDown);
-	}
 
-	if (!IsValid(InputConfig))
+	if (IsValid(InputConfig))
 	{
-		return;
-	}
-
-	// IA별로 Started/Completed에 InputTag 포함 콜백을 바인딩
-	for (const FPRInputActionBinding& Binding : InputConfig->AbilityInputBindings)
-	{
-		if (!IsValid(Binding.InputAction.Get()) || !Binding.InputTag.IsValid())
+		// IA별로 Started/Completed에 InputTag 포함 콜백을 바인딩
+		for (const FPRInputActionBinding& Binding : InputConfig->AbilityInputBindings)
 		{
-			continue;
-		}
+			if (!IsValid(Binding.InputAction.Get()) || !Binding.InputTag.IsValid())
+			{
+				continue;
+			}
 
-		EIC->BindAction(Binding.InputAction.Get(), ETriggerEvent::Started, this,
-			&APRPlayerController::OnAbilityInputPressed, Binding.InputTag);
-		EIC->BindAction(Binding.InputAction.Get(), ETriggerEvent::Completed, this,
-			&APRPlayerController::OnAbilityInputReleased, Binding.InputTag);
+			EIC->BindAction(Binding.InputAction.Get(), ETriggerEvent::Started, this,
+				&APRPlayerController::OnAbilityInputPressed, Binding.InputTag);
+			EIC->BindAction(Binding.InputAction.Get(), ETriggerEvent::Completed, this,
+				&APRPlayerController::OnAbilityInputReleased, Binding.InputTag);
+		}
 	}
 }
 
@@ -235,6 +244,17 @@ void APRPlayerController::OnAbilityInputReleased(FGameplayTag InputTag)
 	{
 		ASC->AbilityInputReleased(InputTag);
 	}
+}
+
+void APRPlayerController::ToggleFlashlight(const FInputActionValue& Value)
+{
+	APRPlayerCharacter* PlayerCharacter = Cast<APRPlayerCharacter>(GetPawn());
+	if (!IsValid(PlayerCharacter))
+	{
+		return;
+	}
+	
+	PlayerCharacter->SetFlashlightEnabled(!PlayerCharacter->IsFlashlightEnabled());
 }
 
 UPRAbilitySystemComponent* APRPlayerController::GetPRASC() const
@@ -448,6 +468,31 @@ void APRPlayerController::ClientNotifyShopSellResult_Implementation(const FPRSho
 	OnShopSellResult.Broadcast(Result);
 }
 
+void APRPlayerController::ClientNotifyTraitInvestmentResult_Implementation(const FPRTraitInvestmentResult& Result)
+{
+	OnTraitInvestmentResult.Broadcast(Result);
+}
+
+void APRPlayerController::ClientNotifyPlayerLevelUp_Implementation(int32 PreviousLevel, int32 CurrentLevel)
+{
+	if (!IsValid(UIControllerComponent))
+	{
+		return;
+	}
+
+	UIControllerComponent->ShowLevelUpPopup(PreviousLevel, CurrentLevel);
+}
+
+void APRPlayerController::ClientNotifyPickupReward_Implementation(const FPRPickupNotificationPayload& Payload)
+{
+	if (!IsValid(UIControllerComponent))
+	{
+		return;
+	}
+
+	UIControllerComponent->ShowPickupRewardNotification(Payload);
+}
+
 void APRPlayerController::RequestUpgradeWeapon(UPRWeaponUpgradeComponent* UpgradeComponent, UPRItemInstance_Weapon* WeaponItem)
 {
 	if (!IsValid(UpgradeComponent) || !IsValid(WeaponItem))
@@ -476,6 +521,16 @@ void APRPlayerController::RequestSellShopItem(UPRShopComponent* ShopComponent, F
 	}
 
 	ServerRequestSellShopItem(ShopComponent, EntryId, Quantity);
+}
+
+void APRPlayerController::RequestConfirmTraitInvestment(const FPRTraitInvestmentInfo& DesiredInvestment)
+{
+	ServerRequestConfirmTraitInvestment(DesiredInvestment);
+}
+
+void APRPlayerController::RequestResetTraitInvestment()
+{
+	ServerRequestResetTraitInvestment();
 }
 
 void APRPlayerController::ServerRequestUpgradeWeapon_Implementation(UPRWeaponUpgradeComponent* UpgradeComponent, UPRItemInstance_Weapon* WeaponItem)
@@ -529,6 +584,38 @@ void APRPlayerController::ServerRequestSellShopItem_Implementation(UPRShopCompon
 	ShopComponent->RequestSellItem(this, EntryId, Quantity);
 }
 
+void APRPlayerController::ServerRequestConfirmTraitInvestment_Implementation(const FPRTraitInvestmentInfo& DesiredInvestment)
+{
+	APRPlayerState* PRPlayerState = GetPlayerState<APRPlayerState>();
+	UPRPlayerGrowthComponent* GrowthComponent = IsValid(PRPlayerState) ? PRPlayerState->GetGrowthComponent() : nullptr;
+	FPRTraitInvestmentResult Result;
+	if (!IsValid(GrowthComponent))
+	{
+		Result.FailReason = EPRTraitInvestmentFailReason::InvalidGrowthComponent;
+		ClientNotifyTraitInvestmentResult(Result);
+		return;
+	}
+
+	Result = GrowthComponent->ConfirmTraitInvestment(DesiredInvestment);
+	ClientNotifyTraitInvestmentResult(Result);
+}
+
+void APRPlayerController::ServerRequestResetTraitInvestment_Implementation()
+{
+	APRPlayerState* PRPlayerState = GetPlayerState<APRPlayerState>();
+	UPRPlayerGrowthComponent* GrowthComponent = IsValid(PRPlayerState) ? PRPlayerState->GetGrowthComponent() : nullptr;
+	FPRTraitInvestmentResult Result;
+	if (!IsValid(GrowthComponent))
+	{
+		Result.FailReason = EPRTraitInvestmentFailReason::InvalidGrowthComponent;
+		ClientNotifyTraitInvestmentResult(Result);
+		return;
+	}
+
+	Result = GrowthComponent->ResetTraitInvestment();
+	ClientNotifyTraitInvestmentResult(Result);
+}
+
 // ===== UI =====
 void APRPlayerController::OnInventoryInputStarted()
 {
@@ -538,6 +625,16 @@ void APRPlayerController::OnInventoryInputStarted()
 	}
     // 인벤토리 UI 토글 
 	UIControllerComponent->ToggleInventory();
+}
+
+void APRPlayerController::OnTraitWindowInputStarted()
+{
+	if (!IsValid(UIControllerComponent))
+	{
+		return;
+	}
+
+	UIControllerComponent->ToggleTraitWindow();
 }
 
 void APRPlayerController::OnQuickSlotInputStarted(int32 SlotIndex)

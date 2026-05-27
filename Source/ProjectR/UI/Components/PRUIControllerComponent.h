@@ -4,7 +4,8 @@
 
 #include "CoreMinimal.h"
 #include "Components/ActorComponent.h"
-#include "ProjectR/Weapon/Types/PRWeaponTypes.h"
+#include "ProjectR/ItemSystem/Types/PRDropTypes.h"
+#include "ProjectR/ItemSystem/Types/PRWeaponTypes.h"
 #include "PRUIControllerComponent.generated.h"
 
 class APlayerController;
@@ -12,9 +13,11 @@ class UUserWidget;
 class UPRHUDWidget;
 class UPRInventoryComponent;
 class UPRInventoryWidget;
+class UPREquipmentManagerComponent;
 class UPRQuickSlotComponent;
 class UPRShopComponent;
 class UPRShopWidget;
+class UPRTraitWindowWidget;
 class UPRUIManagerSubsystem;
 class UPRWeaponUpgradeComponent;
 class UPRWeaponUpgradeWidget;
@@ -34,9 +37,17 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "ProjectR|UI")
 	void ToggleInventory();
 
+	// 특성 투자 위젯을 열거나 닫는다
+	UFUNCTION(BlueprintCallable, Category = "ProjectR|UI")
+	void ToggleTraitWindow();
+
 	// 인벤토리 위젯이 열려 있으면 닫는다
 	UFUNCTION(BlueprintCallable, Category = "ProjectR|UI")
 	void CloseInventory();
+
+	// 특성 투자 위젯이 열려 있으면 닫는다
+	UFUNCTION(BlueprintCallable, Category = "ProjectR|UI")
+	void CloseTraitWindow();
 
 	// 강화 위젯을 열고 강화 컴포넌트 Context를 전달한다
 	UFUNCTION(BlueprintCallable, Category = "ProjectR|UI")
@@ -61,6 +72,14 @@ public:
 	// 현재 HUD 위젯 반환
 	UFUNCTION(BlueprintPure, Category = "ProjectR|UI")
 	UPRHUDWidget* GetHUDWidget() const { return HUDWidget; }
+
+	// 레벨업 팝업 생성 및 표시 요청
+	UFUNCTION(BlueprintCallable, Category = "ProjectR|UI")
+	void ShowLevelUpPopup(int32 PreviousLevel, int32 CurrentLevel);
+
+	// 드롭 보상 획득 알림을 현재 HUD에 전달
+	UFUNCTION(BlueprintCallable, Category = "ProjectR|UI")
+	void ShowPickupRewardNotification(const FPRPickupNotificationPayload& Payload);
 
 	// 장착 무기에 맞는 스코프 위젯을 표시한다.
 	UFUNCTION(BlueprintCallable, Category = "ProjectR|UI")
@@ -100,6 +119,9 @@ private:
 	// 플레이어 퀵슬롯 컴포넌트를 조회한다
 	UPRQuickSlotComponent* GetQuickSlotComponent() const;
 
+	// 플레이어 장비 매니저 컴포넌트를 조회한다
+	UPREquipmentManagerComponent* GetEquipmentManagerComponent() const;
+
 	// 로컬 플레이어 UI 매니저 서브시스템을 조회한다
 	UPRUIManagerSubsystem* GetUIManager() const;
 
@@ -111,6 +133,9 @@ private:
 
 	// 상점 위젯 인스턴스를 생성하거나 캐시된 인스턴스를 반환한다
 	UPRShopWidget* GetOrCreateShopWidget();
+
+	// 특성 투자 위젯 인스턴스를 생성하거나 캐시된 인스턴스를 반환한다
+	UPRTraitWindowWidget* GetOrCreateTraitWindowWidget();
 
 	// 현재 HUD 위젯을 UIManager에서 Pop하고 참조 정리
 	void TearDownHUDWidget();
@@ -144,6 +169,14 @@ protected:
 	UPROPERTY(EditDefaultsOnly, Category = "ProjectR|Shop")
 	TSubclassOf<UPRShopWidget> ShopWidgetClass;
 
+	// 특성 투자 위젯 클래스
+	UPROPERTY(EditDefaultsOnly, Category = "ProjectR|Growth")
+	TSubclassOf<UPRTraitWindowWidget> TraitWindowWidgetClass;
+
+	// 생성 후 재사용할 상점 위젯
+	UPROPERTY(Transient)
+	TObjectPtr<UPRShopWidget> ShopWidget;
+	
 	// HUD 위젯 클래스. BP에서 지정
 	UPROPERTY(EditDefaultsOnly, Category = "ProjectR|HUD")
 	TSubclassOf<UPRHUDWidget> HUDWidgetClass;
@@ -165,11 +198,11 @@ private:
 	// 생성 후 재사용할 강화 위젯
 	UPROPERTY(Transient)
 	TObjectPtr<UPRWeaponUpgradeWidget> WeaponUpgradeWidget;
-	
-	// 생성 후 재사용할 상점 위젯
+
+	// 생성 후 재사용할 특성 투자 위젯
 	UPROPERTY(Transient)
-	TObjectPtr<UPRShopWidget> ShopWidget;
-	
+	TObjectPtr<UPRTraitWindowWidget> TraitWindowWidget;
+
 	// ====== Variables =======
 	// 현재 바인딩된 무기 매니저
 	UPROPERTY(Transient)

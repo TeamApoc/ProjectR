@@ -6,18 +6,20 @@
 #include "Engine/LocalPlayer.h"
 #include "GameFramework/PlayerController.h"
 #include "ProjectR/Character/PRPlayerCharacter.h"
-#include "ProjectR/Inventory/Components/PRInventoryComponent.h"
+#include "ProjectR/ItemSystem/Components/PREquipmentManagerComponent.h"
+#include "ProjectR/ItemSystem/Components/PRInventoryComponent.h"
 #include "ProjectR/Player/PRPlayerState.h"
-#include "ProjectR/Inventory/Components/PRQuickSlotComponent.h"
+#include "ProjectR/ItemSystem/Components/PRQuickSlotComponent.h"
 #include "ProjectR/UI/HUD/PRHUDWidget.h"
 #include "ProjectR/UI/Inventory/PRInventoryWidget.h"
+#include "ProjectR/UI/Growth/PRTraitWindowWidget.h"
 #include "ProjectR/UI/PRUIManagerSubsystem.h"
 #include "ProjectR/UI/Shop/PRShopWidget.h"
 #include "ProjectR/UI/WeaponUpgrade/PRWeaponUpgradeWidget.h"
 #include "ProjectR/Shop/Components/PRShopComponent.h"
-#include "ProjectR/Weapon/Components/PRWeaponUpgradeComponent.h"
-#include "ProjectR/Weapon/Components/PRWeaponManagerComponent.h"
-#include "ProjectR/Weapon/Data/PRWeaponDataAsset.h"
+#include "ProjectR/ItemSystem/Components/PRWeaponUpgradeComponent.h"
+#include "ProjectR/ItemSystem/Components/PRWeaponManagerComponent.h"
+#include "ProjectR/ItemSystem/Data/PRWeaponDataAsset.h"
 
 UPRUIControllerComponent::UPRUIControllerComponent()
 {
@@ -52,12 +54,13 @@ void UPRUIControllerComponent::ToggleInventory()
 	UPRInventoryComponent* InventoryComponent = GetInventoryComponent();
 	UPRWeaponManagerComponent* WeaponManagerComponent = GetWeaponManagerComponent();
 	UPRQuickSlotComponent* QuickSlotComponent = GetQuickSlotComponent();
-	if (!IsValid(InventoryComponent) || !IsValid(WeaponManagerComponent) || !IsValid(QuickSlotComponent))
+	UPREquipmentManagerComponent* EquipmentManagerComponent = GetEquipmentManagerComponent();
+	if (!IsValid(InventoryComponent) || !IsValid(WeaponManagerComponent) || !IsValid(QuickSlotComponent) || !IsValid(EquipmentManagerComponent))
 	{
 		return;
 	}
 
-	CreatedInventoryWidget->SetInventorySources(InventoryComponent, WeaponManagerComponent, QuickSlotComponent);
+	CreatedInventoryWidget->SetInventorySources(InventoryComponent, WeaponManagerComponent, QuickSlotComponent, EquipmentManagerComponent);
 	UIManager->PushUIInstance(CreatedInventoryWidget);
 }
 
@@ -81,6 +84,65 @@ void UPRUIControllerComponent::CloseInventory()
 	else
 	{
 		InventoryWidget->RemoveFromParent();
+	}
+}
+
+void UPRUIControllerComponent::ToggleTraitWindow()
+{
+	if (!IsLocalPlayer())
+	{
+		return;
+	}
+
+	UPRUIManagerSubsystem* UIManager = GetUIManager();
+	if (!IsValid(UIManager))
+	{
+		return;
+	}
+
+	if (IsValid(TraitWindowWidget) && TraitWindowWidget->IsInViewport())
+	{
+		UIManager->PopUI(TraitWindowWidget);
+		return;
+	}
+
+	UPRTraitWindowWidget* CreatedTraitWindowWidget = GetOrCreateTraitWindowWidget();
+	if (!IsValid(CreatedTraitWindowWidget))
+	{
+		return;
+	}
+
+	APlayerController* PlayerController = GetOwningPlayerController();
+	APRPlayerState* PlayerState = IsValid(PlayerController) ? PlayerController->GetPlayerState<APRPlayerState>() : nullptr;
+	if (!IsValid(PlayerState))
+	{
+		return;
+	}
+
+	CreatedTraitWindowWidget->SetGrowthSource(PlayerState);
+	UIManager->PushUIInstance(CreatedTraitWindowWidget);
+}
+
+void UPRUIControllerComponent::CloseTraitWindow()
+{
+	if (!IsLocalPlayer())
+	{
+		return;
+	}
+
+	if (!IsValid(TraitWindowWidget) || !TraitWindowWidget->IsInViewport())
+	{
+		return;
+	}
+
+	UPRUIManagerSubsystem* UIManager = GetUIManager();
+	if (IsValid(UIManager))
+	{
+		UIManager->PopUI(TraitWindowWidget);
+	}
+	else
+	{
+		TraitWindowWidget->RemoveFromParent();
 	}
 }
 
@@ -206,10 +268,38 @@ void UPRUIControllerComponent::HideWeaponScope()
 	}
 }
 
+void UPRUIControllerComponent::ShowLevelUpPopup(int32 PreviousLevel, int32 CurrentLevel)
+{
+	if (!IsLocalPlayer() || CurrentLevel <= PreviousLevel)
+	{
+		return;
+	}
+
+	if (IsValid(HUDWidget))
+	{
+		HUDWidget->ShowLevelUpPopup(PreviousLevel, CurrentLevel);
+	}
+}
+
+void UPRUIControllerComponent::ShowPickupRewardNotification(const FPRPickupNotificationPayload& Payload)
+{
+	if (!IsLocalPlayer() || Payload.Quantity <= 0)
+	{
+		return;
+	}
+
+	if (IsValid(HUDWidget))
+	{
+		HUDWidget->ShowPickupRewardNotification(Payload);
+	}
+}
+
 void UPRUIControllerComponent::EndPlay(const EEndPlayReason::Type EndPlayReason)
 {
 	CloseInventory();
 	InventoryWidget = nullptr;
+	CloseTraitWindow();
+	TraitWindowWidget = nullptr;
 	CloseWeaponUpgrade();
 	WeaponUpgradeWidget = nullptr;
 	CloseShop();
@@ -260,7 +350,6 @@ void UPRUIControllerComponent::RemoveAllWidget()
 	{
 		WeaponScopeWidget->RemoveFromParent();
 	}
-	
 	if (UPRUIManagerSubsystem* UIManager = GetUIManager())
 	{
 		UIManager->ResetSystem();
@@ -333,6 +422,23 @@ UPRQuickSlotComponent* UPRUIControllerComponent::GetQuickSlotComponent() const
 	return PRPlayerState->GetQuickSlotComponent();
 }
 
+UPREquipmentManagerComponent* UPRUIControllerComponent::GetEquipmentManagerComponent() const
+{
+	const APlayerController* PlayerController = GetOwningPlayerController();
+	if (!IsValid(PlayerController))
+	{
+		return nullptr;
+	}
+
+	APRPlayerState* PRPlayerState = PlayerController->GetPlayerState<APRPlayerState>();
+	if (!IsValid(PRPlayerState))
+	{
+		return nullptr;
+	}
+
+	return PRPlayerState->GetEquipmentManagerComponent();
+}
+
 UPRUIManagerSubsystem* UPRUIControllerComponent::GetUIManager() const
 {
 	const APlayerController* PlayerController = GetOwningPlayerController();
@@ -399,6 +505,23 @@ UPRShopWidget* UPRUIControllerComponent::GetOrCreateShopWidget()
 
 	ShopWidget = CreateWidget<UPRShopWidget>(PlayerController, ShopWidgetClass);
 	return ShopWidget;
+}
+
+UPRTraitWindowWidget* UPRUIControllerComponent::GetOrCreateTraitWindowWidget()
+{
+	if (IsValid(TraitWindowWidget))
+	{
+		return TraitWindowWidget;
+	}
+
+	APlayerController* PlayerController = GetOwningPlayerController();
+	if (!IsValid(PlayerController) || !IsValid(TraitWindowWidgetClass.Get()))
+	{
+		return nullptr;
+	}
+
+	TraitWindowWidget = CreateWidget<UPRTraitWindowWidget>(PlayerController, TraitWindowWidgetClass);
+	return TraitWindowWidget;
 }
 
 void UPRUIControllerComponent::TearDownHUDWidget()

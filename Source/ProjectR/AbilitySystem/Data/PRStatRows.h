@@ -91,4 +91,8 @@ struct PROJECTR_API FPRPlayerStatRow : public FTableRowBase
 	// 치명타 피해 배율
 	UPROPERTY(EditAnywhere, BlueprintReadOnly)
 	float CriticalDamageMultiplier = 1.5f;
+
+	// 플레이어 공격력 보너스
+	UPROPERTY(EditAnywhere, BlueprintReadOnly)
+	float PlayerAttackPower = 0.0f;
 };

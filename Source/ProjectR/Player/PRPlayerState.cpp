@@ -7,20 +7,22 @@
 #include "Net/UnrealNetwork.h"
 #include "ProjectR/AbilitySystem/PRAbilitySystemComponent.h"
 #include "ProjectR/AbilitySystem/AttributeSets/PRAttributeSet_Common.h"
+#include "ProjectR/AbilitySystem/AttributeSets/PRAttributeSet_Growth.h"
 #include "ProjectR/AbilitySystem/AttributeSets/PRAttributeSet_Player.h"
 #include "ProjectR/AbilitySystem/AttributeSets/PRAttributeSet_Weapon.h"
-#include "ProjectR/Equipment/Components/PREquipmentManagerComponent.h"
-#include "ProjectR/Inventory/Components/PRInventoryComponent.h"
+#include "ProjectR/ItemSystem/Components/PREquipmentManagerComponent.h"
+#include "ProjectR/ItemSystem/Components/PRInventoryComponent.h"
 #include "ProjectR/Player/PRPlayerController.h"
 #include "ProjectR/PRGameplayTags.h"
 #include "ProjectR/AbilitySystem/Data/PRAbilitySystemRegistry.h"
 #include "ProjectR/Character/PRPlayerCharacter.h"
-#include "ProjectR/Inventory/Components/PRQuickSlotComponent.h"
-#include "ProjectR/Inventory/Data/PRItemDataAsset.h"
-#include "ProjectR/Inventory/Items/PRItemInstance_Consumable.h"
+#include "ProjectR/ItemSystem/Components/PRQuickSlotComponent.h"
+#include "ProjectR/ItemSystem/Data/PRItemDataAsset.h"
+#include "ProjectR/ItemSystem/Items/PRItemInstance_Consumable.h"
 #include "ProjectR/Player/Components/PRCurrencyComponent.h"
+#include "ProjectR/Player/Components/PRPlayerGrowthComponent.h"
 #include "ProjectR/System/PRAssetManager.h"
-#include "ProjectR/Weapon/Components/PRWeaponManagerComponent.h"
+#include "ProjectR/ItemSystem/Components/PRWeaponManagerComponent.h"
 
 APRPlayerState::APRPlayerState()
 {
@@ -31,11 +33,13 @@ APRPlayerState::APRPlayerState()
 	CommonSet = CreateDefaultSubobject<UPRAttributeSet_Common>(TEXT("CommonSet"));
 	PlayerSet = CreateDefaultSubobject<UPRAttributeSet_Player>(TEXT("PlayerSet"));
 	WeaponSet = CreateDefaultSubobject<UPRAttributeSet_Weapon>(TEXT("WeaponSet"));
+	GrowthSet = CreateDefaultSubobject<UPRAttributeSet_Growth>(TEXT("GrowthSet"));
 	InventoryComponent = CreateDefaultSubobject<UPRInventoryComponent>(TEXT("InventoryComponent"));
 	EquipmentManagerComponent = CreateDefaultSubobject<UPREquipmentManagerComponent>(TEXT("EquipmentManagerComponent"));
 	WeaponManagerComponent = CreateDefaultSubobject<UPRWeaponManagerComponent>(TEXT("WeaponManagerComponent"));
 	QuickSlotComponent = CreateDefaultSubobject<UPRQuickSlotComponent>(TEXT("QuickSlotComponent"));
 	CurrencyComponent = CreateDefaultSubobject<UPRCurrencyComponent>(TEXT("CurrencyComponent"));
+	GrowthComponent = CreateDefaultSubobject<UPRPlayerGrowthComponent>(TEXT("GrowthComponent"));
 
 	// PlayerState는 NetUpdate가 낮음. GAS 예측 응답성 확보를 위해 인상
 	SetNetUpdateFrequency(100.0f);
@@ -151,6 +155,10 @@ void APRPlayerState::InitializePrimaryInfoFromSaveData(const FPRCharacterSaveDat
 	CharacterLevel = InSaveData.Level;
 	Experience = InSaveData.Experience;
 	StatUpgradeInfo = InSaveData.Stats;
+	if (IsValid(GrowthComponent))
+	{
+		GrowthComponent->ApplyGrowthSaveData(InSaveData.Experience, InSaveData.Level, InSaveData.Stats);
+	}
 	bPendingSaveDataApply = true;
 }
 void APRPlayerState::ApplySaveData(const FPRCharacterSaveData& InSaveData)
@@ -194,6 +202,10 @@ void APRPlayerState::ApplySaveData(const FPRCharacterSaveData& InSaveData)
 	CharacterLevel = InSaveData.Level;
 	Experience = InSaveData.Experience;
 	StatUpgradeInfo = InSaveData.Stats;
+	if (IsValid(GrowthComponent))
+	{
+		GrowthComponent->ApplyGrowthSaveData(InSaveData.Experience, InSaveData.Level, InSaveData.Stats);
+	}
 	bPendingSaveDataApply = false;
 }
 
@@ -202,9 +214,13 @@ FPRCharacterSaveData APRPlayerState::MakeSaveData() const
 	FPRCharacterSaveData SaveData;
 	SaveData.Version = EPRSaveVersion::V1;
 	SaveData.DisplayName = DisplayName;
-	SaveData.Level = CharacterLevel;
-	SaveData.Experience = Experience;
-	SaveData.Stats = StatUpgradeInfo;
+	SaveData.Level = IsValid(AbilitySystemComponent) && IsValid(GrowthSet)
+		? FMath::Max(FMath::RoundToInt(AbilitySystemComponent->GetNumericAttribute(UPRAttributeSet_Growth::GetLevelAttribute())), 1)
+		: CharacterLevel;
+	SaveData.Experience = IsValid(AbilitySystemComponent) && IsValid(GrowthSet)
+		? FMath::Max(static_cast<int64>(AbilitySystemComponent->GetNumericAttribute(UPRAttributeSet_Growth::GetExperienceAttribute())), static_cast<int64>(0))
+		: Experience;
+	SaveData.Stats = IsValid(GrowthComponent) ? GrowthComponent->MakeGrowthSaveData() : StatUpgradeInfo;
 	if (IsValid(InventoryComponent))
 	{
 		SaveData.Inventory = InventoryComponent->MakeSaveData();
@@ -234,6 +250,17 @@ FPRCharacterSaveData APRPlayerState::MakeSaveData() const
 	return SaveData;
 }
 
+void APRPlayerState::SyncGrowthCache(int64 NewExperience, int32 NewLevel, const FPRCharacterStatUpgradeInfo& NewStats)
+{
+	if (!HasAuthority())
+	{
+		return;
+	}
+
+	Experience = FMath::Max(NewExperience, static_cast<int64>(0));
+	CharacterLevel = FMath::Max(NewLevel, 1);
+	StatUpgradeInfo = NewStats;
+}
 
 void APRPlayerState::SetCameraSensitivity(float Sensitivity)
 {

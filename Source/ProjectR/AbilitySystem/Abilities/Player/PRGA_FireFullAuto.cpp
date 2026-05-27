@@ -6,7 +6,7 @@
 #include "Abilities/Tasks/AbilityTask_WaitInputRelease.h"
 #include "ProjectR/AbilitySystem/Tasks/PRAT_RepeatFire.h"
 #include "ProjectR/PRGameplayTags.h"
-#include "ProjectR/Weapon/Data/PRWeaponDataAsset.h"
+#include "ProjectR/ItemSystem/Data/PRWeaponDataAsset.h"
 
 UPRGA_FireFullAuto::UPRGA_FireFullAuto()
 {

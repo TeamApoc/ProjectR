@@ -3,18 +3,18 @@
 #include "PRShopComponent.h"
 
 #include "Net/UnrealNetwork.h"
-#include "ProjectR/Inventory/Components/PRInventoryComponent.h"
-#include "ProjectR/Inventory/Data/PRConsumableDataAsset.h"
-#include "ProjectR/Inventory/Data/PRItemDataAsset.h"
-#include "ProjectR/Inventory/Data/PRMaterialDataAsset.h"
-#include "ProjectR/Inventory/Items/PRItemInstance_Consumable.h"
-#include "ProjectR/Inventory/Items/PRItemInstance_Material.h"
+#include "ProjectR/ItemSystem/Components/PRInventoryComponent.h"
+#include "ProjectR/ItemSystem/Data/PRConsumableDataAsset.h"
+#include "ProjectR/ItemSystem/Data/PRItemDataAsset.h"
+#include "ProjectR/ItemSystem/Data/PRMaterialDataAsset.h"
+#include "ProjectR/ItemSystem/Items/PRItemInstance_Consumable.h"
+#include "ProjectR/ItemSystem/Items/PRItemInstance_Material.h"
 #include "ProjectR/Player/PRPlayerController.h"
 #include "ProjectR/Player/PRPlayerState.h"
 #include "ProjectR/Player/Components/PRCurrencyComponent.h"
 #include "ProjectR/Shop/Data/PRShopDataAsset.h"
 #include "ProjectR/System/PRAssetManager.h"
-#include "ProjectR/Weapon/Data/PRWeaponModDataAsset.h"
+#include "ProjectR/ItemSystem/Data/PRWeaponModDataAsset.h"
 
 UPRShopComponent::UPRShopComponent()
 {
@@ -199,18 +199,18 @@ FPRShopSellResult UPRShopComponent::RequestSellItem(APRPlayerController* Request
 		}
 		else if (UPRConsumableDataAsset* ConsumableData = Cast<UPRConsumableDataAsset>(ItemData))
 		{
-			UPRItemInstance_Consumable* ConsumableItem = InventoryComponent->FindConsumableItemByData(ConsumableData);
+			UPRItemInstance_Consumable* ConsumableItem = InventoryComponent->FindItemByData<UPRItemInstance_Consumable>(ConsumableData);
 			if (!IsValid(ConsumableItem) || ConsumableItem->GetStackCount() < TotalItemQuantity)
 			{
 				Result = MakeSellFailureResult(RequestingController, EntryId, Quantity, EPRShopSellFailReason::NotEnoughItem);
 			}
-			else if (!InventoryComponent->RemoveConsumableItemByData(ConsumableData, TotalItemQuantity))
+			else if (!InventoryComponent->RemoveItemByData(ConsumableData, TotalItemQuantity))
 			{
 				Result = MakeSellFailureResult(RequestingController, EntryId, Quantity, EPRShopSellFailReason::RemoveFailed);
 			}
 			else if (!CurrencyComponent->AddScrap(TotalScrapReward))
 			{
-				InventoryComponent->AddConsumableItem(ConsumableData, TotalItemQuantity);
+				InventoryComponent->AddItem(ConsumableData, TotalItemQuantity);
 				Result = MakeSellFailureResult(RequestingController, EntryId, Quantity, EPRShopSellFailReason::GrantScrapFailed);
 			}
 			else
@@ -220,18 +220,18 @@ FPRShopSellResult UPRShopComponent::RequestSellItem(APRPlayerController* Request
 		}
 		else if (UPRMaterialDataAsset* MaterialData = Cast<UPRMaterialDataAsset>(ItemData))
 		{
-			UPRItemInstance_Material* MaterialItem = InventoryComponent->FindMaterialItemByData(MaterialData);
+			UPRItemInstance_Material* MaterialItem = InventoryComponent->FindItemByData<UPRItemInstance_Material>(MaterialData);
 			if (!IsValid(MaterialItem) || MaterialItem->GetStackCount() < TotalItemQuantity)
 			{
 				Result = MakeSellFailureResult(RequestingController, EntryId, Quantity, EPRShopSellFailReason::NotEnoughItem);
 			}
-			else if (!InventoryComponent->RemoveMaterialItemByData(MaterialData, TotalItemQuantity))
+			else if (!InventoryComponent->RemoveItemByData(MaterialData, TotalItemQuantity))
 			{
 				Result = MakeSellFailureResult(RequestingController, EntryId, Quantity, EPRShopSellFailReason::RemoveFailed);
 			}
 			else if (!CurrencyComponent->AddScrap(TotalScrapReward))
 			{
-				InventoryComponent->AddMaterialItem(MaterialData, TotalItemQuantity);
+				InventoryComponent->AddItem(MaterialData, TotalItemQuantity);
 				Result = MakeSellFailureResult(RequestingController, EntryId, Quantity, EPRShopSellFailReason::GrantScrapFailed);
 			}
 			else
@@ -489,14 +489,14 @@ bool UPRShopComponent::CanGrantItem(UPRInventoryComponent* InventoryComponent, U
 
 	if (UPRConsumableDataAsset* ConsumableData = Cast<UPRConsumableDataAsset>(ItemData))
 	{
-		const UPRItemInstance_Consumable* ConsumableItem = InventoryComponent->FindConsumableItemByData(ConsumableData);
+		const UPRItemInstance_Consumable* ConsumableItem = InventoryComponent->FindItemByData<UPRItemInstance_Consumable>(ConsumableData);
 		const int32 CurrentStackCount = IsValid(ConsumableItem) ? ConsumableItem->GetStackCount() : 0;
 		return CurrentStackCount + TotalItemQuantity <= ConsumableData->MaxStackCount;
 	}
 
 	if (UPRMaterialDataAsset* MaterialData = Cast<UPRMaterialDataAsset>(ItemData))
 	{
-		const UPRItemInstance_Material* MaterialItem = InventoryComponent->FindMaterialItemByData(MaterialData);
+		const UPRItemInstance_Material* MaterialItem = InventoryComponent->FindItemByData<UPRItemInstance_Material>(MaterialData);
 		const int32 CurrentStackCount = IsValid(MaterialItem) ? MaterialItem->GetStackCount() : 0;
 		return CurrentStackCount + TotalItemQuantity <= MaterialData->MaxStackCount;
 	}

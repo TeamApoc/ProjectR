@@ -93,4 +93,7 @@ public:
 
 	// 데미지 적용 직후 호출. 페이즈 전환·그로기 임계·다운 흐름 진입 등 종류별 후처리 자리
 	virtual void OnPostDamageApplied(const FPRDamageAppliedContext& Context) {}
+	
+	// 사망 여부
+	virtual bool IsDead() const {return false;}
 };

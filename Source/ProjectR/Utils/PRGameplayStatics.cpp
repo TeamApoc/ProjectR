@@ -14,7 +14,8 @@
 #include "ProjectR/Combat/PRCombatGameplayTags.h"
 #include "ProjectR/Player/PRPlayerState.h"
 #include "ProjectR/Game/PRGameInstance.h"
-#include "ProjectR/Weapon/Components/PRWeaponManagerComponent.h"
+#include "ProjectR/ItemSystem/Components/PRWeaponManagerComponent.h"
+#include "ProjectR/ItemSystem/Components/PRQuickSlotComponent.h"
 
 void UPRGameplayStatics::GetAllMeshComponents(AActor* Actor, TArray<UMeshComponent*>& OutMeshes)
 {
@@ -106,10 +107,83 @@ UPRWeaponManagerComponent* UPRGameplayStatics::GetWeaponManagerComponent(AActor*
 	
 	if (AsPawn)
 	{
-		if (APRPlayerCharacter* PlayerCharacter = Cast<APRPlayerCharacter>(AsPawn))
+		if (APRPlayerState* PS = Cast<APRPlayerState>(AsPawn->GetPlayerState()))
 		{
-			return PlayerCharacter->GetWeaponManager();
+			return PS->GetWeaponManagerComponent();
 		}
+	}
+	
+	if (APRPlayerState* PS = Cast<APRPlayerState>(Actor))
+	{
+		return PS->GetWeaponManagerComponent();
+	}
+	
+	return nullptr;
+}
+
+UPRQuickSlotComponent* UPRGameplayStatics::GetQuickSlotComponent(AActor* Actor)
+{
+	if (!IsValid(Actor))
+	{
+		return nullptr;
+	}
+
+	APawn* AsPawn = nullptr;
+
+	if (APawn* Pawn = Cast<APawn>(Actor))
+	{
+		AsPawn = Pawn;
+	}
+	else if (AController* Controller = Cast<AController>(Actor))
+	{
+		AsPawn = Controller->GetPawn();
+	}
+
+	if (AsPawn)
+	{
+		if (APRPlayerState* PS = Cast<APRPlayerState>(AsPawn->GetPlayerState()))
+		{
+			return PS->GetQuickSlotComponent();
+		}
+	}
+
+	if (APRPlayerState* PS = Cast<APRPlayerState>(Actor))
+	{
+		return PS->GetQuickSlotComponent();
+	}
+
+	return nullptr;
+}
+
+UPREquipmentManagerComponent* UPRGameplayStatics::GetEquipmentManagerComponent(AActor* Actor)
+{
+	if (!IsValid(Actor))
+	{
+		return nullptr;
+	}
+	
+	APawn* AsPawn = nullptr;
+	
+	if (APawn* Pawn = Cast<APawn>(Actor))
+	{
+		AsPawn = Pawn;
+	}
+	else if (AController* Controller = Cast<AController>(Actor))
+	{
+		AsPawn = Controller->GetPawn();
+	}
+	
+	if (AsPawn)
+	{
+		if (APRPlayerState* PS = Cast<APRPlayerState>(AsPawn->GetPlayerState()))
+		{
+			return PS->GetEquipmentManagerComponent();
+		}
+	}
+	
+	if (APRPlayerState* PS = Cast<APRPlayerState>(Actor))
+	{
+		return PS->GetEquipmentManagerComponent();
 	}
 	
 	return nullptr;

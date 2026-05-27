@@ -3,11 +3,13 @@
 
 #include "PRPlayerCharacter.h"
 
+#include "AbilitySystemComponent.h"
 #include "Camera/CameraComponent.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "GameFramework/SpringArmComponent.h"
 #include "EnhancedInputComponent.h"
 #include "EnhancedInputSubsystems.h"
+#include "Components/CapsuleComponent.h"
 #include "Components/SphereComponent.h"
 #include "Kismet/KismetMathLibrary.h"
 #include "ProjectR/ProjectR.h"
@@ -17,13 +19,16 @@
 #include "ProjectR/PRGameplayTags.h"
 #include "ProjectR/AbilitySystem/AttributeSets/PRAttributeSet_Common.h"
 #include "ProjectR/Interaction/PRInteractableComponent.h"
+#include "ProjectR/ItemSystem/Components/PREquipmentManagerComponent.h"
 #include "ProjectR/Player/PRCameraModifier.h"
-#include "ProjectR/Weapon/Components/PRWeaponManagerComponent.h"
+#include "ProjectR/ItemSystem/Data/PREquipmentDataAsset.h"
+#include "ProjectR/ItemSystem/Components/PRWeaponManagerComponent.h"
 #include "ProjectR/Player/Components/PRActionInputRouterComponent.h"
+#include "ProjectR/Player/Components/PRFlashlightComponent.h"
 #include "ProjectR/Player/Components/PRSpringArmComponent.h"
 #include "ProjectR/Projectile/PRProjectileTrajectoryPreviewComponent.h"
 #include "ProjectR/System/PREventManagerSubsystem.h"
-#include "ProjectR/Weapon/Actors/PRWeaponActor.h"
+#include "ProjectR/ItemSystem/Actors/PRWeaponActor.h"
 #include "TimerManager.h"
 
 
@@ -31,12 +36,35 @@
 APRPlayerCharacter::APRPlayerCharacter()
 {
 	PrimaryActorTick.bCanEverTick = true;
-	
+
 	// 멀티플레이어 설정
 	bReplicates = true;
-	
+
 	// 네트워크 동기화 빈도
 	SetNetUpdateFrequency(100.0f);
+
+
+	// 캐릭터 파츠 설정
+	USkeletalMeshComponent* LeaderMesh = GetMesh();
+	LeaderMesh->SetVisibility(false);
+	LeaderMesh->VisibilityBasedAnimTickOption = EVisibilityBasedAnimTickOption::AlwaysTickPoseAndRefreshBones;
+
+	Mesh_Head = CreateDefaultSubobject<USkeletalMeshComponent>(TEXT("Mesh_Head"));
+	Mesh_Head->SetupAttachment(LeaderMesh);
+	Mesh_Head->SetLeaderPoseComponent(LeaderMesh);
+	Mesh_Head->bUseAttachParentBound = true;
+	Mesh_Body = CreateDefaultSubobject<USkeletalMeshComponent>(TEXT("Mesh_Body"));
+	Mesh_Body->SetupAttachment(LeaderMesh);
+	Mesh_Body->SetLeaderPoseComponent(LeaderMesh);
+	Mesh_Body->bUseAttachParentBound = true;
+	Mesh_Hands = CreateDefaultSubobject<USkeletalMeshComponent>(TEXT("Mesh_Hands"));
+	Mesh_Hands->SetupAttachment(LeaderMesh);
+	Mesh_Hands->SetLeaderPoseComponent(LeaderMesh);
+	Mesh_Hands->bUseAttachParentBound = true;
+	Mesh_Legs = CreateDefaultSubobject<USkeletalMeshComponent>(TEXT("Mesh_Legs"));
+	Mesh_Legs->SetupAttachment(LeaderMesh);
+	Mesh_Legs->SetLeaderPoseComponent(LeaderMesh);
+	Mesh_Legs->bUseAttachParentBound = true;
 
 	// 카메라 붐 설정 (캐릭터 뒤에 배치)
 	CameraBoom = CreateDefaultSubobject<UPRSpringArmComponent>(TEXT("CameraBoom"));
@@ -57,6 +85,11 @@ APRPlayerCharacter::APRPlayerCharacter()
 
 	ActionInputRouterComponent = CreateDefaultSubobject<UPRActionInputRouterComponent>(TEXT("ActionInputRouterComponent"));
 	ProjectileTrajectoryPreviewComponent = CreateDefaultSubobject<UPRProjectileTrajectoryPreviewComponent>(TEXT("ProjectileTrajectoryPreviewComponent"));
+
+	// 캡슐 기준 플래시라이트 부착
+	FlashlightComponent = CreateDefaultSubobject<UPRFlashlightComponent>(TEXT("FlashlightComponent"));
+	FlashlightComponent->SetupAttachment(GetCapsuleComponent());
+	FlashlightComponent->SetRelativeLocation(FVector(50.0f, 0.0f, 55.0f));
 	
 	// 캡슐 설정
 	USkeletalMeshComponent* MeshComp = GetMesh();
@@ -73,6 +106,7 @@ APRPlayerCharacter::APRPlayerCharacter()
 	CMC->RotationRate = FRotator(0.0f, 500.0f, 0.0f);
 	CMC->NavAgentProps.bCanCrouch = true; // 앉기 기능 활성화
 	CMC->MaxWalkSpeed = JogSpeed; // 초기 속도 설정
+	CMC->MaxFlySpeed = 1500.f;
 	CMC->bAllowPhysicsRotationDuringAnimRootMotion = true; // 루트모션을 통한 회전 켜기
 	// TODO: 아래 설정은 클라이언트의 movement를 서버가 신뢰하는 모델, 안정성 테스트 필요
 	CMC->bIgnoreClientMovementErrorChecksAndCorrection = true;
@@ -107,6 +141,15 @@ UPRWeaponManagerComponent* APRPlayerCharacter::GetWeaponManager() const
 	return nullptr;
 }
 
+UPREquipmentManagerComponent* APRPlayerCharacter::GetEquipmentManager() const
+{
+	if (APRPlayerState* PRPlayerState = GetPlayerState<APRPlayerState>())
+	{
+		return PRPlayerState->GetEquipmentManagerComponent();
+	}
+	return nullptr;
+}
+
 void APRPlayerCharacter::PossessedBy(AController* NewController)
 {
 	Super::PossessedBy(NewController);
@@ -125,6 +168,7 @@ void APRPlayerCharacter::PossessedBy(AController* NewController)
 			
 			// 이 시점에서 플레이어의 ASC 유효하므로 BindTagChangeEvent 호출
 			BindTagChangeEvent();
+			BindMovementSpeedAttributeChange();
 		}
 		
 		if (PS->HasPendingSaveDataApply())
@@ -138,6 +182,11 @@ void APRPlayerCharacter::PossessedBy(AController* NewController)
 			WeaponManager->InitializeRuntimeLinks();
 			WeaponManager->InitializeWithPawn(this);
 		}
+
+		// PlayerState 장비 복원 이후 현재 장착 외형을 캐릭터 파츠에 반영
+		CacheDefaultEquipmentMeshes();
+		BindEquipmentManager();
+		ApplyEquipmentVisualsFromManager();
 		
 		PS->OnMouseSensitivityChanged.AddDynamic(this, &ThisClass::HandleMouseSensitivityChanged);
 		CachedCameraSensitivity = PS->GetCameraSensitivity();
@@ -160,6 +209,7 @@ void APRPlayerCharacter::OnRep_PlayerState()
 		{
 			ASC->InitAbilityActorInfo(PS, this);
 			BindTagChangeEvent();
+			BindMovementSpeedAttributeChange();
 		}
 
 		if (UPRWeaponManagerComponent* WeaponManager = GetWeaponManager())
@@ -167,6 +217,11 @@ void APRPlayerCharacter::OnRep_PlayerState()
 			WeaponManager->InitializeRuntimeLinks();
 			WeaponManager->InitializeWithPawn(this);
 		}
+
+		// 클라이언트는 PlayerState 복제 이후 장비 외형 복제 알림을 받아 파츠 메시를 갱신
+		CacheDefaultEquipmentMeshes();
+		BindEquipmentManager();
+		ApplyEquipmentVisualsFromManager();
 	}
 	
 	if (UPREventManagerSubsystem* EventManager = GetWorld()->GetSubsystem<UPREventManagerSubsystem>())
@@ -210,6 +265,15 @@ void APRPlayerCharacter::ClientStartExternalForcedMove_Implementation(
 	StartExternalForcedMoveLocal(Destination, Rotation, Duration, TickInterval, EaseExponent, bSweep, bStopMovement);
 }
 
+float APRPlayerCharacter::GetMovementSpeedMultiplier() const
+{
+	if (const UPRAbilitySystemComponent* ASC = GetPRAbilitySystemComponent())
+	{
+		return ASC->GetNumericAttribute(UPRAttributeSet_Common::GetMovementSpeedMultiplierAttribute());
+	}
+	return 1.0f;
+}
+
 // Called when the game starts or when spawned
 void APRPlayerCharacter::BeginPlay()
 {
@@ -229,6 +293,25 @@ void APRPlayerCharacter::BeginPlay()
 	{
 		GetMesh()->LinkAnimClassLayers(DefaultAnimLayerClass);
 	}
+
+	if (IsValid(FlashlightComponent))
+	{
+		// 로컬 플레이어 전용 활성화
+		FlashlightComponent->SetFlashlightEnabled(IsLocallyControlled());
+		FlashlightComponent->SetRelativeLocation(IsCrouching() ? FlashlightCrouchingLocation : FlashlightStandingLocation);
+	}
+
+	// BP에서 파츠 컴포넌트에 직접 넣은 메시를 기본 장비 메시로 사용
+	CacheDefaultEquipmentMeshes();
+}
+
+void APRPlayerCharacter::EndPlay(const EEndPlayReason::Type EndPlayReason)
+{
+	CompleteExternalForcedMove(true);
+	UnbindEquipmentManager();
+	UnbindMovementSpeedAttributeChange();
+
+	Super::EndPlay(EndPlayReason);
 }
 
 // Called to bind functionality to input
@@ -374,6 +457,26 @@ void APRPlayerCharacter::HandleGameplayTagUpdated(const FGameplayTag& ChangedTag
 	}
 }
 
+void APRPlayerCharacter::Crouch(bool bClientSimulation)
+{
+	Super::Crouch(bClientSimulation);
+
+	if (FlashlightComponent)
+	{
+		FlashlightComponent->SetRelativeLocation(FlashlightCrouchingLocation);
+	}
+}
+
+void APRPlayerCharacter::UnCrouch(bool bClientSimulation)
+{
+	Super::UnCrouch(bClientSimulation);
+
+	if (FlashlightComponent)
+	{
+		FlashlightComponent->SetRelativeLocation(FlashlightStandingLocation);
+	}
+}
+
 void APRPlayerCharacter::Move(const FInputActionValue& Value)
 {
 	// 사망 상태 등 움직임 비활성화시 움직임 수신 안함
@@ -400,9 +503,19 @@ void APRPlayerCharacter::Move(const FInputActionValue& Value)
 	if (IsValid(Controller))
 	{
 		const FRotator Rotation = Controller->GetControlRotation();
+		FRotator ForwardRotation = FRotator(0.0f, Rotation.Yaw, 0.0f);
 		const FRotator YawRotation(0, Rotation.Yaw, 0);
 
-		const FVector ForwardDirection = FRotationMatrix(YawRotation).GetUnitAxis(EAxis::X);
+#if !UE_BUILD_SHIPPING
+		const UCharacterMovementComponent* MoveComp = GetCharacterMovement();
+		if (IsValid(MoveComp) && MoveComp->MovementMode == MOVE_Flying)
+		{
+			// 플라이 모드 카메라 Pitch 반영
+			ForwardRotation = Rotation;
+		}
+#endif
+
+		const FVector ForwardDirection = FRotationMatrix(ForwardRotation).GetUnitAxis(EAxis::X);
 		const FVector RightDirection = FRotationMatrix(YawRotation).GetUnitAxis(EAxis::Y);
 
 		AddMovementInput(ForwardDirection, MovementVector.Y);
@@ -439,12 +552,7 @@ void APRPlayerCharacter::UpdateMaxWalkSpeed()
 		BaseSpeed = WalkSpeed;
 	}
 
-	float CurrentMultiplier = 1.0f;
-
-	if (const UPRAbilitySystemComponent* ASC = GetPRAbilitySystemComponent())
-	{
-		CurrentMultiplier = ASC->GetNumericAttribute(UPRAttributeSet_Common::GetMovementSpeedMultiplierAttribute());
-	}
+	const float CurrentMultiplier = GetMovementSpeedMultiplier();
 	
 	// 최종 속도를 CharacterMovementComponent에 적용 
 	UCharacterMovementComponent* MoveComp = GetCharacterMovement();
@@ -619,6 +727,218 @@ void APRPlayerCharacter::CompleteExternalForcedMove(bool bWasCancelled)
 	ExternalForcedMoveLastUpdateTime = 0.0f;
 }
 
+void APRPlayerCharacter::BindMovementSpeedAttributeChange()
+{
+	UPRAbilitySystemComponent* ASC = GetPRAbilitySystemComponent();
+	if (!IsValid(ASC))
+	{
+		return;
+	}
+
+	ASC->GetGameplayAttributeValueChangeDelegate(UPRAttributeSet_Common::GetMovementSpeedMultiplierAttribute()).RemoveAll(this);
+	ASC->GetGameplayAttributeValueChangeDelegate(UPRAttributeSet_Common::GetMovementSpeedMultiplierAttribute()).AddUObject(
+		this,
+		&ThisClass::HandleMovementSpeedMultiplierChanged);
+	UpdateMaxWalkSpeed();
+}
+
+void APRPlayerCharacter::UnbindMovementSpeedAttributeChange()
+{
+	UPRAbilitySystemComponent* ASC = GetPRAbilitySystemComponent();
+	if (!IsValid(ASC))
+	{
+		return;
+	}
+
+	ASC->GetGameplayAttributeValueChangeDelegate(UPRAttributeSet_Common::GetMovementSpeedMultiplierAttribute()).RemoveAll(this);
+}
+
+void APRPlayerCharacter::HandleMovementSpeedMultiplierChanged(const FOnAttributeChangeData& ChangeData)
+{
+	UpdateMaxWalkSpeed();
+}
+
+void APRPlayerCharacter::BindEquipmentManager()
+{
+	UnbindEquipmentManager();
+
+	UPREquipmentManagerComponent* EquipmentManager = GetEquipmentManager();
+	if (!IsValid(EquipmentManager))
+	{
+		return;
+	}
+
+	// EquipmentManager는 Owner 전용 ItemInstance와 전체 공개 외형 정보를 분리해 복제
+	// 캐릭터 파츠 교체는 모든 클라이언트가 볼 수 있는 외형 정보 변경 이벤트만 사용
+	BoundEquipmentManager = EquipmentManager;
+	BoundEquipmentManager->OnEquipmentVisualInfosChanged.RemoveDynamic(this, &ThisClass::HandleEquipmentVisualInfosChanged);
+	BoundEquipmentManager->OnEquipmentVisualInfosChanged.AddDynamic(this, &ThisClass::HandleEquipmentVisualInfosChanged);
+}
+
+void APRPlayerCharacter::UnbindEquipmentManager()
+{
+	if (IsValid(BoundEquipmentManager))
+	{
+		BoundEquipmentManager->OnEquipmentVisualInfosChanged.RemoveDynamic(this, &ThisClass::HandleEquipmentVisualInfosChanged);
+	}
+
+	BoundEquipmentManager = nullptr;
+}
+
+void APRPlayerCharacter::ApplyEquipmentVisualsFromManager()
+{
+	// 장착 정보가 아직 없거나 PlayerState 복제 전이면 모든 파츠를 기본 메시로 복원
+	const UPREquipmentManagerComponent* EquipmentManager = GetEquipmentManager();
+	if (!IsValid(EquipmentManager))
+	{
+		ApplyEquipmentVisual(EPREquipmentSlotType::Head, nullptr);
+		ApplyEquipmentVisual(EPREquipmentSlotType::Body, nullptr);
+		ApplyEquipmentVisual(EPREquipmentSlotType::Hands, nullptr);
+		ApplyEquipmentVisual(EPREquipmentSlotType::Legs, nullptr);
+		return;
+	}
+
+	TSet<EPREquipmentSlotType> AppliedSlots;
+	for (const FPRReplicatedEquipmentInfo& EquipmentInfo : EquipmentManager->GetEquippedVisualInfos())
+	{
+		if (EquipmentInfo.SlotType == EPREquipmentSlotType::None)
+		{
+			continue;
+		}
+
+		const UPREquipmentDataAsset* EquipmentData = EquipmentInfo.EquipmentData.LoadSynchronous();
+		ApplyEquipmentVisual(EquipmentInfo.SlotType, EquipmentData);
+		AppliedSlots.Add(EquipmentInfo.SlotType);
+	}
+
+	// 복제 목록에 없는 방어구 파츠는 해제된 상태로 간주하고 기본 메시 복원
+	const EPREquipmentSlotType ArmorSlots[] =
+	{
+		EPREquipmentSlotType::Head,
+		EPREquipmentSlotType::Body,
+		EPREquipmentSlotType::Hands,
+		EPREquipmentSlotType::Legs
+	};
+
+	for (EPREquipmentSlotType SlotType : ArmorSlots)
+	{
+		if (!AppliedSlots.Contains(SlotType))
+		{
+			ApplyEquipmentVisual(SlotType, nullptr);
+		}
+	}
+}
+
+void APRPlayerCharacter::CacheDefaultEquipmentMeshes()
+{
+	// 기본 메시 프로퍼티가 비어 있으면 현재 BP 파츠 메시를 해제 복원값으로 사용
+	if (!IsValid(DefaultHeadMesh.Get()) && IsValid(Mesh_Head))
+	{
+		DefaultHeadMesh = Mesh_Head->GetSkeletalMeshAsset();
+	}
+
+	if (!IsValid(DefaultBodyMesh.Get()) && IsValid(Mesh_Body))
+	{
+		DefaultBodyMesh = Mesh_Body->GetSkeletalMeshAsset();
+	}
+
+	if (!IsValid(DefaultHandsMesh.Get()) && IsValid(Mesh_Hands))
+	{
+		DefaultHandsMesh = Mesh_Hands->GetSkeletalMeshAsset();
+	}
+
+	if (!IsValid(DefaultLegsMesh.Get()) && IsValid(Mesh_Legs))
+	{
+		DefaultLegsMesh = Mesh_Legs->GetSkeletalMeshAsset();
+	}
+}
+
+void APRPlayerCharacter::ApplyEquipmentVisual(EPREquipmentSlotType SlotType, const UPREquipmentDataAsset* EquipmentData)
+{
+	USkeletalMeshComponent* PartMeshComponent = GetEquipmentMeshComponent(SlotType);
+	if (!IsValid(PartMeshComponent))
+	{
+		return;
+	}
+
+	// 장비 데이터가 없거나 메시가 비어 있으면 해당 파츠의 기본 메시를 사용
+	USkeletalMesh* MeshToApply = GetDefaultEquipmentMesh(SlotType);
+	if (IsValid(EquipmentData))
+	{
+		if (USkeletalMesh* EquipmentMesh = EquipmentData->GetEquipmentMesh().LoadSynchronous())
+		{
+			MeshToApply = EquipmentMesh;
+		}
+	}
+
+	if (!IsValid(MeshToApply))
+	{
+		return;
+	}
+
+	PartMeshComponent->SetSkeletalMesh(MeshToApply);
+}
+
+USkeletalMeshComponent* APRPlayerCharacter::GetEquipmentMeshComponent(EPREquipmentSlotType SlotType) const
+{
+	switch (SlotType)
+	{
+	case EPREquipmentSlotType::Head:
+		return Mesh_Head;
+
+	case EPREquipmentSlotType::Body:
+		return Mesh_Body;
+
+	case EPREquipmentSlotType::Hands:
+		return Mesh_Hands;
+
+	case EPREquipmentSlotType::Legs:
+		return Mesh_Legs;
+
+	case EPREquipmentSlotType::Amulet:
+	case EPREquipmentSlotType::Ring1:
+	case EPREquipmentSlotType::Ring2:
+	case EPREquipmentSlotType::None:
+	default:
+		return nullptr;
+	}
+}
+
+USkeletalMesh* APRPlayerCharacter::GetDefaultEquipmentMesh(EPREquipmentSlotType SlotType) const
+{
+	switch (SlotType)
+	{
+	case EPREquipmentSlotType::Head:
+		return DefaultHeadMesh.Get();
+
+	case EPREquipmentSlotType::Body:
+		return DefaultBodyMesh.Get();
+
+	case EPREquipmentSlotType::Hands:
+		return DefaultHandsMesh.Get();
+
+	case EPREquipmentSlotType::Legs:
+		return DefaultLegsMesh.Get();
+
+	case EPREquipmentSlotType::Amulet:
+	case EPREquipmentSlotType::Ring1:
+	case EPREquipmentSlotType::Ring2:
+	case EPREquipmentSlotType::None:
+	default:
+		return nullptr;
+	}
+}
+
+void APRPlayerCharacter::HandleEquipmentVisualInfosChanged(UPREquipmentManagerComponent* ChangedEquipmentManagerComponent)
+{
+	if (ChangedEquipmentManagerComponent != GetEquipmentManager())
+	{
+		return;
+	}
+
+	ApplyEquipmentVisualsFromManager();
+}
+
 void APRPlayerCharacter::HandleMouseSensitivityChanged(float NewSensitivity)
 {
 	CachedCameraSensitivity = NewSensitivity;
@@ -629,5 +949,28 @@ void APRPlayerCharacter::HandleMouseSensitivityChanged(float NewSensitivity)
 void APRPlayerCharacter::SetSprintingFromAbility(bool bNewSprinting)
 {
 	bIsSprinting = bNewSprinting;
+	UpdateMaxWalkSpeed();
+}
+
+void APRPlayerCharacter::SetFlashlightEnabled(bool bEnabled) const
+{
+	if (IsLocallyControlled())
+	{
+		FlashlightComponent->SetFlashlightEnabled(bEnabled);
+	}
+	else
+	{
+		FlashlightComponent->SetFlashlightEnabled(false);
+	}
+}
+
+bool APRPlayerCharacter::IsFlashlightEnabled() const
+{
+	return FlashlightComponent->IsFlashlightEnabled();
+}
+
+void APRPlayerCharacter::MulticastSetMovementMode_Implementation(EMovementMode NewMovementMode)
+{
+	GetCharacterMovement()->SetMovementMode(NewMovementMode);
 	UpdateMaxWalkSpeed();
 }

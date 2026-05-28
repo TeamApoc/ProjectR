@@ -11,6 +11,7 @@
 class APlayerController;
 class UUserWidget;
 class UPRHUDWidget;
+class UPRInGameMenuWidget;
 class UPRInventoryComponent;
 class UPRInventoryWidget;
 class UPREquipmentManagerComponent;
@@ -41,6 +42,10 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "ProjectR|UI")
 	void ToggleTraitWindow();
 
+	// 인게임 메뉴 위젯을 열거나 닫는다
+	UFUNCTION(BlueprintCallable, Category = "ProjectR|UI")
+	void ToggleInGameMenu();
+
 	// 인벤토리 위젯이 열려 있으면 닫는다
 	UFUNCTION(BlueprintCallable, Category = "ProjectR|UI")
 	void CloseInventory();
@@ -48,6 +53,10 @@ public:
 	// 특성 투자 위젯이 열려 있으면 닫는다
 	UFUNCTION(BlueprintCallable, Category = "ProjectR|UI")
 	void CloseTraitWindow();
+
+	// 인게임 메뉴 위젯이 열려 있으면 닫는다
+	UFUNCTION(BlueprintCallable, Category = "ProjectR|UI")
+	void CloseInGameMenu();
 
 	// 강화 위젯을 열고 강화 컴포넌트 Context를 전달한다
 	UFUNCTION(BlueprintCallable, Category = "ProjectR|UI")
@@ -137,6 +146,9 @@ private:
 	// 특성 투자 위젯 인스턴스를 생성하거나 캐시된 인스턴스를 반환한다
 	UPRTraitWindowWidget* GetOrCreateTraitWindowWidget();
 
+	// 인게임 메뉴 위젯 인스턴스를 생성하거나 캐시된 인스턴스를 반환한다
+	UPRInGameMenuWidget* GetOrCreateInGameMenuWidget();
+
 	// 현재 HUD 위젯을 UIManager에서 Pop하고 참조 정리
 	void TearDownHUDWidget();
 
@@ -173,6 +185,10 @@ protected:
 	UPROPERTY(EditDefaultsOnly, Category = "ProjectR|Growth")
 	TSubclassOf<UPRTraitWindowWidget> TraitWindowWidgetClass;
 
+	// 인게임 메뉴 위젯 클래스
+	UPROPERTY(EditDefaultsOnly, Category = "ProjectR|InGameMenu")
+	TSubclassOf<UPRInGameMenuWidget> InGameMenuWidgetClass;
+
 	// 생성 후 재사용할 상점 위젯
 	UPROPERTY(Transient)
 	TObjectPtr<UPRShopWidget> ShopWidget;
@@ -202,6 +218,10 @@ private:
 	// 생성 후 재사용할 특성 투자 위젯
 	UPROPERTY(Transient)
 	TObjectPtr<UPRTraitWindowWidget> TraitWindowWidget;
+
+	// 생성 후 재사용할 인게임 메뉴 위젯
+	UPROPERTY(Transient)
+	TObjectPtr<UPRInGameMenuWidget> InGameMenuWidget;
 
 	// ====== Variables =======
 	// 현재 바인딩된 무기 매니저

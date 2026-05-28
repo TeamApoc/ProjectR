@@ -64,8 +64,20 @@ void APRPlayGameMode::PostLogin(APlayerController* NewPlayer)
 		}
 	}
 
-	// 호스트 PlayerController는 자체적으로 캐릭터 데이터를 들고 있으므로
-	// 클라이언트 페이로드 수신은 ServerSubmitCharacter RPC 경로를 통해 비동기로 들어온다
+	APRPlayerController* PRPlayerController = Cast<APRPlayerController>(NewPlayer);
+	if (IsValid(PRPlayerController)
+		&& PRPlayerController->IsLocalController()
+		&& (GetNetMode() == NM_Standalone || GetNetMode() == NM_ListenServer))
+	{
+		if (UPRGameInstance* GameInstance = GetGameInstance<UPRGameInstance>())
+		{
+			// 호스트와 Standalone 직접 실행용 로컬 세이브 주입
+			GameInstance->EnsureLocalCharacterReadyForSession();
+			AcceptGuestCharacter(PRPlayerController, GameInstance->GetLocalCharacter());
+		}
+	}
+
+	// 원격 클라이언트 페이로드는 ServerSubmitCharacter RPC 경로 수신
 }
 
 void APRPlayGameMode::Logout(AController* Exiting)
@@ -119,8 +131,8 @@ bool APRPlayGameMode::ValidateCharacterPayload(const FPRCharacterSaveData& Paylo
 		return false;
 	}
 
-	// 표시명 길이 체크
-	if (Payload.DisplayName.Len() == 0 || Payload.DisplayName.Len() > MaxDisplayNameLength)
+	// 표시명 길이 체크. 빈 이름은 신규 세이브 기본값으로 허용
+	if (Payload.DisplayName.Len() > MaxDisplayNameLength)
 	{
 		OutReason = TEXT("Invalid display name length");
 		return false;

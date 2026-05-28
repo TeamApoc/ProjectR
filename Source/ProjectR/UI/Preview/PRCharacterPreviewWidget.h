@@ -3,12 +3,14 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "ProjectR/Game/PRGameTypes.h"
 #include "ProjectR/UI/PRWidgetBase.h"
 #include "PRCharacterPreviewWidget.generated.h"
 
 class APRCharacterPreviewActor;
 class APRPlayerCharacter;
 class UImage;
+class UMaterialInstanceDynamic;
 class UMaterialInterface;
 class UPRWeaponManagerComponent;
 class UTextureRenderTarget2D;
@@ -20,37 +22,41 @@ class PROJECTR_API UPRCharacterPreviewWidget : public UPRWidgetBase
 	GENERATED_BODY()
 
 public:
-	// 프리뷰에 사용할 플레이어 캐릭터와 무기 상태 소스를 설정한다
+	// 프리뷰에 사용할 플레이어 캐릭터와 무기 상태 소스 설정
 	UFUNCTION(BlueprintCallable, Category = "ProjectR|Inventory|Preview")
 	void SetPreviewSources(APRPlayerCharacter* InSourceCharacter, UPRWeaponManagerComponent* InWeaponManagerComponent);
 
-	// 현재 소스 상태를 기준으로 프리뷰를 갱신한다
+	// 프리뷰에 사용할 저장 데이터 소스 설정
+	UFUNCTION(BlueprintCallable, Category = "ProjectR|Inventory|Preview")
+	void SetPreviewSaveData(const FPRCharacterSaveData& InSaveData);
+
+	// 현재 소스 상태를 기준으로 프리뷰 갱신
 	UFUNCTION(BlueprintCallable, Category = "ProjectR|Inventory|Preview")
 	void RefreshPreview();
 
-	// 현재 사용 중인 프리뷰 액터를 반환한다
+	// 현재 사용 중인 프리뷰 액터 반환
 	UFUNCTION(BlueprintPure, Category = "ProjectR|Inventory|Preview")
 	APRCharacterPreviewActor* GetPreviewActor() const { return PreviewActor; }
 
 protected:
 	/*~ UUserWidget Interface ~*/
-	// 화면에 표시될 때 프리뷰 액터와 이미지를 준비한다
+	// 화면에 표시될 때 프리뷰 액터와 이미지 준비
 	virtual void NativeConstruct() override;
 
-	// 화면에서 제거될 때 프리뷰 액터 참조를 정리한다
+	// 화면에서 제거될 때 프리뷰 액터 참조 정리
 	virtual void NativeDestruct() override;
 
 private:
-	// 프리뷰 액터를 생성하거나 기존 액터를 재사용한다
+	// 프리뷰 액터 생성 또는 기존 액터 재사용
 	void EnsurePreviewActor();
 
-	// 프리뷰 액터를 정리한다
+	// 프리뷰 액터 정리
 	void DestroyPreviewActor();
 
-	// 렌더 타겟을 이미지 위젯에 연결한다
+	// 렌더 타겟을 이미지 위젯에 연결
 	void RefreshPreviewBrush();
 
-	// 소스가 비어 있으면 Owning Player 기준으로 프리뷰 소스를 조회한다
+	// 소스가 비어 있으면 Owning Player 기준으로 프리뷰 소스 조회
 	void ResolvePreviewSourcesFromOwningPlayerIfNeeded();
 
 protected:
@@ -90,4 +96,10 @@ private:
 	// 동적으로 생성된 UI 머티리얼 인스턴스
 	UPROPERTY(Transient)
 	TObjectPtr<UMaterialInstanceDynamic> DynamicMaterial;
+
+	// 저장 데이터 기반 프리뷰 사용 여부
+	bool bUseSaveDataPreview = false;
+
+	// 저장 데이터 기반 프리뷰 입력값
+	FPRCharacterSaveData PreviewSaveData;
 };

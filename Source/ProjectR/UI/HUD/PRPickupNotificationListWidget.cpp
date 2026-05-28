@@ -32,6 +32,7 @@ void UPRPickupNotificationListWidget::AddNotification(const FPRPickupNotificatio
 		FPRPickupNotificationPayload MergedPayload = Payload;
 		MergedPayload.Quantity = MergeTarget->Quantity;
 		MergeTarget->EntryWidget->SetNotificationData(MakeViewData(MergedPayload));
+		MergeTarget->EntryWidget->CancelFadeOutAnimation();
 		RestartDisplayTimer(*MergeTarget);
 		return;
 	}

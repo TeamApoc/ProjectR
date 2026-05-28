@@ -252,6 +252,15 @@ bool APRPlayerCharacter::IsDown() const
 	return false;
 }
 
+float APRPlayerCharacter::GetMovementSpeedMultiplier() const
+{
+	if (const UPRAbilitySystemComponent* ASC = GetPRAbilitySystemComponent())
+	{
+		return ASC->GetNumericAttribute(UPRAttributeSet_Common::GetMovementSpeedMultiplierAttribute());
+	}
+	return 1.0f;
+}
+
 // Called when the game starts or when spawned
 void APRPlayerCharacter::BeginPlay()
 {
@@ -529,12 +538,7 @@ void APRPlayerCharacter::UpdateMaxWalkSpeed()
 		BaseSpeed = WalkSpeed;
 	}
 
-	float CurrentMultiplier = 1.0f;
-
-	if (const UPRAbilitySystemComponent* ASC = GetPRAbilitySystemComponent())
-	{
-		CurrentMultiplier = ASC->GetNumericAttribute(UPRAttributeSet_Common::GetMovementSpeedMultiplierAttribute());
-	}
+	const float CurrentMultiplier = GetMovementSpeedMultiplier();
 	
 	// 최종 속도를 CharacterMovementComponent에 적용 
 	UCharacterMovementComponent* MoveComp = GetCharacterMovement();

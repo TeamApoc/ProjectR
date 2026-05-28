@@ -50,6 +50,7 @@ void UPRLinkedAnimInstance::NativeUpdateAnimation(float DeltaSeconds)
 	RootYawOffset = MainAnimInstance->RootYawOffset;
 	TargetTurnAngle = MainAnimInstance->TargetTurnAngle;
 	XYSpeed = MainAnimInstance->XYSpeed;
+	MovementSpeedMultiplier = MainAnimInstance->MovementSpeedMultiplier;
 	Direction = MainAnimInstance->Direction;
 	ArmedState = MainAnimInstance->ArmedState;
 	EquippedWeaponSlot = MainAnimInstance->EquippedWeaponSlot;

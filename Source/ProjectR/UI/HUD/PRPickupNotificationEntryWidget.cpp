@@ -53,7 +53,7 @@ void UPRPickupNotificationEntryWidget::PlayFadeInAnimation()
 	}
 
 	StopAnimation(FadeIn);
-	PlayAnimation(FadeIn, 0.0f, 1);
+	PlayAnimation(FadeIn, 1.0f, 1);
 }
 
 void UPRPickupNotificationEntryWidget::PlayFadeOutAnimation()

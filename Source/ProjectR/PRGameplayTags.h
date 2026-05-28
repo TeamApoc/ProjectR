@@ -32,6 +32,7 @@ namespace PRGameplayTags
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Ability_Player_GetUp); // 플레이어 기상 어빌리티
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Ability_Player_Revive); // 플레이어 동료 소생 어빌리티
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Ability_Player_Waypoint); // 크리스탈 상호작용 어빌리티
+	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Ability_Player_CombatEngaged); // 플레이어 전투 교전 갱신 어빌리티
 	
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Ability_Player_Weapon_Zoom); // 플레이어 볼트액션 줌 어빌리티
 
@@ -84,6 +85,7 @@ namespace PRGameplayTags
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(State_Groggy); // 그로기 상태.
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(State_StaminaDepleted); // 스태미너 고갈 상태.
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(State_Down); // 전투불능 다운 상태.
+	UE_DECLARE_GAMEPLAY_TAG_EXTERN(State_Combating); // 전투 중 스태미나 제한 상태
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(State_Invulnerable); // 무적 상태.
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(State_Dodging); // 구르기 동작중
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(State_Crouching); // 구르기 동작중
@@ -120,6 +122,7 @@ namespace PRGameplayTags
 
 	// ===== Event.* — SendGameplayEventToActor 이벤트 키 =====
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Event_Hit); // 피격 이벤트.
+	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Event_Combat_Engaged); // 전투 교전 유지 이벤트
 	
 	// Ability Triggers
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Event_Ability_Death); // 사망 이벤트.

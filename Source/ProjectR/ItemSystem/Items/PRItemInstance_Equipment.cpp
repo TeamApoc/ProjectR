@@ -76,12 +76,6 @@ void UPRItemInstance_Equipment::OnEquipped(AActor* OwnerActor)
 		*GetNameSafe(GetEquipmentData()), 
 		(int32)GetSlotType(), 
 		*GetNameSafe(OwnerActor));
-
-	if (GEngine)
-	{
-		const FString Msg = FString::Printf(TEXT("[Equipment] 장착: %s"), *GetNameSafe(GetEquipmentData()));
-		GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::Green, Msg);
-	}
 }
 
 void UPRItemInstance_Equipment::OnUnequipped(AActor* OwnerActor)
@@ -97,12 +91,6 @@ void UPRItemInstance_Equipment::OnUnequipped(AActor* OwnerActor)
 		*GetNameSafe(GetEquipmentData()), 
 		(int32)GetSlotType(), 
 		*GetNameSafe(OwnerActor));
-
-	if (GEngine)
-	{
-		const FString Msg = FString::Printf(TEXT("[Equipment] 해제: %s"), *GetNameSafe(GetEquipmentData()));
-		GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::Yellow, Msg);
-	}
 }
 
 void UPRItemInstance_Equipment::FillSaveEntry(FPREquipmentSlotSaveEntry& OutEntry) const

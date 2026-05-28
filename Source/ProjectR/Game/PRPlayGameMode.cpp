@@ -2,6 +2,7 @@
 
 #include "PRPlayGameMode.h"
 #include "EngineUtils.h"
+#include "Engine/World.h"
 #include "GameFramework/GameStateBase.h"
 #include "GameFramework/PlayerStart.h"
 #include "PRGameStateBase.h"
@@ -290,19 +291,19 @@ void APRPlayGameMode::ConfirmPartyWipe()
 		World->GetTimerManager().SetTimer(
 			PartyWipeRespawnTimerHandle,
 			this,
-			&ThisClass::RespawnPartyAtLastActiveWaypoint,
+			&ThisClass::RestartMapForPartyRespawn,
 			PartyWipeRespawnDelay,
 			false);
 	}
 	else
 	{
-		RespawnPartyAtLastActiveWaypoint();
+		RestartMapForPartyRespawn();
 	}
 }
 
-void APRPlayGameMode::RespawnPartyAtLastActiveWaypoint()
+void APRPlayGameMode::RestartMapForPartyRespawn()
 {
-	// 서버 권위 리스폰
+	// 서버 권위 재시작
 	if (!HasAuthority())
 	{
 		return;
@@ -316,9 +317,6 @@ void APRPlayGameMode::RespawnPartyAtLastActiveWaypoint()
 	}
 
 	const FGameplayTag RespawnWaypointId = ResolvePartyRespawnWaypointId();
-	const APRWaypointActor* RespawnWaypoint = FindWaypointById(RespawnWaypointId);
-	const bool bUseWaypointTransform = IsValid(RespawnWaypoint);
-
 	for (APlayerState* PlayerState : CurrentGameState->PlayerArray)
 	{
 		APRPlayerState* PRPlayerState = Cast<APRPlayerState>(PlayerState);
@@ -327,40 +325,38 @@ void APRPlayGameMode::RespawnPartyAtLastActiveWaypoint()
 			continue;
 		}
 
-		AController* Controller = Cast<AController>(PRPlayerState->GetOwner());
-		if (!IsValid(Controller) && IsValid(PRPlayerState->GetPawn()))
-		{
-			Controller = PRPlayerState->GetPawn()->GetController();
-		}
-
-		if (!IsValid(Controller))
-		{
-			continue;
-		}
-
-		// ASC 생존 상태 초기화
+		// 심리스 이동 보존 대상의 사망 상태 제거
 		PRPlayerState->ResetSurvivalStateForRespawn();
-
-		if (APawn* OldPawn = Controller->GetPawn())
-		{
-			// 기존 Pawn 정리
-			Controller->UnPossess();
-			OldPawn->Destroy();
-		}
-
-		if (bUseWaypointTransform)
-		{
-			// 플레이어별 Waypoint 스폰 위치
-			const FTransform RespawnTransform = RespawnWaypoint->GetSpawnTransform(ResolvePlayerIndex(Controller));
-			RestartPlayerAtTransform(Controller, RespawnTransform);
-		}
-		else
-		{
-			RestartPlayer(Controller);
-		}
 	}
 
-	bPartyWipeInProgress = false;
+	if (UPRGameInstance* GameInstance = GetGameInstance<UPRGameInstance>())
+	{
+		if (const APRGameStateBase* PRGameState = GetGameState<APRGameStateBase>())
+		{
+			// 전멸 리스폰용 월드 진행 상태 보존
+			FPRWorldSaveData WorldSaveData = PRGameState->MakeWorldSaveData();
+			WorldSaveData.LastActiveWaypointId = RespawnWaypointId;
+			GameInstance->SetPendingWorldSaveData(WorldSaveData);
+		}
+
+		// 새 맵 최초 스폰 지점 예약
+		GameInstance->SetPendingTravelWaypointId(RespawnWaypointId);
+	}
+
+	UWorld* World = GetWorld();
+	if (!IsValid(World))
+	{
+		bPartyWipeInProgress = false;
+		return;
+	}
+
+	// 현재 맵 재오픈
+	const bool bTravelStarted = World->ServerTravel(TEXT("?Restart"), false);
+	if (!bTravelStarted)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("Party respawn map restart failed."));
+		bPartyWipeInProgress = false;
+	}
 }
 
 APRWaypointActor* APRPlayGameMode::FindWaypointById(FGameplayTag WaypointId) const

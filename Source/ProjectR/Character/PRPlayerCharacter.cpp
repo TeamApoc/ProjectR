@@ -11,6 +11,7 @@
 #include "EnhancedInputSubsystems.h"
 #include "Components/CapsuleComponent.h"
 #include "Components/SphereComponent.h"
+#include "Components/StaticMeshComponent.h"
 #include "Kismet/KismetMathLibrary.h"
 #include "ProjectR/ProjectR.h"
 #include "ProjectR/AbilitySystem/PRAbilitySystemComponent.h"
@@ -22,6 +23,7 @@
 #include "ProjectR/ItemSystem/Components/PREquipmentManagerComponent.h"
 #include "ProjectR/Player/PRCameraModifier.h"
 #include "ProjectR/ItemSystem/Data/PREquipmentDataAsset.h"
+#include "ProjectR/ItemSystem/Data/PRConsumableDataAsset.h"
 #include "ProjectR/ItemSystem/Components/PRWeaponManagerComponent.h"
 #include "ProjectR/Player/Components/PRActionInputRouterComponent.h"
 #include "ProjectR/Player/Components/PRFlashlightComponent.h"
@@ -29,7 +31,6 @@
 #include "ProjectR/Projectile/PRProjectileTrajectoryPreviewComponent.h"
 #include "ProjectR/System/PREventManagerSubsystem.h"
 #include "ProjectR/ItemSystem/Actors/PRWeaponActor.h"
-
 
 // Sets default values
 APRPlayerCharacter::APRPlayerCharacter()
@@ -782,6 +783,114 @@ void APRPlayerCharacter::HandleEquipmentVisualInfosChanged(UPREquipmentManagerCo
 	}
 
 	ApplyEquipmentVisualsFromManager();
+}
+
+void APRPlayerCharacter::RequestConsumablePickupMeshBegin(UPRConsumableDataAsset* ConsumableData, FName AttachSocketName)
+{
+	if (!IsLocallyControlled())
+	{
+		return;
+	}
+
+	Server_RequestConsumablePickupMeshBegin(ConsumableData, AttachSocketName);
+}
+
+void APRPlayerCharacter::RequestConsumablePickupMeshEnd()
+{
+	if (!IsLocallyControlled())
+	{
+		return;
+	}
+
+	Server_RequestConsumablePickupMeshEnd();
+}
+
+void APRPlayerCharacter::Server_RequestConsumablePickupMeshBegin_Implementation(UPRConsumableDataAsset* ConsumableData, FName AttachSocketName)
+{
+	if (!IsValid(ConsumableData) || !IsValid(ConsumableData->GetPickupMesh()))
+	{
+		return;
+	}
+
+	UPRAbilitySystemComponent* ASC = GetPRAbilitySystemComponent();
+	if (!IsValid(ASC) || !ASC->HasMatchingGameplayTag(PRGameplayTags::State_UsingConsumable))
+	{
+		return;
+	}
+
+	USkeletalMeshComponent* MeshComp = GetMesh();
+	if (!IsValid(MeshComp) || AttachSocketName.IsNone() || !MeshComp->DoesSocketExist(AttachSocketName))
+	{
+		return;
+	}
+
+	Multicast_ShowConsumablePickupMesh(ConsumableData, AttachSocketName);
+}
+
+void APRPlayerCharacter::Server_RequestConsumablePickupMeshEnd_Implementation()
+{
+	Multicast_HideConsumablePickupMesh();
+}
+
+void APRPlayerCharacter::Multicast_ShowConsumablePickupMesh_Implementation(UPRConsumableDataAsset* ConsumableData, FName AttachSocketName)
+{
+	ShowConsumablePickupMesh(ConsumableData, AttachSocketName);
+}
+
+void APRPlayerCharacter::Multicast_HideConsumablePickupMesh_Implementation()
+{
+	HideConsumablePickupMesh();
+}
+
+void APRPlayerCharacter::ShowConsumablePickupMesh(UPRConsumableDataAsset* ConsumableData, FName AttachSocketName)
+{
+	if (!IsValid(ConsumableData) || !IsValid(ConsumableData->GetPickupMesh()))
+	{
+		return;
+	}
+
+	USkeletalMeshComponent* MeshComp = GetMesh();
+	if (!IsValid(MeshComp) || AttachSocketName.IsNone() || !MeshComp->DoesSocketExist(AttachSocketName))
+	{
+		return;
+	}
+
+	HideConsumablePickupMesh();
+
+	UStaticMeshComponent* PickupMeshComponent = NewObject<UStaticMeshComponent>(
+		this,
+		UStaticMeshComponent::StaticClass(),
+		NAME_None,
+		RF_Transient);
+	if (!IsValid(PickupMeshComponent))
+	{
+		return;
+	}
+
+	PickupMeshComponent->SetStaticMesh(ConsumableData->GetPickupMesh());
+	PickupMeshComponent->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+	PickupMeshComponent->SetGenerateOverlapEvents(false);
+	PickupMeshComponent->SetCanEverAffectNavigation(false);
+	PickupMeshComponent->SetMobility(EComponentMobility::Movable);
+	PickupMeshComponent->SetupAttachment(MeshComp, AttachSocketName);
+
+	PickupMeshComponent->RegisterComponent();
+	PickupMeshComponent->SetRelativeLocation(ConsumableData->GetPickupMeshSocketLocationOffset());
+	PickupMeshComponent->SetRelativeRotation(ConsumableData->GetPickupMeshSocketRotationOffset());
+	PickupMeshComponent->SetRelativeScale3D(ConsumableData->GetPickupMeshScale().ComponentMax(FVector::ZeroVector));
+	ActiveConsumablePickupMeshComponent = PickupMeshComponent;
+}
+
+void APRPlayerCharacter::HideConsumablePickupMesh()
+{
+	if (!IsValid(ActiveConsumablePickupMeshComponent))
+	{
+		ActiveConsumablePickupMeshComponent = nullptr;
+		return;
+	}
+
+	ActiveConsumablePickupMeshComponent->DestroyComponent();
+	ActiveConsumablePickupMeshComponent = nullptr;
 }
 
 void APRPlayerCharacter::HandleMouseSensitivityChanged(float NewSensitivity)

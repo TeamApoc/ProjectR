@@ -55,7 +55,6 @@ public:
 	bool ConsumePendingWorldSaveData(FPRWorldSaveData& OutWorldSaveData);
 
 	// 로컬 캐릭터 세이브 로드. 메뉴에서 "이어하기" 선택 시 호출
-	// 현재 단계에서는 스켈레톤 구현. 세이브 시스템 연동 시 본 메서드에서 SaveGame 로드 분기 추가
 	UFUNCTION(BlueprintCallable, Category = "ProjectR|Save")
 	bool LoadLocalCharacter(FName SlotName);
 
@@ -63,21 +62,75 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "ProjectR|Save")
 	bool SaveLocalCharacter(FName SlotName);
 
+	// 1~4번 로컬 캐릭터 슬롯 존재 여부 반환
+	UFUNCTION(BlueprintPure, Category = "ProjectR|Save")
+	bool DoesLocalCharacterSaveExist(int32 SlotIndex) const;
+
+	// 1~4번 로컬 캐릭터 슬롯 로드
+	UFUNCTION(BlueprintCallable, Category = "ProjectR|Save")
+	bool LoadLocalCharacterSlot(int32 SlotIndex);
+
+	// 1~4번 로컬 캐릭터 슬롯 데이터를 조회만 함
+	UFUNCTION(BlueprintCallable, Category = "ProjectR|Save")
+	bool TryGetLocalCharacterSaveSlotData(int32 SlotIndex, FPRCharacterSaveData& OutSaveData) const;
+
+	// 1~4번 로컬 캐릭터 슬롯 저장
+	UFUNCTION(BlueprintCallable, Category = "ProjectR|Save")
+	bool SaveLocalCharacterSlot(int32 SlotIndex);
+
+	// 현재 활성 로컬 캐릭터 슬롯 저장
+	UFUNCTION(BlueprintCallable, Category = "ProjectR|Save")
+	bool SaveActiveLocalCharacterSlot();
+
+	// 로컬 캐릭터 저장 파일이 하나도 없을 때 1번 슬롯 초기 저장 생성
+	UFUNCTION(BlueprintCallable, Category = "ProjectR|Save")
+	bool EnsureInitialLocalCharacterSave();
+
+	// 신규 게임 진입용 빈 로컬 캐릭터 슬롯을 하나 보장
+	UFUNCTION(BlueprintCallable, Category = "ProjectR|Save")
+	bool EnsureEmptyLocalCharacterSaveSlot();
+
+	// 세션 진입 직전 로컬 캐릭터 페이로드 준비
+	UFUNCTION(BlueprintCallable, Category = "ProjectR|Save")
+	bool EnsureLocalCharacterReadyForSession();
+
 	// 보상 이벤트 발생 시 서버가 푸시한 Grant를 로컬 캐릭터에 즉시 반영
 	// PlayerController.ClientGrantReward 수신 경로의 종착점
 	UFUNCTION(BlueprintCallable, Category = "ProjectR|Save")
 	void ApplyRewardGrant(const FPRRewardGrant& Grant);
 
 	// 현재 로컬 캐릭터 데이터 조회. Join 시 PlayerController가 서버로 제출할 때 사용
-	const FPRCharacterSaveData& GetLocalCharacter() const { return LocalCharacter; }
+	const FPRCharacterSaveData& GetLocalCharacter() const { return LocalCharacterSave; }
+
+	// 현재 플레이 중인 로컬 캐릭터 슬롯 번호 조회
+	UFUNCTION(BlueprintPure, Category = "ProjectR|Save")
+	int32 GetActiveLocalCharacterSlotIndex() const { return ActiveLocalCharacterSlotIndex; }
+
+	// 현재 플레이 중인 로컬 캐릭터 슬롯 존재 여부 조회
+	UFUNCTION(BlueprintPure, Category = "ProjectR|Save")
+	bool HasActiveLocalCharacterSlot() const { return IsValidLocalCharacterSlotIndex(ActiveLocalCharacterSlotIndex); }
 
 	// 로컬 캐릭터 직접 갱신. 신규 캐릭터 생성 UI 등에서 호출
-	void SetLocalCharacter(const FPRCharacterSaveData& NewData) { LocalCharacter = NewData; }
+	void SetLocalCharacterSave(const FPRCharacterSaveData& NewData) { LocalCharacterSave = NewData; }
+
+private:
+	// 1~4번 로컬 캐릭터 슬롯 이름 생성
+	FString BuildLocalCharacterSlotName(int32 SlotIndex) const;
+
+	// 로컬 캐릭터 슬롯 번호 유효성 확인
+	bool IsValidLocalCharacterSlotIndex(int32 SlotIndex) const;
+
+	// 신규 게임용 기본 캐릭터 저장 데이터 여부 확인
+	bool IsDefaultLocalCharacterSaveData(const FPRCharacterSaveData& SaveData) const;
 
 protected:
-	// 현재 플레이어가 들고 다니는 캐릭터 스펙. Join 시 이 데이터가 호스트로 전송된다
+	// 현재 플레이어가 들고 다니는 캐릭터 스펙. Join 시 이 데이터가 호스트로 전송됨
 	UPROPERTY(VisibleInstanceOnly, Category = "ProjectR|Save")
-	FPRCharacterSaveData LocalCharacter;
+	FPRCharacterSaveData LocalCharacterSave;
+
+	// 현재 플레이 중인 로컬 캐릭터 저장 슬롯 번호
+	UPROPERTY(VisibleInstanceOnly, Category = "ProjectR|Save")
+	int32 ActiveLocalCharacterSlotIndex = INDEX_NONE;
 
 	// ServerTravel 이후 최초 스폰에 사용할 Waypoint 태그
 	FGameplayTag PendingTravelWaypointId;

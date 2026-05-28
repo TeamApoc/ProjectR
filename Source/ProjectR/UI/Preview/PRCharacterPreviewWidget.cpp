@@ -14,10 +14,22 @@
 
 void UPRCharacterPreviewWidget::SetPreviewSources(APRPlayerCharacter* InSourceCharacter, UPRWeaponManagerComponent* InWeaponManagerComponent)
 {
+	bUseSaveDataPreview = false;
 	SourceCharacter = InSourceCharacter;
 	WeaponManagerComponent = InWeaponManagerComponent;
 
 	// 소스 설정 후 프리뷰 갱신
+	RefreshPreview();
+}
+
+void UPRCharacterPreviewWidget::SetPreviewSaveData(const FPRCharacterSaveData& InSaveData)
+{
+	bUseSaveDataPreview = true;
+	PreviewSaveData = InSaveData;
+	SourceCharacter = nullptr;
+	WeaponManagerComponent = nullptr;
+
+	// 저장 데이터 소스 설정 후 프리뷰 갱신
 	RefreshPreview();
 }
 
@@ -28,8 +40,6 @@ void UPRCharacterPreviewWidget::RefreshPreview()
 		return;
 	}
 	
-	// 소스가 비어있는 경우 플레이어 기준으로 갱신
-	ResolvePreviewSourcesFromOwningPlayerIfNeeded();
 	// 액터 스폰 혹은 기존 액터 재사용
 	EnsurePreviewActor();
 	// 프리뷰 이미지 갱신 
@@ -41,15 +51,30 @@ void UPRCharacterPreviewWidget::RefreshPreview()
 		return;
 	}
 
+	// 저장 데이터 기반 프리뷰 경로
+	if (bUseSaveDataPreview)
+	{
+		PreviewActor->SetRenderTargetToSceneCapture(IsValid(DynamicRenderTarget) ? DynamicRenderTarget.Get() : PreviewRenderTarget.Get());
+		PreviewActor->RefreshPreviewActorFromSaveData(PreviewSaveData);
+		PreviewActor->SetContinuousCapture(true);
+		return;
+	}
+
+	// 소스가 비어있는 경우 플레이어 기준으로 갱신
+	ResolvePreviewSourcesFromOwningPlayerIfNeeded();
 	if (!IsValid(SourceCharacter))
 	{
-		UE_LOG(LogTemp, Warning, TEXT("[CharacterPreviewWidget] 프리뷰 갱신 실패. SourceCharacter 없음"));
+		const APlayerController* OwningPlayerController = GetOwningPlayer();
+		if (IsValid(OwningPlayerController) && IsValid(Cast<APRPlayerCharacter>(OwningPlayerController->GetPawn())))
+		{
+			UE_LOG(LogTemp, Warning, TEXT("[CharacterPreviewWidget] 프리뷰 갱신 실패. SourceCharacter 없음"));
+		}
 		return;
 	}
 
 	// 씬 캡처 컴포넌트에 렌더 타겟 설정
 	PreviewActor->SetRenderTargetToSceneCapture(IsValid(DynamicRenderTarget) ? DynamicRenderTarget.Get() : PreviewRenderTarget.Get());
-	// 
+	// 실제 플레이어 상태 기반 프리뷰 갱신
 	PreviewActor->RefreshPreviewActorFromPlayer(SourceCharacter, WeaponManagerComponent);
 	PreviewActor->SetContinuousCapture(true);
 }
@@ -73,6 +98,8 @@ void UPRCharacterPreviewWidget::NativeDestruct()
 
 	SourceCharacter = nullptr;
 	WeaponManagerComponent = nullptr;
+	bUseSaveDataPreview = false;
+	PreviewSaveData = FPRCharacterSaveData();
 
 	Super::NativeDestruct();
 }

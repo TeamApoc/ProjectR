@@ -130,6 +130,7 @@ public:
 class UPRItemDataAsset;
 class UPRConsumableDataAsset;
 class UPRMaterialDataAsset;
+class UPREquipmentDataAsset;
 class UPRWeaponDataAsset;
 class UPRWeaponModDataAsset;
 // 세이브 파일 포맷 버전. Join 시 호스트-게스트 간 호환성 체크에 사용
@@ -318,6 +319,21 @@ struct FPRMaterialSaveEntry
 	int32 StackCount = 0;
 };
 
+// 장비 아이템 저장 엔트리
+USTRUCT(BlueprintType)
+struct FPREquipmentItemSaveEntry
+{
+	GENERATED_BODY()
+
+	// 장비 데이터 소프트 참조
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	TSoftObjectPtr<UPREquipmentDataAsset> EquipmentData;
+
+	// 보유 개수
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	int32 StackCount = 1;
+};
+
 // 인벤토리 저장 데이터
 USTRUCT(BlueprintType)
 struct FPRInventorySaveData
@@ -339,6 +355,10 @@ struct FPRInventorySaveData
 	// 재료 아이템 목록
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	TArray<FPRMaterialSaveEntry> Materials;
+
+	// 장비 아이템 목록
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	TArray<FPREquipmentItemSaveEntry> Equipments;
 };
 
 // 무기 매니저 저장 데이터

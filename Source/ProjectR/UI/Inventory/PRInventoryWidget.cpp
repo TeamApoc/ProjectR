@@ -27,6 +27,7 @@
 #include "ProjectR/ItemSystem/Items/PRItemInstance_Mod.h"
 #include "ProjectR/ItemSystem/Items/PRItemInstance_Weapon.h"
 #include "ProjectR/UI/Inventory/PRInventoryItemListWidget.h"
+#include "ProjectR/UI/Inventory/PRInventoryItemSlotViewDataBuilder.h"
 #include "ProjectR/UI/Inventory/PRItemSlotWidget.h"
 #include "ProjectR/UI/Preview/PRCharacterPreviewWidget.h"
 
@@ -834,178 +835,55 @@ APRPlayerCharacter* UPRInventoryWidget::GetPreviewSourceCharacter() const
 
 FPRInventoryItemSlotViewData UPRInventoryWidget::BuildWeaponSlotViewData(EPRWeaponSlotType SlotType) const
 {
-	//무기 매니저 컴포넌트가 유효하면
 	if (IsValid(WeaponManagerComponent))
 	{
-		// 타겟 슬롯의 장착된 무기 아이템 확인
 		if (UPRItemInstance_Weapon* WeaponItem = WeaponManagerComponent->GetWeaponInstanceBySlotType(SlotType))
 		{
-			// 장착 아이템 뷰 데이터 리턴
 			return BuildWeaponItemViewData(WeaponItem, true);
 		}
 	}
 
-	// 장착된 무기가 없으면 슬롯 텍스트에 무기 없음으로 표시
-	FPRInventoryItemSlotViewData ViewData;
-	ViewData.ItemType = EPRItemType::Weapon;
-	ViewData.DisplayName = SlotType == EPRWeaponSlotType::Primary
-		? FText::FromString(TEXT("주무기 없음"))
-		: FText::FromString(TEXT("보조무기 없음"));
-	return ViewData;
+	return UPRInventoryItemSlotViewDataBuilder::BuildEmptyWeaponSlotViewData(SlotType);
 }
 
 FPRInventoryItemSlotViewData UPRInventoryWidget::BuildWeaponItemViewData(UPRItemInstance_Weapon* WeaponItem, bool bEquipped) const
 {
-	// 무기 아이템 표시용 뷰 데이터
-	FPRInventoryItemSlotViewData ViewData;
-	// 무기 아이템이 없으면
-	if (!IsValid(WeaponItem))
-	{
-		UE_LOG(LogTemp, Warning, TEXT("[InventoryWidget] 무기 아이템 없음. BuildWeaponItemViewData()"));
-		// 빈 뷰 데이터 리턴
-		return ViewData;
-	}
-
-	UPRWeaponDataAsset* WeaponData = WeaponItem->GetWeaponData();
-	ViewData.ItemData = WeaponData;
-	ViewData.ItemInstance = WeaponItem;
-	ViewData.ItemType = EPRItemType::Weapon;
-	ViewData.InventoryAction = bEquipped ? EPRInventoryAction::Deactivate : EPRInventoryAction::Activate;
-
-	if (IsValid(WeaponData))
-	{
-		ViewData.DisplayName = WeaponData->GetDisplayName();
-		ViewData.Icon = WeaponData->GetIcon();
-	}
-	else
-	{
-		UE_LOG(LogTemp, Warning, TEXT("[InventoryWidget] 무기 아이템 데이터 없음. BuildWeaponItemViewData()"));
-	}
-
-	return ViewData;
+	return UPRInventoryItemSlotViewDataBuilder::BuildWeaponItemViewData(WeaponItem, bEquipped);
 }
 
 FPRInventoryItemSlotViewData UPRInventoryWidget::BuildModItemViewData(UPRItemInstance_Mod* ModItem, bool bEquipped) const
 {
-	FPRInventoryItemSlotViewData ViewData;
-	if (!IsValid(ModItem))
-	{
-		UE_LOG(LogTemp, Warning, TEXT("[InventoryWidget] 모드 아이템 없음. BuildModItemViewData()"));
-		return ViewData;
-	}
-
-	UPRWeaponModDataAsset* ModData = ModItem->GetModData();
-	ViewData.ItemData = ModData;
-	ViewData.ItemInstance = ModItem;
-	ViewData.ItemType = EPRItemType::Mod;
-	ViewData.InventoryAction = bEquipped ? EPRInventoryAction::Deactivate : EPRInventoryAction::Activate;
-
-	if (IsValid(ModData))
-	{
-		ViewData.DisplayName = ModData->GetDisplayName();
-		ViewData.Icon = ModData->GetIcon();
-	}
-
-	return ViewData;
+	return UPRInventoryItemSlotViewDataBuilder::BuildModItemViewData(ModItem, bEquipped);
 }
 
 FPRInventoryItemSlotViewData UPRInventoryWidget::BuildConsumableItemViewData(UPRItemInstance_Consumable* ConsumableItem) const
 {
-	FPRInventoryItemSlotViewData ViewData;
-	if (!IsValid(ConsumableItem))
-	{
-		UE_LOG(LogTemp, Warning, TEXT("[InventoryWidget] 소비 아이템 없음. BuildConsumableItemViewData()"));
-		return ViewData;
-	}
-
-	UPRConsumableDataAsset* ConsumableData = ConsumableItem->GetConsumableData();
-	ViewData.ItemData = ConsumableData;
-	ViewData.ItemInstance = ConsumableItem;
-	ViewData.ItemType = EPRItemType::Consumable;
-	ViewData.InventoryAction = EPRInventoryAction::Activate;
-	ViewData.StackCount = ConsumableItem->GetStackCount();
-	ViewData.bShowStackCount = true;
-
-	if (IsValid(ConsumableData))
-	{
-		ViewData.DisplayName = ConsumableData->GetDisplayName();
-		ViewData.Icon = ConsumableData->GetIcon();
-	}
-
-	return ViewData;
+	return UPRInventoryItemSlotViewDataBuilder::BuildConsumableItemViewData(ConsumableItem);
 }
 
 FPRInventoryItemSlotViewData UPRInventoryWidget::BuildMaterialSlotViewData() const
 {
-	FPRInventoryItemSlotViewData ViewData;
-	ViewData.ItemType = EPRItemType::Material;
-	ViewData.DisplayName = FText::FromString(TEXT("재료"));
-	return ViewData;
+	return UPRInventoryItemSlotViewDataBuilder::BuildMaterialSlotViewData();
 }
 
 FPRInventoryItemSlotViewData UPRInventoryWidget::BuildMaterialItemViewData(UPRItemInstance_Material* MaterialItem) const
 {
-	FPRInventoryItemSlotViewData ViewData;
-	if (!IsValid(MaterialItem))
-	{
-		UE_LOG(LogTemp, Warning, TEXT("[InventoryWidget] 재료 아이템 없음. BuildMaterialItemViewData()"));
-		return ViewData;
-	}
-
-	UPRMaterialDataAsset* MaterialData = MaterialItem->GetMaterialData();
-	ViewData.ItemData = MaterialData;
-	ViewData.ItemInstance = MaterialItem;
-	ViewData.ItemType = EPRItemType::Material;
-	ViewData.StackCount = MaterialItem->GetStackCount();
-	ViewData.bShowStackCount = true;
-
-	if (IsValid(MaterialData))
-	{
-		ViewData.DisplayName = MaterialData->GetDisplayName();
-		ViewData.Icon = MaterialData->GetIcon();
-	}
-
-	return ViewData;
+	return UPRInventoryItemSlotViewDataBuilder::BuildMaterialItemViewData(MaterialItem);
 }
 
 FPRInventoryItemSlotViewData UPRInventoryWidget::BuildQuickSlotViewData(int32 SlotIndex) const
 {
-	FPRInventoryItemSlotViewData ViewData;
-	ViewData.ItemType = EPRItemType::Consumable;
-	ViewData.ContextIndex = SlotIndex;
-
 	if (!IsValid(QuickSlotComponent))
 	{
-		ViewData.DisplayName = FText::FromString(TEXT("퀵슬롯 비어 있음"));
-		return ViewData;
+		return UPRInventoryItemSlotViewDataBuilder::BuildEmptyQuickSlotViewData(SlotIndex);
 	}
 
 	const FPRQuickSlotViewData QuickSlotViewData = QuickSlotComponent->BuildQuickSlotViewData(SlotIndex);
-	ViewData.ItemData = QuickSlotViewData.ConsumableData;
-	ViewData.ItemInstance = QuickSlotViewData.ConsumableItem;
-	ViewData.Icon = QuickSlotViewData.Icon;
-	ViewData.StackCount = QuickSlotViewData.StackCount;
-	ViewData.bShowStackCount = QuickSlotViewData.bHasRegisteredItem;
-
-	if (IsValid(QuickSlotViewData.ConsumableData))
-	{
-		ViewData.DisplayName = QuickSlotViewData.ConsumableData->GetDisplayName();
-	}
-	else
-	{
-		ViewData.DisplayName = FText::FromString(TEXT("퀵슬롯 비어 있음"));
-	}
-
-	return ViewData;
+	return UPRInventoryItemSlotViewDataBuilder::BuildQuickSlotViewData(QuickSlotViewData);
 }
 
 FPRInventoryItemSlotViewData UPRInventoryWidget::BuildEquipmentSlotViewData(EPREquipmentSlotType SlotType) const
 {
-	// 장비 슬롯 클릭은 비어 있어도 해당 슬롯의 장비 목록을 열어야 함
-	FPRInventoryItemSlotViewData ViewData;
-	ViewData.ItemType = EPRItemType::Equipment;
-	ViewData.ContextIndex = static_cast<int32>(SlotType);
-
 	if (IsValid(EquipmentManagerComponent))
 	{
 		if (UPRItemInstance_Equipment* EquipmentItem = EquipmentManagerComponent->GetEquippedItem(SlotType))
@@ -1016,126 +894,27 @@ FPRInventoryItemSlotViewData UPRInventoryWidget::BuildEquipmentSlotViewData(EPRE
 		}
 	}
 
-	ViewData.DisplayName = FText::Format(FText::FromString(TEXT("{0} 없음")), GetEquipmentSlotDisplayName(SlotType));
-	return ViewData;
+	return UPRInventoryItemSlotViewDataBuilder::BuildEmptyEquipmentSlotViewData(SlotType);
 }
 
 FPRInventoryItemSlotViewData UPRInventoryWidget::BuildEquipmentItemViewData(UPRItemInstance_Equipment* EquipmentItem, bool bEquipped) const
 {
-	FPRInventoryItemSlotViewData ViewData;
-	if (!IsValid(EquipmentItem))
-	{
-		UE_LOG(LogTemp, Warning, TEXT("[InventoryWidget] 장비 아이템 없음. BuildEquipmentItemViewData()"));
-		return ViewData;
-	}
-
-	UPREquipmentDataAsset* EquipmentData = EquipmentItem->GetEquipmentData();
-	const EPREquipmentSlotType SlotType = EquipmentItem->GetSlotType();
-	ViewData.ItemData = EquipmentData;
-	ViewData.ItemInstance = EquipmentItem;
-	ViewData.ItemType = EPRItemType::Equipment;
-	ViewData.ContextIndex = static_cast<int32>(SlotType);
-	ViewData.InventoryAction = bEquipped ? EPRInventoryAction::Deactivate : EPRInventoryAction::Activate;
-
-	if (IsValid(EquipmentData))
-	{
-		ViewData.DisplayName = EquipmentData->GetDisplayName();
-		ViewData.Icon = EquipmentData->GetIcon();
-	}
-
-	return ViewData;
+	return UPRInventoryItemSlotViewDataBuilder::BuildEquipmentItemViewData(EquipmentItem, bEquipped);
 }
 
 FPRInventoryItemSlotViewData UPRInventoryWidget::BuildDeactivateActionViewData(EPRItemType ListType, UPRItemInstance* TargetItem) const
 {
-	FPRInventoryItemSlotViewData ViewData;
-	// 명령 슬롯 선택 시 RequestDeactivateItem으로 전달할 실제 대상
-	// 표시 데이터는 명령 항목, 실행 데이터는 대상 ItemInstance로 연결
-	ViewData.ItemInstance = TargetItem;
-	ViewData.InventoryAction = EPRInventoryAction::Deactivate;
-
-	if (ListType == EPRItemType::Weapon
-		|| ListType == EPRItemType::PrimaryWeapon
-		|| ListType == EPRItemType::SecondaryWeapon)
-	{
-		ViewData.ItemType = EPRItemType::Weapon;
-		ViewData.DisplayName = FText::FromString(TEXT("무기 해제"));
-	}
-	else if (ListType == EPRItemType::Mod)
-	{
-		ViewData.ItemType = EPRItemType::Mod;
-		ViewData.DisplayName = FText::FromString(TEXT("Mod 해제"));
-	}
-	else if (ListType == EPRItemType::Equipment)
-	{
-		ViewData.ItemType = EPRItemType::Equipment;
-		ViewData.DisplayName = FText::FromString(TEXT("장비 해제"));
-
-		if (const UPRItemInstance_Equipment* EquipmentItem = Cast<UPRItemInstance_Equipment>(TargetItem))
-		{
-			ViewData.ContextIndex = static_cast<int32>(EquipmentItem->GetSlotType());
-		}
-	}
-
-	return ViewData;
+	return UPRInventoryItemSlotViewDataBuilder::BuildDeactivateActionViewData(ListType, TargetItem);
 }
 
 FText UPRInventoryWidget::GetEquipmentSlotDisplayName(EPREquipmentSlotType SlotType) const
 {
-	switch (SlotType)
-	{
-	case EPREquipmentSlotType::Head:
-		return FText::FromString(TEXT("머리"));
-
-	case EPREquipmentSlotType::Body:
-		return FText::FromString(TEXT("몸통"));
-
-	case EPREquipmentSlotType::Hands:
-		return FText::FromString(TEXT("손"));
-
-	case EPREquipmentSlotType::Legs:
-		return FText::FromString(TEXT("다리"));
-
-	case EPREquipmentSlotType::Amulet:
-		return FText::FromString(TEXT("목걸이"));
-
-	case EPREquipmentSlotType::Ring1:
-		return FText::FromString(TEXT("반지 1"));
-
-	case EPREquipmentSlotType::Ring2:
-		return FText::FromString(TEXT("반지 2"));
-
-	case EPREquipmentSlotType::None:
-	default:
-		return FText::FromString(TEXT("장비"));
-	}
+	return UPRInventoryItemSlotViewDataBuilder::GetEquipmentSlotDisplayName(SlotType);
 }
 
 bool UPRInventoryWidget::IsModCompatibleWithWeapon(const UPRItemInstance_Mod* ModItem, const UPRItemInstance_Weapon* WeaponItem) const
 {
-	if (!IsValid(ModItem) || !IsValid(WeaponItem))
-	{
-		return false;
-	}
-
-	const UPRWeaponModDataAsset* ModData = ModItem->GetModData();
-	const UPRWeaponDataAsset* WeaponData = WeaponItem->GetWeaponData();
-	if (!IsValid(ModData) || !IsValid(WeaponData))
-	{
-		return false;
-	}
-
-	if (ModData->ModTags.IsEmpty())
-	{
-		return true;
-	}
-
-	if (WeaponData->SupportedModTags.IsEmpty())
-	{
-		return false;
-	}
-
-	return WeaponData->SupportedModTags.HasAny(ModData->ModTags);
+	return UPRInventoryItemSlotViewDataBuilder::IsModCompatibleWithWeapon(ModItem, WeaponItem);
 }
 
 UPRCurrencyComponent* UPRInventoryWidget::ResolveCurrencyComponent() const

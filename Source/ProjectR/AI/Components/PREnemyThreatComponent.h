@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "Components/ActorComponent.h"
 #include "ProjectR/AI/PREnemyAITypes.h"
+#include "TimerManager.h"
 #include "PREnemyThreatComponent.generated.h"
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FPRTargetChangedSignature, AActor*, OldTarget, AActor*, NewTarget);
@@ -101,6 +102,23 @@ public:
 	FPRTargetChangedSignature OnTargetChanged;
 
 protected:
+	/*~ UActorComponent Interface ~*/
+	virtual void BeginPlay() override;
+	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
+
+	/*~ 05.28 김동석 PRCombatEngageMentSubystem 을 통한 플레이어 전투상태 알림 ~*/
+	// 전투 교전 후보 보고 타이머 시작
+	void StartCombatEngagementReportTimer();
+
+	// 전투 교전 후보 보고 타이머 정리
+	void StopCombatEngagementReportTimer();
+
+	// 유지 중인 전투 후보를 집계 서브시스템에 보고
+	void ReportCombatEngagedCandidates();
+
+	// 전투 교전 후보로 보고 가능한 대상 여부 확인
+	bool ShouldReportCombatEngagedCandidate(const FPREnemyTargetCandidate& Candidate) const;
+
 	bool IsValidThreatTarget(const AActor* Target) const;
 	void ReevaluateTarget(bool bResetScoreWindow = true);
 	void SetCurrentTarget(AActor* NewTarget, float CandidateScore = 0.0f);
@@ -140,6 +158,13 @@ protected:
 	// 공격 하나가 진행 중일 때 타겟 변경을 보류하기 위한 상태다.
 	UPROPERTY()
 	FPREnemyAttackCommitState AttackCommitState;
+
+	// 05.28 김동석추가 
+	// 전투 교전 후보 보고 주기
+	UPROPERTY(EditDefaultsOnly, Category = "ProjectR|Combat", meta = (ClampMin = "0.1"))
+	float CombatEngagementReportInterval = 1.0f;
+
+	FTimerHandle CombatEngagementReportTimerHandle;
 
 	float LastSwitchTime = -1000.0f;
 

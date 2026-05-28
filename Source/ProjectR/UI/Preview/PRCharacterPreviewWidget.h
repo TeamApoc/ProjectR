@@ -14,6 +14,8 @@ class UMaterialInstanceDynamic;
 class UMaterialInterface;
 class UPRWeaponManagerComponent;
 class UTextureRenderTarget2D;
+class UWidget;
+struct FPRAssetLoadResult;
 
 // UI에 캐릭터 3D 프리뷰 이미지를 표시하는 위젯
 UCLASS(Abstract, BlueprintType)
@@ -47,6 +49,21 @@ protected:
 	virtual void NativeDestruct() override;
 
 private:
+	// 프리뷰 로딩 파이프라인 시작
+	void StartPreviewLoadPipeline();
+
+	// 프리뷰 의존 에셋 로드 완료 처리
+	void HandlePreviewDependentAssetsLoaded(const FPRAssetLoadResult& Result, uint64 PreviewRequestSerial);
+
+	// 로드된 에셋 기준 프리뷰 즉시 적용
+	void ApplyLoadedPreview();
+
+	// 프리뷰 로딩 표시
+	void ShowPreviewLoading();
+
+	// 프리뷰 준비 완료 표시
+	void ShowPreviewReady();
+
 	// 프리뷰 액터 생성 또는 기존 액터 재사용
 	void EnsurePreviewActor();
 
@@ -57,12 +74,16 @@ private:
 	void RefreshPreviewBrush();
 
 	// 소스가 비어 있으면 Owning Player 기준으로 프리뷰 소스 조회
-	void ResolvePreviewSourcesFromOwningPlayerIfNeeded();
+	void SyncWithPreviewSources();
 
 protected:
 	// UMG에서 바인딩할 캐릭터 프리뷰 이미지
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "ProjectR|Preview")
 	TObjectPtr<UImage> CharacterPreviewImage;
+
+	// UMG에서 바인딩할 프리뷰 로딩 표시
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "ProjectR|Preview")
+	TObjectPtr<UWidget> PreviewLoadingThrobber;
 
 	// 프리뷰에 사용할 액터 클래스
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "ProjectR|Preview")
@@ -75,6 +96,14 @@ protected:
 	// 프리뷰 렌더 타겟을 표시할 UI 머티리얼
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "ProjectR|Preview")
 	TObjectPtr<UMaterialInterface> PreviewMaterial;
+
+	// 프리뷰 메시 텍스처 스트리밍 거리 보정값
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "ProjectR|Preview", meta = (ClampMin = "0.0"))
+	float PreviewStreamingDistanceMultiplier = 5.0f;
+
+	// 프리뷰 텍스처 프리스트림 유지 시간
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "ProjectR|Preview", meta = (ClampMin = "0.0"))
+	float PreviewTexturePrestreamSeconds = 1.0f;
 
 private:
 	// 프리뷰 메시와 캡처를 담당하는 액터
@@ -102,4 +131,7 @@ private:
 
 	// 저장 데이터 기반 프리뷰 입력값
 	FPRCharacterSaveData PreviewSaveData;
+
+	// 최신 프리뷰 로드 요청 식별자
+	uint64 PreviewLoadRequestSerial = 0;
 };

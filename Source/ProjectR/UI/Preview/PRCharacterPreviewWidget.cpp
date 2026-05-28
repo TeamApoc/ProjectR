@@ -4,13 +4,16 @@
 #include "PRCharacterPreviewWidget.h"
 
 #include "Components/Image.h"
+#include "Components/Widget.h"
 #include "Engine/TextureRenderTarget2D.h"
 #include "Engine/World.h"
 #include "GameFramework/PlayerController.h"
 #include "Materials/MaterialInterface.h"
+#include "ProjectR/System/PRAssetManager.h"
 #include "ProjectR/Character/PRPlayerCharacter.h"
 #include "ProjectR/UI/Preview/PRCharacterPreviewActor.h"
 #include "ProjectR/ItemSystem/Components/PRWeaponManagerComponent.h"
+#include "ProjectR/Utils/PRAssetUtils.h"
 
 void UPRCharacterPreviewWidget::SetPreviewSources(APRPlayerCharacter* InSourceCharacter, UPRWeaponManagerComponent* InWeaponManagerComponent)
 {
@@ -39,7 +42,103 @@ void UPRCharacterPreviewWidget::RefreshPreview()
 	{
 		return;
 	}
-	
+
+	StartPreviewLoadPipeline();
+}
+
+/*~ UUserWidget Interface ~*/
+
+void UPRCharacterPreviewWidget::NativeConstruct()
+{
+	Super::NativeConstruct();
+	RefreshPreview();
+}
+
+void UPRCharacterPreviewWidget::NativeDestruct()
+{
+	++PreviewLoadRequestSerial;
+
+	if (IsValid(PreviewActor))
+	{
+		PreviewActor->SetContinuousCapture(false);
+	}
+
+	DestroyPreviewActor();
+
+	SourceCharacter = nullptr;
+	WeaponManagerComponent = nullptr;
+	bUseSaveDataPreview = false;
+	PreviewSaveData = FPRCharacterSaveData();
+
+	Super::NativeDestruct();
+}
+
+void UPRCharacterPreviewWidget::StartPreviewLoadPipeline()
+{
+	ShowPreviewLoading();
+
+	// 프리뷰 소스 기준 요청 식별자 갱신
+	const uint64 PreviewRequestSerial = ++PreviewLoadRequestSerial;
+
+	if (!bUseSaveDataPreview)
+	{
+		SyncWithPreviewSources();
+	}
+
+	TArray<FSoftObjectPath> RootAssetPaths;
+	TArray<UObject*> LoadedRootAssetsFromSources;
+	if (bUseSaveDataPreview)
+	{
+		UPRAssetUtils::CollectPreviewRootAssetPaths(PreviewSaveData, RootAssetPaths);
+	}
+	else
+	{
+		UPRAssetUtils::CollectPreviewRootAssetPaths(SourceCharacter, WeaponManagerComponent, RootAssetPaths);
+		UPRAssetUtils::CollectPreviewLoadedRootAssets(SourceCharacter, WeaponManagerComponent, LoadedRootAssetsFromSources);
+	}
+
+	FPRAssetsLoadedNative RootAssetsLoadedCallback = FPRAssetsLoadedNative::CreateWeakLambda(
+		this,
+		[this, PreviewRequestSerial, LoadedRootAssetsFromSources](const FPRAssetLoadResult& Result)
+		{
+			TArray<UObject*> LoadedRootAssets = LoadedRootAssetsFromSources;
+			UPRAssetUtils::CollectLoadedAssetsFromMap(Result.LoadedAssets, LoadedRootAssets);
+
+			if (PreviewRequestSerial != PreviewLoadRequestSerial)
+			{
+				return;
+			}
+
+			TArray<FSoftObjectPath> DependentAssetPaths;
+			UPRAssetUtils::CollectPreviewDependentAssetPaths(LoadedRootAssets, DependentAssetPaths);
+			FPRAssetsLoadedNative DependentAssetsLoadedCallback = FPRAssetsLoadedNative::CreateWeakLambda(
+				this,
+				[this, PreviewRequestSerial](const FPRAssetLoadResult& DependentResult)
+				{
+					HandlePreviewDependentAssetsLoaded(DependentResult, PreviewRequestSerial);
+				});
+
+			UPRAssetManager::Get().LoadAssetsAsync(DependentAssetPaths, DependentAssetsLoadedCallback);
+		});
+
+	UPRAssetManager::Get().LoadAssetsAsync(RootAssetPaths, RootAssetsLoadedCallback);
+}
+
+void UPRCharacterPreviewWidget::HandlePreviewDependentAssetsLoaded(const FPRAssetLoadResult& Result, uint64 PreviewRequestSerial)
+{
+	if (PreviewRequestSerial != PreviewLoadRequestSerial)
+	{
+		return;
+	}
+
+	(void)Result;
+
+	ApplyLoadedPreview();
+	ShowPreviewReady();
+}
+
+void UPRCharacterPreviewWidget::ApplyLoadedPreview()
+{
 	// 액터 스폰 혹은 기존 액터 재사용
 	EnsurePreviewActor();
 	// 프리뷰 이미지 갱신 
@@ -56,12 +155,13 @@ void UPRCharacterPreviewWidget::RefreshPreview()
 	{
 		PreviewActor->SetRenderTargetToSceneCapture(IsValid(DynamicRenderTarget) ? DynamicRenderTarget.Get() : PreviewRenderTarget.Get());
 		PreviewActor->RefreshPreviewActorFromSaveData(PreviewSaveData);
+		PreviewActor->InitTextureStreaming(PreviewTexturePrestreamSeconds, PreviewStreamingDistanceMultiplier);
 		PreviewActor->SetContinuousCapture(true);
 		return;
 	}
 
 	// 소스가 비어있는 경우 플레이어 기준으로 갱신
-	ResolvePreviewSourcesFromOwningPlayerIfNeeded();
+	SyncWithPreviewSources();
 	if (!IsValid(SourceCharacter))
 	{
 		const APlayerController* OwningPlayerController = GetOwningPlayer();
@@ -76,32 +176,38 @@ void UPRCharacterPreviewWidget::RefreshPreview()
 	PreviewActor->SetRenderTargetToSceneCapture(IsValid(DynamicRenderTarget) ? DynamicRenderTarget.Get() : PreviewRenderTarget.Get());
 	// 실제 플레이어 상태 기반 프리뷰 갱신
 	PreviewActor->RefreshPreviewActorFromPlayer(SourceCharacter, WeaponManagerComponent);
+	PreviewActor->InitTextureStreaming(PreviewTexturePrestreamSeconds, PreviewStreamingDistanceMultiplier);
 	PreviewActor->SetContinuousCapture(true);
 }
 
-/*~ UUserWidget Interface ~*/
-
-void UPRCharacterPreviewWidget::NativeConstruct()
+void UPRCharacterPreviewWidget::ShowPreviewLoading()
 {
-	Super::NativeConstruct();
-	RefreshPreview();
-}
-
-void UPRCharacterPreviewWidget::NativeDestruct()
-{
-	if (IsValid(PreviewActor))
+	if (IsValid(CharacterPreviewImage))
 	{
-		PreviewActor->SetContinuousCapture(false);
+		// 로딩 중 낮은 밉 프리뷰 노출 방지
+		CharacterPreviewImage->SetVisibility(ESlateVisibility::Hidden);
 	}
 
-	DestroyPreviewActor();
+	if (IsValid(PreviewLoadingThrobber))
+	{
+		// 프리뷰 에셋 준비 상태 표시
+		PreviewLoadingThrobber->SetVisibility(ESlateVisibility::Visible);
+	}
+}
 
-	SourceCharacter = nullptr;
-	WeaponManagerComponent = nullptr;
-	bUseSaveDataPreview = false;
-	PreviewSaveData = FPRCharacterSaveData();
+void UPRCharacterPreviewWidget::ShowPreviewReady()
+{
+	if (IsValid(PreviewLoadingThrobber))
+	{
+		// 프리뷰 에셋 준비 표시 종료
+		PreviewLoadingThrobber->SetVisibility(ESlateVisibility::Collapsed);
+	}
 
-	Super::NativeDestruct();
+	if (IsValid(CharacterPreviewImage))
+	{
+		// 준비 완료 프리뷰 노출
+		CharacterPreviewImage->SetVisibility(ESlateVisibility::Visible);
+	}
 }
 
 void UPRCharacterPreviewWidget::EnsurePreviewActor()
@@ -195,7 +301,7 @@ void UPRCharacterPreviewWidget::RefreshPreviewBrush()
 	CharacterPreviewImage->SetDesiredSizeOverride(FVector2D(DynamicRenderTarget->SizeX, DynamicRenderTarget->SizeY));
 }
 
-void UPRCharacterPreviewWidget::ResolvePreviewSourcesFromOwningPlayerIfNeeded()
+void UPRCharacterPreviewWidget::SyncWithPreviewSources()
 {
 	// 이미 소스가 있다면
 	if (IsValid(SourceCharacter) && IsValid(WeaponManagerComponent))

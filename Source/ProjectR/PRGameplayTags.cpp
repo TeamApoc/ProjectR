@@ -43,7 +43,7 @@ namespace PRGameplayTags
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Ability_Enemy_Penitent_Projectile, "Ability.Enemy.Penitent.Projectile", "Penitent 기본 투사체");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Ability_Enemy_Penitent_BarrierSummon, "Ability.Enemy.Penitent.BarrierSummon", "Penitent 배리어 소환");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Ability_Enemy_Penitent_BarrierFire, "Ability.Enemy.Penitent.BarrierFire", "Penitent 배리어 발사");
-	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Ability_Enemy_Penitent_StaffSwipe, "Ability.Enemy.Penitent.StaffSwipe", "Penitent 근거리 휘두르기");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Ability_Enemy_Penitent_StaffSwing, "Ability.Enemy.Penitent.StaffSwing", "Penitent 근거리 휘두르기");
 
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Ability_Enemy_RoyalArcher_Pattern, "Ability.Enemy.RoyalArcher.Pattern", "RoyalArcher 패턴 루트");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Ability_Enemy_RoyalArcher_WakeFromPerch, "Ability.Enemy.RoyalArcher.WakeFromPerch", "RoyalArcher 전투 시작");

@@ -70,6 +70,18 @@ void UPRPickupNotificationEntryWidget::PlayFadeOutAnimation()
 	PlayAnimation(FadeOut, 0.0f, 1);
 }
 
+void UPRPickupNotificationEntryWidget::CancelFadeOutAnimation()
+{
+	bWaitingFadeOutFinished = false;
+	SetVisibility(ESlateVisibility::HitTestInvisible);
+	SetRenderOpacity(1.0f);
+
+	if (IsValid(FadeOut))
+	{
+		StopAnimation(FadeOut);
+	}
+}
+
 void UPRPickupNotificationEntryWidget::NativeConstruct()
 {
 	Super::NativeConstruct();

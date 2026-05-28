@@ -88,6 +88,9 @@ protected:
 	
 	UPROPERTY(BlueprintReadOnly, Category = "Movement")
 	float XYSpeed;
+
+	UPROPERTY(BlueprintReadOnly, Category = "Movement")
+	float MovementSpeedMultiplier = 1.0f;
 	
 	UPROPERTY(BlueprintReadOnly, Category = "Movement")
 	float Direction;

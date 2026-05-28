@@ -34,6 +34,10 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "ProjectR|HUD|Pickup")
 	void PlayFadeOutAnimation();
 
+	// 진행 중인 퇴장 애니메이션 취소
+	UFUNCTION(BlueprintCallable, Category = "ProjectR|HUD|Pickup")
+	void CancelFadeOutAnimation();
+
 public:
 	// FadeOut 종료 시 컨테이너에 제거를 알리는 델리게이트
 	UPROPERTY(BlueprintAssignable, Category = "ProjectR|HUD|Pickup")

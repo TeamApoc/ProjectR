@@ -14,6 +14,7 @@
 
 void UPRCharacterPreviewWidget::SetPreviewSources(APRPlayerCharacter* InSourceCharacter, UPRWeaponManagerComponent* InWeaponManagerComponent)
 {
+	bUseSaveDataPreview = false;
 	SourceCharacter = InSourceCharacter;
 	WeaponManagerComponent = InWeaponManagerComponent;
 
@@ -21,10 +22,24 @@ void UPRCharacterPreviewWidget::SetPreviewSources(APRPlayerCharacter* InSourceCh
 	RefreshPreview();
 }
 
+void UPRCharacterPreviewWidget::SetPreviewSaveData(const FPRCharacterSaveData& InSaveData)
+{
+	bUseSaveDataPreview = true;
+	PreviewSaveData = InSaveData;
+	SourceCharacter = nullptr;
+	WeaponManagerComponent = nullptr;
+
+	// 저장 데이터 소스 설정 후 프리뷰 갱신
+	RefreshPreview();
+}
+
 void UPRCharacterPreviewWidget::RefreshPreview()
 {
-	// 소스가 비어있는 경우 플레이어 기준으로 갱신
-	ResolvePreviewSourcesFromOwningPlayerIfNeeded();
+	if (!GetOwningLocalPlayer())
+	{
+		return;
+	}
+	
 	// 액터 스폰 혹은 기존 액터 재사용
 	EnsurePreviewActor();
 	// 프리뷰 이미지 갱신 
@@ -36,15 +51,30 @@ void UPRCharacterPreviewWidget::RefreshPreview()
 		return;
 	}
 
+	// 저장 데이터 기반 프리뷰 경로
+	if (bUseSaveDataPreview)
+	{
+		PreviewActor->SetRenderTargetToSceneCapture(IsValid(DynamicRenderTarget) ? DynamicRenderTarget.Get() : PreviewRenderTarget.Get());
+		PreviewActor->RefreshPreviewActorFromSaveData(PreviewSaveData);
+		PreviewActor->SetContinuousCapture(true);
+		return;
+	}
+
+	// 소스가 비어있는 경우 플레이어 기준으로 갱신
+	ResolvePreviewSourcesFromOwningPlayerIfNeeded();
 	if (!IsValid(SourceCharacter))
 	{
-		UE_LOG(LogTemp, Warning, TEXT("[CharacterPreviewWidget] 프리뷰 갱신 실패. SourceCharacter 없음"));
+		const APlayerController* OwningPlayerController = GetOwningPlayer();
+		if (IsValid(OwningPlayerController) && IsValid(Cast<APRPlayerCharacter>(OwningPlayerController->GetPawn())))
+		{
+			UE_LOG(LogTemp, Warning, TEXT("[CharacterPreviewWidget] 프리뷰 갱신 실패. SourceCharacter 없음"));
+		}
 		return;
 	}
 
 	// 씬 캡처 컴포넌트에 렌더 타겟 설정
-	PreviewActor->SetRenderTargetToSceneCapture(PreviewRenderTarget);
-	// 
+	PreviewActor->SetRenderTargetToSceneCapture(IsValid(DynamicRenderTarget) ? DynamicRenderTarget.Get() : PreviewRenderTarget.Get());
+	// 실제 플레이어 상태 기반 프리뷰 갱신
 	PreviewActor->RefreshPreviewActorFromPlayer(SourceCharacter, WeaponManagerComponent);
 	PreviewActor->SetContinuousCapture(true);
 }
@@ -54,9 +84,6 @@ void UPRCharacterPreviewWidget::RefreshPreview()
 void UPRCharacterPreviewWidget::NativeConstruct()
 {
 	Super::NativeConstruct();
-
-	EnsurePreviewActor();
-	RefreshPreviewBrush();
 	RefreshPreview();
 }
 
@@ -71,6 +98,8 @@ void UPRCharacterPreviewWidget::NativeDestruct()
 
 	SourceCharacter = nullptr;
 	WeaponManagerComponent = nullptr;
+	bUseSaveDataPreview = false;
+	PreviewSaveData = FPRCharacterSaveData();
 
 	Super::NativeDestruct();
 }
@@ -107,7 +136,12 @@ void UPRCharacterPreviewWidget::EnsurePreviewActor()
 		return;
 	}
 
-	PreviewActor->SetRenderTargetToSceneCapture(PreviewRenderTarget);
+	if (!IsValid(DynamicRenderTarget) && IsValid(PreviewRenderTarget))
+	{
+		DynamicRenderTarget = DuplicateObject<UTextureRenderTarget2D>(PreviewRenderTarget, this);
+	}
+
+	PreviewActor->SetRenderTargetToSceneCapture(IsValid(DynamicRenderTarget) ? DynamicRenderTarget.Get() : PreviewRenderTarget.Get());
 }
 
 void UPRCharacterPreviewWidget::DestroyPreviewActor()
@@ -136,18 +170,29 @@ void UPRCharacterPreviewWidget::RefreshPreviewBrush()
 		return;
 	}
 
-	if (!IsValid(PreviewMaterial))
+	if (!IsValid(DynamicRenderTarget))
 	{
-		UE_LOG(LogTemp, Warning, TEXT("[CharacterPreviewWidget] PreviewMaterial 설정 없음"));
-		CharacterPreviewImage->SetBrushResourceObject(nullptr);
-		CharacterPreviewImage->SetDesiredSizeOverride(FVector2D::ZeroVector);
-		return;
+		DynamicRenderTarget = DuplicateObject<UTextureRenderTarget2D>(PreviewRenderTarget, this);
 	}
 
-	// 에디터에서 렌더 타겟이 연결된 UI 머티리얼을 이미지에 적용한다
-	CharacterPreviewImage->SetBrushFromMaterial(PreviewMaterial);
+	if (IsValid(PreviewMaterial))
+	{
+		if (!IsValid(DynamicMaterial))
+		{
+			DynamicMaterial = UMaterialInstanceDynamic::Create(PreviewMaterial, this);
+		}
+		
+		// 머티리얼 내부에 사용될 수 있는 주요 텍스처 파라미터 이름 시도
+		DynamicMaterial->SetTextureParameterValue(TEXT("RenderTarget"), DynamicRenderTarget);
+		CharacterPreviewImage->SetBrushFromMaterial(DynamicMaterial);
+	}
+	else
+	{
+		CharacterPreviewImage->SetBrushResourceObject(DynamicRenderTarget);
+	}
+
 	// 렌더타겟의 이미지 사이즈 오버라이드
-	CharacterPreviewImage->SetDesiredSizeOverride(FVector2D(PreviewRenderTarget->SizeX, PreviewRenderTarget->SizeY));
+	CharacterPreviewImage->SetDesiredSizeOverride(FVector2D(DynamicRenderTarget->SizeX, DynamicRenderTarget->SizeY));
 }
 
 void UPRCharacterPreviewWidget::ResolvePreviewSourcesFromOwningPlayerIfNeeded()

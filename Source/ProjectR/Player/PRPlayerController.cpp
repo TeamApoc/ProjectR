@@ -73,12 +73,18 @@ void APRPlayerController::BeginPlay()
 	}
 #endif
 
-	// TODO: 로컬 클라만 서버로 캐릭터 페이로드 제출
-	// 호스트의 경우 GameMode가 직접 LocalCharacter를 주입하므로 별도 경로로 처리
-	// if (IsLocalController() && GetNetMode() == NM_Client)
-	// {
-	// 	SubmitLocalCharacterToServer();
-	// }
+	// 캐릭터 세이브 제출은 ReceivedPlayer와 possession fallback 경로 처리
+}
+
+void APRPlayerController::ReceivedPlayer()
+{
+	Super::ReceivedPlayer();
+
+	if (IsLocalController() && GetNetMode() == NM_Client)
+	{
+		// possession 이전 캐릭터 세이브 페이로드 조기 제출
+		SubmitLocalCharacterToServer();
+	}
 }
 
 void APRPlayerController::AcknowledgePossession(APawn* InPawn)
@@ -98,6 +104,12 @@ void APRPlayerController::AcknowledgePossession(APawn* InPawn)
 		{
 			CM->FadeIn(EPRFadeColorPreset::Black, FadeInDuration, false);
 		}
+	}
+
+	if (IsLocalController() && GetNetMode() == NM_Client)
+	{
+		// 조기 제출 실패 또는 travel 타이밍 차이 대비 재시도
+		SubmitLocalCharacterToServer();
 	}
 }
 
@@ -134,6 +146,11 @@ void APRPlayerController::SetupInputComponent()
 	if (IsValid(TraitWindowAction.Get()))
 	{
 		EIC->BindAction(TraitWindowAction.Get(), ETriggerEvent::Started, this, &APRPlayerController::OnTraitWindowInputStarted);
+	}
+
+	if (IsValid(InGameMenuAction.Get()))
+	{
+		EIC->BindAction(InGameMenuAction.Get(), ETriggerEvent::Started, this, &APRPlayerController::OnInGameMenuInputStarted);
 	}
 
 	
@@ -355,6 +372,11 @@ void APRPlayerController::SubmitLocalCharacterToServer()
 		return;
 	}
 
+	if (!GI->EnsureLocalCharacterReadyForSession())
+	{
+		return;
+	}
+
 	bCharacterSubmitted = true;
 	ServerSubmitCharacter(GI->GetLocalCharacter());
 }
@@ -481,6 +503,16 @@ void APRPlayerController::ClientNotifyPlayerLevelUp_Implementation(int32 Previou
 	}
 
 	UIControllerComponent->ShowLevelUpPopup(PreviousLevel, CurrentLevel);
+}
+
+void APRPlayerController::ClientNotifyPickupReward_Implementation(const FPRPickupNotificationPayload& Payload)
+{
+	if (!IsValid(UIControllerComponent))
+	{
+		return;
+	}
+
+	UIControllerComponent->ShowPickupRewardNotification(Payload);
 }
 
 void APRPlayerController::RequestUpgradeWeapon(UPRWeaponUpgradeComponent* UpgradeComponent, UPRItemInstance_Weapon* WeaponItem)
@@ -625,6 +657,16 @@ void APRPlayerController::OnTraitWindowInputStarted()
 	}
 
 	UIControllerComponent->ToggleTraitWindow();
+}
+
+void APRPlayerController::OnInGameMenuInputStarted()
+{
+	if (!IsValid(UIControllerComponent))
+	{
+		return;
+	}
+
+	UIControllerComponent->ToggleInGameMenu();
 }
 
 void APRPlayerController::OnQuickSlotInputStarted(int32 SlotIndex)

@@ -6,10 +6,12 @@
 #include "Engine/LocalPlayer.h"
 #include "GameFramework/PlayerController.h"
 #include "ProjectR/Character/PRPlayerCharacter.h"
+#include "ProjectR/ItemSystem/Components/PREquipmentManagerComponent.h"
 #include "ProjectR/ItemSystem/Components/PRInventoryComponent.h"
 #include "ProjectR/Player/PRPlayerState.h"
 #include "ProjectR/ItemSystem/Components/PRQuickSlotComponent.h"
 #include "ProjectR/UI/HUD/PRHUDWidget.h"
+#include "ProjectR/UI/InGameMenu/PRInGameMenuWidget.h"
 #include "ProjectR/UI/Inventory/PRInventoryWidget.h"
 #include "ProjectR/UI/Growth/PRTraitWindowWidget.h"
 #include "ProjectR/UI/PRUIManagerSubsystem.h"
@@ -53,12 +55,13 @@ void UPRUIControllerComponent::ToggleInventory()
 	UPRInventoryComponent* InventoryComponent = GetInventoryComponent();
 	UPRWeaponManagerComponent* WeaponManagerComponent = GetWeaponManagerComponent();
 	UPRQuickSlotComponent* QuickSlotComponent = GetQuickSlotComponent();
-	if (!IsValid(InventoryComponent) || !IsValid(WeaponManagerComponent) || !IsValid(QuickSlotComponent))
+	UPREquipmentManagerComponent* EquipmentManagerComponent = GetEquipmentManagerComponent();
+	if (!IsValid(InventoryComponent) || !IsValid(WeaponManagerComponent) || !IsValid(QuickSlotComponent) || !IsValid(EquipmentManagerComponent))
 	{
 		return;
 	}
 
-	CreatedInventoryWidget->SetInventorySources(InventoryComponent, WeaponManagerComponent, QuickSlotComponent);
+	CreatedInventoryWidget->SetInventorySources(InventoryComponent, WeaponManagerComponent, QuickSlotComponent, EquipmentManagerComponent);
 	UIManager->PushUIInstance(CreatedInventoryWidget);
 }
 
@@ -141,6 +144,57 @@ void UPRUIControllerComponent::CloseTraitWindow()
 	else
 	{
 		TraitWindowWidget->RemoveFromParent();
+	}
+}
+
+void UPRUIControllerComponent::ToggleInGameMenu()
+{
+	if (!IsLocalPlayer())
+	{
+		return;
+	}
+
+	UPRUIManagerSubsystem* UIManager = GetUIManager();
+	if (!IsValid(UIManager))
+	{
+		return;
+	}
+
+	if (IsValid(InGameMenuWidget) && InGameMenuWidget->IsInViewport())
+	{
+		UIManager->PopUI(InGameMenuWidget);
+		return;
+	}
+
+	UPRInGameMenuWidget* CreatedInGameMenuWidget = GetOrCreateInGameMenuWidget();
+	if (!IsValid(CreatedInGameMenuWidget))
+	{
+		return;
+	}
+
+	UIManager->PushUIInstance(CreatedInGameMenuWidget);
+}
+
+void UPRUIControllerComponent::CloseInGameMenu()
+{
+	if (!IsLocalPlayer())
+	{
+		return;
+	}
+
+	if (!IsValid(InGameMenuWidget) || !InGameMenuWidget->IsInViewport())
+	{
+		return;
+	}
+
+	UPRUIManagerSubsystem* UIManager = GetUIManager();
+	if (IsValid(UIManager))
+	{
+		UIManager->PopUI(InGameMenuWidget);
+	}
+	else
+	{
+		InGameMenuWidget->RemoveFromParent();
 	}
 }
 
@@ -279,6 +333,19 @@ void UPRUIControllerComponent::ShowLevelUpPopup(int32 PreviousLevel, int32 Curre
 	}
 }
 
+void UPRUIControllerComponent::ShowPickupRewardNotification(const FPRPickupNotificationPayload& Payload)
+{
+	if (!IsLocalPlayer() || Payload.Quantity <= 0)
+	{
+		return;
+	}
+
+	if (IsValid(HUDWidget))
+	{
+		HUDWidget->ShowPickupRewardNotification(Payload);
+	}
+}
+
 void UPRUIControllerComponent::EndPlay(const EEndPlayReason::Type EndPlayReason)
 {
 	CloseInventory();
@@ -289,6 +356,8 @@ void UPRUIControllerComponent::EndPlay(const EEndPlayReason::Type EndPlayReason)
 	WeaponUpgradeWidget = nullptr;
 	CloseShop();
 	ShopWidget = nullptr;
+	CloseInGameMenu();
+	InGameMenuWidget = nullptr;
 
 	UnbindWeaponManager();
 	RemoveWeaponScopeWidget();
@@ -334,6 +403,10 @@ void UPRUIControllerComponent::RemoveAllWidget()
 	if (WeaponScopeWidget)
 	{
 		WeaponScopeWidget->RemoveFromParent();
+	}
+	if (InGameMenuWidget)
+	{
+		InGameMenuWidget->RemoveFromParent();
 	}
 	if (UPRUIManagerSubsystem* UIManager = GetUIManager())
 	{
@@ -405,6 +478,23 @@ UPRQuickSlotComponent* UPRUIControllerComponent::GetQuickSlotComponent() const
 	}
 
 	return PRPlayerState->GetQuickSlotComponent();
+}
+
+UPREquipmentManagerComponent* UPRUIControllerComponent::GetEquipmentManagerComponent() const
+{
+	const APlayerController* PlayerController = GetOwningPlayerController();
+	if (!IsValid(PlayerController))
+	{
+		return nullptr;
+	}
+
+	APRPlayerState* PRPlayerState = PlayerController->GetPlayerState<APRPlayerState>();
+	if (!IsValid(PRPlayerState))
+	{
+		return nullptr;
+	}
+
+	return PRPlayerState->GetEquipmentManagerComponent();
 }
 
 UPRUIManagerSubsystem* UPRUIControllerComponent::GetUIManager() const
@@ -490,6 +580,23 @@ UPRTraitWindowWidget* UPRUIControllerComponent::GetOrCreateTraitWindowWidget()
 
 	TraitWindowWidget = CreateWidget<UPRTraitWindowWidget>(PlayerController, TraitWindowWidgetClass);
 	return TraitWindowWidget;
+}
+
+UPRInGameMenuWidget* UPRUIControllerComponent::GetOrCreateInGameMenuWidget()
+{
+	if (IsValid(InGameMenuWidget))
+	{
+		return InGameMenuWidget;
+	}
+
+	APlayerController* PlayerController = GetOwningPlayerController();
+	if (!IsValid(PlayerController) || !IsValid(InGameMenuWidgetClass.Get()))
+	{
+		return nullptr;
+	}
+
+	InGameMenuWidget = CreateWidget<UPRInGameMenuWidget>(PlayerController, InGameMenuWidgetClass);
+	return InGameMenuWidget;
 }
 
 void UPRUIControllerComponent::TearDownHUDWidget()

@@ -373,7 +373,7 @@ FPRShopItemSlotViewData UPRShopWidget::BuildShopSlotViewData(const FPRShopEntry&
 	ViewData.ItemViewData.ItemType = ItemData->GetItemType();
 	ViewData.ItemViewData.StackCount = GetOwnedStackCount(ItemData);
 	ViewData.ItemViewData.bShowStackCount = true;
-	ViewData.ItemViewData.bEquipped = SelectedItem.EntryId == Entry.EntryId && SelectedItem.TabType == TabType;
+	ViewData.bSelected = SelectedItem.EntryId == Entry.EntryId && SelectedItem.TabType == TabType;
 	ViewData.UnitScrapPrice = TabType == EPRShopTabType::Buy
 		? Entry.BaseScrapPrice
 		: IsValid(ShopComponent) ? ShopComponent->CalculateSellScrapPrice(Entry) : 0;
@@ -391,13 +391,13 @@ int32 UPRShopWidget::GetOwnedStackCount(const UPRItemDataAsset* ItemData) const
 
 	if (const UPRConsumableDataAsset* ConsumableData = Cast<UPRConsumableDataAsset>(ItemData))
 	{
-		const UPRItemInstance_Consumable* ConsumableItem = InventoryComponent->FindConsumableItemByData(ConsumableData);
+		const UPRItemInstance_Consumable* ConsumableItem = InventoryComponent->FindItemByData<UPRItemInstance_Consumable>(ConsumableData);
 		return IsValid(ConsumableItem) ? ConsumableItem->GetStackCount() : 0;
 	}
 
 	if (const UPRMaterialDataAsset* MaterialData = Cast<UPRMaterialDataAsset>(ItemData))
 	{
-		const UPRItemInstance_Material* MaterialItem = InventoryComponent->FindMaterialItemByData(MaterialData);
+		const UPRItemInstance_Material* MaterialItem = InventoryComponent->FindItemByData<UPRItemInstance_Material>(MaterialData);
 		return IsValid(MaterialItem) ? MaterialItem->GetStackCount() : 0;
 	}
 

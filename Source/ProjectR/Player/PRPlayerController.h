@@ -6,6 +6,7 @@
 #include "GameFramework/PlayerController.h"
 #include "GameplayTagContainer.h"
 #include "ProjectR/Game/PRGameTypes.h"
+#include "ProjectR/ItemSystem/Types/PRDropTypes.h"
 #include "ProjectR/Player/Components/PRPlayerGrowthComponent.h"
 #include "ProjectR/Shop/Types/PRShopTypes.h"
 #include "ProjectR/ItemSystem/Types/PRWeaponUpgradeTypes.h"
@@ -58,6 +59,7 @@ public:
 	virtual void BeginPlay() override;
 	
 	/*~ APlayerController Interface ~*/
+	virtual void ReceivedPlayer() override;
 	virtual void AcknowledgePossession(APawn* InPawn) override;
 	virtual void SetupInputComponent() override;
 	virtual void PostProcessInput(const float DeltaTime, const bool bGamePaused) override;
@@ -77,8 +79,8 @@ public:
 	// 폰 -> PlayerState 경로로 ASC 조회
 	UPRAbilitySystemComponent* GetPRASC() const;
 	
-	// 로컬 클라에서 호출. GameInstance의 LocalCharacter를 서버로 제출
-	// 자동 호출(BeginPlay)과 수동 호출(재제출) 모두 허용
+	// 로컬 클라에서 호출. GameInstance의 LocalCharacterSave를 서버로 제출
+	// ReceivedPlayer 조기 제출과 possession fallback 재시도 허용
 	UFUNCTION(BlueprintCallable, Category = "ProjectR|Session")
 	void SubmitLocalCharacterToServer();
 
@@ -126,6 +128,10 @@ public:
 	// 서버에서 owning client로 레벨업 팝업 표시 요청
 	UFUNCTION(Client, Reliable)
 	void ClientNotifyPlayerLevelUp(int32 PreviousLevel, int32 CurrentLevel);
+
+	// 서버에서 owning client로 드롭 보상 획득 알림 표시 요청
+	UFUNCTION(Client, Reliable)
+	void ClientNotifyPickupReward(const FPRPickupNotificationPayload& Payload);
 
 	// 강화 UI에서 선택한 무기 강화를 서버에 요청한다
 	UFUNCTION(BlueprintCallable, Category = "ProjectR|WeaponUpgrade")
@@ -191,6 +197,9 @@ protected:
 
 	// 특성 투자창 입력 시작을 처리
 	void OnTraitWindowInputStarted();
+
+	// 인게임 메뉴 입력 시작을 처리
+	void OnInGameMenuInputStarted();
 	
 	// 퀵슬롯 입력 시작을 처리
 	void OnQuickSlotInputStarted(int32 SlotIndex);
@@ -238,6 +247,10 @@ protected:
 	// 특성 투자창 열기 입력 액션
 	UPROPERTY(EditDefaultsOnly, Category = "ProjectR|Input")
 	TObjectPtr<const UInputAction> TraitWindowAction;
+
+	// 인게임 메뉴 열기 입력 액션
+	UPROPERTY(EditDefaultsOnly, Category = "ProjectR|Input")
+	TObjectPtr<const UInputAction> InGameMenuAction;
 
 	// 퀵슬롯 입력 액션 목록. 배열 인덱스가 퀵슬롯 인덱스와 일치한다
 	UPROPERTY(EditDefaultsOnly, Category = "ProjectR|Input")

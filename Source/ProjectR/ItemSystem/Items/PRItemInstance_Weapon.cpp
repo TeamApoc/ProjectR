@@ -11,6 +11,8 @@
 #include "ProjectR/ItemSystem/Data/PRWeaponDataAsset.h"
 #include "ProjectR/ItemSystem/Data/PRWeaponModDataAsset.h"
 #include "ProjectR/ItemSystem/Items/PRItemInstance_Mod.h"
+#include "ProjectR/ItemSystem/Components/PRWeaponManagerComponent.h"
+#include "ProjectR/Utils/PRGameplayStatics.h"
 
 namespace
 {
@@ -45,6 +47,54 @@ void UPRItemInstance_Weapon::GetLifetimeReplicatedProps(TArray<FLifetimeProperty
 	DOREPLIFETIME(UPRItemInstance_Weapon, UpgradeLevel);
 }
 
+bool UPRItemInstance_Weapon::ActivateItem(const FPRItemActivationContext& ActivationContext)
+{
+	// 인벤토리 UI 선택이나 장비 상호작용은 InventoryComponent 요청을 거쳐 이 함수로 도착함
+	// 여기서는 무기 장착 방식을 결정하지 않고 플레이어의 WeaponManager에 실제 장착 처리를 맡김
+	if (!IsValid(ActivationContext.UserActor) || !ActivationContext.UserActor->HasAuthority())
+	{
+		return false;
+	}
+
+	// WeaponManager는 PlayerState에 있으며 슬롯 소유권 검증, 무기 Actor 갱신, AbilitySet 부여를 함께 처리함
+	// ItemInstance가 직접 슬롯 상태를 바꾸면 장착 표시, 복제 상태, 어빌리티 부여 순서가 갈라질 수 있음
+	UPRWeaponManagerComponent* WeaponManager = UPRGameplayStatics::GetWeaponManagerComponent(ActivationContext.UserActor);
+	if (!IsValid(WeaponManager))
+	{
+		return false;
+	}
+
+	return WeaponManager->EquipWeapon(this);
+}
+
+bool UPRItemInstance_Weapon::DeactivateItem(const FPRItemActivationContext& ActivationContext)
+{
+	// 인벤토리 UI의 무기 해제 항목은 표시만 명령처럼 보이고 실제로는 이 무기 ItemInstance를 비활성화함
+	// 따라서 UI가 WeaponManager를 직접 호출하지 않아도 장착 무기 클릭과 해제 항목 클릭이 같은 경로를 사용함
+	if (!IsValid(ActivationContext.UserActor) || !ActivationContext.UserActor->HasAuthority())
+	{
+		return false;
+	}
+
+	// 해제할 슬롯은 UI가 마지막으로 연 목록이 아니라 무기 데이터가 가진 슬롯 타입으로 결정함
+	// 목록 상태가 갱신되거나 닫혀도 ItemInstance 자기 데이터만으로 해제 대상을 다시 찾을 수 있음
+	const UPRWeaponDataAsset* WeaponData = GetWeaponData();
+	if (!IsValid(WeaponData))
+	{
+		return false;
+	}
+
+	// WeaponManager의 해제 처리에는 활성 슬롯 전환, 무기 Actor 갱신, AbilitySet 회수가 묶여 있음
+	// 이 순서를 한 곳에 모아 두기 위해 ItemInstance는 해제 대상 슬롯만 알려 줌
+	UPRWeaponManagerComponent* WeaponManager = UPRGameplayStatics::GetWeaponManagerComponent(ActivationContext.UserActor);
+	if (!IsValid(WeaponManager))
+	{
+		return false;
+	}
+
+	return WeaponManager->UnequipWeaponFromSlot(WeaponData->SlotType);
+}
+
 void UPRItemInstance_Weapon::InitializeItem(UPRItemDataAsset* InItemData, int32 InitialStackCount)
 {
 	Super::InitializeItem(InItemData, InitialStackCount);
@@ -55,8 +105,6 @@ void UPRItemInstance_Weapon::InitializeMod(UPRWeaponModDataAsset* InModData)
 	ModData = InModData;
 	ClearEquippedModItem();
 	bIsEquippedCurrentWeaponSlot = false;
-	CachedWeaponAbilitySet = nullptr;
-	CachedModAbilitySet = nullptr;
 }
 
 UPRWeaponDataAsset* UPRItemInstance_Weapon::GetWeaponData() const
@@ -93,7 +141,6 @@ bool UPRItemInstance_Weapon::HasEquippedModItem() const
 void UPRItemInstance_Weapon::SetModData(UPRWeaponModDataAsset* NewModData)
 {
 	ModData = NewModData;
-	CachedModAbilitySet = nullptr;
 }
 
 void UPRItemInstance_Weapon::SetEquippedModItem(UPRItemInstance_Mod* NewModItem)
@@ -157,15 +204,15 @@ void UPRItemInstance_Weapon::GrantEquippedAbilitySets(AActor* OwnerActor)
 	{
 		return;
 	}
-
-	if (UPRAbilitySet* WeaponAbilitySet = GetWeaponAbilitySet())
+	
+	if (UPRWeaponDataAsset* WeaponData = GetWeaponData())
 	{
-		ASC->GiveAbilitySet(WeaponAbilitySet, WeaponAbilityHandles, this);
+		WeaponData->GiveToAbilitySystem(ASC,WeaponAbilityHandles,this);
 	}
 
-	if (UPRAbilitySet* ModAbilitySet = GetModAbilitySet())
+	if (IsValid(ModData))
 	{
-		ASC->GiveAbilitySet(ModAbilitySet, ModAbilityHandles, this);
+		ModData->GiveToAbilitySystem(ASC,ModAbilityHandles,this);
 	}
 
 	LastWeaponFailReason = EPRWeaponActionFailReason::None;
@@ -252,10 +299,7 @@ void UPRItemInstance_Weapon::RebuildModAbility(AActor* OwnerActor, UPRWeaponModD
 
 	if (bWasEquipped)
 	{
-		if (UPRAbilitySet* ModAbilitySet = GetModAbilitySet())
-		{
-			ASC->GiveAbilitySet(ModAbilitySet, ModAbilityHandles, this);
-		}
+		NewModData->GiveToAbilitySystem(ASC,ModAbilityHandles,this);
 	}
 
 	UE_LOG(
@@ -303,43 +347,6 @@ bool UPRItemInstance_Weapon::SetUpgradeLevel(int32 NewLevel)
 bool UPRItemInstance_Weapon::IncreaseUpgradeLevel()
 {
 	return SetUpgradeLevel(UpgradeLevel + 1);
-}
-
-UPRAbilitySet* UPRItemInstance_Weapon::GetWeaponAbilitySet()
-{
-	auto WeaponData = GetWeaponData();
-	if (!IsValid(WeaponData))
-	{
-		return nullptr;
-	}
-
-	if (!IsValid(CachedWeaponAbilitySet))
-	{
-		CachedWeaponAbilitySet = CreateRuntimeAbilitySet(
-			this,
-			WeaponData->EquippedAbilities,
-			WeaponData->EquippedEffects);
-	}
-
-	return CachedWeaponAbilitySet;
-}
-
-UPRAbilitySet* UPRItemInstance_Weapon::GetModAbilitySet()
-{
-	if (!IsValid(ModData))
-	{
-		return nullptr;
-	}
-
-	if (!IsValid(CachedModAbilitySet))
-	{
-		CachedModAbilitySet = CreateRuntimeAbilitySet(
-			this,
-			ModData->EquippedAbilities,
-			ModData->EquippedEffects);
-	}
-
-	return CachedModAbilitySet;
 }
 
 void UPRItemInstance_Weapon::OnRep_ModData()

@@ -7,8 +7,10 @@
 #include "GameFramework/Pawn.h"
 #include "Net/UnrealNetwork.h"
 #include "ProjectR/Character/PRPlayerCharacter.h"
+#include "ProjectR/ItemSystem/Data/PREquipmentDataAsset.h"
 #include "ProjectR/ItemSystem/Data/PRConsumableDataAsset.h"
 #include "ProjectR/ItemSystem/Data/PRMaterialDataAsset.h"
+#include "ProjectR/ItemSystem/Items/PRItemInstance_Equipment.h"
 #include "ProjectR/ItemSystem/Items/PRItemInstance_Consumable.h"
 #include "ProjectR/ItemSystem/Items/PRItemInstance_Material.h"
 #include "ProjectR/ItemSystem/Components/PRWeaponManagerComponent.h"
@@ -19,7 +21,7 @@
 
 namespace
 {
-	// 무기와 Mod의 태그 호환 여부를 판정한다
+	// 무기와 Mod의 태그 호환 여부 판정
 	bool IsWeaponModCompatible(const UPRWeaponDataAsset* WeaponData, const UPRWeaponModDataAsset* ModData)
 	{
 		// 무기 데이터나 Mod 데이터가 없는 경우
@@ -28,13 +30,13 @@ namespace
 			return false;
 		}
 
-		// Mod 태그가 비어 있으면 범용 Mod로 간주한다
+		// Mod 태그가 비어 있으면 범용 Mod로 간주
 		if (ModData->ModTags.IsEmpty())
 		{
 			return true;
 		}
 
-		// 무기가 지원 태그를 하나도 선언하지 않았으면 태그가 있는 Mod를 받을 수 없다
+		// 무기가 지원 태그를 하나도 선언하지 않았으면 태그가 있는 Mod 수용 불가
 		if (WeaponData->SupportedModTags.IsEmpty())
 		{
 			return false;
@@ -42,6 +44,96 @@ namespace
 
 		return WeaponData->SupportedModTags.HasAny(ModData->ModTags);
 	}
+}
+
+void FPRInventoryItemCache::Reset()
+{
+	ItemsByType.Reset();
+	ItemsByData.Reset();
+}
+
+void FPRInventoryItemCache::Rebuild(const TArray<UPRItemInstance*>& SourceItems)
+{
+	Reset();
+
+	for (UPRItemInstance* Item : SourceItems)
+	{
+		AddItem(Item);
+	}
+}
+
+void FPRInventoryItemCache::AddItem(UPRItemInstance* Item)
+{
+	// 캐시 등록 대상 검증
+	if (!IsValid(Item) || !IsValid(Item->GetItemData()))
+	{
+		return;
+	}
+
+	UPRItemDataAsset* ItemData = Item->GetItemData();
+	ItemsByType.FindOrAdd(ItemData->GetItemType()).Items.AddUnique(Item);
+	TObjectPtr<UPRItemDataAsset> ItemDataKey = ItemData;
+	ItemsByData.FindOrAdd(ItemDataKey).Items.AddUnique(Item);
+}
+
+void FPRInventoryItemCache::RemoveItem(UPRItemInstance* Item)
+{
+	// 캐시 제거 대상 검증
+	if (!IsValid(Item) || !IsValid(Item->GetItemData()))
+	{
+		return;
+	}
+
+	UPRItemDataAsset* ItemData = Item->GetItemData();
+	if (FPRInventoryItemList* ItemsForType = ItemsByType.Find(ItemData->GetItemType()))
+	{
+		ItemsForType->Items.Remove(Item);
+		if (ItemsForType->Items.IsEmpty())
+		{
+			ItemsByType.Remove(ItemData->GetItemType());
+		}
+	}
+
+	TObjectPtr<UPRItemDataAsset> ItemDataKey = ItemData;
+	if (FPRInventoryItemList* ItemsForData = ItemsByData.Find(ItemDataKey))
+	{
+		ItemsForData->Items.Remove(Item);
+		if (ItemsForData->Items.IsEmpty())
+		{
+			ItemsByData.Remove(ItemDataKey);
+		}
+	}
+}
+
+UPRItemInstance* FPRInventoryItemCache::FindItemByData(const UPRItemDataAsset* ItemData) const
+{
+	// 데이터 조회 대상 검증
+	if (!IsValid(ItemData))
+	{
+		return nullptr;
+	}
+
+	TObjectPtr<UPRItemDataAsset> ItemDataKey = const_cast<UPRItemDataAsset*>(ItemData);
+	const FPRInventoryItemList* ItemsForData = ItemsByData.Find(ItemDataKey);
+	if (!ItemsForData)
+	{
+		return nullptr;
+	}
+
+	for (UPRItemInstance* Item : ItemsForData->Items)
+	{
+		if (IsValid(Item))
+		{
+			return Item;
+		}
+	}
+
+	return nullptr;
+}
+
+const FPRInventoryItemList* FPRInventoryItemCache::FindItemsByType(EPRItemType ItemType) const
+{
+	return ItemsByType.Find(ItemType);
 }
 
 UPRInventoryComponent::UPRInventoryComponent()
@@ -54,10 +146,7 @@ void UPRInventoryComponent::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>
 {
 	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
 
-	DOREPLIFETIME_CONDITION(UPRInventoryComponent, InventoryWeaponItems, COND_OwnerOnly);
-	DOREPLIFETIME_CONDITION(UPRInventoryComponent, InventoryModItems, COND_OwnerOnly);
-	DOREPLIFETIME_CONDITION(UPRInventoryComponent, InventoryConsumableItems, COND_OwnerOnly);
-	DOREPLIFETIME_CONDITION(UPRInventoryComponent, InventoryMaterialItems, COND_OwnerOnly);
+	DOREPLIFETIME_CONDITION(UPRInventoryComponent, InventoryItems, COND_OwnerOnly);
 }
 
 bool UPRInventoryComponent::ReplicateSubobjects(UActorChannel* Channel, FOutBunch* Bunch, FReplicationFlags* RepFlags)
@@ -69,44 +158,14 @@ bool UPRInventoryComponent::ReplicateSubobjects(UActorChannel* Channel, FOutBunc
 		return bWroteSomething;
 	}
 
-	for (UPRItemInstance_Weapon* WeaponItem : InventoryWeaponItems)
+	for (UPRItemInstance* Item : InventoryItems)
 	{
-		if (!IsValid(WeaponItem))
+		if (!IsValid(Item))
 		{
 			continue;
 		}
 
-		bWroteSomething |= Channel->ReplicateSubobject(WeaponItem, *Bunch, *RepFlags);
-	}
-
-	for (UPRItemInstance_Mod* ModItem : InventoryModItems)
-	{
-		if (!IsValid(ModItem))
-		{
-			continue;
-		}
-
-		bWroteSomething |= Channel->ReplicateSubobject(ModItem, *Bunch, *RepFlags);
-	}
-
-	for (UPRItemInstance_Consumable* ConsumableItem : InventoryConsumableItems)
-	{
-		if (!IsValid(ConsumableItem))
-		{
-			continue;
-		}
-
-		bWroteSomething |= Channel->ReplicateSubobject(ConsumableItem, *Bunch, *RepFlags);
-	}
-
-	for (UPRItemInstance_Material* MaterialItem : InventoryMaterialItems)
-	{
-		if (!IsValid(MaterialItem))
-		{
-			continue;
-		}
-
-		bWroteSomething |= Channel->ReplicateSubobject(MaterialItem, *Bunch, *RepFlags);
+		bWroteSomething |= Channel->ReplicateSubobject(Item, *Bunch, *RepFlags);
 	}
 
 	return bWroteSomething;
@@ -114,377 +173,141 @@ bool UPRInventoryComponent::ReplicateSubobjects(UActorChannel* Channel, FOutBunc
 
 void UPRInventoryComponent::RequestAddItem(UPRItemDataAsset* InItemData, int32 Amount)
 {
-	// 데이터가 없는 요청은 타입별 서버 요청으로 전달하지 않는다
+	// 데이터 없는 요청 제외
 	if (!IsValid(InItemData))
-	{
-		return;
-	}
-
-	if (UPRWeaponDataAsset* WeaponData = Cast<UPRWeaponDataAsset>(InItemData))
-	{
-		RequestAddWeaponItem(WeaponData);
-	}
-	else if (UPRWeaponModDataAsset* ModData = Cast<UPRWeaponModDataAsset>(InItemData))
-	{
-		RequestAddModItem(ModData);
-	}
-	else if (UPRConsumableDataAsset* ConsumableData = Cast<UPRConsumableDataAsset>(InItemData))
-	{
-		RequestAddConsumableItem(ConsumableData, Amount);
-	}
-	else if (UPRMaterialDataAsset* MaterialData = Cast<UPRMaterialDataAsset>(InItemData))
-	{
-		RequestAddMaterialItem(MaterialData, Amount);
-	}
-}
-
-void UPRInventoryComponent::RequestAddWeaponItem(UPRWeaponDataAsset* WeaponData)
-{
-	// 데이터가 없는 요청은 서버 RPC를 보내기 전에 중단한다
-	if (!IsValid(WeaponData))
 	{
 		return;
 	}
 
 	if (IsValid(GetOwner()) && GetOwner()->HasAuthority())
 	{
-		AddWeaponItem(WeaponData);
+		AddItem<UPRItemInstance>(InItemData, Amount);
 		return;
 	}
 
-	Server_RequestAddWeaponItem(WeaponData);
+	Server_RequestAddItem(InItemData, Amount);
 }
 
 UPRItemInstance* UPRInventoryComponent::AddItem(UPRItemDataAsset* InItemData, int32 Amount)
 {
-	// 데이터가 없는 요청은 Item 생성 대상으로 처리하지 않는다
-	if (!IsValid(InItemData))
-	{
-		return nullptr;
-	}
-
-	if (UPRWeaponDataAsset* WeaponData = Cast<UPRWeaponDataAsset>(InItemData))
-	{
-		return AddWeaponItem(WeaponData);
-	}
-	else if (UPRWeaponModDataAsset* ModData = Cast<UPRWeaponModDataAsset>(InItemData))
-	{
-		return AddModItem(ModData);
-	}
-	else if (UPRConsumableDataAsset* ConsumableData = Cast<UPRConsumableDataAsset>(InItemData))
-	{
-		return AddConsumableItem(ConsumableData, Amount);
-	}
-	else if (UPRMaterialDataAsset* MaterialData = Cast<UPRMaterialDataAsset>(InItemData))
-	{
-		return AddMaterialItem(MaterialData, Amount);
-	}
-
-	return nullptr;
+	return AddItemInternal(InItemData, Amount);
 }
 
-UPRItemInstance_Weapon* UPRInventoryComponent::AddWeaponItem(UPRWeaponDataAsset* WeaponData)
+UPRItemInstance* UPRInventoryComponent::BP_AddItem(UPRItemDataAsset* InItemData, TSubclassOf<UPRItemInstance> ItemInstanceClass, int32 Amount)
 {
-	// 무기 정적 데이터가 없으면 Item 생성 자체를 진행하지 않는다
-	if (!IsValid(WeaponData))
-	{
-		return nullptr;
-	}
-
-	UPRItemInstance_Weapon* NewWeaponItem = NewObject<UPRItemInstance_Weapon>(this);
-	if (!IsValid(NewWeaponItem))
-	{
-		return nullptr;
-	}
-
-	NewWeaponItem->InitializeItem(WeaponData);
-	RegisterInventoryWeaponItem(NewWeaponItem);
-
-	if (IsValid(GetOwner()) && GetOwner()->HasAuthority())
-	{
-		UE_LOG(
-			LogTemp,
-			Log,
-			TEXT("[Inventory][Server] AddItem. Owner = %s | Item = %s | Weapon = %s | WeaponId = %s | Count = %d"),
-			*GetNameSafe(GetOwner()),
-			*GetNameSafe(NewWeaponItem),
-			*GetNameSafe(WeaponData),
-			*WeaponData->GetDisplayName().ToString(),
-			InventoryWeaponItems.Num());
-	}
-
-	return NewWeaponItem;
+	return AddItemInternal(InItemData, Amount);
 }
 
-void UPRInventoryComponent::RequestAddModItem(UPRWeaponModDataAsset* ModData)
+UPRItemInstance* UPRInventoryComponent::AddItemInternal(UPRItemDataAsset* InItemData, int32 Amount)
 {
-	// 데이터가 없는 요청은 서버 RPC를 보내기 전에 중단한다
-	if (!IsValid(ModData))
-	{
-		return;
-	}
-
-	if (IsValid(GetOwner()) && GetOwner()->HasAuthority())
-	{
-		AddModItem(ModData);
-		return;
-	}
-
-	Server_RequestAddModItem(ModData);
-}
-
-UPRItemInstance_Mod* UPRInventoryComponent::AddModItem(UPRWeaponModDataAsset* ModData)
-{
-	// Mod 정적 데이터가 없으면 Item 생성 자체를 진행하지 않는다
-	if (!IsValid(ModData))
+	// 데이터 없는 생성 제외
+	if (!IsValid(InItemData) || Amount <= 0)
 	{
 		return nullptr;
 	}
 
-	UPRItemInstance_Mod* NewModItem = NewObject<UPRItemInstance_Mod>(this);
-	if (!IsValid(NewModItem))
+	TSubclassOf<UPRItemInstance> ItemInstanceClass = InItemData->GetItemInstanceClass();
+	if (!ensureMsgf(IsValid(ItemInstanceClass),TEXT("%s: Invalid Item Instance Type"), *InItemData->GetName()))
 	{
 		return nullptr;
 	}
 
-	NewModItem->InitializeItem(ModData,1);
-	RegisterInventoryModItem(NewModItem);
-
-	if (IsValid(GetOwner()) && GetOwner()->HasAuthority())
+	if (InItemData->MaxStackCount > 1)
 	{
-		UE_LOG(
-			LogTemp,
-			Log,
-			TEXT("[Inventory][Server] AddModItem. Owner = %s | Item = %s | Mod = %s | Count = %d"),
-			*GetNameSafe(GetOwner()),
-			*GetNameSafe(NewModItem),
-			*GetNameSafe(ModData),
-			InventoryModItems.Num());
-	}
-
-	return NewModItem;
-}
-
-void UPRInventoryComponent::RequestAddConsumableItem(UPRConsumableDataAsset* ConsumableData, int32 AddCount)
-{
-	// 데이터가 없거나 수량이 잘못된 요청은 서버 RPC를 보내기 전에 중단한다
-	if (!IsValid(ConsumableData) || AddCount <= 0)
-	{
-		return;
-	}
-
-	if (IsValid(GetOwner()) && GetOwner()->HasAuthority())
-	{
-		AddConsumableItem(ConsumableData, AddCount);
-		return;
-	}
-
-	Server_RequestAddConsumableItem(ConsumableData, AddCount);
-}
-
-UPRItemInstance_Consumable* UPRInventoryComponent::AddConsumableItem(UPRConsumableDataAsset* ConsumableData, int32 AddCount)
-{
-	// 소비 Item 정적 데이터가 없거나 수량이 잘못되면 Item 생성을 진행하지 않는다
-	if (!IsValid(ConsumableData) || AddCount <= 0)
-	{
-		return nullptr;
-	}
-
-	if (UPRItemInstance_Consumable* ExistingItem = FindConsumableItemByData(ConsumableData))
-	{
-		ExistingItem->AddStack(AddCount);
-
-		if (IsValid(GetOwner()) && GetOwner()->HasAuthority())
+		if (UPRItemInstance* ExistingItem = FindItemByData(InItemData))
 		{
-			UE_LOG(
-				LogTemp,
-				Log,
-				TEXT("[Inventory][Server] AddConsumableStack. Owner = %s | Item = %s | Consumable = %s | StackCount = %d"),
-				*GetNameSafe(GetOwner()),
-				*GetNameSafe(ExistingItem),
-				*GetNameSafe(ConsumableData),
-				ExistingItem->GetStackCount());
-		}
+			ExistingItem->AddStack(Amount);
 
-		return ExistingItem;
+			if (IsValid(GetOwner()) && GetOwner()->HasAuthority())
+			{
+				UE_LOG(
+					LogTemp,
+					Log,
+					TEXT("[Inventory][Server] AddItemStack. Owner = %s | Item = %s | Data = %s | StackCount = %d"),
+					*GetNameSafe(GetOwner()),
+					*GetNameSafe(ExistingItem),
+					*GetNameSafe(InItemData),
+					ExistingItem->GetStackCount());
+			}
+
+			return ExistingItem;
+		}
 	}
 
-	UPRItemInstance_Consumable* NewConsumableItem = NewObject<UPRItemInstance_Consumable>(this);
-	if (!IsValid(NewConsumableItem))
+	UPRItemInstance* NewItem = NewObject<UPRItemInstance>(this, ItemInstanceClass);
+	if (!IsValid(NewItem))
 	{
 		return nullptr;
 	}
 
-	NewConsumableItem->InitializeItem(ConsumableData, AddCount);
-	RegisterInventoryConsumableItem(NewConsumableItem);
+	NewItem->InitializeItem(InItemData, Amount);
+	RegisterInventoryItem(NewItem);
 
 	if (IsValid(GetOwner()) && GetOwner()->HasAuthority())
 	{
 		UE_LOG(
 			LogTemp,
 			Log,
-			TEXT("[Inventory][Server] AddConsumableItem. Owner = %s | Item = %s | Consumable = %s | StackCount = %d | Count = %d"),
+			TEXT("[Inventory][Server] AddItem. Owner = %s | Item = %s | Data = %s | StackCount = %d | Count = %d"),
 			*GetNameSafe(GetOwner()),
-			*GetNameSafe(NewConsumableItem),
-			*GetNameSafe(ConsumableData),
-			NewConsumableItem->GetStackCount(),
-			InventoryConsumableItems.Num());
+			*GetNameSafe(NewItem),
+			*GetNameSafe(InItemData),
+			NewItem->GetStackCount(),
+			InventoryItems.Num());
 	}
 
-	return NewConsumableItem;
+	return NewItem;
 }
 
-void UPRInventoryComponent::RequestAddMaterialItem(UPRMaterialDataAsset* MaterialData, int32 AddCount)
+void UPRInventoryComponent::RequestRemoveItem(UPRItemInstance* ItemInstance, int32 RemoveCount)
 {
-	// 데이터가 없거나 수량이 잘못된 요청은 서버 RPC를 보내기 전에 중단한다
-	if (!IsValid(MaterialData) || AddCount <= 0)
+	// 잘못된 Item 제거 요청 제외
+	if (!IsValid(ItemInstance) || RemoveCount <= 0)
 	{
 		return;
 	}
 
 	if (IsValid(GetOwner()) && GetOwner()->HasAuthority())
 	{
-		AddMaterialItem(MaterialData, AddCount);
+		RemoveItemInternal(ItemInstance, RemoveCount);
 		return;
 	}
 
-	Server_RequestAddMaterialItem(MaterialData, AddCount);
+	Server_RequestRemoveItem(ItemInstance, RemoveCount);
 }
 
-UPRItemInstance_Material* UPRInventoryComponent::AddMaterialItem(UPRMaterialDataAsset* MaterialData, int32 AddCount)
+void UPRInventoryComponent::RequestRemoveItemByData(UPRItemDataAsset* ItemData, int32 RemoveCount)
 {
-	// 재료 Item 정적 데이터가 없거나 수량이 잘못되면 Item 생성을 진행하지 않는다
-	if (!IsValid(MaterialData) || AddCount <= 0)
-	{
-		return nullptr;
-	}
-
-	if (UPRItemInstance_Material* ExistingItem = FindMaterialItemByData(MaterialData))
-	{
-		ExistingItem->AddStack(AddCount);
-
-		if (IsValid(GetOwner()) && GetOwner()->HasAuthority())
-		{
-			UE_LOG(
-				LogTemp,
-				Log,
-				TEXT("[Inventory][Server] AddMaterialStack. Owner = %s | Item = %s | Material = %s | StackCount = %d"),
-				*GetNameSafe(GetOwner()),
-				*GetNameSafe(ExistingItem),
-				*GetNameSafe(MaterialData),
-				ExistingItem->GetStackCount());
-		}
-
-		return ExistingItem;
-	}
-
-	UPRItemInstance_Material* NewMaterialItem = NewObject<UPRItemInstance_Material>(this);
-	if (!IsValid(NewMaterialItem))
-	{
-		return nullptr;
-	}
-
-	NewMaterialItem->InitializeItem(MaterialData, AddCount);
-	RegisterInventoryMaterialItem(NewMaterialItem);
-
-	if (IsValid(GetOwner()) && GetOwner()->HasAuthority())
-	{
-		UE_LOG(
-			LogTemp,
-			Log,
-			TEXT("[Inventory][Server] AddMaterialItem. Owner = %s | Item = %s | Material = %s | StackCount = %d | Count = %d"),
-			*GetNameSafe(GetOwner()),
-			*GetNameSafe(NewMaterialItem),
-			*GetNameSafe(MaterialData),
-			NewMaterialItem->GetStackCount(),
-			InventoryMaterialItems.Num());
-	}
-
-	return NewMaterialItem;
-}
-
-bool UPRInventoryComponent::RemoveMaterialItemByData(UPRMaterialDataAsset* MaterialData, int32 RemoveCount)
-{
-	return RemoveMaterialItemByDataInternal(MaterialData, RemoveCount);
-}
-
-void UPRInventoryComponent::RequestRemoveConsumableItem(UPRItemInstance_Consumable* ConsumableItem, int32 RemoveCount)
-{
-	// 잘못된 소비 Item 제거 요청은 서버 RPC를 보내기 전에 중단한다
-	if (!IsValid(ConsumableItem) || RemoveCount <= 0)
-	{
-		return;
-	}
-
-	Server_RequestRemoveConsumableItem(ConsumableItem, RemoveCount);
-}
-
-void UPRInventoryComponent::RequestRemoveConsumableItemByData(UPRConsumableDataAsset* ConsumableData, int32 RemoveCount)
-{
-	// 잘못된 소비 Item 데이터 제거 요청은 서버 RPC를 보내기 전에 중단한다
-	if (!IsValid(ConsumableData) || RemoveCount <= 0)
+	// 잘못된 Item 데이터 제거 요청 제외
+	if (!IsValid(ItemData) || RemoveCount <= 0)
 	{
 		return;
 	}
 
 	if (IsValid(GetOwner()) && GetOwner()->HasAuthority())
 	{
-		RemoveConsumableItemByDataInternal(ConsumableData, RemoveCount);
+		RemoveItemByDataInternal(ItemData, RemoveCount);
 		return;
 	}
 
-	Server_RequestRemoveConsumableItemByData(ConsumableData, RemoveCount);
+	Server_RequestRemoveItemByData(ItemData, RemoveCount);
 }
 
-bool UPRInventoryComponent::RemoveConsumableItemByData(UPRConsumableDataAsset* ConsumableData, int32 RemoveCount)
+bool UPRInventoryComponent::RemoveItemByData(UPRItemDataAsset* ItemData, int32 RemoveCount)
 {
-	return RemoveConsumableItemByDataInternal(ConsumableData, RemoveCount);
+	return RemoveItemByDataInternal(ItemData, RemoveCount);
 }
 
-void UPRInventoryComponent::RequestUseConsumableItem(UPRItemInstance_Consumable* ConsumableItem, AActor* UserActor)
+bool UPRInventoryComponent::RemoveItemInternal(UPRItemInstance* ItemInstance, int32 RemoveCount)
 {
-	// 잘못된 소비 Item 사용 요청은 서버 RPC를 보내기 전에 중단한다
-	if (!IsValid(ConsumableItem) || !IsValid(UserActor))
-	{
-		return;
-	}
-
-	if (IsValid(GetOwner()) && GetOwner()->HasAuthority())
-	{
-		UseConsumableItemInternal(ConsumableItem, UserActor);
-		return;
-	}
-
-	Server_RequestUseConsumableItem(ConsumableItem, UserActor);
-}
-
-void UPRInventoryComponent::RequestUseConsumableItemByData(UPRConsumableDataAsset* ConsumableData, AActor* UserActor)
-{
-	// 잘못된 소비 Item 데이터 사용 요청은 서버 RPC를 보내기 전에 중단한다
-	if (!IsValid(ConsumableData) || !IsValid(UserActor))
-	{
-		return;
-	}
-
-	if (IsValid(GetOwner()) && GetOwner()->HasAuthority())
-	{
-		UseConsumableItemByDataInternal(ConsumableData, UserActor);
-		return;
-	}
-
-	Server_RequestUseConsumableItemByData(ConsumableData, UserActor);
-}
-
-bool UPRInventoryComponent::RemoveConsumableItemInternal(UPRItemInstance_Consumable* ConsumableItem, int32 RemoveCount)
-{
-	// 소비 Item 제거는 인벤토리가 소유한 인스턴스만 대상으로 처리한다
-	if (!IsValid(GetOwner()) || !GetOwner()->HasAuthority() || !IsValid(ConsumableItem) || !OwnsConsumable(ConsumableItem) || RemoveCount <= 0)
+	// Item 제거 대상 검증
+	if (!IsValid(GetOwner()) || !GetOwner()->HasAuthority() || !IsValid(ItemInstance) || !OwnsItem(ItemInstance) || RemoveCount <= 0)
 	{
 		return false;
 	}
 
-	const int32 PreviousStackCount = ConsumableItem->GetStackCount();
-	if (!ConsumableItem->RemoveStack(RemoveCount))
+	const int32 PreviousStackCount = ItemInstance->GetStackCount();
+	if (!ItemInstance->RemoveStack(RemoveCount))
 	{
 		return false;
 	}
@@ -492,110 +315,107 @@ bool UPRInventoryComponent::RemoveConsumableItemInternal(UPRItemInstance_Consuma
 	UE_LOG(
 		LogTemp,
 		Log,
-		TEXT("[Inventory][Server] RemoveConsumableItem. Owner = %s | Item = %s | Consumable = %s | BeforeStackCount = %d | AfterStackCount = %d"),
+		TEXT("[Inventory][Server] RemoveItem. Owner = %s | Item = %s | Data = %s | BeforeStackCount = %d | AfterStackCount = %d"),
 		*GetNameSafe(GetOwner()),
-		*GetNameSafe(ConsumableItem),
-		*GetNameSafe(ConsumableItem->GetConsumableData()),
+		*GetNameSafe(ItemInstance),
+		*GetNameSafe(ItemInstance->GetItemData()),
 		PreviousStackCount,
-		ConsumableItem->GetStackCount());
+		ItemInstance->GetStackCount());
 
-	if (ConsumableItem->GetStackCount() <= 0)
+	if (ItemInstance->GetStackCount() <= 0)
 	{
-		UnregisterConsumableItemInstance(ConsumableItem);
+		UnregisterInventoryItem(ItemInstance);
 	}
 
 	return true;
 }
 
-bool UPRInventoryComponent::RemoveConsumableItemByDataInternal(UPRConsumableDataAsset* ConsumableData, int32 RemoveCount)
+bool UPRInventoryComponent::RemoveItemByDataInternal(UPRItemDataAsset* ItemData, int32 RemoveCount)
 {
-	// 데이터 기반 제거는 현재 인벤토리의 소비 Item 인스턴스를 먼저 찾는다
-	if (!IsValid(ConsumableData))
+	// 데이터 기반 제거 대상 검증
+	if (!IsValid(ItemData))
 	{
 		return false;
 	}
 
-	return RemoveConsumableItemInternal(FindConsumableItemByData(ConsumableData), RemoveCount);
+	return RemoveItemInternal(FindItemByData(ItemData), RemoveCount);
 }
 
-bool UPRInventoryComponent::RemoveMaterialItemInternal(UPRItemInstance_Material* MaterialItem, int32 RemoveCount)
+void UPRInventoryComponent::RequestActivateItem(UPRItemInstance* ItemInstance, const FPRItemActivationContext& ActivationContext)
 {
-	// 재료 Item 제거는 인벤토리가 소유한 인스턴스만 대상으로 처리한다
-	if (!IsValid(GetOwner()) || !GetOwner()->HasAuthority() || !IsValid(MaterialItem) || !OwnsMaterial(MaterialItem) || RemoveCount <= 0)
+	// 잘못된 Item 활성화 요청 제외
+	if (!IsValid(ItemInstance))
+	{
+		return;
+	}
+
+	if (IsValid(GetOwner()) && GetOwner()->HasAuthority())
+	{
+		ActivateItemInternal(ItemInstance, ActivationContext);
+		return;
+	}
+
+	Server_RequestActivateItem(ItemInstance, ActivationContext);
+}
+
+void UPRInventoryComponent::RequestDeactivateItem(UPRItemInstance* ItemInstance, const FPRItemActivationContext& ActivationContext)
+{
+	// 잘못된 Item 비활성화 요청 제외
+	if (!IsValid(ItemInstance))
+	{
+		return;
+	}
+
+	if (IsValid(GetOwner()) && GetOwner()->HasAuthority())
+	{
+		DeactivateItemInternal(ItemInstance, ActivationContext);
+		return;
+	}
+
+	Server_RequestDeactivateItem(ItemInstance, ActivationContext);
+}
+
+bool UPRInventoryComponent::ActivateItemInternal(UPRItemInstance* ItemInstance, const FPRItemActivationContext& ActivationContext)
+{
+	// Item 활성화 소유권 검증
+	if (!IsValid(GetOwner()) || !GetOwner()->HasAuthority() || !IsValid(ItemInstance) || !InventoryItems.Contains(ItemInstance))
 	{
 		return false;
 	}
 
-	const int32 PreviousStackCount = MaterialItem->GetStackCount();
-	if (!MaterialItem->RemoveStack(RemoveCount))
+	FPRItemActivationContext RuntimeContext = ActivationContext;
+	RuntimeContext.InventoryComponent = this;
+
+	if (!ItemInstance->ActivateItem(RuntimeContext))
 	{
 		return false;
 	}
 
-	UE_LOG(
-		LogTemp,
-		Log,
-		TEXT("[Inventory][Server] RemoveMaterialItem. Owner = %s | Item = %s | Material = %s | BeforeStackCount = %d | AfterStackCount = %d"),
-		*GetNameSafe(GetOwner()),
-		*GetNameSafe(MaterialItem),
-		*GetNameSafe(MaterialItem->GetMaterialData()),
-		PreviousStackCount,
-		MaterialItem->GetStackCount());
-
-	if (MaterialItem->GetStackCount() <= 0)
+	if (ItemInstance->GetStackCount() <= 0)
 	{
-		UnregisterMaterialItemInstance(MaterialItem);
+		UnregisterInventoryItem(ItemInstance);
 	}
 
 	return true;
 }
 
-bool UPRInventoryComponent::RemoveMaterialItemByDataInternal(UPRMaterialDataAsset* MaterialData, int32 RemoveCount)
+bool UPRInventoryComponent::DeactivateItemInternal(UPRItemInstance* ItemInstance, const FPRItemActivationContext& ActivationContext)
 {
-	// 데이터 기반 제거는 현재 인벤토리의 재료 Item 인스턴스를 먼저 찾는다
-	if (!IsValid(MaterialData))
+	// Item 비활성화 소유권 검증
+	if (!IsValid(GetOwner()) || !GetOwner()->HasAuthority() || !IsValid(ItemInstance) || !InventoryItems.Contains(ItemInstance))
 	{
 		return false;
 	}
 
-	return RemoveMaterialItemInternal(FindMaterialItemByData(MaterialData), RemoveCount);
-}
+	FPRItemActivationContext RuntimeContext = ActivationContext;
+	RuntimeContext.InventoryComponent = this;
 
-bool UPRInventoryComponent::UseConsumableItemInternal(UPRItemInstance_Consumable* ConsumableItem, AActor* UserActor)
-{
-	// 소비 Item 사용은 인벤토리가 소유한 인스턴스만 대상으로 처리한다
-	if (!IsValid(GetOwner()) || !GetOwner()->HasAuthority() || !IsValid(ConsumableItem) || !OwnsConsumable(ConsumableItem) || !IsValid(UserActor))
-	{
-		return false;
-	}
-
-	if (!ConsumableItem->UseItem(UserActor))
-	{
-		return false;
-	}
-
-	if (ConsumableItem->GetStackCount() <= 0)
-	{
-		UnregisterConsumableItemInstance(ConsumableItem);
-	}
-
-	return true;
-}
-
-bool UPRInventoryComponent::UseConsumableItemByDataInternal(UPRConsumableDataAsset* ConsumableData, AActor* UserActor)
-{
-	// 데이터 기반 사용은 현재 인벤토리의 소비 Item 인스턴스를 먼저 찾는다
-	if (!IsValid(ConsumableData))
-	{
-		return false;
-	}
-
-	return UseConsumableItemInternal(FindConsumableItemByData(ConsumableData), UserActor);
+	return ItemInstance->DeactivateItem(RuntimeContext);
 }
 
 void UPRInventoryComponent::RequestEquipModItemToWeapon(UPRItemInstance_Mod* ModItem, UPRItemInstance_Weapon* TargetWeaponItem)
 {
-	// 잘못된 Item 참조 요청은 서버 RPC를 보내기 전에 중단한다
+	// 잘못된 Item 참조 요청은 서버 RPC를 보내기 전에 중단
 	if (!IsValid(ModItem) || !IsValid(TargetWeaponItem))
 	{
 		return;
@@ -612,7 +432,7 @@ void UPRInventoryComponent::RequestEquipModItemToWeapon(UPRItemInstance_Mod* Mod
 
 void UPRInventoryComponent::RequestUnequipModFromWeapon(UPRItemInstance_Weapon* TargetWeaponItem)
 {
-	// 잘못된 Item 참조 요청은 서버 RPC를 보내기 전에 중단한다
+	// 잘못된 Item 참조 요청은 서버 RPC를 보내기 전에 중단
 	if (!IsValid(TargetWeaponItem))
 	{
 		return;
@@ -630,7 +450,7 @@ void UPRInventoryComponent::RequestUnequipModFromWeapon(UPRItemInstance_Weapon* 
 bool UPRInventoryComponent::EquipModItemToWeapon(UPRItemInstance_Mod* ModItem, UPRItemInstance_Weapon* TargetWeaponItem)
 {
 	// 서버 내부 장착에 필요한 Item 참조와 소유권이 유효하지 않은 경우
-	if (!IsValid(ModItem) || !OwnsMod(ModItem) || !IsValid(ModItem->GetModData()))
+	if (!IsValid(ModItem) || !OwnsItem(ModItem) || !IsValid(ModItem->GetModData()))
 	{
 		// Mod Item 소유권이나 데이터 누락 상황을 Owner와 Item 참조 기준으로 추적
 		UE_LOG(
@@ -645,7 +465,7 @@ bool UPRInventoryComponent::EquipModItemToWeapon(UPRItemInstance_Mod* ModItem, U
 	}
 
 	// 장착 대상 Weapon Item은 같은 인벤토리 소유여야 서버 정본 변경이 가능하다
-	if (!IsValid(TargetWeaponItem) || !OwnsWeapon(TargetWeaponItem))
+	if (!IsValid(TargetWeaponItem) || !OwnsItem(TargetWeaponItem))
 	{
 		// Weapon Item 소유권 검증 실패 상황을 Owner와 Item 참조 기준으로 추적
 		UE_LOG(
@@ -659,7 +479,7 @@ bool UPRInventoryComponent::EquipModItemToWeapon(UPRItemInstance_Mod* ModItem, U
 		return false;
 	}
 
-	// Mod 장착은 인벤토리 정본 변경 전 무기 데이터와 Mod 태그 호환성을 먼저 검증한다
+	// Mod 장착은 인벤토리 정본 변경 전 무기 데이터와 Mod 태그 호환성을 먼저 검증
 	if (!IsWeaponModCompatible(TargetWeaponItem->GetWeaponData(), ModItem->GetModData()))
 	{
 		// 호환되지 않는 무기와 Mod 조합을 Owner, Weapon Item, Mod Item 기준으로 추적
@@ -675,7 +495,7 @@ bool UPRInventoryComponent::EquipModItemToWeapon(UPRItemInstance_Mod* ModItem, U
 		return false;
 	}
 
-	// 이미 같은 무기에 같은 Mod Item이 연결된 경우 중복 요청으로 처리한다
+	// 이미 같은 무기에 같은 Mod Item이 연결된 경우 중복 요청으로 처리
 	if (TargetWeaponItem->GetEquippedModItem() == ModItem
 		&& ModItem->GetEquippedWeaponItem() == TargetWeaponItem)
 	{
@@ -692,20 +512,20 @@ bool UPRInventoryComponent::EquipModItemToWeapon(UPRItemInstance_Mod* ModItem, U
 		return false;
 	}
 
-	// 이동 장착을 위해 Mod Item이 기억하던 기존 Weapon Item 연결을 먼저 해제한다
+	// 이동 장착을 위해 Mod Item이 기억하던 기존 Weapon Item 연결을 먼저 해제
 	UPRItemInstance_Weapon* PreviousWeaponItem = ModItem->GetEquippedWeaponItem();
-	if (IsValid(PreviousWeaponItem) && OwnsWeapon(PreviousWeaponItem) && PreviousWeaponItem != TargetWeaponItem)
+	if (IsValid(PreviousWeaponItem) && OwnsItem(PreviousWeaponItem) && PreviousWeaponItem != TargetWeaponItem)
 	{
-		// 기존 장착 무기에서 Mod Item 연결과 적용 데이터를 제거한다
+		// 기존 장착 무기에서 Mod Item 연결과 적용 데이터를 제거
 		PreviousWeaponItem->ClearEquippedModItem();
 		PreviousWeaponItem->SetModData(nullptr);
 
-		// 기존 무기가 현재 장착 중이면 어빌리티와 공개 상태를 해제 상태로 갱신한다
+		// 기존 무기가 현재 장착 중이면 어빌리티와 공개 상태를 해제 상태로 갱신
 		NotifyWeaponItemModChanged(PreviousWeaponItem);
 	}
-	else if (!IsValid(PreviousWeaponItem) || !OwnsWeapon(PreviousWeaponItem))
+	else if (!IsValid(PreviousWeaponItem) || !OwnsItem(PreviousWeaponItem))
 	{
-		// 인벤토리에 없는 Weapon Item을 가리키는 오래된 연결은 새 장착 전에 정리한다
+		// 인벤토리에 없는 Weapon Item을 가리키는 오래된 연결은 새 장착 전에 정리
 		ModItem->ClearEquippedWeaponItem();
 	}
 
@@ -716,12 +536,12 @@ bool UPRInventoryComponent::EquipModItemToWeapon(UPRItemInstance_Mod* ModItem, U
 		PreviousModItem->ClearEquippedWeaponItem();
 	}
 
-	// 인벤토리 정본 상태를 새 Mod Item과 타겟 Weapon Item의 양방향 연결로 확정한다
+	// 인벤토리 정본 상태를 새 Mod Item과 타겟 Weapon Item의 양방향 연결로 확정
 	TargetWeaponItem->SetEquippedModItem(ModItem);
 	TargetWeaponItem->SetModData(ModItem->GetModData());
 	ModItem->MarkEquippedToWeaponItem(TargetWeaponItem);
 
-	// 타겟 무기가 현재 장착 중이면 어빌리티와 공개 상태를 새 Mod 기준으로 갱신한다
+	// 타겟 무기가 현재 장착 중이면 어빌리티와 공개 상태를 새 Mod 기준으로 갱신
 	NotifyWeaponItemModChanged(TargetWeaponItem);
 
 	if (IsValid(GetOwner()))
@@ -750,7 +570,7 @@ bool UPRInventoryComponent::EquipModItemToWeapon(UPRItemInstance_Mod* ModItem, U
 bool UPRInventoryComponent::UnequipModFromWeapon(UPRItemInstance_Weapon* TargetWeaponItem)
 {
 	// 해제 대상 Weapon Item은 같은 인벤토리 소유여야 서버 정본 변경이 가능하다
-	if (!IsValid(TargetWeaponItem) || !OwnsWeapon(TargetWeaponItem))
+	if (!IsValid(TargetWeaponItem) || !OwnsItem(TargetWeaponItem))
 	{
 		// Weapon Item 소유권 검증 실패 상황을 Owner와 Item 참조 기준으로 추적
 		UE_LOG(
@@ -764,14 +584,14 @@ bool UPRInventoryComponent::UnequipModFromWeapon(UPRItemInstance_Weapon* TargetW
 		return false;
 	}
 
-	// Weapon Item이 기억하던 Mod Item이 있으면 Mod Item의 역참조를 함께 정리한다
+	// Weapon Item이 기억하던 Mod Item이 있으면 Mod Item의 역참조를 함께 정리
 	UPRItemInstance_Mod* PreviousModItem = TargetWeaponItem->GetEquippedModItem();
 	if (IsValid(PreviousModItem))
 	{
 		PreviousModItem->ClearEquippedWeaponItem();
 	}
 
-	// 장착된 Mod Item도 Mod 데이터도 없으면 해제할 상태가 없다
+	// 장착된 Mod Item도 Mod 데이터도 없으면 해제할 상태 없음
 	if (!IsValid(PreviousModItem) && !IsValid(TargetWeaponItem->GetModData()))
 	{
 		// 무변경 해제 요청을 Owner와 Weapon Item 기준으로 추적
@@ -786,11 +606,11 @@ bool UPRInventoryComponent::UnequipModFromWeapon(UPRItemInstance_Weapon* TargetW
 		return false;
 	}
 
-	// 인벤토리 정본 상태에서 Weapon Item의 Mod 연결을 제거한다
+	// 인벤토리 정본 상태에서 Weapon Item의 Mod 연결을 제거
 	TargetWeaponItem->ClearEquippedModItem();
 	TargetWeaponItem->SetModData(nullptr);
 
-	// 타겟 무기가 현재 장착 중이면 어빌리티와 공개 상태를 빈 Mod 기준으로 갱신한다
+	// 타겟 무기가 현재 장착 중이면 어빌리티와 공개 상태를 빈 Mod 기준으로 갱신
 	NotifyWeaponItemModChanged(TargetWeaponItem);
 
 	if (IsValid(GetOwner()))
@@ -816,211 +636,71 @@ bool UPRInventoryComponent::UnequipModFromWeapon(UPRItemInstance_Weapon* TargetW
 	return true;
 }
 
-UPRItemInstance_Weapon* UPRInventoryComponent::GetWeaponItemAtIndex(int32 ItemIndex) const
+bool UPRInventoryComponent::OwnsItem(const UPRItemInstance* ItemInstance) const
 {
-	if (!InventoryWeaponItems.IsValidIndex(ItemIndex))
-	{
-		return nullptr;
-	}
-
-	return InventoryWeaponItems[ItemIndex];
-}
-
-UPRItemInstance_Mod* UPRInventoryComponent::GetModItemAtIndex(int32 ItemIndex) const
-{
-	if (!InventoryModItems.IsValidIndex(ItemIndex))
-	{
-		return nullptr;
-	}
-
-	return InventoryModItems[ItemIndex];
-}
-
-UPRItemInstance_Consumable* UPRInventoryComponent::GetConsumableItemAtIndex(int32 ItemIndex) const
-{
-	if (!InventoryConsumableItems.IsValidIndex(ItemIndex))
-	{
-		return nullptr;
-	}
-
-	return InventoryConsumableItems[ItemIndex];
-}
-
-UPRItemInstance_Material* UPRInventoryComponent::GetMaterialItemAtIndex(int32 ItemIndex) const
-{
-	if (!InventoryMaterialItems.IsValidIndex(ItemIndex))
-	{
-		return nullptr;
-	}
-
-	return InventoryMaterialItems[ItemIndex];
-}
-
-bool UPRInventoryComponent::OwnsWeapon(const UPRItemInstance_Weapon* WeaponItem) const
-{
-	// 유효하지 않은 Item은 소유권 검사에서 즉시 실패한다
-	if (!IsValid(WeaponItem))
+	// 유효하지 않은 Item 소유권 검사 제외
+	if (!IsValid(ItemInstance))
 	{
 		return false;
 	}
 
-	return InventoryWeaponItems.Contains(WeaponItem);
+	return InventoryItems.Contains(const_cast<UPRItemInstance*>(ItemInstance));
 }
 
-bool UPRInventoryComponent::OwnsMod(const UPRItemInstance_Mod* ModItem) const
+UPRItemInstance* UPRInventoryComponent::FindItemByData(const UPRItemDataAsset* InItemData) const
 {
-	// 유효하지 않은 Item은 소유권 검사에서 즉시 실패한다
-	if (!IsValid(ModItem))
-	{
-		return false;
-	}
-
-	return InventoryModItems.Contains(ModItem);
-}
-
-bool UPRInventoryComponent::OwnsConsumable(const UPRItemInstance_Consumable* ConsumableItem) const
-{
-	// 유효하지 않은 Item은 소유권 검사에서 즉시 실패한다
-	if (!IsValid(ConsumableItem))
-	{
-		return false;
-	}
-
-	return InventoryConsumableItems.Contains(ConsumableItem);
-}
-
-bool UPRInventoryComponent::OwnsMaterial(const UPRItemInstance_Material* MaterialItem) const
-{
-	// 유효하지 않은 Item은 소유권 검사에서 즉시 실패한다
-	if (!IsValid(MaterialItem))
-	{
-		return false;
-	}
-
-	return InventoryMaterialItems.Contains(MaterialItem);
-}
-
-UPRItemInstance* UPRInventoryComponent::FindItemByData(UPRItemDataAsset* InItemData)
-{
-	// 데이터가 없는 요청은 타입별 서버 요청으로 전달하지 않는다
+	// 데이터 없는 조회 제외
 	if (!IsValid(InItemData))
 	{
 		return nullptr;
 	}
 
-	if (UPRWeaponDataAsset* WeaponData = Cast<UPRWeaponDataAsset>(InItemData))
+	if (UPRItemInstance* CachedItem = InventoryItemCache.FindItemByData(InItemData))
 	{
-		return FindWeaponItemByData(WeaponData);
-	}
-	else if (UPRWeaponModDataAsset* ModData = Cast<UPRWeaponModDataAsset>(InItemData))
-	{
-		return FindModItemByData(ModData);
-	}
-	else if (UPRConsumableDataAsset* ConsumableData = Cast<UPRConsumableDataAsset>(InItemData))
-	{
-		return FindConsumableItemByData(ConsumableData);
-	}
-	else if (UPRMaterialDataAsset* MaterialData = Cast<UPRMaterialDataAsset>(InItemData))
-	{
-		return FindMaterialItemByData(MaterialData);
-	}
-	return nullptr;
-}
-
-UPRItemInstance_Consumable* UPRInventoryComponent::FindConsumableItemByData(const UPRConsumableDataAsset* ConsumableData) const
-{
-	// 유효하지 않은 데이터는 조회 대상이 아니다
-	if (!IsValid(ConsumableData))
-	{
-		return nullptr;
+		return CachedItem;
 	}
 
-	for (UPRItemInstance_Consumable* ConsumableItem : InventoryConsumableItems)
+	for (UPRItemInstance* Item : InventoryItems)
 	{
-		if (!IsValid(ConsumableItem))
+		if (IsValid(Item) && Item->GetItemData() == InItemData)
 		{
-			continue;
-		}
-
-		if (ConsumableItem->GetConsumableData() == ConsumableData)
-		{
-			return ConsumableItem;
+			return Item;
 		}
 	}
 
 	return nullptr;
 }
 
-UPRItemInstance_Material* UPRInventoryComponent::FindMaterialItemByData(const UPRMaterialDataAsset* MaterialData) const
+TArray<UPRItemInstance*> UPRInventoryComponent::GetItemsByType(EPRItemType ItemType) const
 {
-	// 유효하지 않은 데이터는 조회 대상이 아니다
-	if (!IsValid(MaterialData))
+	TArray<UPRItemInstance*> Items;
+	const FPRInventoryItemList* CachedItems = InventoryItemCache.FindItemsByType(ItemType);
+	if (!CachedItems)
 	{
-		return nullptr;
+		return Items;
 	}
 
-	for (UPRItemInstance_Material* MaterialItem : InventoryMaterialItems)
+	Items.Reserve(CachedItems->Items.Num());
+	for (UPRItemInstance* Item : CachedItems->Items)
 	{
-		if (!IsValid(MaterialItem))
+		if (IsValid(Item))
 		{
-			continue;
-		}
-
-		if (MaterialItem->GetMaterialData() == MaterialData)
-		{
-			return MaterialItem;
+			Items.Add(Item);
 		}
 	}
 
-	return nullptr;
+	return Items;
 }
 
-UPRItemInstance_Weapon* UPRInventoryComponent::FindWeaponItemByData(const UPRWeaponDataAsset* WeaponData)
+int32 UPRInventoryComponent::GetItemIndexByType(const UPRItemInstance* ItemInstance, EPRItemType ItemType) const
 {
-	// 유효하지 않은 데이터는 조회 대상이 아니다
-	if (!IsValid(WeaponData))
+	if (!IsValid(ItemInstance))
 	{
-		return nullptr;
+		return INDEX_NONE;
 	}
 
-	for (UPRItemInstance_Weapon* WeaponItem : InventoryWeaponItems)
-	{
-		if (!IsValid(WeaponItem))
-		{
-			continue;
-		}
-
-		if (WeaponItem->GetWeaponData() == WeaponData)
-		{
-			return WeaponItem;
-		}
-	}
-
-	return nullptr;
-}
-
-UPRItemInstance_Mod* UPRInventoryComponent::FindModItemByData(const UPRWeaponModDataAsset* ItemData)
-{
-	// 유효하지 않은 데이터는 조회 대상이 아니다
-	if (!IsValid(ItemData))
-	{
-		return nullptr;
-	}
-
-	for (UPRItemInstance_Mod* ModItem : InventoryModItems)
-	{
-		if (!IsValid(ModItem))
-		{
-			continue;
-		}
-
-		if (ModItem->GetModData() == ItemData)
-		{
-			return ModItem;
-		}
-	}
-
-	return nullptr;
+	const TArray<UPRItemInstance*> Items = GetItemsByType(ItemType);
+	return Items.IndexOfByKey(const_cast<UPRItemInstance*>(ItemInstance));
 }
 
 void UPRInventoryComponent::OnInventoryChanged(const FPRInventoryChangeEventData& EventData)
@@ -1031,12 +711,18 @@ void UPRInventoryComponent::OnInventoryChanged(const FPRInventoryChangeEventData
 FPRInventorySaveData UPRInventoryComponent::MakeSaveData() const
 {
 	FPRInventorySaveData SaveData;
-	SaveData.Weapons.Reserve(InventoryWeaponItems.Num());
-	SaveData.Mods.Reserve(InventoryModItems.Num());
-	SaveData.Consumables.Reserve(InventoryConsumableItems.Num());
-	SaveData.Materials.Reserve(InventoryMaterialItems.Num());
+	const TArray<UPRItemInstance_Weapon*> WeaponItems = GetItemsByType<UPRItemInstance_Weapon>(EPRItemType::Weapon);
+	const TArray<UPRItemInstance_Mod*> ModItems = GetItemsByType<UPRItemInstance_Mod>(EPRItemType::Mod);
+	const TArray<UPRItemInstance_Consumable*> ConsumableItems = GetItemsByType<UPRItemInstance_Consumable>(EPRItemType::Consumable);
+	const TArray<UPRItemInstance_Material*> MaterialItems = GetItemsByType<UPRItemInstance_Material>(EPRItemType::Material);
+	const TArray<UPRItemInstance_Equipment*> EquipmentItems = GetItemsByType<UPRItemInstance_Equipment>(EPRItemType::Equipment);
+	SaveData.Weapons.Reserve(WeaponItems.Num());
+	SaveData.Mods.Reserve(ModItems.Num());
+	SaveData.Consumables.Reserve(ConsumableItems.Num());
+	SaveData.Materials.Reserve(MaterialItems.Num());
+	SaveData.Equipments.Reserve(EquipmentItems.Num());
 
-	for (const UPRItemInstance_Weapon* WeaponItem : InventoryWeaponItems)
+	for (const UPRItemInstance_Weapon* WeaponItem : WeaponItems)
 	{
 		if (!IsValid(WeaponItem) || !IsValid(WeaponItem->GetWeaponData()))
 		{
@@ -1045,11 +731,11 @@ FPRInventorySaveData UPRInventoryComponent::MakeSaveData() const
 
 		FPRWeaponItemSaveEntry Entry;
 		WeaponItem->FillSaveEntry(Entry);
-		Entry.EquippedModIndex = GetModItemIndex(WeaponItem->GetEquippedModItem());
+		Entry.EquippedModIndex = GetItemIndexByType(WeaponItem->GetEquippedModItem(), EPRItemType::Mod);
 		SaveData.Weapons.Add(Entry);
 	}
 
-	for (const UPRItemInstance_Mod* ModItem : InventoryModItems)
+	for (const UPRItemInstance_Mod* ModItem : ModItems)
 	{
 		if (!IsValid(ModItem) || !IsValid(ModItem->GetModData()))
 		{
@@ -1061,7 +747,7 @@ FPRInventorySaveData UPRInventoryComponent::MakeSaveData() const
 		SaveData.Mods.Add(Entry);
 	}
 
-	for (const UPRItemInstance_Consumable* ConsumableItem : InventoryConsumableItems)
+	for (const UPRItemInstance_Consumable* ConsumableItem : ConsumableItems)
 	{
 		if (!IsValid(ConsumableItem) || !IsValid(ConsumableItem->GetConsumableData()))
 		{
@@ -1074,7 +760,7 @@ FPRInventorySaveData UPRInventoryComponent::MakeSaveData() const
 		SaveData.Consumables.Add(Entry);
 	}
 
-	for (const UPRItemInstance_Material* MaterialItem : InventoryMaterialItems)
+	for (const UPRItemInstance_Material* MaterialItem : MaterialItems)
 	{
 		if (!IsValid(MaterialItem) || !IsValid(MaterialItem->GetMaterialData()))
 		{
@@ -1087,6 +773,19 @@ FPRInventorySaveData UPRInventoryComponent::MakeSaveData() const
 		SaveData.Materials.Add(Entry);
 	}
 
+	for (const UPRItemInstance_Equipment* EquipmentItem : EquipmentItems)
+	{
+		if (!IsValid(EquipmentItem) || !IsValid(EquipmentItem->GetEquipmentData()))
+		{
+			continue;
+		}
+
+		FPREquipmentItemSaveEntry Entry;
+		Entry.EquipmentData = EquipmentItem->GetEquipmentData();
+		Entry.StackCount = FMath::Max(EquipmentItem->GetStackCount(), 1);
+		SaveData.Equipments.Add(Entry);
+	}
+
 	return SaveData;
 }
 
@@ -1097,10 +796,11 @@ void UPRInventoryComponent::ApplySaveData(const FPRInventorySaveData& InSaveData
 		return;
 	}
 
-	InventoryWeaponItems.Reset();
-	InventoryModItems.Reset();
-	InventoryConsumableItems.Reset();
-	InventoryMaterialItems.Reset();
+	InventoryItems.Reset();
+	InventoryItemCache.Reset();
+
+	TArray<UPRItemInstance_Mod*> RestoredModItems;
+	RestoredModItems.Reserve(InSaveData.Mods.Num());
 
 	for (const FPRModItemSaveEntry& Entry : InSaveData.Mods)
 	{
@@ -1110,7 +810,7 @@ void UPRInventoryComponent::ApplySaveData(const FPRInventorySaveData& InSaveData
 			continue;
 		}
 
-		UPRItemInstance_Mod* NewModItem = NewObject<UPRItemInstance_Mod>(this);
+		UPRItemInstance_Mod* NewModItem = Cast<UPRItemInstance_Mod>(NewObject<UPRItemInstance>(this, ModData->GetItemInstanceClass()));
 		if (!IsValid(NewModItem))
 		{
 			continue;
@@ -1119,7 +819,8 @@ void UPRInventoryComponent::ApplySaveData(const FPRInventorySaveData& InSaveData
 		// Mod 아이템 복원
 		NewModItem->InitializeItem(ModData, 1);
 		NewModItem->ApplySaveEntry(Entry);
-		InventoryModItems.Add(NewModItem);
+		InventoryItems.Add(NewModItem);
+		RestoredModItems.Add(NewModItem);
 	}
 
 	for (const FPRWeaponItemSaveEntry& Entry : InSaveData.Weapons)
@@ -1130,7 +831,7 @@ void UPRInventoryComponent::ApplySaveData(const FPRInventorySaveData& InSaveData
 			continue;
 		}
 
-		UPRItemInstance_Weapon* NewWeaponItem = NewObject<UPRItemInstance_Weapon>(this);
+		UPRItemInstance_Weapon* NewWeaponItem = Cast<UPRItemInstance_Weapon>(NewObject<UPRItemInstance>(this, WeaponData->GetItemInstanceClass()));
 		if (!IsValid(NewWeaponItem))
 		{
 			continue;
@@ -1140,9 +841,9 @@ void UPRInventoryComponent::ApplySaveData(const FPRInventorySaveData& InSaveData
 		NewWeaponItem->InitializeItem(WeaponData, FMath::Max(Entry.StackCount, 1));
 		NewWeaponItem->ApplySaveEntry(Entry);
 
-		if (InventoryModItems.IsValidIndex(Entry.EquippedModIndex))
+		if (RestoredModItems.IsValidIndex(Entry.EquippedModIndex))
 		{
-			UPRItemInstance_Mod* ModItem = InventoryModItems[Entry.EquippedModIndex];
+			UPRItemInstance_Mod* ModItem = RestoredModItems[Entry.EquippedModIndex];
 			if (IsValid(ModItem) && IsValid(ModItem->GetModData()))
 			{
 				// Mod 장착 관계 복원
@@ -1152,7 +853,26 @@ void UPRInventoryComponent::ApplySaveData(const FPRInventorySaveData& InSaveData
 			}
 		}
 
-		InventoryWeaponItems.Add(NewWeaponItem);
+		InventoryItems.Add(NewWeaponItem);
+	}
+
+	for (const FPREquipmentItemSaveEntry& Entry : InSaveData.Equipments)
+	{
+		UPREquipmentDataAsset* EquipmentData = Entry.EquipmentData.LoadSynchronous();
+		if (!IsValid(EquipmentData))
+		{
+			continue;
+		}
+
+		UPRItemInstance_Equipment* NewEquipmentItem = Cast<UPRItemInstance_Equipment>(NewObject<UPRItemInstance>(this, EquipmentData->GetItemInstanceClass()));
+		if (!IsValid(NewEquipmentItem))
+		{
+			continue;
+		}
+
+		// 장비 아이템 복원
+		NewEquipmentItem->InitializeItem(EquipmentData, FMath::Max(Entry.StackCount, 1));
+		InventoryItems.Add(NewEquipmentItem);
 	}
 
 	for (const FPRConsumableSaveEntry& Entry : InSaveData.Consumables)
@@ -1163,7 +883,7 @@ void UPRInventoryComponent::ApplySaveData(const FPRInventorySaveData& InSaveData
 			continue;
 		}
 
-		UPRItemInstance_Consumable* NewConsumableItem = NewObject<UPRItemInstance_Consumable>(this);
+		UPRItemInstance_Consumable* NewConsumableItem = Cast<UPRItemInstance_Consumable>(NewObject<UPRItemInstance>(this, ConsumableData->GetItemInstanceClass()));
 		if (!IsValid(NewConsumableItem))
 		{
 			continue;
@@ -1171,7 +891,7 @@ void UPRInventoryComponent::ApplySaveData(const FPRInventorySaveData& InSaveData
 
 		// 소비 아이템 복원
 		NewConsumableItem->InitializeItem(ConsumableData, Entry.StackCount);
-		InventoryConsumableItems.Add(NewConsumableItem);
+		InventoryItems.Add(NewConsumableItem);
 	}
 
 	for (const FPRMaterialSaveEntry& Entry : InSaveData.Materials)
@@ -1182,7 +902,7 @@ void UPRInventoryComponent::ApplySaveData(const FPRInventorySaveData& InSaveData
 			continue;
 		}
 
-		UPRItemInstance_Material* NewMaterialItem = NewObject<UPRItemInstance_Material>(this);
+		UPRItemInstance_Material* NewMaterialItem = Cast<UPRItemInstance_Material>(NewObject<UPRItemInstance>(this, MaterialData->GetItemInstanceClass()));
 		if (!IsValid(NewMaterialItem))
 		{
 			continue;
@@ -1190,8 +910,10 @@ void UPRInventoryComponent::ApplySaveData(const FPRInventorySaveData& InSaveData
 
 		// 재료 아이템 복원
 		NewMaterialItem->InitializeItem(MaterialData, Entry.StackCount);
-		InventoryMaterialItems.Add(NewMaterialItem);
+		InventoryItems.Add(NewMaterialItem);
 	}
+
+	RebuildInventoryCaches();
 
 	if (IsValid(GetOwner()))
 	{
@@ -1204,320 +926,88 @@ void UPRInventoryComponent::ApplySaveData(const FPRInventorySaveData& InSaveData
 	OnInventoryChanged(EventData);
 }
 
-int32 UPRInventoryComponent::GetWeaponItemIndex(const UPRItemInstance_Weapon* WeaponItem) const
+void UPRInventoryComponent::OnRep_InventoryItems(const TArray<UPRItemInstance*>& OldInventoryItems)
 {
-	return InventoryWeaponItems.IndexOfByKey(WeaponItem);
-}
+	RebuildInventoryCaches();
 
-int32 UPRInventoryComponent::GetModItemIndex(const UPRItemInstance_Mod* ModItem) const
-{
-	return InventoryModItems.IndexOfByKey(ModItem);
-}
-
-void UPRInventoryComponent::OnRep_InventoryWeaponItems(const TArray<UPRItemInstance_Weapon*>& OldWeaponItems)
-{
-	// 새로 추가된 무기 Item마다 ItemAdded 이벤트 발행
-	for (UPRItemInstance_Weapon* WeaponItem : InventoryWeaponItems)
+	for (UPRItemInstance* Item : InventoryItems)
 	{
-		if (!IsValid(WeaponItem) || OldWeaponItems.Contains(WeaponItem))
+		if (!IsValid(Item) || OldInventoryItems.Contains(Item))
 		{
 			continue;
 		}
 
-		FPRInventoryChangeEventData EventData;
-		EventData.ChangeReason = EPRInventoryChangeReason::ItemAdded;
-		EventData.ItemInstance = WeaponItem;
-
-		OnInventoryChanged(EventData);
+		BroadcastInventoryItemChanged(EPRInventoryChangeReason::ItemAdded, Item);
 	}
 
-	// 제거된 무기 Item마다 ItemRemoved 이벤트 발행
-	for (UPRItemInstance_Weapon* OldWeaponItem : OldWeaponItems)
+	for (UPRItemInstance* OldItem : OldInventoryItems)
 	{
-		if (!IsValid(OldWeaponItem) || InventoryWeaponItems.Contains(OldWeaponItem))
+		if (!IsValid(OldItem) || InventoryItems.Contains(OldItem))
 		{
 			continue;
 		}
 
-		FPRInventoryChangeEventData EventData;
-		EventData.ChangeReason = EPRInventoryChangeReason::ItemRemoved;
-		EventData.ItemInstance = OldWeaponItem;
-
-		OnInventoryChanged(EventData);
+		BroadcastInventoryItemChanged(EPRInventoryChangeReason::ItemRemoved, OldItem);
 	}
 }
 
-void UPRInventoryComponent::OnRep_InventoryModItems(const TArray<UPRItemInstance_Mod*>& OldModItems)
+void UPRInventoryComponent::RegisterInventoryItem(UPRItemInstance* ItemInstance)
 {
-	// 새로 추가된 Mod Item마다 ItemAdded 이벤트 발행
-	for (UPRItemInstance_Mod* ModItem : InventoryModItems)
-	{
-		if (!IsValid(ModItem) || OldModItems.Contains(ModItem))
-		{
-			continue;
-		}
-
-		FPRInventoryChangeEventData EventData;
-		EventData.ChangeReason = EPRInventoryChangeReason::ItemAdded;
-		EventData.ItemInstance = ModItem;
-
-		OnInventoryChanged(EventData);
-	}
-
-	// 제거된 Mod Item마다 ItemRemoved 이벤트 발행
-	for (UPRItemInstance_Mod* OldModItem : OldModItems)
-	{
-		if (!IsValid(OldModItem) || InventoryModItems.Contains(OldModItem))
-		{
-			continue;
-		}
-
-		FPRInventoryChangeEventData EventData;
-		EventData.ChangeReason = EPRInventoryChangeReason::ItemRemoved;
-		EventData.ItemInstance = OldModItem;
-
-		OnInventoryChanged(EventData);
-	}
-}
-
-void UPRInventoryComponent::OnRep_InventoryConsumableItems(const TArray<UPRItemInstance_Consumable*>& OldConsumables)
-{
-	// 새로 추가된 소비 Item마다 ItemAdded 이벤트 발행
-	for (UPRItemInstance_Consumable* ConsumableItem : InventoryConsumableItems)
-	{
-		if (!IsValid(ConsumableItem) || OldConsumables.Contains(ConsumableItem))
-		{
-			continue;
-		}
-
-		FPRInventoryChangeEventData EventData;
-		EventData.ChangeReason = EPRInventoryChangeReason::ItemAdded;
-		EventData.ItemInstance = ConsumableItem;
-
-		OnInventoryChanged(EventData);
-	}
-
-	// 제거된 소비 Item마다 ItemRemoved 이벤트 발행
-	for (UPRItemInstance_Consumable* OldConsumableItem : OldConsumables)
-	{
-		if (!IsValid(OldConsumableItem) || InventoryConsumableItems.Contains(OldConsumableItem))
-		{
-			continue;
-		}
-
-		FPRInventoryChangeEventData EventData;
-		EventData.ChangeReason = EPRInventoryChangeReason::ItemRemoved;
-		EventData.ItemInstance = OldConsumableItem;
-
-		OnInventoryChanged(EventData);
-	}
-}
-
-void UPRInventoryComponent::OnRep_InventoryMaterialItems(const TArray<UPRItemInstance_Material*>& OldMaterials)
-{
-	// 새로 추가된 재료 Item마다 ItemAdded 이벤트 발행
-	for (UPRItemInstance_Material* MaterialItem : InventoryMaterialItems)
-	{
-		if (!IsValid(MaterialItem) || OldMaterials.Contains(MaterialItem))
-		{
-			continue;
-		}
-
-		FPRInventoryChangeEventData EventData;
-		EventData.ChangeReason = EPRInventoryChangeReason::ItemAdded;
-		EventData.ItemInstance = MaterialItem;
-
-		OnInventoryChanged(EventData);
-	}
-
-	// 제거된 재료 Item마다 ItemRemoved 이벤트 발행
-	for (UPRItemInstance_Material* OldMaterialItem : OldMaterials)
-	{
-		if (!IsValid(OldMaterialItem) || InventoryMaterialItems.Contains(OldMaterialItem))
-		{
-			continue;
-		}
-
-		FPRInventoryChangeEventData EventData;
-		EventData.ChangeReason = EPRInventoryChangeReason::ItemRemoved;
-		EventData.ItemInstance = OldMaterialItem;
-
-		OnInventoryChanged(EventData);
-	}
-}
-
-void UPRInventoryComponent::RegisterInventoryWeaponItem(UPRItemInstance_Weapon* WeaponItem)
-{
-	// 인벤토리에 실제로 들어갈 무기 Item만 목록에 등록한다
-	if (!IsValid(WeaponItem))
+	// 등록 대상 검증
+	if (!IsValid(ItemInstance))
 	{
 		return;
 	}
 
-	InventoryWeaponItems.AddUnique(WeaponItem);
+	if (InventoryItems.Contains(ItemInstance))
+	{
+		return;
+	}
+
+	InventoryItems.Add(ItemInstance);
+	InventoryItemCache.AddItem(ItemInstance);
 
 	if (IsValid(GetOwner()))
 	{
 		GetOwner()->ForceNetUpdate();
 	}
 
-	FPRInventoryChangeEventData EventData;
-	EventData.ChangeReason = EPRInventoryChangeReason::ItemAdded;
-	EventData.ItemInstance = WeaponItem;
-	
-	OnInventoryChanged(EventData);
+	BroadcastInventoryItemChanged(EPRInventoryChangeReason::ItemAdded, ItemInstance);
 }
 
-void UPRInventoryComponent::UnregisterInventoryWeaponItem(UPRItemInstance_Weapon* WeaponItem)
+void UPRInventoryComponent::UnregisterInventoryItem(UPRItemInstance* ItemInstance)
 {
-	// 잘못된 무기 Item 요청이면 등록 해제를 시도하지 않는다
-	if (!IsValid(WeaponItem))
+	// 등록 해제 대상 검증
+	if (!IsValid(ItemInstance))
 	{
 		return;
 	}
 
-	InventoryWeaponItems.Remove(WeaponItem);
-
-	if (IsValid(GetOwner()))
-	{
-		GetOwner()->ForceNetUpdate();
-	}
-	
-	FPRInventoryChangeEventData EventData;
-	EventData.ChangeReason = EPRInventoryChangeReason::ItemRemoved;
-	EventData.ItemInstance = WeaponItem;
-
-	OnInventoryChanged(EventData);
-}
-
-void UPRInventoryComponent::RegisterInventoryModItem(UPRItemInstance_Mod* ModItem)
-{
-	// 인벤토리에 실제로 들어갈 무기 Mod Item만 목록에 등록한다
-	if (!IsValid(ModItem))
+	if (InventoryItems.Remove(ItemInstance) <= 0)
 	{
 		return;
 	}
 
-	InventoryModItems.AddUnique(ModItem);
-
-	if (IsValid(GetOwner()))
-	{
-		GetOwner()->ForceNetUpdate();
-	}
-	
-	FPRInventoryChangeEventData EventData;
-	EventData.ChangeReason = EPRInventoryChangeReason::ItemAdded;
-	EventData.ItemInstance = ModItem;
-
-	OnInventoryChanged(EventData);
-}
-
-void UPRInventoryComponent::UnregisterInventoryModItem(UPRItemInstance_Mod* ModItem)
-{
-	// 잘못된 무기 Mod Item 요청이면 등록 해제를 시도하지 않는다
-	if (!IsValid(ModItem))
-	{
-		return;
-	}
-
-	InventoryModItems.Remove(ModItem);
+	InventoryItemCache.RemoveItem(ItemInstance);
 
 	if (IsValid(GetOwner()))
 	{
 		GetOwner()->ForceNetUpdate();
 	}
 
-	FPRInventoryChangeEventData EventData;
-	EventData.ChangeReason = EPRInventoryChangeReason::ItemRemoved;
-	EventData.ItemInstance = ModItem;
-	
-	OnInventoryChanged(EventData);
+	BroadcastInventoryItemChanged(EPRInventoryChangeReason::ItemRemoved, ItemInstance);
 }
 
-void UPRInventoryComponent::RegisterInventoryConsumableItem(UPRItemInstance_Consumable* ConsumableItem)
+void UPRInventoryComponent::RebuildInventoryCaches()
 {
-	// 인벤토리에 실제로 들어갈 소비 Item만 목록에 등록한다
-	if (!IsValid(ConsumableItem))
-	{
-		return;
-	}
-
-	InventoryConsumableItems.AddUnique(ConsumableItem);
-
-	if (IsValid(GetOwner()))
-	{
-		GetOwner()->ForceNetUpdate();
-	}
-	
-	FPRInventoryChangeEventData EventData;
-	EventData.ChangeReason = EPRInventoryChangeReason::ItemAdded;
-	EventData.ItemInstance = ConsumableItem;
-	
-	OnInventoryChanged(EventData);
+	InventoryItemCache.Rebuild(InventoryItems);
 }
 
-void UPRInventoryComponent::UnregisterConsumableItemInstance(UPRItemInstance_Consumable* ConsumableItem)
+void UPRInventoryComponent::BroadcastInventoryItemChanged(EPRInventoryChangeReason ChangeReason, UPRItemInstance* ItemInstance)
 {
-	// 잘못된 소비 Item 요청이면 등록 해제를 시도하지 않는다
-	if (!IsValid(ConsumableItem))
-	{
-		return;
-	}
-
-	InventoryConsumableItems.Remove(ConsumableItem);
-
-	if (IsValid(GetOwner()))
-	{
-		GetOwner()->ForceNetUpdate();
-	}
-
 	FPRInventoryChangeEventData EventData;
-	EventData.ChangeReason = EPRInventoryChangeReason::ItemRemoved;
-	EventData.ItemInstance = ConsumableItem;
-	
-	OnInventoryChanged(EventData);
-}
-
-void UPRInventoryComponent::RegisterInventoryMaterialItem(UPRItemInstance_Material* MaterialItem)
-{
-	// 인벤토리에 실제로 들어갈 재료 Item만 목록에 등록한다
-	if (!IsValid(MaterialItem))
-	{
-		return;
-	}
-
-	InventoryMaterialItems.AddUnique(MaterialItem);
-
-	if (IsValid(GetOwner()))
-	{
-		GetOwner()->ForceNetUpdate();
-	}
-
-	FPRInventoryChangeEventData EventData;
-	EventData.ChangeReason = EPRInventoryChangeReason::ItemAdded;
-	EventData.ItemInstance = MaterialItem;
-
-	OnInventoryChanged(EventData);
-}
-
-void UPRInventoryComponent::UnregisterMaterialItemInstance(UPRItemInstance_Material* MaterialItem)
-{
-	// 잘못된 재료 Item 요청이면 등록 해제를 시도하지 않는다
-	if (!IsValid(MaterialItem))
-	{
-		return;
-	}
-
-	InventoryMaterialItems.Remove(MaterialItem);
-
-	if (IsValid(GetOwner()))
-	{
-		GetOwner()->ForceNetUpdate();
-	}
-
-	FPRInventoryChangeEventData EventData;
-	EventData.ChangeReason = EPRInventoryChangeReason::ItemRemoved;
-	EventData.ItemInstance = MaterialItem;
+	EventData.ChangeReason = ChangeReason;
+	EventData.ItemInstance = ItemInstance;
 
 	OnInventoryChanged(EventData);
 }
@@ -1562,44 +1052,29 @@ void UPRInventoryComponent::NotifyWeaponItemModChanged(UPRItemInstance_Weapon* W
 	WeaponManager->HandleInventoryWeaponModChanged(WeaponItem);
 }
 
-void UPRInventoryComponent::Server_RequestAddWeaponItem_Implementation(UPRWeaponDataAsset* WeaponData)
+void UPRInventoryComponent::Server_RequestAddItem_Implementation(UPRItemDataAsset* InItemData, int32 Amount)
 {
-	AddWeaponItem(WeaponData);
+	AddItem<UPRItemInstance>(InItemData, Amount);
 }
 
-void UPRInventoryComponent::Server_RequestAddModItem_Implementation(UPRWeaponModDataAsset* ModData)
+void UPRInventoryComponent::Server_RequestRemoveItem_Implementation(UPRItemInstance* ItemInstance, int32 RemoveCount)
 {
-	AddModItem(ModData);
+	RemoveItemInternal(ItemInstance, RemoveCount);
 }
 
-void UPRInventoryComponent::Server_RequestAddConsumableItem_Implementation(UPRConsumableDataAsset* ConsumableData, int32 AddCount)
+void UPRInventoryComponent::Server_RequestRemoveItemByData_Implementation(UPRItemDataAsset* ItemData, int32 RemoveCount)
 {
-	AddConsumableItem(ConsumableData, AddCount);
+	RemoveItemByDataInternal(ItemData, RemoveCount);
 }
 
-void UPRInventoryComponent::Server_RequestAddMaterialItem_Implementation(UPRMaterialDataAsset* MaterialData, int32 AddCount)
+void UPRInventoryComponent::Server_RequestActivateItem_Implementation(UPRItemInstance* ItemInstance, const FPRItemActivationContext& ActivationContext)
 {
-	AddMaterialItem(MaterialData, AddCount);
+	ActivateItemInternal(ItemInstance, ActivationContext);
 }
 
-void UPRInventoryComponent::Server_RequestRemoveConsumableItem_Implementation(UPRItemInstance_Consumable* ConsumableItem, int32 RemoveCount)
+void UPRInventoryComponent::Server_RequestDeactivateItem_Implementation(UPRItemInstance* ItemInstance, const FPRItemActivationContext& ActivationContext)
 {
-	RemoveConsumableItemInternal(ConsumableItem, RemoveCount);
-}
-
-void UPRInventoryComponent::Server_RequestRemoveConsumableItemByData_Implementation(UPRConsumableDataAsset* ConsumableData, int32 RemoveCount)
-{
-	RemoveConsumableItemByDataInternal(ConsumableData, RemoveCount);
-}
-
-void UPRInventoryComponent::Server_RequestUseConsumableItem_Implementation(UPRItemInstance_Consumable* ConsumableItem, AActor* UserActor)
-{
-	UseConsumableItemInternal(ConsumableItem, UserActor);
-}
-
-void UPRInventoryComponent::Server_RequestUseConsumableItemByData_Implementation(UPRConsumableDataAsset* ConsumableData, AActor* UserActor)
-{
-	UseConsumableItemByDataInternal(ConsumableData, UserActor);
+	DeactivateItemInternal(ItemInstance, ActivationContext);
 }
 
 void UPRInventoryComponent::Server_RequestEquipModItemToWeapon_Implementation(UPRItemInstance_Mod* ModItem, UPRItemInstance_Weapon* TargetWeaponItem)

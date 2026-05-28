@@ -8,7 +8,7 @@
 
 class UPRConsumableDataAsset;
 
-// 인벤토리가 소유하는 소비 아이템 1종의 보유 개수와 사용 처리를 담당한다
+// 인벤토리가 소유하는 소비 아이템 1종의 보유 개수와 사용 처리를 담당
 UCLASS(BlueprintType, EditInlineNew, DefaultToInstanced)
 class PROJECTR_API UPRItemInstance_Consumable : public UPRItemInstance
 {
@@ -18,16 +18,18 @@ public:
 	/*~ UObject Interface ~*/
 	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
 
+	/*~ UPRItemInstance Interface ~*/
+	virtual bool ActivateItem(const FPRItemActivationContext& ActivationContext) override;
+
 public:
-	// 소비 아이템을 사용한다
+	// 소비 아이템을 사용
 	virtual bool UseItem(AActor* UserActor);
 
-	// 현재 연결된 소비 아이템 데이터를 반환한다
+	// 현재 연결된 소비 아이템 데이터를 반환
 	UFUNCTION(BlueprintPure, Category = "ProjectR|Inventory")
 	UPRConsumableDataAsset* GetConsumableData() const;
 
 protected:
-	// 사용 가능한 상태인지 확인한다
+	// 사용 가능한 상태인지 확인
 	virtual bool CanUseItem(AActor* UserActor) const;
-
 };

@@ -1,0 +1,47 @@
+// Copyright ProjectR. All Rights Reserved.
+
+#pragma once
+
+#include "CoreMinimal.h"
+#include "ProjectR/ItemSystem/Items/PRItemInstance.h"
+#include "ProjectR/ItemSystem/Types/PREquipmentTypes.h"
+#include "ProjectR/Game/PRGameTypes.h"
+#include "PRItemInstance_Equipment.generated.h"
+
+class UPREquipmentDataAsset;
+class AActor;
+
+// 인벤토리가 소유하는 장비 아이템 1종의 인스턴스를 관리
+UCLASS(BlueprintType, EditInlineNew, DefaultToInstanced)
+class PROJECTR_API UPRItemInstance_Equipment : public UPRItemInstance
+{
+	GENERATED_BODY()
+
+public:
+	/*~ UObject Interface ~*/
+	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
+
+	/*~ UPRItemInstance Interface ~*/
+	virtual bool ActivateItem(const FPRItemActivationContext& ActivationContext) override;
+	virtual bool DeactivateItem(const FPRItemActivationContext& ActivationContext) override;
+
+public:
+	// 현재 연결된 장비 아이템 데이터 반환
+	UFUNCTION(BlueprintPure, Category = "ProjectR|Equipment")
+	UPREquipmentDataAsset* GetEquipmentData() const;
+
+	// 장비가 장착되는 슬롯 종류 반환
+	EPREquipmentSlotType GetSlotType() const;
+
+	// 장착 시 호출 (현재는 디버그 메시지, 추후 ChildMesh 변경)
+	virtual void OnEquipped(AActor* OwnerActor);
+
+	// 해제 시 호출 (현재는 디버그 메시지, 추후 ChildMesh 복원)
+	virtual void OnUnequipped(AActor* OwnerActor);
+
+	// 세이브 데이터에 현재 상태 기록
+	void FillSaveEntry(FPREquipmentSlotSaveEntry& OutEntry) const;
+
+	// 세이브 데이터에서 상태 복원 (현재는 특별히 복원할 내부 상태 없음)
+	void ApplySaveEntry(const FPREquipmentSlotSaveEntry& InEntry);
+};

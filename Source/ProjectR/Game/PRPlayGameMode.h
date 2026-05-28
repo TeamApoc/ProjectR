@@ -34,7 +34,7 @@ public:
 	void ReportCheckpointActivated(FName CheckpointId);
 	void ReportBossDefeated(FName BossId);
 
-	// 게스트가 ServerSubmitCharacter로 보낸 페이로드를 검증하고 PlayerState에 주입
+	// 접속 플레이어 캐릭터 페이로드를 검증하고 PlayerState에 주입
 	// 반환값이 false면 호출측(PlayerController)이 ClientCharacterAccepted(false)로 거부 통지
 	bool AcceptGuestCharacter(APRPlayerController* From, const FPRCharacterSaveData& Payload);
 

@@ -4,6 +4,8 @@
 
 #include "Engine/World.h"
 #include "MotionWarpingComponent.h"
+#include "NiagaraFunctionLibrary.h"
+#include "NiagaraSystem.h"
 #include "ProjectR/AI/Components/PRFaerinCombatDirectorComponent.h"
 #include "ProjectR/AI/Components/PRFaerinDebugDrawComponent.h"
 #include "ProjectR/AI/Components/PRFaerinGodFallComponent.h"
@@ -36,6 +38,32 @@ void APRFaerinCharacter::EndPlay(const EEndPlayReason::Type EndPlayReason)
 	BroadcastBossEncounterEnd();
 
 	Super::EndPlay(EndPlayReason);
+}
+
+void APRFaerinCharacter::Multicast_SpawnNearTeleportBodyNiagara_Implementation(
+	UNiagaraSystem* NiagaraSystem,
+	FName AttachSocketName)
+{
+	if (!IsValid(NiagaraSystem) || !IsValid(GetMesh()))
+	{
+		return;
+	}
+
+	const FTransform SpawnTransform = AttachSocketName != NAME_None
+		? GetMesh()->GetSocketTransform(AttachSocketName)
+		: GetMesh()->GetComponentTransform();
+	UNiagaraFunctionLibrary::SpawnSystemAtLocation(
+		this,
+		NiagaraSystem,
+		SpawnTransform.GetLocation(),
+		SpawnTransform.Rotator(),
+		SpawnTransform.GetScale3D(),
+		true);
+}
+
+void APRFaerinCharacter::Multicast_SetNearTeleportHidden_Implementation(bool bShouldHide)
+{
+	SetActorHiddenInGame(bShouldHide);
 }
 
 /*~ 보스 조우 이벤트 브로드캐스트 ~*/

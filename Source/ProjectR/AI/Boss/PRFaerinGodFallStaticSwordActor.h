@@ -45,6 +45,7 @@ public:
 
 	/*~ APRBossPatternActor Interface ~*/
 	virtual void CancelPatternActor() override;
+	virtual bool ShouldCancelOnBossPhaseTransition() const override { return false; }
 
 	// God Fall Rig bone에서 얻은 위치와 전투 데이터를 주입해 StaticSword를 초기화한다.
 	void InitializeGodFallStaticSword(APRBossBaseCharacter* InOwnerBoss,

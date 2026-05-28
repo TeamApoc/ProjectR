@@ -4,11 +4,13 @@
 
 #include "CoreMinimal.h"
 #include "Engine/DataAsset.h"
+#include "EnvironmentQuery/EnvQueryTypes.h"
 #include "GameplayTagContainer.h"
 #include "ProjectR/AI/Data/PREnemyCombatDataAsset.h"
 #include "ProjectR/AI/PREnemyAITypes.h"
 #include "PRFaerinCombatLoopDataAsset.generated.h"
 
+class UEnvQuery;
 class UPRAbilitySystemComponent;
 class UPRPatternDataAsset;
 
@@ -28,7 +30,9 @@ enum class EPRFaerinApproachPolicy : uint8
 	None				UMETA(DisplayName = "None"),
 	KeepCurrentRange	UMETA(DisplayName = "Keep Current Range"),
 	SprintToMeleeRange	UMETA(DisplayName = "Sprint To Melee Range"),
-	ShiftClose			UMETA(DisplayName = "Shift Close")
+	ShiftClose			UMETA(DisplayName = "Shift Close"),
+	NearTeleportToMeleeRange	UMETA(DisplayName = "Near Teleport To Melee Range"),
+	SprintOrNearTeleport	UMETA(DisplayName = "Sprint Or Near Teleport")
 };
 
 UENUM(BlueprintType)
@@ -100,6 +104,10 @@ struct PROJECTR_API FPRFaerinPhaseLoopConfig
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Faerin", meta = (Categories = "Ability.Boss.Faerin"))
 	FGameplayTag ApproachAbilityTag;
 
+	// 근거리 텔레포트 접근을 실제로 실행할 Gameplay Ability 태그다.
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Faerin", meta = (Categories = "Ability.Boss.Faerin"))
+	FGameplayTag NearTeleportAbilityTag;
+
 	// 패턴 메타데이터가 PhaseDefault를 선택했을 때 사용할 기본 접근 정책이다.
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Faerin")
 	EPRFaerinApproachPolicy DefaultApproachPolicy = EPRFaerinApproachPolicy::SprintToMeleeRange;
@@ -120,6 +128,42 @@ struct PROJECTR_API FPRFaerinPhaseLoopConfig
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Faerin", meta = (ClampMin = "0.0"))
 	float ApproachAcceptanceRadius = 120.0f;
 
+	// SprintOrNearTeleport 정책에서 근거리 텔레포트를 선택할 확률이다.
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Faerin", meta = (ClampMin = "0.0", ClampMax = "1.0"))
+	float NearTeleportChance = 0.35f;
+
+	// 근거리 텔레포트가 사라진 뒤 자기 주변 위치에 재등장하기까지 기다리는 시간이다.
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Faerin", meta = (ClampMin = "0.0"))
+	float NearTeleportReappearDelaySeconds = 0.5f;
+
+	// 자기 위치 기준 근거리 텔레포트가 이동할 수 있는 최대 거리다.
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Faerin", meta = (ClampMin = "0.0", ClampMax = "500.0"))
+	float NearTeleportMaxDistanceFromSelf = 500.0f;
+
+	// 자기 주변 근거리 텔레포트 목적지를 고를 EQS다.
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Faerin|NearTeleport|EQS")
+	TObjectPtr<UEnvQuery> NearTeleportQueryTemplate;
+
+	// 근거리 텔레포트 EQS 실행 방식이다. 후보 랜덤 선택을 쓰면 내부 유틸에서 AllMatching으로 보정한다.
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Faerin|NearTeleport|EQS")
+	TEnumAsByte<EEnvQueryRunMode::Type> NearTeleportQueryRunMode = EEnvQueryRunMode::SingleResult;
+
+	// 근거리 텔레포트 EQS 후보 선택 방식이다.
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Faerin|NearTeleport|EQS")
+	EPREnemyQueryCandidateSelectionMode NearTeleportCandidateSelectionMode = EPREnemyQueryCandidateSelectionMode::RandomTopCandidates;
+
+	// 근거리 텔레포트 EQS Named Float Param 목록이다.
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Faerin|NearTeleport|EQS")
+	TArray<FPREnemyEQSFloatParam> NearTeleportFloatParams;
+
+	// 근거리 텔레포트 상위 후보 최대 선택 개수다. 0 이하면 개수 제한이 없다.
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Faerin|NearTeleport|EQS", meta = (ClampMin = "0"))
+	int32 NearTeleportTopCandidateCount = 5;
+
+	// 근거리 텔레포트 최고 점수 대비 유지할 최소 점수 비율이다.
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Faerin|NearTeleport|EQS", meta = (ClampMin = "0.0", ClampMax = "1.0"))
+	float NearTeleportTopScoreCandidateRatio = 0.85f;
+
 	// 접근 목적지를 NavMesh 위로 보정할 때 사용하는 검색 범위다.
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Faerin", meta = (ClampMin = "0.0"))
 	FVector ApproachNavProjectExtent = FVector(240.0f, 240.0f, 360.0f);
@@ -127,6 +171,22 @@ struct PROJECTR_API FPRFaerinPhaseLoopConfig
 	// 접근 중 애니메이션/이동 표현에 적용할 설정이다.
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Faerin")
 	FPREnemyMovePresentationConfig ApproachPresentationConfig;
+
+	// 본 공격 전에 보조 포털 패턴을 확률적으로 끼워 넣을지 결정한다.
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Faerin|PortalAssist")
+	bool bUsePrePatternPortalAssist = false;
+
+	// 보조 포털 패턴을 본 공격 앞에 붙일 확률이다.
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Faerin|PortalAssist", meta = (ClampMin = "0.0", ClampMax = "1.0", EditCondition = "bUsePrePatternPortalAssist"))
+	float PrePatternPortalAssistChance = 0.5f;
+
+	// 본 공격이 포털 계열일 때도 선행 포털 보조를 허용할지 결정한다.
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Faerin|PortalAssist", meta = (EditCondition = "bUsePrePatternPortalAssist"))
+	bool bAllowPrePatternPortalAssistBeforePortalPatterns = true;
+
+	// 보조 포털 후보로 사용할 PatternGroup이다. 비워 두면 Faerin Portal 그룹을 사용한다.
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Faerin|PortalAssist", meta = (Categories = "Pattern.Boss.Faerin", EditCondition = "bUsePrePatternPortalAssist"))
+	FGameplayTag PrePatternPortalGroupTag;
 };
 
 USTRUCT(BlueprintType)

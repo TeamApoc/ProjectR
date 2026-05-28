@@ -10,6 +10,7 @@
 
 class AAIController;
 class APREnemyBaseCharacter;
+class UEnvQuery;
 class UBehaviorTreeComponent;
 class UPRAbilitySystemComponent;
 class UPRPatternDataAsset;
@@ -23,7 +24,8 @@ enum class EPRFaerinCombatLoopState : uint8
 	SelectingPattern	UMETA(DisplayName = "Selecting Pattern"),
 	WaitingPatternEnd	UMETA(DisplayName = "Waiting Pattern End"),
 	PostPatternStrafe	UMETA(DisplayName = "Post Pattern Strafe"),
-	ApproachSprint		UMETA(DisplayName = "Approach Sprint")
+	ApproachSprint		UMETA(DisplayName = "Approach Sprint"),
+	ApproachNearTeleport UMETA(DisplayName = "Approach Near Teleport")
 };
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FPRFaerinLoopStepFinishedSignature, bool, bSucceeded);
@@ -66,10 +68,61 @@ struct PROJECTR_API FPRFaerinApproachSprintRequest
 	FPREnemyMovePresentationConfig PresentationConfig;
 };
 
+USTRUCT(BlueprintType)
+struct PROJECTR_API FPRFaerinNearTeleportRequest
+{
+	GENERATED_BODY()
+
+	// 접근 요청이 유효한지 나타낸다.
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Faerin")
+	bool bIsValid = false;
+
+	// 근거리 텔레포트 접근의 기준 타깃이다.
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Faerin")
+	TObjectPtr<AActor> TargetActor;
+
+	// 사라진 뒤 재등장하기까지 기다리는 시간이다.
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Faerin")
+	float ReappearDelaySeconds = 0.0f;
+
+	// 자기 위치 기준 근거리 텔레포트가 이동할 수 있는 최대 거리다.
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Faerin")
+	float MaxDistanceFromSelf = 0.0f;
+
+	// 자기 주변 재등장 위치를 고를 EQS다.
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Faerin")
+	TObjectPtr<UEnvQuery> QueryTemplate;
+
+	// EQS 실행 방식이다.
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Faerin")
+	TEnumAsByte<EEnvQueryRunMode::Type> QueryRunMode = EEnvQueryRunMode::SingleResult;
+
+	// EQS 후보 선택 방식이다.
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Faerin")
+	EPREnemyQueryCandidateSelectionMode CandidateSelectionMode = EPREnemyQueryCandidateSelectionMode::RandomTopCandidates;
+
+	// EQS Named Float Param 목록이다.
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Faerin")
+	TArray<FPREnemyEQSFloatParam> FloatParams;
+
+	// 상위 후보 최대 선택 개수다.
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Faerin")
+	int32 TopCandidateCount = 0;
+
+	// 최고 점수 대비 유지할 최소 점수 비율이다.
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Faerin")
+	float TopScoreCandidateRatio = 0.0f;
+
+	// 재등장 위치를 NavMesh 위로 보정할 때 사용하는 검색 범위다.
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Faerin")
+	FVector NavProjectExtent = FVector::ZeroVector;
+};
+
 enum class EPRFaerinObservedAbilityRole : uint8
 {
 	None,
 	Pattern,
+	PrePatternPortal,
 	Approach
 };
 
@@ -107,6 +160,9 @@ public:
 	// 현재 스프린트 접근 GA가 사용할 요청 데이터를 복사한다.
 	bool GetActiveApproachSprintRequest(FPRFaerinApproachSprintRequest& OutRequest) const;
 
+	// 현재 근거리 텔레포트 접근 GA가 사용할 요청 데이터를 복사한다.
+	bool GetActiveNearTeleportRequest(FPRFaerinNearTeleportRequest& OutRequest) const;
+
 protected:
 	// Owner와 데이터 참조를 다시 확인하고 캐시한다.
 	bool InitializeDirector();
@@ -127,7 +183,22 @@ protected:
 	bool CanActivatePatternAbilityTag(const FGameplayTag& AbilityTag) const;
 
 	// 선택된 패턴 Ability를 서버 ASC에서 실행한다.
-	bool ActivatePatternAbility(const FPRFaerinPatternPlan& PatternPlan);
+	bool ActivatePatternAbility(
+		const FPRFaerinPatternPlan& PatternPlan,
+		EPRFaerinObservedAbilityRole ObservedRole = EPRFaerinObservedAbilityRole::Pattern);
+
+	// 본 공격 앞에 붙일 보조 포털 패턴을 선택한다.
+	bool TrySelectPrePatternPortalAssistPlan(
+		UBehaviorTreeComponent& OwnerComp,
+		const FPRFaerinPhaseLoopConfig& PhaseConfig,
+		const FPRFaerinPatternPlan& MainPatternPlan,
+		FPRFaerinPatternPlan& OutAssistPlan);
+
+	// 보조 포털 후보로 사용할 PatternGroup을 결정한다.
+	FGameplayTag ResolvePrePatternPortalGroupTag(const FPRFaerinPhaseLoopConfig& PhaseConfig) const;
+
+	// 선택된 패턴이 포털 계열인지 확인한다.
+	bool IsPortalPatternPlan(const FPRFaerinPatternPlan& PatternPlan) const;
 
 	// Ability 종료 델리게이트를 연결한다.
 	void BindAbilityEndDelegate();
@@ -140,6 +211,9 @@ protected:
 
 	// 관찰 중인 Ability 종료 콜백을 처리한다.
 	void HandleObservedAbilityEnded(const FAbilityEndedData& EndedData);
+
+	// 보조 포털이 끝난 뒤 저장해 둔 본 공격을 이어서 실행한다.
+	void HandlePrePatternPortalAssistFinished(bool bSucceeded);
 
 	// Ability 종료 이후 후속 루프 동작을 시작한다.
 	void HandlePatternExecutionFinished(bool bSucceeded);
@@ -168,14 +242,23 @@ protected:
 	// 스프린트 접근 GA가 사용할 실행 요청을 만든다.
 	bool BuildApproachSprintRequest(const FPRFaerinPhaseLoopConfig& PhaseConfig, FPRFaerinApproachSprintRequest& OutRequest) const;
 
+	// 근거리 텔레포트 접근 GA가 사용할 실행 요청을 만든다.
+	bool BuildNearTeleportRequest(const FPRFaerinPhaseLoopConfig& PhaseConfig, FPRFaerinNearTeleportRequest& OutRequest) const;
+
+	// 최종 접근 정책에서 근거리 텔레포트를 사용할지 결정한다.
+	bool ShouldUseNearTeleportApproach(EPRFaerinApproachPolicy ApproachPolicy, const FPRFaerinPhaseLoopConfig& PhaseConfig) const;
+
 	// 패턴 메타데이터와 페이즈 설정을 합쳐 최종 접근 정책을 결정한다.
 	EPRFaerinApproachPolicy ResolveApproachPolicy(const FPRFaerinPatternPlan& PatternPlan, const FPRFaerinPhaseLoopConfig& PhaseConfig) const;
 
-	// 직전 sprint 접근 이후 너무 짧은 시간 안에 다시 접근하려는지 확인한다.
+	// 직전 접근 이후 너무 짧은 시간 안에 다시 접근하려는지 확인한다.
 	bool IsApproachSprintRepeatBlocked() const;
 
 	// 현재 접근 요청 캐시를 초기화한다.
 	void ClearActiveApproachSprintRequest();
+
+	// 현재 근거리 텔레포트 접근 요청 캐시를 초기화한다.
+	void ClearActiveNearTeleportRequest();
 
 	// 전체 루프 단계 타임아웃이 발생했을 때 호출된다.
 	void HandleLoopStepFailSafeElapsed();
@@ -219,7 +302,7 @@ protected:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Faerin", meta = (ClampMin = "0.0"))
 	float LoopStepFailSafeSeconds = 12.0f;
 
-	// 플레이어가 계속 멀어질 때 ApproachSprint가 연속 반복되는 것을 막는 최소 간격이다.
+	// 플레이어가 계속 멀어질 때 접근 Ability가 연속 반복되는 것을 막는 최소 간격이다.
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Faerin", meta = (ClampMin = "0.0"))
 	float ApproachSprintRepeatBlockSeconds = 1.25f;
 
@@ -265,7 +348,9 @@ private:
 	TObjectPtr<AActor> ActiveTarget;
 
 	FPRFaerinPatternPlan ActivePatternPlan;
+	FPRFaerinPatternPlan PendingMainPatternPlan;
 	FPRFaerinApproachSprintRequest ActiveApproachSprintRequest;
+	FPRFaerinNearTeleportRequest ActiveNearTeleportRequest;
 	FGameplayAbilitySpecHandle ActiveAbilityHandle;
 	FDelegateHandle AbilityEndedDelegateHandle;
 	FTimerHandle LoopStepFailSafeTimerHandle;
@@ -273,7 +358,8 @@ private:
 	EPRFaerinCombatLoopState LoopState = EPRFaerinCombatLoopState::Idle;
 	EPRFaerinObservedAbilityRole ObservedAbilityRole = EPRFaerinObservedAbilityRole::None;
 	int32 NextStrafeDirectionSign = 1;
-	float LastApproachSprintEndTime = -TNumericLimits<float>::Max();
+	float LastApproachEndTime = -TNumericLimits<float>::Max();
 	TSet<uint8> RuntimeValidatedPhaseValues;
 	bool bHasLoggedInitializationError = false;
+	bool bHasPendingMainPatternPlan = false;
 };

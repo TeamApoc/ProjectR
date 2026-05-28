@@ -6,6 +6,7 @@
 #include "AIController.h"
 #include "BehaviorTree/BehaviorTreeComponent.h"
 #include "Engine/World.h"
+#include "EnvironmentQuery/EnvQuery.h"
 #include "Navigation/PathFollowingComponent.h"
 #include "NavigationSystem.h"
 #include "ProjectR/AbilitySystem/AttributeSets/PRAttributeSet_Common.h"
@@ -122,11 +123,30 @@ bool UPRFaerinCombatDirectorComponent::RunNextLoopStep(UBehaviorTreeComponent& O
 		return false;
 	}
 
+	const FPRFaerinPhaseLoopConfig* PhaseConfig = LoopDataAsset->FindPhaseConfig(CurrentPhase);
+	FPRFaerinPatternPlan PrePatternPortalPlan;
+	if (PhaseConfig != nullptr
+		&& TrySelectPrePatternPortalAssistPlan(OwnerComp, *PhaseConfig, SelectedPlan, PrePatternPortalPlan))
+	{
+		PendingMainPatternPlan = SelectedPlan;
+		bHasPendingMainPatternPlan = true;
+		ActivePatternPlan = PrePatternPortalPlan;
+		if (ActivatePatternAbility(ActivePatternPlan, EPRFaerinObservedAbilityRole::PrePatternPortal))
+		{
+			return true;
+		}
+
+		PendingMainPatternPlan = FPRFaerinPatternPlan();
+		bHasPendingMainPatternPlan = false;
+	}
+
 	ActivePatternPlan = SelectedPlan;
 	if (!ActivatePatternAbility(ActivePatternPlan))
 	{
 		LoopState = EPRFaerinCombatLoopState::Idle;
 		ActivePatternPlan = FPRFaerinPatternPlan();
+		PendingMainPatternPlan = FPRFaerinPatternPlan();
+		bHasPendingMainPatternPlan = false;
 		ActiveTarget = nullptr;
 		return false;
 	}
@@ -165,7 +185,10 @@ void UPRFaerinCombatDirectorComponent::CancelCurrentLoopStep()
 
 	ClearAbilityEndDelegate();
 	ActivePatternPlan = FPRFaerinPatternPlan();
+	PendingMainPatternPlan = FPRFaerinPatternPlan();
+	bHasPendingMainPatternPlan = false;
 	ClearActiveApproachSprintRequest();
+	ClearActiveNearTeleportRequest();
 	ActiveAbilityHandle = FGameplayAbilitySpecHandle();
 	ObservedAbilityRole = EPRFaerinObservedAbilityRole::None;
 	ActiveTarget = nullptr;
@@ -207,6 +230,12 @@ float UPRFaerinCombatDirectorComponent::CalculateStrafeDuration() const
 bool UPRFaerinCombatDirectorComponent::GetActiveApproachSprintRequest(FPRFaerinApproachSprintRequest& OutRequest) const
 {
 	OutRequest = ActiveApproachSprintRequest;
+	return OutRequest.bIsValid && IsValid(OutRequest.TargetActor);
+}
+
+bool UPRFaerinCombatDirectorComponent::GetActiveNearTeleportRequest(FPRFaerinNearTeleportRequest& OutRequest) const
+{
+	OutRequest = ActiveNearTeleportRequest;
 	return OutRequest.bIsValid && IsValid(OutRequest.TargetActor);
 }
 
@@ -448,7 +477,9 @@ bool UPRFaerinCombatDirectorComponent::CanActivatePatternAbilityTag(const FGamep
 	return AbilitySystemComponent->CanActivateAbilityByTag(AbilityTag, FailureTags);
 }
 
-bool UPRFaerinCombatDirectorComponent::ActivatePatternAbility(const FPRFaerinPatternPlan& PatternPlan)
+bool UPRFaerinCombatDirectorComponent::ActivatePatternAbility(
+	const FPRFaerinPatternPlan& PatternPlan,
+	EPRFaerinObservedAbilityRole ObservedRole)
 {
 	if (!IsValid(AbilitySystemComponent) || !PatternPlan.AbilityTag.IsValid())
 	{
@@ -467,7 +498,7 @@ bool UPRFaerinCombatDirectorComponent::ActivatePatternAbility(const FPRFaerinPat
 	}
 
 	LoopState = EPRFaerinCombatLoopState::WaitingPatternEnd;
-	ObservedAbilityRole = EPRFaerinObservedAbilityRole::Pattern;
+	ObservedAbilityRole = ObservedRole;
 	BindAbilityEndDelegate();
 
 	if (LoopStepFailSafeSeconds > 0.0f)
@@ -488,8 +519,155 @@ bool UPRFaerinCombatDirectorComponent::ActivatePatternAbility(const FPRFaerinPat
 		return true;
 	}
 
+	if (ObservedRole == EPRFaerinObservedAbilityRole::PrePatternPortal)
+	{
+		ClearAbilityEndDelegate();
+		ActiveAbilityHandle = FGameplayAbilitySpecHandle();
+		ObservedAbilityRole = EPRFaerinObservedAbilityRole::None;
+
+		if (UWorld* World = GetWorld())
+		{
+			World->GetTimerManager().SetTimerForNextTick(FTimerDelegate::CreateUObject(
+				this,
+				&UPRFaerinCombatDirectorComponent::HandlePrePatternPortalAssistFinished,
+				true));
+			return true;
+		}
+
+		HandlePrePatternPortalAssistFinished(true);
+		return true;
+	}
+
 	QueueFinishLoopStep(true);
 	return true;
+}
+
+bool UPRFaerinCombatDirectorComponent::TrySelectPrePatternPortalAssistPlan(
+	UBehaviorTreeComponent& OwnerComp,
+	const FPRFaerinPhaseLoopConfig& PhaseConfig,
+	const FPRFaerinPatternPlan& MainPatternPlan,
+	FPRFaerinPatternPlan& OutAssistPlan)
+{
+	OutAssistPlan = FPRFaerinPatternPlan();
+
+	if (!PhaseConfig.bUsePrePatternPortalAssist || PhaseConfig.PrePatternPortalAssistChance <= 0.0f)
+	{
+		return false;
+	}
+
+	if (IsPortalPatternPlan(MainPatternPlan)
+		&& !PhaseConfig.bAllowPrePatternPortalAssistBeforePortalPatterns)
+	{
+		return false;
+	}
+
+	const float AssistChance = FMath::Clamp(PhaseConfig.PrePatternPortalAssistChance, 0.0f, 1.0f);
+	if (FMath::FRand() > AssistChance)
+	{
+		return false;
+	}
+
+	FPREnemyPatternQueryRuntime PatternRuntime;
+	if (!PREnemyPatternSelectionUtils::BuildPatternQueryRuntime(
+		OwnerComp,
+		CurrentTargetKey,
+		HasLOSKey,
+		ChargePathClearKey,
+		TacticalModeKey,
+		AttackPressureKey,
+		PatternRuntime))
+	{
+		return false;
+	}
+
+	TArray<const FPRPatternRule*> MatchedRules;
+	PREnemyPatternSelectionUtils::CollectMatchingPatternRules(
+		PatternRuntime,
+		PatternCategoryFilter,
+		ResolvePrePatternPortalGroupTag(PhaseConfig),
+		true,
+		EPRPatternContextMatchMode::FullMatch,
+		MatchedRules);
+
+	TArray<FPRFaerinPatternCandidate> Candidates;
+	float TotalWeight = 0.0f;
+	for (const FPRPatternRule* PatternRule : MatchedRules)
+	{
+		if (PatternRule == nullptr
+			|| PatternRule->AbilityTag.MatchesTagExact(MainPatternPlan.AbilityTag))
+		{
+			continue;
+		}
+
+		const FPRFaerinPatternLoopMetadata* LoopMetadata = LoopDataAsset->FindPatternMetadata(PatternRule->AbilityTag);
+		if (LoopMetadata == nullptr || !LoopMetadata->bEnabled || LoopMetadata->SelectionWeightScale <= 0.0f)
+		{
+			continue;
+		}
+
+		if (!CanActivatePatternAbilityTag(PatternRule->AbilityTag))
+		{
+			continue;
+		}
+
+		FPRFaerinPatternCandidate Candidate;
+		Candidate.PatternRule = PatternRule;
+		Candidate.LoopMetadata = LoopMetadata;
+		Candidate.FinalWeight = PatternRule->SelectionWeight * LoopMetadata->SelectionWeightScale;
+		Candidates.Add(Candidate);
+		TotalWeight += Candidate.FinalWeight;
+	}
+
+	if (Candidates.IsEmpty() || TotalWeight <= 0.0f)
+	{
+		return false;
+	}
+
+	const float PickValue = FMath::FRandRange(0.0f, TotalWeight);
+	float AccumulatedWeight = 0.0f;
+	const FPRFaerinPatternCandidate* SelectedCandidate = &Candidates.Last();
+	for (const FPRFaerinPatternCandidate& Candidate : Candidates)
+	{
+		AccumulatedWeight += Candidate.FinalWeight;
+		if (PickValue <= AccumulatedWeight)
+		{
+			SelectedCandidate = &Candidate;
+			break;
+		}
+	}
+
+	OutAssistPlan.AbilityTag = SelectedCandidate->PatternRule->AbilityTag;
+	OutAssistPlan.PatternRule = *SelectedCandidate->PatternRule;
+	OutAssistPlan.LoopMetadata = *SelectedCandidate->LoopMetadata;
+	OutAssistPlan.FinalSelectionWeight = SelectedCandidate->FinalWeight;
+	ActiveTarget = PatternRuntime.CurrentTarget;
+
+	if (PREnemyAIDebug::IsPatternLogEnabled())
+	{
+		UE_LOG(
+			LogPRFaerinCombatDirector,
+			Verbose,
+			TEXT("Faerin 선행 포털 보조 선택. Owner=%s, PortalAbilityTag=%s, MainAbilityTag=%s, Phase=%s"),
+			*GetNameSafe(PatternRuntime.ControlledPawn),
+			*OutAssistPlan.AbilityTag.ToString(),
+			*MainPatternPlan.AbilityTag.ToString(),
+			*StaticEnum<EPRBossPhase>()->GetNameStringByValue(static_cast<int64>(PatternRuntime.PatternContext.BossPhase)));
+	}
+
+	return true;
+}
+
+FGameplayTag UPRFaerinCombatDirectorComponent::ResolvePrePatternPortalGroupTag(
+	const FPRFaerinPhaseLoopConfig& PhaseConfig) const
+{
+	return PhaseConfig.PrePatternPortalGroupTag.IsValid()
+		? PhaseConfig.PrePatternPortalGroupTag
+		: PRGameplayTags::Pattern_Boss_Faerin_Portal;
+}
+
+bool UPRFaerinCombatDirectorComponent::IsPortalPatternPlan(const FPRFaerinPatternPlan& PatternPlan) const
+{
+	return PatternPlan.PatternRule.PatternGroupTag.MatchesTag(PRGameplayTags::Pattern_Boss_Faerin_Portal);
 }
 
 void UPRFaerinCombatDirectorComponent::BindAbilityEndDelegate()
@@ -553,19 +731,46 @@ void UPRFaerinCombatDirectorComponent::HandleObservedAbilityEnded(const FAbility
 		return;
 	}
 
+	if (FinishedRole == EPRFaerinObservedAbilityRole::PrePatternPortal)
+	{
+		HandlePrePatternPortalAssistFinished(bSucceeded);
+		return;
+	}
+
 	if (FinishedRole == EPRFaerinObservedAbilityRole::Approach)
 	{
 		if (UWorld* World = GetWorld())
 		{
-			LastApproachSprintEndTime = World->GetTimeSeconds();
+			LastApproachEndTime = World->GetTimeSeconds();
 		}
 
 		ClearActiveApproachSprintRequest();
+		ClearActiveNearTeleportRequest();
 		FinishLoopStep(bSucceeded);
 		return;
 	}
 
 	FinishLoopStep(bSucceeded);
+}
+
+void UPRFaerinCombatDirectorComponent::HandlePrePatternPortalAssistFinished(bool bSucceeded)
+{
+	if (!bSucceeded || !bHasPendingMainPatternPlan)
+	{
+		PendingMainPatternPlan = FPRFaerinPatternPlan();
+		bHasPendingMainPatternPlan = false;
+		FinishLoopStep(false);
+		return;
+	}
+
+	ActivePatternPlan = PendingMainPatternPlan;
+	PendingMainPatternPlan = FPRFaerinPatternPlan();
+	bHasPendingMainPatternPlan = false;
+
+	if (!ActivatePatternAbility(ActivePatternPlan))
+	{
+		FinishLoopStep(false);
+	}
 }
 
 void UPRFaerinCombatDirectorComponent::HandlePatternExecutionFinished(bool bSucceeded)
@@ -831,29 +1036,56 @@ bool UPRFaerinCombatDirectorComponent::StartPostStrafeApproach(const FPRFaerinPh
 		return false;
 	}
 
-	if (!PhaseConfig.ApproachAbilityTag.IsValid() || !IsValid(AbilitySystemComponent))
+	if (!IsValid(AbilitySystemComponent))
 	{
 		return false;
 	}
 
-	FPRFaerinApproachSprintRequest Request;
-	if (!BuildApproachSprintRequest(PhaseConfig, Request))
+	const EPRFaerinApproachPolicy ApproachPolicy = ResolveApproachPolicy(ActivePatternPlan, PhaseConfig);
+	const bool bUseNearTeleport = ShouldUseNearTeleportApproach(ApproachPolicy, PhaseConfig);
+	const FGameplayTag ApproachAbilityTag = bUseNearTeleport
+		? PhaseConfig.NearTeleportAbilityTag
+		: PhaseConfig.ApproachAbilityTag;
+	if (!ApproachAbilityTag.IsValid())
 	{
 		return false;
 	}
 
-	LoopState = EPRFaerinCombatLoopState::ApproachSprint;
-	ActiveApproachSprintRequest = Request;
+	if (bUseNearTeleport)
+	{
+		FPRFaerinNearTeleportRequest Request;
+		if (!BuildNearTeleportRequest(PhaseConfig, Request))
+		{
+			return false;
+		}
 
-	if (!AbilitySystemComponent->TryActivateAbilityOnServer(PhaseConfig.ApproachAbilityTag, ActiveAbilityHandle))
+		LoopState = EPRFaerinCombatLoopState::ApproachNearTeleport;
+		ActiveNearTeleportRequest = Request;
+		ClearActiveApproachSprintRequest();
+	}
+	else
+	{
+		FPRFaerinApproachSprintRequest Request;
+		if (!BuildApproachSprintRequest(PhaseConfig, Request))
+		{
+			return false;
+		}
+
+		LoopState = EPRFaerinCombatLoopState::ApproachSprint;
+		ActiveApproachSprintRequest = Request;
+		ClearActiveNearTeleportRequest();
+	}
+
+	if (!AbilitySystemComponent->TryActivateAbilityOnServer(ApproachAbilityTag, ActiveAbilityHandle))
 	{
 		UE_LOG(
 			LogPRFaerinCombatDirector,
 			Warning,
-			TEXT("Faerin sprint 접근 Ability 활성화에 실패했다. Owner=%s, AbilityTag=%s"),
+			TEXT("Faerin 접근 Ability 활성화에 실패했다. Owner=%s, AbilityTag=%s"),
 			*GetNameSafe(GetOwner()),
-			*PhaseConfig.ApproachAbilityTag.ToString());
+			*ApproachAbilityTag.ToString());
 		ClearActiveApproachSprintRequest();
+		ClearActiveNearTeleportRequest();
 		return false;
 	}
 
@@ -901,9 +1133,62 @@ bool UPRFaerinCombatDirectorComponent::BuildApproachSprintRequest(
 	return true;
 }
 
+bool UPRFaerinCombatDirectorComponent::BuildNearTeleportRequest(
+	const FPRFaerinPhaseLoopConfig& PhaseConfig,
+	FPRFaerinNearTeleportRequest& OutRequest) const
+{
+	OutRequest = FPRFaerinNearTeleportRequest();
+
+	if (!IsValid(GetOwner()) || !IsValid(ActiveTarget))
+	{
+		return false;
+	}
+
+	const float MaxDistanceFromSelf = FMath::Min(PhaseConfig.NearTeleportMaxDistanceFromSelf, 500.0f);
+	if (MaxDistanceFromSelf <= 0.0f || !IsValid(PhaseConfig.NearTeleportQueryTemplate.Get()))
+	{
+		return false;
+	}
+
+	OutRequest.bIsValid = true;
+	OutRequest.TargetActor = ActiveTarget;
+	OutRequest.ReappearDelaySeconds = PhaseConfig.NearTeleportReappearDelaySeconds;
+	OutRequest.MaxDistanceFromSelf = MaxDistanceFromSelf;
+	OutRequest.QueryTemplate = PhaseConfig.NearTeleportQueryTemplate;
+	OutRequest.QueryRunMode = PhaseConfig.NearTeleportQueryRunMode;
+	OutRequest.CandidateSelectionMode = PhaseConfig.NearTeleportCandidateSelectionMode;
+	OutRequest.FloatParams = PhaseConfig.NearTeleportFloatParams;
+	OutRequest.TopCandidateCount = PhaseConfig.NearTeleportTopCandidateCount;
+	OutRequest.TopScoreCandidateRatio = PhaseConfig.NearTeleportTopScoreCandidateRatio;
+	OutRequest.NavProjectExtent = PhaseConfig.ApproachNavProjectExtent;
+	return true;
+}
+
+bool UPRFaerinCombatDirectorComponent::ShouldUseNearTeleportApproach(
+	EPRFaerinApproachPolicy ApproachPolicy,
+	const FPRFaerinPhaseLoopConfig& PhaseConfig) const
+{
+	if (ApproachPolicy == EPRFaerinApproachPolicy::NearTeleportToMeleeRange)
+	{
+		return true;
+	}
+
+	if (ApproachPolicy != EPRFaerinApproachPolicy::SprintOrNearTeleport)
+	{
+		return false;
+	}
+
+	return FMath::FRand() <= FMath::Clamp(PhaseConfig.NearTeleportChance, 0.0f, 1.0f);
+}
+
 void UPRFaerinCombatDirectorComponent::ClearActiveApproachSprintRequest()
 {
 	ActiveApproachSprintRequest = FPRFaerinApproachSprintRequest();
+}
+
+void UPRFaerinCombatDirectorComponent::ClearActiveNearTeleportRequest()
+{
+	ActiveNearTeleportRequest = FPRFaerinNearTeleportRequest();
 }
 
 EPRFaerinApproachPolicy UPRFaerinCombatDirectorComponent::ResolveApproachPolicy(
@@ -931,7 +1216,7 @@ bool UPRFaerinCombatDirectorComponent::IsApproachSprintRepeatBlocked() const
 		return false;
 	}
 
-	return World->GetTimeSeconds() - LastApproachSprintEndTime < ApproachSprintRepeatBlockSeconds;
+	return World->GetTimeSeconds() - LastApproachEndTime < ApproachSprintRepeatBlockSeconds;
 }
 
 void UPRFaerinCombatDirectorComponent::HandleLoopStepFailSafeElapsed()
@@ -975,7 +1260,10 @@ void UPRFaerinCombatDirectorComponent::FinishLoopStep(bool bSucceeded)
 	ClearAbilityEndDelegate();
 
 	ActivePatternPlan = FPRFaerinPatternPlan();
+	PendingMainPatternPlan = FPRFaerinPatternPlan();
+	bHasPendingMainPatternPlan = false;
 	ClearActiveApproachSprintRequest();
+	ClearActiveNearTeleportRequest();
 	ActiveAbilityHandle = FGameplayAbilitySpecHandle();
 	ObservedAbilityRole = EPRFaerinObservedAbilityRole::None;
 	ActiveTarget = nullptr;

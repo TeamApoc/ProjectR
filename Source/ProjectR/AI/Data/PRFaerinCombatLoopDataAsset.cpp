@@ -3,6 +3,7 @@
 #include "PRFaerinCombatLoopDataAsset.h"
 
 #include "GameplayAbilitySpec.h"
+#include "EnvironmentQuery/EnvQuery.h"
 #include "ProjectR/AbilitySystem/PRAbilitySystemComponent.h"
 #include "ProjectR/AI/Data/PRPatternDataAsset.h"
 #include "ProjectR/Character/Enemy/PRBossBaseCharacter.h"
@@ -53,6 +54,18 @@ namespace
 		}
 
 		return !bHasMatchingRule;
+	}
+
+	bool DoesApproachPolicyUseSprint(EPRFaerinApproachPolicy ApproachPolicy)
+	{
+		return ApproachPolicy == EPRFaerinApproachPolicy::SprintToMeleeRange
+			|| ApproachPolicy == EPRFaerinApproachPolicy::SprintOrNearTeleport;
+	}
+
+	bool DoesApproachPolicyUseNearTeleport(EPRFaerinApproachPolicy ApproachPolicy)
+	{
+		return ApproachPolicy == EPRFaerinApproachPolicy::NearTeleportToMeleeRange
+			|| ApproachPolicy == EPRFaerinApproachPolicy::SprintOrNearTeleport;
 	}
 }
 
@@ -172,7 +185,12 @@ bool UPRFaerinCombatLoopDataAsset::ValidateLoopData(
 				*StaticEnum<EPRBossPhase>()->GetNameStringByValue(static_cast<int64>(PhaseConfig.Phase))));
 		}
 
-		if (PhaseConfig.bUsePostStrafeApproach && !PhaseConfig.ApproachAbilityTag.IsValid())
+		const bool bDefaultUsesSprint = DoesApproachPolicyUseSprint(PhaseConfig.DefaultApproachPolicy);
+		const bool bDefaultUsesNearTeleport = DoesApproachPolicyUseNearTeleport(PhaseConfig.DefaultApproachPolicy);
+
+		if (PhaseConfig.bUsePostStrafeApproach
+			&& bDefaultUsesSprint
+			&& !PhaseConfig.ApproachAbilityTag.IsValid())
 		{
 			OutErrors.Add(FString::Printf(
 				TEXT("Faerin PhaseConfig의 sprint 접근 AbilityTag가 비어 있다. Phase=%s"),
@@ -180,6 +198,16 @@ bool UPRFaerinCombatLoopDataAsset::ValidateLoopData(
 		}
 
 		if (PhaseConfig.bUsePostStrafeApproach
+			&& bDefaultUsesNearTeleport
+			&& !PhaseConfig.NearTeleportAbilityTag.IsValid())
+		{
+			OutErrors.Add(FString::Printf(
+				TEXT("Faerin PhaseConfig의 근거리 텔레포트 접근 AbilityTag가 비어 있다. Phase=%s"),
+				*StaticEnum<EPRBossPhase>()->GetNameStringByValue(static_cast<int64>(PhaseConfig.Phase))));
+		}
+
+		if (PhaseConfig.bUsePostStrafeApproach
+			&& bDefaultUsesSprint
 			&& PhaseConfig.ApproachAbilityTag.IsValid()
 			&& PhaseConfig.Phase == ValidationPhase
 			&& bValidateCurrentAbilitySet)
@@ -199,7 +227,27 @@ bool UPRFaerinCombatLoopDataAsset::ValidateLoopData(
 		}
 
 		if (PhaseConfig.bUsePostStrafeApproach
-			&& PhaseConfig.DefaultApproachPolicy == EPRFaerinApproachPolicy::SprintToMeleeRange
+			&& bDefaultUsesNearTeleport
+			&& PhaseConfig.NearTeleportAbilityTag.IsValid()
+			&& PhaseConfig.Phase == ValidationPhase
+			&& bValidateCurrentAbilitySet)
+		{
+			FGameplayTagContainer QueryTags;
+			QueryTags.AddTag(PhaseConfig.NearTeleportAbilityTag);
+
+			TArray<FGameplayAbilitySpec*> MatchingSpecs;
+			AbilitySystemComponent->GetActivatableGameplayAbilitySpecsByAllMatchingTags(QueryTags, MatchingSpecs);
+			if (MatchingSpecs.IsEmpty())
+			{
+				OutErrors.Add(FString::Printf(
+					TEXT("Faerin AbilitySet에서 근거리 텔레포트 접근 GA를 찾지 못했다. Phase=%s, AbilityTag=%s"),
+					*StaticEnum<EPRBossPhase>()->GetNameStringByValue(static_cast<int64>(PhaseConfig.Phase)),
+					*PhaseConfig.NearTeleportAbilityTag.ToString()));
+			}
+		}
+
+		if (PhaseConfig.bUsePostStrafeApproach
+			&& bDefaultUsesSprint
 			&& PhaseConfig.ApproachTriggerDistance <= PhaseConfig.ApproachStopDistance)
 		{
 			OutErrors.Add(FString::Printf(
@@ -208,11 +256,38 @@ bool UPRFaerinCombatLoopDataAsset::ValidateLoopData(
 		}
 
 		if (PhaseConfig.bUsePostStrafeApproach
-			&& PhaseConfig.DefaultApproachPolicy == EPRFaerinApproachPolicy::SprintToMeleeRange
+			&& bDefaultUsesSprint
 			&& PhaseConfig.ApproachTimeoutSeconds <= 0.0f)
 		{
 			OutErrors.Add(FString::Printf(
 				TEXT("Faerin PhaseConfig의 sprint 접근 시간이 0 이하라 접근 단계가 즉시 종료된다. Phase=%s"),
+				*StaticEnum<EPRBossPhase>()->GetNameStringByValue(static_cast<int64>(PhaseConfig.Phase))));
+		}
+
+		if (PhaseConfig.bUsePostStrafeApproach
+			&& bDefaultUsesNearTeleport
+			&& !IsValid(PhaseConfig.NearTeleportQueryTemplate.Get()))
+		{
+			OutErrors.Add(FString::Printf(
+				TEXT("Faerin PhaseConfig의 근거리 텔레포트 EQS가 비어 있어 자기 주변 목적지를 고를 수 없다. Phase=%s"),
+				*StaticEnum<EPRBossPhase>()->GetNameStringByValue(static_cast<int64>(PhaseConfig.Phase))));
+		}
+
+		if (PhaseConfig.bUsePostStrafeApproach
+			&& bDefaultUsesNearTeleport
+			&& PhaseConfig.NearTeleportMaxDistanceFromSelf <= 0.0f)
+		{
+			OutErrors.Add(FString::Printf(
+				TEXT("Faerin PhaseConfig의 근거리 텔레포트 최대 거리가 0 이하라 목적지를 사용할 수 없다. Phase=%s"),
+				*StaticEnum<EPRBossPhase>()->GetNameStringByValue(static_cast<int64>(PhaseConfig.Phase))));
+		}
+
+		if (PhaseConfig.bUsePostStrafeApproach
+			&& bDefaultUsesNearTeleport
+			&& PhaseConfig.NearTeleportMaxDistanceFromSelf > 500.0f)
+		{
+			OutErrors.Add(FString::Printf(
+				TEXT("Faerin PhaseConfig의 근거리 텔레포트 최대 거리는 500 이하여야 한다. Phase=%s"),
 				*StaticEnum<EPRBossPhase>()->GetNameStringByValue(static_cast<int64>(PhaseConfig.Phase))));
 		}
 	}

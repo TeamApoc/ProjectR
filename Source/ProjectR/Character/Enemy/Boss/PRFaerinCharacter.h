@@ -10,6 +10,7 @@ class UPRFaerinDebugDrawComponent;
 class UPRFaerinCombatDirectorComponent;
 class UPRFaerinGodFallComponent;
 class UMotionWarpingComponent;
+class UNiagaraSystem;
 
 // Faerin 보스 본체 클래스다.
 // 패턴 분기와 포털/검 생성 로직은 넣지 않고, 보스 공통 베이스에 Faerin 기본 데이터만 얹는다.
@@ -24,6 +25,14 @@ public:
 	// God Fall 맵 배치 Rig 전환과 지속 검 hazard를 담당하는 component를 반환한다.
 	UFUNCTION(BlueprintPure, Category = "ProjectR|AI|Boss|Faerin|GodFall")
 	UPRFaerinGodFallComponent* GetGodFallComponent() const { return GodFallComponent; }
+
+	// 근거리 텔레포트 순간 보스 몸 위치의 Niagara를 모든 클라이언트에 재생한다.
+	UFUNCTION(NetMulticast, Reliable)
+	void Multicast_SpawnNearTeleportBodyNiagara(UNiagaraSystem* NiagaraSystem, FName AttachSocketName);
+
+	// 근거리 텔레포트 사라짐/재등장 상태를 모든 클라이언트에 맞춘다.
+	UFUNCTION(NetMulticast, Reliable)
+	void Multicast_SetNearTeleportHidden(bool bShouldHide);
 
 protected:
 	/*~ AActor Interface ~*/

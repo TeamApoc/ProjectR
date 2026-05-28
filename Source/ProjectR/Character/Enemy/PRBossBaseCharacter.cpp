@@ -112,7 +112,7 @@ void APRBossBaseCharacter::BeginPhaseTransition(EPRBossPhase NewPhase)
 	FGameplayTagContainer PatternCancelTags;
 	PatternCancelTags.AddTag(PRGameplayTags::Ability_Boss_Pattern);
 	AbilitySystemComponent->CancelAbilities(&PatternCancelTags);
-	CancelAllBossPatternActors();
+	CancelBossPatternActorsForPhaseTransition();
 
 	FGameplayEventData Payload;
 	Payload.EventTag = PRGameplayTags::Event_Ability_PhaseTransition;
@@ -205,6 +205,43 @@ void APRBossBaseCharacter::CancelAllBossPatternActors()
 
 	TArray<TObjectPtr<APRBossPatternActor>> PatternActorsToCancel = ActivePatternActors;
 	ActivePatternActors.Reset();
+
+	for (APRBossPatternActor* PatternActor : PatternActorsToCancel)
+	{
+		if (IsValid(PatternActor))
+		{
+			PatternActor->CancelPatternActor();
+		}
+	}
+}
+
+void APRBossBaseCharacter::CancelBossPatternActorsForPhaseTransition()
+{
+	if (!HasAuthority())
+	{
+		return;
+	}
+
+	TArray<TObjectPtr<APRBossPatternActor>> PatternActorsToCancel;
+	TArray<TObjectPtr<APRBossPatternActor>> PatternActorsToKeep;
+	for (APRBossPatternActor* PatternActor : ActivePatternActors)
+	{
+		if (!IsValid(PatternActor))
+		{
+			continue;
+		}
+
+		if (PatternActor->ShouldCancelOnBossPhaseTransition())
+		{
+			PatternActorsToCancel.Add(PatternActor);
+		}
+		else
+		{
+			PatternActorsToKeep.Add(PatternActor);
+		}
+	}
+
+	ActivePatternActors = MoveTemp(PatternActorsToKeep);
 
 	for (APRBossPatternActor* PatternActor : PatternActorsToCancel)
 	{

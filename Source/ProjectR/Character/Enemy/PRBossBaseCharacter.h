@@ -79,6 +79,10 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "ProjectR|AI|Boss")
 	void CancelAllBossPatternActors();
 
+	// Phase 전환 중에도 유지해야 하는 지속형 패턴 Actor를 제외하고 취소한다.
+	UFUNCTION(BlueprintCallable, Category = "ProjectR|AI|Boss")
+	void CancelBossPatternActorsForPhaseTransition();
+
 	// 보스 HUD에 표시할 이름을 반환한다.
 	UFUNCTION(BlueprintPure, Category = "ProjectR|AI|Boss")
 	FText GetBossDisplayName() const;

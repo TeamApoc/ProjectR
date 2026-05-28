@@ -3,7 +3,6 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "AbilitySystemInterface.h"
 #include "GameplayEffectTypes.h"
 #include "GameFramework/Actor.h"
 #include "ProjectR/Combat/PRCombatInterface.h"
@@ -13,8 +12,6 @@ class APRGroundBoxProjectileBase;
 class UAbilitySystemComponent;
 class UBoxComponent;
 class UNiagaraComponent;
-class UPRAbilitySystemComponent;
-class UPRAttributeSet_Common;
 class UPrimitiveComponent;
 class UProjectileMovementComponent;
 class USceneComponent;
@@ -55,7 +52,7 @@ struct PROJECTR_API FPRGroundBoxLaunchParams
 
 // 지면 박스형 서버 권위 피해 액터
 UCLASS()
-class PROJECTR_API APRGroundBoxProjectileBase : public AActor, public IAbilitySystemInterface, public IPRCombatInterface
+class PROJECTR_API APRGroundBoxProjectileBase : public AActor, public IPRCombatInterface
 {
 	GENERATED_BODY()
 
@@ -68,12 +65,11 @@ public:
 	virtual void Tick(float DeltaSeconds) override;
 	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 
-	/*~ IAbilitySystemInterface Interface ~*/
-	virtual UAbilitySystemComponent* GetAbilitySystemComponent() const override;
-
 	/*~ IPRCombatInterface Interface ~*/
 	virtual EPRTeam GetTeam() const override { return SourceTeam; }
+	virtual bool ReceiveDamageContext(const FPRDamageAppliedContext& Context) override;
 	virtual void OnPostDamageApplied(const FPRDamageAppliedContext& Context) override;
+	virtual bool IsDead() const override { return bDestroyRequested || CurrentHealth <= 0.0f; }
 
 public:
 	// 스폰 직후 서버 초기화
@@ -87,10 +83,6 @@ public:
 	// 대상 쿨다운 초기화
 	UFUNCTION(BlueprintCallable, BlueprintAuthorityOnly, Category = "ProjectR|GroundBox")
 	void ResetTargetCooldowns();
-
-	// 외부 공격 피해 스펙 적용
-	UFUNCTION(BlueprintCallable, BlueprintAuthorityOnly, Category = "ProjectR|GroundBox")
-	void ApplyDamageSpecToSelf(const FGameplayEffectSpecHandle& DamageSpecHandle, const FHitResult& HitResult);
 
 	// 명시 종료 요청
 	UFUNCTION(BlueprintCallable, BlueprintAuthorityOnly, Category = "ProjectR|GroundBox")
@@ -214,17 +206,13 @@ protected:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "ProjectR|GroundBox")
 	TObjectPtr<UProjectileMovementComponent> MovementComponent;
 
-	// 파괴 가능 체력 처리
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "ProjectR|GroundBox")
-	TObjectPtr<UPRAbilitySystemComponent> AbilitySystemComponent;
-
-	// 공통 체력 속성
-	UPROPERTY()
-	TObjectPtr<UPRAttributeSet_Common> CommonSet;
-
 	// 최대 체력 기본값
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "ProjectR|GroundBox|Health", meta = (ClampMin = "0.0"))
 	float MaxHealth = 150.0f;
+
+	// 현재 체력
+	UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Category = "ProjectR|GroundBox|Health")
+	float CurrentHealth = 0.0f;
 
 	// 대상 쿨다운 시간
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "ProjectR|GroundBox|Damage", meta = (ClampMin = "0.0"))

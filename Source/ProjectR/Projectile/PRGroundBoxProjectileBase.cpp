@@ -10,8 +10,6 @@
 #include "GameFramework/ProjectileMovementComponent.h"
 #include "NiagaraComponent.h"
 #include "TimerManager.h"
-#include "ProjectR/AbilitySystem/AttributeSets/PRAttributeSet_Common.h"
-#include "ProjectR/AbilitySystem/PRAbilitySystemComponent.h"
 #include "ProjectR/Combat/PRCombatStatics.h"
 #include "ProjectR/ProjectR.h"
 
@@ -58,10 +56,6 @@ APRGroundBoxProjectileBase::APRGroundBoxProjectileBase()
 	MovementComponent->MaxSpeed = 0.0f;
 	MovementComponent->ProjectileGravityScale = 0.0f;
 	MovementComponent->bAutoActivate = false;
-
-	AbilitySystemComponent = CreateDefaultSubobject<UPRAbilitySystemComponent>(TEXT("AbilitySystemComponent"));
-	AbilitySystemComponent->SetIsReplicated(true);
-	CommonSet = CreateDefaultSubobject<UPRAttributeSet_Common>(TEXT("CommonSet"));
 }
 
 /*~ AActor Interface ~*/
@@ -70,17 +64,8 @@ void APRGroundBoxProjectileBase::BeginPlay()
 {
 	Super::BeginPlay();
 
-	if (IsValid(AbilitySystemComponent))
-	{
-		AbilitySystemComponent->InitAbilityActorInfo(this, this);
-	}
-
-	if (HasAuthority() && IsValid(CommonSet))
-	{
-		const float InitialHealth = FMath::Max(MaxHealth, 0.0f);
-		CommonSet->SetMaxHealth(InitialHealth);
-		CommonSet->SetHealth(InitialHealth);
-	}
+	// BP 기본 체력 초기화
+	CurrentHealth = FMath::Max(MaxHealth, 0.0f);
 
 	if (IsValid(DamageDetectionBox))
 	{
@@ -118,14 +103,34 @@ void APRGroundBoxProjectileBase::EndPlay(const EEndPlayReason::Type EndPlayReaso
 	Super::EndPlay(EndPlayReason);
 }
 
-/*~ IAbilitySystemInterface Interface ~*/
-
-UAbilitySystemComponent* APRGroundBoxProjectileBase::GetAbilitySystemComponent() const
-{
-	return AbilitySystemComponent;
-}
-
 /*~ IPRCombatInterface Interface ~*/
+
+bool APRGroundBoxProjectileBase::ReceiveDamageContext(const FPRDamageAppliedContext& Context)
+{
+	if (!HasAuthority() || bDestroyRequested)
+	{
+		return false;
+	}
+
+	if (Context.FinalDamage <= 0.0f)
+	{
+		return false;
+	}
+
+	const float DamageAmount = Context.FinalDamage;
+	const float PreviousHealth = CurrentHealth;
+	CurrentHealth = FMath::Max(CurrentHealth - DamageAmount, 0.0f);
+
+	FPRDamageAppliedContext AppliedContext = Context;
+	AppliedContext.HealthBeforeDamage = PreviousHealth;
+	AppliedContext.HealthAfterDamage = CurrentHealth;
+	AppliedContext.MaxHealth = FMath::Max(MaxHealth, 0.0f);
+
+	// 체력 차감 이후 후처리
+	OnPostDamageApplied(AppliedContext);
+
+	return true;
+}
 
 void APRGroundBoxProjectileBase::OnPostDamageApplied(const FPRDamageAppliedContext& Context)
 {
@@ -140,7 +145,7 @@ void APRGroundBoxProjectileBase::OnPostDamageApplied(const FPRDamageAppliedConte
 		MulticastHandleGroundBoxDamaged(Context.FinalDamage, Context.HealthAfterDamage);
 	}
 
-	if (Context.HealthAfterDamage <= 0.0f)
+	if (CurrentHealth <= 0.0f || Context.HealthAfterDamage <= 0.0f)
 	{
 		// 체력 고갈에 따른 단일 소멸 경로
 		RequestGroundBoxEnd();
@@ -164,12 +169,9 @@ void APRGroundBoxProjectileBase::InitGroundBoxProjectile(const FPRGroundBoxLaunc
 		? Params.OverrideMaxHealth
 		: MaxHealth;
 
-	if (IsValid(CommonSet))
-	{
-		// 스폰 입력값이 있으면 BP 기본 체력보다 우선 적용
-		CommonSet->SetMaxHealth(FMath::Max(InitialHealth, 0.0f));
-		CommonSet->SetHealth(FMath::Max(InitialHealth, 0.0f));
-	}
+	// 스폰 입력값이 있으면 BP 기본 체력보다 우선 적용
+	MaxHealth = FMath::Max(InitialHealth, 0.0f);
+	CurrentHealth = MaxHealth;
 
 	ResetTargetCooldowns();
 
@@ -234,29 +236,6 @@ void APRGroundBoxProjectileBase::ResetTargetCooldowns()
 {
 	TargetASCNextAllowedTimes.Reset();
 	TargetActorNextAllowedTimes.Reset();
-}
-
-void APRGroundBoxProjectileBase::ApplyDamageSpecToSelf(const FGameplayEffectSpecHandle& DamageSpecHandle, const FHitResult& HitResult)
-{
-	if (!HasAuthority())
-	{
-		return;
-	}
-
-	if (!IsValid(AbilitySystemComponent) || !DamageSpecHandle.IsValid())
-	{
-		return;
-	}
-
-	FGameplayEffectSpec* EffectSpec = DamageSpecHandle.Data.Get();
-	if (EffectSpec == nullptr)
-	{
-		return;
-	}
-
-	// 피격 지점을 데미지 후처리 컨텍스트로 전달
-	EffectSpec->GetContext().AddHitResult(HitResult, true);
-	AbilitySystemComponent->ApplyGameplayEffectSpecToSelf(*EffectSpec);
 }
 
 void APRGroundBoxProjectileBase::RequestGroundBoxEnd()

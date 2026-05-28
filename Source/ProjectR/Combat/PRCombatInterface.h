@@ -91,6 +91,9 @@ public:
 	// 피격 본 이름으로 자기 부위 정보를 반환한다. 매핑이 없으면 Default Region 반환
 	virtual FPRDamageRegionInfo GetDamageRegionInfo(FName BoneName) const { return FPRDamageRegionInfo(); }
 
+	// ASC 없는 전투 대상의 데미지 수신 진입점
+	virtual bool ReceiveDamageContext(const FPRDamageAppliedContext& Context) { return false; }
+
 	// 데미지 적용 직후 호출. 페이즈 전환·그로기 임계·다운 흐름 진입 등 종류별 후처리 자리
 	virtual void OnPostDamageApplied(const FPRDamageAppliedContext& Context) {}
 	

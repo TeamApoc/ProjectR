@@ -76,8 +76,11 @@ public:
 	// 플로팅 텍스트 매니저 컴포넌트를 반환
 	UPRFloatingTextManager* GetFloatingTextManager() const { return FloatingTextManager; }
 	
-	// 폰 -> PlayerState 경로로 ASC 조회
+	// PlayerState 우선 경로로 ASC 조회
 	UPRAbilitySystemComponent* GetPRASC() const;
+
+	// 플레이어 컨트롤러에 남은 로컬 런타임 상태와 ASC 캐시를 초기화한다
+	void ResetPlayer();
 	
 	// 로컬 클라에서 호출. GameInstance의 LocalCharacterSave를 서버로 제출
 	// ReceivedPlayer 조기 제출과 possession fallback 재시도 허용
@@ -208,6 +211,9 @@ protected:
 	UPRQuickSlotComponent* GetQuickSlotComponent() const;
 	
 private:
+	// 로컬 상호작용 포커스와 본인 캐릭터 외곽선 정리
+	void ResetLocalInteractionVisualState();
+
 	void UpdateCompanionHighlight();
 
 public:

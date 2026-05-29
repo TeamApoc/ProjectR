@@ -34,6 +34,12 @@ protected:
 	// 초기화 시 버튼 이벤트를 바인딩한다
 	virtual void NativeOnInitialized() override;
 
+	// 마우스 호버 시작 시 툴팁 생성
+	virtual void NativeOnMouseEnter(const FGeometry& InGeometry, const FPointerEvent& InMouseEvent) override;
+
+	// 마우스 호버 종료 시 툴팁 제거
+	virtual void NativeOnMouseLeave(const FPointerEvent& InMouseEvent) override;
+
 	// 마우스 버튼 입력으로 우클릭을 처리한다
 	virtual FReply NativeOnMouseButtonDown(const FGeometry& InGeometry, const FPointerEvent& InMouseEvent) override;
 
@@ -47,6 +53,9 @@ private:
 
 	// 현재 표시 데이터로 툴팁 위젯을 갱신한다
 	void RefreshTooltipWidget();
+
+	// 활성 툴팁 위젯 제거
+	void ClearTooltipWidget();
 
 public:
 	// 좌클릭 선택 이벤트
@@ -86,4 +95,8 @@ private:
 	// 현재 슬롯 표시 데이터
 	UPROPERTY(BlueprintReadOnly, Category = "ProjectR|Inventory", meta = (AllowPrivateAccess = "true"))
 	FPRInventoryItemSlotViewData ViewData;
+
+	// 현재 호버 중인 툴팁 위젯
+	UPROPERTY(Transient)
+	TObjectPtr<UPRItemTooltipWidget> ActiveTooltipWidget;
 };

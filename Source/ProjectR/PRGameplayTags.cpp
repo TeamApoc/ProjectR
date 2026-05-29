@@ -32,6 +32,7 @@ namespace PRGameplayTags
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Ability_Player_GetUp, "Ability.Player.GetUp", "플레이어 기상 어빌리티");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Ability_Player_Revive, "Ability.Player.Revive", "플레이어 동료 소생 어빌리티");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Ability_Player_Waypoint, "Ability.Player.Waypoint", "플레이어 크리스탈 상호작용 어빌리티");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Ability_Player_CombatEngaged, "Ability.Player.CombatEngaged", "플레이어 전투 교전 갱신 어빌리티");
 
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Ability_Enemy_Pattern, "Ability.Enemy.Pattern", "일반 적 패턴 공통 루트");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Ability_Enemy_Alert, "Ability.Enemy.Alert", "일반 적 최초 발견 Alert");
@@ -84,6 +85,7 @@ namespace PRGameplayTags
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(State_Groggy, "State.Groggy", "그로기 상태");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(State_StaminaDepleted, "State.StaminaDepleted", "스태미너 고갈 상태");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(State_Down, "State.Down", "전투불능 다운 상태");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(State_Combating, "State.Combating", "전투 중 스태미나 제한 상태");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(State_Invulnerable, "State.Invulnerable", "무적 상태 (회피 i-frame 등)");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(State_Dodging, "State.Dodging", "구르기 중 (무적이 아님)");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(State_Crouching, "State.Crouching", "앉기 상태");
@@ -102,6 +104,7 @@ namespace PRGameplayTags
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(State_Armed, "State.Armed", "플레이어 무기 장착중 상태");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(State_Block_Move, "State.Block.Move", "움직임 비활성화 상태");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(State_WeaponZooming, "State.WeaponZooming", "움직임 비활성화 상태");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(State_SwappingWeapon, "State.SwappingWeapon", "무기 교체 Draw 몽타주 진행 상태");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(State_Mod_Primary_GaugeLocked, "State.Mod.Primary.GaugeLocked", "주무기 Mod 게이지 축적 차단 상태");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(State_Mod_Secondary_GaugeLocked, "State.Mod.Secondary.GaugeLocked", "보조무기 Mod 게이지 축적 차단 상태");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(State_Mod_Fire_Enabled, "State.Mod.Fire.Enabled", "발사형 모드 활성 상태");
@@ -126,6 +129,7 @@ namespace PRGameplayTags
 	// ===== Event.* =====
 
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Event_Hit, "Event.Hit", "피격 이벤트");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Event_Combat_Engaged, "Event.Combat.Engaged", "전투 교전 유지 이벤트");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Event_Ability_Death, "Event.Ability.Death", "사망 이벤트");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Event_Ability_Down, "Event.Ability.Down", "다운 이벤트");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Event_Ability_GetUp, "Event.Ability.GetUp", "기상 이벤트");

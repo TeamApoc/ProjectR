@@ -25,6 +25,8 @@ class UPRSpringArmComponent;
 class UPRActionInputRouterComponent;
 class UPRProjectileTrajectoryPreviewComponent;
 class UPRFlashlightComponent;
+class UPRConsumableDataAsset;
+class UStaticMeshComponent;
 struct FInputActionValue;
 struct FOnAttributeChangeData;
 //무기 테스트용
@@ -77,7 +79,15 @@ public:
 	/** Sprint Ability가 질주 상태를 캐릭터 이동 상태에 반영 */
 	void SetSprintingFromAbility(bool bNewSprinting);
 	
+	
 	void SetFlashlightEnabled(bool bEnabled) const;
+	
+	UFUNCTION(Server, Reliable)
+	void ServerSetFlashlightEnabled(bool bEnabled) const;
+	
+	UFUNCTION(NetMulticast, Reliable)
+	void MulticastSetFlashlightEnabled(bool bEnabled) const;
+	
 	bool IsFlashlightEnabled() const;
 	
 	UFUNCTION(NetMulticast, Reliable)
@@ -101,6 +111,12 @@ public:
 
 	// 지정 장비 슬롯에 대응하는 기본 메시 조회
 	USkeletalMesh* GetDefaultEquipmentMesh(EPREquipmentSlotType SlotType) const;
+
+	// 소비 아이템 PickupMesh 표시 요청
+	void RequestConsumablePickupMeshBegin(UPRConsumableDataAsset* ConsumableData, FName AttachSocketName);
+
+	// 소비 아이템 PickupMesh 제거 요청
+	void RequestConsumablePickupMeshEnd();
 
 	
 protected:
@@ -154,6 +170,28 @@ private:
 	UFUNCTION()
 	void HandleEquipmentVisualInfosChanged(UPREquipmentManagerComponent* ChangedEquipmentManagerComponent);
 
+	// 소비 아이템 PickupMesh 표시 서버 요청
+	UFUNCTION(Server, Unreliable)
+	void Server_RequestConsumablePickupMeshBegin(UPRConsumableDataAsset* ConsumableData, FName AttachSocketName);
+
+	// 소비 아이템 PickupMesh 제거 서버 요청
+	UFUNCTION(Server, Reliable)
+	void Server_RequestConsumablePickupMeshEnd();
+
+	// 소비 아이템 PickupMesh 표시 전파
+	UFUNCTION(NetMulticast, Unreliable)
+	void Multicast_ShowConsumablePickupMesh(UPRConsumableDataAsset* ConsumableData, FName AttachSocketName);
+
+	// 소비 아이템 PickupMesh 제거 전파
+	UFUNCTION(NetMulticast, Reliable)
+	void Multicast_HideConsumablePickupMesh();
+
+	// 소비 아이템 PickupMesh 표시 적용
+	void ShowConsumablePickupMesh(UPRConsumableDataAsset* ConsumableData, FName AttachSocketName);
+
+	// 소비 아이템 PickupMesh 제거 적용
+	void HideConsumablePickupMesh();
+
 public:
 	/** 컴포넌트 */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Mesh")
@@ -167,6 +205,15 @@ public:
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Mesh")
 	TObjectPtr<USkeletalMeshComponent> Mesh_Legs;
+	
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Mesh")
+	TObjectPtr<USkeletalMeshComponent> Mesh_BackPack;
+	
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Mesh")
+	TObjectPtr<UStaticMeshComponent> Mesh_Flashlight;
+	
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Mesh")
+	TObjectPtr<UStaticMeshComponent> Mesh_FlashlightGlow;
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Camera")
 	TObjectPtr<UPRSpringArmComponent> CameraBoom;
@@ -269,4 +316,8 @@ private:
 	// 현재 외형 변경 이벤트를 받고 있는 장비 매니저
 	UPROPERTY(Transient)
 	TObjectPtr<UPREquipmentManagerComponent> BoundEquipmentManager;
+
+	// 현재 표시 중인 소비 아이템 PickupMesh 컴포넌트
+	UPROPERTY(Transient)
+	TObjectPtr<UStaticMeshComponent> ActiveConsumablePickupMeshComponent;
 };

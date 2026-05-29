@@ -42,6 +42,9 @@ protected:
 	
 	UPROPERTY(BlueprintReadOnly, Category = "Flags")
 	bool bShouldMove;
+
+	UPROPERTY(BlueprintReadOnly, Category = "Flags")
+	bool bIsDecelerating;
 	
 	UPROPERTY(BlueprintReadOnly, Category = "Flags")
 	bool bIsFalling;

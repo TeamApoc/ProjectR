@@ -53,7 +53,7 @@ void UPRAnimInstance::NativeUpdateAnimation(float DeltaSeconds)
 	UpdateRootYawOffset();
 	DetermineTargetTurnAngle();
 	UpdateAim();
-	UpdateLeftHandIK();
+	UpdateLeftHandIK(DeltaSeconds);
 }
 
 void UPRAnimInstance::NativePostEvaluateAnimation()
@@ -187,7 +187,8 @@ void UPRAnimInstance::UpdateDirection()
 void UPRAnimInstance::UpdateFlags()
 {
 	bHasAcceleration = !LocalAcceleration2D.IsNearlyZero();
-	bShouldMove = (XYSpeed > MoveSpeedThreshold) && bHasAcceleration;
+	bShouldMove = XYSpeed > MoveSpeedThreshold;
+	bIsDecelerating = bShouldMove && !bHasAcceleration;
 	bIsFalling = CharacterMovement->IsFalling();
 	bIsCrouching = PlayerCharacter->IsCrouching();
 	bIsSprint = PlayerCharacter->IsSprinting();
@@ -321,11 +322,15 @@ void UPRAnimInstance::UpdateAim()
 	AimPitch = UKismetMathLibrary::NormalizedDeltaRotator(AimRot, ActorRot).Pitch;
 }
 
-void UPRAnimInstance::UpdateLeftHandIK()
+void UPRAnimInstance::UpdateLeftHandIK(float DeltaSeconds)
 {
 	if (!ShouldApplyLeftHandIK())
 	{
-		ResetLeftHandIK();
+		LeftHandIKAlpha = FMath::FInterpTo(LeftHandIKAlpha, 0.0f, DeltaSeconds, LeftHandIKBlendOutSpeed);
+		if (LeftHandIKAlpha <= KINDA_SMALL_NUMBER)
+		{
+			ResetLeftHandIK();
+		}
 		return;
 	}
 	
@@ -351,7 +356,7 @@ void UPRAnimInstance::UpdateLeftHandIK()
 		EffectorRotation);
 
 	LeftHandIKEffectorTransform = FTransform(EffectorRotation, EffectorLocation, FVector::OneVector);
-	LeftHandIKAlpha = 1.0f;
+	LeftHandIKAlpha = FMath::FInterpTo(LeftHandIKAlpha, 1.0f, DeltaSeconds, LeftHandIKBlendInSpeed);
 	bHasLeftHandIKTarget = true;
 }
 

@@ -33,6 +33,7 @@ void UPRLinkedAnimInstance::NativeUpdateAnimation(float DeltaSeconds)
 	// 링크드 레이어 AnimBP가 메인 AnimInstance의 이동 상태를 그대로 읽을 수 있도록 복사한다.
 	MovementMode = MainAnimInstance->MovementMode;
 	bShouldMove = MainAnimInstance->bShouldMove;
+	bIsDecelerating = MainAnimInstance->bIsDecelerating;
 	bIsFalling = MainAnimInstance->bIsFalling;
 	bIsSprint = MainAnimInstance->bIsSprint;
 	bIsCrouching = MainAnimInstance->bIsCrouching;

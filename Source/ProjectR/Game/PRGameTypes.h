@@ -585,7 +585,7 @@ struct FPRHostSessionParams
 
 	// 허용 최대 인원. GameMode의 MaxPlayers로 반영
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	int32 MaxPlayers = 4;
+	int32 MaxPlayers = 3;
 
 	// 비공개 여부. 현재는 표시용. OSS 단계에서 세션 검색 필터에 사용 예정
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)

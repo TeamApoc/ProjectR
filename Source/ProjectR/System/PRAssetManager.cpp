@@ -3,6 +3,7 @@
 #include "PRAssetManager.h"
 #include "PRDeveloperSettings.h"
 #include "Engine/DataTable.h"
+#include "Engine/StreamableManager.h"
 #include "ProjectR/AbilitySystem/Data/PRAbilitySystemRegistry.h"
 #include "ProjectR/ItemSystem/Data/PRItemDataAsset.h"
 #include "ProjectR/ItemSystem/Types/PRDropTypes.h"
@@ -64,6 +65,74 @@ UPRItemDataAsset* UPRAssetManager::GetItemDataByPrimaryAssetId(const FPrimaryAss
 	}
 
 	return Cast<UPRItemDataAsset>(AssetPath.TryLoad());
+}
+
+uint64 UPRAssetManager::LoadAssetsAsync(const TArray<FSoftObjectPath>& AssetPaths, FPRAssetsLoadedNative Callback)
+{
+	const uint64 RequestId = NextAsyncLoadRequestId++;
+
+	TArray<FSoftObjectPath> UniqueAssetPaths;
+	for (const FSoftObjectPath& AssetPath : AssetPaths)
+	{
+		if (!AssetPath.IsValid())
+		{
+			continue;
+		}
+
+		// 중복 경로 제거
+		UniqueAssetPaths.AddUnique(AssetPath);
+	}
+
+	if (UniqueAssetPaths.IsEmpty())
+	{
+		FPRAssetLoadResult Result;
+		Result.RequestId = RequestId;
+		Callback.ExecuteIfBound(Result);
+		return RequestId;
+	}
+
+	TWeakObjectPtr<UPRAssetManager> WeakThis(this);
+	TSharedPtr<FStreamableHandle> StreamableHandle = GetStreamableManager().RequestAsyncLoad(
+		UniqueAssetPaths,
+		FStreamableDelegate::CreateLambda([WeakThis, RequestId, UniqueAssetPaths, Callback]()
+		{
+			UPRAssetManager* AssetManager = WeakThis.Get();
+			if (!AssetManager)
+			{
+				return;
+			}
+
+			FPRAssetLoadResult Result;
+			Result.RequestId = RequestId;
+			for (const FSoftObjectPath& AssetPath : UniqueAssetPaths)
+			{
+				// 로드 완료 경로의 UObject 해석
+				Result.LoadedAssets.Add(AssetPath, AssetPath.ResolveObject());
+			}
+
+			Callback.ExecuteIfBound(Result);
+			AssetManager->ActiveAsyncLoadHandles.Remove(RequestId);
+		}));
+
+	if (StreamableHandle.IsValid())
+	{
+		// 콜백 완료 전 핸들 보존
+		ActiveAsyncLoadHandles.Add(RequestId, StreamableHandle);
+	}
+	else
+	{
+		FPRAssetLoadResult Result;
+		Result.RequestId = RequestId;
+		for (const FSoftObjectPath& AssetPath : UniqueAssetPaths)
+		{
+			// 즉시 해석 가능한 로드 결과
+			Result.LoadedAssets.Add(AssetPath, AssetPath.ResolveObject());
+		}
+
+		Callback.ExecuteIfBound(Result);
+	}
+
+	return RequestId;
 }
 
 void UPRAssetManager::LoadRegistries()

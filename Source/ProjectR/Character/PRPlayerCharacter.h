@@ -79,7 +79,15 @@ public:
 	/** Sprint Ability가 질주 상태를 캐릭터 이동 상태에 반영 */
 	void SetSprintingFromAbility(bool bNewSprinting);
 	
+	
 	void SetFlashlightEnabled(bool bEnabled) const;
+	
+	UFUNCTION(Server, Reliable)
+	void ServerSetFlashlightEnabled(bool bEnabled) const;
+	
+	UFUNCTION(NetMulticast, Reliable)
+	void MulticastSetFlashlightEnabled(bool bEnabled) const;
+	
 	bool IsFlashlightEnabled() const;
 	
 	UFUNCTION(NetMulticast, Reliable)
@@ -197,6 +205,15 @@ public:
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Mesh")
 	TObjectPtr<USkeletalMeshComponent> Mesh_Legs;
+	
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Mesh")
+	TObjectPtr<USkeletalMeshComponent> Mesh_BackPack;
+	
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Mesh")
+	TObjectPtr<UStaticMeshComponent> Mesh_Flashlight;
+	
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Mesh")
+	TObjectPtr<UStaticMeshComponent> Mesh_FlashlightGlow;
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Camera")
 	TObjectPtr<UPRSpringArmComponent> CameraBoom;

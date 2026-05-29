@@ -46,8 +46,8 @@ private:
 	void UpdateMovementMode();
 	void UpdateMovementSpeedMultiplier();
 	void UpdateAim();
-	// 현재 무기의 왼손 그립 소켓을 FABRIK Effector 값으로 캐시한다
-	void UpdateLeftHandIK();
+	// 현재 무기의 왼손 그립 소켓 캐시 및 FABRIK Alpha 보간 처리
+	void UpdateLeftHandIK(float DeltaSeconds);
 	// 왼손 IK 타깃이 유효하지 않을 때 AnimGraph 입력값을 초기화한다
 	void ResetLeftHandIK();
 	void UpdateTurnInPlace();
@@ -122,6 +122,9 @@ public:
 
 	UPROPERTY(BlueprintReadOnly, Category = "Movement")
 	bool bShouldMove;
+
+	UPROPERTY(BlueprintReadOnly, Category = "Movement")
+	bool bIsDecelerating;
 
 	UPROPERTY(BlueprintReadOnly, Category = "Movement")
 	bool bIsFalling;
@@ -201,6 +204,14 @@ public:
 	// Effector 트랜스폼을 계산할 기준 오른손 본 이름이다
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "ProjectR|Animation|IK")
 	FName LeftHandIKTargetBoneName = FName(TEXT("Bone_M_Hand_R"));
+
+	// 왼손 IK가 다시 유효해질 때 Alpha 보간 속도
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "ProjectR|Animation|IK", meta = (ClampMin = "0.01"))
+	float LeftHandIKBlendInSpeed = 10.0f;
+
+	// 왼손 IK가 억제될 때 Alpha 보간 속도
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "ProjectR|Animation|IK", meta = (ClampMin = "0.01"))
+	float LeftHandIKBlendOutSpeed = 12.0f;
 
 	UPROPERTY(BlueprintReadOnly, Category = "ProjectR|Animation|Dodge")
 	bool bIsDodging = false;

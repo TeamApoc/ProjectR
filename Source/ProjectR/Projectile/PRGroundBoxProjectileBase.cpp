@@ -7,9 +7,12 @@
 #include "Components/BoxComponent.h"
 #include "Components/SceneComponent.h"
 #include "Components/StaticMeshComponent.h"
+#include "GameplayEffect.h"
 #include "GameFramework/ProjectileMovementComponent.h"
 #include "NiagaraComponent.h"
 #include "TimerManager.h"
+#include "ProjectR/Character/Enemy/Penitent/PRPenitentCharacter.h"
+#include "ProjectR/Combat/PRCombatGameplayTags.h"
 #include "ProjectR/Combat/PRCombatStatics.h"
 #include "ProjectR/ProjectR.h"
 
@@ -23,18 +26,22 @@ APRGroundBoxProjectileBase::APRGroundBoxProjectileBase()
 	bReplicates = true;
 	SetReplicateMovement(true);
 
-	RootSceneComponent = CreateDefaultSubobject<USceneComponent>(TEXT("RootSceneComponent"));
-	SetRootComponent(RootSceneComponent);
-
+	Root = CreateDefaultSubobject<USceneComponent>(TEXT("Root"));
+	SetRootComponent(Root);
+	
+	TraceStartPoint = CreateDefaultSubobject<USceneComponent>(TEXT("TraceStartPoint"));
+	TraceStartPoint->SetupAttachment(Root);
+	TraceStartPoint->SetRelativeLocation(FVector(0.0f, 0.0f, 220.0f));
+	
 	DamageDetectionBox = CreateDefaultSubobject<UBoxComponent>(TEXT("DamageDetectionBox"));
-	DamageDetectionBox->SetupAttachment(RootSceneComponent);
+	DamageDetectionBox->SetupAttachment(Root);
 	DamageDetectionBox->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
 	DamageDetectionBox->SetCollisionResponseToAllChannels(ECR_Ignore);
 	DamageDetectionBox->SetCollisionResponseToChannel(ECC_Pawn, ECR_Overlap);
 	DamageDetectionBox->SetGenerateOverlapEvents(true);
 
 	BreakableDetectionBox = CreateDefaultSubobject<UBoxComponent>(TEXT("BreakableDetectionBox"));
-	BreakableDetectionBox->SetupAttachment(RootSceneComponent);
+	BreakableDetectionBox->SetupAttachment(Root);
 	BreakableDetectionBox->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
 	BreakableDetectionBox->SetCollisionResponseToAllChannels(ECR_Ignore);
 	BreakableDetectionBox->SetCollisionResponseToChannel(ECC_WorldStatic, ECR_Overlap);
@@ -42,16 +49,16 @@ APRGroundBoxProjectileBase::APRGroundBoxProjectileBase()
 	BreakableDetectionBox->SetGenerateOverlapEvents(true);
 
 	WallMeshComponent = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("WallMeshComponent"));
-	WallMeshComponent->SetupAttachment(RootSceneComponent);
+	WallMeshComponent->SetupAttachment(Root);
 	WallMeshComponent->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
 	WallMeshComponent->SetCollisionResponseToAllChannels(ECR_Ignore);
 	WallMeshComponent->SetCollisionResponseToChannel(PRCollisionChannels::ECC_Projectile, ECR_Block);
 
 	AmbientVFXComponent = CreateDefaultSubobject<UNiagaraComponent>(TEXT("AmbientVFXComponent"));
-	AmbientVFXComponent->SetupAttachment(RootSceneComponent);
+	AmbientVFXComponent->SetupAttachment(Root);
 
 	MovementComponent = CreateDefaultSubobject<UProjectileMovementComponent>(TEXT("MovementComponent"));
-	MovementComponent->UpdatedComponent = RootSceneComponent;
+	MovementComponent->UpdatedComponent = Root;
 	MovementComponent->InitialSpeed = 0.0f;
 	MovementComponent->MaxSpeed = 0.0f;
 	MovementComponent->ProjectileGravityScale = 0.0f;
@@ -87,8 +94,8 @@ void APRGroundBoxProjectileBase::Tick(float DeltaSeconds)
 		return;
 	}
 
-	// 런치 중 지면 부착 유지
-	SnapToGround();
+	// 런치 중 지면 보간 부착
+	SnapToGround(DeltaSeconds, false);
 }
 
 void APRGroundBoxProjectileBase::EndPlay(const EEndPlayReason::Type EndPlayReason)
@@ -163,7 +170,9 @@ void APRGroundBoxProjectileBase::InitGroundBoxProjectile(const FPRGroundBoxLaunc
 
 	SourceActor = Params.SourceActor;
 	SourceTeam = UPRCombatStatics::GetActorTeam(SourceActor);
-	DamageEffectSpecHandle = Params.DamageEffectSpec;
+	DamageEffectSpecHandle = Params.DamageEffectSpec.IsValid()
+		? Params.DamageEffectSpec
+		: BuildDefaultDamageEffectSpec(SourceActor);
 
 	const float InitialHealth = Params.OverrideMaxHealth > 0.0f
 		? Params.OverrideMaxHealth
@@ -174,6 +183,7 @@ void APRGroundBoxProjectileBase::InitGroundBoxProjectile(const FPRGroundBoxLaunc
 	CurrentHealth = MaxHealth;
 
 	ResetTargetCooldowns();
+	bDamageEnabled = true;
 
 	if (UWorld* World = GetWorld())
 	{
@@ -195,6 +205,28 @@ void APRGroundBoxProjectileBase::InitGroundBoxProjectile(const FPRGroundBoxLaunc
 	if (!Params.LaunchDirection.IsNearlyZero() && Params.LaunchSpeed > 0.0f)
 	{
 		LaunchGroundBoxProjectile(Params.LaunchDirection, Params.LaunchSpeed);
+	}
+}
+
+void APRGroundBoxProjectileBase::InitializeAttachedBarrier(APRPenitentCharacter* OwnerPenitent)
+{
+	if (!HasAuthority() || !IsValid(OwnerPenitent) || bDestroyRequested)
+	{
+		return;
+	}
+
+	FPRGroundBoxLaunchParams Params;
+	Params.SourceActor = OwnerPenitent;
+	InitGroundBoxProjectile(Params);
+
+	bLaunched = false;
+	SetActorTickEnabled(false);
+
+	if (IsValid(MovementComponent))
+	{
+		// 부착 상태 이동 정지
+		MovementComponent->StopMovementImmediately();
+		MovementComponent->Deactivate();
 	}
 }
 
@@ -227,7 +259,22 @@ void APRGroundBoxProjectileBase::LaunchGroundBoxProjectile(const FVector& Launch
 	}
 
 	SetActorRotation(SafeDirection.Rotation());
-	SnapToGround();
+	// SnapToGround(0.0f, true);
+	
+	if (UWorld* World = GetWorld())
+	{
+		World->GetTimerManager().ClearTimer(SafetyLifeTimeTimerHandle);
+		if (MaxSafetyLifeTime > 0.0f)
+		{
+			// 명시 종료 누락에 대비한 안전 제거 예약
+			World->GetTimerManager().SetTimer(
+				SafetyLifeTimeTimerHandle,
+				this,
+				&ThisClass::HandleSafetyLifeTimeExpired,
+				LaunchLifeTime,
+				false);
+		}
+	}
 
 	MulticastHandleLaunched();
 }
@@ -391,6 +438,49 @@ void APRGroundBoxProjectileBase::ApplyDamageToTarget(AActor* TargetActor,
 	MulticastHandleTargetHit(TargetActor, HitResult);
 }
 
+FGameplayEffectSpecHandle APRGroundBoxProjectileBase::BuildDefaultDamageEffectSpec(AActor* InSourceActor) const
+{
+	if (!IsValid(InSourceActor))
+	{
+		return FGameplayEffectSpecHandle();
+	}
+
+	UAbilitySystemComponent* SourceAbilitySystemComponent =
+		UAbilitySystemBlueprintLibrary::GetAbilitySystemComponent(InSourceActor);
+	if (!IsValid(SourceAbilitySystemComponent))
+	{
+		return FGameplayEffectSpecHandle();
+	}
+
+	if (!IsValid(DamageEffectClass))
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[GroundBoxProjectile] DamageEffectClass 설정 없음. Actor=%s"), *GetNameSafe(this));
+		return FGameplayEffectSpecHandle();
+	}
+
+	FGameplayEffectContextHandle EffectContext = SourceAbilitySystemComponent->MakeEffectContext();
+	EffectContext.AddSourceObject(InSourceActor);
+
+	const FGameplayEffectSpecHandle SpecHandle = SourceAbilitySystemComponent->MakeOutgoingSpec(
+		DamageEffectClass,
+		1.0f,
+		EffectContext);
+
+	if (SpecHandle.IsValid())
+	{
+		// 직접 피해 SetByCaller
+		SpecHandle.Data->SetSetByCallerMagnitude(
+			PRCombatGameplayTags::SetByCaller_Damage,
+			FMath::Max(DefaultDamageAmount, 0.0f));
+
+		SpecHandle.Data->SetSetByCallerMagnitude(
+			PRCombatGameplayTags::SetByCaller_GroggyDamage,
+			FMath::Max(DefaultGroggyDamageAmount, 0.0f));
+	}
+
+	return SpecHandle;
+}
+
 bool APRGroundBoxProjectileBase::IsTargetOnCooldown(AActor* TargetActor,
 	UAbilitySystemComponent* TargetAbilitySystemComponent) const
 {
@@ -445,7 +535,7 @@ void APRGroundBoxProjectileBase::SetTargetCooldown(AActor* TargetActor, UAbility
 
 /*~ 이동 처리 ~*/
 
-void APRGroundBoxProjectileBase::SnapToGround()
+void APRGroundBoxProjectileBase::SnapToGround(float DeltaSeconds, bool bInstant)
 {
 	UWorld* World = GetWorld();
 	if (!IsValid(World) || GroundSnapTraceDistance <= 0.0f)
@@ -460,8 +550,8 @@ void APRGroundBoxProjectileBase::SnapToGround()
 	}
 
 	const FVector CurrentLocation = GetActorLocation();
-	const FVector TraceStart = CurrentLocation + FVector::UpVector * GroundSnapTraceDistance;
-	const FVector TraceEnd = CurrentLocation - FVector::UpVector * GroundSnapTraceDistance;
+	const FVector TraceStart = TraceStartPoint->GetComponentLocation();
+	const FVector TraceEnd = TraceStart - FVector::UpVector * GroundSnapTraceDistance;
 
 	FHitResult GroundHit;
 	if (!World->LineTraceSingleByChannel(GroundHit, TraceStart, TraceEnd, PRCollisionChannels::ECC_Ground, QueryParams))
@@ -474,8 +564,21 @@ void APRGroundBoxProjectileBase::SnapToGround()
 		return;
 	}
 
+	const float TargetZ = GroundHit.ImpactPoint.Z;
+	float NewZ = TargetZ;
+	if (!bInstant && GroundSnapInterpSpeed > 0.0f)
+	{
+		// 지면 높이 보간 추적
+		NewZ = FMath::FInterpTo(CurrentLocation.Z, TargetZ, DeltaSeconds, GroundSnapInterpSpeed);
+		if (FMath::Abs(NewZ - TargetZ) <= GroundSnapTolerance)
+		{
+			// 미세 떨림 방지
+			NewZ = TargetZ;
+		}
+	}
+
 	// 수평 이동은 유지하고 높이만 지면에 보정
-	const FVector SnappedLocation(CurrentLocation.X, CurrentLocation.Y, GroundHit.ImpactPoint.Z);
+	const FVector SnappedLocation(CurrentLocation.X, CurrentLocation.Y, NewZ);
 	SetActorLocation(SnappedLocation, false);
 }
 

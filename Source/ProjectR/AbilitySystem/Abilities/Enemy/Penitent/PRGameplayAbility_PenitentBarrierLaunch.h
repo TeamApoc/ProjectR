@@ -4,19 +4,17 @@
 
 #include "CoreMinimal.h"
 #include "ProjectR/AbilitySystem/Abilities/Enemy/PRGameplayAbility_EnemyBase.h"
-#include "PRGameplayAbility_PenitentBarrierFire.generated.h"
-
-class UGameplayEffect;
+#include "PRGameplayAbility_PenitentBarrierLaunch.generated.h"
 
 // Penitent 배리어 발사 Ability
 UCLASS()
-class PROJECTR_API UPRGameplayAbility_PenitentBarrierFire : public UPRGameplayAbility_EnemyBase
+class PROJECTR_API UPRGameplayAbility_PenitentBarrierLaunch : public UPRGameplayAbility_EnemyBase
 {
 	GENERATED_BODY()
 
 public:
 	// Ability 태그 초기화
-	UPRGameplayAbility_PenitentBarrierFire();
+	UPRGameplayAbility_PenitentBarrierLaunch();
 
 	/*~ UGameplayAbility Interface ~*/
 	// 배리어 발사 가능 여부 확인
@@ -33,18 +31,7 @@ public:
 		const FGameplayEventData* TriggerEventData) override;
 
 protected:
-	// 발사 피해 GE Override
-	UPROPERTY(EditDefaultsOnly, Category = "ProjectR|Penitent|Barrier")
-	TSubclassOf<UGameplayEffect> BarrierDamageEffectClass;
-
-	// 체력 피해 배율
+	// 발사 속도
 	UPROPERTY(EditDefaultsOnly, Category = "ProjectR|Penitent|Barrier", meta = (ClampMin = "0.0"))
-	float DamageMultiplier = 1.0f;
-
-	// 고정 강인도 피해
-	UPROPERTY(EditDefaultsOnly, Category = "ProjectR|Penitent|Barrier", meta = (ClampMin = "0.0"))
-	float PoiseDamage = 12.0f;
-
-	// 배리어 발사 피해 Spec 생성
-	FGameplayEffectSpecHandle BuildBarrierDamageEffectSpec() const;
+	float LaunchSpeed = 1800.0f;
 };

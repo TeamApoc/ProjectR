@@ -30,7 +30,7 @@ void UPRGameplayAbility_PenitentStaffSwing::ActivateAbility(const FGameplayAbili
 {
 	CurrentStaffSwingSection = EPRPenitentStaffSwingSection::Swing1;
 	MontageStartSection = StaffSwing1StartSection;
-	ApplyCurrentHitConfig();
+	ApplyEnemyAttackHitConfig(GetCurrentHitConfig());
 	BindComboWindowEvent();
 
 	Super::ActivateAbility(Handle, ActorInfo, ActivationInfo, TriggerEventData);
@@ -55,7 +55,7 @@ void UPRGameplayAbility_PenitentStaffSwing::EndAbility(const FGameplayAbilitySpe
 
 void UPRGameplayAbility_PenitentStaffSwing::ExecuteMeleeHit()
 {
-	ApplyCurrentHitConfig();
+	ApplyEnemyAttackHitConfig(GetCurrentHitConfig());
 	Super::ExecuteMeleeHit();
 }
 
@@ -113,7 +113,7 @@ void UPRGameplayAbility_PenitentStaffSwing::JumpToSection(FName SectionName, EPR
 	if (UAbilitySystemComponent* AbilitySystemComponent = GetAbilitySystemComponentFromActorInfo())
 	{
 		CurrentStaffSwingSection = NewSection;
-		ApplyCurrentHitConfig();
+		ApplyEnemyAttackHitConfig(GetCurrentHitConfig());
 		AbilitySystemComponent->CurrentMontageJumpToSection(SectionName);
 	}
 }
@@ -141,9 +141,4 @@ const FPREnemyAttackHitConfig& UPRGameplayAbility_PenitentStaffSwing::GetCurrent
 	default:
 		return StaffSwing1HitConfig;
 	}
-}
-
-void UPRGameplayAbility_PenitentStaffSwing::ApplyCurrentHitConfig()
-{
-	ApplyEnemyAttackHitConfig(GetCurrentHitConfig());
 }

@@ -53,7 +53,6 @@ private:
 	void JumpToSection(FName SectionName, EPRPenitentStaffSwingSection NewSection);
 	float GetDistanceToCurrentTarget() const;
 	const FPREnemyAttackHitConfig& GetCurrentHitConfig() const;
-	void ApplyCurrentHitConfig();
 
 protected:
 	// StaffSwing 1타 시작 섹션

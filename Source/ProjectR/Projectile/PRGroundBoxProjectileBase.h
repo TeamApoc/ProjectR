@@ -9,8 +9,10 @@
 #include "PRGroundBoxProjectileBase.generated.h"
 
 class APRGroundBoxProjectileBase;
+class APRPenitentCharacter;
 class UAbilitySystemComponent;
 class UBoxComponent;
+class UGameplayEffect;
 class UNiagaraComponent;
 class UPrimitiveComponent;
 class UProjectileMovementComponent;
@@ -76,6 +78,10 @@ public:
 	UFUNCTION(BlueprintCallable, BlueprintAuthorityOnly, Category = "ProjectR|GroundBox")
 	void InitGroundBoxProjectile(const FPRGroundBoxLaunchParams& Params);
 
+	// 부착 소환 상태 초기화
+	UFUNCTION(BlueprintCallable, BlueprintAuthorityOnly, Category = "ProjectR|GroundBox")
+	void InitializeAttachedBarrier(APRPenitentCharacter* OwnerPenitent);
+
 	// 이동 시작 처리
 	UFUNCTION(BlueprintCallable, BlueprintAuthorityOnly, Category = "ProjectR|GroundBox")
 	void LaunchGroundBoxProjectile(const FVector& LaunchDirection, float LaunchSpeed);
@@ -117,6 +123,9 @@ protected:
 	// 대상 피해 적용
 	void ApplyDamageToTarget(AActor* TargetActor, UAbilitySystemComponent* TargetAbilitySystemComponent, const FHitResult& HitResult);
 
+	// 기본 피해 스펙 생성
+	FGameplayEffectSpecHandle BuildDefaultDamageEffectSpec(AActor* InSourceActor) const;
+
 	// 쿨다운 검사
 	bool IsTargetOnCooldown(AActor* TargetActor, UAbilitySystemComponent* TargetAbilitySystemComponent) const;
 
@@ -124,7 +133,7 @@ protected:
 	void SetTargetCooldown(AActor* TargetActor, UAbilitySystemComponent* TargetAbilitySystemComponent);
 
 	// 지면 스냅
-	void SnapToGround();
+	void SnapToGround(float DeltaSeconds, bool bInstant);
 
 	// 벽 충돌 판정
 	bool IsBlockingWallHit(const FHitResult& HitResult) const;
@@ -184,7 +193,10 @@ public:
 protected:
 	// 위치 기준 루트
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "ProjectR|GroundBox")
-	TObjectPtr<USceneComponent> RootSceneComponent;
+	TObjectPtr<USceneComponent> Root;
+	
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "ProjectR|GroundBox")
+	TObjectPtr<USceneComponent> TraceStartPoint;
 
 	// 전투 대상 감지
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "ProjectR|GroundBox")
@@ -214,6 +226,18 @@ protected:
 	UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Category = "ProjectR|GroundBox|Health")
 	float CurrentHealth = 0.0f;
 
+	// 기본 피해 GE
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "ProjectR|GroundBox|Damage")
+	TSubclassOf<UGameplayEffect> DamageEffectClass;
+
+	// 기본 체력 피해
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "ProjectR|GroundBox|Damage", meta = (ClampMin = "0.0"))
+	float DefaultDamageAmount = 35.0f;
+
+	// 기본 그로기 피해
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "ProjectR|GroundBox|Damage", meta = (ClampMin = "0.0"))
+	float DefaultGroggyDamageAmount = 0.0f;
+
 	// 대상 쿨다운 시간
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "ProjectR|GroundBox|Damage", meta = (ClampMin = "0.0"))
 	float TargetCooldownTimeSeconds = 3.0f;
@@ -221,6 +245,10 @@ protected:
 	// 안전 수명
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "ProjectR|GroundBox|Lifetime", meta = (ClampMin = "0.0"))
 	float MaxSafetyLifeTime = 30.0f;
+	
+	// Launch 후 수명
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "ProjectR|GroundBox|Lifetime", meta = (ClampMin = "0.0"))
+	float LaunchLifeTime = 2.5f;
 
 	// 지면 스냅 추적 거리
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "ProjectR|GroundBox|GroundSnap", meta = (ClampMin = "0.0"))
@@ -229,6 +257,14 @@ protected:
 	// 지면 스냅 허용 표면 법선
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "ProjectR|GroundBox|GroundSnap", meta = (ClampMin = "0.0", ClampMax = "1.0"))
 	float GroundNormalThreshold = 0.7f;
+
+	// 지면 스냅 보간 속도
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "ProjectR|GroundBox|GroundSnap", meta = (ClampMin = "0.0"))
+	float GroundSnapInterpSpeed = 20.0f;
+
+	// 지면 스냅 완료 허용 거리
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "ProjectR|GroundBox|GroundSnap", meta = (ClampMin = "0.0"))
+	float GroundSnapTolerance = 1.0f;
 
 private:
 	// 소스 액터 약참조

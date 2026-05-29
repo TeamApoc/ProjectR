@@ -3,8 +3,7 @@
 #include "PRGameplayAbility_PenitentBarrierSummon.h"
 
 #include "AbilitySystemComponent.h"
-#include "Components/SkeletalMeshComponent.h"
-#include "ProjectR/AbilitySystem/Abilities/Enemy/Penitent/PRPenitentBarrierActor.h"
+#include "ProjectR/Projectile/PRGroundBoxProjectileBase.h"
 #include "ProjectR/Character/Enemy/Penitent/PRPenitentCharacter.h"
 #include "ProjectR/PRGameplayTags.h"
 
@@ -64,40 +63,34 @@ void UPRGameplayAbility_PenitentBarrierSummon::ActivateAbility(const FGameplayAb
 		return;
 	}
 
-	//
-	const USkeletalMeshComponent* MeshComponent = PenitentCharacter->GetMesh();
-	USceneComponent* BarrierAttachPoint = PenitentCharacter->GetBarrierAttachPoint();
-	const bool bHasAttachPoint = IsValid(BarrierAttachPoint);
-	const FTransform SpawnTransform = bHasAttachPoint
-		? BarrierAttachPoint->GetComponentTransform()
-		: FTransform(PenitentCharacter->GetActorRotation(), PenitentCharacter->GetActorTransform().TransformPositionNoScale(BarrierSpawnOffset));
-
+	// 배리어 부착 기준 위치
+	USceneComponent* BarrierAttachPoint = PenitentCharacter->GetBarrierAttachPoint();	
+	if (!IsValid(BarrierAttachPoint))
+	{
+		UE_LOG(LogTemp, Warning, TEXT("UPRGameplayAbility_PenitentBarrierSummon | 배리어 부착 씬 컴포넌트가 유효하지 않습니다."));
+		return;
+	}
+	
+	const FTransform SpawnTransform = BarrierAttachPoint->GetComponentTransform();
 	FActorSpawnParameters SpawnParameters;
 	SpawnParameters.Owner = PenitentCharacter;
 	SpawnParameters.Instigator = PenitentCharacter;
 	SpawnParameters.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
 
-	APRPenitentBarrierActor* BarrierActor = World->SpawnActor<APRPenitentBarrierActor>(
+	APRGroundBoxProjectileBase* BarrierActor = World->SpawnActor<APRGroundBoxProjectileBase>(
 		BarrierActorClass,
 		SpawnTransform,
 		SpawnParameters);
 
 	if (!IsValid(BarrierActor))
 	{
+		UE_LOG(LogTemp, Warning, TEXT("UPRGameplayAbility_PenitentBarrierSummon | 배리어 액터가 정상적으로 스폰되지 않았습니다."));
 		EndAbility(Handle, ActorInfo, ActivationInfo, true, true);
 		return;
 	}
 
-	if (bHasAttachPoint)
-	{
-		// 소켓 부착
-		BarrierActor->AttachToComponent(BarrierAttachPoint, FAttachmentTransformRules::KeepWorldTransform);
-	}
-	else
-	{
-		// 액터 부착
-		BarrierActor->AttachToActor(PenitentCharacter, FAttachmentTransformRules::KeepWorldTransform);
-	}
+	// 배리어를 씬 컴포넌트에 부착
+	BarrierActor->AttachToComponent(BarrierAttachPoint, FAttachmentTransformRules::KeepWorldTransform);
 
 	BarrierActor->InitializeAttachedBarrier(PenitentCharacter);
 	PenitentCharacter->SetSpawnedBarrierActor(BarrierActor);

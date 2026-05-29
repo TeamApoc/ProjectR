@@ -1223,6 +1223,7 @@ void UPRWeaponManagerComponent::SetWeaponArmedStateInternal(EPRArmedState NewArm
 
 	// 서버 로컬 Actor도 무장 상태에 맞춰 즉시 최신화
 	RefreshAllWeaponActors();
+	RefreshAnimLayer();
 }
 
 void UPRWeaponManagerComponent::SetCurrentWeaponSlotInternal(EPRWeaponSlotType TargetSlot)
@@ -1565,6 +1566,7 @@ void UPRWeaponManagerComponent::OnRep_ArmedState(EPRArmedState OldArmedState)
 
 	// 무장 상태 변화에 맞춰 두 슬롯의 Actor와 부착 상태 갱신
 	RefreshAllWeaponActors();
+	RefreshAnimLayer();
 }
 
 void UPRWeaponManagerComponent::OnRep_PrimaryWeaponInstance()
@@ -1880,7 +1882,9 @@ void UPRWeaponManagerComponent::RefreshAnimLayer()
 	TSubclassOf<UAnimInstance> TargetAnimLayerClass = nullptr;
 
 	const FPRWeaponVisualInfo& CurrentWeaponVisualInfo = GetCurrentWeaponVisualInfo();
-	if (!CurrentWeaponVisualInfo.IsEmpty() && IsValid(CurrentWeaponVisualInfo.WeaponData))
+	if (ArmedState == EPRArmedState::Armed
+		&& !CurrentWeaponVisualInfo.IsEmpty()
+		&& IsValid(CurrentWeaponVisualInfo.WeaponData))
 	{
 		TargetAnimLayerClass = CurrentWeaponVisualInfo.WeaponData->WeaponAnimLayerClass;
 	}

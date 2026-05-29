@@ -103,6 +103,7 @@ namespace PRGameplayTags
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(State_Block_Move); // 움직임 비활성화 상태
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(State_Reviving); // 소생중 상태
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(State_WeaponZooming); // 무기 줌 상태
+	UE_DECLARE_GAMEPLAY_TAG_EXTERN(State_SwappingWeapon); // 무기 교체 Draw 몽타주 진행 상태
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(State_Mod_Primary_GaugeLocked); // 주무기 Mod 게이지 축적 차단 상태
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(State_Mod_Secondary_GaugeLocked); // 보조무기 Mod 게이지 축적 차단 상태
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(State_Mod_Fire_Enabled); // 발사형 모드 활성 상태

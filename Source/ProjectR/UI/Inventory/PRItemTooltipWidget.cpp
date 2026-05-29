@@ -5,15 +5,14 @@
 
 #include "Components/Image.h"
 #include "Components/TextBlock.h"
-#include "ProjectR/ItemSystem/Data/PRItemDataAsset.h"
 
-void UPRItemTooltipWidget::SetTooltipViewData(const FPRInventoryItemSlotViewData& InViewData)
+void UPRItemTooltipWidget::SetTooltipViewData(const FPRItemTooltipViewData& InViewData)
 {
 	ViewData = InViewData;
 	RefreshNativeDisplay();
 }
 
-FPRInventoryItemSlotViewData UPRItemTooltipWidget::GetTooltipViewData() const
+FPRItemTooltipViewData UPRItemTooltipWidget::GetTooltipViewData() const
 {
 	return ViewData;
 }
@@ -27,55 +26,102 @@ void UPRItemTooltipWidget::RefreshNativeDisplay()
 
 	if (IsValid(ItemTypeText))
 	{
-		ItemTypeText->SetText(GetItemTypeText());
+		ItemTypeText->SetText(ViewData.ItemTypeText);
 	}
 
 	if (IsValid(ItemIconImage))
 	{
-		ItemIconImage->SetBrushFromTexture(ViewData.Icon.Get());
+		ItemIconImage->SetVisibility(ESlateVisibility::Collapsed);
 	}
 
 	if (IsValid(DescriptionText))
 	{
-		FText Description = FText::GetEmpty();
-		if (ViewData.InventoryAction == EPRInventoryAction::Deactivate && !IsValid(ViewData.ItemData))
-		{
-			Description = FText::FromString(TEXT("현재 장착을 해제합니다."));
-		}
-		else if (ViewData.InventoryAction == EPRInventoryAction::Deactivate)
-		{
-			Description = FText::FromString(TEXT("현재 장착 중입니다."));
-		}
-		else if (ViewData.bSelected)
-		{
-			Description = FText::FromString(TEXT("현재 선택 중입니다."));
-		}
+		DescriptionText->SetText(ViewData.Description);
+	}
 
-		DescriptionText->SetText(Description);
+	const bool bUseSplitDetailText = IsValid(DetailLabelText) || IsValid(DetailValueText);
+	if (IsValid(DetailLabelText))
+	{
+		DetailLabelText->SetText(MakeDetailLabelText());
+	}
+
+	if (IsValid(DetailValueText))
+	{
+		DetailValueText->SetText(MakeDetailValueText());
+	}
+
+	if (IsValid(DetailText))
+	{
+		DetailText->SetVisibility(bUseSplitDetailText ? ESlateVisibility::Collapsed : ESlateVisibility::Visible);
+		if (!bUseSplitDetailText)
+		{
+			DetailText->SetText(MakeDetailText());
+		}
 	}
 }
 
-FText UPRItemTooltipWidget::GetItemTypeText() const
+FText UPRItemTooltipWidget::MakeDetailText() const
 {
-	switch (ViewData.ItemType)
+	if (ViewData.DetailLines.IsEmpty())
 	{
-	case EPRItemType::Weapon:
-		return FText::FromString(TEXT("무기"));
-
-	case EPRItemType::Mod:
-		return FText::FromString(TEXT("Mod"));
-
-	case EPRItemType::Consumable:
-		return FText::FromString(TEXT("소비"));
-
-	case EPRItemType::Material:
-		return FText::FromString(TEXT("재료"));
-
-	case EPRItemType::Equipment:
-		return FText::FromString(TEXT("장비"));
-
-	case EPRItemType::None:
-	default:
 		return FText::GetEmpty();
 	}
+
+	FString DetailString;
+	for (int32 Index = 0; Index < ViewData.DetailLines.Num(); ++Index)
+	{
+		const FPRItemTooltipDetailLineViewData& DetailLine = ViewData.DetailLines[Index];
+		if (Index > 0)
+		{
+			DetailString.Append(TEXT("\n"));
+		}
+
+		DetailString.Append(FString::Printf(TEXT("%s: %s"), *DetailLine.Label.ToString(), *DetailLine.Value.ToString()));
+	}
+
+	return FText::FromString(DetailString);
+}
+
+FText UPRItemTooltipWidget::MakeDetailLabelText() const
+{
+	if (ViewData.DetailLines.IsEmpty())
+	{
+		return FText::GetEmpty();
+	}
+
+	FString DetailString;
+	for (int32 Index = 0; Index < ViewData.DetailLines.Num(); ++Index)
+	{
+		const FPRItemTooltipDetailLineViewData& DetailLine = ViewData.DetailLines[Index];
+		if (Index > 0)
+		{
+			DetailString.Append(TEXT("\n"));
+		}
+
+		DetailString.Append(DetailLine.Label.ToString());
+	}
+
+	return FText::FromString(DetailString);
+}
+
+FText UPRItemTooltipWidget::MakeDetailValueText() const
+{
+	if (ViewData.DetailLines.IsEmpty())
+	{
+		return FText::GetEmpty();
+	}
+
+	FString DetailString;
+	for (int32 Index = 0; Index < ViewData.DetailLines.Num(); ++Index)
+	{
+		const FPRItemTooltipDetailLineViewData& DetailLine = ViewData.DetailLines[Index];
+		if (Index > 0)
+		{
+			DetailString.Append(TEXT("\n"));
+		}
+
+		DetailString.Append(DetailLine.Value.ToString());
+	}
+
+	return FText::FromString(DetailString);
 }

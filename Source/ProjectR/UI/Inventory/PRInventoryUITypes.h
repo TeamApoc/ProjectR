@@ -72,3 +72,46 @@ public:
 	bool bShowStackCount = false;
 };
 
+// 아이템 툴팁 상세 정보 한 줄 표시 데이터
+USTRUCT(BlueprintType)
+struct PROJECTR_API FPRItemTooltipDetailLineViewData
+{
+	GENERATED_BODY()
+
+public:
+	// 상세 항목 이름
+	UPROPERTY(BlueprintReadOnly, Category = "ProjectR|Inventory|Tooltip")
+	FText Label;
+
+	// 상세 항목 값
+	UPROPERTY(BlueprintReadOnly, Category = "ProjectR|Inventory|Tooltip")
+	FText Value;
+};
+
+// 아이템 툴팁 표시 데이터
+USTRUCT(BlueprintType)
+struct PROJECTR_API FPRItemTooltipViewData
+{
+	GENERATED_BODY()
+
+public:
+	// UI에 표시할 아이템 이름
+	UPROPERTY(BlueprintReadOnly, Category = "ProjectR|Inventory|Tooltip")
+	FText DisplayName;
+
+	// UI에 표시할 아이템 타입
+	UPROPERTY(BlueprintReadOnly, Category = "ProjectR|Inventory|Tooltip")
+	FText ItemTypeText;
+
+	// UI에 표시할 아이템 설명
+	UPROPERTY(BlueprintReadOnly, Category = "ProjectR|Inventory|Tooltip")
+	FText Description;
+
+	// UI에 표시할 상세 항목 목록
+	UPROPERTY(BlueprintReadOnly, Category = "ProjectR|Inventory|Tooltip")
+	TArray<FPRItemTooltipDetailLineViewData> DetailLines;
+
+	// 표시할 실제 아이템 정보 보유 여부
+	UPROPERTY(BlueprintReadOnly, Category = "ProjectR|Inventory|Tooltip")
+	bool bHasItem = false;
+};

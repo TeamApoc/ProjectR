@@ -55,8 +55,8 @@ protected:
 	// 전멸을 확정하고 모든 전투 참여 플레이어에게 최종 사망 이벤트를 보낸다.
 	void ConfirmPartyWipe();
 
-	// 전멸한 파티를 마지막 활성 Waypoint 기준으로 재스폰한다
-	void RespawnPartyAtLastActiveWaypoint();
+	// 전멸 파티의 마지막 활성 웨이포인트 기준 같은 맵 서버 이동 재시작
+	void RestartMapForPartyRespawn();
 
 	// 지정 Waypoint 태그와 일치하는 Waypoint Actor를 찾는다
 	APRWaypointActor* FindWaypointById(FGameplayTag WaypointId) const;

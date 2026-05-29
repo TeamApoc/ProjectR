@@ -91,6 +91,8 @@ void APRPlayerController::AcknowledgePossession(APawn* InPawn)
 {
 	Super::AcknowledgePossession(InPawn);
 
+	ResetPlayer();
+
 	// 새 폰 possession 시점에 폰 의존 UI를 재초기화. 초기 possession과 리스폰 양쪽에서 동작
 	if (IsValid(UIControllerComponent))
 	{
@@ -193,6 +195,8 @@ void APRPlayerController::PostProcessInput(const float DeltaTime, const bool bGa
 
 void APRPlayerController::ClientStartMapTransition_Implementation(float Delay, EPRMapTransitionType TransitionType)
 {
+	ResetPlayer();
+
 	if (IsValid(UIControllerComponent))
 	{
 		// UI 정리
@@ -280,6 +284,15 @@ UPRAbilitySystemComponent* APRPlayerController::GetPRASC() const
 	{
 		return CachedASC.Get();
 	}
+
+	if (APRPlayerState* PRPlayerState = GetPlayerState<APRPlayerState>())
+	{
+		if (UPRAbilitySystemComponent* ASC = PRPlayerState->GetPRAbilitySystemComponent())
+		{
+			CachedASC = ASC;
+			return ASC;
+		}
+	}
 	
 	if (APawn* LocalPawn = GetPawn())
 	{
@@ -290,6 +303,40 @@ UPRAbilitySystemComponent* APRPlayerController::GetPRASC() const
 		}
 	}
 	return nullptr;
+}
+
+void APRPlayerController::ResetPlayer()
+{
+	CachedASC.Reset();
+	if (APRPlayerState* PRPlayerState = GetPlayerState<APRPlayerState>())
+	{
+		// PlayerState 소유 ASC 캐시 갱신
+		CachedASC = PRPlayerState->GetPRAbilitySystemComponent();
+	}
+
+	ResetLocalInteractionVisualState();
+}
+
+void APRPlayerController::ResetLocalInteractionVisualState()
+{
+	if (!IsLocalController())
+	{
+		return;
+	}
+
+	if (IsValid(InteractorComponent))
+	{
+		// 전환 전 로컬 포커스 정리
+		InteractorComponent->ClearFocus();
+	}
+
+	APRPlayerCharacter* LocalCharacter = Cast<APRPlayerCharacter>(GetPawn());
+	UPRInteractableComponent* Interactable = IsValid(LocalCharacter) ? LocalCharacter->GetInteractableComponent() : nullptr;
+	if (IsValid(Interactable) && Interactable->IsDepthStencilApplied())
+	{
+		// 본인 캐릭터 외곽선 잔상 제거
+		Interactable->ResetDepthStencilValues();
+	}
 }
 
 void APRPlayerController::UpdateCompanionHighlight()
@@ -322,11 +369,19 @@ void APRPlayerController::UpdateCompanionHighlight()
 	{
 		if (OtherCharacter == MyPawn)
 		{
+			UPRInteractableComponent* OwnInteractable = OtherCharacter->GetInteractableComponent();
+			if (IsValid(OwnInteractable) && OwnInteractable->IsDepthStencilApplied())
+			{
+				// 본인 캐릭터 외곽선 방어 정리
+				OwnInteractable->ResetDepthStencilValues();
+			}
 			continue;
 		}
 		
 		UPRInteractableComponent* Interactable = OtherCharacter->GetInteractableComponent();
-		if (InteractorComponent->GetFocusedComponent() == Interactable)
+		const bool bFocusedByInteractor = IsValid(InteractorComponent)
+			&& InteractorComponent->GetFocusedComponent() == Interactable;
+		if (bFocusedByInteractor)
 		{
 			continue;
 		}

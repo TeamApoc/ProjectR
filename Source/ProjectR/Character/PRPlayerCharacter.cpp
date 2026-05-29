@@ -64,7 +64,18 @@ APRPlayerCharacter::APRPlayerCharacter()
 	Mesh_Legs->SetupAttachment(LeaderMesh);
 	Mesh_Legs->SetLeaderPoseComponent(LeaderMesh);
 	Mesh_Legs->bUseAttachParentBound = true;
-
+	Mesh_BackPack = CreateDefaultSubobject<USkeletalMeshComponent>(TEXT("Mesh_BackPack"));
+	Mesh_BackPack->SetupAttachment(LeaderMesh);
+	Mesh_BackPack->SetLeaderPoseComponent(LeaderMesh);
+	Mesh_BackPack->bUseAttachParentBound = true;
+	
+	Mesh_Flashlight = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("Mesh_Flashlight"));
+	Mesh_Flashlight->SetupAttachment(LeaderMesh,TEXT("Light_Socket"));
+	Mesh_Flashlight->SetRelativeRotation(FRotator(90.0f, 180.0f, 0.0f));
+	Mesh_FlashlightGlow = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("Mesh_FlashlightGlow"));
+	Mesh_FlashlightGlow->SetupAttachment(Mesh_Flashlight);
+	Mesh_FlashlightGlow->SetRelativeLocationAndRotation(FVector(0.f,4.1f,8.2f),FRotator(0.f,0.f,90.f));
+	
 	// 카메라 붐 설정 (캐릭터 뒤에 배치)
 	CameraBoom = CreateDefaultSubobject<UPRSpringArmComponent>(TEXT("CameraBoom"));
 	CameraBoom->SetupAttachment(RootComponent);
@@ -799,13 +810,25 @@ void APRPlayerCharacter::SetSprintingFromAbility(bool bNewSprinting)
 
 void APRPlayerCharacter::SetFlashlightEnabled(bool bEnabled) const
 {
-	if (IsLocallyControlled())
+	FlashlightComponent->SetFlashlightEnabled(bEnabled);
+	Mesh_FlashlightGlow->SetVisibility(bEnabled);
+	ServerSetFlashlightEnabled(bEnabled);
+}
+
+void APRPlayerCharacter::ServerSetFlashlightEnabled_Implementation(bool bEnabled) const
+{
+	if (HasAuthority())
 	{
-		FlashlightComponent->SetFlashlightEnabled(bEnabled);
+		MulticastSetFlashlightEnabled(bEnabled);
 	}
-	else
+}
+
+void APRPlayerCharacter::MulticastSetFlashlightEnabled_Implementation(bool bEnabled) const
+{
+	if (!IsLocallyControlled())
 	{
 		FlashlightComponent->SetFlashlightEnabled(false);
+		Mesh_FlashlightGlow->SetVisibility(bEnabled);	
 	}
 }
 

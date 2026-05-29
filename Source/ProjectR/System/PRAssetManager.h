@@ -9,7 +9,21 @@
 class UPRAbilitySystemRegistry;
 class UDataTable;
 class UPRItemDataAsset;
+struct FStreamableHandle;
 struct FPRMonsterDropTableRow;
+
+// 비동기 로드 완료 결과
+struct FPRAssetLoadResult
+{
+	// 요청 식별자
+	uint64 RequestId = 0;
+
+	// 요청 경로별 로드 결과
+	TMap<FSoftObjectPath, TWeakObjectPtr<UObject>> LoadedAssets;
+};
+
+// 비동기 로드 완료 네이티브 콜백
+DECLARE_DELEGATE_OneParam(FPRAssetsLoadedNative, const FPRAssetLoadResult&);
 
 // 프로젝트 전용 AssetManager. DeveloperSettings에 지정된 Registry들을 시작 시 동기 로드 및 캐싱
 UCLASS(Config = Game)
@@ -34,6 +48,9 @@ public:
 	// Primary Asset Id로 아이템 데이터 에셋을 조회한다
 	UPRItemDataAsset* GetItemDataByPrimaryAssetId(const FPrimaryAssetId& ItemAssetId);
 
+	// UObject 경로 목록을 타입 해석 없이 비동기 로드 요청
+	uint64 LoadAssetsAsync(const TArray<FSoftObjectPath>& AssetPaths, FPRAssetsLoadedNative Callback);
+
 private:
 	// DeveloperSettings 기반 Registry들을 동기 로드 및 캐시에 등록
 	void LoadRegistries();
@@ -44,4 +61,8 @@ private:
 
 	UPROPERTY(Transient)
 	TObjectPtr<UDataTable> CachedMonsterDropTable;
+
+	uint64 NextAsyncLoadRequestId = 1;
+
+	TMap<uint64, TSharedPtr<FStreamableHandle>> ActiveAsyncLoadHandles;
 };

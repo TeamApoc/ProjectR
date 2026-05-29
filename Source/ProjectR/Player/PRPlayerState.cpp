@@ -381,16 +381,6 @@ void APRPlayerState::SendSurvivalGameplayEvent(const FGameplayTag& EventTag) con
 		AvatarActor,
 		EventTag,
 		Payload);
-	
-	//
-	// if (EventTag.MatchesTagExact(PRGameplayTags::Event_Ability_PlayerDeathConfirmed))
-	// {
-	// 	APRPlayerController* PlayerController = Cast<APRPlayerController>(GetOwner());
-	// 	if (IsValid(PlayerController))
-	// 	{
-	// 		PlayerController->ClientDispatchSurvivalGameplayEvent(EventTag);
-	// 	}
-	// }
 }
 
 void APRPlayerState::ResetSurvivalStateForRespawn()
@@ -419,6 +409,17 @@ void APRPlayerState::ResetSurvivalStateForRespawn()
 		AbilitySystemComponent->RemoveLooseGameplayTag(Tag);
 		AbilitySystemComponent->RemoveReplicatedLooseGameplayTag(Tag);
 	}
+
+	// 리스폰 직전 현재 생존값 복구
+	AbilitySystemComponent->SetNumericAttributeBase(
+		UPRAttributeSet_Common::GetHealthAttribute(),
+		AbilitySystemComponent->GetNumericAttribute(UPRAttributeSet_Common::GetMaxHealthAttribute()));
+	AbilitySystemComponent->SetNumericAttributeBase(
+		UPRAttributeSet_Player::GetRecoverableHealthAttribute(),
+		0.0f);
+	AbilitySystemComponent->SetNumericAttributeBase(
+		UPRAttributeSet_Player::GetStaminaAttribute(),
+		AbilitySystemComponent->GetNumericAttribute(UPRAttributeSet_Player::GetMaxStaminaAttribute()));
 }
 
 void APRPlayerState::GrantCharacterAbilitySet(const UPRAbilitySet* InAbilitySet, UObject* InSourceObject)

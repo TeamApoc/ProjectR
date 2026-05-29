@@ -5,6 +5,7 @@
 
 #include "Components/DirectionalLightComponent.h"
 #include "Components/LightComponent.h"
+#include "Components/MeshComponent.h"
 #include "Components/PrimitiveComponent.h"
 #include "Components/SceneCaptureComponent2D.h"
 #include "Components/SceneComponent.h"
@@ -310,6 +311,25 @@ void APRCharacterPreviewActor::CapturePreview()
 	}
 
 	SceneCaptureComponent->CaptureScene();
+}
+
+void APRCharacterPreviewActor::InitTextureStreaming(float StreamingDuration, float StreamingDistanceMultiplier)
+{
+	InitMeshTextureStreaming(PreviewMeshComponent, StreamingDuration, StreamingDistanceMultiplier);
+	InitMeshTextureStreaming(PreviewHeadMeshComponent, StreamingDuration, StreamingDistanceMultiplier);
+	InitMeshTextureStreaming(PreviewBodyMeshComponent, StreamingDuration, StreamingDistanceMultiplier);
+	InitMeshTextureStreaming(PreviewHandsMeshComponent, StreamingDuration, StreamingDistanceMultiplier);
+	InitMeshTextureStreaming(PreviewLegsMeshComponent, StreamingDuration, StreamingDistanceMultiplier);
+
+	if (APRWeaponActor* PrimaryWeapon = GetWeaponActorBySlot(EPRWeaponSlotType::Primary))
+	{
+		InitMeshTextureStreaming(PrimaryWeapon->GetWeaponMeshComponent(), StreamingDuration, StreamingDistanceMultiplier);
+	}
+
+	if (APRWeaponActor* SecondaryWeapon = GetWeaponActorBySlot(EPRWeaponSlotType::Secondary))
+	{
+		InitMeshTextureStreaming(SecondaryWeapon->GetWeaponMeshComponent(), StreamingDuration, StreamingDistanceMultiplier);
+	}
 }
 
 /*~ AActor Interface ~*/
@@ -698,4 +718,16 @@ void APRCharacterPreviewActor::ClearWeaponActorBySlot(EPRWeaponSlotType SlotType
 	{
 		SecondaryWeaponActor = nullptr;
 	}
+}
+
+void APRCharacterPreviewActor::InitMeshTextureStreaming(USkeletalMeshComponent* MeshComponent, float StreamingDuration, float StreamingDistanceMultiplier) const
+{
+	if (!IsValid(MeshComponent))
+	{
+		return;
+	}
+
+	// SceneCapture 전용 프리뷰의 높은 밉 요청 보정
+	MeshComponent->StreamingDistanceMultiplier = StreamingDistanceMultiplier;
+	MeshComponent->PrestreamTextures(StreamingDuration, true);
 }

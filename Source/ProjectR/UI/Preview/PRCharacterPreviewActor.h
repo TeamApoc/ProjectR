@@ -11,6 +11,7 @@
 class APRPlayerCharacter;
 class APRWeaponActor;
 class UDirectionalLightComponent;
+class UMeshComponent;
 class USceneCaptureComponent2D;
 class USceneComponent;
 class USkeletalMeshComponent;
@@ -48,6 +49,10 @@ public:
 	// 프리뷰 캡처 매 프레임 갱신 여부 설정
 	UFUNCTION(BlueprintCallable, Category = "ProjectR|Inventory|Preview")
 	void SetContinuousCapture(bool bEnabled);
+
+	// 프리뷰 메시 텍스처 스트리밍 준비
+	UFUNCTION(BlueprintCallable, Category = "ProjectR|Inventory|Preview")
+	void InitTextureStreaming(float StreamingDuration, float StreamingDistanceMultiplier);
 
 protected:
 	/*~ AActor Interface ~*/
@@ -99,6 +104,9 @@ private:
 
 	// 지정 슬롯의 무기 프리뷰 액터 참조 비움
 	void ClearWeaponActorBySlot(EPRWeaponSlotType SlotType);
+
+	// 프리뷰 메시 컴포넌트 텍스처 스트리밍 설정
+	void InitMeshTextureStreaming(USkeletalMeshComponent* MeshComponent, float StreamingDuration, float StreamingDistanceMultiplier) const;
 
 protected:
 	// 프리뷰 카메라와 조명의 고정 기준 루트

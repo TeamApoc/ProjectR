@@ -63,13 +63,21 @@ public:
 	UPROPERTY(BlueprintReadOnly, Category = "ProjectR|Inventory")
 	bool bSelected = false;
 
-	// 수량 표시가 필요한 아이템의 현재 보유 개수
+	// 슬롯에 표시할 수량
 	UPROPERTY(BlueprintReadOnly, Category = "ProjectR|Inventory")
 	int32 StackCount = 0;
 
 	// 수량 텍스트 표시 여부
 	UPROPERTY(BlueprintReadOnly, Category = "ProjectR|Inventory")
 	bool bShowStackCount = false;
+
+	// 실제 인벤토리 보유 수량
+	UPROPERTY(BlueprintReadOnly, Category = "ProjectR|Inventory")
+	int32 OwnedStackCount = 0;
+
+	// 실제 인벤토리 보유 수량 유효 여부
+	UPROPERTY(BlueprintReadOnly, Category = "ProjectR|Inventory")
+	bool bHasOwnedStackCount = false;
 };
 
 // 아이템 툴팁 상세 정보 한 줄 표시 데이터

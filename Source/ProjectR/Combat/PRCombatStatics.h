@@ -8,6 +8,7 @@
 #include "ProjectR/Combat/PRCombatInterface.h"
 #include "PRCombatStatics.generated.h"
 
+struct FGameplayEffectSpecHandle;
 class UAbilitySystemComponent;
 class UGameplayEffect;
 
@@ -37,4 +38,10 @@ public:
 	// 공격력(BaseDamage)에 비례하여 기본 그로기 피해량을 산출한다.
 	UFUNCTION(BlueprintPure, Category = "ProjectR|Combat")
 	static float CalculateBaseGroggyDamage(float BaseDamage);
+	
+	// ASC 미보유 전투 대상용 단순 피해 컨텍스트 생성
+	static FPRDamageAppliedContext BuildSimpleDamageAppliedContext(
+		const UAbilitySystemComponent* SourceAbilitySystemComponent,
+		const FGameplayEffectSpecHandle& DamageEffectSpecHandle,
+		const FHitResult* HitResult);
 };

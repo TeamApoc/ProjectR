@@ -1,8 +1,47 @@
 // Copyright ProjectR. All Rights Reserved.
 
 #include "PRCombatStatics.h"
+#include "AbilitySystemComponent.h"
 #include "AbilitySystemBlueprintLibrary.h"
+#include "GameplayEffect.h"
+#include "GameFramework/Pawn.h"
+#include "GameFramework/PlayerController.h"
+#include "GameFramework/PlayerState.h"
+#include "ProjectR/AbilitySystem/AttributeSets/PRAttributeSet_Player.h"
+#include "ProjectR/Combat/PRCombatGameplayTags.h"
 #include "ProjectR/Combat/PRCombatInterface.h"
+
+namespace
+{
+	// 피해 컨텍스트용 플레이어 컨트롤러 해석
+	APlayerController* ResolveDamageInstigatorController(
+		const FGameplayEffectContextHandle& ContextHandle,
+		const AActor* SourceActor)
+	{
+		AActor* InstigatorActor = ContextHandle.GetInstigator();
+		if (APlayerController* PlayerController = Cast<APlayerController>(InstigatorActor))
+		{
+			return PlayerController;
+		}
+
+		if (APlayerState* PlayerState = Cast<APlayerState>(InstigatorActor))
+		{
+			return PlayerState->GetPlayerController();
+		}
+
+		if (const APawn* InstigatorPawn = Cast<APawn>(InstigatorActor))
+		{
+			return Cast<APlayerController>(InstigatorPawn->GetController());
+		}
+
+		if (const APawn* SourcePawn = Cast<APawn>(SourceActor))
+		{
+			return Cast<APlayerController>(SourcePawn->GetController());
+		}
+
+		return nullptr;
+	}
+}
 
 UAbilitySystemComponent* UPRCombatStatics::FindAbilitySystemComponent(const AActor* Actor)
 {
@@ -93,4 +132,60 @@ FPRDamageOutputs UPRCombatStatics::ComputeDamage(const FPRDamageInputs& Inputs, 
 float UPRCombatStatics::CalculateBaseGroggyDamage(float BaseDamage)
 {
 	return BaseDamage * PRCombatConstants::GroggyDamageCoeff;
+}
+
+FPRDamageAppliedContext UPRCombatStatics::BuildSimpleDamageAppliedContext(
+	const UAbilitySystemComponent* SourceAbilitySystemComponent,
+	const FGameplayEffectSpecHandle& DamageEffectSpecHandle,
+	const FHitResult* HitResult)
+{
+	// 단순 피해 컨텍스트 생성 실패
+	if (!IsValid(SourceAbilitySystemComponent))
+	{
+		return FPRDamageAppliedContext();
+	}
+
+	FGameplayEffectSpec* EffectSpec = DamageEffectSpecHandle.Data.Get();
+	// 피해 스펙 조회 실패
+	if (!EffectSpec)
+	{
+		return FPRDamageAppliedContext();
+	}
+
+	const float BaseDamage = EffectSpec->GetSetByCallerMagnitude(
+		PRCombatGameplayTags::SetByCaller_CurrentWeapon_BaseDamage,
+		false,
+		0.0f);
+
+	const float CriticalHitChance = SourceAbilitySystemComponent->GetNumericAttribute(
+		UPRAttributeSet_Player::GetCriticalHitChanceAttribute());
+
+	const float CriticalDamageMultiplier = SourceAbilitySystemComponent->GetNumericAttribute(
+		UPRAttributeSet_Player::GetCriticalDamageMultiplierAttribute());
+
+	const float ClampedCriticalChance = FMath::Clamp(CriticalHitChance, 0.0f, 1.0f);
+	const bool bIsCritical = FMath::FRand() <= ClampedCriticalChance;
+	const float ResolvedCriticalMultiplier = bIsCritical
+		? FMath::Max(CriticalDamageMultiplier, 1.0f)
+		: 1.0f;
+
+	const float FinalDamage = FMath::Max(BaseDamage, 0.0f) * ResolvedCriticalMultiplier;
+	const FGameplayEffectContextHandle& EffectContext = EffectSpec->GetEffectContext();
+
+	FPRDamageAppliedContext DamageContext;
+	EffectSpec->GetAllAssetTags(DamageContext.EffectTags);
+	DamageContext.FinalDamage = FinalDamage;
+	DamageContext.FinalGroggyDamage = 0.0f;
+	DamageContext.bIsCritical = bIsCritical;
+	DamageContext.SourceObject = EffectContext.GetSourceObject();
+	DamageContext.Instigator = EffectContext.GetOriginalInstigator();
+	DamageContext.InstigatorController = ResolveDamageInstigatorController(
+		EffectContext,
+		SourceAbilitySystemComponent->GetAvatarActor());
+	if (HitResult != nullptr)
+	{
+		DamageContext.HitResult = *HitResult;
+	}
+
+	return DamageContext;
 }

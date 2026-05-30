@@ -52,6 +52,8 @@ APRGroundBoxProjectileBase::APRGroundBoxProjectileBase()
 	WallMeshComponent->SetupAttachment(Root);
 	WallMeshComponent->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
 	WallMeshComponent->SetCollisionResponseToAllChannels(ECR_Ignore);
+	// 히트스캔 피격 판정
+	WallMeshComponent->SetCollisionResponseToChannel(PRCollisionChannels::ECC_Combat, ECR_Block);
 	WallMeshComponent->SetCollisionResponseToChannel(PRCollisionChannels::ECC_Projectile, ECR_Block);
 
 	AmbientVFXComponent = CreateDefaultSubobject<UNiagaraComponent>(TEXT("AmbientVFXComponent"));

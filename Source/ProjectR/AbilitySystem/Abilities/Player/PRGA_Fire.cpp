@@ -12,6 +12,8 @@
 #include "ProjectR/AbilitySystem/Tasks/PRAT_SpawnPredictedProjectile.h"
 #include "ProjectR/PRGameplayTags.h"
 #include "ProjectR/Character/PRPlayerCharacter.h"
+#include "ProjectR/Combat/PRCombatInterface.h"
+#include "ProjectR/Combat/PRCombatStatics.h"
 #include "ProjectR/Projectile/PRProjectileBase.h"
 #include "ProjectR/System/PRAssetManager.h"
 #include "ProjectR/System/PREventManagerSubsystem.h"
@@ -504,7 +506,19 @@ void UPRGA_Fire::ApplyDamage(AActor* TargetActor, const FHitResult* HitResult)
 	if (IsValid(TargetASC))
 	{
 		SourceASC->ApplyGameplayEffectSpecToTarget(*SpecHandle.Data.Get(), TargetASC);
+		return;
 	}
+	
+	// 2026.05.30 이건주 수정_ ASC 미보유 대상 대미지 전달 브릿지
+	IPRCombatInterface* CombatTarget = Cast<IPRCombatInterface>(TargetActor);
+	if (!CombatTarget)
+	{
+		return;
+	}
+
+	const FPRDamageAppliedContext DamageContext = UPRCombatStatics::BuildSimpleDamageAppliedContext(SourceASC, SpecHandle, HitResult);
+
+	CombatTarget->ReceiveDamageContext(DamageContext);
 }
 
 void UPRGA_Fire::PlayWeaponMontage(UAnimMontage* Montage, float PlayRate)

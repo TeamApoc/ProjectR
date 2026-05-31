@@ -9,6 +9,7 @@
 
 class APRBossBaseCharacter;
 class APRFaerinGodFallStaticSwordActor;
+class UNiagaraComponent;
 class UAnimSequenceBase;
 class UPRFaerinGodFallDataAsset;
 class USkeletalMeshComponent;
@@ -114,6 +115,9 @@ private:
 	float ResolvePhaseTimingScale() const;
 	void BroadcastEntryFinished(bool bSucceeded);
 	void ClearRigTimers();
+	void StartGodFallBodyNiagaraCuesLocal();
+	void SpawnGodFallBodyNiagaraCueLocal(int32 CueIndex);
+	void CleanupGodFallBodyNiagaraLocal();
 	void DestroyPlacedRigActor();
 	void SetPlacedRigHidden(bool bNewHidden);
 	void ApplyBossPresentationTransform(const FVector& Location, const FRotator& Rotation);
@@ -158,6 +162,14 @@ private:
 	UFUNCTION(NetMulticast, Reliable)
 	void MulticastDestroyPlacedRigActor();
 
+	// God Fall 본체 Niagara cue 재생 예약을 모든 클라이언트에서 시작한다.
+	UFUNCTION(NetMulticast, Reliable)
+	void MulticastStartGodFallBodyNiagaraCues();
+
+	// God Fall 본체 Niagara cue를 모든 클라이언트에서 정리한다.
+	UFUNCTION(NetMulticast, Reliable)
+	void MulticastCleanupGodFallBodyNiagara();
+
 protected:
 	// God Fall rig, bone, StaticSword 수치를 담은 data asset이다.
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Faerin|GodFall")
@@ -201,6 +213,8 @@ private:
 	FTimerHandle RigChargeTimerHandle;
 	FTimerHandle RigTiltPullTimerHandle;
 	FTimerHandle BossDropTimerHandle;
+	TArray<FTimerHandle> BodyNiagaraCueTimerHandles;
+	TArray<FTimerHandle> BodyNiagaraCleanupTimerHandles;
 	int32 NextTargetAssignmentIndex = 0;
 	FVector BossCastGroundLocation = FVector::ZeroVector;
 	FVector BossChargeApexLocation = FVector::ZeroVector;
@@ -223,4 +237,7 @@ private:
 	bool bClientBossPresentationActive = false;
 	bool bClientBossPresentationHolding = false;
 	EPRFaerinGodFallEntryRuntimeState ClientBossPresentationState = EPRFaerinGodFallEntryRuntimeState::Idle;
+
+	UPROPERTY(Transient)
+	TArray<TObjectPtr<UNiagaraComponent>> ActiveBodyNiagaraComponents;
 };

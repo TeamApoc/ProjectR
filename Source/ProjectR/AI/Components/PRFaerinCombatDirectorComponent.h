@@ -10,9 +10,9 @@
 
 class AAIController;
 class APREnemyBaseCharacter;
-class UEnvQuery;
 class UBehaviorTreeComponent;
 class UPRAbilitySystemComponent;
+class UPRFaerinTeleportVFXComponent;
 class UPRPatternDataAsset;
 struct FAbilityEndedData;
 struct FPREnemyPatternQueryRuntime;
@@ -22,6 +22,7 @@ enum class EPRFaerinCombatLoopState : uint8
 {
 	Idle				UMETA(DisplayName = "Idle"),
 	SelectingPattern	UMETA(DisplayName = "Selecting Pattern"),
+	PreparingTeleportVFX UMETA(DisplayName = "Preparing Teleport VFX"),
 	WaitingPatternEnd	UMETA(DisplayName = "Waiting Pattern End"),
 	PostPatternStrafe	UMETA(DisplayName = "Post Pattern Strafe"),
 	ApproachSprint		UMETA(DisplayName = "Approach Sprint"),
@@ -80,42 +81,6 @@ struct PROJECTR_API FPRFaerinNearTeleportRequest
 	// 근거리 텔레포트 접근의 기준 타깃이다.
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Faerin")
 	TObjectPtr<AActor> TargetActor;
-
-	// 사라진 뒤 재등장하기까지 기다리는 시간이다.
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Faerin")
-	float ReappearDelaySeconds = 0.0f;
-
-	// 자기 위치 기준 근거리 텔레포트가 이동할 수 있는 최대 거리다.
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Faerin")
-	float MaxDistanceFromSelf = 0.0f;
-
-	// 자기 주변 재등장 위치를 고를 EQS다.
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Faerin")
-	TObjectPtr<UEnvQuery> QueryTemplate;
-
-	// EQS 실행 방식이다.
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Faerin")
-	TEnumAsByte<EEnvQueryRunMode::Type> QueryRunMode = EEnvQueryRunMode::SingleResult;
-
-	// EQS 후보 선택 방식이다.
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Faerin")
-	EPREnemyQueryCandidateSelectionMode CandidateSelectionMode = EPREnemyQueryCandidateSelectionMode::RandomTopCandidates;
-
-	// EQS Named Float Param 목록이다.
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Faerin")
-	TArray<FPREnemyEQSFloatParam> FloatParams;
-
-	// 상위 후보 최대 선택 개수다.
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Faerin")
-	int32 TopCandidateCount = 0;
-
-	// 최고 점수 대비 유지할 최소 점수 비율이다.
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Faerin")
-	float TopScoreCandidateRatio = 0.0f;
-
-	// 재등장 위치를 NavMesh 위로 보정할 때 사용하는 검색 범위다.
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Faerin")
-	FVector NavProjectExtent = FVector::ZeroVector;
 };
 
 enum class EPRFaerinObservedAbilityRole : uint8
@@ -182,6 +147,28 @@ protected:
 	// 현재 ASC 상태에서 지정 AbilityTag를 가진 패턴을 활성화할 수 있는지 확인한다.
 	bool CanActivatePatternAbilityTag(const FGameplayTag& AbilityTag) const;
 
+	// 선택된 패턴 계획을 Teleport VFX 래퍼 또는 Ability 실행으로 시작한다.
+	bool StartPatternPlan(
+		const FPRFaerinPatternPlan& PatternPlan,
+		EPRFaerinObservedAbilityRole ObservedRole = EPRFaerinObservedAbilityRole::Pattern);
+
+	// Phase3 이후 본체 공격 전에 Teleport VFX 래퍼를 거쳐야 하는지 확인한다.
+	bool ShouldRunTeleportVFXWrapper(const FPRFaerinPatternPlan& PatternPlan) const;
+
+	// Teleport VFX 래퍼를 시작하고 완료 후 원래 패턴 GA를 실행하도록 대기한다.
+	bool StartTeleportVFXWrapper(
+		const FPRFaerinPatternPlan& PatternPlan,
+		EPRFaerinObservedAbilityRole ObservedRole);
+
+	// Teleport VFX 래퍼 완료 콜백을 처리한다.
+	void HandleTeleportVFXFinished(bool bSucceeded);
+
+	// Teleport VFX 래퍼 완료 델리게이트를 해제한다.
+	void ClearTeleportVFXFinishedDelegate();
+
+	// Owner가 보유한 Teleport VFX 컴포넌트를 반환한다.
+	UPRFaerinTeleportVFXComponent* GetTeleportVFXComponent() const;
+
 	// 선택된 패턴 Ability를 서버 ASC에서 실행한다.
 	bool ActivatePatternAbility(
 		const FPRFaerinPatternPlan& PatternPlan,
@@ -199,6 +186,15 @@ protected:
 
 	// 선택된 패턴이 포털 계열인지 확인한다.
 	bool IsPortalPatternPlan(const FPRFaerinPatternPlan& PatternPlan) const;
+
+	// 페이즈가 바뀌었으면 주기 보조 패턴 스케줄을 초기화한다.
+	void RefreshPeriodicSidePatternPhase(EPRBossPhase CurrentPhase);
+
+	// 현재 페이즈에서 실행 가능한 주기 보조 패턴을 메인 공격과 별개로 시도한다.
+	void TryActivatePeriodicSidePatterns(const FPRFaerinPhaseLoopConfig& PhaseConfig);
+
+	// 단일 주기 보조 패턴이 실행 가능하면 Ability를 활성화한다.
+	bool TryActivatePeriodicSidePattern(const FPRFaerinPeriodicSidePatternConfig& SidePatternConfig);
 
 	// Ability 종료 델리게이트를 연결한다.
 	void BindAbilityEndDelegate();
@@ -243,10 +239,13 @@ protected:
 	bool BuildApproachSprintRequest(const FPRFaerinPhaseLoopConfig& PhaseConfig, FPRFaerinApproachSprintRequest& OutRequest) const;
 
 	// 근거리 텔레포트 접근 GA가 사용할 실행 요청을 만든다.
-	bool BuildNearTeleportRequest(const FPRFaerinPhaseLoopConfig& PhaseConfig, FPRFaerinNearTeleportRequest& OutRequest) const;
+	bool BuildNearTeleportRequest(FPRFaerinNearTeleportRequest& OutRequest) const;
 
 	// 최종 접근 정책에서 근거리 텔레포트를 사용할지 결정한다.
 	bool ShouldUseNearTeleportApproach(EPRFaerinApproachPolicy ApproachPolicy, const FPRFaerinPhaseLoopConfig& PhaseConfig) const;
+
+	// NearTeleport GA 기본값에서 SprintOrNearTeleport 선택 확률을 읽는다.
+	float ResolveNearTeleportSelectionChance(const FGameplayTag& AbilityTag) const;
 
 	// 패턴 메타데이터와 페이즈 설정을 합쳐 최종 접근 정책을 결정한다.
 	EPRFaerinApproachPolicy ResolveApproachPolicy(const FPRFaerinPatternPlan& PatternPlan, const FPRFaerinPhaseLoopConfig& PhaseConfig) const;
@@ -353,13 +352,18 @@ private:
 	FPRFaerinNearTeleportRequest ActiveNearTeleportRequest;
 	FGameplayAbilitySpecHandle ActiveAbilityHandle;
 	FDelegateHandle AbilityEndedDelegateHandle;
+	FDelegateHandle TeleportVFXFinishedDelegateHandle;
 	FTimerHandle LoopStepFailSafeTimerHandle;
 	FTimerHandle PostPatternStrafeTimerHandle;
 	EPRFaerinCombatLoopState LoopState = EPRFaerinCombatLoopState::Idle;
 	EPRFaerinObservedAbilityRole ObservedAbilityRole = EPRFaerinObservedAbilityRole::None;
+	EPRFaerinObservedAbilityRole PendingTeleportVFXAbilityRole = EPRFaerinObservedAbilityRole::None;
 	int32 NextStrafeDirectionSign = 1;
 	float LastApproachEndTime = -TNumericLimits<float>::Max();
+	EPRBossPhase PeriodicSidePatternPhase = EPRBossPhase::Phase1;
+	TMap<FGameplayTag, float> PeriodicSidePatternNextAllowedTimes;
 	TSet<uint8> RuntimeValidatedPhaseValues;
 	bool bHasLoggedInitializationError = false;
 	bool bHasPendingMainPatternPlan = false;
+	bool bHasPeriodicSidePatternPhase = false;
 };

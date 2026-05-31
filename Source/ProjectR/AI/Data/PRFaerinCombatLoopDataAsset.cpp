@@ -3,7 +3,6 @@
 #include "PRFaerinCombatLoopDataAsset.h"
 
 #include "GameplayAbilitySpec.h"
-#include "EnvironmentQuery/EnvQuery.h"
 #include "ProjectR/AbilitySystem/PRAbilitySystemComponent.h"
 #include "ProjectR/AI/Data/PRPatternDataAsset.h"
 #include "ProjectR/Character/Enemy/PRBossBaseCharacter.h"
@@ -159,6 +158,15 @@ bool UPRFaerinCombatLoopDataAsset::ValidateLoopData(
 				*Metadata.AbilityTag.ToString()));
 		}
 
+		if (Metadata.TeleportWrapperPolicy != EPRFaerinTeleportWrapperPolicy::None
+			&& Metadata.TeleportVFXConvergePolicy == EPRFaerinTeleportVFXConvergePolicy::TargetNearby
+			&& Metadata.TeleportVFXNearbyMaxRadius < Metadata.TeleportVFXNearbyMinRadius)
+		{
+			OutErrors.Add(FString::Printf(
+				TEXT("Faerin PatternMetadata의 Teleport VFX 근처 집결 최대 반경이 최소 반경보다 작다. AbilityTag=%s"),
+				*Metadata.AbilityTag.ToString()));
+		}
+
 		if (bValidateCurrentAbilitySet
 			&& ShouldValidateAbilitySpecForPhase(Metadata.AbilityTag, PatternDataAsset, ValidationPhase))
 		{
@@ -264,31 +272,52 @@ bool UPRFaerinCombatLoopDataAsset::ValidateLoopData(
 				*StaticEnum<EPRBossPhase>()->GetNameStringByValue(static_cast<int64>(PhaseConfig.Phase))));
 		}
 
-		if (PhaseConfig.bUsePostStrafeApproach
-			&& bDefaultUsesNearTeleport
-			&& !IsValid(PhaseConfig.NearTeleportQueryTemplate.Get()))
+		for (const FPRFaerinPeriodicSidePatternConfig& SidePatternConfig : PhaseConfig.PeriodicSidePatterns)
 		{
-			OutErrors.Add(FString::Printf(
-				TEXT("Faerin PhaseConfig의 근거리 텔레포트 EQS가 비어 있어 자기 주변 목적지를 고를 수 없다. Phase=%s"),
-				*StaticEnum<EPRBossPhase>()->GetNameStringByValue(static_cast<int64>(PhaseConfig.Phase))));
-		}
+			if (!SidePatternConfig.bEnabled)
+			{
+				continue;
+			}
 
-		if (PhaseConfig.bUsePostStrafeApproach
-			&& bDefaultUsesNearTeleport
-			&& PhaseConfig.NearTeleportMaxDistanceFromSelf <= 0.0f)
-		{
-			OutErrors.Add(FString::Printf(
-				TEXT("Faerin PhaseConfig의 근거리 텔레포트 최대 거리가 0 이하라 목적지를 사용할 수 없다. Phase=%s"),
-				*StaticEnum<EPRBossPhase>()->GetNameStringByValue(static_cast<int64>(PhaseConfig.Phase))));
-		}
+			if (!SidePatternConfig.AbilityTag.IsValid())
+			{
+				OutErrors.Add(FString::Printf(
+					TEXT("Faerin PhaseConfig의 주기 보조 패턴 AbilityTag가 비어 있다. Phase=%s"),
+					*StaticEnum<EPRBossPhase>()->GetNameStringByValue(static_cast<int64>(PhaseConfig.Phase))));
+				continue;
+			}
 
-		if (PhaseConfig.bUsePostStrafeApproach
-			&& bDefaultUsesNearTeleport
-			&& PhaseConfig.NearTeleportMaxDistanceFromSelf > 500.0f)
-		{
-			OutErrors.Add(FString::Printf(
-				TEXT("Faerin PhaseConfig의 근거리 텔레포트 최대 거리는 500 이하여야 한다. Phase=%s"),
-				*StaticEnum<EPRBossPhase>()->GetNameStringByValue(static_cast<int64>(PhaseConfig.Phase))));
+			if (SidePatternConfig.IntervalSeconds <= 0.0f)
+			{
+				OutErrors.Add(FString::Printf(
+					TEXT("Faerin PhaseConfig의 주기 보조 패턴 간격이 0 이하라 매 루프마다 재시도될 수 있다. Phase=%s, AbilityTag=%s"),
+					*StaticEnum<EPRBossPhase>()->GetNameStringByValue(static_cast<int64>(PhaseConfig.Phase)),
+					*SidePatternConfig.AbilityTag.ToString()));
+			}
+
+			if (SidePatternConfig.ActivationChance <= 0.0f)
+			{
+				OutErrors.Add(FString::Printf(
+					TEXT("Faerin PhaseConfig의 주기 보조 패턴 확률이 0 이하라 실행되지 않는다. Phase=%s, AbilityTag=%s"),
+					*StaticEnum<EPRBossPhase>()->GetNameStringByValue(static_cast<int64>(PhaseConfig.Phase)),
+					*SidePatternConfig.AbilityTag.ToString()));
+			}
+
+			if (PhaseConfig.Phase == ValidationPhase && bValidateCurrentAbilitySet)
+			{
+				FGameplayTagContainer QueryTags;
+				QueryTags.AddTag(SidePatternConfig.AbilityTag);
+
+				TArray<FGameplayAbilitySpec*> MatchingSpecs;
+				AbilitySystemComponent->GetActivatableGameplayAbilitySpecsByAllMatchingTags(QueryTags, MatchingSpecs);
+				if (MatchingSpecs.IsEmpty())
+				{
+					OutErrors.Add(FString::Printf(
+						TEXT("Faerin AbilitySet에서 주기 보조 패턴 GA를 찾지 못했다. Phase=%s, AbilityTag=%s"),
+						*StaticEnum<EPRBossPhase>()->GetNameStringByValue(static_cast<int64>(PhaseConfig.Phase)),
+						*SidePatternConfig.AbilityTag.ToString()));
+				}
+			}
 		}
 	}
 

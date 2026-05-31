@@ -65,7 +65,7 @@ void UPRGameplayAbility_FaerinTeleportLungeSequence::ActivateAbility(const FGame
 	BossCharacter->GetCharacterMovement()->StopMovementImmediately();
 	FaceCurrentTarget();
 
-	if (IsValid(TeleportOutMontage))
+	if (bPlayTeleportOutStage && IsValid(TeleportOutMontage))
 	{
 		PlayStageMontage(TeleportOutMontage, EPRFaerinTeleportLungeStage::TeleportOut);
 		return;
@@ -213,6 +213,12 @@ bool UPRGameplayAbility_FaerinTeleportLungeSequence::PlayStageMontage(
 
 void UPRGameplayAbility_FaerinTeleportLungeSequence::PlayTeleportInStage()
 {
+	if (!bPlayTeleportInStage)
+	{
+		PlayLungeStartStage();
+		return;
+	}
+
 	if (PlayStageMontage(TeleportInMontage, EPRFaerinTeleportLungeStage::TeleportIn))
 	{
 		return;

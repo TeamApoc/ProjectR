@@ -8,6 +8,7 @@
 #include "DrawDebugHelpers.h"
 #include "GameplayEffect.h"
 #include "ProjectR/Combat/PRCombatGameplayTags.h"
+#include "ProjectR/Combat/PRDirectDamageReceiverInterface.h"
 #include "ProjectR/AbilitySystem/Data/PRAbilitySystemRegistry.h"
 #include "ProjectR/AbilitySystem/Tasks/PRAT_SpawnPredictedProjectile.h"
 #include "ProjectR/PRGameplayTags.h"
@@ -504,6 +505,15 @@ void UPRGA_Fire::ApplyDamage(AActor* TargetActor, const FHitResult* HitResult)
 	if (IsValid(TargetASC))
 	{
 		SourceASC->ApplyGameplayEffectSpecToTarget(*SpecHandle.Data.Get(), TargetASC);
+		return;
+	}
+
+	if (IPRDirectDamageReceiverInterface* DirectDamageReceiver = Cast<IPRDirectDamageReceiverInterface>(TargetActor))
+	{
+		const FHitResult EmptyHitResult;
+		DirectDamageReceiver->ApplyDirectDamageFromSpec(
+			*SpecHandle.Data.Get(),
+			HitResult != nullptr ? *HitResult : EmptyHitResult);
 	}
 }
 

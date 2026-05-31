@@ -6,6 +6,8 @@
 #include "Engine/EngineTypes.h"
 #include "Engine/OverlapResult.h"
 #include "Engine/World.h"
+#include "GameFramework/Pawn.h"
+#include "GameFramework/PlayerController.h"
 #include "ProjectR/AbilitySystem/Abilities/Boss/PRBossAbilityTagUtils.h"
 #include "ProjectR/PRGameplayTags.h"
 
@@ -73,6 +75,12 @@ FVector UPRGameplayAbility_FaerinCrashSequence::ResolveCrashAreaCenter() const
 
 void UPRGameplayAbility_FaerinCrashSequence::ApplyCrashAreaDamage()
 {
+	if (CrashDamageMode == EPRFaerinCrashDamageMode::GlobalPlayers)
+	{
+		ApplyCrashGlobalPlayerDamage();
+		return;
+	}
+
 	AActor* AvatarActor = GetAvatarActorFromActorInfo();
 	UWorld* World = GetWorld();
 	if (!IsValid(AvatarActor) || !IsValid(World) || CrashDamageRadius <= 0.0f)
@@ -112,5 +120,31 @@ void UPRGameplayAbility_FaerinCrashSequence::ApplyCrashAreaDamage()
 
 		ApplyAttackPowerDamage(HitActor, CrashDamageMultiplier, CrashPoiseDamage);
 		DamagedActorsThisCrash.Add(HitActorKey);
+	}
+}
+
+void UPRGameplayAbility_FaerinCrashSequence::ApplyCrashGlobalPlayerDamage()
+{
+	AActor* AvatarActor = GetAvatarActorFromActorInfo();
+	UWorld* World = GetWorld();
+	if (!IsValid(AvatarActor) || !IsValid(World))
+	{
+		return;
+	}
+
+	for (FConstPlayerControllerIterator It = World->GetPlayerControllerIterator(); It; ++It)
+	{
+		const APlayerController* PlayerController = It->Get();
+		APawn* TargetPawn = IsValid(PlayerController) ? PlayerController->GetPawn() : nullptr;
+		const TWeakObjectPtr<AActor> TargetKey(TargetPawn);
+		if (!IsValid(TargetPawn)
+			|| TargetPawn == AvatarActor
+			|| DamagedActorsThisCrash.Contains(TargetKey))
+		{
+			continue;
+		}
+
+		ApplyAttackPowerDamage(TargetPawn, CrashDamageMultiplier, CrashPoiseDamage);
+		DamagedActorsThisCrash.Add(TargetKey);
 	}
 }

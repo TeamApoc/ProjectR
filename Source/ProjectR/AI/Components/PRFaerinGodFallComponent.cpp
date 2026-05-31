@@ -8,6 +8,8 @@
 #include "Components/SkeletalMeshComponent.h"
 #include "EngineUtils.h"
 #include "Engine/World.h"
+#include "NiagaraComponent.h"
+#include "NiagaraFunctionLibrary.h"
 #include "TimerManager.h"
 #include "ProjectR/AI/Boss/PRFaerinGodFallStaticSwordActor.h"
 #include "ProjectR/AI/Data/PRFaerinGodFallDataAsset.h"
@@ -41,6 +43,7 @@ void UPRFaerinGodFallComponent::BeginPlay()
 
 void UPRFaerinGodFallComponent::EndPlay(const EEndPlayReason::Type EndPlayReason)
 {
+	CleanupGodFallBodyNiagaraLocal();
 	CancelGodFallEntry();
 	CancelGodFallHazards();
 	Super::EndPlay(EndPlayReason);
@@ -133,6 +136,7 @@ void UPRFaerinGodFallComponent::CancelGodFallEntry()
 	}
 
 	ClearRigTimers();
+	MulticastCleanupGodFallBodyNiagara();
 	bGodFallEntryRunning = false;
 	EntryRuntimeState = EPRFaerinGodFallEntryRuntimeState::Idle;
 	SetComponentTickEnabled(false);
@@ -236,6 +240,7 @@ void UPRFaerinGodFallComponent::NotifyGodFallBodyMontageSequenceFinished()
 	if (EntryRuntimeState == EPRFaerinGodFallEntryRuntimeState::BossDropGroundHolding
 		|| EntryRuntimeState == EPRFaerinGodFallEntryRuntimeState::TiltHolding)
 	{
+		MulticastCleanupGodFallBodyNiagara();
 		EntryRuntimeState = EPRFaerinGodFallEntryRuntimeState::HazardActive;
 		SetComponentTickEnabled(false);
 		EndBossPresentationReplicationOverride();
@@ -335,6 +340,7 @@ void UPRFaerinGodFallComponent::StartGodFallCast()
 		BossChargeStartRotation,
 		BossChargeApexRotation,
 		FMath::Max(GodFallData->BossChargeRiseSeconds, UE_SMALL_NUMBER));
+	MulticastStartGodFallBodyNiagaraCues();
 	EntryRuntimeState = EPRFaerinGodFallEntryRuntimeState::ChargeRising;
 	SetComponentTickEnabled(true);
 
@@ -501,6 +507,7 @@ void UPRFaerinGodFallComponent::FinishBossDropPresentation()
 
 	if (bBodyMontageSequenceFinished)
 	{
+		MulticastCleanupGodFallBodyNiagara();
 		EntryRuntimeState = EPRFaerinGodFallEntryRuntimeState::HazardActive;
 		SetComponentTickEnabled(false);
 		EndBossPresentationReplicationOverride();
@@ -990,6 +997,7 @@ void UPRFaerinGodFallComponent::BroadcastEntryFinished(const bool bSucceeded)
 	bGodFallEntryRunning = false;
 	if (!bSucceeded)
 	{
+		MulticastCleanupGodFallBodyNiagara();
 		EntryRuntimeState = EPRFaerinGodFallEntryRuntimeState::Idle;
 		SetComponentTickEnabled(false);
 		EndBossPresentationReplicationOverride();
@@ -1005,6 +1013,141 @@ void UPRFaerinGodFallComponent::ClearRigTimers()
 		World->GetTimerManager().ClearTimer(RigTiltPullTimerHandle);
 		World->GetTimerManager().ClearTimer(BossDropTimerHandle);
 	}
+}
+
+void UPRFaerinGodFallComponent::StartGodFallBodyNiagaraCuesLocal()
+{
+	CleanupGodFallBodyNiagaraLocal();
+
+	if (!IsValid(GodFallData) || GodFallData->BodyNiagaraCues.IsEmpty())
+	{
+		return;
+	}
+
+	UWorld* World = GetWorld();
+	if (!IsValid(World))
+	{
+		return;
+	}
+
+	BodyNiagaraCueTimerHandles.SetNum(GodFallData->BodyNiagaraCues.Num());
+	for (int32 CueIndex = 0; CueIndex < GodFallData->BodyNiagaraCues.Num(); ++CueIndex)
+	{
+		const FPRFaerinGodFallBodyNiagaraCue& Cue = GodFallData->BodyNiagaraCues[CueIndex];
+		if (!IsValid(Cue.NiagaraSystem))
+		{
+			continue;
+		}
+
+		if (Cue.StartDelaySeconds <= UE_SMALL_NUMBER)
+		{
+			SpawnGodFallBodyNiagaraCueLocal(CueIndex);
+			continue;
+		}
+
+		World->GetTimerManager().SetTimer(
+			BodyNiagaraCueTimerHandles[CueIndex],
+			FTimerDelegate::CreateWeakLambda(this, [this, CueIndex]()
+			{
+				SpawnGodFallBodyNiagaraCueLocal(CueIndex);
+			}),
+			Cue.StartDelaySeconds,
+			false);
+	}
+}
+
+void UPRFaerinGodFallComponent::SpawnGodFallBodyNiagaraCueLocal(const int32 CueIndex)
+{
+	if (!IsValid(GodFallData) || !GodFallData->BodyNiagaraCues.IsValidIndex(CueIndex))
+	{
+		return;
+	}
+
+	const FPRFaerinGodFallBodyNiagaraCue& Cue = GodFallData->BodyNiagaraCues[CueIndex];
+	APRBossBaseCharacter* OwnerBoss = GetOwnerBoss();
+	USkeletalMeshComponent* MeshComponent = IsValid(OwnerBoss) ? OwnerBoss->GetMesh() : nullptr;
+	if (!IsValid(Cue.NiagaraSystem) || !IsValid(MeshComponent))
+	{
+		return;
+	}
+
+	UNiagaraComponent* NiagaraComponent = UNiagaraFunctionLibrary::SpawnSystemAttached(
+		Cue.NiagaraSystem,
+		MeshComponent,
+		Cue.AttachSocketName,
+		Cue.LocationOffset,
+		Cue.RotationOffset,
+		EAttachLocation::KeepRelativeOffset,
+		true);
+	if (!IsValid(NiagaraComponent))
+	{
+		return;
+	}
+
+	NiagaraComponent->SetRelativeScale3D(Cue.Scale);
+	ActiveBodyNiagaraComponents.Add(NiagaraComponent);
+
+	if (Cue.LifeSeconds <= UE_SMALL_NUMBER)
+	{
+		return;
+	}
+
+	UWorld* World = GetWorld();
+	if (!IsValid(World))
+	{
+		return;
+	}
+
+	const int32 ComponentIndex = ActiveBodyNiagaraComponents.Num() - 1;
+	FTimerHandle CleanupTimerHandle;
+	World->GetTimerManager().SetTimer(
+		CleanupTimerHandle,
+		FTimerDelegate::CreateWeakLambda(this, [this, ComponentIndex]()
+		{
+			if (!ActiveBodyNiagaraComponents.IsValidIndex(ComponentIndex))
+			{
+				return;
+			}
+
+			if (UNiagaraComponent* ActiveNiagaraComponent = ActiveBodyNiagaraComponents[ComponentIndex])
+			{
+				ActiveNiagaraComponent->Deactivate();
+				ActiveNiagaraComponent->DestroyComponent();
+			}
+			ActiveBodyNiagaraComponents[ComponentIndex] = nullptr;
+		}),
+		Cue.LifeSeconds,
+		false);
+	BodyNiagaraCleanupTimerHandles.Add(CleanupTimerHandle);
+}
+
+void UPRFaerinGodFallComponent::CleanupGodFallBodyNiagaraLocal()
+{
+	if (UWorld* World = GetWorld())
+	{
+		for (FTimerHandle& TimerHandle : BodyNiagaraCueTimerHandles)
+		{
+			World->GetTimerManager().ClearTimer(TimerHandle);
+		}
+
+		for (FTimerHandle& TimerHandle : BodyNiagaraCleanupTimerHandles)
+		{
+			World->GetTimerManager().ClearTimer(TimerHandle);
+		}
+	}
+
+	BodyNiagaraCueTimerHandles.Reset();
+	BodyNiagaraCleanupTimerHandles.Reset();
+
+	for (UNiagaraComponent* NiagaraComponent : ActiveBodyNiagaraComponents)
+	{
+		if (IsValid(NiagaraComponent))
+		{
+			NiagaraComponent->Deactivate();
+			NiagaraComponent->DestroyComponent();
+		}
+	}
+	ActiveBodyNiagaraComponents.Reset();
 }
 
 void UPRFaerinGodFallComponent::DestroyPlacedRigActor()
@@ -1207,6 +1350,16 @@ void UPRFaerinGodFallComponent::MulticastDestroyPlacedRigActor_Implementation()
 
 	PlacedSwordRigActor = nullptr;
 	PlacedSwordRigMeshComponent = nullptr;
+}
+
+void UPRFaerinGodFallComponent::MulticastStartGodFallBodyNiagaraCues_Implementation()
+{
+	StartGodFallBodyNiagaraCuesLocal();
+}
+
+void UPRFaerinGodFallComponent::MulticastCleanupGodFallBodyNiagara_Implementation()
+{
+	CleanupGodFallBodyNiagaraLocal();
 }
 
 void UPRFaerinGodFallComponent::ClearInvalidStaticSwordRefs()

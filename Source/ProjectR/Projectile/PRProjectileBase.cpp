@@ -15,6 +15,7 @@
 #include "PRProjectileManagerComponent.h"
 #include "Net/UnrealNetwork.h"
 #include "Net/Core/PushModel/PushModel.h"
+#include "ProjectR/Combat/PRDirectDamageReceiverInterface.h"
 
 APRProjectileBase::APRProjectileBase()
 {
@@ -686,22 +687,27 @@ void APRProjectileBase::ApplyEffectToTarget(AActor* TargetActor)
 	{
 		return;
 	}
-	
-	IAbilitySystemInterface* ASI = Cast<IAbilitySystemInterface>(TargetActor);
-	if (!ASI)
+
+	FGameplayEffectSpec* EffectSpec = EffectSpecHandle.Data.Get();
+	if (EffectSpec == nullptr)
 	{
 		return;
 	}
 
-	UAbilitySystemComponent* TargetASC = ASI->GetAbilitySystemComponent();
-	if (!TargetASC)
+	IAbilitySystemInterface* ASI = Cast<IAbilitySystemInterface>(TargetActor);
+	if (ASI)
 	{
+		UAbilitySystemComponent* TargetASC = ASI->GetAbilitySystemComponent();
+		if (TargetASC)
+		{
+			TargetASC->ApplyGameplayEffectSpecToSelf(*EffectSpec);
+		}
 		return;
 	}
-	
-	if (FGameplayEffectSpec* EffectSpec = EffectSpecHandle.Data.Get())
+
+	if (IPRDirectDamageReceiverInterface* DirectDamageReceiver = Cast<IPRDirectDamageReceiverInterface>(TargetActor))
 	{
-		TargetASC->ApplyGameplayEffectSpecToSelf(*EffectSpec);	
+		DirectDamageReceiver->ApplyDirectDamageFromSpec(*EffectSpec, FHitResult());
 	}
 }
 
@@ -711,23 +717,28 @@ void APRProjectileBase::ApplyEffectToTargetWithHit(AActor* TargetActor, const FH
 	{
 		return;
 	}
-	
-	IAbilitySystemInterface* ASI = Cast<IAbilitySystemInterface>(TargetActor);
-	if (!ASI)
+
+	FGameplayEffectSpec* EffectSpec = EffectSpecHandle.Data.Get();
+	if (EffectSpec == nullptr)
 	{
 		return;
 	}
 
-	UAbilitySystemComponent* TargetASC = ASI->GetAbilitySystemComponent();
-	if (!TargetASC)
+	IAbilitySystemInterface* ASI = Cast<IAbilitySystemInterface>(TargetActor);
+	if (ASI)
 	{
+		UAbilitySystemComponent* TargetASC = ASI->GetAbilitySystemComponent();
+		if (TargetASC)
+		{
+			EffectSpec->GetContext().AddHitResult(InHitResult, true);
+			TargetASC->ApplyGameplayEffectSpecToSelf(*EffectSpec);
+		}
 		return;
 	}
-	
-	if (FGameplayEffectSpec* EffectSpec = EffectSpecHandle.Data.Get())
+
+	if (IPRDirectDamageReceiverInterface* DirectDamageReceiver = Cast<IPRDirectDamageReceiverInterface>(TargetActor))
 	{
-		EffectSpec->GetContext().AddHitResult(InHitResult,true);
-		TargetASC->ApplyGameplayEffectSpecToSelf(*EffectSpec);	
+		DirectDamageReceiver->ApplyDirectDamageFromSpec(*EffectSpec, InHitResult);
 	}
 }
 

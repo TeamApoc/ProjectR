@@ -5,10 +5,12 @@
 #include "CoreMinimal.h"
 #include "GameplayEffectTypes.h"
 #include "ProjectR/AI/Boss/PRBossPatternActor.h"
+#include "ProjectR/Combat/PRDirectDamageReceiverInterface.h"
 #include "PRBossPortalActor.generated.h"
 
 class APRProjectileBase;
 class UGameplayEffect;
+class USphereComponent;
 
 // 포털 하나의 내부 생명주기 상태다.
 UENUM(BlueprintType)
@@ -26,7 +28,7 @@ enum class EPRBossPortalState : uint8
 // 보스 포털 패턴의 공용 Helper Actor다.
 // 기존 텔레그래프/활성/만료 생명주기를 유지하면서 타겟락, 반복 발사, 일시정지를 함께 관리한다.
 UCLASS(Blueprintable)
-class PROJECTR_API APRBossPortalActor : public APRBossPatternActor
+class PROJECTR_API APRBossPortalActor : public APRBossPatternActor, public IPRDirectDamageReceiverInterface
 {
 	GENERATED_BODY()
 
@@ -37,6 +39,7 @@ public:
 	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
 	virtual void RequestPatternActorExpire() override;
 	virtual void CancelPatternActor() override;
+	virtual bool ApplyDirectDamageFromSpec(const FGameplayEffectSpec& DamageSpec, const FHitResult& HitResult) override;
 
 	// 현재 포털이 발사/위험 상태인지 반환한다.
 	UFUNCTION(BlueprintPure, Category = "ProjectR|AI|Boss|Portal")
@@ -105,9 +108,29 @@ public:
 	UFUNCTION(BlueprintPure, Category = "ProjectR|AI|Boss|Portal")
 	bool CanFirePortalProjectile() const;
 
+	// 현재 포털 체력을 반환한다.
+	UFUNCTION(BlueprintPure, Category = "ProjectR|AI|Boss|Portal|Health")
+	float GetCurrentPortalHealth() const { return CurrentPortalHealth; }
+
+	// 최대 포털 체력을 반환한다.
+	UFUNCTION(BlueprintPure, Category = "ProjectR|AI|Boss|Portal|Health")
+	float GetMaxPortalHealth() const { return MaxPortalHealth; }
+
+	// 현재 포털 체력 비율을 반환한다.
+	UFUNCTION(BlueprintPure, Category = "ProjectR|AI|Boss|Portal|Health")
+	float GetPortalHealthRatio() const;
+
+	// 서버 권위에서 포털 체력을 직접 감소시킨다.
+	UFUNCTION(BlueprintCallable, BlueprintAuthorityOnly, Category = "ProjectR|AI|Boss|Portal|Health")
+	bool ApplyPortalDamage(float DamageAmount, const FHitResult& HitResult);
+
 protected:
 	virtual void BeginPlay() override;
 	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
+
+	// 복제된 포털 체력 변경을 BP 연출에 전달한다.
+	UFUNCTION()
+	void OnRep_CurrentPortalHealth(float PreviousHealth);
 
 	// 모든 클라이언트에서 텔레그래프 시작 연출을 실행한다.
 	UFUNCTION(NetMulticast, Reliable)
@@ -141,6 +164,14 @@ protected:
 	UFUNCTION(NetMulticast, Reliable)
 	void MulticastPortalFireSequenceCompleted();
 
+	// 모든 클라이언트에 포털 피격 연출을 요청한다.
+	UFUNCTION(NetMulticast, Reliable)
+	void MulticastPortalDamaged(float NewHealth, float PreviousHealth, float DamageAmount, FVector_NetQuantize HitLocation);
+
+	// 모든 클라이언트에 포털 체력 소진 연출을 요청한다.
+	UFUNCTION(NetMulticast, Reliable)
+	void MulticastPortalDestroyedByDamage(FVector_NetQuantize HitLocation);
+
 	// 포털 텔레그래프 시작 BP 이벤트다.
 	UFUNCTION(BlueprintImplementableEvent, Category = "ProjectR|AI|Boss|Portal")
 	void BP_OnPortalTelegraphStarted();
@@ -173,6 +204,14 @@ protected:
 	UFUNCTION(BlueprintImplementableEvent, Category = "ProjectR|AI|Boss|Portal")
 	void BP_OnPortalFireSequenceCompleted();
 
+	// 포털 체력이 변했을 때 BP 피격 연출을 실행한다.
+	UFUNCTION(BlueprintImplementableEvent, Category = "ProjectR|AI|Boss|Portal|Health")
+	void BP_OnPortalHealthChanged(float CurrentHealth, float PreviousHealth, float MaxHealth, float DamageAmount, FVector HitLocation);
+
+	// 포털 체력이 0이 되었을 때 BP 파괴 연출을 실행한다.
+	UFUNCTION(BlueprintImplementableEvent, Category = "ProjectR|AI|Boss|Portal|Health")
+	void BP_OnPortalDestroyedByDamage(FVector HitLocation);
+
 protected:
 	// 다음 포털 발사를 예약한다.
 	void ScheduleNextPortalFire();
@@ -192,6 +231,12 @@ protected:
 	// 포털 투사체에 적용할 GE Spec을 만든다.
 	FGameplayEffectSpecHandle BuildProjectileEffectSpec() const;
 
+	// 피해 Spec에서 포털 체력에 적용할 피해량을 계산한다.
+	float ResolvePortalDamageAmountFromSpec(const FGameplayEffectSpec& DamageSpec) const;
+
+	// 체력 소진으로 포털이 파괴되는 흐름을 실행한다.
+	void HandlePortalHealthDepleted(const FHitResult& HitResult);
+
 	// 실제 발사에 사용할 초기 진행 방향을 계산한다.
 	FVector CalculateProjectileLaunchDirection() const;
 
@@ -199,6 +244,10 @@ protected:
 	bool BuildProjectileSpawnTransformFromDirection(const FVector& LaunchDirection, FTransform& OutTransform) const;
 
 protected:
+	// 사격 판정을 받는 포털 충돌 영역이다.
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Portal|Health")
+	TObjectPtr<USphereComponent> PortalDamageCollision;
+
 	// BeginPlay에서 자동으로 텔레그래프를 시작할지 여부다.
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Portal")
 	bool bAutoStartPortal = false;
@@ -307,6 +356,18 @@ protected:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Portal|Damage", meta = (ClampMin = "0.0"))
 	float ProjectilePoiseDamage = 0.0f;
 
+	// 플레이어 사격으로 포털 체력을 감소시킬지 결정한다.
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Portal|Health")
+	bool bCanTakePlayerWeaponDamage = true;
+
+	// 포털 최대 체력이다. 플레이어 무기 피해가 이 값을 깎는다.
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Portal|Health", meta = (ClampMin = "1.0"))
+	float MaxPortalHealth = 120.0f;
+
+	// 플레이어 무기 피해가 포털 체력에 적용될 때 곱하는 배율이다.
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Portal|Health", meta = (ClampMin = "0.0"))
+	float PlayerWeaponDamageToPortalMultiplier = 1.0f;
+
 	// 현재 포털 내부 생명주기 상태다.
 	UPROPERTY(Replicated, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Portal")
 	EPRBossPortalState PortalState = EPRBossPortalState::None;
@@ -319,6 +380,10 @@ protected:
 	UPROPERTY(Replicated, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Portal")
 	bool bPortalActive = false;
 
+	// 서버 권위로 관리되고 클라이언트에 복제되는 포털 현재 체력이다.
+	UPROPERTY(ReplicatedUsing = OnRep_CurrentPortalHealth, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Portal|Health")
+	float CurrentPortalHealth = 0.0f;
+
 private:
 	FTimerHandle PortalTelegraphStartTimerHandle;
 	FTimerHandle PortalActivationTimerHandle;
@@ -328,4 +393,5 @@ private:
 	FGameplayEffectSpecHandle ProjectileEffectSpecHandle;
 	int32 CurrentProjectileFireCount = 0;
 	uint32 NextPortalProjectileId = 1;
+	bool bPortalHealthDepleted = false;
 };

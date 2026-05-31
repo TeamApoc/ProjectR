@@ -9,6 +9,7 @@
 class UPRFaerinDebugDrawComponent;
 class UPRFaerinCombatDirectorComponent;
 class UPRFaerinGodFallComponent;
+class UPRFaerinTeleportVFXComponent;
 class UMotionWarpingComponent;
 class UNiagaraSystem;
 
@@ -26,9 +27,22 @@ public:
 	UFUNCTION(BlueprintPure, Category = "ProjectR|AI|Boss|Faerin|GodFall")
 	UPRFaerinGodFallComponent* GetGodFallComponent() const { return GodFallComponent; }
 
+	// Phase3 이후 공격 전 Teleport Out / VFX 집결 연출 컴포넌트를 반환한다.
+	UFUNCTION(BlueprintPure, Category = "ProjectR|AI|Boss|Faerin|TeleportVFX")
+	UPRFaerinTeleportVFXComponent* GetTeleportVFXComponent() const { return TeleportVFXComponent; }
+
 	// 근거리 텔레포트 순간 보스 몸 위치의 Niagara를 모든 클라이언트에 재생한다.
 	UFUNCTION(NetMulticast, Reliable)
 	void Multicast_SpawnNearTeleportBodyNiagara(UNiagaraSystem* NiagaraSystem, FName AttachSocketName);
+
+	// 근거리 텔레포트 재등장 위치와 VFX를 모든 클라이언트에 같은 순서로 적용한다.
+	UFUNCTION(NetMulticast, Reliable)
+	void Multicast_PlayNearTeleportReappearPresentation(
+		FVector ReappearLocation,
+		FRotator ReappearRotation,
+		UNiagaraSystem* TeleportOutNiagaraSystem,
+		UNiagaraSystem* ReappearDissolveNiagaraSystem,
+		FName AttachSocketName);
 
 	// 근거리 텔레포트 사라짐/재등장 상태를 모든 클라이언트에 맞춘다.
 	UFUNCTION(NetMulticast, Reliable)
@@ -52,11 +66,18 @@ protected:
 	UPROPERTY(VisibleAnywhere, Category = "ProjectR|AI|Boss|Faerin|GodFall")
 	TObjectPtr<UPRFaerinGodFallComponent> GodFallComponent;
 
+	// Phase3 이후 본체 공격 전 Teleport Out / VFX 집결 연출을 관리하는 컴포넌트다.
+	UPROPERTY(VisibleAnywhere, Category = "ProjectR|AI|Boss|Faerin|TeleportVFX")
+	TObjectPtr<UPRFaerinTeleportVFXComponent> TeleportVFXComponent;
+
 	// 공격 루트모션 방향 보정을 위한 Motion Warping 컴포넌트다.
 	UPROPERTY(VisibleAnywhere, Category = "ProjectR|Animation")
 	TObjectPtr<UMotionWarpingComponent> MotionWarpingComponent;
 
 private:
+	// 현재 보스 Mesh 위치를 기준으로 근거리 텔레포트 Niagara를 재생한다.
+	void SpawnNearTeleportBodyNiagaraLocal(UNiagaraSystem* NiagaraSystem, FName AttachSocketName) const;
+
 	// EventManager로 보스 조우 시작 알림 브로드캐스트
 	void BroadcastBossEncounterBegin();
 

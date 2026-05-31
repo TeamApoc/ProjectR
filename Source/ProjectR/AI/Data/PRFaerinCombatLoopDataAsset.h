@@ -4,13 +4,11 @@
 
 #include "CoreMinimal.h"
 #include "Engine/DataAsset.h"
-#include "EnvironmentQuery/EnvQueryTypes.h"
 #include "GameplayTagContainer.h"
 #include "ProjectR/AI/Data/PREnemyCombatDataAsset.h"
 #include "ProjectR/AI/PREnemyAITypes.h"
 #include "PRFaerinCombatLoopDataAsset.generated.h"
 
-class UEnvQuery;
 class UPRAbilitySystemComponent;
 class UPRPatternDataAsset;
 
@@ -21,6 +19,13 @@ enum class EPRFaerinTeleportWrapperPolicy : uint8
 	TeleportOutOnly		UMETA(DisplayName = "Teleport Out Only"),
 	TeleportOutAndIn	UMETA(DisplayName = "Teleport Out And In"),
 	TeleportOutVFXOnly	UMETA(DisplayName = "Teleport Out VFX Only")
+};
+
+UENUM(BlueprintType)
+enum class EPRFaerinTeleportVFXConvergePolicy : uint8
+{
+	TargetExact			UMETA(DisplayName = "Target Exact"),
+	TargetNearby		UMETA(DisplayName = "Target Nearby")
 };
 
 UENUM(BlueprintType)
@@ -41,6 +46,36 @@ enum class EPRFaerinPostPatternPolicy : uint8
 	PhaseDefault		UMETA(DisplayName = "Phase Default"),
 	ForceStrafe			UMETA(DisplayName = "Force Strafe"),
 	ForceImmediateNext	UMETA(DisplayName = "Force Immediate Next")
+};
+
+USTRUCT(BlueprintType)
+struct PROJECTR_API FPRFaerinPeriodicSidePatternConfig
+{
+	GENERATED_BODY()
+
+	// 해당 주기 보조 패턴을 현재 PhaseConfig에서 사용할지 결정한다.
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Faerin|PeriodicSidePattern")
+	bool bEnabled = false;
+
+	// 주기적으로 실행할 보조 패턴 AbilityTag다.
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Faerin|PeriodicSidePattern", meta = (Categories = "Ability.Boss.Faerin"))
+	FGameplayTag AbilityTag;
+
+	// 해당 페이즈 진입 후 첫 실행까지 기다릴 시간이다.
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Faerin|PeriodicSidePattern", meta = (ClampMin = "0.0"))
+	float InitialDelaySeconds = 0.0f;
+
+	// 한 번 시도한 뒤 다음 시도까지 기다릴 시간이다.
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Faerin|PeriodicSidePattern", meta = (ClampMin = "0.0"))
+	float IntervalSeconds = 12.0f;
+
+	// 실행 가능 시간이 되었을 때 실제로 Ability를 시도할 확률이다.
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Faerin|PeriodicSidePattern", meta = (ClampMin = "0.0", ClampMax = "1.0"))
+	float ActivationChance = 1.0f;
+
+	// 설계 검토용 메모다. 런타임에서는 사용하지 않는다.
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Faerin|PeriodicSidePattern")
+	FString DesignNote;
 };
 
 USTRUCT(BlueprintType)
@@ -128,42 +163,6 @@ struct PROJECTR_API FPRFaerinPhaseLoopConfig
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Faerin", meta = (ClampMin = "0.0"))
 	float ApproachAcceptanceRadius = 120.0f;
 
-	// SprintOrNearTeleport 정책에서 근거리 텔레포트를 선택할 확률이다.
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Faerin", meta = (ClampMin = "0.0", ClampMax = "1.0"))
-	float NearTeleportChance = 0.35f;
-
-	// 근거리 텔레포트가 사라진 뒤 자기 주변 위치에 재등장하기까지 기다리는 시간이다.
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Faerin", meta = (ClampMin = "0.0"))
-	float NearTeleportReappearDelaySeconds = 0.5f;
-
-	// 자기 위치 기준 근거리 텔레포트가 이동할 수 있는 최대 거리다.
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Faerin", meta = (ClampMin = "0.0", ClampMax = "500.0"))
-	float NearTeleportMaxDistanceFromSelf = 500.0f;
-
-	// 자기 주변 근거리 텔레포트 목적지를 고를 EQS다.
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Faerin|NearTeleport|EQS")
-	TObjectPtr<UEnvQuery> NearTeleportQueryTemplate;
-
-	// 근거리 텔레포트 EQS 실행 방식이다. 후보 랜덤 선택을 쓰면 내부 유틸에서 AllMatching으로 보정한다.
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Faerin|NearTeleport|EQS")
-	TEnumAsByte<EEnvQueryRunMode::Type> NearTeleportQueryRunMode = EEnvQueryRunMode::SingleResult;
-
-	// 근거리 텔레포트 EQS 후보 선택 방식이다.
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Faerin|NearTeleport|EQS")
-	EPREnemyQueryCandidateSelectionMode NearTeleportCandidateSelectionMode = EPREnemyQueryCandidateSelectionMode::RandomTopCandidates;
-
-	// 근거리 텔레포트 EQS Named Float Param 목록이다.
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Faerin|NearTeleport|EQS")
-	TArray<FPREnemyEQSFloatParam> NearTeleportFloatParams;
-
-	// 근거리 텔레포트 상위 후보 최대 선택 개수다. 0 이하면 개수 제한이 없다.
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Faerin|NearTeleport|EQS", meta = (ClampMin = "0"))
-	int32 NearTeleportTopCandidateCount = 5;
-
-	// 근거리 텔레포트 최고 점수 대비 유지할 최소 점수 비율이다.
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Faerin|NearTeleport|EQS", meta = (ClampMin = "0.0", ClampMax = "1.0"))
-	float NearTeleportTopScoreCandidateRatio = 0.85f;
-
 	// 접근 목적지를 NavMesh 위로 보정할 때 사용하는 검색 범위다.
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Faerin", meta = (ClampMin = "0.0"))
 	FVector ApproachNavProjectExtent = FVector(240.0f, 240.0f, 360.0f);
@@ -187,6 +186,10 @@ struct PROJECTR_API FPRFaerinPhaseLoopConfig
 	// 보조 포털 후보로 사용할 PatternGroup이다. 비워 두면 Faerin Portal 그룹을 사용한다.
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Faerin|PortalAssist", meta = (Categories = "Pattern.Boss.Faerin", EditCondition = "bUsePrePatternPortalAssist"))
 	FGameplayTag PrePatternPortalGroupTag;
+
+	// 메인 공격 루프와 별개로 주기적으로 설치할 전장 압박용 보조 패턴들이다.
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Faerin|PeriodicSidePattern")
+	TArray<FPRFaerinPeriodicSidePatternConfig> PeriodicSidePatterns;
 };
 
 USTRUCT(BlueprintType)
@@ -209,6 +212,26 @@ struct PROJECTR_API FPRFaerinPatternLoopMetadata
 	// 원작 재현용 텔레포트 전/후처리 정책이다.
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Faerin")
 	EPRFaerinTeleportWrapperPolicy TeleportWrapperPolicy = EPRFaerinTeleportWrapperPolicy::None;
+
+	// Phase3 이후 Teleport VFX가 어느 지점으로 집결할지 결정한다.
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Faerin|TeleportVFX")
+	EPRFaerinTeleportVFXConvergePolicy TeleportVFXConvergePolicy = EPRFaerinTeleportVFXConvergePolicy::TargetExact;
+
+	// TargetNearby 집결 시 타깃 주변에서 사용할 최소 반경이다.
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Faerin|TeleportVFX", meta = (ClampMin = "0.0"))
+	float TeleportVFXNearbyMinRadius = 180.0f;
+
+	// TargetNearby 집결 시 타깃 주변에서 사용할 최대 반경이다.
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Faerin|TeleportVFX", meta = (ClampMin = "0.0"))
+	float TeleportVFXNearbyMaxRadius = 420.0f;
+
+	// 계산된 집결 위치에 더할 월드 오프셋이다.
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Faerin|TeleportVFX")
+	FVector TeleportVFXConvergeWorldOffset = FVector::ZeroVector;
+
+	// 집결 완료 후 보스가 타겟을 바라보도록 회전할지 결정한다.
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Faerin|TeleportVFX")
+	bool bTeleportVFXFaceTargetOnFinish = true;
 
 	// 공격 종료 후 다음 루프를 준비하는 접근 방식이다.
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Faerin")

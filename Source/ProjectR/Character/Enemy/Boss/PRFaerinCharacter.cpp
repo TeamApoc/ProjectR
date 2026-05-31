@@ -9,6 +9,7 @@
 #include "ProjectR/AI/Components/PRFaerinCombatDirectorComponent.h"
 #include "ProjectR/AI/Components/PRFaerinDebugDrawComponent.h"
 #include "ProjectR/AI/Components/PRFaerinGodFallComponent.h"
+#include "ProjectR/AI/Components/PRFaerinTeleportVFXComponent.h"
 #include "ProjectR/PRGameplayTags.h"
 #include "ProjectR/System/PREventManagerSubsystem.h"
 
@@ -17,6 +18,7 @@ APRFaerinCharacter::APRFaerinCharacter()
 	CombatDirectorComponent = CreateDefaultSubobject<UPRFaerinCombatDirectorComponent>(TEXT("CombatDirectorComponent"));
 	DebugDrawComponent = CreateDefaultSubobject<UPRFaerinDebugDrawComponent>(TEXT("DebugDrawComponent"));
 	GodFallComponent = CreateDefaultSubobject<UPRFaerinGodFallComponent>(TEXT("GodFallComponent"));
+	TeleportVFXComponent = CreateDefaultSubobject<UPRFaerinTeleportVFXComponent>(TEXT("TeleportVFXComponent"));
 	MotionWarpingComponent = CreateDefaultSubobject<UMotionWarpingComponent>(TEXT("MotionWarpingComponent"));
 
 	PhaseThresholdRatios.Add(EPRBossPhase::Phase2, 0.87f);
@@ -44,6 +46,33 @@ void APRFaerinCharacter::Multicast_SpawnNearTeleportBodyNiagara_Implementation(
 	UNiagaraSystem* NiagaraSystem,
 	FName AttachSocketName)
 {
+	SpawnNearTeleportBodyNiagaraLocal(NiagaraSystem, AttachSocketName);
+}
+
+void APRFaerinCharacter::Multicast_PlayNearTeleportReappearPresentation_Implementation(
+	FVector ReappearLocation,
+	FRotator ReappearRotation,
+	UNiagaraSystem* TeleportOutNiagaraSystem,
+	UNiagaraSystem* ReappearDissolveNiagaraSystem,
+	FName AttachSocketName)
+{
+	SetActorLocationAndRotation(ReappearLocation, ReappearRotation, false, nullptr, ETeleportType::TeleportPhysics);
+	SetActorHiddenInGame(false);
+	SpawnNearTeleportBodyNiagaraLocal(TeleportOutNiagaraSystem, AttachSocketName);
+	SpawnNearTeleportBodyNiagaraLocal(ReappearDissolveNiagaraSystem, AttachSocketName);
+}
+
+void APRFaerinCharacter::Multicast_SetNearTeleportHidden_Implementation(bool bShouldHide)
+{
+	SetActorHiddenInGame(bShouldHide);
+}
+
+/*~ 보스 조우 이벤트 브로드캐스트 ~*/
+
+void APRFaerinCharacter::SpawnNearTeleportBodyNiagaraLocal(
+	UNiagaraSystem* NiagaraSystem,
+	FName AttachSocketName) const
+{
 	if (!IsValid(NiagaraSystem) || !IsValid(GetMesh()))
 	{
 		return;
@@ -60,13 +89,6 @@ void APRFaerinCharacter::Multicast_SpawnNearTeleportBodyNiagara_Implementation(
 		SpawnTransform.GetScale3D(),
 		true);
 }
-
-void APRFaerinCharacter::Multicast_SetNearTeleportHidden_Implementation(bool bShouldHide)
-{
-	SetActorHiddenInGame(bShouldHide);
-}
-
-/*~ 보스 조우 이벤트 브로드캐스트 ~*/
 
 void APRFaerinCharacter::BroadcastBossEncounterBegin()
 {

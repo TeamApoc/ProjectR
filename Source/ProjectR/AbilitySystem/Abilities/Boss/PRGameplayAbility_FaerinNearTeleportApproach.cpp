@@ -15,6 +15,36 @@
 #include "ProjectR/PRGameplayTags.h"
 #include "TimerManager.h"
 
+DEFINE_LOG_CATEGORY_STATIC(LogPRFaerinNearTeleport, Log, All);
+
+namespace
+{
+	const FName NearTeleportGridSizeParamName(TEXT("NearTeleport_GridSize"));
+	const FName NearTeleportSelfMaxDistanceParamName(TEXT("NearTeleport_SelfMaxDistance"));
+
+	void UpsertFloatParam(TArray<FPREnemyEQSFloatParam>& InOutFloatParams, const FName ParamName, const float Value)
+	{
+		if (ParamName == NAME_None)
+		{
+			return;
+		}
+
+		for (FPREnemyEQSFloatParam& FloatParam : InOutFloatParams)
+		{
+			if (FloatParam.ParamName == ParamName)
+			{
+				FloatParam.Value = Value;
+				return;
+			}
+		}
+
+		FPREnemyEQSFloatParam NewFloatParam;
+		NewFloatParam.ParamName = ParamName;
+		NewFloatParam.Value = Value;
+		InOutFloatParams.Add(NewFloatParam);
+	}
+}
+
 UPRGameplayAbility_FaerinNearTeleportApproach::UPRGameplayAbility_FaerinNearTeleportApproach()
 {
 	SetAssetTags(PRBossAbility::MakePatternAssetTags(PRGameplayTags::Ability_Boss_Faerin_TeleportDash));
@@ -39,8 +69,7 @@ void UPRGameplayAbility_FaerinNearTeleportApproach::ActivateAbility(
 	if (!IsValid(EnemyCharacter)
 		|| !EnemyCharacter->HasAuthority()
 		|| !IsValid(BossCharacter)
-		|| !ResolveTeleportRequest(EnemyCharacter)
-		|| !CommitAbility(Handle, ActorInfo, ActivationInfo))
+		|| !ResolveTeleportRequest(EnemyCharacter))
 	{
 		EndAbility(Handle, ActorInfo, ActivationInfo, true, true);
 		return;
@@ -48,6 +77,30 @@ void UPRGameplayAbility_FaerinNearTeleportApproach::ActivateAbility(
 
 	bNearTeleportFinished = false;
 	bOriginalActorCollisionEnabled = BossCharacter->GetActorEnableCollision();
+	DisappearLocation = BossCharacter->GetActorLocation();
+	bHasCachedReappearTransform = ResolveReappearTransform(CachedReappearLocation, CachedReappearRotation);
+	if (!bHasCachedReappearTransform)
+	{
+		UE_LOG(LogPRFaerinNearTeleport, Warning, TEXT("[NearTeleport] 재등장 위치 계산 실패. Boss=%s Query=%s MaxDistance=%.1f"),
+			*GetNameSafe(BossCharacter),
+			*GetNameSafe(QueryTemplate.Get()),
+			MaxDistanceFromSelf);
+		EndAbility(Handle, ActorInfo, ActivationInfo, true, true);
+		return;
+	}
+
+	if (!CommitAbility(Handle, ActorInfo, ActivationInfo))
+	{
+		EndAbility(Handle, ActorInfo, ActivationInfo, true, true);
+		return;
+	}
+
+	UE_LOG(LogPRFaerinNearTeleport, Verbose, TEXT("[NearTeleport] 재등장 위치 확정. Boss=%s From=%s To=%s Dist2D=%.1f"),
+		*GetNameSafe(BossCharacter),
+		*DisappearLocation.ToCompactString(),
+		*CachedReappearLocation.ToCompactString(),
+		FVector::Dist2D(DisappearLocation, CachedReappearLocation));
+
 	BeginDisappear(BossCharacter);
 }
 
@@ -70,6 +123,9 @@ void UPRGameplayAbility_FaerinNearTeleportApproach::EndAbility(
 
 	ActiveDirectorComponent = nullptr;
 	ActiveRequest = FPRFaerinNearTeleportRequest();
+	CachedReappearLocation = FVector::ZeroVector;
+	CachedReappearRotation = FRotator::ZeroRotator;
+	bHasCachedReappearTransform = false;
 	bNearTeleportFinished = true;
 
 	Super::EndAbility(Handle, ActorInfo, ActivationInfo, bReplicateEndAbility, bWasCancelled);
@@ -95,8 +151,8 @@ bool UPRGameplayAbility_FaerinNearTeleportApproach::ResolveTeleportRequest(APREn
 
 	return ActiveRequest.bIsValid
 		&& IsValid(ActiveRequest.TargetActor)
-		&& IsValid(ActiveRequest.QueryTemplate.Get())
-		&& ActiveRequest.MaxDistanceFromSelf > 0.0f;
+		&& IsValid(QueryTemplate.Get())
+		&& MaxDistanceFromSelf > 0.0f;
 }
 
 void UPRGameplayAbility_FaerinNearTeleportApproach::BeginDisappear(ACharacter* BossCharacter)
@@ -107,14 +163,46 @@ void UPRGameplayAbility_FaerinNearTeleportApproach::BeginDisappear(ACharacter* B
 		return;
 	}
 
-	DisappearLocation = BossCharacter->GetActorLocation();
-	SpawnBodyNiagara(DisappearDissolveNiagaraSystem);
-	SpawnBodyNiagara(TeleportInNiagaraSystem);
-
 	if (AAIController* AIController = Cast<AAIController>(BossCharacter->GetController()))
 	{
 		AIController->StopMovement();
 		AIController->ClearFocus(EAIFocusPriority::Gameplay);
+	}
+
+	BossCharacter->SetActorEnableCollision(false);
+	SpawnBodyNiagara(DisappearDissolveNiagaraSystem);
+	SpawnBodyNiagara(TeleportInNiagaraSystem);
+	BossCharacter->ForceNetUpdate();
+
+	if (DisappearPresentationSeconds <= 0.0f)
+	{
+		CommitDisappearAndScheduleReappear();
+		return;
+	}
+
+	if (UWorld* World = GetWorld())
+	{
+		World->GetTimerManager().SetTimer(
+			ReappearTimerHandle,
+			this,
+			&UPRGameplayAbility_FaerinNearTeleportApproach::CommitDisappearAndScheduleReappear,
+			DisappearPresentationSeconds,
+			false);
+	}
+}
+
+void UPRGameplayAbility_FaerinNearTeleportApproach::CommitDisappearAndScheduleReappear()
+{
+	if (bNearTeleportFinished)
+	{
+		return;
+	}
+
+	ACharacter* BossCharacter = Cast<ACharacter>(GetAvatarActorFromActorInfo());
+	if (!IsValid(BossCharacter))
+	{
+		FinishNearTeleport(true);
+		return;
 	}
 
 	if (APRFaerinCharacter* FaerinCharacter = Cast<APRFaerinCharacter>(BossCharacter))
@@ -125,10 +213,10 @@ void UPRGameplayAbility_FaerinNearTeleportApproach::BeginDisappear(ACharacter* B
 	{
 		BossCharacter->SetActorHiddenInGame(true);
 	}
-	BossCharacter->SetActorEnableCollision(false);
 	BossCharacter->ForceNetUpdate();
 
-	if (ActiveRequest.ReappearDelaySeconds <= 0.0f)
+	const float RemainingDelaySeconds = FMath::Max(ReappearDelaySeconds - DisappearPresentationSeconds, 0.0f);
+	if (RemainingDelaySeconds <= 0.0f)
 	{
 		ReappearNearSelf();
 		return;
@@ -140,7 +228,7 @@ void UPRGameplayAbility_FaerinNearTeleportApproach::BeginDisappear(ACharacter* B
 			ReappearTimerHandle,
 			this,
 			&UPRGameplayAbility_FaerinNearTeleportApproach::ReappearNearSelf,
-			ActiveRequest.ReappearDelaySeconds,
+			RemainingDelaySeconds,
 			false);
 	}
 }
@@ -159,23 +247,34 @@ void UPRGameplayAbility_FaerinNearTeleportApproach::ReappearNearSelf()
 		return;
 	}
 
-	FVector ReappearLocation = FVector::ZeroVector;
-	FRotator ReappearRotation = FRotator::ZeroRotator;
-	if (!ResolveReappearTransform(ReappearLocation, ReappearRotation))
+	if (!bHasCachedReappearTransform)
 	{
 		FinishNearTeleport(true);
 		return;
 	}
 
 	BossCharacter->SetActorLocationAndRotation(
-		ReappearLocation,
-		ReappearRotation,
+		CachedReappearLocation,
+		CachedReappearRotation,
 		false,
 		nullptr,
 		ETeleportType::TeleportPhysics);
-	RestoreBossPresentation(BossCharacter);
-	SpawnBodyNiagara(TeleportOutNiagaraSystem);
-	SpawnBodyNiagara(ReappearDissolveNiagaraSystem);
+	if (APRFaerinCharacter* FaerinCharacter = Cast<APRFaerinCharacter>(BossCharacter))
+	{
+		FaerinCharacter->Multicast_PlayNearTeleportReappearPresentation(
+			CachedReappearLocation,
+			CachedReappearRotation,
+			TeleportOutNiagaraSystem,
+			ReappearDissolveNiagaraSystem,
+			BodyNiagaraAttachSocketName);
+	}
+	else
+	{
+		RestoreBossPresentation(BossCharacter);
+		SpawnBodyNiagara(TeleportOutNiagaraSystem);
+		SpawnBodyNiagara(ReappearDissolveNiagaraSystem);
+	}
+	BossCharacter->SetActorEnableCollision(bOriginalActorCollisionEnabled);
 	BossCharacter->ForceNetUpdate();
 
 	FinishNearTeleport(false);
@@ -202,14 +301,14 @@ bool UPRGameplayAbility_FaerinNearTeleportApproach::ResolveReappearTransform(
 		if (UNavigationSystemV1* NavigationSystem = FNavigationSystem::GetCurrent<UNavigationSystemV1>(World))
 		{
 			FNavLocation ProjectedLocation;
-			if (NavigationSystem->ProjectPointToNavigation(OutLocation, ProjectedLocation, ActiveRequest.NavProjectExtent))
+			if (NavigationSystem->ProjectPointToNavigation(OutLocation, ProjectedLocation, ReappearNavProjectExtent))
 			{
 				OutLocation = ProjectedLocation.Location;
 			}
 		}
 	}
 
-	if (FVector::Dist2D(DisappearLocation, OutLocation) > ActiveRequest.MaxDistanceFromSelf)
+	if (FVector::Dist2D(DisappearLocation, OutLocation) > MaxDistanceFromSelf)
 	{
 		return false;
 	}
@@ -232,25 +331,29 @@ bool UPRGameplayAbility_FaerinNearTeleportApproach::ResolveReappearTransform(
 bool UPRGameplayAbility_FaerinNearTeleportApproach::ResolveEQSReappearLocation(FVector& OutLocation) const
 {
 	AActor* AvatarActor = GetAvatarActorFromActorInfo();
-	if (!IsValid(AvatarActor) || !IsValid(ActiveRequest.QueryTemplate.Get()))
+	if (!IsValid(AvatarActor) || !IsValid(QueryTemplate.Get()))
 	{
 		return false;
 	}
 
+	TArray<FPREnemyEQSFloatParam> RuntimeFloatParams = FloatParams;
+	UpsertFloatParam(RuntimeFloatParams, NearTeleportGridSizeParamName, MaxDistanceFromSelf);
+	UpsertFloatParam(RuntimeFloatParams, NearTeleportSelfMaxDistanceParamName, MaxDistanceFromSelf);
+
 	if (!PREnemyEQSSelectionUtils::RunLocationQuery(
 			AvatarActor,
-			ActiveRequest.QueryTemplate.Get(),
-			ActiveRequest.FloatParams,
-			ActiveRequest.QueryRunMode,
-			ActiveRequest.CandidateSelectionMode,
-			ActiveRequest.TopCandidateCount,
-			ActiveRequest.TopScoreCandidateRatio,
+			QueryTemplate.Get(),
+			RuntimeFloatParams,
+			QueryRunMode,
+			CandidateSelectionMode,
+			TopCandidateCount,
+			TopScoreCandidateRatio,
 			OutLocation))
 	{
 		return false;
 	}
 
-	if (FVector::Dist2D(DisappearLocation, OutLocation) > ActiveRequest.MaxDistanceFromSelf)
+	if (FVector::Dist2D(DisappearLocation, OutLocation) > MaxDistanceFromSelf)
 	{
 		return false;
 	}

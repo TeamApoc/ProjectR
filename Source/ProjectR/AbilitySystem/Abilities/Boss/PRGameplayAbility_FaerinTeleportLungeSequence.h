@@ -130,9 +130,17 @@ protected:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Faerin|Animation")
 	TObjectPtr<UAnimMontage> TeleportOutMontage;
 
+	// 외부 Teleport VFX 래퍼가 선행되는 페이즈에서는 중복 TeleportOut을 막기 위해 끈다.
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Faerin|Animation")
+	bool bPlayTeleportOutStage = true;
+
 	// 텔레포트 인 연출 몽타주다. 1차에서는 선택 사용하며 원작 선행 여부는 에디터 검증으로 확정한다.
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Faerin|Animation")
 	TObjectPtr<UAnimMontage> TeleportInMontage;
+
+	// 외부 Teleport VFX 래퍼가 TeleportIn을 담당하는 경우 중복 재생을 막기 위해 끈다.
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Faerin|Animation")
+	bool bPlayTeleportInStage = true;
 
 	// 런지 시작 몽타주다.
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Faerin|Animation")

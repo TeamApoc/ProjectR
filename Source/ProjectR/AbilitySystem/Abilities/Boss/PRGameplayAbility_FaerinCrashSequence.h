@@ -6,6 +6,14 @@
 #include "ProjectR/AbilitySystem/Abilities/Boss/PRGameplayAbility_FaerinStagedMontagePattern.h"
 #include "PRGameplayAbility_FaerinCrashSequence.generated.h"
 
+// Faerin Crash 계열의 피해 적용 방식을 구분한다.
+UENUM(BlueprintType)
+enum class EPRFaerinCrashDamageMode : uint8
+{
+	Radius			UMETA(DisplayName = "Radius"),
+	GlobalPlayers	UMETA(DisplayName = "Global Players")
+};
+
 // Faerin 원작 Crash / CrashDrop 계열의 DoCrashAoE 이벤트 피해를 처리하는 패턴 Ability다.
 UCLASS()
 class PROJECTR_API UPRGameplayAbility_FaerinCrashSequence : public UPRGameplayAbility_FaerinStagedMontagePattern
@@ -40,10 +48,17 @@ protected:
 	// Crash AoE 반경 안의 유효 대상에게 피해를 적용한다.
 	void ApplyCrashAreaDamage();
 
+	// 서버가 알고 있는 모든 플레이어 Pawn에게 전역 피해를 적용한다.
+	void ApplyCrashGlobalPlayerDamage();
+
 protected:
 	// 원작 Crash AoE를 발생시키는 CharacterEvent 이름이다.
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Faerin|Crash")
 	FName CrashAreaEventName = TEXT("DoCrashAoE");
+
+	// Crash 피해를 radius overlap으로 줄지, 모든 플레이어에게 줄지 결정한다.
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Faerin|Crash")
+	EPRFaerinCrashDamageMode CrashDamageMode = EPRFaerinCrashDamageMode::Radius;
 
 	// Crash AoE 중심에 더할 보스 로컬 오프셋이다.
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Faerin|Crash")

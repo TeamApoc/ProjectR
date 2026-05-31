@@ -65,6 +65,7 @@ namespace PRGameplayTags
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Ability_Boss_Faerin_PortalBarrageSequence); // Faerin 포털 연속 포격
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Ability_Boss_Faerin_PortalAttachedSequence); // Faerin 부착 포털 소환
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Ability_Boss_Faerin_PortalTorrentSequence); // Faerin Torrent 포털 소환
+	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Ability_Boss_Faerin_RainPortalSequence); // Faerin Rain Portal 소환
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Ability_Boss_Faerin_TeleportLungeSequence); // Faerin 원작형 텔레포트 런지
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Ability_Boss_Faerin_ShiftPlayerClose); // Faerin Shift Player Close 패턴 어빌리티
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Ability_Boss_Faerin_TeleportDownSequence); // Faerin TeleportDown 패턴 어빌리티
@@ -129,6 +130,7 @@ namespace PRGameplayTags
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Cooldown_Boss_Faerin_PortalBarrage); // Faerin 포털 연속 포격 패턴 쿨다운
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Cooldown_Boss_Faerin_PortalAttached); // Faerin 부착 포털 패턴 쿨다운
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Cooldown_Boss_Faerin_PortalTorrent); // Faerin Torrent 포털 패턴 쿨다운
+	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Cooldown_Boss_Faerin_RainPortal); // Faerin Rain Portal 패턴 쿨다운
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Cooldown_Boss_Faerin_TeleportLunge); // Faerin Teleport Lunge 패턴 쿨다운
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Cooldown_Boss_Faerin_Shift); // Faerin Shift 계열 공용 쿨다운
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Cooldown_Boss_Faerin_TeleportDown); // Faerin TeleportDown 패턴 쿨다운

@@ -7,6 +7,7 @@
 #include "PRFaerinGodFallStaticSwordActor.generated.h"
 
 class UPRFaerinGodFallDataAsset;
+class UNiagaraSystem;
 class UStaticMeshComponent;
 
 // God Fall Rig의 bone 위치에서 전환된 StaticMesh 검의 현재 상태다.
@@ -97,7 +98,7 @@ protected:
 
 	// 모든 클라이언트에서 impact visual을 재생한다.
 	UFUNCTION(NetMulticast, Reliable)
-	void MulticastGodFallSwordImpact();
+	void MulticastGodFallSwordImpact(FVector_NetQuantize ImpactLocation, FRotator ImpactRotation);
 
 	// 모든 클라이언트에서 취소 visual을 재생한다.
 	UFUNCTION(NetMulticast, Reliable)
@@ -138,6 +139,7 @@ private:
 	bool ResolveAssignedImpactLocation(FVector& OutGroundLocation) const;
 	bool ProjectTargetLocationToGround(const FVector& TargetLocation, FVector& OutGroundLocation) const;
 	void ApplySwordPresentationLocation(const FVector& Location);
+	void SpawnImpactNiagaraLocal(const FVector& ImpactLocation, const FRotator& ImpactRotation) const;
 	void StartClientSwordPresentationSegment(EPRFaerinGodFallStaticSwordState NewState,
 		const FVector& StartLocation,
 		const FVector& TargetLocation,

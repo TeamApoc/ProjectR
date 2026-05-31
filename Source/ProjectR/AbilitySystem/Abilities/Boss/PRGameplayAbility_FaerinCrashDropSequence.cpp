@@ -8,4 +8,5 @@
 UPRGameplayAbility_FaerinCrashDropSequence::UPRGameplayAbility_FaerinCrashDropSequence()
 {
 	SetAssetTags(PRBossAbility::MakePatternAssetTags(PRGameplayTags::Ability_Boss_Faerin_CrashDropSequence));
+	CrashDamageMode = EPRFaerinCrashDamageMode::GlobalPlayers;
 }

@@ -11,6 +11,42 @@ class APRFaerinGodFallStaticSwordActor;
 class UAnimMontage;
 class UAnimSequenceBase;
 class UGameplayEffect;
+class UNiagaraSystem;
+
+// God Fall 본체 시전 중 지정 시각에 몸에 붙여 재생할 Niagara cue다.
+USTRUCT(BlueprintType)
+struct FPRFaerinGodFallBodyNiagaraCue
+{
+	GENERATED_BODY()
+
+	// 재생할 Niagara 시스템이다.
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Faerin|GodFall|BodyVFX")
+	TObjectPtr<UNiagaraSystem> NiagaraSystem;
+
+	// God Fall 시전 시작 후 이 Niagara를 재생할 시간이다.
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Faerin|GodFall|BodyVFX", meta = (ClampMin = "0.0"))
+	float StartDelaySeconds = 0.0f;
+
+	// 보스 Mesh에 붙일 소켓 이름이다. None이면 Mesh 기준으로 붙는다.
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Faerin|GodFall|BodyVFX")
+	FName AttachSocketName = NAME_None;
+
+	// AttachSocket 기준 상대 위치 보정이다.
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Faerin|GodFall|BodyVFX")
+	FVector LocationOffset = FVector::ZeroVector;
+
+	// AttachSocket 기준 상대 회전 보정이다.
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Faerin|GodFall|BodyVFX")
+	FRotator RotationOffset = FRotator::ZeroRotator;
+
+	// Niagara 상대 스케일이다.
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Faerin|GodFall|BodyVFX")
+	FVector Scale = FVector::OneVector;
+
+	// 0보다 크면 해당 시간이 지난 뒤 강제로 정리한다. 0이면 God Fall 본체 연출 종료/취소 시 정리한다.
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Faerin|GodFall|BodyVFX", meta = (ClampMin = "0.0"))
+	float LifeSeconds = 0.0f;
+};
 
 // Faerin God Fall의 맵 배치 검 Rig 전환, 본체 연출, StaticSword 충전/배정 루프를 관리하는 데이터다.
 UCLASS(BlueprintType)
@@ -132,6 +168,26 @@ public:
 	// impact 상태를 유지해 피격/시각 연출을 보여줄 시간이다.
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Faerin|GodFall|Timing", meta = (ClampMin = "0.0"))
 	float ImpactHoldSeconds = 0.12f;
+
+	// StaticSword가 바닥에 충돌할 때 충돌 위치에 재생할 Niagara다.
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Faerin|GodFall|VFX|SwordImpact")
+	TObjectPtr<UNiagaraSystem> SwordImpactNiagaraSystem;
+
+	// StaticSword 충돌 Niagara 회전 보정값이다.
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Faerin|GodFall|VFX|SwordImpact")
+	FRotator SwordImpactNiagaraRotationOffset = FRotator::ZeroRotator;
+
+	// StaticSword 충돌 Niagara 스케일이다.
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Faerin|GodFall|VFX|SwordImpact")
+	FVector SwordImpactNiagaraScale = FVector::OneVector;
+
+	// 0보다 크면 충돌 Niagara를 해당 시간 뒤 강제로 정리한다.
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Faerin|GodFall|VFX|SwordImpact", meta = (ClampMin = "0.0"))
+	float SwordImpactNiagaraLifeSeconds = 2.0f;
+
+	// God Fall 본체 시전 중 보스 몸에 붙여 재생할 Niagara cue 목록이다.
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Faerin|GodFall|VFX|Body")
+	TArray<FPRFaerinGodFallBodyNiagaraCue> BodyNiagaraCues;
 
 	// Phase3에서 검 충전 시간과 경고 시간을 곱할 배율이다.
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Faerin|GodFall|Timing", meta = (ClampMin = "0.01"))

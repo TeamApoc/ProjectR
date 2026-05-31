@@ -10,6 +10,8 @@
 #include "Engine/World.h"
 #include "GameplayEffect.h"
 #include "Net/UnrealNetwork.h"
+#include "NiagaraComponent.h"
+#include "NiagaraFunctionLibrary.h"
 #include "TimerManager.h"
 #include "ProjectR/AbilitySystem/Data/PRAbilitySystemRegistry.h"
 #include "ProjectR/AbilitySystem/PRAbilitySystemComponent.h"
@@ -282,8 +284,11 @@ void APRFaerinGodFallStaticSwordActor::OnRep_SwordState()
 	BP_OnGodFallSwordStateChanged(SwordState);
 }
 
-void APRFaerinGodFallStaticSwordActor::MulticastGodFallSwordImpact_Implementation()
+void APRFaerinGodFallStaticSwordActor::MulticastGodFallSwordImpact_Implementation(
+	FVector_NetQuantize ImpactLocation,
+	FRotator ImpactRotation)
 {
+	SpawnImpactNiagaraLocal(ImpactLocation, ImpactRotation);
 	BP_OnGodFallSwordImpact();
 }
 
@@ -324,7 +329,10 @@ void APRFaerinGodFallStaticSwordActor::FinishEntryDiveDown()
 
 	ApplySwordPresentationLocation(SegmentTargetLocation);
 	ApplyImpactDamage();
-	MulticastGodFallSwordImpact();
+	const FRotator ImpactRotation = IsValid(GodFallData)
+		? GodFallData->SwordImpactNiagaraRotationOffset
+		: FRotator::ZeroRotator;
+	MulticastGodFallSwordImpact(SegmentTargetLocation, ImpactRotation);
 
 	SegmentStartLocation = GetActorLocation();
 	SegmentTargetLocation = HomeLocation;
@@ -408,7 +416,10 @@ void APRFaerinGodFallStaticSwordActor::FinishDrop()
 	SetSwordState(EPRFaerinGodFallStaticSwordState::Impact);
 
 	ApplyImpactDamage();
-	MulticastGodFallSwordImpact();
+	const FRotator ImpactRotation = IsValid(GodFallData)
+		? GodFallData->SwordImpactNiagaraRotationOffset
+		: FRotator::ZeroRotator;
+	MulticastGodFallSwordImpact(SegmentTargetLocation, ImpactRotation);
 
 	const float HoldSeconds = IsValid(GodFallData) ? GodFallData->ImpactHoldSeconds : 0.0f;
 	if (HoldSeconds <= 0.0f)
@@ -675,6 +686,51 @@ bool APRFaerinGodFallStaticSwordActor::ProjectTargetLocationToGround(const FVect
 void APRFaerinGodFallStaticSwordActor::ApplySwordPresentationLocation(const FVector& Location)
 {
 	SetActorLocation(Location, false, nullptr, ETeleportType::TeleportPhysics);
+}
+
+void APRFaerinGodFallStaticSwordActor::SpawnImpactNiagaraLocal(
+	const FVector& ImpactLocation,
+	const FRotator& ImpactRotation) const
+{
+	if (!IsValid(GodFallData) || !IsValid(GodFallData->SwordImpactNiagaraSystem))
+	{
+		return;
+	}
+
+	UWorld* World = GetWorld();
+	if (!IsValid(World))
+	{
+		return;
+	}
+
+	UNiagaraComponent* NiagaraComponent = UNiagaraFunctionLibrary::SpawnSystemAtLocation(
+		World,
+		GodFallData->SwordImpactNiagaraSystem,
+		ImpactLocation,
+		ImpactRotation,
+		GodFallData->SwordImpactNiagaraScale,
+		true,
+		true);
+	if (!IsValid(NiagaraComponent) || GodFallData->SwordImpactNiagaraLifeSeconds <= UE_SMALL_NUMBER)
+	{
+		return;
+	}
+
+	const float LifeSeconds = GodFallData->SwordImpactNiagaraLifeSeconds;
+	TWeakObjectPtr<UNiagaraComponent> WeakNiagaraComponent = NiagaraComponent;
+	FTimerHandle CleanupTimerHandle;
+	World->GetTimerManager().SetTimer(
+		CleanupTimerHandle,
+		FTimerDelegate::CreateWeakLambda(this, [WeakNiagaraComponent]()
+		{
+			if (UNiagaraComponent* ActiveNiagaraComponent = WeakNiagaraComponent.Get())
+			{
+				ActiveNiagaraComponent->Deactivate();
+				ActiveNiagaraComponent->DestroyComponent();
+			}
+		}),
+		LifeSeconds,
+		false);
 }
 
 void APRFaerinGodFallStaticSwordActor::UpdateClientSwordPresentation(const float DeltaSeconds)

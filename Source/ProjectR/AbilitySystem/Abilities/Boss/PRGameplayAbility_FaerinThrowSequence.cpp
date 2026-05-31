@@ -2,17 +2,15 @@
 
 #include "PRGameplayAbility_FaerinThrowSequence.h"
 
-#include "AbilitySystemComponent.h"
+#include "AbilitySystemBlueprintLibrary.h"
+#include "Abilities/Tasks/AbilityTask_WaitGameplayEvent.h"
+#include "Components/BoxComponent.h"
 #include "Components/SkeletalMeshComponent.h"
-#include "Engine/World.h"
-#include "GameFramework/Character.h"
-#include "GameplayEffect.h"
-#include "TimerManager.h"
+#include "DrawDebugHelpers.h"
 #include "ProjectR/AbilitySystem/Abilities/Boss/PRBossAbilityTagUtils.h"
-#include "ProjectR/AbilitySystem/Data/PRAbilitySystemRegistry.h"
+#include "ProjectR/Character/Enemy/PRBossBaseCharacter.h"
+#include "ProjectR/Character/Enemy/Boss/PRFaerinWeaponVisualComponent.h"
 #include "ProjectR/Combat/PRCombatGameplayTags.h"
-#include "ProjectR/Projectile/PRProjectileBase.h"
-#include "ProjectR/System/PRAssetManager.h"
 #include "ProjectR/PRGameplayTags.h"
 
 UPRGameplayAbility_FaerinThrowSequence::UPRGameplayAbility_FaerinThrowSequence()
@@ -26,8 +24,13 @@ void UPRGameplayAbility_FaerinThrowSequence::ActivateAbility(
 	const FGameplayAbilityActivationInfo ActivationInfo,
 	const FGameplayEventData* TriggerEventData)
 {
-	bThrowProjectileSpawned = false;
+	DamagedActors.Reset();
+	PreviousBladeTracePoint = FVector::ZeroVector;
+	bThrowHitWindowActive = false;
+	bHasPreviousBladeTracePoint = false;
+	WeaponVisualComponent = nullptr;
 
+	BindMeleeHitWindowEvents();
 	Super::ActivateAbility(Handle, ActorInfo, ActivationInfo, TriggerEventData);
 }
 
@@ -38,12 +41,11 @@ void UPRGameplayAbility_FaerinThrowSequence::EndAbility(
 	const bool bReplicateEndAbility,
 	const bool bWasCancelled)
 {
-	if (UWorld* World = GetWorld())
-	{
-		World->GetTimerManager().ClearTimer(ThrowReleaseTimerHandle);
-	}
+	EndThrowHitWindow();
+	EndMeleeHitWindowEvents();
 
-	bThrowProjectileSpawned = false;
+	DamagedActors.Reset();
+	WeaponVisualComponent = nullptr;
 
 	Super::EndAbility(Handle, ActorInfo, ActivationInfo, bReplicateEndAbility, bWasCancelled);
 }
@@ -55,210 +57,292 @@ void UPRGameplayAbility_FaerinThrowSequence::NativeOnStageStarted(const FPRFaeri
 		return;
 	}
 
-	ScheduleThrowProjectile();
+	APRBossBaseCharacter* BossCharacter = GetBossAvatarCharacter();
+	WeaponVisualComponent = IsValid(BossCharacter)
+		? BossCharacter->FindComponentByClass<UPRFaerinWeaponVisualComponent>()
+		: nullptr;
+	if (IsValid(WeaponVisualComponent))
+	{
+		WeaponVisualComponent->ResolveConfiguredComponents();
+		WeaponVisualComponent->SetBladeHitBoxEnabled(false);
+	}
 }
 
-void UPRGameplayAbility_FaerinThrowSequence::ScheduleThrowProjectile()
+// ===== Notify 기반 검 판정 =====
+
+void UPRGameplayAbility_FaerinThrowSequence::BindMeleeHitWindowEvents()
 {
-	UWorld* World = GetWorld();
-	if (!IsValid(World) || bThrowProjectileSpawned)
-	{
-		return;
-	}
-
-	FTimerManager& TimerManager = World->GetTimerManager();
-	if (TimerManager.IsTimerActive(ThrowReleaseTimerHandle))
-	{
-		return;
-	}
-
-	if (ThrowReleaseDelay <= 0.0f)
-	{
-		SpawnThrowProjectile();
-		return;
-	}
-
-	TimerManager.SetTimer(
-		ThrowReleaseTimerHandle,
-		this,
-		&UPRGameplayAbility_FaerinThrowSequence::SpawnThrowProjectile,
-		ThrowReleaseDelay,
-		false);
-}
-
-void UPRGameplayAbility_FaerinThrowSequence::SpawnThrowProjectile()
-{
-	if (bThrowProjectileSpawned || !IsValid(ThrowProjectileClass))
-	{
-		return;
-	}
-
-	FTransform SpawnTransform;
-	if (!BuildThrowProjectileSpawnTransform(SpawnTransform))
-	{
-		return;
-	}
-
-	UWorld* World = GetWorld();
 	AActor* AvatarActor = GetAvatarActorFromActorInfo();
-	if (!IsValid(World) || !IsValid(AvatarActor) || !AvatarActor->HasAuthority())
+	if (!IsValid(AvatarActor) || !AvatarActor->HasAuthority())
 	{
 		return;
 	}
 
-	const uint32 ProjectileId = NextThrowProjectileId++;
-	if (NextThrowProjectileId == 0)
+	EndMeleeHitWindowEvents();
+
+	constexpr bool bOnlyMatchExact = true;
+	ActiveMeleeHitWindowBeginEventTask = UAbilityTask_WaitGameplayEvent::WaitGameplayEvent(
+		this,
+		PRCombatGameplayTags::Event_Ability_EnemyMeleeWindowBegin,
+		nullptr,
+		false,
+		bOnlyMatchExact);
+
+	if (IsValid(ActiveMeleeHitWindowBeginEventTask))
 	{
-		NextThrowProjectileId = 1;
+		ActiveMeleeHitWindowBeginEventTask->EventReceived.AddDynamic(
+			this,
+			&UPRGameplayAbility_FaerinThrowSequence::HandleMeleeHitWindowBeginGameplayEvent);
+		ActiveMeleeHitWindowBeginEventTask->ReadyForActivation();
 	}
 
-	FActorSpawnParameters SpawnParameters;
-	SpawnParameters.Owner = AvatarActor;
-	SpawnParameters.Instigator = Cast<APawn>(AvatarActor);
-	SpawnParameters.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
-	SpawnParameters.CustomPreSpawnInitalization = [ProjectileId](AActor* Actor)
-	{
-		if (APRProjectileBase* Projectile = Cast<APRProjectileBase>(Actor))
-		{
-			Projectile->InitializeProjectile(EPRProjectileRole::Auth, ProjectileId);
-		}
-	};
+	ActiveMeleeHitWindowTickEventTask = UAbilityTask_WaitGameplayEvent::WaitGameplayEvent(
+		this,
+		PRCombatGameplayTags::Event_Ability_EnemyMeleeWindowTick,
+		nullptr,
+		false,
+		bOnlyMatchExact);
 
-	APRProjectileBase* SpawnedProjectile = World->SpawnActor<APRProjectileBase>(
-		ThrowProjectileClass,
-		SpawnTransform,
-		SpawnParameters);
-
-	if (!IsValid(SpawnedProjectile))
+	if (IsValid(ActiveMeleeHitWindowTickEventTask))
 	{
-		return;
+		ActiveMeleeHitWindowTickEventTask->EventReceived.AddDynamic(
+			this,
+			&UPRGameplayAbility_FaerinThrowSequence::HandleMeleeHitWindowTickGameplayEvent);
+		ActiveMeleeHitWindowTickEventTask->ReadyForActivation();
 	}
 
-	const FVector AimDirection = CalculateThrowAimDirection(SpawnTransform.GetLocation());
-	SpawnedProjectile->SetProjectileInitialVelocity(AimDirection, ProjectileSpeedOverride);
+	ActiveMeleeHitWindowEndEventTask = UAbilityTask_WaitGameplayEvent::WaitGameplayEvent(
+		this,
+		PRCombatGameplayTags::Event_Ability_EnemyMeleeWindowEnd,
+		nullptr,
+		false,
+		bOnlyMatchExact);
 
-	if (bUseTrackingProjectile)
+	if (IsValid(ActiveMeleeHitWindowEndEventTask))
 	{
-		if (const AActor* TargetActor = GetBossPatternTarget())
-		{
-			SpawnedProjectile->ConfigureProjectileHoming(TargetActor->GetRootComponent(), ProjectileHomingAcceleration);
-		}
+		ActiveMeleeHitWindowEndEventTask->EventReceived.AddDynamic(
+			this,
+			&UPRGameplayAbility_FaerinThrowSequence::HandleMeleeHitWindowEndGameplayEvent);
+		ActiveMeleeHitWindowEndEventTask->ReadyForActivation();
 	}
-
-	const FGameplayEffectSpecHandle EffectSpecHandle = BuildThrowProjectileEffectSpec();
-	if (EffectSpecHandle.IsValid())
-	{
-		SpawnedProjectile->InitGameplayEffectSpec(EffectSpecHandle);
-	}
-
-	SpawnedProjectile->PushRepMovement(EPRRepMovementEvent::Spawn);
-	bThrowProjectileSpawned = true;
 }
 
-bool UPRGameplayAbility_FaerinThrowSequence::BuildThrowProjectileSpawnTransform(FTransform& OutTransform) const
+void UPRGameplayAbility_FaerinThrowSequence::EndMeleeHitWindowEvents()
 {
-	const FVector SpawnLocation = ResolveThrowSpawnLocation();
-	if (SpawnLocation.IsNearlyZero())
+	if (IsValid(ActiveMeleeHitWindowBeginEventTask))
+	{
+		ActiveMeleeHitWindowBeginEventTask->EndTask();
+		ActiveMeleeHitWindowBeginEventTask = nullptr;
+	}
+
+	if (IsValid(ActiveMeleeHitWindowTickEventTask))
+	{
+		ActiveMeleeHitWindowTickEventTask->EndTask();
+		ActiveMeleeHitWindowTickEventTask = nullptr;
+	}
+
+	if (IsValid(ActiveMeleeHitWindowEndEventTask))
+	{
+		ActiveMeleeHitWindowEndEventTask->EndTask();
+		ActiveMeleeHitWindowEndEventTask = nullptr;
+	}
+}
+
+void UPRGameplayAbility_FaerinThrowSequence::HandleMeleeHitWindowBeginGameplayEvent(FGameplayEventData Payload)
+{
+	AActor* AvatarActor = GetAvatarActorFromActorInfo();
+	if (!IsValid(AvatarActor)
+		|| !AvatarActor->HasAuthority()
+		|| Payload.EventTag != PRCombatGameplayTags::Event_Ability_EnemyMeleeWindowBegin)
+	{
+		return;
+	}
+
+	BeginThrowHitWindow();
+}
+
+void UPRGameplayAbility_FaerinThrowSequence::HandleMeleeHitWindowTickGameplayEvent(FGameplayEventData Payload)
+{
+	AActor* AvatarActor = GetAvatarActorFromActorInfo();
+	if (!IsValid(AvatarActor)
+		|| !AvatarActor->HasAuthority()
+		|| Payload.EventTag != PRCombatGameplayTags::Event_Ability_EnemyMeleeWindowTick)
+	{
+		return;
+	}
+
+	TickThrowHitWindow();
+}
+
+void UPRGameplayAbility_FaerinThrowSequence::HandleMeleeHitWindowEndGameplayEvent(FGameplayEventData Payload)
+{
+	AActor* AvatarActor = GetAvatarActorFromActorInfo();
+	if (!IsValid(AvatarActor)
+		|| !AvatarActor->HasAuthority()
+		|| Payload.EventTag != PRCombatGameplayTags::Event_Ability_EnemyMeleeWindowEnd)
+	{
+		return;
+	}
+
+	EndThrowHitWindow();
+}
+
+void UPRGameplayAbility_FaerinThrowSequence::BeginThrowHitWindow()
+{
+	if (bThrowHitWindowActive)
+	{
+		return;
+	}
+
+	bThrowHitWindowActive = true;
+	bHasPreviousBladeTracePoint = false;
+	PreviousBladeTracePoint = FVector::ZeroVector;
+	DamagedActors.Reset();
+
+	if (IsValid(WeaponVisualComponent))
+	{
+		WeaponVisualComponent->SetBladeHitBoxEnabled(true);
+	}
+
+	TickThrowHitWindow();
+}
+
+void UPRGameplayAbility_FaerinThrowSequence::TickThrowHitWindow()
+{
+	if (!bThrowHitWindowActive)
+	{
+		return;
+	}
+
+	FVector CurrentTracePoint = FVector::ZeroVector;
+	if (!GetCurrentBladeTracePoint(CurrentTracePoint))
+	{
+		return;
+	}
+
+	if (!bHasPreviousBladeTracePoint)
+	{
+		ApplyThrowDamageTrace(CurrentTracePoint, CurrentTracePoint);
+		PreviousBladeTracePoint = CurrentTracePoint;
+		bHasPreviousBladeTracePoint = true;
+		return;
+	}
+
+	ApplyThrowDamageTrace(PreviousBladeTracePoint, CurrentTracePoint);
+	PreviousBladeTracePoint = CurrentTracePoint;
+}
+
+void UPRGameplayAbility_FaerinThrowSequence::EndThrowHitWindow()
+{
+	bThrowHitWindowActive = false;
+	bHasPreviousBladeTracePoint = false;
+	PreviousBladeTracePoint = FVector::ZeroVector;
+
+	if (IsValid(WeaponVisualComponent))
+	{
+		WeaponVisualComponent->SetBladeHitBoxEnabled(false);
+	}
+}
+
+// ===== 검 sweep 피해 =====
+
+bool UPRGameplayAbility_FaerinThrowSequence::GetCurrentBladeTracePoint(FVector& OutTracePoint) const
+{
+	if (IsValid(WeaponVisualComponent) && IsValid(WeaponVisualComponent->GetBladeHitBox()))
+	{
+		const FTransform HitBoxTransform = WeaponVisualComponent->GetBladeHitBox()->GetComponentTransform();
+		OutTracePoint = HitBoxTransform.GetLocation() + HitBoxTransform.TransformVectorNoScale(HitTraceOffset);
+		return true;
+	}
+
+	const APRBossBaseCharacter* BossCharacter = GetBossAvatarCharacter();
+	if (!IsValid(BossCharacter) || !IsValid(BossCharacter->GetMesh()))
 	{
 		return false;
 	}
 
-	const FVector AimDirection = CalculateThrowAimDirection(SpawnLocation);
-	if (AimDirection.IsNearlyZero())
+	const FName BladeBoneName = IsValid(WeaponVisualComponent)
+		? WeaponVisualComponent->GetBladeBoneName()
+		: FallbackBladeBoneName;
+	if (BladeBoneName == NAME_None)
 	{
 		return false;
 	}
 
-	OutTransform = FTransform(AimDirection.Rotation() + ProjectileRotationOffset, SpawnLocation);
+	const USkeletalMeshComponent* MeshComponent = BossCharacter->GetMesh();
+	const bool bHasSocket = MeshComponent->DoesSocketExist(BladeBoneName);
+	const bool bHasBone = MeshComponent->GetBoneIndex(BladeBoneName) != INDEX_NONE;
+	if (!bHasSocket && !bHasBone)
+	{
+		return false;
+	}
+
+	const FTransform BladeTransform = MeshComponent->GetSocketTransform(BladeBoneName, RTS_World);
+	OutTracePoint = BladeTransform.GetLocation() + BladeTransform.TransformVectorNoScale(HitTraceOffset);
 	return true;
 }
 
-FVector UPRGameplayAbility_FaerinThrowSequence::CalculateThrowAimDirection(const FVector& SpawnLocation) const
+void UPRGameplayAbility_FaerinThrowSequence::ApplyThrowDamageTrace(
+	const FVector& TraceStart,
+	const FVector& TraceEnd)
 {
-	const AActor* TargetActor = GetBossPatternTarget();
-	if (!IsValid(TargetActor))
+	AActor* AvatarActor = GetAvatarActorFromActorInfo();
+	if (!IsValid(AvatarActor) || !AvatarActor->HasAuthority())
 	{
-		const AActor* AvatarActor = GetAvatarActorFromActorInfo();
-		return IsValid(AvatarActor) ? AvatarActor->GetActorForwardVector() : FVector::ForwardVector;
+		return;
 	}
 
-	FVector AimLocation = TargetActor->GetActorLocation();
-	const float ResolvedSpeed = ProjectileSpeedOverride > 0.0f ? ProjectileSpeedOverride : 3500.0f;
-	const float Distance = FVector::Distance(SpawnLocation, AimLocation);
-	if (ResolvedSpeed > 0.0f && ProjectileTargetLead > 0.0f)
+	FCollisionQueryParams QueryParams(SCENE_QUERY_STAT(PRFaerinThrowSequence), false, AvatarActor);
+	QueryParams.AddIgnoredActor(AvatarActor);
+
+	TArray<FHitResult> HitResults;
+	const FCollisionShape CollisionShape = FCollisionShape::MakeSphere(FMath::Max(HitTraceRadius, 0.0f));
+	const bool bHit = AvatarActor->GetWorld()->SweepMultiByChannel(
+		HitResults,
+		TraceStart,
+		TraceEnd,
+		FQuat::Identity,
+		HitTraceChannel,
+		CollisionShape,
+		QueryParams);
+
+	if (bDrawDebug)
 	{
-		const float TravelTime = Distance / ResolvedSpeed;
-		const float LeadScale = ProjectileTargetLead * 0.01f;
-		AimLocation += TargetActor->GetVelocity() * TravelTime * LeadScale;
+		const FColor DebugColor = bHit ? FColor::Red : FColor::Green;
+		DrawDebugLine(AvatarActor->GetWorld(), TraceStart, TraceEnd, DebugColor, false, 1.0f, 0, 2.0f);
+		DrawDebugSphere(AvatarActor->GetWorld(), TraceStart, HitTraceRadius, 16, DebugColor, false, 1.0f);
+		DrawDebugSphere(AvatarActor->GetWorld(), TraceEnd, HitTraceRadius, 16, DebugColor, false, 1.0f);
 	}
 
-	return (AimLocation - SpawnLocation).GetSafeNormal();
+	for (const FHitResult& HitResult : HitResults)
+	{
+		AActor* HitActor = HitResult.GetActor();
+		if (!ShouldDamageActor(HitActor) || DamagedActors.Contains(HitActor))
+		{
+			continue;
+		}
+
+		ApplyAttackPowerDamage(HitActor, DamageMultiplier, PoiseDamage, &HitResult);
+		DamagedActors.Add(HitActor);
+	}
 }
 
-FGameplayEffectSpecHandle UPRGameplayAbility_FaerinThrowSequence::BuildThrowProjectileEffectSpec() const
+bool UPRGameplayAbility_FaerinThrowSequence::ShouldDamageActor(AActor* CandidateActor) const
 {
-	UAbilitySystemComponent* SourceASC = GetAbilitySystemComponentFromActorInfo();
-	if (!IsValid(SourceASC))
+	if (!IsValid(CandidateActor) || CandidateActor == GetAvatarActorFromActorInfo())
 	{
-		return FGameplayEffectSpecHandle();
+		return false;
 	}
 
-	TSubclassOf<UGameplayEffect> ResolvedDamageEffectClass = ProjectileDamageEffectClass;
-	if (!IsValid(ResolvedDamageEffectClass))
+	if (!IsValid(UAbilitySystemBlueprintLibrary::GetAbilitySystemComponent(CandidateActor)))
 	{
-		const UPRAbilitySystemRegistry* Registry = UPRAssetManager::Get().GetAbilitySystemRegistry();
-		if (IsValid(Registry))
-		{
-			ResolvedDamageEffectClass = Registry->DamageGE_FromEnemy;
-		}
+		return false;
 	}
 
-	if (!IsValid(ResolvedDamageEffectClass))
+	if (!bOnlyDamageThreatTarget)
 	{
-		return FGameplayEffectSpecHandle();
+		return true;
 	}
 
-	FGameplayEffectContextHandle EffectContext = SourceASC->MakeEffectContext();
-	EffectContext.AddSourceObject(const_cast<UPRGameplayAbility_FaerinThrowSequence*>(this));
-
-	FGameplayEffectSpecHandle SpecHandle = SourceASC->MakeOutgoingSpec(
-		ResolvedDamageEffectClass,
-		1.0f,
-		EffectContext);
-
-	if (SpecHandle.IsValid())
-	{
-		SpecHandle.Data->SetSetByCallerMagnitude(
-			PRCombatGameplayTags::SetByCaller_AttackMultiplier,
-			ProjectileDamageMultiplier);
-
-		SpecHandle.Data->SetSetByCallerMagnitude(
-			PRCombatGameplayTags::SetByCaller_PoiseDamage,
-			ProjectilePoiseDamage);
-	}
-
-	return SpecHandle;
-}
-
-FVector UPRGameplayAbility_FaerinThrowSequence::ResolveThrowSpawnLocation() const
-{
-	const AActor* AvatarActor = GetAvatarActorFromActorInfo();
-	if (!IsValid(AvatarActor))
-	{
-		return FVector::ZeroVector;
-	}
-
-	const ACharacter* Character = Cast<ACharacter>(AvatarActor);
-	if (IsValid(Character))
-	{
-		const USkeletalMeshComponent* MeshComponent = Character->GetMesh();
-		if (IsValid(MeshComponent)
-			&& !ProjectileSpawnSocketName.IsNone()
-			&& MeshComponent->DoesSocketExist(ProjectileSpawnSocketName))
-		{
-			return MeshComponent->GetSocketLocation(ProjectileSpawnSocketName);
-		}
-	}
-
-	return AvatarActor->GetActorTransform().TransformPositionNoScale(ProjectileSpawnLocalOffset);
+	return CandidateActor == GetBossPatternTarget();
 }

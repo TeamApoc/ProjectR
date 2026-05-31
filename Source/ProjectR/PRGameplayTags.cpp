@@ -63,6 +63,7 @@ namespace PRGameplayTags
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Ability_Boss_Faerin_PortalBarrageSequence, "Ability.Boss.Faerin.PortalBarrageSequence", "Faerin 포털 연속 포격");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Ability_Boss_Faerin_PortalAttachedSequence, "Ability.Boss.Faerin.PortalAttachedSequence", "Faerin 부착 포털 소환");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Ability_Boss_Faerin_PortalTorrentSequence, "Ability.Boss.Faerin.PortalTorrentSequence", "Faerin Torrent 포털 소환");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Ability_Boss_Faerin_RainPortalSequence, "Ability.Boss.Faerin.RainPortalSequence", "Faerin Rain Portal 소환");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Ability_Boss_Faerin_TeleportLungeSequence, "Ability.Boss.Faerin.TeleportLungeSequence", "Faerin 원작형 텔레포트 런지");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Ability_Boss_Faerin_ShiftPlayerClose, "Ability.Boss.Faerin.ShiftPlayerClose", "Faerin Shift Player Close 패턴 어빌리티");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Ability_Boss_Faerin_TeleportDownSequence, "Ability.Boss.Faerin.TeleportDownSequence", "Faerin TeleportDown 패턴 어빌리티");
@@ -131,6 +132,7 @@ namespace PRGameplayTags
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Cooldown_Boss_Faerin_PortalBarrage, "Cooldown.Boss.Faerin.PortalBarrage", "Faerin 포털 연속 포격 패턴 쿨다운");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Cooldown_Boss_Faerin_PortalAttached, "Cooldown.Boss.Faerin.PortalAttached", "Faerin 부착 포털 패턴 쿨다운");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Cooldown_Boss_Faerin_PortalTorrent, "Cooldown.Boss.Faerin.PortalTorrent", "Faerin Torrent 포털 패턴 쿨다운");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Cooldown_Boss_Faerin_RainPortal, "Cooldown.Boss.Faerin.RainPortal", "Faerin Rain Portal 패턴 쿨다운");
 
 
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Cooldown_Boss_Faerin_Shift, "Cooldown.Boss.Faerin.Shift", "Faerin Shift 계열 공용 쿨다운");

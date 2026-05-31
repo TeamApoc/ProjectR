@@ -9,7 +9,7 @@
 
 class UButton;
 class UImage;
-class UPRItemTooltipWidget;
+class UPRUIControllerComponent;
 class UTextBlock;
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FPRItemSlotClickedSignature, const FPRInventoryItemSlotViewData&, ViewData);
@@ -40,6 +40,9 @@ protected:
 	// 마우스 호버 종료 시 툴팁 제거
 	virtual void NativeOnMouseLeave(const FPointerEvent& InMouseEvent) override;
 
+	// 위젯 파괴 시 표시 중인 툴팁을 숨긴다
+	virtual void NativeDestruct() override;
+
 	// 마우스 버튼 입력으로 우클릭을 처리한다
 	virtual FReply NativeOnMouseButtonDown(const FGeometry& InGeometry, const FPointerEvent& InMouseEvent) override;
 
@@ -52,10 +55,13 @@ private:
 	void RefreshNativeDisplay();
 
 	// 현재 표시 데이터로 툴팁 위젯을 갱신한다
-	void RefreshTooltipWidget();
+	void ShowTooltip();
 
-	// 활성 툴팁 위젯 제거
-	void ClearTooltipWidget();
+	// 활성 툴팁 위젯을 숨긴다
+	void HideTooltip();
+
+	// 소유 플레이어의 UI 컨트롤러를 조회한다
+	UPRUIControllerComponent* ResolveUIController() const;
 
 public:
 	// 좌클릭 선택 이벤트
@@ -87,16 +93,10 @@ protected:
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "ProjectR|Inventory")
 	TObjectPtr<UButton> ClickButton;
 
-	// 슬롯에 연결할 툴팁 위젯 클래스
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "ProjectR|Inventory")
-	TSubclassOf<UPRItemTooltipWidget> TooltipWidgetClass;
-
 private:
 	// 현재 슬롯 표시 데이터
 	UPROPERTY(BlueprintReadOnly, Category = "ProjectR|Inventory", meta = (AllowPrivateAccess = "true"))
 	FPRInventoryItemSlotViewData ViewData;
 
-	// 현재 호버 중인 툴팁 위젯
-	UPROPERTY(Transient)
-	TObjectPtr<UPRItemTooltipWidget> ActiveTooltipWidget;
+	bool bIsMouseHovering = false;
 };

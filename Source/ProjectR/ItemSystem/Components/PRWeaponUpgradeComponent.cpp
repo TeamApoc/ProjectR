@@ -15,19 +15,7 @@
 #include "ProjectR/ItemSystem/Components/PRWeaponManagerComponent.h"
 #include "ProjectR/ItemSystem/Data/PRWeaponDataAsset.h"
 #include "ProjectR/ItemSystem/Items/PRItemInstance_Weapon.h"
-
-namespace
-{
-	float CalculatePreviewBaseDamage(const UPRWeaponDataAsset* WeaponData, int32 UpgradeLevel)
-	{
-		if (!IsValid(WeaponData))
-		{
-			return 0.0f;
-		}
-
-		return FMath::Max(WeaponData->BaseDamage * (1.0f + static_cast<float>(UpgradeLevel) * 0.1f), 0.0f);
-	}
-}
+#include "ProjectR/ItemSystem/PRWeaponStatStatics.h"
 
 UPRWeaponUpgradeComponent::UPRWeaponUpgradeComponent()
 {
@@ -184,8 +172,8 @@ FPRWeaponUpgradePreview UPRWeaponUpgradeComponent::BuildUpgradePreview(APRPlayer
 	Preview.bMaxLevel = Preview.CurrentLevel >= MaxUpgradeLevel;
 	Preview.TargetLevel = Preview.bMaxLevel ? Preview.CurrentLevel : Preview.CurrentLevel + 1;
 	const UPRWeaponDataAsset* WeaponData = WeaponItem->GetWeaponData();
-	Preview.CurrentBaseDamage = CalculatePreviewBaseDamage(WeaponData, Preview.CurrentLevel);
-	Preview.TargetBaseDamage = CalculatePreviewBaseDamage(WeaponData, Preview.TargetLevel);
+	Preview.CurrentBaseDamage = UPRWeaponStatStatics::CalculateUpgradedBaseDamage(WeaponData, Preview.CurrentLevel);
+	Preview.TargetBaseDamage = UPRWeaponStatStatics::CalculateUpgradedBaseDamage(WeaponData, Preview.TargetLevel);
 	if (Preview.bMaxLevel)
 	{
 		return Preview;

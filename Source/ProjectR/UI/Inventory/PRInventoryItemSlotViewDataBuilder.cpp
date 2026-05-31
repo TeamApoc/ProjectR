@@ -120,6 +120,8 @@ FPRInventoryItemSlotViewData UPRInventoryItemSlotViewDataBuilder::BuildConsumabl
 	ViewData.InventoryAction = EPRInventoryAction::Activate;
 	ViewData.StackCount = ConsumableItem->GetStackCount();
 	ViewData.bShowStackCount = true;
+	ViewData.OwnedStackCount = ConsumableItem->GetStackCount();
+	ViewData.bHasOwnedStackCount = true;
 
 	// 소비 아이템 정적 데이터 기반 이름과 아이콘
 	if (IsValid(ConsumableData))
@@ -156,6 +158,8 @@ FPRInventoryItemSlotViewData UPRInventoryItemSlotViewDataBuilder::BuildMaterialI
 	ViewData.ItemType = EPRItemType::Material;
 	ViewData.StackCount = MaterialItem->GetStackCount();
 	ViewData.bShowStackCount = true;
+	ViewData.OwnedStackCount = MaterialItem->GetStackCount();
+	ViewData.bHasOwnedStackCount = true;
 
 	// 재료 정적 데이터 기반 이름과 아이콘
 	if (IsValid(MaterialData))
@@ -178,6 +182,8 @@ FPRInventoryItemSlotViewData UPRInventoryItemSlotViewDataBuilder::BuildQuickSlot
 	ViewData.Icon = QuickSlotViewData.Icon;
 	ViewData.StackCount = QuickSlotViewData.StackCount;
 	ViewData.bShowStackCount = QuickSlotViewData.bHasRegisteredItem;
+	ViewData.OwnedStackCount = QuickSlotViewData.StackCount;
+	ViewData.bHasOwnedStackCount = QuickSlotViewData.bHasRegisteredItem;
 
 	// 등록된 소비 아이템이 없을 때 빈 퀵슬롯 표시값
 	if (IsValid(QuickSlotViewData.ConsumableData))

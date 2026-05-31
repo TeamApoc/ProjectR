@@ -3,9 +3,13 @@
 #include "PRGameplayAbility_PenitentBarrierSummon.h"
 
 #include "AbilitySystemComponent.h"
-#include "ProjectR/Projectile/PRGroundBoxProjectileBase.h"
+#include "Abilities/Tasks/AbilityTask_PlayMontageAndWait.h"
+#include "Abilities/Tasks/AbilityTask_WaitGameplayEvent.h"
+#include "Animation/AnimMontage.h"
 #include "ProjectR/Character/Enemy/Penitent/PRPenitentCharacter.h"
+#include "ProjectR/Combat/PRCombatGameplayTags.h"
 #include "ProjectR/PRGameplayTags.h"
+#include "ProjectR/Projectile/PRGroundBoxProjectileBase.h"
 
 UPRGameplayAbility_PenitentBarrierSummon::UPRGameplayAbility_PenitentBarrierSummon()
 {
@@ -43,19 +47,15 @@ void UPRGameplayAbility_PenitentBarrierSummon::ActivateAbility(const FGameplayAb
 {
 	APRPenitentCharacter* PenitentCharacter = Cast<APRPenitentCharacter>(GetAvatarActorFromActorInfo());
 	UAbilitySystemComponent* AbilitySystemComponent = GetAbilitySystemComponentFromActorInfo();
-	UWorld* World = GetWorld();
-	// 유효성 체크, 서버 실행 확인
 	if (!IsValid(PenitentCharacter)
 		|| !PenitentCharacter->HasAuthority()
 		|| !IsValid(AbilitySystemComponent)
-		|| !IsValid(World)
 		|| !CommitAbility(Handle, ActorInfo, ActivationInfo))
 	{
 		EndAbility(Handle, ActorInfo, ActivationInfo, true, true);
 		return;
 	}
 
-	// 이미 배리어를 소환했다면 종료
 	if (PenitentCharacter->HasActiveBarrier()
 		|| AbilitySystemComponent->HasMatchingGameplayTag(PRGameplayTags::State_Enemy_Penitent_BarrierSummon))
 	{
@@ -63,14 +63,135 @@ void UPRGameplayAbility_PenitentBarrierSummon::ActivateAbility(const FGameplayAb
 		return;
 	}
 
-	// 배리어 부착 기준 위치
-	USceneComponent* BarrierAttachPoint = PenitentCharacter->GetBarrierAttachPoint();	
-	if (!IsValid(BarrierAttachPoint))
+	if (!IsValid(BarrierSummonMontage))
 	{
-		UE_LOG(LogTemp, Warning, TEXT("UPRGameplayAbility_PenitentBarrierSummon | 배리어 부착 씬 컴포넌트가 유효하지 않습니다."));
+		// 몽타주 누락으로 소환 중단
+		UE_LOG(LogTemp, Warning, TEXT("UPRGameplayAbility_PenitentBarrierSummon | BarrierSummonMontage가 유효하지 않습니다."));
+		EndAbility(Handle, ActorInfo, ActivationInfo, true, true);
 		return;
 	}
-	
+
+	constexpr bool bOnlyTriggerOnce = true;
+	constexpr bool bOnlyMatchExact = true;
+	ActiveBarrierEventTask = UAbilityTask_WaitGameplayEvent::WaitGameplayEvent(
+		this,
+		PRCombatGameplayTags::Event_Ability_PenitentBarrierSummon,
+		nullptr,
+		bOnlyTriggerOnce,
+		bOnlyMatchExact);
+	if (!IsValid(ActiveBarrierEventTask))
+	{
+		// 노티파이 대기 태스크 생성 실패
+		EndAbility(Handle, ActorInfo, ActivationInfo, true, true);
+		return;
+	}
+
+	ActiveMontageTask = UAbilityTask_PlayMontageAndWait::CreatePlayMontageAndWaitProxy(
+		this,
+		NAME_None,
+		BarrierSummonMontage,
+		FMath::Max(MontagePlayRate, UE_SMALL_NUMBER),
+		MontageStartSection);
+	if (!IsValid(ActiveMontageTask))
+	{
+		// 몽타주 태스크 생성 실패
+		EndAbility(Handle, ActorInfo, ActivationInfo, true, true);
+		return;
+	}
+
+	bBarrierActionExecuted = false;
+	ActiveBarrierEventTask->EventReceived.AddDynamic(this, &ThisClass::HandleBarrierSummonGameplayEvent);
+	ActiveBarrierEventTask->ReadyForActivation();
+
+	ActiveMontageTask->OnCompleted.AddDynamic(this, &ThisClass::HandleBarrierSummonMontageCompleted);
+	ActiveMontageTask->OnBlendOut.AddDynamic(this, &ThisClass::HandleBarrierSummonMontageCompleted);
+	ActiveMontageTask->OnInterrupted.AddDynamic(this, &ThisClass::HandleBarrierSummonMontageInterrupted);
+	ActiveMontageTask->OnCancelled.AddDynamic(this, &ThisClass::HandleBarrierSummonMontageInterrupted);
+	ActiveMontageTask->ReadyForActivation();
+}
+
+void UPRGameplayAbility_PenitentBarrierSummon::EndAbility(const FGameplayAbilitySpecHandle Handle,
+	const FGameplayAbilityActorInfo* ActorInfo,
+	const FGameplayAbilityActivationInfo ActivationInfo,
+	bool bReplicateEndAbility,
+	bool bWasCancelled)
+{
+	if (IsValid(ActiveBarrierEventTask))
+	{
+		ActiveBarrierEventTask->EndTask();
+		ActiveBarrierEventTask = nullptr;
+	}
+
+	if (IsValid(ActiveMontageTask))
+	{
+		ActiveMontageTask->EndTask();
+		ActiveMontageTask = nullptr;
+	}
+
+	bBarrierActionExecuted = false;
+
+	Super::EndAbility(Handle, ActorInfo, ActivationInfo, bReplicateEndAbility, bWasCancelled);
+}
+
+void UPRGameplayAbility_PenitentBarrierSummon::HandleBarrierSummonGameplayEvent(FGameplayEventData Payload)
+{
+	if (bBarrierActionExecuted || Payload.EventTag != PRCombatGameplayTags::Event_Ability_PenitentBarrierSummon)
+	{
+		return;
+	}
+
+	bBarrierActionExecuted = true;
+	if (!ExecuteBarrierSummon())
+	{
+		EndAbility(CurrentSpecHandle, CurrentActorInfo, CurrentActivationInfo, true, true);
+	}
+}
+
+void UPRGameplayAbility_PenitentBarrierSummon::HandleBarrierSummonMontageCompleted()
+{
+	if (!bBarrierActionExecuted)
+	{
+		// 소환 노티파이 누락 감지
+		UE_LOG(LogTemp, Warning, TEXT("UPRGameplayAbility_PenitentBarrierSummon | 배리어 소환 노티파이를 받지 못했습니다."));
+		EndAbility(CurrentSpecHandle, CurrentActorInfo, CurrentActivationInfo, true, true);
+		return;
+	}
+
+	EndAbility(CurrentSpecHandle, CurrentActorInfo, CurrentActivationInfo, true, false);
+}
+
+void UPRGameplayAbility_PenitentBarrierSummon::HandleBarrierSummonMontageInterrupted()
+{
+	EndAbility(CurrentSpecHandle, CurrentActorInfo, CurrentActivationInfo, true, true);
+}
+
+bool UPRGameplayAbility_PenitentBarrierSummon::ExecuteBarrierSummon()
+{
+	APRPenitentCharacter* PenitentCharacter = Cast<APRPenitentCharacter>(GetAvatarActorFromActorInfo());
+	UAbilitySystemComponent* AbilitySystemComponent = GetAbilitySystemComponentFromActorInfo();
+	UWorld* World = GetWorld();
+	if (!IsValid(PenitentCharacter)
+		|| !PenitentCharacter->HasAuthority()
+		|| !IsValid(AbilitySystemComponent)
+		|| !IsValid(World))
+	{
+		return false;
+	}
+
+	if (PenitentCharacter->HasActiveBarrier()
+		|| AbilitySystemComponent->HasMatchingGameplayTag(PRGameplayTags::State_Enemy_Penitent_BarrierSummon))
+	{
+		return false;
+	}
+
+	USceneComponent* BarrierAttachPoint = PenitentCharacter->GetBarrierAttachPoint();
+	if (!IsValid(BarrierAttachPoint))
+	{
+		// 배리어 부착 기준 누락
+		UE_LOG(LogTemp, Warning, TEXT("UPRGameplayAbility_PenitentBarrierSummon | 배리어 부착 씬 컴포넌트가 유효하지 않습니다."));
+		return false;
+	}
+
 	const FTransform SpawnTransform = BarrierAttachPoint->GetComponentTransform();
 	FActorSpawnParameters SpawnParameters;
 	SpawnParameters.Owner = PenitentCharacter;
@@ -84,16 +205,15 @@ void UPRGameplayAbility_PenitentBarrierSummon::ActivateAbility(const FGameplayAb
 
 	if (!IsValid(BarrierActor))
 	{
+		// 배리어 액터 스폰 실패
 		UE_LOG(LogTemp, Warning, TEXT("UPRGameplayAbility_PenitentBarrierSummon | 배리어 액터가 정상적으로 스폰되지 않았습니다."));
-		EndAbility(Handle, ActorInfo, ActivationInfo, true, true);
-		return;
+		return false;
 	}
 
-	// 배리어를 씬 컴포넌트에 부착
+	// 노티파이 프레임 기준 배리어 부착 상태 확정
 	BarrierActor->AttachToComponent(BarrierAttachPoint, FAttachmentTransformRules::KeepWorldTransform);
-
 	BarrierActor->InitializeAttachedBarrier(PenitentCharacter);
 	PenitentCharacter->SetSpawnedBarrierActor(BarrierActor);
 	AbilitySystemComponent->AddLooseGameplayTag(PRGameplayTags::State_Enemy_Penitent_BarrierSummon);
-	EndAbility(Handle, ActorInfo, ActivationInfo, true, false);
+	return true;
 }

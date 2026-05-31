@@ -46,6 +46,8 @@ namespace PRCombatGameplayTags
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Event_Ability_EnemyMeleeWindowTick);
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Event_Ability_EnemyMeleeWindowEnd);
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Event_Ability_EnemyComboWindow);
+	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Event_Ability_PenitentBarrierSummon);
+	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Event_Ability_PenitentBarrierLaunch);
 	
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Ability_Source_Weapon_Primary);
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Ability_Source_Weapon_Secondary);

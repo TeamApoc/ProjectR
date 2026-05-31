@@ -16,7 +16,7 @@ UPRGameplayAbility_PenitentBarrierLaunch::UPRGameplayAbility_PenitentBarrierLaun
 	FGameplayTagContainer BarrierLaunchTags;
 	BarrierLaunchTags.AddTag(PRGameplayTags::Ability_Enemy_Pattern);
 	BarrierLaunchTags.AddTag(PRGameplayTags::Ability_Enemy_Penitent_Pattern);
-	BarrierLaunchTags.AddTag(PRGameplayTags::Ability_Enemy_Penitent_BarrierFire);
+	BarrierLaunchTags.AddTag(PRGameplayTags::Ability_Enemy_Penitent_BarrierLaunch);
 	SetAssetTags(BarrierLaunchTags);
 }
 

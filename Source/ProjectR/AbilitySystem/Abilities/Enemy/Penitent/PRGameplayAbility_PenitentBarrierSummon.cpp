@@ -6,6 +6,7 @@
 #include "Abilities/Tasks/AbilityTask_PlayMontageAndWait.h"
 #include "Abilities/Tasks/AbilityTask_WaitGameplayEvent.h"
 #include "Animation/AnimMontage.h"
+#include "ProjectR/AbilitySystem/PRAbilitySystemComponent.h"
 #include "ProjectR/Character/Enemy/Penitent/PRPenitentCharacter.h"
 #include "ProjectR/Combat/PRCombatGameplayTags.h"
 #include "ProjectR/PRGameplayTags.h"
@@ -18,7 +19,6 @@ UPRGameplayAbility_PenitentBarrierSummon::UPRGameplayAbility_PenitentBarrierSumm
 	BarrierSummonTags.AddTag(PRGameplayTags::Ability_Enemy_Penitent_Pattern);
 	BarrierSummonTags.AddTag(PRGameplayTags::Ability_Enemy_Penitent_BarrierSummon);
 	SetAssetTags(BarrierSummonTags);
-	ActivationBlockedTags.AddTag(PRGameplayTags::State_Enemy_Penitent_BarrierSummon);
 }
 
 bool UPRGameplayAbility_PenitentBarrierSummon::CanActivateAbility(const FGameplayAbilitySpecHandle Handle,
@@ -35,8 +35,22 @@ bool UPRGameplayAbility_PenitentBarrierSummon::CanActivateAbility(const FGamepla
 	const UAbilitySystemComponent* AbilitySystemComponent = ActorInfo
 		? ActorInfo->AbilitySystemComponent.Get()
 		: nullptr;
-	return IsValid(AbilitySystemComponent)
-		&& IsValid(BarrierActorClass)
+	const APRPenitentCharacter* PenitentCharacter = ActorInfo
+		? Cast<APRPenitentCharacter>(ActorInfo->AvatarActor.Get())
+		: nullptr;
+	if (!IsValid(AbilitySystemComponent))
+	{
+		return false;
+	}
+
+	if (IsValid(PenitentCharacter)
+		&& PenitentCharacter->HasActiveBarrier()
+		&& AbilitySystemComponent->HasMatchingGameplayTag(PRGameplayTags::State_Enemy_Penitent_BarrierSummon))
+	{
+		return true;
+	}
+
+	return IsValid(BarrierActorClass)
 		&& !AbilitySystemComponent->HasMatchingGameplayTag(PRGameplayTags::State_Enemy_Penitent_BarrierSummon);
 }
 
@@ -49,15 +63,28 @@ void UPRGameplayAbility_PenitentBarrierSummon::ActivateAbility(const FGameplayAb
 	UAbilitySystemComponent* AbilitySystemComponent = GetAbilitySystemComponentFromActorInfo();
 	if (!IsValid(PenitentCharacter)
 		|| !PenitentCharacter->HasAuthority()
-		|| !IsValid(AbilitySystemComponent)
-		|| !CommitAbility(Handle, ActorInfo, ActivationInfo))
+		|| !IsValid(AbilitySystemComponent))
 	{
 		EndAbility(Handle, ActorInfo, ActivationInfo, true, true);
 		return;
 	}
 
 	if (PenitentCharacter->HasActiveBarrier()
-		|| AbilitySystemComponent->HasMatchingGameplayTag(PRGameplayTags::State_Enemy_Penitent_BarrierSummon))
+		&& AbilitySystemComponent->HasMatchingGameplayTag(PRGameplayTags::State_Enemy_Penitent_BarrierSummon))
+	{
+		FGameplayAbilitySpecHandle LaunchAbilityHandle;
+		UPRAbilitySystemComponent* PenitentAbilitySystemComponent = Cast<UPRAbilitySystemComponent>(AbilitySystemComponent);
+		const bool bLaunchActivated = IsValid(PenitentAbilitySystemComponent)
+			&& PenitentAbilitySystemComponent->TryActivateAbilityOnServer(
+				PRGameplayTags::Ability_Enemy_Penitent_BarrierLaunch,
+				LaunchAbilityHandle);
+		EndAbility(Handle, ActorInfo, ActivationInfo, true, !bLaunchActivated);
+		return;
+	}
+
+	if (PenitentCharacter->HasActiveBarrier()
+		|| AbilitySystemComponent->HasMatchingGameplayTag(PRGameplayTags::State_Enemy_Penitent_BarrierSummon)
+		|| !CommitAbility(Handle, ActorInfo, ActivationInfo))
 	{
 		EndAbility(Handle, ActorInfo, ActivationInfo, true, true);
 		return;

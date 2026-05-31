@@ -121,7 +121,7 @@ protected:
 	bool CanApplyDamageToTarget(AActor* TargetActor, UAbilitySystemComponent* TargetAbilitySystemComponent) const;
 
 	// 대상 피해 적용
-	void ApplyDamageToTarget(AActor* TargetActor, UAbilitySystemComponent* TargetAbilitySystemComponent, const FHitResult& HitResult);
+	void ApplyDamageToTarget(AActor* TargetActor, UAbilitySystemComponent* TargetASC, const FHitResult& HitResult);
 
 	// 기본 피해 스펙 생성
 	FGameplayEffectSpecHandle BuildDefaultDamageEffectSpec(AActor* InSourceActor) const;

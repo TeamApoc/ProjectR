@@ -15,6 +15,8 @@
 #include "PRProjectileManagerComponent.h"
 #include "Net/UnrealNetwork.h"
 #include "Net/Core/PushModel/PushModel.h"
+#include "ProjectR/Combat/PRCombatInterface.h"
+#include "ProjectR/Combat/PRCombatStatics.h"
 
 APRProjectileBase::APRProjectileBase()
 {
@@ -404,21 +406,28 @@ void APRProjectileBase::ApplyEffectToTargetWithHit(AActor* TargetActor, const FH
 	}
 	
 	IAbilitySystemInterface* ASI = Cast<IAbilitySystemInterface>(TargetActor);
-	if (!ASI)
+	if (ASI)
 	{
-		return;
-	}
-
-	UAbilitySystemComponent* TargetASC = ASI->GetAbilitySystemComponent();
-	if (!TargetASC)
-	{
-		return;
+		UAbilitySystemComponent* TargetASC = ASI->GetAbilitySystemComponent();
+		FGameplayEffectSpec* EffectSpec = EffectSpecHandle.Data.Get();
+		if (TargetASC && EffectSpec)
+		{
+			EffectSpec->GetContext().AddHitResult(InHitResult,true);
+			TargetASC->ApplyGameplayEffectSpecToSelf(*EffectSpec);	
+		}
 	}
 	
-	if (FGameplayEffectSpec* EffectSpec = EffectSpecHandle.Data.Get())
+	// 2026.05.31 이건주_ ASC 미보유 대상 대미지 적용 브릿지
+	IPRCombatInterface* CombatTarget = Cast<IPRCombatInterface>(TargetActor);
+	if (CombatTarget)
 	{
-		EffectSpec->GetContext().AddHitResult(InHitResult,true);
-		TargetASC->ApplyGameplayEffectSpecToSelf(*EffectSpec);	
+		const FPRDamageAppliedContext DamageContext =
+		UPRCombatStatics::BuildSimpleDamageAppliedContext(
+		InstigatorASC,
+		EffectSpecHandle,
+		&InHitResult);
+
+		CombatTarget->ReceiveDamageContext(DamageContext);
 	}
 }
 

@@ -7,6 +7,7 @@
 #include "GameFramework/Pawn.h"
 #include "GameFramework/PlayerController.h"
 #include "GameFramework/PlayerState.h"
+#include "ProjectR/AbilitySystem/AttributeSets/PRAttributeSet_Enemy.h"
 #include "ProjectR/AbilitySystem/AttributeSets/PRAttributeSet_Player.h"
 #include "ProjectR/Combat/PRCombatGameplayTags.h"
 #include "ProjectR/Combat/PRCombatInterface.h"
@@ -157,19 +158,52 @@ FPRDamageAppliedContext UPRCombatStatics::BuildSimpleDamageAppliedContext(
 		false,
 		0.0f);
 
-	const float CriticalHitChance = SourceAbilitySystemComponent->GetNumericAttribute(
-		UPRAttributeSet_Player::GetCriticalHitChanceAttribute());
+	const bool bHasWeaponBaseDamage = EffectSpec->SetByCallerTagMagnitudes.Contains(
+		PRCombatGameplayTags::SetByCaller_CurrentWeapon_BaseDamage);
+	const bool bHasEnemyAttackMultiplier = EffectSpec->SetByCallerTagMagnitudes.Contains(
+		PRCombatGameplayTags::SetByCaller_AttackMultiplier);
 
-	const float CriticalDamageMultiplier = SourceAbilitySystemComponent->GetNumericAttribute(
-		UPRAttributeSet_Player::GetCriticalDamageMultiplierAttribute());
+	float ResolvedBaseDamage = 0.0f;
+	bool bCanApplyCritical = false;
+	if (bHasWeaponBaseDamage)
+	{
+		// 플레이어 무기 대미지 해석
+		ResolvedBaseDamage = BaseDamage;
+		bCanApplyCritical = true;
+	}
+	else if (bHasEnemyAttackMultiplier)
+	{
+		const float AttackMultiplier = EffectSpec->GetSetByCallerMagnitude(
+			PRCombatGameplayTags::SetByCaller_AttackMultiplier,
+			false,
+			1.0f);
+		const float AttackPower = SourceAbilitySystemComponent->GetNumericAttribute(
+			UPRAttributeSet_Enemy::GetAttackPowerAttribute());
 
-	const float ClampedCriticalChance = FMath::Clamp(CriticalHitChance, 0.0f, 1.0f);
-	const bool bIsCritical = FMath::FRand() <= ClampedCriticalChance;
-	const float ResolvedCriticalMultiplier = bIsCritical
-		? FMath::Max(CriticalDamageMultiplier, 1.0f)
-		: 1.0f;
+		// 적 공격력 기반 대미지 해석
+		ResolvedBaseDamage = AttackPower * AttackMultiplier;
+	}
 
-	const float FinalDamage = FMath::Max(BaseDamage, 0.0f) * ResolvedCriticalMultiplier;
+	bool bIsCritical = false;
+	float ResolvedCriticalMultiplier = 1.0f;
+	if (bCanApplyCritical)
+	{
+		const float CriticalHitChance = SourceAbilitySystemComponent->GetNumericAttribute(
+			UPRAttributeSet_Player::GetCriticalHitChanceAttribute());
+
+		const float CriticalDamageMultiplier = SourceAbilitySystemComponent->GetNumericAttribute(
+			UPRAttributeSet_Player::GetCriticalDamageMultiplierAttribute());
+
+		const float ClampedCriticalChance = FMath::Clamp(CriticalHitChance, 0.0f, 1.0f);
+
+		// 플레이어 무기 치명타 판정
+		bIsCritical = FMath::FRand() <= ClampedCriticalChance;
+		ResolvedCriticalMultiplier = bIsCritical
+			? FMath::Max(CriticalDamageMultiplier, 1.0f)
+			: 1.0f;
+	}
+
+	const float FinalDamage = FMath::Max(ResolvedBaseDamage, 0.0f) * ResolvedCriticalMultiplier;
 	const FGameplayEffectContextHandle& EffectContext = EffectSpec->GetEffectContext();
 
 	FPRDamageAppliedContext DamageContext;
@@ -182,7 +216,7 @@ FPRDamageAppliedContext UPRCombatStatics::BuildSimpleDamageAppliedContext(
 	DamageContext.InstigatorController = ResolveDamageInstigatorController(
 		EffectContext,
 		SourceAbilitySystemComponent->GetAvatarActor());
-	if (HitResult != nullptr)
+	if (HitResult)
 	{
 		DamageContext.HitResult = *HitResult;
 	}

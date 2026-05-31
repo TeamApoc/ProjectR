@@ -55,6 +55,8 @@ APRGroundBoxProjectileBase::APRGroundBoxProjectileBase()
 	// 히트스캔 피격 판정
 	WallMeshComponent->SetCollisionResponseToChannel(PRCollisionChannels::ECC_Combat, ECR_Block);
 	WallMeshComponent->SetCollisionResponseToChannel(PRCollisionChannels::ECC_Projectile, ECR_Block);
+	// 범위 대미지 차폐 판정
+	WallMeshComponent->SetCollisionResponseToChannel(ECC_Visibility, ECR_Block);
 
 	AmbientVFXComponent = CreateDefaultSubobject<UNiagaraComponent>(TEXT("AmbientVFXComponent"));
 	AmbientVFXComponent->SetupAttachment(Root);
@@ -419,9 +421,9 @@ bool APRGroundBoxProjectileBase::CanApplyDamageToTarget(AActor* TargetActor, UAb
 }
 
 void APRGroundBoxProjectileBase::ApplyDamageToTarget(AActor* TargetActor,
-	UAbilitySystemComponent* TargetAbilitySystemComponent, const FHitResult& HitResult)
+	UAbilitySystemComponent* TargetASC, const FHitResult& HitResult)
 {
-	if (!IsValid(TargetActor) || !IsValid(TargetAbilitySystemComponent) || !DamageEffectSpecHandle.IsValid())
+	if (!IsValid(TargetActor) || !IsValid(TargetASC) || !DamageEffectSpecHandle.IsValid())
 	{
 		return;
 	}
@@ -434,9 +436,9 @@ void APRGroundBoxProjectileBase::ApplyDamageToTarget(AActor* TargetActor,
 
 	// 오버랩 지점을 대상 피해 컨텍스트로 전달
 	EffectSpec->GetContext().AddHitResult(HitResult, true);
-	TargetAbilitySystemComponent->ApplyGameplayEffectSpecToSelf(*EffectSpec);
+	TargetASC->ApplyGameplayEffectSpecToSelf(*EffectSpec);
 
-	SetTargetCooldown(TargetActor, TargetAbilitySystemComponent);
+	SetTargetCooldown(TargetActor, TargetASC);
 	MulticastHandleTargetHit(TargetActor, HitResult);
 }
 

@@ -131,6 +131,8 @@ FPRInventoryItemSlotViewData UPRQuickSlotWidget::BuildItemSlotViewData(const FPR
 	ViewData.Icon = QuickSlotViewData.Icon;
 	ViewData.StackCount = QuickSlotViewData.StackCount;
 	ViewData.bShowStackCount = QuickSlotViewData.bHasRegisteredItem;
+	ViewData.OwnedStackCount = QuickSlotViewData.StackCount;
+	ViewData.bHasOwnedStackCount = QuickSlotViewData.bHasRegisteredItem;
 
 	if (IsValid(QuickSlotViewData.ConsumableData))
 	{

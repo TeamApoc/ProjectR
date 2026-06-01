@@ -10,6 +10,7 @@
 #include "AbilitySystemBlueprintLibrary.h"
 #include "EnhancedInputComponent.h"
 #include "InputAction.h"
+#include "ProjectR/FX/PRFXNetworkComponent.h"
 #include "ProjectR/Game/PRCameraManager.h"
 #include "ProjectR/Input/PRInputConfigDataAsset.h"
 #include "ProjectR/Player/PRPlayerState.h"
@@ -39,6 +40,7 @@ APRPlayerController::APRPlayerController()
 	UIControllerComponent = CreateDefaultSubobject<UPRUIControllerComponent>(TEXT("UIControllerComponent"));
 	InteractionSensor = CreateDefaultSubobject<UPRInteractionSensor>(TEXT("InteractionSensor"));
 	InteractorComponent = CreateDefaultSubobject<UPRInteractorComponent>(TEXT("InteractorComponent"));
+
 }
 
 // =====  APlayerController Interface =====

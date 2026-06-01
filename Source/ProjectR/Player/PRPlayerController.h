@@ -38,6 +38,7 @@ class UPRCheatHandler;
 class UPRItemInstance_Weapon;
 class UPRShopComponent;
 class UPRWeaponUpgradeComponent;
+class UPRFXNetworkComponent;
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FPRWeaponUpgradeResultSignature, const FPRWeaponUpgradeResult&, Result);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FPRShopBuyResultSignature, const FPRShopBuyResult&, Result);

@@ -10,6 +10,7 @@
 #include "ProjectR/ItemSystem/Types/PRWeaponTypes.h"
 #include "PRPlayerState.generated.h"
 
+class UPRFXNetworkComponent;
 struct FPRInventoryChangeEventData;
 enum class EPRInventoryChangeReason : uint8;
 class UPRAbilitySystemComponent;
@@ -222,6 +223,10 @@ protected:
 	// 플레이어 성장 상태 컨테이너
 	UPROPERTY(VisibleAnywhere, Category = "ProjectR|Growth")
 	TObjectPtr<UPRPlayerGrowthComponent> GrowthComponent;
+	
+	// FX 서버 요청과 Client RPC 수신을 담당하는 Player 소유 컴포넌트
+	UPROPERTY(VisibleAnywhere, Category = "ProjectR|FX")
+	TObjectPtr<UPRFXNetworkComponent> FXNetworkComponent;
 
 	// 주무기 슬롯 탄창 보존 비율
 	float CachedPrimaryMagazineAmmoRatio = 1.0f;

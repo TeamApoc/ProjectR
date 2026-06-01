@@ -16,6 +16,7 @@
 #include "ProjectR/PRGameplayTags.h"
 #include "ProjectR/AbilitySystem/Data/PRAbilitySystemRegistry.h"
 #include "ProjectR/Character/PRPlayerCharacter.h"
+#include "ProjectR/FX/PRFXNetworkComponent.h"
 #include "ProjectR/ItemSystem/Components/PRQuickSlotComponent.h"
 #include "ProjectR/ItemSystem/Data/PRItemDataAsset.h"
 #include "ProjectR/ItemSystem/Items/PRItemInstance_Consumable.h"
@@ -40,7 +41,10 @@ APRPlayerState::APRPlayerState()
 	QuickSlotComponent = CreateDefaultSubobject<UPRQuickSlotComponent>(TEXT("QuickSlotComponent"));
 	CurrencyComponent = CreateDefaultSubobject<UPRCurrencyComponent>(TEXT("CurrencyComponent"));
 	GrowthComponent = CreateDefaultSubobject<UPRPlayerGrowthComponent>(TEXT("GrowthComponent"));
-
+	
+	// Player 소유 Client RPC와 owning client의 Server RPC 호출을 위한 FX 네트워크 컴포넌트
+	FXNetworkComponent = CreateDefaultSubobject<UPRFXNetworkComponent>(TEXT("FXNetworkComponent"));
+	
 	// PlayerState는 NetUpdate가 낮음. GAS 예측 응답성 확보를 위해 인상
 	SetNetUpdateFrequency(100.0f);
 }

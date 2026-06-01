@@ -10,6 +10,7 @@
 enum class EPRCrosshairType : uint8;
 enum class EPRFloatingTextType : uint8;
 class UPRAbilitySystemRegistry;
+class UPRFXRegistryDataAsset;
 class UPRFloatingTextWidget;
 class UGameplayEffect;
 class UUserWidget;
@@ -79,6 +80,10 @@ public:
 	// AbilitySystem 전용 Registry 소프트 레퍼런스
 	UPROPERTY(EditAnywhere, Config, Category = "Registries", meta = (AllowedClasses = "/Script/ProjectR.PRAbilitySystemRegistry"))
 	TSoftObjectPtr<UPRAbilitySystemRegistry> AbilitySystemRegistry;
+
+	// FX 태그와 Cue 클래스를 연결하는 Registry 소프트 레퍼런스
+	UPROPERTY(EditAnywhere, Config, Category = "Registries", meta = (AllowedClasses = "/Script/ProjectR.PRFXRegistryDataAsset"))
+	TSoftObjectPtr<UPRFXRegistryDataAsset> FXRegistry;
 
 	// 몬스터별 드롭 보상 테이블
 	UPROPERTY(EditAnywhere, Config, Category = "Registries", meta = (RequiredAssetDataTags = "RowStructure=/Script/ProjectR.PRMonsterDropTableRow"))

@@ -9,7 +9,6 @@
 
 class UButton;
 class UImage;
-class UPRUIControllerComponent;
 class UTextBlock;
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FPRShopItemSlotClickedSignature, const FPRShopItemSlotViewData&, ViewData);
@@ -37,15 +36,6 @@ protected:
 	// 마우스 버튼 입력으로 슬롯 클릭을 처리
 	virtual FReply NativeOnMouseButtonDown(const FGeometry& InGeometry, const FPointerEvent& InMouseEvent) override;
 
-	// 마우스 호버 시작 시 툴팁 표시를 요청한다
-	virtual void NativeOnMouseEnter(const FGeometry& InGeometry, const FPointerEvent& InMouseEvent) override;
-
-	// 마우스 호버 종료 시 툴팁 숨김을 요청한다
-	virtual void NativeOnMouseLeave(const FPointerEvent& InMouseEvent) override;
-
-	// 위젯 파괴 시 표시 중인 툴팁을 숨긴다
-	virtual void NativeDestruct() override;
-
 private:
 	// 클릭 버튼 좌클릭 이벤트를 슬롯 선택으로 전달
 	UFUNCTION()
@@ -56,15 +46,6 @@ private:
 
 	// 재고 표시 텍스트를 만듬
 	FText MakeStockText() const;
-
-	// 현재 슬롯 데이터로 툴팁 표시를 요청한다
-	void ShowTooltip();
-
-	// 현재 표시 중인 툴팁 숨김을 요청한다
-	void HideTooltip();
-
-	// 소유 플레이어의 UI 컨트롤러를 조회한다
-	UPRUIControllerComponent* ResolveUIController() const;
 
 public:
 	// 슬롯 선택 이벤트
@@ -105,5 +86,4 @@ private:
 	UPROPERTY(BlueprintReadOnly, Category = "ProjectR|Shop", meta = (AllowPrivateAccess = "true"))
 	FPRShopItemSlotViewData ViewData;
 
-	bool bIsMouseHovering = false;
 };

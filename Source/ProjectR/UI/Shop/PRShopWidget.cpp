@@ -21,6 +21,13 @@
 #include "ProjectR/UI/Shop/PRShopItemListWidget.h"
 #include "ProjectR/ItemSystem/Data/PRWeaponModDataAsset.h"
 
+UPRShopWidget::UPRShopWidget()
+{
+	Layer = EPRUILayer::Menu;
+	InputMode = EPBUIInputMode::UIOnly;
+	bShowMouseCursor = true;
+}
+
 void UPRShopWidget::SetShopContext(UPRShopComponent* InShopComponent)
 {
 	ShopComponent = InShopComponent;
@@ -373,6 +380,8 @@ FPRShopItemSlotViewData UPRShopWidget::BuildShopSlotViewData(const FPRShopEntry&
 	ViewData.ItemViewData.ItemType = ItemData->GetItemType();
 	ViewData.ItemViewData.StackCount = GetOwnedStackCount(ItemData);
 	ViewData.ItemViewData.bShowStackCount = true;
+	ViewData.ItemViewData.OwnedStackCount = ViewData.ItemViewData.StackCount;
+	ViewData.ItemViewData.bHasOwnedStackCount = true;
 	ViewData.bSelected = SelectedItem.EntryId == Entry.EntryId && SelectedItem.TabType == TabType;
 	ViewData.UnitScrapPrice = TabType == EPRShopTabType::Buy
 		? Entry.BaseScrapPrice

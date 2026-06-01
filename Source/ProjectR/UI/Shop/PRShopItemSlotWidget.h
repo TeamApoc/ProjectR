@@ -85,4 +85,5 @@ private:
 	// 현재 슬롯 표시 데이터
 	UPROPERTY(BlueprintReadOnly, Category = "ProjectR|Shop", meta = (AllowPrivateAccess = "true"))
 	FPRShopItemSlotViewData ViewData;
+
 };

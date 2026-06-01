@@ -18,6 +18,7 @@ class PROJECTR_API UPRInGameMenuWidget : public UPRWidgetBase
 	GENERATED_BODY()
 
 public:
+	UPRInGameMenuWidget();
 	/*~ UUserWidget Interface ~*/
 	virtual void NativeConstruct() override;
 	virtual void NativeDestruct() override;

@@ -16,6 +16,7 @@ class UPRCrosshairWidget;
 class UPRInteractionProgressBar;
 class UPRBossHealthBarWidget;
 class UPRHealthBarWidget;
+class UPRHUDMessageWidget;
 class UPRPartyHealthListWidget;
 class UPRStaminaBarWidget;
 class UPRWorldMarkerLayerWidget;
@@ -144,6 +145,10 @@ protected:
 	// W_HUD에 배치한 픽업 알림 목록 위젯
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "HUD")
 	TObjectPtr<UPRPickupNotificationListWidget> PickupNotificationListWidget;
+
+	// W_HUD에 배치한 안내 메시지 위젯
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "HUD")
+	TObjectPtr<UPRHUDMessageWidget> HUDMessageWidget;
 
 private:
 	TArray<FDelegateHandle> EventHandles;

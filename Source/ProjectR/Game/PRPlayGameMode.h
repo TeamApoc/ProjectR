@@ -11,7 +11,7 @@
 
 class APRPlayerController;
 class APRPlayerState;
-class APRWaypointActor;
+class APRSpawnPoint;
 
 // 인게임 GameMode. 호스트 프로세스에만 존재
 // 로그인 승인, 게스트 캐릭터 페이로드 검증, 월드 상태 주입, 이탈 시 보상 커밋을 담당
@@ -31,7 +31,7 @@ public:
 
 public:
 	// 월드 이벤트 반영. 체크포인트 트리거·보스 처치 등에서 호출
-	void ReportCheckpointActivated(FName CheckpointId);
+	void ReportCheckpointActivated(FGameplayTag CheckpointId);
 	void ReportBossDefeated(FName BossId);
 
 	// 접속 플레이어 캐릭터 페이로드를 검증하고 PlayerState에 주입
@@ -55,17 +55,17 @@ protected:
 	// 전멸을 확정하고 모든 전투 참여 플레이어에게 최종 사망 이벤트를 보낸다.
 	void ConfirmPartyWipe();
 
-	// 전멸 파티의 마지막 활성 웨이포인트 기준 같은 맵 서버 이동 재시작
+	// 전멸 파티의 마지막 체크포인트 기준 같은 맵 서버 이동 재시작
 	void RestartMapForPartyRespawn();
 
-	// 지정 Waypoint 태그와 일치하는 Waypoint Actor를 찾는다
-	APRWaypointActor* FindWaypointById(FGameplayTag WaypointId) const;
+	// 지정 SpawnPoint 태그와 일치하는 SpawnPoint Actor를 찾는다
+	APRSpawnPoint* FindSpawnPointById(FGameplayTag SpawnPointId) const;
 
-	// 일반 스폰에 사용할 Waypoint 태그를 결정한다
-	FGameplayTag ResolvePlayerStartWaypointId() const;
+	// 일반 스폰에 사용할 SpawnPoint 태그를 결정한다
+	FGameplayTag ResolvePlayerStartSpawnPointId() const;
 
-	// 전멸 리스폰에 사용할 Waypoint 태그를 결정한다
-	FGameplayTag ResolvePartyRespawnWaypointId() const;
+	// 전멸 리스폰에 사용할 SpawnPoint 태그를 결정한다
+	FGameplayTag ResolvePartyRespawnSpawnPointId() const;
 
 	// PlayerArray 기준 플레이어 인덱스를 결정한다
 	int32 ResolvePlayerIndex(const AController* Controller) const;
@@ -91,8 +91,8 @@ protected:
 	UPROPERTY(EditDefaultsOnly, Category = "ProjectR|Survival", meta = (ClampMin = "0.0"))
 	float PartyWipeRespawnDelay = 2.0f;
 
-	// 맵 이동 직후 최초 스폰에 사용할 Waypoint 태그
-	FGameplayTag TravelSpawnWaypointId;
+	// 맵 이동 직후 최초 스폰에 사용할 SpawnPoint 태그
+	FGameplayTag TravelSpawnPointId;
 
 	// 전멸 리스폰 타이머 핸들
 	FTimerHandle PartyWipeRespawnTimerHandle;

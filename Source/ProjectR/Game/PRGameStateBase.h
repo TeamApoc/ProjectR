@@ -13,7 +13,7 @@
 class APRPlayerCharacter;
 
 // 체크포인트 활성화 시 발행
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnCheckpointActivatedSignature, FName, CheckpointId);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnCheckpointActivatedSignature, FGameplayTag, CheckpointId);
 
 // 보스 처치 시 발행
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnBossDefeatedSignature, FName, BossId);
@@ -30,7 +30,7 @@ public:
 
 public:
 	// 현재 활성 체크포인트 조회
-	FName GetActiveCheckpoint() const { return ActiveCheckpoint; }
+	FGameplayTag GetActiveCheckpoint() const { return ActiveCheckpoint; }
 
 	// 마지막 활성 Waypoint 태그 조회
 	FGameplayTag GetLastActiveWaypointId() const { return LastActiveWaypointId; }
@@ -48,7 +48,7 @@ public:
 	FPRWorldSaveData MakeWorldSaveData() const;
 
 	// 서버 전용. 체크포인트 활성화 반영
-	void SetActiveCheckpoint(FName CheckpointId);
+	void SetActiveCheckpoint(FGameplayTag CheckpointId);
 
 	// 서버 전용. 마지막 활성 Waypoint 태그 반영
 	void SetLastActiveWaypointId(FGameplayTag WaypointId);
@@ -65,7 +65,7 @@ public:
 protected:
 	// ActiveCheckpoint 복제 콜백. 클라이언트에서 UI·리스폰 지점 갱신 트리거
 	UFUNCTION()
-	void OnRep_ActiveCheckpoint(FName OldCheckpoint);
+	void OnRep_ActiveCheckpoint(FGameplayTag OldCheckpoint);
 
 	// 월드 마커 이벤트 전파
 	UFUNCTION(NetMulticast, Reliable)
@@ -93,11 +93,11 @@ protected:
 
 	// 현재 활성 체크포인트. 변경 시 OnRep으로 UI/리스폰 지점 갱신
 	UPROPERTY(ReplicatedUsing = OnRep_ActiveCheckpoint)
-	FName ActiveCheckpoint;
+	FGameplayTag ActiveCheckpoint;
 
 	// 이번 세션에서 해금된 체크포인트 집합
 	UPROPERTY(Replicated)
-	TArray<FName> UnlockedCheckpoints;
+	TArray<FGameplayTag> UnlockedCheckpoints;
 
 	// 마지막 활성 Waypoint 태그
 	UPROPERTY(Replicated)

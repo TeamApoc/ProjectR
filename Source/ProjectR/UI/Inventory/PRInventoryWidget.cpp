@@ -5,6 +5,7 @@
 
 #include "GameFramework/PlayerController.h"
 #include "Components/TextBlock.h"
+#include "Engine/LocalPlayer.h"
 #include "Engine/World.h"
 #include "TimerManager.h"
 #include "ProjectR/Character/PRPlayerCharacter.h"
@@ -23,13 +24,20 @@
 #include "ProjectR/UI/Inventory/PRCurrencyDisplayWidget.h"
 #include "ProjectR/ItemSystem/Components/PRWeaponManagerComponent.h"
 #include "ProjectR/ItemSystem/Data/PRWeaponDataAsset.h"
-#include "ProjectR/ItemSystem/Data/PRWeaponModDataAsset.h"
 #include "ProjectR/ItemSystem/Items/PRItemInstance_Mod.h"
 #include "ProjectR/ItemSystem/Items/PRItemInstance_Weapon.h"
 #include "ProjectR/UI/Inventory/PRInventoryItemListWidget.h"
 #include "ProjectR/UI/Inventory/PRInventoryItemSlotViewDataBuilder.h"
 #include "ProjectR/UI/Inventory/PRItemSlotWidget.h"
 #include "ProjectR/UI/Preview/PRCharacterPreviewWidget.h"
+#include "ProjectR/UI/PRUIManagerSubsystem.h"
+
+UPRInventoryWidget::UPRInventoryWidget()
+{
+	Layer = EPRUILayer::Menu;
+	InputMode = EPBUIInputMode::UIOnly;
+	bShowMouseCursor = true;
+}
 
 void UPRInventoryWidget::SetInventorySources(UPRInventoryComponent* InInventoryComponent, UPRWeaponManagerComponent* InWeaponManagerComponent, UPRQuickSlotComponent* InQuickSlotComponent, UPREquipmentManagerComponent* InEquipmentManagerComponent)
 {
@@ -73,6 +81,15 @@ void UPRInventoryWidget::NativeDestruct()
 	UnbindInventorySourceEvents();
 
 	Super::NativeDestruct();
+}
+
+EPRUIInputAction UPRInventoryWidget::GetUIInputAction(const FKey& Key) const
+{
+	if (Key == EKeys::Tab)
+	{
+		return EPRUIInputAction::Cancel;
+	}
+	return Super::GetUIInputAction(Key);
 }
 
 void UPRInventoryWidget::CacheChildWidgetLists()
@@ -528,8 +545,7 @@ void UPRInventoryWidget::OpenWeaponList(EPRWeaponSlotType TargetSlot)
 		ListItems.Add(BuildWeaponItemViewData(WeaponItem, bEquipped));
 	}
 
-	ItemListWidget->SetItemList(ItemListType, ListItems);
-	ItemListWidget->SetVisibility(ESlateVisibility::Visible);
+	PushItemList(ItemListType, ListItems);
 }
 
 void UPRInventoryWidget::OpenModList(UPRItemInstance* TargetItem)
@@ -566,8 +582,7 @@ void UPRInventoryWidget::OpenModList(UPRItemInstance* TargetItem)
 		ListItems.Add(BuildModItemViewData(ModItem, bEquipped));
 	}
 
-	ItemListWidget->SetItemList(EPRItemType::Mod, ListItems);
-	ItemListWidget->SetVisibility(ESlateVisibility::Visible);
+	PushItemList(EPRItemType::Mod, ListItems);
 }
 
 void UPRInventoryWidget::OpenConsumableListForQuickSlot(int32 SlotIndex)
@@ -594,8 +609,7 @@ void UPRInventoryWidget::OpenConsumableListForQuickSlot(int32 SlotIndex)
 		ListItems.Add(BuildConsumableItemViewData(ConsumableItem));
 	}
 
-	ItemListWidget->SetItemList(EPRItemType::Consumable, ListItems);
-	ItemListWidget->SetVisibility(ESlateVisibility::Visible);
+	PushItemList(EPRItemType::Consumable, ListItems);
 }
 
 void UPRInventoryWidget::OpenEquipmentListForSlot(EPREquipmentSlotType SlotType)
@@ -640,8 +654,7 @@ void UPRInventoryWidget::OpenEquipmentListForSlot(EPREquipmentSlotType SlotType)
 		ListItems.Add(BuildEquipmentItemViewData(EquipmentItem, bEquipped));
 	}
 
-	ItemListWidget->SetItemList(EPRItemType::Equipment, ListItems);
-	ItemListWidget->SetVisibility(ESlateVisibility::Visible);
+	PushItemList(EPRItemType::Equipment, ListItems);
 }
 
 void UPRInventoryWidget::OpenMaterialList()
@@ -667,8 +680,7 @@ void UPRInventoryWidget::OpenMaterialList()
 		ListItems.Add(BuildMaterialItemViewData(MaterialItem));
 	}
 
-	ItemListWidget->SetItemList(EPRItemType::Material, ListItems);
-	ItemListWidget->SetVisibility(ESlateVisibility::Visible);
+	PushItemList(EPRItemType::Material, ListItems);
 }
 
 bool UPRInventoryWidget::IsItemListOpenAs(EPRItemType ListType) const
@@ -678,18 +690,37 @@ bool UPRInventoryWidget::IsItemListOpenAs(EPRItemType ListType) const
 
 void UPRInventoryWidget::CloseItemList()
 {
-	//아이템 리스트 위젯이 유효하면
 	if (IsValid(ItemListWidget))
 	{
-		// 빈 아이템 뷰 데이터 목록 설정
 		TArray<FPRInventoryItemSlotViewData> EmptyItems;
 		ItemListWidget->SetItemList(EPRItemType::None, EmptyItems);
-		ItemListWidget->SetVisibility(ESlateVisibility::Collapsed);
+
+		if (UPRUIManagerSubsystem* UIManager = ResolveUIManager())
+		{
+			// ItemListWidget이 스택 최상위가 아니어도 지정 인스턴스만 Pop
+			UIManager->PopUI(ItemListWidget);
+		}
 	}
 
 	PendingWeaponListSlot = EPRWeaponSlotType::None;
 	LastFocusedItem = nullptr;
 	LastFocusedIndex = INDEX_NONE;
+}
+
+void UPRInventoryWidget::PushItemList(EPRItemType ListType, const TArray<FPRInventoryItemSlotViewData>& ListItems)
+{
+	if (!IsValid(ItemListWidget))
+	{
+		return;
+	}
+
+	ItemListWidget->SetItemList(ListType, ListItems);
+
+	if (UPRUIManagerSubsystem* UIManager = ResolveUIManager())
+	{
+		// 부모 위젯 내부에 배치된 리스트도 UI 스택에서 입력 포커스를 받도록 Push
+		UIManager->PushUIInstance(ItemListWidget);
+	}
 }
 
 void UPRInventoryWidget::RefreshEquippedSlotWidgets()
@@ -931,4 +962,15 @@ UPRCurrencyComponent* UPRInventoryWidget::ResolveCurrencyComponent() const
 	}
 
 	return PlayerState->GetCurrencyComponent();
+}
+
+UPRUIManagerSubsystem* UPRInventoryWidget::ResolveUIManager() const
+{
+	ULocalPlayer* LocalPlayer = GetOwningLocalPlayer();
+	if (!IsValid(LocalPlayer))
+	{
+		return nullptr;
+	}
+
+	return LocalPlayer->GetSubsystem<UPRUIManagerSubsystem>();
 }

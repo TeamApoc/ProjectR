@@ -7,12 +7,15 @@
 #include "Animation/AnimMontage.h"
 #include "AbilitySystemComponent.h"
 #include "Components/CapsuleComponent.h"
+#include "Engine/World.h"
 #include "GameFramework/Character.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "GameFramework/PlayerState.h"
 #include "TimerManager.h"
 #include "ProjectR/AI/Components/PREnemyThreatComponent.h"
+#include "ProjectR/Character/Enemy/PRBossBaseCharacter.h"
 #include "ProjectR/Character/Enemy/PREnemyBaseCharacter.h"
+#include "ProjectR/Game/PRPlayGameMode.h"
 #include "ProjectR/ItemSystem/Types/PRDropTypes.h"
 #include "ProjectR/PRGameplayTags.h"
 #include "ProjectR/World/Drop/PRItemDropManagerSubsystem.h"
@@ -329,4 +332,14 @@ void UPRGameplayAbility_EnemyDeath::FinishDeath()
 	}
 
 	bDeathFinished = true;
+
+	if (APRBossBaseCharacter* BossCharacter = Cast<APRBossBaseCharacter>(GetAvatarActorFromActorInfo()))
+	{
+		UWorld* World = BossCharacter->GetWorld();
+		if (APRPlayGameMode* PlayGameMode = IsValid(World) ? World->GetAuthGameMode<APRPlayGameMode>() : nullptr)
+		{
+			// 보스 처치 상태 보고
+			PlayGameMode->ReportBossDefeated(BossCharacter->GetMonsterId());
+		}
+	}
 }

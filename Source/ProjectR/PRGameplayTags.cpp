@@ -157,6 +157,7 @@ namespace PRGameplayTags
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Event_Player_Interactable, "Event.Player.Interactable", "상호작용 가능 알림");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Event_Player_ModActivation, "Event.Player.ModActivation", "Mod On/Off 이벤트");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Event_Player_WorldMarker, "Event.Player.WorldMarker", "월드 마커 추가 제거 알림");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Event_Player_HUDMessage, "Event.Player.HUDMessage", "HUD 안내 메시지 표시 알림");
 
 	// ===== Event.Boss.* =====
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Event_Boss_Encounter_Begin, "Event.Boss.Encounter.Begin", "보스 조우 시작 (FPRBossEncounterEventPayload 동반)");

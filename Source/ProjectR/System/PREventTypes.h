@@ -29,3 +29,17 @@ struct PROJECTR_API FPRModActivationPayload : public FPREventPayload
 	UPROPERTY(BlueprintReadWrite)
 	EPRWeaponSlotType SlotType = EPRWeaponSlotType::None;
 };
+
+USTRUCT(BlueprintType)
+struct PROJECTR_API FPRHUDMessageEventPayload : public FPREventPayload
+{
+	GENERATED_BODY()
+
+	// HUD 메시지 표시 여부
+	UPROPERTY(BlueprintReadWrite)
+	bool bShow = false;
+
+	// HUD에 표시할 안내 문구
+	UPROPERTY(BlueprintReadWrite)
+	FText Message;
+};

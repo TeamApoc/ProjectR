@@ -3,6 +3,7 @@
 #include "PRUIControllerComponent.h"
 
 #include "Blueprint/UserWidget.h"
+#include "Components/Widget.h"
 #include "Engine/LocalPlayer.h"
 #include "GameFramework/PlayerController.h"
 #include "ProjectR/Character/PRPlayerCharacter.h"
@@ -13,14 +14,36 @@
 #include "ProjectR/UI/HUD/PRHUDWidget.h"
 #include "ProjectR/UI/InGameMenu/PRInGameMenuWidget.h"
 #include "ProjectR/UI/Inventory/PRInventoryWidget.h"
+#include "ProjectR/UI/Inventory/PRItemTooltipWidget.h"
+#include "ProjectR/UI/Inventory/PRItemTooltipViewDataBuilder.h"
 #include "ProjectR/UI/Growth/PRTraitWindowWidget.h"
 #include "ProjectR/UI/PRUIManagerSubsystem.h"
 #include "ProjectR/UI/Shop/PRShopWidget.h"
 #include "ProjectR/UI/WeaponUpgrade/PRWeaponUpgradeWidget.h"
+#include "ProjectR/PRGameplayTags.h"
 #include "ProjectR/Shop/Components/PRShopComponent.h"
+#include "ProjectR/System/PREventManagerSubsystem.h"
+#include "ProjectR/System/PREventTypes.h"
 #include "ProjectR/ItemSystem/Components/PRWeaponUpgradeComponent.h"
 #include "ProjectR/ItemSystem/Components/PRWeaponManagerComponent.h"
 #include "ProjectR/ItemSystem/Data/PRWeaponDataAsset.h"
+
+namespace
+{
+	// HUD 메시지 타입별 표시 문구 해석
+	FText ResolveHUDMessageText(EPRHUDMessageType MessageType)
+	{
+		switch (MessageType)
+		{
+		case EPRHUDMessageType::WaitingForOtherPlayers:
+			return NSLOCTEXT("ProjectR", "HUDMessage_WaitingForOtherPlayers", "다른 플레이어 기다리는 중");
+		case EPRHUDMessageType::OtherPlayersWaiting:
+			return NSLOCTEXT("ProjectR", "HUDMessage_OtherPlayersWaiting", "다른 플레이어들이 기다리는 중");
+		default:
+			return FText::GetEmpty();
+		}
+	}
+}
 
 UPRUIControllerComponent::UPRUIControllerComponent()
 {
@@ -42,6 +65,7 @@ void UPRUIControllerComponent::ToggleInventory()
 
 	if (IsValid(InventoryWidget) && InventoryWidget->IsInViewport())
 	{
+		HideItemTooltip();
 		UIManager->PopUI(InventoryWidget);
 		return;
 	}
@@ -71,6 +95,8 @@ void UPRUIControllerComponent::CloseInventory()
 	{
 		return;
 	}
+
+	HideItemTooltip();
 
 	if (!IsValid(InventoryWidget) || !InventoryWidget->IsInViewport())
 	{
@@ -205,6 +231,7 @@ void UPRUIControllerComponent::OpenWeaponUpgrade(UPRWeaponUpgradeComponent* Upgr
 		return;
 	}
 
+	HideItemTooltip();
 	CloseShop();
 
 	UPRUIManagerSubsystem* UIManager = GetUIManager();
@@ -230,6 +257,7 @@ void UPRUIControllerComponent::OpenShop(UPRShopComponent* ShopComponent)
 		return;
 	}
 
+	HideItemTooltip();
 	CloseWeaponUpgrade();
 
 	UPRUIManagerSubsystem* UIManager = GetUIManager();
@@ -255,6 +283,8 @@ void UPRUIControllerComponent::CloseWeaponUpgrade()
 		return;
 	}
 
+	HideItemTooltip();
+
 	if (!IsValid(WeaponUpgradeWidget) || !WeaponUpgradeWidget->IsInViewport())
 	{
 		return;
@@ -277,6 +307,8 @@ void UPRUIControllerComponent::CloseShop()
 	{
 		return;
 	}
+
+	HideItemTooltip();
 
 	if (!IsValid(ShopWidget) || !ShopWidget->IsInViewport())
 	{
@@ -346,6 +378,66 @@ void UPRUIControllerComponent::ShowPickupRewardNotification(const FPRPickupNotif
 	}
 }
 
+void UPRUIControllerComponent::NotifyHUDMessage(EPRHUDMessageType MessageType)
+{
+	if (!IsLocalPlayer())
+	{
+		return;
+	}
+
+	UWorld* World = GetWorld();
+	if (!IsValid(World))
+	{
+		return;
+	}
+
+	UPREventManagerSubsystem* EventManager = World->GetSubsystem<UPREventManagerSubsystem>();
+	if (!IsValid(EventManager))
+	{
+		return;
+	}
+
+	// HUD 메시지 위젯이 구독하는 로컬 EventManager 이벤트 발송
+	FPRHUDMessageEventPayload Payload;
+	Payload.bShow = MessageType != EPRHUDMessageType::None;
+	Payload.Message = ResolveHUDMessageText(MessageType);
+	EventManager->BroadcastTyped(PRGameplayTags::Event_Player_HUDMessage, Payload);
+}
+
+void UPRUIControllerComponent::ShowItemTooltip(UWidget* TooltipOwner, const FPRInventoryItemSlotViewData& SlotViewData)
+{
+	if (!IsLocalPlayer() || !IsValid(TooltipOwner) || !IsValid(SlotViewData.ItemData.Get()))
+	{
+		HideItemTooltip();
+		return;
+	}
+
+	UPRItemTooltipWidget* TooltipWidget = GetOrCreateItemTooltipWidget();
+	if (!IsValid(TooltipWidget))
+	{
+		return;
+	}
+
+	if (IsValid(ActiveTooltipOwner) && ActiveTooltipOwner != TooltipOwner)
+	{
+		ActiveTooltipOwner->SetToolTip(nullptr);
+	}
+
+	TooltipWidget->SetTooltipViewData(UPRItemTooltipViewDataBuilder::BuildTooltipViewData(SlotViewData));
+	TooltipOwner->SetToolTip(TooltipWidget);
+	ActiveTooltipOwner = TooltipOwner;
+}
+
+void UPRUIControllerComponent::HideItemTooltip()
+{
+	if (IsValid(ActiveTooltipOwner))
+	{
+		ActiveTooltipOwner->SetToolTip(nullptr);
+	}
+
+	ActiveTooltipOwner = nullptr;
+}
+
 void UPRUIControllerComponent::EndPlay(const EEndPlayReason::Type EndPlayReason)
 {
 	CloseInventory();
@@ -361,6 +453,7 @@ void UPRUIControllerComponent::EndPlay(const EEndPlayReason::Type EndPlayReason)
 
 	UnbindWeaponManager();
 	RemoveWeaponScopeWidget();
+	RemoveItemTooltipWidget();
 	TearDownHUDWidget();
 
 	Super::EndPlay(EndPlayReason);
@@ -403,6 +496,11 @@ void UPRUIControllerComponent::RemoveAllWidget()
 	if (WeaponScopeWidget)
 	{
 		WeaponScopeWidget->RemoveFromParent();
+	}
+	if (ItemTooltipWidget)
+	{
+		HideItemTooltip();
+		ItemTooltipWidget = nullptr;
 	}
 	if (InGameMenuWidget)
 	{
@@ -597,6 +695,34 @@ UPRInGameMenuWidget* UPRUIControllerComponent::GetOrCreateInGameMenuWidget()
 
 	InGameMenuWidget = CreateWidget<UPRInGameMenuWidget>(PlayerController, InGameMenuWidgetClass);
 	return InGameMenuWidget;
+}
+
+UPRItemTooltipWidget* UPRUIControllerComponent::GetOrCreateItemTooltipWidget()
+{
+	if (IsValid(ItemTooltipWidget))
+	{
+		return ItemTooltipWidget;
+	}
+
+	APlayerController* PlayerController = GetOwningPlayerController();
+	if (!IsValid(PlayerController) || !IsValid(ItemTooltipWidgetClass.Get()))
+	{
+		return nullptr;
+	}
+
+	ItemTooltipWidget = CreateWidget<UPRItemTooltipWidget>(PlayerController, ItemTooltipWidgetClass);
+	if (!IsValid(ItemTooltipWidget))
+	{
+		return nullptr;
+	}
+
+	return ItemTooltipWidget;
+}
+
+void UPRUIControllerComponent::RemoveItemTooltipWidget()
+{
+	HideItemTooltip();
+	ItemTooltipWidget = nullptr;
 }
 
 void UPRUIControllerComponent::TearDownHUDWidget()

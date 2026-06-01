@@ -3,62 +3,24 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "GameplayTagContainer.h"
-#include "ProjectR/Interaction/PRInteractionAction.h"
+#include "PRInteraction_MapTravelBase.h"
 #include "PRInteraction_Waypoint.generated.h"
 
-class UGameplayEffect;
-/**
- * 
- */
 UCLASS()
-class PROJECTR_API UPRInteraction_Waypoint : public UPRInteractionAction
+class PROJECTR_API UPRInteraction_Waypoint : public UPRInteraction_MapTravelBase
 {
 	GENERATED_BODY()
 
 public:
 	UPRInteraction_Waypoint();
 
-	/*~ UPRInteractionAction Interface ~*/
-	virtual void Execute_Implementation(AActor* Interactor) override;
-	virtual void EndInteraction_Implementation(AActor* Interactor, bool bCanceled) override;
-
 protected:
-	// 목표 맵 이동 실행
-	void StartTravel(TSoftObjectPtr<UWorld> MapToTravel);
+	// Waypoint 이동 성립 시 활성 Waypoint와 체크포인트 상태 갱신
+	virtual void OnTravelConditionMet() override;
 
-private:
-	// 이동 조건 검사
-	void CheckTravelCondition();
+	// Waypoint 상호작용 시작 이벤트 전송
+	virtual void NotifyTravelInteractionStarted(AActor* Interactor) override;
 
-	// 상호작용 플레이어 수 반환
-	int32 CountInteractingPlayers() const;
-
-	// 행동 가능 플레이어 수 반환
-	int32 CountFightCapablePlayers() const;
-
-	// 이동 대상 Waypoint 태그 반환
-	FGameplayTag ResolveTargetWaypointId() const;
-
-protected:
-	// 이동 판정 지연
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|Interaction|Crystal", meta = (ClampMin = "0.0"))
-	float TravelCheckDelay = 2.0f;
-	
-	// TODO: UI 선택으로 이전
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|Interaction|Crystal", meta = (ClampMin = "0.0"))
-	TSoftObjectPtr<UWorld> TargetMap;
-
-	// TODO: UI 선택으로 이전
-	// 목적지 맵 진입 Waypoint 태그
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|Interaction|Crystal")
-	FGameplayTag TargetWaypointId;
-	
-	// 상호작용시 자원 충전 GE
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|Interaction|Crystal")
-	TSubclassOf<UGameplayEffect> WaypointGE;
-	
-private:
-	FTimerHandle TravelCheckTimerHandle;
-	FTimerHandle TravelDelayTimerHandle;
+	// Waypoint 상호작용 종료 이벤트 전송
+	virtual void NotifyTravelInteractionEnded(AActor* Interactor, bool bCanceled) override;
 };

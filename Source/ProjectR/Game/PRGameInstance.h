@@ -39,14 +39,14 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "ProjectR|Session")
 	void ServerTravelToMap(TSoftObjectPtr<UWorld> MapAsset, bool bAbsolute = false);
 
-	// 다음 맵 진입 시 사용할 Waypoint 태그를 저장
-	void SetPendingTravelWaypointId(FGameplayTag WaypointId);
+	// 다음 맵 진입 시 사용할 SpawnPoint 태그를 저장
+	void SetPendingTravelSpawnPointId(FGameplayTag SpawnPointId);
 
-	// 다음 맵 진입 Waypoint 태그를 반환하고 초기화
-	FGameplayTag ConsumePendingTravelWaypointId();
+	// 다음 맵 진입 SpawnPoint 태그를 반환하고 초기화
+	FGameplayTag ConsumePendingTravelSpawnPointId();
 
-	// 다음 맵 진입 Waypoint 태그 존재 여부 반환
-	bool HasPendingTravelWaypointId() const { return PendingTravelWaypointId.IsValid(); }
+	// 다음 맵 진입 SpawnPoint 태그 존재 여부 반환
+	bool HasPendingTravelSpawnPointId() const { return PendingTravelSpawnPointId.IsValid(); }
 
 	// 다음 맵 진입 시 복원할 월드 저장 데이터 설정
 	void SetPendingWorldSaveData(const FPRWorldSaveData& WorldSaveData);
@@ -132,8 +132,8 @@ protected:
 	UPROPERTY(VisibleInstanceOnly, Category = "ProjectR|Save")
 	int32 ActiveLocalCharacterSlotIndex = INDEX_NONE;
 
-	// ServerTravel 이후 최초 스폰에 사용할 Waypoint 태그
-	FGameplayTag PendingTravelWaypointId;
+	// ServerTravel 이후 최초 스폰에 사용할 SpawnPoint 태그
+	FGameplayTag PendingTravelSpawnPointId;
 
 	// ServerTravel 이후 복원할 월드 진행 상태
 	FPRWorldSaveData PendingWorldSaveData;

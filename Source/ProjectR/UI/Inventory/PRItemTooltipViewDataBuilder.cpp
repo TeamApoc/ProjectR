@@ -9,6 +9,7 @@
 #include "ProjectR/ItemSystem/Data/PRWeaponDataAsset.h"
 #include "ProjectR/ItemSystem/Items/PRItemInstance.h"
 #include "ProjectR/ItemSystem/Items/PRItemInstance_Weapon.h"
+#include "ProjectR/ItemSystem/PRWeaponStatStatics.h"
 #include "ProjectR/UI/Inventory/PRInventoryItemSlotViewDataBuilder.h"
 #include "ProjectR/UI/PRUserInterfaceStatics.h"
 
@@ -67,14 +68,22 @@ namespace
 			FText::AsNumber(WeaponItem->GetUpgradeLevel()));
 	}
 
-	int32 ResolveOwnedStackCount(const FPRInventoryItemSlotViewData& SlotViewData)
+	bool TryResolveOwnedStackCount(const FPRInventoryItemSlotViewData& SlotViewData, int32& OutOwnedStackCount)
 	{
 		if (IsValid(SlotViewData.ItemInstance))
 		{
-			return SlotViewData.ItemInstance->GetStackCount();
+			OutOwnedStackCount = SlotViewData.ItemInstance->GetStackCount();
+			return true;
 		}
 
-		return SlotViewData.bShowStackCount ? SlotViewData.StackCount : 0;
+		if (SlotViewData.bHasOwnedStackCount)
+		{
+			OutOwnedStackCount = SlotViewData.OwnedStackCount;
+			return true;
+		}
+
+		OutOwnedStackCount = 0;
+		return false;
 	}
 }
 
@@ -97,9 +106,13 @@ FPRItemTooltipViewData UPRItemTooltipViewDataBuilder::BuildTooltipViewData(const
 	{
 		const UPRItemInstance_Weapon* WeaponItem = Cast<UPRItemInstance_Weapon>(SlotViewData.ItemInstance);
 		ViewData.DisplayName = BuildWeaponDisplayName(WeaponData, WeaponItem);
-		AddDetailLine(ViewData, FText::FromString(TEXT("공격력")), UPRUserInterfaceStatics::ConvertFloatToText(WeaponData->BaseDamage));
+
+		const float BaseDamage = IsValid(WeaponItem)
+			? UPRWeaponStatStatics::CalculateWeaponItemBaseDamage(WeaponItem)
+			: UPRWeaponStatStatics::CalculateUpgradedBaseDamage(WeaponData, 0);
+		AddDetailLine(ViewData, FText::FromString(TEXT("공격력")), UPRUserInterfaceStatics::ConvertFloatToText(BaseDamage));
 		AddDetailLine(ViewData, FText::FromString(TEXT("탄창")), UPRUserInterfaceStatics::ConvertFloatToText(WeaponData->MaxMagazineAmmo));
-		AddDetailLine(ViewData, FText::FromString(TEXT("예비탄창")), UPRUserInterfaceStatics::ConvertFloatToText(WeaponData->ReserveAmmoMultiplier, 1));
+		AddDetailLine(ViewData, FText::FromString(TEXT("예비탄 배율")), UPRUserInterfaceStatics::ConvertFloatToText(WeaponData->ReserveAmmoMultiplier, 1));
 		AddDetailLine(
 			ViewData,
 			FText::FromString(TEXT("약점 배율")),
@@ -118,7 +131,12 @@ FPRItemTooltipViewData UPRItemTooltipViewDataBuilder::BuildTooltipViewData(const
 
 	if (Cast<UPRConsumableDataAsset>(ItemData) || Cast<UPRMaterialDataAsset>(ItemData))
 	{
-		AddDetailLine(ViewData, FText::FromString(TEXT("보유 수량")), FText::AsNumber(ResolveOwnedStackCount(SlotViewData)));
+		int32 OwnedStackCount = 0;
+		if (TryResolveOwnedStackCount(SlotViewData, OwnedStackCount))
+		{
+			AddDetailLine(ViewData, FText::FromString(TEXT("보유 수량")), FText::AsNumber(OwnedStackCount));
+		}
+
 		AddDetailLine(ViewData, FText::FromString(TEXT("최대 스택")), FText::AsNumber(ItemData->MaxStackCount));
 	}
 

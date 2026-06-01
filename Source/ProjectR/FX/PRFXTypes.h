@@ -8,6 +8,7 @@
 #include "PRFXTypes.generated.h"
 
 class UPRFXCue;
+class UPRWeaponDataAsset;
 class AActor;
 class UPrimitiveComponent;
 class USceneComponent;
@@ -275,13 +276,21 @@ struct PROJECTR_API FPRFXTrailPayload : public FPRFXPayloadBase
 {
 	GENERATED_BODY()
 
+	// 발사를 발생시킨 Actor
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "ProjectR|FX")
+	TObjectPtr<AActor> SourceActor;
+
+	// 발사 시점의 무기 데이터
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "ProjectR|FX")
+	TObjectPtr<UPRWeaponDataAsset> WeaponData;
+
 	// Trail 시작 위치
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "ProjectR|FX")
 	FVector StartLocation = FVector::ZeroVector;
 
-	// Trail 종료 위치
+	// Trail 종료 위치 목록
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "ProjectR|FX")
-	FVector EndLocation = FVector::ZeroVector;
+	TArray<FVector> TrailEnds;
 
 	// 충돌 지점에 도달한 Trail인지 여부
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "ProjectR|FX")
@@ -290,6 +299,12 @@ struct PROJECTR_API FPRFXTrailPayload : public FPRFXPayloadBase
 	// Trail 방향 계산과 Niagara 파라미터 전달에 사용할 방향
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "ProjectR|FX")
 	FVector Direction = FVector::ForwardVector;
+
+	// Trail 종료 위치 추가
+	void AddTrailEnd(const FVector& InEndLocation);
+
+	// 대표 Trail 종료 위치 반환
+	FVector GetPrimaryTrailEnd() const;
 
 	bool NetSerialize(FArchive& Ar, UPackageMap* Map, bool& bOutSuccess);
 };

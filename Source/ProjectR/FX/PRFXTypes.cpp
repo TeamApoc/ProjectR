@@ -5,9 +5,13 @@
 #include "Components/PrimitiveComponent.h"
 #include "Components/SceneComponent.h"
 #include "GameFramework/Actor.h"
+#include "ProjectR/ItemSystem/Data/PRWeaponDataAsset.h"
 
 namespace PRFXTypesPrivate
 {
+	// RPC로 전송할 Trail 종료 위치 최대 개수
+	constexpr int32 MaxTrailEndLocationCount = 32;
+
 	// UObject 참조를 Unreal 네트워크 ObjectReference 방식으로 저장하고 읽는 보조 함수
 	template <typename TObjectType>
 	void NetSerializeObject(FArchive& Ar, TObjectPtr<TObjectType>& Object)
@@ -43,6 +47,18 @@ namespace PRFXTypesPrivate
 			bValue = RawValue != 0;
 		}
 	}
+}
+
+void FPRFXTrailPayload::AddTrailEnd(const FVector& InEndLocation)
+{
+	// 다중 Trail 종료 위치 누적
+	TrailEnds.Add(InEndLocation);
+}
+
+FVector FPRFXTrailPayload::GetPrimaryTrailEnd() const
+{
+	// 단일 Trail 연출에서 사용할 대표 종료 위치
+	return TrailEnds.Num() > 0 ? TrailEnds[0] : FVector::ZeroVector;
 }
 
 bool FPRFXPredictionKey::IsValid() const
@@ -152,10 +168,29 @@ bool FPRFXTrailPayload::NetSerialize(FArchive& Ar, UPackageMap* Map, bool& bOutS
 {
 	bool bLocalSuccess = true;
 
-	// Trail 재생에 필요한 시작점, 끝점, 충돌 여부, 방향 벡터 전송
+	// 무기 발사 Trail 식별값과 경로 데이터 전송
 	FPRFXPayloadBase::NetSerialize(Ar, Map, bLocalSuccess);
+	PRFXTypesPrivate::NetSerializeObject(Ar, SourceActor);
+	PRFXTypesPrivate::NetSerializeObject(Ar, WeaponData);
 	StartLocation.NetSerialize(Ar, Map, bLocalSuccess);
-	EndLocation.NetSerialize(Ar, Map, bLocalSuccess);
+
+	int32 TrailEndLocationCount = TrailEnds.Num();
+	if (Ar.IsSaving())
+	{
+		TrailEndLocationCount = FMath::Min(TrailEndLocationCount, PRFXTypesPrivate::MaxTrailEndLocationCount);
+	}
+	Ar << TrailEndLocationCount;
+	TrailEndLocationCount = FMath::Clamp(TrailEndLocationCount, 0, PRFXTypesPrivate::MaxTrailEndLocationCount);
+	if (Ar.IsLoading())
+	{
+		TrailEnds.SetNum(TrailEndLocationCount);
+	}
+	for (int32 EndLocationIndex = 0; EndLocationIndex < TrailEndLocationCount; ++EndLocationIndex)
+	{
+		// 다중 Trail 종료 위치 전송
+		TrailEnds[EndLocationIndex].NetSerialize(Ar, Map, bLocalSuccess);
+	}
+
 	PRFXTypesPrivate::NetSerializeBool(Ar, bBlockingHit);
 	Direction.NetSerialize(Ar, Map, bLocalSuccess);
 

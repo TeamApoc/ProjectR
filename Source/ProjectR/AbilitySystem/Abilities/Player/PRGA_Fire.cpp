@@ -497,8 +497,11 @@ void UPRGA_Fire::PlayTrailFX(const FVector& StartLocation, const FVector& EndLoc
 	}
 
 	FPRFXTrailPayload TrailPayload;
+	// Cue의 현재 무기 Actor 검증용 발사 문맥
+	TrailPayload.SourceActor = GetAvatarActorFromActorInfo();
+	TrailPayload.WeaponData = GetActiveWeaponData(GetCurrentActorInfo());
 	TrailPayload.StartLocation = StartLocation;
-	TrailPayload.EndLocation = EndLocation;
+	TrailPayload.AddTrailEnd(EndLocation);
 	TrailPayload.bBlockingHit = bBlockingHit;
 
 	// Trail Cue가 Niagara 파라미터나 회전 계산에 사용할 발사 방향 산출

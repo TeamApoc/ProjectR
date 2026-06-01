@@ -86,6 +86,23 @@ public:
 	void ExecuteFX(const FPRFXCueContext& Context, const FPRFXTrailPayload& Payload);
 };
 
+class APRWeaponActor;
+
+// 무기 발사 Trail Cue
+UCLASS(Blueprintable, EditInlineNew)
+class PROJECTR_API UPRFXWeaponFireTrailCue : public UPRFXTrailCue
+{
+	GENERATED_BODY()
+
+public:
+	// 현재 손에 든 무기 Actor와 Payload 무기 데이터 일치 확인
+	UFUNCTION(BlueprintPure, Category = "ProjectR|FX")
+	APRWeaponActor* ResolveMatchingWeaponActor(const FPRFXTrailPayload& Payload) const;
+
+	// 일치하는 무기 Actor의 발사 FX 진입점 호출
+	virtual void ExecuteFX_Implementation(const FPRFXCueContext& Context, const FPRFXTrailPayload& Payload) override;
+};
+
 // 탄착과 피격 기반 Cue
 UCLASS(Abstract, Blueprintable, EditInlineNew)
 class PROJECTR_API UPRFXHitCue : public UPRFXCue

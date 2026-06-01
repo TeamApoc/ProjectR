@@ -2,12 +2,29 @@
 
 #include "PRWeaponActor.h"
 
+#include "NiagaraComponent.h"
+#include "NiagaraDataInterfaceArrayFunctionLibrary.h"
 #include "NiagaraFunctionLibrary.h"
 #include "Components/SceneComponent.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "GameFramework/Character.h"
+#include "Kismet/GameplayStatics.h"
 #include "ProjectR/Animation/Weapon/PRWeaponAnimInstance.h"
 #include "ProjectR/ItemSystem/Items/PRItemInstance_Weapon.h"
+#include "Sound/SoundBase.h"
+#include "TimerManager.h"
+
+void FPRWeaponFireFXParams::AddTrailEnd(const FVector& InEndLocation)
+{
+	// 다중 Trail 종료 위치 누적
+	TrailEnds.Add(InEndLocation);
+}
+
+FVector FPRWeaponFireFXParams::GetPrimaryTrailEnd() const
+{
+	// 단일 Trail 연출에서 사용할 대표 종료 위치
+	return TrailEnds.Num() > 0 ? TrailEnds[0] : FVector::ZeroVector;
+}
 
 APRWeaponActor::APRWeaponActor()
 {
@@ -36,6 +53,14 @@ void APRWeaponActor::EndPlay(const EEndPlayReason::Type EndPlayReason)
 	{
 		GetWorld()->GetTimerManager().ClearTimer(IKSuppressedTimerHandle);
 	}
+
+	if (TrailTriggerResetTimerHandle.IsValid())
+	{
+		GetWorld()->GetTimerManager().ClearTimer(TrailTriggerResetTimerHandle);
+		TrailTriggerResetTimerHandle.Invalidate();
+	}
+
+	PendingTrailTriggerComponent.Reset();
 }
 
 void APRWeaponActor::AttachToOwnerMesh(ACharacter* OwnerCharacter, FName SocketName)
@@ -171,6 +196,163 @@ void APRWeaponActor::Internal_SetIsIKSuppressed()
 	bIsIKSuppressed = bPendingIKSuppressed;
 }
 
+void APRWeaponActor::TriggerFireFX(const FPRWeaponFireFXParams& Params)
+{
+	// 발사 FX 단계별 호출
+	PlayFireSFX(Params);
+	PlayMuzzleFlashVFX(Params);
+	PlayTrailVFX(Params);
+}
+
+void APRWeaponActor::PlayFireSFX_Implementation(const FPRWeaponFireFXParams& Params)
+{
+	if (!IsValid(FireSFX))
+	{
+		return;
+	}
+
+	// 총구 위치 기준 발사음 재생
+	const FTransform MuzzleTransform = GetMuzzleTransform();
+	UGameplayStatics::PlaySoundAtLocation(this, FireSFX, MuzzleTransform.GetLocation());
+}
+
+void APRWeaponActor::PlayMuzzleFlashVFX_Implementation(const FPRWeaponFireFXParams& Params)
+{
+	if (!IsValid(MuzzleFlashVFX))
+	{
+		return;
+	}
+
+	// 총구 트랜스폼 기준 화염 재생
+	const FTransform MuzzleTransform = GetMuzzleTransform();
+	UNiagaraFunctionLibrary::SpawnSystemAtLocation(
+		this,
+		MuzzleFlashVFX,
+		MuzzleTransform.GetLocation(),
+		MuzzleTransform.Rotator(),
+		MuzzleTransform.GetScale3D(),
+		true,
+		true,
+		ENCPoolMethod::AutoRelease);
+}
+
+void APRWeaponActor::PlayTrailVFX_Implementation(const FPRWeaponFireFXParams& Params)
+{
+	// Params 방향 기준 Trail 회전 계산
+	const FVector TrailDirection = Params.Direction.IsNearlyZero()
+		? FVector::ForwardVector
+		: Params.Direction;
+
+	UNiagaraComponent* TrailComponent = GetCachedTrailComponent();
+	if (!IsValid(TrailComponent))
+	{
+		if (!IsValid(TrailVFX))
+		{
+			return;
+		}
+
+		// Niagara 파라미터 주입 전 비활성 상태로 Trail 생성
+		TrailComponent = UNiagaraFunctionLibrary::SpawnSystemAtLocation(
+			this,
+			TrailVFX,
+			Params.StartLocation,
+			TrailDirection.Rotation(),
+			FVector::OneVector,
+			false,
+			true,
+			ENCPoolMethod::AutoRelease);
+	}
+	else
+	{
+		// 캐시 컴포넌트 월드 트랜스폼 갱신
+		TrailComponent->SetWorldLocation(Params.StartLocation);
+		TrailComponent->SetWorldRotation(TrailDirection.Rotation());
+	}
+
+	if (!IsValid(TrailComponent))
+	{
+		return;
+	}
+
+	// Trail 시작점 파라미터 주입
+	if (!TrailStartParamName.IsNone())
+	{
+		TrailComponent->SetVariableVec3(TrailStartParamName, Params.StartLocation);
+	}
+
+	// Trail 끝점 파라미터 주입
+	if (!TrailEndParamName.IsNone())
+	{
+		if (TrailEndParamType == EPRTrailEndParamType::ArrayFloat3)
+		{
+			// Niagara Array Float 3 파라미터 주입
+			UNiagaraDataInterfaceArrayFunctionLibrary::SetNiagaraArrayVector(
+				TrailComponent,
+				TrailEndParamName,
+				Params.TrailEnds);
+		}
+		else
+		{
+			// Niagara Vector 파라미터 주입
+			TrailComponent->SetVariableVec3(TrailEndParamName, Params.GetPrimaryTrailEnd());
+		}
+	}
+
+	// Trigger 미사용 재생은 Activate로 시스템 재시작
+	if (!TrailComponent->IsActive() || !bUseTrailTriggerParam)
+	{
+		TrailComponent->Activate(true);
+	}
+
+	if (bUseTrailTriggerParam && !TrailTriggerParamName.IsNone())
+	{
+		if (TrailTriggerResetTimerHandle.IsValid())
+		{
+			// 이전 Trigger 초기화 예약 제거
+			GetWorldTimerManager().ClearTimer(TrailTriggerResetTimerHandle);
+			TrailTriggerResetTimerHandle.Invalidate();
+		}
+
+		// Trail Spawn 트리거 상승
+		PendingTrailTriggerComponent = TrailComponent;
+		TrailComponent->SetVariableBool(TrailTriggerParamName, true);
+
+		if (TrailTriggerHoldTime > 0.0f)
+		{
+			// 유지 시간 이후 Trigger 초기화
+			GetWorldTimerManager().SetTimer(
+				TrailTriggerResetTimerHandle,
+				this,
+				&APRWeaponActor::ResetTrailTriggerParam,
+				TrailTriggerHoldTime,
+				false);
+		}
+		else
+		{
+			// 다음 틱 Trigger 초기화
+			TrailTriggerResetTimerHandle = GetWorldTimerManager().SetTimerForNextTick(
+				FTimerDelegate::CreateUObject(this, &APRWeaponActor::ResetTrailTriggerParam));
+		}
+	}
+}
+
+UNiagaraComponent* APRWeaponActor::GetCachedTrailComponent_Implementation() const
+{
+	return nullptr;
+}
+
+void APRWeaponActor::ResetTrailTriggerParam()
+{
+	if (PendingTrailTriggerComponent.IsValid() && !TrailTriggerParamName.IsNone())
+	{
+		// Trail Spawn 트리거 하강
+		PendingTrailTriggerComponent->SetVariableBool(TrailTriggerParamName, false);
+	}
+
+	PendingTrailTriggerComponent.Reset();
+	TrailTriggerResetTimerHandle.Invalidate();
+}
+
 void APRWeaponActor::PlayNiagaraEffect_Implementation(EPRWeaponEffectType EffectType, UNiagaraSystem* InNiagaraSystem)
 {
 	if (!IsValid(InNiagaraSystem))
@@ -180,6 +362,7 @@ void APRWeaponActor::PlayNiagaraEffect_Implementation(EPRWeaponEffectType Effect
 	
 	if (EffectType == EPRWeaponEffectType::MuzzleFlash || EffectType == EPRWeaponEffectType::ProjectileLaunch)
 	{
+		// 레거시 Niagara 직접 재생 경로
 		FTransform MuzzleTransform = GetMuzzleTransform();
 		UNiagaraFunctionLibrary::SpawnSystemAtLocation(this,InNiagaraSystem,
 			MuzzleTransform.GetLocation(),

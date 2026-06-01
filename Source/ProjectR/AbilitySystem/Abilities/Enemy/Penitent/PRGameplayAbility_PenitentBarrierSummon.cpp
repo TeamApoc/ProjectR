@@ -223,7 +223,7 @@ bool UPRGameplayAbility_PenitentBarrierSummon::ExecuteBarrierSummon()
 	FActorSpawnParameters SpawnParameters;
 	SpawnParameters.Owner = PenitentCharacter;
 	SpawnParameters.Instigator = PenitentCharacter;
-	SpawnParameters.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
+	SpawnParameters.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AdjustIfPossibleButAlwaysSpawn;
 
 	APRGroundBoxProjectileBase* BarrierActor = World->SpawnActor<APRGroundBoxProjectileBase>(
 		BarrierActorClass,

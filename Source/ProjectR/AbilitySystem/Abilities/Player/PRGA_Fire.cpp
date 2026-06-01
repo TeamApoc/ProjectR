@@ -490,6 +490,31 @@ void UPRGA_Fire::ApplyDamage(AActor* TargetActor, const FHitResult* HitResult)
 	{
 		return;
 	}
+	
+	// 2026.05.30 이건주 수정_ ASC 미보유 대상 대미지 전달 브릿지
+	if (IPRDestructableInterface* DestructableTarget = Cast<IPRDestructableInterface>(TargetActor))
+	{
+		// 파괴 가능 대상 전용 컨텍스트
+		FPRDestructableDamageReceiveContext DestructableDamageContext;
+		DestructableDamageContext.Instigator = GetAvatarActorFromActorInfo();
+		
+		if (auto WeaponData = GetCurrentWeaponData())
+		{
+			DestructableDamageContext.DamageAmount = WeaponData->BaseDamage;
+		}
+		else
+		{
+			DestructableDamageContext.DamageAmount = 10.f;
+		}
+		
+		if (HitResult)
+		{
+			DestructableDamageContext.HitResult = *HitResult;
+		}
+		
+		DestructableTarget->ReceiveDamageContext(DestructableDamageContext);
+	}
+	
 
 	UAbilitySystemComponent* SourceASC = GetAbilitySystemComponentFromActorInfo();
 	if (!IsValid(SourceASC))
@@ -503,6 +528,7 @@ void UPRGA_Fire::ApplyDamage(AActor* TargetActor, const FHitResult* HitResult)
 		return;
 	}
 
+	
 	UAbilitySystemComponent* TargetASC = UAbilitySystemBlueprintLibrary::GetAbilitySystemComponent(TargetActor);
 	if (IsValid(TargetASC))
 	{
@@ -510,28 +536,6 @@ void UPRGA_Fire::ApplyDamage(AActor* TargetActor, const FHitResult* HitResult)
 		return;
 	}
 	
-	// 2026.05.30 이건주 수정_ ASC 미보유 대상 대미지 전달 브릿지
-	IPRDestructableInterface* DestructableTarget = Cast<IPRDestructableInterface>(TargetActor);
-	if (!DestructableTarget)
-	{
-		return;
-	}
-	
-	// Instigator, DamageAmount만 전달
-	FGameplayEffectSpec* EffectSpec = SpecHandle.Data.Get();
-	const FGameplayEffectContextHandle& EffectContext = EffectSpec->GetEffectContext();
-	
-	const float BaseDamage = EffectSpec->GetSetByCallerMagnitude(
-	PRCombatGameplayTags::SetByCaller_CurrentWeapon_BaseDamage,
-	false,
-	0.0f);
-	
-	// 파괴 가능 대상 전용 컨텍스트
-	FPRDestructableDamageReceiveContext DestructableDamageContext;
-	DestructableDamageContext.Instigator = EffectContext.GetInstigator();
-	DestructableDamageContext.DamageAmount = BaseDamage;
-
-	DestructableTarget->ReceiveDamageContext(DestructableDamageContext);
 }
 
 void UPRGA_Fire::PlayWeaponMontage(UAnimMontage* Montage, float PlayRate)

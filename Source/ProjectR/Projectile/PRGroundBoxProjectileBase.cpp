@@ -15,6 +15,9 @@
 #include "ProjectR/Combat/PRCombatGameplayTags.h"
 #include "ProjectR/Combat/PRCombatStatics.h"
 #include "ProjectR/ProjectR.h"
+#include "ProjectR/Player/PRPlayerController.h"
+#include "ProjectR/UI/FloatingText/PRFloatingTextManager.h"
+#include "ProjectR/UI/FloatingText/PRFloatingTextTypes.h"
 
 /*~ 초기화 ~*/
 
@@ -138,10 +141,22 @@ bool APRGroundBoxProjectileBase::ReceiveDamageContext(const FPRDestructableDamag
 	// 대미지 후처리
 	if (Context.DamageAmount > 0.0f)
 	{
-		// 대미지 텍스트 스폰
-		
-		// 서버 피해 결과를 모든 클라이언트 연출 입력으로 전달
-		MulticastHandleGroundBoxDamaged(Context.DamageAmount, CurrentHealth);
+		if (APawn* InstigatorPawn = Cast<APawn>(Context.Instigator))
+		{
+			if (APRPlayerController* PC = Cast<APRPlayerController>(InstigatorPawn->GetController()))
+			{
+				UPRFloatingTextManager* FloatingTextManager = PC->GetFloatingTextManager();
+				
+				// 텍스트 타입 결정
+				EPRFloatingTextType TextType = EPRFloatingTextType::NormalDamage;
+				FPRFloatingTextRequest Request;
+				Request.Text = FText::AsNumber(FMath::CeilToInt(Context.DamageAmount));
+				Request.TextType = TextType;
+				Request.WorldLocation = Context.HitResult.ImpactPoint;
+
+				FloatingTextManager->ClientShowFloatingText_Unreliable(Request);
+			}
+		}
 	}
 
 	if (CurrentHealth <= 0.0f)

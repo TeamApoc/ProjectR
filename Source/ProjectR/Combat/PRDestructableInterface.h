@@ -21,6 +21,9 @@ struct PROJECTR_API FPRDestructableDamageReceiveContext
 	// 피해량
 	UPROPERTY(BlueprintReadOnly, Category = "ProjectR|Destructable")
 	float DamageAmount = 0.0f;
+	
+	UPROPERTY(BlueprintReadOnly, Category = "ProjectR|Destructable")
+	FHitResult HitResult;
 };
 
 // 파괴 가능 대상 피해 적용 컨텍스트

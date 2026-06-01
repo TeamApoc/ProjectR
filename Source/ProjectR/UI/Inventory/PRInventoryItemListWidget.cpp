@@ -10,6 +10,13 @@
 #include "ProjectR/ItemSystem/Items/PRItemInstance.h"
 #include "ProjectR/UI/Inventory/PRItemSlotWidget.h"
 
+UPRInventoryItemListWidget::UPRInventoryItemListWidget()
+{
+	Layer = EPRUILayer::Menu;
+	InputMode = EPBUIInputMode::UIOnly;
+	bShowMouseCursor = true;
+}
+
 void UPRInventoryItemListWidget::SetItemList(EPRItemType InListType, const TArray<FPRInventoryItemSlotViewData>& InItems)
 {
 	ListType = InListType;	// 표시할 아이템 리스트 타입

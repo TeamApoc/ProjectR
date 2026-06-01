@@ -24,6 +24,8 @@ class PROJECTR_API UPRCharacterPreviewWidget : public UPRWidgetBase
 	GENERATED_BODY()
 
 public:
+	UPRCharacterPreviewWidget();
+	
 	// 프리뷰에 사용할 플레이어 캐릭터와 무기 상태 소스 설정
 	UFUNCTION(BlueprintCallable, Category = "ProjectR|Inventory|Preview")
 	void SetPreviewSources(APRPlayerCharacter* InSourceCharacter, UPRWeaponManagerComponent* InWeaponManagerComponent);

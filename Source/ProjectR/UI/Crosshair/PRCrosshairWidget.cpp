@@ -16,6 +16,7 @@ UPRCrosshairWidget::UPRCrosshairWidget()
 	Layer = EPRUILayer::HUD;
 	InputMode = EPBUIInputMode::None;
 	bShowMouseCursor = false;
+	SetIsFocusable(false);
 }
 
 void UPRCrosshairWidget::NativeOnInitialized()

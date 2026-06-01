@@ -1,7 +1,77 @@
 // Copyright (c) 2026 TeamApoc. All Rights Reserved.
 
 #include "PRUIManagerSubsystem.h"
+
+#include "Components/PanelWidget.h"
 #include "GameFramework/PlayerController.h"
+
+namespace
+{
+	// 스택 관리 위젯이 뷰포트 또는 부모 패널에 붙어 있는지 확인
+	bool IsManagedWidgetAttached(const UPRWidgetBase* Widget)
+	{
+		if (!IsValid(Widget))
+		{
+			return false;
+		}
+
+		if (Widget->IsInViewport())
+		{
+			return true;
+		}
+
+		const ESlateVisibility Visibility = Widget->GetVisibility();
+		return IsValid(Widget->GetParent())
+			&& Visibility != ESlateVisibility::Collapsed
+			&& Visibility != ESlateVisibility::Hidden;
+	}
+
+	// 부모 패널에 배치된 위젯인지 확인
+	bool IsEmbeddedWidget(const UPRWidgetBase* Widget)
+	{
+		return IsValid(Widget) && IsValid(Widget->GetParent()) && !Widget->IsInViewport();
+	}
+
+	// 스택 Push 대상 위젯을 표시
+	void ShowManagedWidget(UPRWidgetBase* Widget, int32 ZOrder)
+	{
+		if (!IsValid(Widget))
+		{
+			return;
+		}
+
+		if (IsEmbeddedWidget(Widget))
+		{
+			Widget->SetVisibility(ESlateVisibility::Visible);
+			return;
+		}
+
+		if (!Widget->IsInViewport())
+		{
+			Widget->AddToViewport(ZOrder);
+		}
+	}
+
+	// 스택 Pop 대상 위젯을 숨김
+	void HideManagedWidget(UPRWidgetBase* Widget)
+	{
+		if (!IsValid(Widget))
+		{
+			return;
+		}
+
+		if (Widget->IsInViewport())
+		{
+			Widget->RemoveFromParent();
+			return;
+		}
+
+		if (IsValid(Widget->GetParent()))
+		{
+			Widget->SetVisibility(ESlateVisibility::Collapsed);
+		}
+	}
+}
 
 void UPRUIManagerSubsystem::Deinitialize()
 {
@@ -19,7 +89,7 @@ void UPRUIManagerSubsystem::ResetSystem()
 			continue;
 		}
 		
-		Widget->RemoveFromParent();
+		HideManagedWidget(Widget);
 	}
 	UIStack.Reset();
 	
@@ -63,17 +133,16 @@ UPRWidgetBase* UPRUIManagerSubsystem::PushUIInstance(UPRWidgetBase* Instance)
 		return nullptr;
 	}
 
-	// 이미 스택에 존재하면 중복 추가 방지
+	// 이미 스택에 존재하면 중복 추가 없이 표시 상태만 복구
 	if (UIStack.Contains(Instance))
 	{
+		ShowManagedWidget(Instance, GetZOrderForLayer(Instance->Layer));
+		UpdateInputMode();
 		return Instance;
 	}
 
-	// 외부에서 이미 뷰포트에 추가하지 않은 경우에만 부착
-	if (!Instance->IsInViewport())
-	{
-		Instance->AddToViewport(GetZOrderForLayer(Instance->Layer));
-	}
+	// 뷰포트 위젯은 직접 부착하고, 부모 패널 위젯은 표시 상태만 전환
+	ShowManagedWidget(Instance, GetZOrderForLayer(Instance->Layer));
 
 	UIStack.Insert(Instance, FindLayerInsertIndex(Instance->Layer));
 	UpdateInputMode();
@@ -84,7 +153,7 @@ UPRWidgetBase* UPRUIManagerSubsystem::PopUI(UPRWidgetBase* Instance)
 {
 	CleanupInvalidEntries();
 
-	if (UIStack.IsEmpty())
+	if (UIStack.IsEmpty() && !IsValid(Instance))
 	{
 		return nullptr;
 	}
@@ -95,10 +164,10 @@ UPRWidgetBase* UPRUIManagerSubsystem::PopUI(UPRWidgetBase* Instance)
 		Target = UIStack.Last();
 	}
 
-	if (Target)
+	if (IsValid(Target))
 	{
 		UIStack.Remove(Target);
-		Target->RemoveFromParent();
+		HideManagedWidget(Target);
 	}
 
 	UpdateInputMode();
@@ -162,6 +231,7 @@ void UPRUIManagerSubsystem::UpdateInputMode()
 			{
 				InputMode.SetWidgetToFocus(Top->TakeWidget());
 			}
+			PC->FlushPressedKeys();
 			PC->SetInputMode(InputMode);
 		}
 		break;
@@ -210,6 +280,6 @@ void UPRUIManagerSubsystem::CleanupInvalidEntries()
 {
 	UIStack.RemoveAll([](const TObjectPtr<UPRWidgetBase>& Widget)
 	{
-		return !IsValid(Widget) || !Widget->IsInViewport();
+		return !IsManagedWidgetAttached(Widget);
 	});
 }

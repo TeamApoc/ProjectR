@@ -15,8 +15,10 @@
 #include "PRProjectileManagerComponent.h"
 #include "Net/UnrealNetwork.h"
 #include "Net/Core/PushModel/PushModel.h"
+#include "ProjectR/Combat/PRCombatGameplayTags.h"
 #include "ProjectR/Combat/PRCombatInterface.h"
 #include "ProjectR/Combat/PRCombatStatics.h"
+#include "ProjectR/Combat/PRDestructableInterface.h"
 
 APRProjectileBase::APRProjectileBase()
 {
@@ -418,16 +420,24 @@ void APRProjectileBase::ApplyEffectToTargetWithHit(AActor* TargetActor, const FH
 	}
 	
 	// 2026.05.31 이건주_ ASC 미보유 대상 대미지 적용 브릿지
-	IPRCombatInterface* CombatTarget = Cast<IPRCombatInterface>(TargetActor);
-	if (CombatTarget)
+	IPRDestructableInterface* DestructableTarget = Cast<IPRDestructableInterface>(TargetActor);
+	if (DestructableTarget)
 	{
-		const FPRDamageAppliedContext DamageContext =
-		UPRCombatStatics::BuildSimpleDamageAppliedContext(
-		InstigatorASC,
-		EffectSpecHandle,
-		&InHitResult);
+		// Instigator, DamageAmount만 전달
+		FGameplayEffectSpec* EffectSpec = EffectSpecHandle.Data.Get();
+		const FGameplayEffectContextHandle& EffectContext = EffectSpec->GetEffectContext();
+	
+		const float BaseDamage = EffectSpec->GetSetByCallerMagnitude(
+		PRCombatGameplayTags::SetByCaller_CurrentWeapon_BaseDamage,
+		false,
+		0.0f);
+	
+		// 파괴 가능 대상 전용 컨텍스트
+		FPRDestructableDamageReceiveContext DestructableDamageContext;
+		DestructableDamageContext.Instigator = EffectContext.GetInstigator();
+		DestructableDamageContext.DamageAmount = BaseDamage;
 
-		CombatTarget->ReceiveDamageContext(DamageContext);
+		DestructableTarget->ReceiveDamageContext(DestructableDamageContext);
 	}
 }
 

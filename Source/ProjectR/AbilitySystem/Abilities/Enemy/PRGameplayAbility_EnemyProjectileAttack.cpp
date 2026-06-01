@@ -501,14 +501,14 @@ void UPRGameplayAbility_EnemyProjectileAttack::RefreshAttackFacing(bool bApplyAc
 		return;
 	}
 
-	FRotator FacingRotation = DirectionToTarget.Rotation();
-	FacingRotation.Pitch = 0.0f;
-	FacingRotation.Roll = 0.0f;
-
-	if (bApplyActorRotation)
-	{
-		AvatarActor->SetActorRotation(FacingRotation);
-	}
+	// FRotator FacingRotation = DirectionToTarget.Rotation();
+	// FacingRotation.Pitch = 0.0f;
+	// FacingRotation.Roll = 0.0f;
+	//
+	// if (bApplyActorRotation)
+	// {
+	// 	AvatarActor->SetActorRotation(FacingRotation);
+	// }
 }
 
 void UPRGameplayAbility_EnemyProjectileAttack::FinishProjectileAttack()

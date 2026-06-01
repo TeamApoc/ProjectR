@@ -6,6 +6,7 @@
 #include "GameplayEffectTypes.h"
 #include "GameFramework/Actor.h"
 #include "ProjectR/Combat/PRCombatInterface.h"
+#include "ProjectR/Combat/PRDestructableInterface.h"
 #include "PRGroundBoxProjectileBase.generated.h"
 
 class APRGroundBoxProjectileBase;
@@ -54,7 +55,7 @@ struct PROJECTR_API FPRGroundBoxLaunchParams
 
 // 지면 박스형 서버 권위 피해 액터
 UCLASS()
-class PROJECTR_API APRGroundBoxProjectileBase : public AActor, public IPRCombatInterface
+class PROJECTR_API APRGroundBoxProjectileBase : public AActor, public IPRDestructableInterface
 {
 	GENERATED_BODY()
 
@@ -67,11 +68,8 @@ public:
 	virtual void Tick(float DeltaSeconds) override;
 	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 
-	/*~ IPRCombatInterface Interface ~*/
-	virtual EPRTeam GetTeam() const override { return SourceTeam; }
-	virtual bool ReceiveDamageContext(const FPRDamageAppliedContext& Context) override;
-	virtual void OnPostDamageApplied(const FPRDamageAppliedContext& Context) override;
-	virtual bool IsDead() const override { return bDestroyRequested || CurrentHealth <= 0.0f; }
+	/*~ IPRDestructableInterface Interface ~*/
+	virtual bool ReceiveDamageContext(const FPRDestructableDamageReceiveContext& Context) override;
 
 public:
 	// 스폰 직후 서버 초기화
@@ -230,13 +228,13 @@ protected:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "ProjectR|GroundBox|Damage")
 	TSubclassOf<UGameplayEffect> DamageEffectClass;
 
-	// 기본 체력 피해
+	// 체력 피해 배율
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "ProjectR|GroundBox|Damage", meta = (ClampMin = "0.0"))
-	float DefaultDamageAmount = 35.0f;
+	float DamageMultiplier = 1.0f;
 
-	// 기본 그로기 피해
+	// 강인도 피해
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "ProjectR|GroundBox|Damage", meta = (ClampMin = "0.0"))
-	float DefaultGroggyDamageAmount = 0.0f;
+	float PoiseDamage = 0.0f;
 
 	// 대상 쿨다운 시간
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "ProjectR|GroundBox|Damage", meta = (ClampMin = "0.0"))

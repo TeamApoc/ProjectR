@@ -11,7 +11,9 @@
 #include "TimerManager.h"
 #include "ProjectR/Combat/PRCombatInterface.h"
 #include "ProjectR/Combat/PRCombatStatics.h"
+#include "ProjectR/Combat/PRDestructableInterface.h"
 #include "ProjectR/ProjectR.h"
+#include "ProjectR/Combat/PRCombatGameplayTags.h"
 
 DEFINE_LOG_CATEGORY(LogPREffectArea);
 
@@ -344,19 +346,30 @@ bool APREffectArea::TryApplyEffectToCombatTarget(AActor* TargetActor, const FHit
 		return false;
 	}
 
-	IPRCombatInterface* CombatTarget = Cast<IPRCombatInterface>(TargetActor);
-	if (!CombatTarget)
+	IPRDestructableInterface* DestructableTarget = Cast<IPRDestructableInterface>(TargetActor);
+	if (!DestructableTarget)
 	{
 		return false;
 	}
 
-	const FPRDamageAppliedContext DamageContext = UPRCombatStatics::BuildSimpleDamageAppliedContext(
-		SourceASC.Get(),
-		EffectSpecHandle,
-		HitResult);
+	// Instigator, DamageAmount만 전달
+	FGameplayEffectSpec* EffectSpec = EffectSpecHandle.Data.Get();
+	const FGameplayEffectContextHandle& EffectContext = EffectSpec->GetEffectContext();
+	
+	const float BaseDamage = EffectSpec->GetSetByCallerMagnitude(
+	PRCombatGameplayTags::SetByCaller_CurrentWeapon_BaseDamage,
+	false,
+	0.0f);
+	
+	// 파괴 가능 대상 전용 컨텍스트
+	FPRDestructableDamageReceiveContext DestructableDamageContext;
+	DestructableDamageContext.Instigator = EffectContext.GetInstigator();
+	DestructableDamageContext.DamageAmount = BaseDamage;
+
+	DestructableTarget->ReceiveDamageContext(DestructableDamageContext);
 
 	// ASC 미보유 대상 대미지 컨텍스트 전달
-	return CombatTarget->ReceiveDamageContext(DamageContext);
+	return DestructableTarget->ReceiveDamageContext(DestructableDamageContext);
 }
 
 void APREffectArea::RemoveAllTrackedEffects()

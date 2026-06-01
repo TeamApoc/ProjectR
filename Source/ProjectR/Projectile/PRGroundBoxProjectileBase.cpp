@@ -52,11 +52,15 @@ APRGroundBoxProjectileBase::APRGroundBoxProjectileBase()
 	WallMeshComponent->SetupAttachment(Root);
 	WallMeshComponent->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
 	WallMeshComponent->SetCollisionResponseToAllChannels(ECR_Ignore);
-	// 히트스캔 피격 판정
+	// 피격 판정 (히트스캔, 플레이어 프로젝타일 블락, Enemy 프로젝타일 무시
 	WallMeshComponent->SetCollisionResponseToChannel(PRCollisionChannels::ECC_Combat, ECR_Block);
 	WallMeshComponent->SetCollisionResponseToChannel(PRCollisionChannels::ECC_Projectile, ECR_Block);
+	WallMeshComponent->SetCollisionResponseToChannel(PRCollisionChannels::ECC_EnemyProjectile, ECR_Ignore);
 	// 범위 대미지 차폐 판정
-	WallMeshComponent->SetCollisionResponseToChannel(ECC_Visibility, ECR_Block);
+	WallMeshComponent->SetCollisionResponseToChannel(ECC_Visibility, ECR_Ignore);
+	// AI 시야 무시
+	WallMeshComponent->SetCollisionResponseToChannel(PRCollisionChannels::ECC_AISight, ECR_Ignore);
+	
 
 	AmbientVFXComponent = CreateDefaultSubobject<UNiagaraComponent>(TEXT("AmbientVFXComponent"));
 	AmbientVFXComponent->SetupAttachment(Root);
@@ -114,53 +118,39 @@ void APRGroundBoxProjectileBase::EndPlay(const EEndPlayReason::Type EndPlayReaso
 	Super::EndPlay(EndPlayReason);
 }
 
-/*~ IPRCombatInterface Interface ~*/
+/*~ IPRDestructableInterface Interface ~*/
 
-bool APRGroundBoxProjectileBase::ReceiveDamageContext(const FPRDamageAppliedContext& Context)
+bool APRGroundBoxProjectileBase::ReceiveDamageContext(const FPRDestructableDamageReceiveContext& Context)
 {
 	if (!HasAuthority() || bDestroyRequested)
 	{
 		return false;
 	}
 
-	if (Context.FinalDamage <= 0.0f)
+	if (Context.DamageAmount <= 0.0f)
 	{
 		return false;
 	}
 
-	const float DamageAmount = Context.FinalDamage;
-	const float PreviousHealth = CurrentHealth;
+	const float DamageAmount = Context.DamageAmount;
 	CurrentHealth = FMath::Max(CurrentHealth - DamageAmount, 0.0f);
 
-	FPRDamageAppliedContext AppliedContext = Context;
-	AppliedContext.HealthBeforeDamage = PreviousHealth;
-	AppliedContext.HealthAfterDamage = CurrentHealth;
-	AppliedContext.MaxHealth = FMath::Max(MaxHealth, 0.0f);
-
-	// 체력 차감 이후 후처리
-	OnPostDamageApplied(AppliedContext);
-
-	return true;
-}
-
-void APRGroundBoxProjectileBase::OnPostDamageApplied(const FPRDamageAppliedContext& Context)
-{
-	if (!HasAuthority())
+	// 대미지 후처리
+	if (Context.DamageAmount > 0.0f)
 	{
-		return;
-	}
-
-	if (Context.FinalDamage > 0.0f)
-	{
+		// 대미지 텍스트 스폰
+		
 		// 서버 피해 결과를 모든 클라이언트 연출 입력으로 전달
-		MulticastHandleGroundBoxDamaged(Context.FinalDamage, Context.HealthAfterDamage);
+		MulticastHandleGroundBoxDamaged(Context.DamageAmount, CurrentHealth);
 	}
 
-	if (CurrentHealth <= 0.0f || Context.HealthAfterDamage <= 0.0f)
+	if (CurrentHealth <= 0.0f)
 	{
 		// 체력 고갈에 따른 단일 소멸 경로
 		RequestGroundBoxEnd();
 	}
+
+	return true;
 }
 
 /*~ 외부 구동 ~*/
@@ -472,14 +462,14 @@ FGameplayEffectSpecHandle APRGroundBoxProjectileBase::BuildDefaultDamageEffectSp
 
 	if (SpecHandle.IsValid())
 	{
-		// 직접 피해 SetByCaller
+		// 적 피해 GE SetByCaller
 		SpecHandle.Data->SetSetByCallerMagnitude(
-			PRCombatGameplayTags::SetByCaller_Damage,
-			FMath::Max(DefaultDamageAmount, 0.0f));
+			PRCombatGameplayTags::SetByCaller_AttackMultiplier,
+			FMath::Max(DamageMultiplier, 0.0f));
 
 		SpecHandle.Data->SetSetByCallerMagnitude(
-			PRCombatGameplayTags::SetByCaller_GroggyDamage,
-			FMath::Max(DefaultGroggyDamageAmount, 0.0f));
+			PRCombatGameplayTags::SetByCaller_PoiseDamage,
+			FMath::Max(PoiseDamage, 0.0f));
 	}
 
 	return SpecHandle;

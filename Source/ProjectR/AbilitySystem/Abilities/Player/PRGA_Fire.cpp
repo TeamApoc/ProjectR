@@ -14,6 +14,7 @@
 #include "ProjectR/Character/PRPlayerCharacter.h"
 #include "ProjectR/Combat/PRCombatInterface.h"
 #include "ProjectR/Combat/PRCombatStatics.h"
+#include "ProjectR/Combat/PRDestructableInterface.h"
 #include "ProjectR/Projectile/PRProjectileBase.h"
 #include "ProjectR/System/PRAssetManager.h"
 #include "ProjectR/System/PREventManagerSubsystem.h"
@@ -510,15 +511,27 @@ void UPRGA_Fire::ApplyDamage(AActor* TargetActor, const FHitResult* HitResult)
 	}
 	
 	// 2026.05.30 이건주 수정_ ASC 미보유 대상 대미지 전달 브릿지
-	IPRCombatInterface* CombatTarget = Cast<IPRCombatInterface>(TargetActor);
-	if (!CombatTarget)
+	IPRDestructableInterface* DestructableTarget = Cast<IPRDestructableInterface>(TargetActor);
+	if (!DestructableTarget)
 	{
 		return;
 	}
+	
+	// Instigator, DamageAmount만 전달
+	FGameplayEffectSpec* EffectSpec = SpecHandle.Data.Get();
+	const FGameplayEffectContextHandle& EffectContext = EffectSpec->GetEffectContext();
+	
+	const float BaseDamage = EffectSpec->GetSetByCallerMagnitude(
+	PRCombatGameplayTags::SetByCaller_CurrentWeapon_BaseDamage,
+	false,
+	0.0f);
+	
+	// 파괴 가능 대상 전용 컨텍스트
+	FPRDestructableDamageReceiveContext DestructableDamageContext;
+	DestructableDamageContext.Instigator = EffectContext.GetInstigator();
+	DestructableDamageContext.DamageAmount = BaseDamage;
 
-	const FPRDamageAppliedContext DamageContext = UPRCombatStatics::BuildSimpleDamageAppliedContext(SourceASC, SpecHandle, HitResult);
-
-	CombatTarget->ReceiveDamageContext(DamageContext);
+	DestructableTarget->ReceiveDamageContext(DestructableDamageContext);
 }
 
 void UPRGA_Fire::PlayWeaponMontage(UAnimMontage* Montage, float PlayRate)

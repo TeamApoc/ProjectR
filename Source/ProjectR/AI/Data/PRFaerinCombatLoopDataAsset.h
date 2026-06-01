@@ -131,10 +131,6 @@ struct PROJECTR_API FPRFaerinPhaseLoopConfig
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Faerin")
 	FPREnemyMovePresentationConfig StrafePresentationConfig;
 
-	// 횡이동 이후 다음 공격을 준비하는 접근 단계를 사용할지 결정한다.
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Faerin")
-	bool bUsePostStrafeApproach = true;
-
 	// 스프린트 접근을 실제로 실행할 Gameplay Ability 태그다.
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Faerin", meta = (Categories = "Ability.Boss.Faerin"))
 	FGameplayTag ApproachAbilityTag;
@@ -142,14 +138,6 @@ struct PROJECTR_API FPRFaerinPhaseLoopConfig
 	// 근거리 텔레포트 접근을 실제로 실행할 Gameplay Ability 태그다.
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Faerin", meta = (Categories = "Ability.Boss.Faerin"))
 	FGameplayTag NearTeleportAbilityTag;
-
-	// 패턴 메타데이터가 PhaseDefault를 선택했을 때 사용할 기본 접근 정책이다.
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Faerin")
-	EPRFaerinApproachPolicy DefaultApproachPolicy = EPRFaerinApproachPolicy::SprintToMeleeRange;
-
-	// 이 거리보다 멀 때 sprint 접근을 시작한다.
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Faerin", meta = (ClampMin = "0.0"))
-	float ApproachTriggerDistance = 1400.0f;
 
 	// sprint 접근으로 유지하려는 타깃과의 거리다.
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Faerin", meta = (ClampMin = "0.0"))
@@ -171,6 +159,34 @@ struct PROJECTR_API FPRFaerinPhaseLoopConfig
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Faerin")
 	FPREnemyMovePresentationConfig ApproachPresentationConfig;
 
+	// Phase1/2에서 공격 실행 전 거리와 패턴 계열에 따라 접근 Ability를 먼저 실행할지 결정한다.
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Faerin|PrePatternApproach")
+	bool bUsePrePatternApproachRoute = true;
+
+	// 공격 전 접근 루트가 작동하기 시작하는 최소 거리다.
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Faerin|PrePatternApproach", meta = (ClampMin = "0.0"))
+	float PrePatternApproachMinDistance = 50.0f;
+
+	// 근거리 접근 분기 상한이다. 이 거리까지는 Spoke는 sprint, 원거리 계열은 EQS 텔레포트를 쓴다.
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Faerin|PrePatternApproach", meta = (ClampMin = "0.0"))
+	float PrePatternApproachCloseMaxDistance = 500.0f;
+
+	// 중거리 접근 분기 상한이다. 이 거리까지는 Spoke가 확률적으로 target 뒤 텔레포트를 섞는다.
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Faerin|PrePatternApproach", meta = (ClampMin = "0.0"))
+	float PrePatternApproachMidMaxDistance = 1000.0f;
+
+	// 중거리 Spoke 선택 시 target 뒤 텔레포트를 사용할 확률이다.
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Faerin|PrePatternApproach", meta = (ClampMin = "0.0", ClampMax = "1.0"))
+	float MidRangeSpokeTargetBackTeleportChance = 0.8f;
+
+	// target 뒤 텔레포트가 target의 forward 반대 방향으로 떨어질 거리다.
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Faerin|PrePatternApproach", meta = (ClampMin = "0.0"))
+	float TargetBackTeleportDistance = 320.0f;
+
+	// target 뒤 텔레포트 목적지를 NavMesh로 보정할 때 사용하는 검색 범위다.
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Faerin|PrePatternApproach", meta = (ClampMin = "0.0"))
+	FVector TargetBackTeleportNavProjectExtent = FVector(240.0f, 240.0f, 360.0f);
+
 	// 본 공격 전에 보조 포털 패턴을 확률적으로 끼워 넣을지 결정한다.
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Faerin|PortalAssist")
 	bool bUsePrePatternPortalAssist = false;
@@ -186,6 +202,10 @@ struct PROJECTR_API FPRFaerinPhaseLoopConfig
 	// 보조 포털 후보로 사용할 PatternGroup이다. 비워 두면 Faerin Portal 그룹을 사용한다.
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Faerin|PortalAssist", meta = (Categories = "Pattern.Boss.Faerin", EditCondition = "bUsePrePatternPortalAssist"))
 	FGameplayTag PrePatternPortalGroupTag;
+
+	// 메인 공격 선택에서 제외할 PatternGroup 목록이다. 선행 보조 패턴 선택에는 영향을 주지 않는다.
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Faerin|PatternSelection", meta = (Categories = "Pattern.Boss.Faerin"))
+	FGameplayTagContainer MainPatternExcludedGroupTags;
 
 	// 메인 공격 루프와 별개로 주기적으로 설치할 전장 압박용 보조 패턴들이다.
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Faerin|PeriodicSidePattern")
@@ -204,10 +224,6 @@ struct PROJECTR_API FPRFaerinPatternLoopMetadata
 	// 현재 리팩터링 루프에서 선택 가능한 패턴인지 결정한다.
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Faerin")
 	bool bEnabled = true;
-
-	// 선택 가중치에 추가로 곱할 보정값이다.
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Faerin", meta = (ClampMin = "0.0"))
-	float SelectionWeightScale = 1.0f;
 
 	// 원작 재현용 텔레포트 전/후처리 정책이다.
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Faerin")
@@ -233,7 +249,7 @@ struct PROJECTR_API FPRFaerinPatternLoopMetadata
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Faerin|TeleportVFX")
 	bool bTeleportVFXFaceTargetOnFinish = true;
 
-	// 공격 종료 후 다음 루프를 준비하는 접근 방식이다.
+	// 공격 종료 후 별도 접근이 꼭 필요한 패턴만 명시적으로 사용하는 접근 방식이다.
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Faerin")
 	EPRFaerinApproachPolicy ApproachPolicy = EPRFaerinApproachPolicy::PhaseDefault;
 

@@ -2,19 +2,28 @@
 
 #include "PRFaerinTeleportVFXComponent.h"
 
+#include "AbilitySystemBlueprintLibrary.h"
+#include "AbilitySystemComponent.h"
 #include "Animation/AnimInstance.h"
 #include "Animation/AnimMontage.h"
 #include "Components/SkeletalMeshComponent.h"
+#include "DrawDebugHelpers.h"
+#include "Engine/OverlapResult.h"
 #include "Engine/Texture.h"
 #include "Engine/World.h"
+#include "GameplayEffect.h"
 #include "Materials/MaterialInstanceDynamic.h"
 #include "Materials/MaterialInterface.h"
 #include "NavigationSystem.h"
 #include "NiagaraComponent.h"
 #include "NiagaraFunctionLibrary.h"
 #include "NiagaraSystem.h"
+#include "ProjectR/AbilitySystem/Data/PRAbilitySystemRegistry.h"
 #include "ProjectR/Character/Enemy/PRBossBaseCharacter.h"
 #include "ProjectR/Character/Enemy/PREnemyBaseCharacter.h"
+#include "ProjectR/Combat/PRCombatGameplayTags.h"
+#include "ProjectR/Combat/PRCombatStatics.h"
+#include "ProjectR/System/PRAssetManager.h"
 #include "TimerManager.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogPRFaerinTeleportVFX, Log, All);
@@ -239,6 +248,8 @@ void UPRFaerinTeleportVFXComponent::FinishHiddenTeleportVFXStage()
 			ETeleportType::TeleportPhysics);
 	}
 
+	ApplyRevealSplashDamage();
+
 	MulticastFinishTeleportVFXPresentation(CachedConvergeLocation, CachedConvergeRotation, bCachedPlayTeleportInStage);
 
 	if (!bCachedPlayTeleportInStage)
@@ -396,6 +407,139 @@ bool UPRFaerinTeleportVFXComponent::ProjectLocationToNavigation(
 bool UPRFaerinTeleportVFXComponent::ShouldPlayTeleportInStage(const FPRFaerinPatternPlan& PatternPlan) const
 {
 	return PatternPlan.LoopMetadata.TeleportWrapperPolicy == EPRFaerinTeleportWrapperPolicy::TeleportOutAndIn;
+}
+
+bool UPRFaerinTeleportVFXComponent::ShouldApplyRevealSplashDamage() const
+{
+	if (!bApplyRevealSplashDamage
+		|| RevealSplashRadius <= 0.0f
+		|| (RevealSplashDamageMultiplier <= 0.0f && RevealSplashPoiseDamage <= 0.0f))
+	{
+		return false;
+	}
+
+	const APRBossBaseCharacter* BossCharacter = Cast<APRBossBaseCharacter>(GetOwner());
+	if (!IsValid(BossCharacter) || !BossCharacter->HasAuthority())
+	{
+		return false;
+	}
+
+	return static_cast<uint8>(BossCharacter->GetCurrentPhase())
+		>= static_cast<uint8>(RevealSplashMinimumPhase);
+}
+
+void UPRFaerinTeleportVFXComponent::ApplyRevealSplashDamage()
+{
+	if (!ShouldApplyRevealSplashDamage())
+	{
+		return;
+	}
+
+	APRBossBaseCharacter* BossCharacter = Cast<APRBossBaseCharacter>(GetOwner());
+	UWorld* World = GetWorld();
+	UAbilitySystemComponent* SourceASC = UAbilitySystemBlueprintLibrary::GetAbilitySystemComponent(BossCharacter);
+	if (!IsValid(BossCharacter) || !IsValid(World))
+	{
+		return;
+	}
+
+	const FVector SplashCenter = BossCharacter->GetActorTransform().TransformPositionNoScale(RevealSplashLocalOffset);
+	FVector SplashNiagaraLocation = SplashCenter;
+	FRotator SplashNiagaraRotation = FRotator::ZeroRotator;
+	ResolveRevealSplashNiagaraTransform(
+		BossCharacter,
+		SplashCenter,
+		SplashNiagaraLocation,
+		SplashNiagaraRotation);
+	MulticastRevealSplashPresentation(SplashNiagaraLocation, SplashNiagaraRotation, RevealSplashRadius);
+
+	if (!IsValid(SourceASC))
+	{
+		return;
+	}
+
+	TSubclassOf<UGameplayEffect> ResolvedDamageEffectClass = RevealSplashDamageEffectClass;
+	if (!IsValid(ResolvedDamageEffectClass))
+	{
+		const UPRAbilitySystemRegistry* Registry = UPRAssetManager::Get().GetAbilitySystemRegistry();
+		if (IsValid(Registry))
+		{
+			ResolvedDamageEffectClass = Registry->DamageGE_FromEnemy;
+		}
+	}
+
+	if (!IsValid(ResolvedDamageEffectClass))
+	{
+		return;
+	}
+
+	const FCollisionShape SplashShape = FCollisionShape::MakeSphere(RevealSplashRadius);
+
+	FCollisionQueryParams QueryParams(SCENE_QUERY_STAT(FaerinRevealSplashDamage), false, BossCharacter);
+	QueryParams.AddIgnoredActor(BossCharacter);
+	QueryParams.bFindInitialOverlaps = true;
+
+	TArray<FOverlapResult> OverlapResults;
+	const bool bOverlapped = World->OverlapMultiByChannel(
+		OverlapResults,
+		SplashCenter,
+		FQuat::Identity,
+		RevealSplashOverlapChannel,
+		SplashShape,
+		QueryParams);
+
+	if (bDrawDebugRevealSplash)
+	{
+		DrawDebugSphere(World, SplashCenter, RevealSplashRadius, 32, FColor::Purple, false, RevealSplashDebugDrawDuration);
+	}
+
+	if (!bOverlapped)
+	{
+		return;
+	}
+
+	TSet<TWeakObjectPtr<AActor>> DamagedActors;
+	for (const FOverlapResult& OverlapResult : OverlapResults)
+	{
+		AActor* TargetActor = OverlapResult.GetActor();
+		const TWeakObjectPtr<AActor> TargetKey(TargetActor);
+		if (!IsValid(TargetActor)
+			|| TargetActor == BossCharacter
+			|| DamagedActors.Contains(TargetKey)
+			|| UPRCombatStatics::GetActorTeam(TargetActor) == EPRTeam::Enemy)
+		{
+			continue;
+		}
+
+		UAbilitySystemComponent* TargetASC = UAbilitySystemBlueprintLibrary::GetAbilitySystemComponent(TargetActor);
+		if (!IsValid(TargetASC))
+		{
+			continue;
+		}
+
+		FGameplayEffectContextHandle EffectContext = SourceASC->MakeEffectContext();
+		EffectContext.AddSourceObject(this);
+		EffectContext.AddInstigator(BossCharacter, BossCharacter);
+
+		FGameplayEffectSpecHandle SpecHandle = SourceASC->MakeOutgoingSpec(
+			ResolvedDamageEffectClass,
+			1.0f,
+			EffectContext);
+		if (!SpecHandle.IsValid())
+		{
+			continue;
+		}
+
+		SpecHandle.Data->SetSetByCallerMagnitude(
+			PRCombatGameplayTags::SetByCaller_AttackMultiplier,
+			FMath::Max(RevealSplashDamageMultiplier, 0.0f));
+		SpecHandle.Data->SetSetByCallerMagnitude(
+			PRCombatGameplayTags::SetByCaller_PoiseDamage,
+			FMath::Max(RevealSplashPoiseDamage, 0.0f));
+
+		SourceASC->ApplyGameplayEffectSpecToTarget(*SpecHandle.Data.Get(), TargetASC);
+		DamagedActors.Add(TargetKey);
+	}
 }
 
 float UPRFaerinTeleportVFXComponent::ResolveMontageDuration(
@@ -784,6 +928,56 @@ void UPRFaerinTeleportVFXComponent::CleanupTransientNiagaraLocal()
 	LocalTransientNiagaraComponents.Reset();
 }
 
+void UPRFaerinTeleportVFXComponent::ResolveRevealSplashNiagaraTransform(
+	const APREnemyBaseCharacter* BossCharacter,
+	const FVector& SplashCenter,
+	FVector& OutLocation,
+	FRotator& OutRotation) const
+{
+	OutLocation = SplashCenter;
+	OutRotation = FRotator::ZeroRotator;
+
+	if (RevealSplashNiagaraSocketName == NAME_None
+		|| !IsValid(BossCharacter)
+		|| !IsValid(BossCharacter->GetMesh()))
+	{
+		return;
+	}
+
+	const USkeletalMeshComponent* MeshComponent = BossCharacter->GetMesh();
+	if (!MeshComponent->DoesSocketExist(RevealSplashNiagaraSocketName))
+	{
+		return;
+	}
+
+	const FTransform SocketTransform = MeshComponent->GetSocketTransform(RevealSplashNiagaraSocketName);
+	OutLocation = SocketTransform.GetLocation();
+	OutRotation = SocketTransform.Rotator();
+}
+
+void UPRFaerinTeleportVFXComponent::PlayRevealSplashPresentationLocal(
+	FVector SplashLocation,
+	FRotator SplashRotation,
+	const float SplashRadius)
+{
+	if (!IsValid(RevealSplashNiagaraSystem))
+	{
+		return;
+	}
+
+	UNiagaraComponent* NiagaraComponent = SpawnTransientNiagaraAtLocationLocal(
+		RevealSplashNiagaraSystem,
+		SplashLocation,
+		SplashRotation,
+		RevealSplashNiagaraScale,
+		RevealSplashNiagaraLifeSeconds);
+
+	if (IsValid(NiagaraComponent) && RevealSplashRadiusParameterName != NAME_None)
+	{
+		NiagaraComponent->SetVariableFloat(RevealSplashRadiusParameterName, SplashRadius);
+	}
+}
+
 void UPRFaerinTeleportVFXComponent::SpawnBodyNiagaraLocal(UNiagaraSystem* NiagaraSystem)
 {
 	const APREnemyBaseCharacter* OwnerEnemy = GetOwnerEnemy();
@@ -824,7 +1018,8 @@ UNiagaraComponent* UPRFaerinTeleportVFXComponent::SpawnTransientNiagaraAtLocatio
 	UNiagaraSystem* NiagaraSystem,
 	const FVector& Location,
 	const FRotator& Rotation,
-	const FVector& Scale)
+	const FVector& Scale,
+	const float LifeSeconds)
 {
 	if (!IsValid(NiagaraSystem))
 	{
@@ -847,7 +1042,10 @@ UNiagaraComponent* UPRFaerinTeleportVFXComponent::SpawnTransientNiagaraAtLocatio
 
 	LocalTransientNiagaraComponents.Add(NiagaraComponent);
 
-	if (TransientNiagaraLifeSeconds > UE_SMALL_NUMBER)
+	const float ResolvedLifeSeconds = LifeSeconds >= 0.0f
+		? LifeSeconds
+		: TransientNiagaraLifeSeconds;
+	if (ResolvedLifeSeconds > UE_SMALL_NUMBER)
 	{
 		if (UWorld* World = GetWorld())
 		{
@@ -872,7 +1070,7 @@ UNiagaraComponent* UPRFaerinTeleportVFXComponent::SpawnTransientNiagaraAtLocatio
 									|| CandidateComponent.Get() == WeakNiagaraComponent.Get();
 							});
 					}),
-				TransientNiagaraLifeSeconds,
+				ResolvedLifeSeconds,
 				false);
 		}
 	}
@@ -1084,6 +1282,14 @@ void UPRFaerinTeleportVFXComponent::MulticastFinishTeleportVFXPresentation_Imple
 	bool bPlayTeleportInStage)
 {
 	FinishTeleportPresentationLocal(FinalLocation, FinalRotation, bPlayTeleportInStage);
+}
+
+void UPRFaerinTeleportVFXComponent::MulticastRevealSplashPresentation_Implementation(
+	FVector SplashLocation,
+	FRotator SplashRotation,
+	float SplashRadius)
+{
+	PlayRevealSplashPresentationLocal(SplashLocation, SplashRotation, SplashRadius);
 }
 
 void UPRFaerinTeleportVFXComponent::MulticastCancelTeleportVFXPresentation_Implementation(

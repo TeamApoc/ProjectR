@@ -9,6 +9,7 @@
 
 class APREnemyBaseCharacter;
 class UAnimMontage;
+class UGameplayEffect;
 class UMaterialInstanceDynamic;
 class UNiagaraComponent;
 class UNiagaraSystem;
@@ -54,6 +55,7 @@ private:
 		AActor* TargetActor) const;
 	bool ProjectLocationToNavigation(const FVector& RawLocation, FVector& OutLocation) const;
 	bool ShouldPlayTeleportInStage(const FPRFaerinPatternPlan& PatternPlan) const;
+	bool ShouldApplyRevealSplashDamage() const;
 	float ResolveMontageDuration(UAnimMontage* Montage, float PlayRate, float OverrideSeconds) const;
 	void BuildVFXPaths(
 		const FVector& BossStartLocation,
@@ -67,6 +69,7 @@ private:
 	void FinishHiddenTeleportVFXStage();
 	void FinishTeleportInStage();
 	void CompleteTeleportVFX(bool bSucceeded);
+	void ApplyRevealSplashDamage();
 	void BeginOwnerReplicationOverride();
 	void EndOwnerReplicationOverride();
 	void StartTeleportOutPresentationLocal(FVector BossStartLocation, FRotator BossStartRotation);
@@ -87,13 +90,20 @@ private:
 	void SetTeleportVFXPairLocation(const FVector& LeftLocation, const FVector& RightLocation);
 	void CleanupTeleportVFXLocal();
 	void CleanupTransientNiagaraLocal();
+	void ResolveRevealSplashNiagaraTransform(
+		const APREnemyBaseCharacter* BossCharacter,
+		const FVector& SplashCenter,
+		FVector& OutLocation,
+		FRotator& OutRotation) const;
+	void PlayRevealSplashPresentationLocal(FVector SplashLocation, FRotator SplashRotation, float SplashRadius);
 	void SpawnBodyNiagaraLocal(UNiagaraSystem* NiagaraSystem);
 	UNiagaraComponent* SpawnTeleportVFXLocal(const FVector& Location) const;
 	UNiagaraComponent* SpawnTransientNiagaraAtLocationLocal(
 		UNiagaraSystem* NiagaraSystem,
 		const FVector& Location,
 		const FRotator& Rotation,
-		const FVector& Scale);
+		const FVector& Scale,
+		float LifeSeconds = -1.0f);
 	void PlayMontageLocal(UAnimMontage* Montage, float PlayRate) const;
 	void StartDissolveLocal(float StartValue, float EndValue, float DurationSeconds);
 	void PrepareDissolveMaterialsLocal();
@@ -121,6 +131,9 @@ private:
 
 	UFUNCTION(NetMulticast, Reliable)
 	void MulticastFinishTeleportVFXPresentation(FVector FinalLocation, FRotator FinalRotation, bool bPlayTeleportInStage);
+
+	UFUNCTION(NetMulticast, Reliable)
+	void MulticastRevealSplashPresentation(FVector SplashLocation, FRotator SplashRotation, float SplashRadius);
 
 	UFUNCTION(NetMulticast, Reliable)
 	void MulticastCancelTeleportVFXPresentation(FVector FinalLocation, FRotator FinalRotation);
@@ -253,6 +266,80 @@ protected:
 	// 본체가 숨겨져 있는 동안 충돌을 끌지 결정한다.
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Faerin|TeleportVFX")
 	bool bDisableCollisionWhileHidden = true;
+
+	// Teleport VFX 이후 보스가 다시 보이는 순간 주변 splash 피해를 줄지 여부다.
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Faerin|TeleportVFX|Phase4Splash")
+	bool bApplyRevealSplashDamage = true;
+
+	// Reveal splash 피해를 적용하기 시작할 최소 페이즈다.
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Faerin|TeleportVFX|Phase4Splash",
+		meta = (EditCondition = "bApplyRevealSplashDamage"))
+	EPRBossPhase RevealSplashMinimumPhase = EPRBossPhase::Phase4;
+
+	// Reveal splash에 사용할 피해 GameplayEffect다. 비어 있으면 AbilitySystemRegistry의 Enemy damage GE를 사용한다.
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Faerin|TeleportVFX|Phase4Splash",
+		meta = (EditCondition = "bApplyRevealSplashDamage"))
+	TSubclassOf<UGameplayEffect> RevealSplashDamageEffectClass;
+
+	// Reveal splash 중심 위치에 더할 보스 로컬 오프셋이다.
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Faerin|TeleportVFX|Phase4Splash",
+		meta = (EditCondition = "bApplyRevealSplashDamage"))
+	FVector RevealSplashLocalOffset = FVector::ZeroVector;
+
+	// Reveal splash 피해 반경이다.
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Faerin|TeleportVFX|Phase4Splash",
+		meta = (EditCondition = "bApplyRevealSplashDamage", ClampMin = "0.0"))
+	float RevealSplashRadius = 420.0f;
+
+	// Enemy AttackPower에 곱할 Reveal splash 피해 배율이다.
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Faerin|TeleportVFX|Phase4Splash",
+		meta = (EditCondition = "bApplyRevealSplashDamage", ClampMin = "0.0"))
+	float RevealSplashDamageMultiplier = 0.8f;
+
+	// Reveal splash가 부여할 강인도 피해다.
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Faerin|TeleportVFX|Phase4Splash",
+		meta = (EditCondition = "bApplyRevealSplashDamage", ClampMin = "0.0"))
+	float RevealSplashPoiseDamage = 10.0f;
+
+	// Reveal splash 시점에 재생할 Niagara 시스템이다. 비워 두면 피해만 적용한다.
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Faerin|TeleportVFX|Phase4Splash|VFX",
+		meta = (EditCondition = "bApplyRevealSplashDamage"))
+	TObjectPtr<UNiagaraSystem> RevealSplashNiagaraSystem;
+
+	// Reveal splash Niagara를 소환할 보스 Mesh 소켓/본 이름이다. 비워 두면 피해 중심 위치에 소환한다.
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Faerin|TeleportVFX|Phase4Splash|VFX",
+		meta = (EditCondition = "bApplyRevealSplashDamage"))
+	FName RevealSplashNiagaraSocketName = NAME_None;
+
+	// Reveal splash Niagara 재생 스케일이다.
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Faerin|TeleportVFX|Phase4Splash|VFX",
+		meta = (EditCondition = "bApplyRevealSplashDamage"))
+	FVector RevealSplashNiagaraScale = FVector::OneVector;
+
+	// Reveal splash Niagara를 자동 정리하기까지 기다리는 시간이다. 0이면 자동 정리하지 않는다.
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Faerin|TeleportVFX|Phase4Splash|VFX",
+		meta = (EditCondition = "bApplyRevealSplashDamage", ClampMin = "0.0"))
+	float RevealSplashNiagaraLifeSeconds = 1.25f;
+
+	// Reveal splash 반경을 Niagara User Parameter로 전달할 이름이다. 비워 두면 전달하지 않는다.
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Faerin|TeleportVFX|Phase4Splash|VFX",
+		meta = (EditCondition = "bApplyRevealSplashDamage"))
+	FName RevealSplashRadiusParameterName = TEXT("User.Radius");
+
+	// Reveal splash 대상 탐색 채널이다.
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Faerin|TeleportVFX|Phase4Splash",
+		meta = (EditCondition = "bApplyRevealSplashDamage"))
+	TEnumAsByte<ECollisionChannel> RevealSplashOverlapChannel = ECC_Pawn;
+
+	// Reveal splash 피해 반경을 디버그로 표시할지 여부다.
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Faerin|TeleportVFX|Phase4Splash|Debug",
+		meta = (EditCondition = "bApplyRevealSplashDamage"))
+	bool bDrawDebugRevealSplash = false;
+
+	// Reveal splash 디버그 표시 시간이다.
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Faerin|TeleportVFX|Phase4Splash|Debug",
+		meta = (EditCondition = "bDrawDebugRevealSplash", ClampMin = "0.0"))
+	float RevealSplashDebugDrawDuration = 1.0f;
 
 private:
 	UPROPERTY(Transient)

@@ -27,6 +27,11 @@ void APRBossBaseCharacter::PossessedBy(AController* NewController)
 		return;
 	}
 
+	if (!bUsePhaseAbilitySets)
+	{
+		return;
+	}
+
 	if (TObjectPtr<UPRAbilitySet>* FoundAbilitySet = PhaseAbilitySets.Find(CurrentPhase))
 	{
 		if (IsValid(*FoundAbilitySet))
@@ -149,14 +154,17 @@ void APRBossBaseCharacter::CommitPhaseTransition(EPRBossPhase NewPhase)
 
 	const EPRBossPhase OldPhase = CurrentPhase;
 
-	// 이전 페이즈에서만 쓰던 Ability/GE를 회수하고 새 페이즈 세트를 부여한다.
-	AbilitySystemComponent->ClearAbilitySetByHandles(CurrentPhaseHandles);
-
-	if (TObjectPtr<UPRAbilitySet>* FoundAbilitySet = PhaseAbilitySets.Find(NewPhase))
+	if (bUsePhaseAbilitySets)
 	{
-		if (IsValid(*FoundAbilitySet))
+		// 이전 페이즈에서만 열렸던 Ability/GE를 회수하고 새 페이즈 세트를 부여한다.
+		AbilitySystemComponent->ClearAbilitySetByHandles(CurrentPhaseHandles);
+
+		if (TObjectPtr<UPRAbilitySet>* FoundAbilitySet = PhaseAbilitySets.Find(NewPhase))
 		{
-			AbilitySystemComponent->GiveAbilitySet(*FoundAbilitySet, CurrentPhaseHandles);
+			if (IsValid(*FoundAbilitySet))
+			{
+				AbilitySystemComponent->GiveAbilitySet(*FoundAbilitySet, CurrentPhaseHandles);
+			}
 		}
 	}
 

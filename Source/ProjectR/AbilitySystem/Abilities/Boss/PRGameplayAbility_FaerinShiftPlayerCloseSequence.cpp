@@ -26,4 +26,6 @@ UPRGameplayAbility_FaerinShiftPlayerCloseSequence::UPRGameplayAbility_FaerinShif
 	bDodgingTargetAvoidsShift = true;
 	bMirrorTargetMoveToOwningClient = true;
 	ShiftImpactPoiseDamage = 100.0f;
+	bGrantOwnerInvulnerabilityDuringShift = true;
+	OwnerInvulnerabilityMinimumPhase = EPRBossPhase::Phase3;
 }

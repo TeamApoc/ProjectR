@@ -45,14 +45,20 @@ void UPRGameplayAbility_FaerinShiftSequence::ActivateAbility(
 		return;
 	}
 
+	BeginBossPatternAttackCommit();
+
 	bShiftApplied = false;
 	bShiftResolved = false;
 	bShiftMoveInProgress = false;
 	bFinishWhenShiftMoveCompletes = false;
 	bShiftSequenceFinished = false;
+	bOwnerInvulnerabilityApplied = false;
 	ActiveShiftTarget = nullptr;
 	SmoothShiftElapsedSeconds = 0.0f;
 	LastSmoothShiftUpdateTime = 0.0f;
+
+	ApplyOwnerInvulnerabilityIfNeeded();
+
 	if (!RegisterCharacterEventListener() && bRequireCharacterEventForShift)
 	{
 		UE_LOG(LogPRFaerinShiftSequence, Warning,
@@ -142,6 +148,9 @@ void UPRGameplayAbility_FaerinShiftSequence::EndAbility(
 	SmoothShiftElapsedSeconds = 0.0f;
 	LastSmoothShiftUpdateTime = 0.0f;
 
+	RemoveOwnerInvulnerabilityIfNeeded();
+
+	EndBossPatternAttackCommit();
 	Super::EndAbility(Handle, ActorInfo, ActivationInfo, bReplicateEndAbility, bWasCancelled);
 }
 
@@ -602,6 +611,58 @@ void UPRGameplayAbility_FaerinShiftSequence::FinishShiftSequence(bool bWasCancel
 	}
 
 	EndAbility(CurrentSpecHandle, CurrentActorInfo, CurrentActivationInfo, true, bWasCancelled);
+}
+
+void UPRGameplayAbility_FaerinShiftSequence::ApplyOwnerInvulnerabilityIfNeeded()
+{
+	if (!ShouldGrantOwnerInvulnerabilityForCurrentPhase())
+	{
+		return;
+	}
+
+	UAbilitySystemComponent* OwnerASC = GetAbilitySystemComponentFromActorInfo();
+	if (!IsValid(OwnerASC))
+	{
+		return;
+	}
+
+	OwnerASC->AddLooseGameplayTag(PRGameplayTags::State_Invulnerable);
+	OwnerASC->AddReplicatedLooseGameplayTag(PRGameplayTags::State_Invulnerable);
+	bOwnerInvulnerabilityApplied = true;
+}
+
+void UPRGameplayAbility_FaerinShiftSequence::RemoveOwnerInvulnerabilityIfNeeded()
+{
+	if (!bOwnerInvulnerabilityApplied)
+	{
+		return;
+	}
+
+	UAbilitySystemComponent* OwnerASC = GetAbilitySystemComponentFromActorInfo();
+	if (IsValid(OwnerASC))
+	{
+		OwnerASC->RemoveLooseGameplayTag(PRGameplayTags::State_Invulnerable);
+		OwnerASC->RemoveReplicatedLooseGameplayTag(PRGameplayTags::State_Invulnerable);
+	}
+
+	bOwnerInvulnerabilityApplied = false;
+}
+
+bool UPRGameplayAbility_FaerinShiftSequence::ShouldGrantOwnerInvulnerabilityForCurrentPhase() const
+{
+	if (!bGrantOwnerInvulnerabilityDuringShift)
+	{
+		return false;
+	}
+
+	const APRBossBaseCharacter* BossCharacter = GetBossAvatarCharacter();
+	if (!IsValid(BossCharacter) || !BossCharacter->HasAuthority())
+	{
+		return false;
+	}
+
+	return static_cast<uint8>(BossCharacter->GetCurrentPhase())
+		>= static_cast<uint8>(OwnerInvulnerabilityMinimumPhase);
 }
 
 void UPRGameplayAbility_FaerinShiftSequence::HandleShiftMontageCompleted()

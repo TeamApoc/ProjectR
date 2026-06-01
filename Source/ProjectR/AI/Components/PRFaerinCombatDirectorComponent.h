@@ -29,6 +29,13 @@ enum class EPRFaerinCombatLoopState : uint8
 	ApproachNearTeleport UMETA(DisplayName = "Approach Near Teleport")
 };
 
+UENUM(BlueprintType)
+enum class EPRFaerinNearTeleportPlacementMode : uint8
+{
+	SelfEQS			UMETA(DisplayName = "Self EQS"),
+	TargetBack		UMETA(DisplayName = "Target Back")
+};
+
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FPRFaerinLoopStepFinishedSignature, bool, bSucceeded);
 
 USTRUCT(BlueprintType)
@@ -43,10 +50,6 @@ struct PROJECTR_API FPRFaerinApproachSprintRequest
 	// 스프린트 접근의 기준 타깃이다.
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Faerin")
 	TObjectPtr<AActor> TargetActor;
-
-	// 접근을 시작하게 만든 거리 기준이다.
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Faerin")
-	float TriggerDistance = 0.0f;
 
 	// 타깃과 이 거리 이하로 좁혀지면 End 섹션으로 전환한다.
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Faerin")
@@ -81,6 +84,18 @@ struct PROJECTR_API FPRFaerinNearTeleportRequest
 	// 근거리 텔레포트 접근의 기준 타깃이다.
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Faerin")
 	TObjectPtr<AActor> TargetActor;
+
+	// 텔레포트 목적지를 계산하는 방식이다.
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Faerin")
+	EPRFaerinNearTeleportPlacementMode PlacementMode = EPRFaerinNearTeleportPlacementMode::SelfEQS;
+
+	// TargetBack 방식에서 target의 뒤쪽으로 물러나는 거리다.
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Faerin")
+	float TargetBackDistance = 320.0f;
+
+	// TargetBack 목적지를 NavMesh로 보정할 때 사용하는 검색 범위다.
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Faerin")
+	FVector TargetBackNavProjectExtent = FVector(240.0f, 240.0f, 360.0f);
 };
 
 enum class EPRFaerinObservedAbilityRole : uint8
@@ -88,6 +103,7 @@ enum class EPRFaerinObservedAbilityRole : uint8
 	None,
 	Pattern,
 	PrePatternPortal,
+	PrePatternApproach,
 	Approach
 };
 
@@ -135,6 +151,9 @@ protected:
 	// 현재 BT 문맥에서 선택 가능한 패턴 후보를 고른다.
 	bool SelectPatternPlan(UBehaviorTreeComponent& OwnerComp, FPRFaerinPatternPlan& OutPlan);
 
+	// 공통 ThreatComponent가 고른 공격 대상을 Blackboard와 Director 캐시에 동기화한다.
+	bool SyncActiveTargetFromThreat(UBehaviorTreeComponent& OwnerComp);
+
 	// 거리 때문에 패턴 선택이 실패했을 때 sprint 접근으로 유효 사거리까지 진입한다.
 	bool StartOutOfRangeApproach(UBehaviorTreeComponent& OwnerComp);
 
@@ -147,10 +166,36 @@ protected:
 	// 현재 ASC 상태에서 지정 AbilityTag를 가진 패턴을 활성화할 수 있는지 확인한다.
 	bool CanActivatePatternAbilityTag(const FGameplayTag& AbilityTag) const;
 
+	// 현재 PhaseConfig 기준으로 메인 패턴 선택에서 제외해야 하는 Rule인지 확인한다.
+	bool ShouldExcludePatternRuleFromMainSelection(
+		const FPRPatternRule& PatternRule,
+		const FPRFaerinPhaseLoopConfig& PhaseConfig) const;
+
 	// 선택된 패턴 계획을 Teleport VFX 래퍼 또는 Ability 실행으로 시작한다.
 	bool StartPatternPlan(
 		const FPRFaerinPatternPlan& PatternPlan,
 		EPRFaerinObservedAbilityRole ObservedRole = EPRFaerinObservedAbilityRole::Pattern);
+
+	// Phase1/2 공격 전 접근 루트가 필요하면 접근 Ability를 먼저 실행한다.
+	bool TryStartPrePatternApproach(
+		const FPRFaerinPhaseLoopConfig& PhaseConfig,
+		const FPRFaerinPatternPlan& PatternPlan);
+
+	// Phase1/2 공격 전 접근 루트와 배치 방식을 결정한다.
+	bool ResolvePrePatternApproachRoute(
+		const FPRFaerinPhaseLoopConfig& PhaseConfig,
+		const FPRFaerinPatternPlan& PatternPlan,
+		bool& bOutUseNearTeleport,
+		EPRFaerinNearTeleportPlacementMode& OutTeleportPlacementMode) const;
+
+	// 공격 전 접근 루트 대상 phase인지 확인한다.
+	bool IsPrePatternApproachPhase(EPRBossPhase Phase) const;
+
+	// 선택된 패턴이 Spoke 계열인지 확인한다.
+	bool IsSpokePatternPlan(const FPRFaerinPatternPlan& PatternPlan) const;
+
+	// 선택된 패턴이 원거리 선행 텔레포트 계열인지 확인한다.
+	bool IsRangedPreApproachPatternPlan(const FPRFaerinPatternPlan& PatternPlan) const;
 
 	// Phase3 이후 본체 공격 전에 Teleport VFX 래퍼를 거쳐야 하는지 확인한다.
 	bool ShouldRunTeleportVFXWrapper(const FPRFaerinPatternPlan& PatternPlan) const;
@@ -211,8 +256,20 @@ protected:
 	// 보조 포털이 끝난 뒤 저장해 둔 본 공격을 이어서 실행한다.
 	void HandlePrePatternPortalAssistFinished(bool bSucceeded);
 
+	// 공격 전 접근이 끝난 뒤 보관해 둔 본 공격을 이어서 실행한다.
+	void HandlePrePatternApproachFinished(bool bSucceeded);
+
 	// Ability 종료 이후 후속 루프 동작을 시작한다.
 	void HandlePatternExecutionFinished(bool bSucceeded);
+
+	// ShiftPlayerClose 이후 즉시 Spoke 후속 공격을 실행한다.
+	bool TryStartShiftFollowUpSpoke();
+
+	// Phase1/2에서 공격 후 strafe만 수행하고 다음 루프에서 패턴을 다시 고르는 흐름인지 확인한다.
+	bool ShouldUsePhase12PostPatternStrafeLoop(const FPRFaerinPhaseLoopConfig& PhaseConfig) const;
+
+	// 지정 AbilityTag의 패턴 계획을 강제 후속 실행용으로 만든다.
+	bool BuildForcedPatternPlanByTag(const FGameplayTag& AbilityTag, FPRFaerinPatternPlan& OutPlan) const;
 
 	// 공격 후 횡이동이 필요한지 판단한다.
 	bool ShouldRunPostPatternStrafe(const FPRFaerinPatternPlan& PatternPlan, const FPRFaerinPhaseLoopConfig& PhaseConfig) const;
@@ -235,11 +292,21 @@ protected:
 	// 횡이동 이후 sprint 접근을 시작한다.
 	bool StartPostStrafeApproach(const FPRFaerinPhaseLoopConfig& PhaseConfig);
 
+	// 접근 Ability를 지정 방식으로 실행한다.
+	bool StartApproachAbility(
+		const FPRFaerinPhaseLoopConfig& PhaseConfig,
+		bool bUseNearTeleport,
+		EPRFaerinNearTeleportPlacementMode TeleportPlacementMode,
+		EPRFaerinObservedAbilityRole InObservedAbilityRole);
+
 	// 스프린트 접근 GA가 사용할 실행 요청을 만든다.
 	bool BuildApproachSprintRequest(const FPRFaerinPhaseLoopConfig& PhaseConfig, FPRFaerinApproachSprintRequest& OutRequest) const;
 
 	// 근거리 텔레포트 접근 GA가 사용할 실행 요청을 만든다.
-	bool BuildNearTeleportRequest(FPRFaerinNearTeleportRequest& OutRequest) const;
+	bool BuildNearTeleportRequest(
+		const FPRFaerinPhaseLoopConfig& PhaseConfig,
+		EPRFaerinNearTeleportPlacementMode PlacementMode,
+		FPRFaerinNearTeleportRequest& OutRequest) const;
 
 	// 최종 접근 정책에서 근거리 텔레포트를 사용할지 결정한다.
 	bool ShouldUseNearTeleportApproach(EPRFaerinApproachPolicy ApproachPolicy, const FPRFaerinPhaseLoopConfig& PhaseConfig) const;

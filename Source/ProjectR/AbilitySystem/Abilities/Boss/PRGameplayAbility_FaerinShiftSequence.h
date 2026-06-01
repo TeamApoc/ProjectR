@@ -6,6 +6,7 @@
 #include "EnvironmentQuery/EnvQueryTypes.h"
 #include "ProjectR/AbilitySystem/Abilities/Boss/PRGameplayAbility_BossPatternBase.h"
 #include "ProjectR/AI/Data/PREnemyCombatDataAsset.h"
+#include "ProjectR/AI/PREnemyAITypes.h"
 #include "PRGameplayAbility_FaerinShiftSequence.generated.h"
 
 class AActor;
@@ -109,6 +110,15 @@ protected:
 
 	// Ability를 정상/취소 상태로 마무리한다.
 	void FinishShiftSequence(bool bWasCancelled);
+
+	// 현재 페이즈와 설정 기준으로 보스 무적 태그를 부여한다.
+	void ApplyOwnerInvulnerabilityIfNeeded();
+
+	// Ability 종료 시 이 Ability가 부여한 보스 무적 태그를 회수한다.
+	void RemoveOwnerInvulnerabilityIfNeeded();
+
+	// 현재 보스 페이즈에서 Shift 무적을 사용할지 확인한다.
+	bool ShouldGrantOwnerInvulnerabilityForCurrentPhase() const;
 
 	// Shift 몽타주가 정상 종료됐을 때 Ability를 마무리한다.
 	UFUNCTION()
@@ -246,6 +256,15 @@ protected:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Faerin|Shift|Impact", meta = (ClampMin = "0.0"))
 	float ShiftImpactPoiseDamage = 0.0f;
 
+	// 이 Shift Ability 동안 보스에게 무적 태그를 부여할지 여부다.
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Faerin|Shift|Invulnerability")
+	bool bGrantOwnerInvulnerabilityDuringShift = false;
+
+	// 보스 무적을 부여하기 시작할 최소 페이즈다.
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Faerin|Shift|Invulnerability",
+		meta = (EditCondition = "bGrantOwnerInvulnerabilityDuringShift"))
+	EPRBossPhase OwnerInvulnerabilityMinimumPhase = EPRBossPhase::Phase3;
+
 	// Shift 목적지 디버그 표시 여부다.
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Faerin|Shift|Debug")
 	bool bDrawDebug = false;
@@ -276,4 +295,5 @@ private:
 	bool bShiftMoveInProgress = false;
 	bool bFinishWhenShiftMoveCompletes = false;
 	bool bShiftSequenceFinished = false;
+	bool bOwnerInvulnerabilityApplied = false;
 };

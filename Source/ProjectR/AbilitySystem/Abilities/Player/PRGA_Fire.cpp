@@ -12,6 +12,9 @@
 #include "ProjectR/AbilitySystem/Tasks/PRAT_SpawnPredictedProjectile.h"
 #include "ProjectR/PRGameplayTags.h"
 #include "ProjectR/Character/PRPlayerCharacter.h"
+#include "ProjectR/Combat/PRCombatInterface.h"
+#include "ProjectR/Combat/PRCombatStatics.h"
+#include "ProjectR/Combat/PRDestructableInterface.h"
 #include "ProjectR/Projectile/PRProjectileBase.h"
 #include "ProjectR/System/PRAssetManager.h"
 #include "ProjectR/System/PREventManagerSubsystem.h"
@@ -487,6 +490,31 @@ void UPRGA_Fire::ApplyDamage(AActor* TargetActor, const FHitResult* HitResult)
 	{
 		return;
 	}
+	
+	// 2026.05.30 이건주 수정_ ASC 미보유 대상 대미지 전달 브릿지
+	if (IPRDestructableInterface* DestructableTarget = Cast<IPRDestructableInterface>(TargetActor))
+	{
+		// 파괴 가능 대상 전용 컨텍스트
+		FPRDestructableDamageReceiveContext DestructableDamageContext;
+		DestructableDamageContext.Instigator = GetAvatarActorFromActorInfo();
+		
+		if (auto WeaponData = GetCurrentWeaponData())
+		{
+			DestructableDamageContext.DamageAmount = WeaponData->BaseDamage;
+		}
+		else
+		{
+			DestructableDamageContext.DamageAmount = 10.f;
+		}
+		
+		if (HitResult)
+		{
+			DestructableDamageContext.HitResult = *HitResult;
+		}
+		
+		DestructableTarget->ReceiveDamageContext(DestructableDamageContext);
+	}
+	
 
 	UAbilitySystemComponent* SourceASC = GetAbilitySystemComponentFromActorInfo();
 	if (!IsValid(SourceASC))
@@ -500,11 +528,14 @@ void UPRGA_Fire::ApplyDamage(AActor* TargetActor, const FHitResult* HitResult)
 		return;
 	}
 
+	
 	UAbilitySystemComponent* TargetASC = UAbilitySystemBlueprintLibrary::GetAbilitySystemComponent(TargetActor);
 	if (IsValid(TargetASC))
 	{
 		SourceASC->ApplyGameplayEffectSpecToTarget(*SpecHandle.Data.Get(), TargetASC);
+		return;
 	}
+	
 }
 
 void UPRGA_Fire::PlayWeaponMontage(UAnimMontage* Montage, float PlayRate)

@@ -9,7 +9,11 @@
 #include "Components/SphereComponent.h"
 #include "Engine/World.h"
 #include "TimerManager.h"
+#include "ProjectR/Combat/PRCombatInterface.h"
+#include "ProjectR/Combat/PRCombatStatics.h"
+#include "ProjectR/Combat/PRDestructableInterface.h"
 #include "ProjectR/ProjectR.h"
+#include "ProjectR/Combat/PRCombatGameplayTags.h"
 
 DEFINE_LOG_CATEGORY(LogPREffectArea);
 
@@ -254,11 +258,69 @@ void APREffectArea::ReapplyEffectToOverlappingActors()
 	}
 }
 
+FActiveGameplayEffectHandle APREffectArea::ApplyEffectToActorWithOcclusion(AActor* TargetActor)
+{
+	if (!IsValid(TargetActor))
+	{
+		return FActiveGameplayEffectHandle();
+	}
+
+	FHitResult BlockHit;
+	if (IsAreaDamageBlocked(TargetActor, BlockHit))
+	{
+		// 차폐 대상 우선 대미지 전달
+		TryApplyEffectToCombatTarget(BlockHit.GetActor(), &BlockHit);
+		return FActiveGameplayEffectHandle();
+	}
+
+	return ApplyEffectToActor(TargetActor);
+}
+
+bool APREffectArea::IsAreaDamageBlocked(AActor* TargetActor, FHitResult& OutBlockHit) const
+{
+	if (!IsValid(TargetActor))
+	{
+		return false;
+	}
+
+	UWorld* World = GetWorld();
+	if (!IsValid(World))
+	{
+		return false;
+	}
+
+	FCollisionQueryParams QueryParams(SCENE_QUERY_STAT(PREffectAreaDamageOcclusion), false, this);
+	QueryParams.AddIgnoredActor(this);
+	QueryParams.AddIgnoredActor(TargetActor);
+
+	if (SourceASC.IsValid())
+	{
+		AActor* SourceActor = SourceASC->GetAvatarActor();
+		if (IsValid(SourceActor))
+		{
+			QueryParams.AddIgnoredActor(SourceActor);
+		}
+	}
+
+	const FVector TraceStart = GetActorLocation();
+	const FVector TraceEnd = TargetActor->GetActorLocation() + FVector(0.0f, 0.0f, 50.0f);
+
+	// 단일 라인 차폐 판정
+	return World->LineTraceSingleByChannel(
+		OutBlockHit,
+		TraceStart,
+		TraceEnd,
+		ECC_Visibility,
+		QueryParams);
+}
+
 FActiveGameplayEffectHandle APREffectArea::ApplyEffectToActor(AActor* TargetActor) const
 {
 	UAbilitySystemComponent* TargetASC = UAbilitySystemBlueprintLibrary::GetAbilitySystemComponent(TargetActor);
 	if (!IsValid(TargetASC))
 	{
+		// ASC 미보유 전투 대상 브릿지 경로
+		TryApplyEffectToCombatTarget(TargetActor, nullptr);
 		return FActiveGameplayEffectHandle();
 	}
 
@@ -269,6 +331,45 @@ FActiveGameplayEffectHandle APREffectArea::ApplyEffectToActor(AActor* TargetActo
 	}
 
 	return TargetASC->ApplyGameplayEffectSpecToSelf(*EffectSpecHandle.Data.Get());
+}
+
+bool APREffectArea::TryApplyEffectToCombatTarget(AActor* TargetActor, const FHitResult* HitResult) const
+{
+	if (!IsValid(TargetActor))
+	{
+		return false;
+	}
+
+	UAbilitySystemComponent* TargetASC = UAbilitySystemBlueprintLibrary::GetAbilitySystemComponent(TargetActor);
+	if (IsValid(TargetASC))
+	{
+		return false;
+	}
+
+	IPRDestructableInterface* DestructableTarget = Cast<IPRDestructableInterface>(TargetActor);
+	if (!DestructableTarget)
+	{
+		return false;
+	}
+
+	// Instigator, DamageAmount만 전달
+	FGameplayEffectSpec* EffectSpec = EffectSpecHandle.Data.Get();
+	const FGameplayEffectContextHandle& EffectContext = EffectSpec->GetEffectContext();
+	
+	const float BaseDamage = EffectSpec->GetSetByCallerMagnitude(
+	PRCombatGameplayTags::SetByCaller_CurrentWeapon_BaseDamage,
+	false,
+	0.0f);
+	
+	// 파괴 가능 대상 전용 컨텍스트
+	FPRDestructableDamageReceiveContext DestructableDamageContext;
+	DestructableDamageContext.Instigator = EffectContext.GetInstigator();
+	DestructableDamageContext.DamageAmount = BaseDamage;
+
+	DestructableTarget->ReceiveDamageContext(DestructableDamageContext);
+
+	// ASC 미보유 대상 대미지 컨텍스트 전달
+	return DestructableTarget->ReceiveDamageContext(DestructableDamageContext);
 }
 
 void APREffectArea::RemoveAllTrackedEffects()

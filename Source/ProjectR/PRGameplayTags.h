@@ -43,9 +43,10 @@ namespace PRGameplayTags
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Ability_Boss_PhaseTransition); // 보스 페이즈 전환 공통 루트
 
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Ability_Enemy_Penitent_Pattern); // Penitent 패턴 루트
-	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Ability_Enemy_Penitent_Fireball); // Penitent 기본 화염구
-	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Ability_Enemy_Penitent_BounceVolley); // Penitent 강패턴
-	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Ability_Enemy_Penitent_StaffSwipe); // Penitent 근접 반격
+	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Ability_Enemy_Penitent_Projectile); // Penitent 기본 투사체
+	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Ability_Enemy_Penitent_BarrierSummon); // Penitent 배리어 소환
+	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Ability_Enemy_Penitent_BarrierLaunch); // Penitent 배리어 발사
+	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Ability_Enemy_Penitent_StaffSwing); // Penitent 근거리 휘두르기
 
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Ability_Enemy_RoyalArcher_Pattern); // RoyalArcher 패턴 루트
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Ability_Enemy_RoyalArcher_WakeFromPerch); // RoyalArcher 전투 시작
@@ -99,6 +100,8 @@ namespace PRGameplayTags
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(State_PlayerHitReactLocked); // 피격 리액션 행동불능 상태
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(State_PhaseTransitioning); // 보스 페이즈 전환 상태.
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(State_Boss_WeakpointOpen_Core); // 보스 코어 약점 오픈 상태.
+	UE_DECLARE_GAMEPLAY_TAG_EXTERN(State_Enemy_Attacking); // 적 공격 실행중 상태
+	UE_DECLARE_GAMEPLAY_TAG_EXTERN(State_Enemy_Penitent_BarrierSummon); // Penitent 배리어 보유 상태
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(State_Armed); // 플레이어 무기 장착중 상태
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(State_Block_Move); // 움직임 비활성화 상태
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(State_Reviving); // 소생중 상태

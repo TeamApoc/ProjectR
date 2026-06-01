@@ -152,6 +152,18 @@ EBTNodeResult::Type UBTTask_PRActivateEnemyAbility::ExecuteTask(UBehaviorTreeCom
 			*GetNameSafe(ControlledPawn));
 	}
 
+	if (bWriteActivatedAbilityTagToBlackboard)
+	{
+		if (UBlackboardComponent* BlackboardComponent = OwnerComp.GetBlackboardComponent())
+		{
+			if (HasActivateAbilityBlackboardKey(BlackboardComponent, ActivatedAbilityTagWriteKey))
+			{
+				// 마지막 실행 원거리 Ability 기록
+				BlackboardComponent->SetValueAsName(ActivatedAbilityTagWriteKey, ResolvedAbilityTag.GetTagName());
+			}
+		}
+	}
+
 	if (bResetAttackPressureOnAbilityActivated)
 	{
 		if (UBlackboardComponent* BlackboardComponent = OwnerComp.GetBlackboardComponent())
@@ -446,7 +458,7 @@ void UBTTask_PRActivateEnemyAbility::HandleObservedAbilityEnded(const FAbilityEn
 
 FString UBTTask_PRActivateEnemyAbility::GetStaticDescription() const
 {
-	return FString::Printf(TEXT("%s\nAbilityTag: %s\nActivated Mode: %s\nWait: %s\nPost Mode: %s\nPost Delay: %.2f"),
+	return FString::Printf(TEXT("%s\nAbilityTag: %s\nActivated Mode: %s\nWait: %s\nPost Mode: %s\nPost Delay: %.2f\nWrite Activated Tag: %s"),
 		*Super::GetStaticDescription(),
 		AbilityTag.IsValid() ? *AbilityTag.ToString() : *FString::Printf(TEXT("BB:%s"), *AbilityTagBlackboardKey.ToString()),
 		bSetTacticalModeOnAbilityActivated
@@ -456,5 +468,6 @@ FString UBTTask_PRActivateEnemyAbility::GetStaticDescription() const
 		bSetTacticalModeAfterAbilityEnds
 			? *StaticEnum<EPRTacticalMode>()->GetNameStringByValue(static_cast<int64>(TacticalModeAfterAbilityEnds))
 			: TEXT("None"),
-		PostAbilityEndDelay);
+		PostAbilityEndDelay,
+		bWriteActivatedAbilityTagToBlackboard ? *ActivatedAbilityTagWriteKey.ToString() : TEXT("false"));
 }

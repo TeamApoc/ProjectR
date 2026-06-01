@@ -29,6 +29,10 @@ struct FPRFloatingTextStyleConfig
 	// 텍스트 색상
 	UPROPERTY(EditAnywhere, Config, Category = "FloatingText")
 	FLinearColor Color = FLinearColor::White;
+
+	// 레이어 Z-Order 값
+	UPROPERTY(EditAnywhere, Config, Category = "FloatingText")
+	int32 LayerZOrder = 0;
 };
 
 // 위젯 클래스가 로드된 결과. Getter 반환용
@@ -39,6 +43,9 @@ struct FPRFloatingTextStyle
 
 	// 텍스트 색상
 	FLinearColor Color = FLinearColor::White;
+
+	// 레이어 Z-Order 값
+	int32 LayerZOrder = 0;
 };
 
 UENUM(BlueprintType)

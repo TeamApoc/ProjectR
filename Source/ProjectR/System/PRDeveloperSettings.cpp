@@ -21,6 +21,7 @@ FPRFloatingTextStyle UPRDeveloperSettings::GetFloatingTextStyleSync(EPRFloatingT
 		FPRFloatingTextStyle Result;
 		Result.WidgetClass = Found->WidgetClass.LoadSynchronous();
 		Result.Color = Found->Color;
+		Result.LayerZOrder = Found->LayerZOrder;
 		return Result;
 	}
 

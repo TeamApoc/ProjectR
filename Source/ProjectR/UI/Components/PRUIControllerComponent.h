@@ -6,6 +6,7 @@
 #include "Components/ActorComponent.h"
 #include "ProjectR/ItemSystem/Types/PRDropTypes.h"
 #include "ProjectR/ItemSystem/Types/PRWeaponTypes.h"
+#include "ProjectR/UI/HUD/PRHUDMessageTypes.h"
 #include "ProjectR/UI/Inventory/PRInventoryUITypes.h"
 #include "PRUIControllerComponent.generated.h"
 
@@ -93,6 +94,10 @@ public:
 	// 획득 보상 알림 표시를 현재 HUD에 전달한다
 	UFUNCTION(BlueprintCallable, Category = "ProjectR|UI")
 	void ShowPickupRewardNotification(const FPRPickupNotificationPayload& Payload);
+
+	// HUD 안내 메시지 타입을 로컬 EventManager 이벤트로 발송한다
+	UFUNCTION(BlueprintCallable, Category = "ProjectR|UI")
+	void NotifyHUDMessage(EPRHUDMessageType MessageType);
 
 	// 아이템 슬롯 툴팁을 지정 위젯에 연결한다
 	UFUNCTION(BlueprintCallable, Category = "ProjectR|UI|Tooltip")

@@ -20,10 +20,30 @@
 #include "ProjectR/UI/PRUIManagerSubsystem.h"
 #include "ProjectR/UI/Shop/PRShopWidget.h"
 #include "ProjectR/UI/WeaponUpgrade/PRWeaponUpgradeWidget.h"
+#include "ProjectR/PRGameplayTags.h"
 #include "ProjectR/Shop/Components/PRShopComponent.h"
+#include "ProjectR/System/PREventManagerSubsystem.h"
+#include "ProjectR/System/PREventTypes.h"
 #include "ProjectR/ItemSystem/Components/PRWeaponUpgradeComponent.h"
 #include "ProjectR/ItemSystem/Components/PRWeaponManagerComponent.h"
 #include "ProjectR/ItemSystem/Data/PRWeaponDataAsset.h"
+
+namespace
+{
+	// HUD 메시지 타입별 표시 문구 해석
+	FText ResolveHUDMessageText(EPRHUDMessageType MessageType)
+	{
+		switch (MessageType)
+		{
+		case EPRHUDMessageType::WaitingForOtherPlayers:
+			return NSLOCTEXT("ProjectR", "HUDMessage_WaitingForOtherPlayers", "다른 플레이어 기다리는 중");
+		case EPRHUDMessageType::OtherPlayersWaiting:
+			return NSLOCTEXT("ProjectR", "HUDMessage_OtherPlayersWaiting", "다른 플레이어들이 기다리는 중");
+		default:
+			return FText::GetEmpty();
+		}
+	}
+}
 
 UPRUIControllerComponent::UPRUIControllerComponent()
 {
@@ -356,6 +376,32 @@ void UPRUIControllerComponent::ShowPickupRewardNotification(const FPRPickupNotif
 	{
 		HUDWidget->ShowPickupRewardNotification(Payload);
 	}
+}
+
+void UPRUIControllerComponent::NotifyHUDMessage(EPRHUDMessageType MessageType)
+{
+	if (!IsLocalPlayer())
+	{
+		return;
+	}
+
+	UWorld* World = GetWorld();
+	if (!IsValid(World))
+	{
+		return;
+	}
+
+	UPREventManagerSubsystem* EventManager = World->GetSubsystem<UPREventManagerSubsystem>();
+	if (!IsValid(EventManager))
+	{
+		return;
+	}
+
+	// HUD 메시지 위젯이 구독하는 로컬 EventManager 이벤트 발송
+	FPRHUDMessageEventPayload Payload;
+	Payload.bShow = MessageType != EPRHUDMessageType::None;
+	Payload.Message = ResolveHUDMessageText(MessageType);
+	EventManager->BroadcastTyped(PRGameplayTags::Event_Player_HUDMessage, Payload);
 }
 
 void UPRUIControllerComponent::ShowItemTooltip(UWidget* TooltipOwner, const FPRInventoryItemSlotViewData& SlotViewData)

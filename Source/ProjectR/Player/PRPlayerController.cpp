@@ -26,7 +26,6 @@
 #include "ProjectR/ItemSystem/Components/PRWeaponUpgradeComponent.h"
 #include "ProjectR/ItemSystem/Items/PRItemInstance_Weapon.h"
 
-
 APRPlayerController::APRPlayerController()
 {
 	PlayerCameraManagerClass = APRCameraManager::StaticClass();
@@ -568,6 +567,17 @@ void APRPlayerController::ClientNotifyPickupReward_Implementation(const FPRPicku
 	}
 
 	UIControllerComponent->ShowPickupRewardNotification(Payload);
+}
+
+void APRPlayerController::ClientNotifyHUDMessage_Implementation(EPRHUDMessageType MessageType)
+{
+	if (!IsValid(UIControllerComponent))
+	{
+		return;
+	}
+
+	// 네트워크 수신 후 로컬 UI 계층에 HUD 메시지 처리 위임
+	UIControllerComponent->NotifyHUDMessage(MessageType);
 }
 
 void APRPlayerController::RequestUpgradeWeapon(UPRWeaponUpgradeComponent* UpgradeComponent, UPRItemInstance_Weapon* WeaponItem)

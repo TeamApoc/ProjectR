@@ -554,17 +554,17 @@ struct FPRWorldSaveData
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	EPRSaveVersion Version = EPRSaveVersion::V1;
 
-	// 마지막으로 활성화된 체크포인트 ID. 리스폰 지점 결정에 사용
+	// 마지막으로 활성화된 체크포인트이자 리스폰 기준 SpawnPoint 태그
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	FName LastCheckpointId;
+	FGameplayTag LastCheckpointId;
 
-	// 마지막으로 활성화된 Waypoint ID. 전멸 리스폰 지점 결정에 사용
+	// 마지막으로 활성화된 Waypoint ID. UI와 Waypoint 진행 상태에 사용
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	FGameplayTag LastActiveWaypointId;
 
 	// 활성화된 체크포인트 집합. UI 목록·워프에 사용
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	TArray<FName> UnlockedCheckpoints;
+	TArray<FGameplayTag> UnlockedCheckpoints;
 
 	// 처치 완료된 보스 ID 집합. 재도전 시 상태 초기화 분기
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)

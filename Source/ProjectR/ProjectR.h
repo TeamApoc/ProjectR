@@ -23,6 +23,8 @@ namespace PRCollisionChannels
 	constexpr ECollisionChannel ECC_Ground = ECC_GameTraceChannel3;
 	constexpr ECollisionChannel ECC_Interactable = ECC_GameTraceChannel4;
 	constexpr ECollisionChannel ECC_PingMarker = ECC_GameTraceChannel5;
+	constexpr ECollisionChannel ECC_AISight = ECC_GameTraceChannel6;
+	constexpr ECollisionChannel ECC_EnemyProjectile = ECC_GameTraceChannel7;
 }
 
 namespace PRStencilValues

@@ -29,6 +29,8 @@ class PROJECTR_API UPRWeaponUpgradeWidget : public UPRWidgetBase
 	GENERATED_BODY()
 
 public:
+	UPRWeaponUpgradeWidget();
+	
 	// 강화 UI가 사용할 강화 컴포넌트 Context를 지정한다
 	UFUNCTION(BlueprintCallable, Category = "ProjectR|WeaponUpgrade")
 	void SetUpgradeContext(UPRWeaponUpgradeComponent* InUpgradeComponent);

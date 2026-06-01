@@ -73,19 +73,19 @@ void UPRGameInstance::ServerTravelToMap(TSoftObjectPtr<UWorld> MapAsset, bool bA
 	Session->ServerTravelToMap(MapAsset, bAbsolute);
 }
 
-// ===== 맵 이동 Waypoint 컨텍스트 =====
+// ===== 맵 이동 SpawnPoint 컨텍스트 =====
 
-void UPRGameInstance::SetPendingTravelWaypointId(FGameplayTag WaypointId)
+void UPRGameInstance::SetPendingTravelSpawnPointId(FGameplayTag SpawnPointId)
 {
-	PendingTravelWaypointId = WaypointId;
+	PendingTravelSpawnPointId = SpawnPointId;
 }
 
-FGameplayTag UPRGameInstance::ConsumePendingTravelWaypointId()
+FGameplayTag UPRGameInstance::ConsumePendingTravelSpawnPointId()
 {
 	// 일회성 컨텍스트 소비
-	const FGameplayTag ConsumedWaypointId = PendingTravelWaypointId;
-	PendingTravelWaypointId = FGameplayTag();
-	return ConsumedWaypointId;
+	const FGameplayTag ConsumedSpawnPointId = PendingTravelSpawnPointId;
+	PendingTravelSpawnPointId = FGameplayTag();
+	return ConsumedSpawnPointId;
 }
 
 void UPRGameInstance::SetPendingWorldSaveData(const FPRWorldSaveData& WorldSaveData)

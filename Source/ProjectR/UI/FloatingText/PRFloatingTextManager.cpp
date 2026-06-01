@@ -122,6 +122,9 @@ void UPRFloatingTextManager::ShowFloatingText(const FPRFloatingTextRequest& Requ
 	);
 	WidgetComp->SetWorldLocation(Request.WorldLocation + RandomOffset);
 	WidgetComp->SetVisibility(true);
+	const FName FloatingTextLayerName(*FString::Printf(TEXT("FloatingTextLayer_%d"), Style.LayerZOrder));
+	WidgetComp->SetInitialSharedLayerName(FloatingTextLayerName);
+	WidgetComp->SetInitialLayerZOrder(Style.LayerZOrder);
 
 	// 위젯-컴포넌트 매핑 등록
 	WidgetToComponentMap.Add(FloatingWidget, WidgetComp);

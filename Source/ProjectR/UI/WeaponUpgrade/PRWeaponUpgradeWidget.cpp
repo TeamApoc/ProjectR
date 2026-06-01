@@ -52,6 +52,13 @@ namespace
 	}
 }
 
+UPRWeaponUpgradeWidget::UPRWeaponUpgradeWidget()
+{
+	Layer = EPRUILayer::Menu;
+	InputMode = EPBUIInputMode::UIOnly;
+	bShowMouseCursor = true;
+}
+
 void UPRWeaponUpgradeWidget::SetUpgradeContext(UPRWeaponUpgradeComponent* InUpgradeComponent)
 {
 	UnbindSourceEvents();

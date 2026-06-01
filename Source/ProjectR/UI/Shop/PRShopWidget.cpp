@@ -21,6 +21,13 @@
 #include "ProjectR/UI/Shop/PRShopItemListWidget.h"
 #include "ProjectR/ItemSystem/Data/PRWeaponModDataAsset.h"
 
+UPRShopWidget::UPRShopWidget()
+{
+	Layer = EPRUILayer::Menu;
+	InputMode = EPBUIInputMode::UIOnly;
+	bShowMouseCursor = true;
+}
+
 void UPRShopWidget::SetShopContext(UPRShopComponent* InShopComponent)
 {
 	ShopComponent = InShopComponent;

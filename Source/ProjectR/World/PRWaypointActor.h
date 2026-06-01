@@ -3,39 +3,42 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "GameplayTagContainer.h"
-#include "PRInteractableActor.h"
+#include "PRSpawnPoint.h"
+#include "ProjectR/Interaction/PRInteractionInterface.h"
+#include "ProjectR/UI/WorldMarker/PRPingMarkerTargetInterface.h"
 #include "PRWaypointActor.generated.h"
 
-class APlayerStart;
+class UPRInteractableComponent;
 
 UCLASS()
-class PROJECTR_API APRWaypointActor : public APRInteractableActor
+class PROJECTR_API APRWaypointActor : public APRSpawnPoint, public IPRInteractionInterface, public IPRPingMarkerTargetInterface
 {
 	GENERATED_BODY()
 
 public:
 	APRWaypointActor();
 
-public:
-	// Waypoint 식별 태그 반환
-	FGameplayTag GetWaypointId() const;
+	/*~ IPRInteractionInterface ~*/
+	virtual UPRInteractableComponent* GetInteractableComponent() const override { return InteractableComponent; }
 
-	// 지정 태그와 Waypoint 식별자 일치 여부 반환
-	bool MatchesWaypointId(FGameplayTag InWaypointId) const;
-
-	// 플레이어 인덱스 기준 연결 PlayerStart 반환
-	APlayerStart* GetLinkedPlayerStart(int32 PlayerIndex) const;
-
-	// 플레이어 인덱스 기준 스폰 Transform 반환
-	FTransform GetSpawnTransform(int32 PlayerIndex) const;
+	/*~ IPRPingMarkerTargetInterface ~*/
+	virtual FPRWorldMarkerVisualData GetPingMarkerVisualData_Implementation() const override;
+	virtual FVector GetPingMarkerWorldLocation_Implementation() const override;
 
 protected:
-	// Waypoint 식별 태그
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, meta = (Categories = "Waypoint"),  Category = "ProjectR|Waypoint")
-	FGameplayTag WaypointId;
+	// 상호작용 액션을 제공하기 위한 컴포넌트
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Interaction")
+	TObjectPtr<UPRInteractableComponent> InteractableComponent;
 
-	// 플레이어 인덱스별 레벨 에디터 연결 PlayerStart
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|Waypoint")
-	TArray<TObjectPtr<APlayerStart>> LinkedPlayerStarts;
+	// 월드 마커 표시 위치 보정값
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "ProjectR|UI")
+	FVector PingMarkerOffset = FVector(0.0f, 0.0f, 30.0f);
+
+	// 기본 상호작용 마커 대신 전용 마커를 사용할지 여부
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "ProjectR|UI")
+	bool bOverridesPingMarker = false;
+
+	// 전용 월드 마커 시각 데이터
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, meta = (EditCondition = "bOverridesPingMarker == true"), Category = "ProjectR|UI")
+	FPRWorldMarkerVisualData PingMarkerVisualOverride;
 };

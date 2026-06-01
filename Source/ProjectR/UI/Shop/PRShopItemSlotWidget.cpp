@@ -7,17 +7,11 @@
 #include "Components/TextBlock.h"
 #include "InputCoreTypes.h"
 #include "ProjectR/ItemSystem/Data/PRItemDataAsset.h"
-#include "ProjectR/Player/PRPlayerController.h"
-#include "ProjectR/UI/Components/PRUIControllerComponent.h"
 
 void UPRShopItemSlotWidget::SetSlotViewData(const FPRShopItemSlotViewData& InViewData)
 {
 	ViewData = InViewData;
 	RefreshNativeDisplay();
-	if (bIsMouseHovering)
-	{
-		ShowTooltip();
-	}
 }
 
 /*~ UUserWidget Interface ~*/
@@ -44,28 +38,6 @@ FReply UPRShopItemSlotWidget::NativeOnMouseButtonDown(const FGeometry& InGeometr
 	}
 
 	return Super::NativeOnMouseButtonDown(InGeometry, InMouseEvent);
-}
-
-void UPRShopItemSlotWidget::NativeOnMouseEnter(const FGeometry& InGeometry, const FPointerEvent& InMouseEvent)
-{
-	Super::NativeOnMouseEnter(InGeometry, InMouseEvent);
-
-	bIsMouseHovering = true;
-	ShowTooltip();
-}
-
-void UPRShopItemSlotWidget::NativeOnMouseLeave(const FPointerEvent& InMouseEvent)
-{
-	bIsMouseHovering = false;
-	HideTooltip();
-
-	Super::NativeOnMouseLeave(InMouseEvent);
-}
-
-void UPRShopItemSlotWidget::NativeDestruct()
-{
-	HideTooltip();
-	Super::NativeDestruct();
 }
 
 void UPRShopItemSlotWidget::HandleClickButtonClicked()
@@ -132,35 +104,4 @@ FText UPRShopItemSlotWidget::MakeStockText() const
 	}
 
 	return FText::AsNumber(ViewData.RemainingStock);
-}
-
-void UPRShopItemSlotWidget::ShowTooltip()
-{
-	if (!IsValid(ViewData.ItemViewData.ItemData.Get()))
-	{
-		HideTooltip();
-		return;
-	}
-
-	UPRUIControllerComponent* UIController = ResolveUIController();
-	if (!IsValid(UIController))
-	{
-		return;
-	}
-
-	UIController->ShowItemTooltip(this, ViewData.ItemViewData);
-}
-
-void UPRShopItemSlotWidget::HideTooltip()
-{
-	if (UPRUIControllerComponent* UIController = ResolveUIController())
-	{
-		UIController->HideItemTooltip();
-	}
-}
-
-UPRUIControllerComponent* UPRShopItemSlotWidget::ResolveUIController() const
-{
-	const APRPlayerController* PRPlayerController = Cast<APRPlayerController>(GetOwningPlayer());
-	return IsValid(PRPlayerController) ? PRPlayerController->GetUIController() : nullptr;
 }

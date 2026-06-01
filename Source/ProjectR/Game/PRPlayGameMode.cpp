@@ -11,8 +11,8 @@
 #include "ProjectR/Game/PRGameInstance.h"
 #include "ProjectR/Player/PRPlayerController.h"
 #include "ProjectR/Player/PRPlayerState.h"
-#include "ProjectR/World/PRWaypointActor.h"
-#include "ProjectR/World/PRWaypointTags.h"
+#include "ProjectR/World/PRSpawnPoint.h"
+#include "ProjectR/World/PRSpawnPointTags.h"
 
 APRPlayGameMode::APRPlayGameMode()
 {
@@ -36,8 +36,8 @@ void APRPlayGameMode::InitGame(const FString& MapName, const FString& Options, F
 		// 월드 진행 상태 소비
 		GameInstance->ConsumePendingWorldSaveData(HostWorldSave);
 
-		// ServerTravel 진입 Waypoint 소비
-		TravelSpawnWaypointId = GameInstance->ConsumePendingTravelWaypointId();
+		// ServerTravel 진입 SpawnPoint 소비
+		TravelSpawnPointId = GameInstance->ConsumePendingTravelSpawnPointId();
 	}
 }
 
@@ -49,19 +49,13 @@ void APRPlayGameMode::PostLogin(APlayerController* NewPlayer)
 	if (APRGameStateBase* GS = GetGameState<APRGameStateBase>())
 	{
 		const bool bHasHostWorldSaveData =
-			!HostWorldSave.LastCheckpointId.IsNone()
+			HostWorldSave.LastCheckpointId.IsValid()
 			|| HostWorldSave.LastActiveWaypointId.IsValid()
 			|| !HostWorldSave.UnlockedCheckpoints.IsEmpty()
 			|| !HostWorldSave.DefeatedBosses.IsEmpty();
-		if (GS->GetActiveCheckpoint().IsNone() && bHasHostWorldSaveData)
+		if (!GS->GetActiveCheckpoint().IsValid() && bHasHostWorldSaveData)
 		{
 			GS->InitializeFromWorldSave(HostWorldSave);
-		}
-
-		if (TravelSpawnWaypointId.IsValid() && !GS->GetLastActiveWaypointId().IsValid())
-		{
-			// 맵 이동 진입 Waypoint 활성화
-			GS->SetLastActiveWaypointId(TravelSpawnWaypointId);
 		}
 	}
 
@@ -91,23 +85,23 @@ void APRPlayGameMode::Logout(AController* Exiting)
 
 AActor* APRPlayGameMode::ChoosePlayerStart_Implementation(AController* Player)
 {
-	// Waypoint 우선 스폰 지점
-	const FGameplayTag SpawnWaypointId = ResolvePlayerStartWaypointId();
-	if (APRWaypointActor* Waypoint = FindWaypointById(SpawnWaypointId))
+	// SpawnPoint 우선 스폰 지점
+	const FGameplayTag SpawnPointId = ResolvePlayerStartSpawnPointId();
+	if (APRSpawnPoint* SpawnPoint = FindSpawnPointById(SpawnPointId))
 	{
 		const int32 PlayerIndex = ResolvePlayerIndex(Player);
-		if (APlayerStart* LinkedPlayerStart = Waypoint->GetLinkedPlayerStart(PlayerIndex))
+		if (APlayerStart* LinkedPlayerStart = SpawnPoint->GetLinkedPlayerStart(PlayerIndex))
 		{
 			return LinkedPlayerStart;
 		}
 
-		return Waypoint;
+		return SpawnPoint;
 	}
 
 	return Super::ChoosePlayerStart_Implementation(Player);
 }
 
-void APRPlayGameMode::ReportCheckpointActivated(FName CheckpointId)
+void APRPlayGameMode::ReportCheckpointActivated(FGameplayTag CheckpointId)
 {
 	if (APRGameStateBase* GS = GetGameState<APRGameStateBase>())
 	{
@@ -316,7 +310,7 @@ void APRPlayGameMode::RestartMapForPartyRespawn()
 		return;
 	}
 
-	const FGameplayTag RespawnWaypointId = ResolvePartyRespawnWaypointId();
+	const FGameplayTag RespawnSpawnPointId = ResolvePartyRespawnSpawnPointId();
 	for (APlayerState* PlayerState : CurrentGameState->PlayerArray)
 	{
 		APRPlayerState* PRPlayerState = Cast<APRPlayerState>(PlayerState);
@@ -335,12 +329,11 @@ void APRPlayGameMode::RestartMapForPartyRespawn()
 		{
 			// 전멸 리스폰용 월드 진행 상태 보존
 			FPRWorldSaveData WorldSaveData = PRGameState->MakeWorldSaveData();
-			WorldSaveData.LastActiveWaypointId = RespawnWaypointId;
 			GameInstance->SetPendingWorldSaveData(WorldSaveData);
 		}
 
 		// 새 맵 최초 스폰 지점 예약
-		GameInstance->SetPendingTravelWaypointId(RespawnWaypointId);
+		GameInstance->SetPendingTravelSpawnPointId(RespawnSpawnPointId);
 	}
 
 	UWorld* World = GetWorld();
@@ -359,7 +352,7 @@ void APRPlayGameMode::RestartMapForPartyRespawn()
 	}
 }
 
-APRWaypointActor* APRPlayGameMode::FindWaypointById(FGameplayTag WaypointId) const
+APRSpawnPoint* APRPlayGameMode::FindSpawnPointById(FGameplayTag SpawnPointId) const
 {
 	// 현재 월드 탐색
 	UWorld* World = GetWorld();
@@ -368,43 +361,48 @@ APRWaypointActor* APRPlayGameMode::FindWaypointById(FGameplayTag WaypointId) con
 		return nullptr;
 	}
 
-	const FGameplayTag TargetWaypointId = WaypointId.IsValid() ? WaypointId : PRWaypointTags::Waypoint_Default;
-	APRWaypointActor* FoundWaypoint = nullptr;
+	const FGameplayTag TargetSpawnPointId = SpawnPointId.IsValid() ? SpawnPointId : PRSpawnPointTags::SpawnPoint_Default;
+	APRSpawnPoint* FoundSpawnPoint = nullptr;
 
-	for (TActorIterator<APRWaypointActor> It(World); It; ++It)
+	for (TActorIterator<APRSpawnPoint> It(World); It; ++It)
 	{
-		APRWaypointActor* Waypoint = *It;
-		if (!IsValid(Waypoint) || !Waypoint->MatchesWaypointId(TargetWaypointId))
+		APRSpawnPoint* SpawnPoint = *It;
+		if (!IsValid(SpawnPoint) || !SpawnPoint->MatchesSpawnPointId(TargetSpawnPointId))
 		{
 			continue;
 		}
 
-		if (IsValid(FoundWaypoint))
+		if (IsValid(FoundSpawnPoint))
 		{
-			// 중복 Waypoint 진단
+			// 중복 SpawnPoint 진단
 			UE_LOG(
 				LogTemp,
 				Warning,
-				TEXT("Duplicate waypoint tag %s found. Using first waypoint %s."),
-				*TargetWaypointId.ToString(),
-				*FoundWaypoint->GetName());
+				TEXT("Duplicate spawn point tag %s found. Using first spawn point %s."),
+				*TargetSpawnPointId.ToString(),
+				*FoundSpawnPoint->GetName());
 			continue;
 		}
 
-		FoundWaypoint = Waypoint;
+		FoundSpawnPoint = SpawnPoint;
 	}
 
-	return FoundWaypoint;
+	return FoundSpawnPoint;
 }
 
-FGameplayTag APRPlayGameMode::ResolvePlayerStartWaypointId() const
+FGameplayTag APRPlayGameMode::ResolvePlayerStartSpawnPointId() const
 {
 	const APRGameStateBase* PRGameState = Cast<APRGameStateBase>(GameState);
 
 	// 맵 이동 진입 지점 우선
-	if (TravelSpawnWaypointId.IsValid())
+	if (TravelSpawnPointId.IsValid())
 	{
-		return TravelSpawnWaypointId;
+		return TravelSpawnPointId;
+	}
+
+	if (IsValid(PRGameState) && PRGameState->GetActiveCheckpoint().IsValid())
+	{
+		return PRGameState->GetActiveCheckpoint();
 	}
 
 	if (IsValid(PRGameState) && PRGameState->GetLastActiveWaypointId().IsValid())
@@ -412,22 +410,29 @@ FGameplayTag APRPlayGameMode::ResolvePlayerStartWaypointId() const
 		return PRGameState->GetLastActiveWaypointId();
 	}
 
-	return PRWaypointTags::Waypoint_Default;
+	return PRSpawnPointTags::SpawnPoint_Default;
 }
 
-FGameplayTag APRPlayGameMode::ResolvePartyRespawnWaypointId() const
+FGameplayTag APRPlayGameMode::ResolvePartyRespawnSpawnPointId() const
 {
 	// 전멸 리스폰 지점 우선
 	const APRGameStateBase* PRGameState = Cast<APRGameStateBase>(GameState);
-	if (IsValid(PRGameState) && PRGameState->GetLastActiveWaypointId().IsValid())
+	if (IsValid(PRGameState) && PRGameState->GetActiveCheckpoint().IsValid())
 	{
-		const FGameplayTag RespawnWaypointId = PRGameState->GetLastActiveWaypointId();
-		UE_LOG(LogTemp, Log, TEXT("Party respawn waypoint resolved from LastActiveWaypointId: %s"), *RespawnWaypointId.ToString());
-		return RespawnWaypointId;
+		const FGameplayTag RespawnSpawnPointId = PRGameState->GetActiveCheckpoint();
+		UE_LOG(LogTemp, Log, TEXT("Party respawn spawn point resolved from LastCheckpointId: %s"), *RespawnSpawnPointId.ToString());
+		return RespawnSpawnPointId;
 	}
 
-	UE_LOG(LogTemp, Log, TEXT("Party respawn waypoint fallback to default"));
-	return PRWaypointTags::Waypoint_Default;
+	if (IsValid(PRGameState) && PRGameState->GetLastActiveWaypointId().IsValid())
+	{
+		const FGameplayTag RespawnSpawnPointId = PRGameState->GetLastActiveWaypointId();
+		UE_LOG(LogTemp, Log, TEXT("Party respawn spawn point fallback to LastActiveWaypointId: %s"), *RespawnSpawnPointId.ToString());
+		return RespawnSpawnPointId;
+	}
+
+	UE_LOG(LogTemp, Log, TEXT("Party respawn spawn point fallback to default"));
+	return PRSpawnPointTags::SpawnPoint_Default;
 }
 
 int32 APRPlayGameMode::ResolvePlayerIndex(const AController* Controller) const

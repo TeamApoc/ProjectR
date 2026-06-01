@@ -9,6 +9,13 @@
 #include "ProjectR/Player/PRPlayerController.h"
 #include "ProjectR/Player/PRPlayerState.h"
 
+UPRTraitWindowWidget::UPRTraitWindowWidget()
+{
+	Layer = EPRUILayer::Menu;
+	InputMode = EPBUIInputMode::UIOnly;
+	bShowMouseCursor = true;
+}
+
 void UPRTraitWindowWidget::NativeConstruct()
 {
 	Super::NativeConstruct();

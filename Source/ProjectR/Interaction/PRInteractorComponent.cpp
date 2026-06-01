@@ -547,9 +547,16 @@ void UPRInteractorComponent::Internal_HandleInteraction(UPRInteractableComponent
 
 	// OnInteract 후 유지형 Action이 시작되었으면 추적 시작
 	UPRInteractionAction* NewActiveAction = Target->GetActiveAction();
-	if (IsValid(NewActiveAction) && NewActiveAction->ShouldSustained() && NewActiveAction->IsActive(GetOwner()))
+	if (IsValid(NewActiveAction) && NewActiveAction->ShouldSustained())
 	{
-		Internal_SetActiveInteraction(NewActiveAction, Target);
+		if (NewActiveAction->IsActive(GetOwner()))
+		{
+			Internal_SetActiveInteraction(NewActiveAction, Target);	
+		}
+		else
+		{
+			ActiveInteractionInfo.Reset();
+		}
 	}
 }
 

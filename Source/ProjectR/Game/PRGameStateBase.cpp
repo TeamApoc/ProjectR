@@ -57,11 +57,11 @@ void APRGameStateBase::InitializeFromWorldSave(const FPRWorldSaveData& WorldSave
 		return;
 	}
 
-	WorldSaveVersion     = WorldSave.Version;
-	ActiveCheckpoint     = WorldSave.LastCheckpointId;
+	WorldSaveVersion = WorldSave.Version;
+	ActiveCheckpoint = WorldSave.LastCheckpointId;
 	LastActiveWaypointId = WorldSave.LastActiveWaypointId;
-	UnlockedCheckpoints  = WorldSave.UnlockedCheckpoints;
-	DefeatedBosses       = WorldSave.DefeatedBosses;
+	UnlockedCheckpoints = WorldSave.UnlockedCheckpoints;
+	DefeatedBosses = WorldSave.DefeatedBosses;
 }
 
 FPRWorldSaveData APRGameStateBase::MakeWorldSaveData() const
@@ -75,9 +75,9 @@ FPRWorldSaveData APRGameStateBase::MakeWorldSaveData() const
 	return SaveData;
 }
 
-void APRGameStateBase::SetActiveCheckpoint(FName CheckpointId)
+void APRGameStateBase::SetActiveCheckpoint(FGameplayTag CheckpointId)
 {
-	if (!HasAuthority())
+	if (!HasAuthority() || !CheckpointId.IsValid())
 	{
 		return;
 	}
@@ -212,7 +212,7 @@ void APRGameStateBase::ServerSubmitWorldMarker(const FPRWorldMarkerRequest& Requ
 	EnforceMarkerLimit(SourcePlayerState);
 }
 
-void APRGameStateBase::OnRep_ActiveCheckpoint(FName OldCheckpoint)
+void APRGameStateBase::OnRep_ActiveCheckpoint(FGameplayTag OldCheckpoint)
 {
 	if (ActiveCheckpoint == OldCheckpoint)
 	{

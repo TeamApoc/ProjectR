@@ -9,6 +9,7 @@
 #include "ProjectR/ItemSystem/Types/PRDropTypes.h"
 #include "ProjectR/Player/Components/PRPlayerGrowthComponent.h"
 #include "ProjectR/Shop/Types/PRShopTypes.h"
+#include "ProjectR/UI/HUD/PRHUDMessageTypes.h"
 #include "ProjectR/ItemSystem/Types/PRWeaponUpgradeTypes.h"
 #include "PRPlayerController.generated.h"
 
@@ -135,6 +136,10 @@ public:
 	// 서버에서 owning client로 드롭 보상 획득 알림 표시 요청
 	UFUNCTION(Client, Reliable)
 	void ClientNotifyPickupReward(const FPRPickupNotificationPayload& Payload);
+
+	// 서버에서 owning client로 HUD 안내 메시지 표시 상태 전달
+	UFUNCTION(Client, Reliable)
+	void ClientNotifyHUDMessage(EPRHUDMessageType MessageType);
 
 	// 강화 UI에서 선택한 무기 강화를 서버에 요청한다
 	UFUNCTION(BlueprintCallable, Category = "ProjectR|WeaponUpgrade")

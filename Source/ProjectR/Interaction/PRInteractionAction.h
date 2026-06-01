@@ -90,6 +90,9 @@ public:
 	/** 상호작용 대상 (InteractableComponent 소유자) 반환 */
 	UFUNCTION(BlueprintCallable, Category = "Interaction")
 	AActor* GetOwner() const;
+	
+	UFUNCTION(BlueprintCallable, Category = "Interaction")
+	UPRInteractableComponent* GetOwnerInteractable() const;
 
 	/** Interactor로부터 Interactor Pawn 반환 */
 	APawn* GetPawn(AActor* Interactor) const;

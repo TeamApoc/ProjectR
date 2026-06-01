@@ -4,7 +4,6 @@
 
 #include "AbilitySystemComponent.h"
 #include "Engine/World.h"
-#include "GameFramework/Controller.h"
 #include "GameFramework/PlayerState.h"
 #include "TimerManager.h"
 #include "ProjectR/Game/PRGameInstance.h"
@@ -32,12 +31,17 @@ void UPRInteraction_MapTravelBase::Execute_Implementation(AActor* Interactor)
 	}
 
 	UWorld* World = OwnerActor->GetWorld();
-	if (!IsValid(World) || World->GetTimerManager().IsTimerActive(TravelCheckTimerHandle))
+	if (!IsValid(World))
 	{
 		return;
 	}
 
 	NotifyTravelInteractionStarted(Interactor);
+
+	if (World->GetTimerManager().IsTimerActive(TravelCheckTimerHandle))
+	{
+		return;
+	}
 
 	if (TravelCheckDelay <= 0.0f)
 	{
@@ -58,14 +62,14 @@ void UPRInteraction_MapTravelBase::Execute_Implementation(AActor* Interactor)
 void UPRInteraction_MapTravelBase::EndInteraction_Implementation(AActor* Interactor, bool bCanceled)
 {
 	Super::EndInteraction_Implementation(Interactor, bCanceled);
-
-	NotifyTravelInteractionEnded(Interactor, bCanceled);
 	
 	if (UWorld* World = GetWorld())
 	{
 		// 이동 판정 대기 취소
 		World->GetTimerManager().ClearTimer(TravelCheckTimerHandle);
 	}
+	
+	NotifyTravelInteractionEnded(Interactor, bCanceled);
 }
 
 void UPRInteraction_MapTravelBase::OnTravelConditionMet()
@@ -79,6 +83,17 @@ void UPRInteraction_MapTravelBase::NotifyTravelInteractionStarted(AActor* Intera
 	{
 		UE_LOG(LogTemp,Warning,TEXT("%s: Travel Interaction Started"),*Interactor->GetName());	
 	}
+	
+	if (UWorld* World = GetWorld())
+	{
+		World->GetTimerManager().ClearTimer(TravelMessageTimerHandle);
+		World->GetTimerManager().SetTimer(
+			TravelMessageTimerHandle,
+			this,
+			&UPRInteraction_MapTravelBase::RefreshTravelWaitingMessages,
+			TravelMessageDelay,
+			false);
+	}
 }
 
 void UPRInteraction_MapTravelBase::NotifyTravelInteractionEnded(AActor* Interactor, bool bCanceled)
@@ -86,6 +101,17 @@ void UPRInteraction_MapTravelBase::NotifyTravelInteractionEnded(AActor* Interact
 	if (IsValid(Interactor))
 	{
 		UE_LOG(LogTemp,Warning,TEXT("%s: Travel Interaction Ended"),*Interactor->GetName());	
+	}
+	
+	if (UWorld* World = GetWorld())
+	{
+		World->GetTimerManager().ClearTimer(TravelMessageTimerHandle);
+		World->GetTimerManager().SetTimer(
+			TravelMessageTimerHandle,
+			this,
+			&UPRInteraction_MapTravelBase::RefreshTravelWaitingMessages,
+			TravelMessageDelay,
+			false);
 	}
 }
 
@@ -103,6 +129,7 @@ void UPRInteraction_MapTravelBase::StartTravel(TSoftObjectPtr<UWorld> MapToTrave
 	}
 	
 	constexpr float TravelDelay = 1.5f;
+	ClearTravelWaitingMessages();
 		
 	// 클라이언트 페이드아웃
 	if (APRGameStateBase* GameState = GetWorld()->GetGameState<APRGameStateBase>())
@@ -182,16 +209,7 @@ int32 UPRInteraction_MapTravelBase::CountInteractingPlayers() const
 			continue;
 		}
 
-		AController* Controller = Cast<AController>(PRPlayerState->GetOwner());
-		if (!IsValid(Controller) && IsValid(PRPlayerState->GetPawn()))
-		{
-			Controller = PRPlayerState->GetPawn()->GetController();
-		}
-
-		const UPRInteractorComponent* InteractorComponent = IsValid(Controller)
-			? Controller->FindComponentByClass<UPRInteractorComponent>()
-			: nullptr;
-		if (IsValid(InteractorComponent) && InteractorComponent->GetActiveAction() == this)
+		if (IsPlayerInteracting(PRPlayerState))
 		{
 			++InteractingPlayerCount;
 		}
@@ -222,4 +240,100 @@ int32 UPRInteraction_MapTravelBase::CountFightCapablePlayers() const
 	}
 
 	return FightCapablePlayerCount;
+}
+
+void UPRInteraction_MapTravelBase::RefreshTravelWaitingMessages()
+{
+	const APRGameStateBase* GameState = GetWorld()->GetGameState<APRGameStateBase>();
+	if (!IsValid(GameState))
+	{
+		return;
+	}
+
+	const int32 FightCapablePlayerCount = CountFightCapablePlayers();
+	const int32 InteractingPlayerCount = CountInteractingPlayers();
+	// 파티 일부만 상호작용 중일 때만 대기 안내 표시
+	const bool bShouldShowWaitingMessage =
+		FightCapablePlayerCount > 1
+		&& InteractingPlayerCount > 0
+		&& InteractingPlayerCount < FightCapablePlayerCount;
+
+	for (APlayerState* PlayerState : GameState->PlayerArray)
+	{
+		const APRPlayerState* PRPlayerState = Cast<APRPlayerState>(PlayerState);
+		APRPlayerController* Controller = ResolvePlayerController(PRPlayerState);
+		if (!IsValid(Controller))
+		{
+			continue;
+		}
+
+		if (!bShouldShowWaitingMessage
+			|| !IsValid(PRPlayerState)
+			|| !PRPlayerState->IsCombatParticipant()
+			|| PRPlayerState->IsOutOfFight())
+		{
+			Controller->ClientNotifyHUDMessage(EPRHUDMessageType::None);
+			continue;
+		}
+
+		// 상호작용 참여 여부에 따른 플레이어별 안내 메시지 분기
+		const EPRHUDMessageType MessageType = IsPlayerInteracting(PRPlayerState)
+			? EPRHUDMessageType::WaitingForOtherPlayers
+			: EPRHUDMessageType::OtherPlayersWaiting;
+		Controller->ClientNotifyHUDMessage(MessageType);
+	}
+	
+	if (UWorld* World = GetWorld())
+	{
+		World->GetTimerManager().ClearTimer(TravelMessageTimerHandle);
+	}
+}
+
+void UPRInteraction_MapTravelBase::ClearTravelWaitingMessages() const
+{
+	const APRGameStateBase* GameState = GetWorld()->GetGameState<APRGameStateBase>();
+	if (!IsValid(GameState))
+	{
+		return;
+	}
+
+	for (APlayerState* PlayerState : GameState->PlayerArray)
+	{
+		const APRPlayerState* PRPlayerState = Cast<APRPlayerState>(PlayerState);
+		APRPlayerController* Controller = ResolvePlayerController(PRPlayerState);
+		if (IsValid(Controller))
+		{
+			// 이동 시작 또는 대기 종료에 따른 로컬 안내 메시지 정리
+			Controller->ClientNotifyHUDMessage(EPRHUDMessageType::None);
+		}
+	}
+}
+
+bool UPRInteraction_MapTravelBase::IsPlayerInteracting(const APRPlayerState* PlayerState) const
+{
+	const APRPlayerController* Controller = ResolvePlayerController(PlayerState);
+	if (!IsValid(Controller))
+	{
+		return false;
+	}
+
+	const UPRInteractorComponent* InteractorComponent = Controller->FindComponentByClass<UPRInteractorComponent>();
+	// InteractorComponent의 현재 활성 액션과 이 맵 이동 액션의 일치 여부 확인
+	return IsValid(InteractorComponent) && InteractorComponent->GetActiveAction() == this;
+}
+
+APRPlayerController* UPRInteraction_MapTravelBase::ResolvePlayerController(const APRPlayerState* PlayerState) const
+{
+	if (!IsValid(PlayerState))
+	{
+		return nullptr;
+	}
+
+	APRPlayerController* Controller = Cast<APRPlayerController>(PlayerState->GetOwner());
+	if (!IsValid(Controller) && IsValid(PlayerState->GetPawn()))
+	{
+		Controller = Cast<APRPlayerController>(PlayerState->GetPawn()->GetController());
+	}
+
+	return Controller;
 }

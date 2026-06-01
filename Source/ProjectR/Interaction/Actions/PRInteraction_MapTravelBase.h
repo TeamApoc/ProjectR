@@ -8,6 +8,9 @@
 #include "PRInteraction_MapTravelBase.generated.h"
 
 class UGameplayEffect;
+class APRPlayerController;
+class APRPlayerState;
+enum class EPRHUDMessageType : uint8;
 
 UCLASS(Abstract)
 class PROJECTR_API UPRInteraction_MapTravelBase : public UPRInteractionAction
@@ -47,15 +50,31 @@ private:
 	// 행동 가능 플레이어 수 반환
 	int32 CountFightCapablePlayers() const;
 
+	// 상호작용 대기 HUD 메시지 갱신
+	void RefreshTravelWaitingMessages();
+
+	// 상호작용 대기 HUD 메시지 제거
+	void ClearTravelWaitingMessages() const;
+
+	// 플레이어 상태 기준 상호작용 여부 확인
+	bool IsPlayerInteracting(const APRPlayerState* PlayerState) const;
+
+	// 플레이어 상태 기준 컨트롤러 조회
+	APRPlayerController* ResolvePlayerController(const APRPlayerState* PlayerState) const;
+
 protected:
-	// 이동 판정 지연
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|Interaction|Travel", meta = (ClampMin = "0.0"))
-	float TravelCheckDelay = 2.0f;
-	
 	// 이동 대상 맵
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|Interaction|Travel", meta = (ClampMin = "0.0"))
 	TSoftObjectPtr<UWorld> TargetMap;
 
+	// 이동 판정 지연
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|Interaction|Travel", meta = (ClampMin = "0.0"))
+	float TravelCheckDelay = 2.0f;
+	
+	// 메시지 표시 지연
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|Interaction|Travel", meta = (ClampMin = "0.1"))
+	float TravelMessageDelay = 0.5f;
+	
 	// 목적지 맵 진입 SpawnPoint 태그
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|Interaction|Travel")
 	FGameplayTag TargetSpawnPointId;
@@ -67,4 +86,5 @@ protected:
 private:
 	FTimerHandle TravelCheckTimerHandle;
 	FTimerHandle TravelDelayTimerHandle;
+	FTimerHandle TravelMessageTimerHandle;
 };

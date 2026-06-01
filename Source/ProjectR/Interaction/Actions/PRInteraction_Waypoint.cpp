@@ -34,6 +34,7 @@ void UPRInteraction_Waypoint::OnTravelConditionMet()
 
 void UPRInteraction_Waypoint::NotifyTravelInteractionStarted(AActor* Interactor)
 {
+	Super::NotifyTravelInteractionStarted(Interactor);
 	if (UPRAbilitySystemComponent* ASC = Cast<UPRAbilitySystemComponent>(UPRGameplayStatics::GetAbilitySystemComponent(Interactor)))
 	{
 		// Waypoint 활성화 시작 이벤트 전송
@@ -58,4 +59,5 @@ void UPRInteraction_Waypoint::NotifyTravelInteractionEnded(AActor* Interactor, b
 			ASC->MulticastTriggerEvent(PRGameplayTags::Event_Ability_Waypoint_End);
 		}
 	}
+	Super::NotifyTravelInteractionEnded(Interactor, bCanceled);
 }

@@ -1,6 +1,8 @@
 // Copyright (c) 2026 TeamApoc. All Rights Reserved.
 
 #include "PRInteractionAction.h"
+
+#include "PRInteractableComponent.h"
 #include "GameFramework/Controller.h"
 #include "GameFramework/Pawn.h"
 #include "ProjectR/PRGameplayTags.h"
@@ -10,6 +12,15 @@
 AActor* UPRInteractionAction::GetOwner() const
 {
 	return GetTypedOuter<AActor>();
+}
+
+UPRInteractableComponent* UPRInteractionAction::GetOwnerInteractable() const
+{
+	if (AActor* OwnerActor = GetOwner())
+	{
+		return OwnerActor->FindComponentByClass<UPRInteractableComponent>();
+	}
+	return nullptr;
 }
 
 APawn* UPRInteractionAction::GetPawn(AActor* Interactor) const

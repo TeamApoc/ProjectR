@@ -948,6 +948,19 @@ bool APRPlayerCharacter::IsFlashlightEnabled() const
 
 void APRPlayerCharacter::MulticastSetMovementMode_Implementation(EMovementMode NewMovementMode)
 {
+	if (GetCharacterMovement()->MovementMode == MOVE_Flying)
+	{
+		if (NewMovementMode == MOVE_Walking)
+		{
+			SetActorEnableCollision(true);
+		}
+	}
+	// God모드 Collision 설정
+	if (NewMovementMode == MOVE_Flying)
+	{
+		SetActorEnableCollision(false);
+	}
+	
 	GetCharacterMovement()->SetMovementMode(NewMovementMode);
 	UpdateMaxWalkSpeed();
 }

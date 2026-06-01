@@ -68,6 +68,8 @@ class PROJECTR_API UPRTraitWindowWidget : public UPRWidgetBase
 	GENERATED_BODY()
 
 public:
+	UPRTraitWindowWidget();
+	
 	/*~ UUserWidget Interface ~*/
 	virtual void NativeConstruct() override;
 	virtual void NativeDestruct() override;

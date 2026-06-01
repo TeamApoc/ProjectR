@@ -9,6 +9,13 @@
 #include "ProjectR/Player/PRPlayerState.h"
 #include "ProjectR/UI/Components/PRUIControllerComponent.h"
 
+UPRInGameMenuWidget::UPRInGameMenuWidget()
+{
+	Layer = EPRUILayer::System;
+	InputMode = EPBUIInputMode::UIOnly;
+	bShowMouseCursor = true;
+}
+
 void UPRInGameMenuWidget::NativeConstruct()
 {
 	Super::NativeConstruct();

@@ -15,6 +15,11 @@
 #include "ProjectR/ItemSystem/Components/PRWeaponManagerComponent.h"
 #include "ProjectR/Utils/PRAssetUtils.h"
 
+UPRCharacterPreviewWidget::UPRCharacterPreviewWidget()
+{
+	SetIsFocusable(false);
+}
+
 void UPRCharacterPreviewWidget::SetPreviewSources(APRPlayerCharacter* InSourceCharacter, UPRWeaponManagerComponent* InWeaponManagerComponent)
 {
 	bUseSaveDataPreview = false;

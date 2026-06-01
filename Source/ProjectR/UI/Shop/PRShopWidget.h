@@ -25,6 +25,8 @@ class PROJECTR_API UPRShopWidget : public UPRWidgetBase
 	GENERATED_BODY()
 
 public:
+	UPRShopWidget();
+	
 	// 상점 거래 요청 대상 Context를 설정
 	UFUNCTION(BlueprintCallable, Category = "ProjectR|Shop")
 	void SetShopContext(UPRShopComponent* InShopComponent);

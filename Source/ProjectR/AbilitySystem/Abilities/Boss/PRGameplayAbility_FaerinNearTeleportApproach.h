@@ -58,6 +58,9 @@ protected:
 	// 현재 보스 위치 기준 EQS 결과로 재등장 위치와 회전을 계산한다.
 	bool ResolveReappearTransform(FVector& OutLocation, FRotator& OutRotation) const;
 
+	// TargetBack 방식으로 타겟의 등 뒤 재등장 위치를 계산한다.
+	bool ResolveTargetBackReappearLocation(FVector& OutLocation) const;
+
 	// 근거리 텔레포트 위치 선정 EQS를 실행한다.
 	bool ResolveEQSReappearLocation(FVector& OutLocation) const;
 

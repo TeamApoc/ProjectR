@@ -44,6 +44,8 @@ void UPRGameplayAbility_FaerinTeleportLungeSequence::ActivateAbility(const FGame
 		return;
 	}
 
+	BeginBossPatternAttackCommit();
+
 	DamagedActors.Reset();
 	bHasPreviousBladeTracePoint = false;
 	PreviousBladeTracePoint = FVector::ZeroVector;
@@ -98,6 +100,7 @@ void UPRGameplayAbility_FaerinTeleportLungeSequence::EndAbility(const FGameplayA
 	WeaponVisualComponent = nullptr;
 	ActiveLungeStage = EPRFaerinTeleportLungeStage::None;
 
+	EndBossPatternAttackCommit();
 	Super::EndAbility(Handle, ActorInfo, ActivationInfo, bReplicateEndAbility, bWasCancelled);
 }
 

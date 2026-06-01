@@ -25,6 +25,8 @@ void UPRGameplayAbility_BossPortalSequence::ActivateAbility(const FGameplayAbili
 		return;
 	}
 
+	BeginBossPatternAttackCommit();
+
 	SpawnedPatternActors.Reset();
 	SpawnedPortalRefs.Reset();
 	bPortalActorsSpawned = false;
@@ -104,6 +106,7 @@ void UPRGameplayAbility_BossPortalSequence::EndAbility(const FGameplayAbilitySpe
 		ExpireSpawnedPortals();
 	}
 
+	EndBossPatternAttackCommit();
 	Super::EndAbility(Handle, ActorInfo, ActivationInfo, bReplicateEndAbility, bWasCancelled);
 }
 

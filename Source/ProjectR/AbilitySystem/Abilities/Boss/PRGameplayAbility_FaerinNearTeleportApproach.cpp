@@ -149,10 +149,17 @@ bool UPRGameplayAbility_FaerinNearTeleportApproach::ResolveTeleportRequest(APREn
 		return false;
 	}
 
-	return ActiveRequest.bIsValid
-		&& IsValid(ActiveRequest.TargetActor)
-		&& IsValid(QueryTemplate.Get())
-		&& MaxDistanceFromSelf > 0.0f;
+	if (!ActiveRequest.bIsValid || !IsValid(ActiveRequest.TargetActor))
+	{
+		return false;
+	}
+
+	if (ActiveRequest.PlacementMode == EPRFaerinNearTeleportPlacementMode::TargetBack)
+	{
+		return ActiveRequest.TargetBackDistance > 0.0f;
+	}
+
+	return IsValid(QueryTemplate.Get()) && MaxDistanceFromSelf > 0.0f;
 }
 
 void UPRGameplayAbility_FaerinNearTeleportApproach::BeginDisappear(ACharacter* BossCharacter)
@@ -291,7 +298,15 @@ bool UPRGameplayAbility_FaerinNearTeleportApproach::ResolveReappearTransform(
 		return false;
 	}
 
-	if (!ResolveEQSReappearLocation(OutLocation))
+	const bool bUseTargetBackPlacement = ActiveRequest.PlacementMode == EPRFaerinNearTeleportPlacementMode::TargetBack;
+	if (bUseTargetBackPlacement)
+	{
+		if (!ResolveTargetBackReappearLocation(OutLocation))
+		{
+			return false;
+		}
+	}
+	else if (!ResolveEQSReappearLocation(OutLocation))
 	{
 		return false;
 	}
@@ -300,15 +315,18 @@ bool UPRGameplayAbility_FaerinNearTeleportApproach::ResolveReappearTransform(
 	{
 		if (UNavigationSystemV1* NavigationSystem = FNavigationSystem::GetCurrent<UNavigationSystemV1>(World))
 		{
+			const FVector NavProjectExtent = bUseTargetBackPlacement
+				? ActiveRequest.TargetBackNavProjectExtent
+				: ReappearNavProjectExtent;
 			FNavLocation ProjectedLocation;
-			if (NavigationSystem->ProjectPointToNavigation(OutLocation, ProjectedLocation, ReappearNavProjectExtent))
+			if (NavigationSystem->ProjectPointToNavigation(OutLocation, ProjectedLocation, NavProjectExtent))
 			{
 				OutLocation = ProjectedLocation.Location;
 			}
 		}
 	}
 
-	if (FVector::Dist2D(DisappearLocation, OutLocation) > MaxDistanceFromSelf)
+	if (!bUseTargetBackPlacement && FVector::Dist2D(DisappearLocation, OutLocation) > MaxDistanceFromSelf)
 	{
 		return false;
 	}
@@ -325,6 +343,25 @@ bool UPRGameplayAbility_FaerinNearTeleportApproach::ResolveReappearTransform(
 	}
 
 	OutRotation = AvatarActor->GetActorRotation();
+	return true;
+}
+
+bool UPRGameplayAbility_FaerinNearTeleportApproach::ResolveTargetBackReappearLocation(FVector& OutLocation) const
+{
+	const AActor* TargetActor = ActiveRequest.TargetActor.Get();
+	if (!IsValid(TargetActor) || ActiveRequest.TargetBackDistance <= 0.0f)
+	{
+		return false;
+	}
+
+	FVector TargetBackDirection = -TargetActor->GetActorForwardVector();
+	TargetBackDirection.Z = 0.0f;
+	if (!TargetBackDirection.Normalize())
+	{
+		return false;
+	}
+
+	OutLocation = TargetActor->GetActorLocation() + TargetBackDirection * ActiveRequest.TargetBackDistance;
 	return true;
 }
 

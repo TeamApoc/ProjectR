@@ -40,6 +40,8 @@ void UPRGameplayAbility_FaerinStagedMontagePattern::ActivateAbility(
 		return;
 	}
 
+	BeginBossPatternAttackCommit();
+
 	if (MontageStages.IsEmpty())
 	{
 		UE_LOG(LogPRFaerinStagedMontagePattern, Warning,
@@ -89,6 +91,7 @@ void UPRGameplayAbility_FaerinStagedMontagePattern::EndAbility(
 	bStagedPatternFinished = false;
 	bAdvancingStageByFixedTimer = false;
 
+	EndBossPatternAttackCommit();
 	Super::EndAbility(Handle, ActorInfo, ActivationInfo, bReplicateEndAbility, bWasCancelled);
 }
 

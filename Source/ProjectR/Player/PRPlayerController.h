@@ -308,4 +308,8 @@ private:
 	// 상호작용 매니저 컴포넌트
 	UPROPERTY(VisibleAnywhere, Category = "ProjectR|Interaction")
 	TObjectPtr<UPRInteractorComponent> InteractorComponent;
+	
+	// FX 서버 요청과 Client RPC 수신을 담당하는 Player 소유 컴포넌트
+	UPROPERTY(VisibleAnywhere, Category = "ProjectR|FX")
+	TObjectPtr<UPRFXNetworkComponent> FXNetworkComponent;
 };

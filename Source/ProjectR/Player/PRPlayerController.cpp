@@ -36,11 +36,12 @@ APRPlayerController::APRPlayerController()
 
 	ProjectileManager = CreateDefaultSubobject<UPRProjectileManagerComponent>(TEXT("ProjectileManager"));
 	FloatingTextManager = CreateDefaultSubobject<UPRFloatingTextManager>(TEXT("FloatingTextManager"));
-	// 2026.05.01 이건주 | UI 컨트롤러 컴포넌트 추가 
 	UIControllerComponent = CreateDefaultSubobject<UPRUIControllerComponent>(TEXT("UIControllerComponent"));
 	InteractionSensor = CreateDefaultSubobject<UPRInteractionSensor>(TEXT("InteractionSensor"));
 	InteractorComponent = CreateDefaultSubobject<UPRInteractorComponent>(TEXT("InteractorComponent"));
-
+	
+	// Player 소유 Client RPC와 owning client의 Server RPC 호출을 위한 FX 네트워크 컴포넌트
+	FXNetworkComponent = CreateDefaultSubobject<UPRFXNetworkComponent>(TEXT("FXNetworkComponent"));
 }
 
 // =====  APlayerController Interface =====

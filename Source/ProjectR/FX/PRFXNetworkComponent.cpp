@@ -27,24 +27,24 @@ UPRFXNetworkComponent* UPRFXNetworkComponent::FindForActor(AActor* InActor)
 		return FoundComponent;
 	}
 	
-	// Pawn 요청에서 PS에 부착된 FX 네트워크 컴포넌트까지 검색
+	// Pawn 요청에서 Controller의 FX 네트워크 컴포넌트까지 검색
 	if (APawn* AsPawn = Cast<APawn>(InActor))
 	{
-		if (APlayerState* PS = AsPawn->GetPlayerState())
+		if (APlayerController* PC = AsPawn->GetController<APlayerController>())
 		{
-			return PS->FindComponentByClass<UPRFXNetworkComponent>();
+			return PC->FindComponentByClass<UPRFXNetworkComponent>();
 		}
 	}
 	
-	// Controller 요청에서 PS의 FX 네트워크 컴포넌트까지 검색
-	if (AController* AsController = Cast<AController>(InActor))
+	// Controller 요청에서 Pawn의 FX 네트워크 컴포넌트까지 검색
+	if (APlayerController* AsController = Cast<APlayerController>(InActor))
 	{
-		if (APlayerState* PS = AsController->GetPlayerState<APlayerState>())
+		if (APawn* AsPawn = Cast<APawn>(InActor))
 		{
-			return PS->FindComponentByClass<UPRFXNetworkComponent>();
+			return AsPawn->FindComponentByClass<UPRFXNetworkComponent>();
 		}
 	}
-	
+
 	return nullptr;
 }
 
@@ -224,16 +224,10 @@ UPRFXNetworkComponent* UPRFXNetworkComponent::ResolveClientComponent(APlayerCont
 		return nullptr;
 	}
 
-	if (UPRFXNetworkComponent* ControllerComponent = PlayerController->FindComponentByClass<UPRFXNetworkComponent>())
+	if (UPRFXNetworkComponent* ControllerComponent = UPRFXNetworkComponent::FindForActor(PlayerController))
 	{
 		// Client RPC 소유권이 명확한 PlayerController 부착 컴포넌트 우선
 		return ControllerComponent;
-	}
-
-	if (APawn* Pawn = PlayerController->GetPawn())
-	{
-		// PlayerController에 컴포넌트가 없는 경우 Pawn 부착 컴포넌트 사용
-		return Pawn->FindComponentByClass<UPRFXNetworkComponent>();
 	}
 
 	return nullptr;

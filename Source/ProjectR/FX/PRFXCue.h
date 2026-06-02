@@ -32,6 +32,24 @@ public:
 	EPRFXCueInstancingPolicy InstancingPolicy = EPRFXCueInstancingPolicy::NonInstanced;
 };
 
+// 단순 신호 Cue
+UCLASS(Abstract, Blueprintable, EditInlineNew)
+class PROJECTR_API UPRFXSimpleCue : public UPRFXCue
+{
+	GENERATED_BODY()
+
+public:
+	virtual void NativeExecuteFX(const FPRFXCueContext& Context, const FInstancedStruct& Payload) override;
+
+	// Cue 클래스가 처리할 수 있는 Payload 구조체 타입 반환
+	virtual const UScriptStruct* GetExpectedPayloadType() const override;
+
+	// Blueprint와 C++ 파생 클래스가 구현하는 재생 함수
+	UFUNCTION(BlueprintNativeEvent, Category = "ProjectR|FX")
+	void ExecuteFX(const FPRFXCueContext& Context, const FPRFXPayloadBase& Payload);
+};
+
+
 // 월드 위치 기반 Cue
 UCLASS(Abstract, Blueprintable, EditInlineNew)
 class PROJECTR_API UPRFXLocationCue : public UPRFXCue
@@ -68,6 +86,10 @@ public:
 	void ExecuteFX(const FPRFXCueContext& Context, const FPRFXAttachPayload& Payload);
 };
 
+
+
+class APRWeaponActor;
+
 // Trail 기반 Cue
 UCLASS(Abstract, Blueprintable, EditInlineNew)
 class PROJECTR_API UPRFXTrailCue : public UPRFXCue
@@ -84,21 +106,17 @@ public:
 	// Blueprint와 C++ 파생 클래스가 구현하는 Trail 재생 함수
 	UFUNCTION(BlueprintNativeEvent, Category = "ProjectR|FX")
 	void ExecuteFX(const FPRFXCueContext& Context, const FPRFXTrailPayload& Payload);
+	// 현재 손에 든 무기 Actor와 Payload 무기 데이터 일치 확인
+	UFUNCTION(BlueprintPure, Category = "ProjectR|FX")
+	APRWeaponActor* ResolveMatchingWeaponActor(const FPRFXTrailPayload& Payload) const;
 };
-
-class APRWeaponActor;
 
 // 무기 발사 Trail Cue
 UCLASS(Blueprintable, EditInlineNew)
 class PROJECTR_API UPRFXWeaponFireTrailCue : public UPRFXTrailCue
 {
 	GENERATED_BODY()
-
-public:
-	// 현재 손에 든 무기 Actor와 Payload 무기 데이터 일치 확인
-	UFUNCTION(BlueprintPure, Category = "ProjectR|FX")
-	APRWeaponActor* ResolveMatchingWeaponActor(const FPRFXTrailPayload& Payload) const;
-
+	
 	// 일치하는 무기 Actor의 발사 FX 진입점 호출
 	virtual void ExecuteFX_Implementation(const FPRFXCueContext& Context, const FPRFXTrailPayload& Payload) override;
 };
@@ -139,7 +157,8 @@ public:
 	void ExecuteFX(const FPRFXCueContext& Context, const FPRFXActorSpawnPayload& Payload);
 };
 
-// 상태 지속 기반 Cue
+// TODO: AActor Spawn 대신 Instance 자체 관리
+// 상태 지속 기반 Cue, WIP
 UCLASS(Abstract, Blueprintable, EditInlineNew)
 class PROJECTR_API UPRFXPersistentCue : public UPRFXCue
 {

@@ -68,6 +68,23 @@ EPRFXCueInstancingPolicy UPRFXCue::GetInstancingPolicy() const
 	return InstancingPolicy;
 }
 
+void UPRFXSimpleCue::NativeExecuteFX(const FPRFXCueContext& Context, const FInstancedStruct& Payload)
+{
+	if (const FPRFXPayloadBase* TypedPayload = PRFXCuePrivate::ResolveTypedPayload<FPRFXPayloadBase>(this, Payload, Context))
+	{
+		ExecuteFX(Context, *TypedPayload);
+	}
+}
+
+const UScriptStruct* UPRFXSimpleCue::GetExpectedPayloadType() const
+{
+	return FPRFXPayloadBase::StaticStruct();
+}
+
+void UPRFXSimpleCue::ExecuteFX_Implementation(const FPRFXCueContext& Context, const FPRFXPayloadBase& Payload)
+{
+}
+
 /*~ UPRFXLocationCue ~*/
 
 void UPRFXLocationCue::NativeExecuteFX(const FPRFXCueContext& Context, const FInstancedStruct& Payload)
@@ -126,11 +143,25 @@ const UScriptStruct* UPRFXTrailCue::GetExpectedPayloadType() const
 
 void UPRFXTrailCue::ExecuteFX_Implementation(const FPRFXCueContext& Context, const FPRFXTrailPayload& Payload)
 {
+	// Payload 무기 데이터와 현재 무기 데이터 일치 확인
+	APRWeaponActor* WeaponActor = ResolveMatchingWeaponActor(Payload);
+	if (!IsValid(WeaponActor))
+	{
+		return;
+	}
+
+	// FX 시스템 Payload를 무기 Actor 전용 파라미터로 변환
+	FPRWeaponFireFXParams FireFXParams;
+	FireFXParams.StartLocation = Payload.StartLocation;
+	FireFXParams.TrailEnds = Payload.TrailEnds;
+	FireFXParams.bBlockingHit = Payload.bBlockingHit;
+	FireFXParams.Direction = Payload.Direction;
+
+	// 무기 Actor 소유 발사 FX 재생
+	WeaponActor->TriggerFireFX(FireFXParams);
 }
 
-/*~ UPRFXWeaponFireTrailCue ~*/
-
-APRWeaponActor* UPRFXWeaponFireTrailCue::ResolveMatchingWeaponActor(const FPRFXTrailPayload& Payload) const
+APRWeaponActor* UPRFXTrailCue::ResolveMatchingWeaponActor(const FPRFXTrailPayload& Payload) const
 {
 	if (!IsValid(Payload.SourceActor) || !IsValid(Payload.WeaponData))
 	{
@@ -155,24 +186,9 @@ APRWeaponActor* UPRFXWeaponFireTrailCue::ResolveMatchingWeaponActor(const FPRFXT
 	return WeaponManager->GetActiveWeaponActor();
 }
 
+/*~ UPRFXWeaponFireTrailCue ~*/
 void UPRFXWeaponFireTrailCue::ExecuteFX_Implementation(const FPRFXCueContext& Context, const FPRFXTrailPayload& Payload)
 {
-	// Payload 무기 데이터와 현재 무기 데이터 일치 확인
-	APRWeaponActor* WeaponActor = ResolveMatchingWeaponActor(Payload);
-	if (!IsValid(WeaponActor))
-	{
-		return;
-	}
-
-	// FX 시스템 Payload를 무기 Actor 전용 파라미터로 변환
-	FPRWeaponFireFXParams FireFXParams;
-	FireFXParams.StartLocation = Payload.StartLocation;
-	FireFXParams.TrailEnds = Payload.TrailEnds;
-	FireFXParams.bBlockingHit = Payload.bBlockingHit;
-	FireFXParams.Direction = Payload.Direction;
-
-	// 무기 Actor 소유 발사 FX 재생
-	WeaponActor->TriggerFireFX(FireFXParams);
 }
 
 /*~ UPRFXHitCue ~*/

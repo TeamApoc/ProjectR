@@ -10,7 +10,6 @@
 #include "Navigation/PathFollowingComponent.h"
 #include "NavigationSystem.h"
 #include "ProjectR/AbilitySystem/Abilities/Boss/PRGameplayAbility_FaerinNearTeleportApproach.h"
-#include "ProjectR/AbilitySystem/AttributeSets/PRAttributeSet_Common.h"
 #include "ProjectR/AbilitySystem/PRAbilitySystemComponent.h"
 #include "ProjectR/AI/Components/PREnemyThreatComponent.h"
 #include "ProjectR/AI/Data/PRPatternDataAsset.h"
@@ -152,9 +151,27 @@ bool UPRFaerinCombatDirectorComponent::RunNextLoopStep(UBehaviorTreeComponent& O
 		return false;
 	}
 
-	if (PhaseConfig != nullptr && TryStartPrePatternApproach(*PhaseConfig, SelectedPlan))
+	BeginLoopTargetCommit();
+
+	if (PhaseConfig != nullptr)
 	{
-		return true;
+		const EPRFaerinPrePatternApproachStartResult ApproachStartResult =
+			TryStartPrePatternApproach(*PhaseConfig, SelectedPlan);
+		if (ApproachStartResult == EPRFaerinPrePatternApproachStartResult::Started)
+		{
+			return true;
+		}
+
+		if (ApproachStartResult == EPRFaerinPrePatternApproachStartResult::Failed)
+		{
+			LoopState = EPRFaerinCombatLoopState::Idle;
+			ActivePatternPlan = FPRFaerinPatternPlan();
+			PendingMainPatternPlan = FPRFaerinPatternPlan();
+			bHasPendingMainPatternPlan = false;
+			EndLoopTargetCommit();
+			ActiveTarget = nullptr;
+			return false;
+		}
 	}
 
 	FPRFaerinPatternPlan PrePatternPortalPlan;
@@ -180,6 +197,7 @@ bool UPRFaerinCombatDirectorComponent::RunNextLoopStep(UBehaviorTreeComponent& O
 		ActivePatternPlan = FPRFaerinPatternPlan();
 		PendingMainPatternPlan = FPRFaerinPatternPlan();
 		bHasPendingMainPatternPlan = false;
+		EndLoopTargetCommit();
 		ActiveTarget = nullptr;
 		return false;
 	}
@@ -223,6 +241,7 @@ void UPRFaerinCombatDirectorComponent::CancelCurrentLoopStep()
 	}
 
 	ClearAbilityEndDelegate();
+	EndLoopTargetCommit();
 	ActivePatternPlan = FPRFaerinPatternPlan();
 	PendingMainPatternPlan = FPRFaerinPatternPlan();
 	bHasPendingMainPatternPlan = false;
@@ -254,17 +273,7 @@ float UPRFaerinCombatDirectorComponent::CalculateStrafeDuration() const
 		return 0.0f;
 	}
 
-	const float HealthRatio = ResolveHealthRatio();
-	const float RatioRange = PhaseConfig->HighHealthRatioReference - PhaseConfig->LowHealthRatioReference;
-	if (RatioRange <= UE_SMALL_NUMBER)
-	{
-		return PhaseConfig->StrafeDurationAtHighHealth;
-	}
-
-	return FMath::GetMappedRangeValueClamped(
-		FVector2D(PhaseConfig->LowHealthRatioReference, PhaseConfig->HighHealthRatioReference),
-		FVector2D(PhaseConfig->StrafeDurationAtLowHealth, PhaseConfig->StrafeDurationAtHighHealth),
-		HealthRatio);
+	return PhaseConfig->StrafeDuration;
 }
 
 bool UPRFaerinCombatDirectorComponent::GetActiveApproachSprintRequest(FPRFaerinApproachSprintRequest& OutRequest) const
@@ -432,6 +441,43 @@ bool UPRFaerinCombatDirectorComponent::SyncActiveTargetFromThreat(UBehaviorTreeC
 	return true;
 }
 
+bool UPRFaerinCombatDirectorComponent::BeginLoopTargetCommit()
+{
+	if (bHasLoopTargetCommit || !IsValid(OwnerEnemy) || !IsValid(ActiveTarget))
+	{
+		return false;
+	}
+
+	UPREnemyThreatComponent* ThreatComponent = OwnerEnemy->GetEnemyThreatComponent();
+	if (!IsValid(ThreatComponent))
+	{
+		return false;
+	}
+
+	ThreatComponent->BeginAttackCommit(ActiveTarget, ActiveTarget->GetActorLocation());
+	bHasLoopTargetCommit = ThreatComponent->IsAttackCommitted()
+		&& ThreatComponent->GetAttackTarget() == ActiveTarget;
+	return bHasLoopTargetCommit;
+}
+
+void UPRFaerinCombatDirectorComponent::EndLoopTargetCommit()
+{
+	if (!bHasLoopTargetCommit)
+	{
+		return;
+	}
+
+	UPREnemyThreatComponent* ThreatComponent = IsValid(OwnerEnemy)
+		? OwnerEnemy->GetEnemyThreatComponent()
+		: nullptr;
+	if (IsValid(ThreatComponent))
+	{
+		ThreatComponent->EndAttackCommit();
+	}
+
+	bHasLoopTargetCommit = false;
+}
+
 bool UPRFaerinCombatDirectorComponent::StartOutOfRangeApproach(UBehaviorTreeComponent& OwnerComp)
 {
 	if (IsApproachSprintRepeatBlocked())
@@ -457,6 +503,7 @@ bool UPRFaerinCombatDirectorComponent::StartOutOfRangeApproach(UBehaviorTreeComp
 	}
 
 	ActivePatternPlan = ApproachPlan;
+	BeginLoopTargetCommit();
 	if (StartApproachAbility(
 			*PhaseConfig,
 			false,
@@ -467,6 +514,7 @@ bool UPRFaerinCombatDirectorComponent::StartOutOfRangeApproach(UBehaviorTreeComp
 	}
 
 	ActivePatternPlan = FPRFaerinPatternPlan();
+	EndLoopTargetCommit();
 	ActiveTarget = nullptr;
 	LoopState = EPRFaerinCombatLoopState::SelectingPattern;
 	return false;
@@ -607,7 +655,7 @@ bool UPRFaerinCombatDirectorComponent::StartPatternPlan(
 	return ActivatePatternAbility(PatternPlan, ObservedRole);
 }
 
-bool UPRFaerinCombatDirectorComponent::TryStartPrePatternApproach(
+EPRFaerinPrePatternApproachStartResult UPRFaerinCombatDirectorComponent::TryStartPrePatternApproach(
 	const FPRFaerinPhaseLoopConfig& PhaseConfig,
 	const FPRFaerinPatternPlan& PatternPlan)
 {
@@ -615,7 +663,7 @@ bool UPRFaerinCombatDirectorComponent::TryStartPrePatternApproach(
 	EPRFaerinNearTeleportPlacementMode TeleportPlacementMode = EPRFaerinNearTeleportPlacementMode::SelfEQS;
 	if (!ResolvePrePatternApproachRoute(PhaseConfig, PatternPlan, bUseNearTeleport, TeleportPlacementMode))
 	{
-		return false;
+		return EPRFaerinPrePatternApproachStartResult::NotNeeded;
 	}
 
 	PendingMainPatternPlan = PatternPlan;
@@ -628,13 +676,13 @@ bool UPRFaerinCombatDirectorComponent::TryStartPrePatternApproach(
 			TeleportPlacementMode,
 			EPRFaerinObservedAbilityRole::PrePatternApproach))
 	{
-		return true;
+		return EPRFaerinPrePatternApproachStartResult::Started;
 	}
 
 	PendingMainPatternPlan = FPRFaerinPatternPlan();
 	bHasPendingMainPatternPlan = false;
 	ActivePatternPlan = FPRFaerinPatternPlan();
-	return false;
+	return EPRFaerinPrePatternApproachStartResult::Failed;
 }
 
 bool UPRFaerinCombatDirectorComponent::ResolvePrePatternApproachRoute(
@@ -1274,7 +1322,7 @@ void UPRFaerinCombatDirectorComponent::HandlePatternExecutionFinished(bool bSucc
 	}
 
 	if (PhaseConfig != nullptr
-		&& ShouldRunPostPatternStrafe(ActivePatternPlan, *PhaseConfig)
+		&& ShouldRunPostPatternStrafe(ActivePatternPlan)
 		&& StartPostPatternStrafe(*PhaseConfig))
 	{
 		return;
@@ -1356,9 +1404,7 @@ bool UPRFaerinCombatDirectorComponent::BuildForcedPatternPlanByTag(
 	return false;
 }
 
-bool UPRFaerinCombatDirectorComponent::ShouldRunPostPatternStrafe(
-	const FPRFaerinPatternPlan& PatternPlan,
-	const FPRFaerinPhaseLoopConfig& PhaseConfig) const
+bool UPRFaerinCombatDirectorComponent::ShouldRunPostPatternStrafe(const FPRFaerinPatternPlan& PatternPlan) const
 {
 	if (PatternPlan.LoopMetadata.PostPatternPolicy == EPRFaerinPostPatternPolicy::ForceImmediateNext)
 	{
@@ -1370,7 +1416,7 @@ bool UPRFaerinCombatDirectorComponent::ShouldRunPostPatternStrafe(
 		return true;
 	}
 
-	return PhaseConfig.bUsePostPatternStrafe;
+	return false;
 }
 
 bool UPRFaerinCombatDirectorComponent::ShouldRunUrgentPatternRangeApproach(
@@ -1457,6 +1503,9 @@ bool UPRFaerinCombatDirectorComponent::StartPostPatternStrafe(const FPRFaerinPha
 		return true;
 	}
 
+	AIController->StopMovement();
+	AIController->ClearFocus(EAIFocusPriority::Gameplay);
+	OwnerEnemy->ClearCombatMovePresentationContext();
 	return false;
 }
 
@@ -1632,7 +1681,7 @@ bool UPRFaerinCombatDirectorComponent::StartApproachAbility(
 	else
 	{
 		FPRFaerinApproachSprintRequest Request;
-		if (!BuildApproachSprintRequest(PhaseConfig, Request))
+		if (!BuildApproachSprintRequest(PhaseConfig, InObservedAbilityRole, Request))
 		{
 			return false;
 		}
@@ -1688,6 +1737,7 @@ bool UPRFaerinCombatDirectorComponent::StartApproachAbility(
 
 bool UPRFaerinCombatDirectorComponent::BuildApproachSprintRequest(
 	const FPRFaerinPhaseLoopConfig& PhaseConfig,
+	const EPRFaerinObservedAbilityRole InObservedAbilityRole,
 	FPRFaerinApproachSprintRequest& OutRequest) const
 {
 	OutRequest = FPRFaerinApproachSprintRequest();
@@ -1697,6 +1747,20 @@ bool UPRFaerinCombatDirectorComponent::BuildApproachSprintRequest(
 		return false;
 	}
 
+	OutRequest.bIsValid = true;
+	OutRequest.TargetActor = ActiveTarget;
+	OutRequest.StopDistance = ResolveApproachSprintStopDistance(PhaseConfig, InObservedAbilityRole);
+	OutRequest.TimeoutSeconds = PhaseConfig.ApproachTimeoutSeconds;
+	OutRequest.AcceptanceRadius = PhaseConfig.ApproachAcceptanceRadius;
+	OutRequest.NavProjectExtent = PhaseConfig.ApproachNavProjectExtent;
+	OutRequest.PresentationConfig = PhaseConfig.ApproachPresentationConfig;
+	return true;
+}
+
+float UPRFaerinCombatDirectorComponent::ResolveApproachSprintStopDistance(
+	const FPRFaerinPhaseLoopConfig& PhaseConfig,
+	const EPRFaerinObservedAbilityRole InObservedAbilityRole) const
+{
 	const EPRFaerinApproachPolicy ApproachPolicy = ResolveApproachPolicy(ActivePatternPlan, PhaseConfig);
 	float StopDistance = PhaseConfig.ApproachStopDistance;
 	if (ApproachPolicy == EPRFaerinApproachPolicy::KeepCurrentRange)
@@ -1707,14 +1771,26 @@ bool UPRFaerinCombatDirectorComponent::BuildApproachSprintRequest(
 			ActivePatternPlan.PatternRule.MaxRange);
 	}
 
-	OutRequest.bIsValid = true;
-	OutRequest.TargetActor = ActiveTarget;
-	OutRequest.StopDistance = StopDistance;
-	OutRequest.TimeoutSeconds = PhaseConfig.ApproachTimeoutSeconds;
-	OutRequest.AcceptanceRadius = PhaseConfig.ApproachAcceptanceRadius;
-	OutRequest.NavProjectExtent = PhaseConfig.ApproachNavProjectExtent;
-	OutRequest.PresentationConfig = PhaseConfig.ApproachPresentationConfig;
-	return true;
+	const AActor* OwnerActor = GetOwner();
+	if (InObservedAbilityRole != EPRFaerinObservedAbilityRole::PrePatternApproach
+		|| !IsPrePatternApproachPhase(PhaseConfig.Phase)
+		|| !IsSpokePatternPlan(ActivePatternPlan)
+		|| !IsValid(OwnerActor)
+		|| !IsValid(ActiveTarget))
+	{
+		return StopDistance;
+	}
+
+	const float DistanceToTarget = FVector::Dist2D(OwnerActor->GetActorLocation(), ActiveTarget->GetActorLocation());
+	const float MinDistance = FMath::Max(PhaseConfig.PrePatternApproachMinDistance, 0.0f);
+	const float CloseMaxDistance = FMath::Max(PhaseConfig.PrePatternApproachCloseMaxDistance, MinDistance);
+	if (DistanceToTarget > CloseMaxDistance)
+	{
+		return StopDistance;
+	}
+
+	const float CloseSprintStopDistance = FMath::Max(MinDistance, PhaseConfig.ApproachAcceptanceRadius);
+	return FMath::Min(StopDistance, CloseSprintStopDistance);
 }
 
 bool UPRFaerinCombatDirectorComponent::BuildNearTeleportRequest(
@@ -1868,6 +1944,7 @@ void UPRFaerinCombatDirectorComponent::FinishLoopStep(bool bSucceeded)
 	}
 
 	ClearAbilityEndDelegate();
+	EndLoopTargetCommit();
 
 	ActivePatternPlan = FPRFaerinPatternPlan();
 	PendingMainPatternPlan = FPRFaerinPatternPlan();
@@ -1907,23 +1984,6 @@ void UPRFaerinCombatDirectorComponent::LogValidationErrors(const TArray<FString>
 			TEXT("Faerin LoopData 검증: %s"),
 			*Error);
 	}
-}
-
-float UPRFaerinCombatDirectorComponent::ResolveHealthRatio() const
-{
-	if (!IsValid(AbilitySystemComponent))
-	{
-		return 1.0f;
-	}
-
-	const float CurrentHealth = AbilitySystemComponent->GetNumericAttribute(UPRAttributeSet_Common::GetHealthAttribute());
-	const float MaxHealth = AbilitySystemComponent->GetNumericAttribute(UPRAttributeSet_Common::GetMaxHealthAttribute());
-	if (MaxHealth <= UE_SMALL_NUMBER)
-	{
-		return 1.0f;
-	}
-
-	return FMath::Clamp(CurrentHealth / MaxHealth, 0.0f, 1.0f);
 }
 
 EPRBossPhase UPRFaerinCombatDirectorComponent::ResolveCurrentPhase() const

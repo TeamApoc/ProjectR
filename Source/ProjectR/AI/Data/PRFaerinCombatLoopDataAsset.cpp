@@ -179,13 +179,6 @@ bool UPRFaerinCombatLoopDataAsset::ValidateLoopData(
 
 	for (const FPRFaerinPhaseLoopConfig& PhaseConfig : PhaseConfigs)
 	{
-		if (PhaseConfig.HighHealthRatioReference <= PhaseConfig.LowHealthRatioReference)
-		{
-			OutErrors.Add(FString::Printf(
-				TEXT("Faerin PhaseConfig의 체력 비율 기준이 역전되어 있다. Phase=%s"),
-				*StaticEnum<EPRBossPhase>()->GetNameStringByValue(static_cast<int64>(PhaseConfig.Phase))));
-		}
-
 		if (PhaseConfig.bUsePrePatternApproachRoute && IsPrePatternApproachRoutePhase(PhaseConfig.Phase))
 		{
 			if (!PhaseConfig.ApproachAbilityTag.IsValid())

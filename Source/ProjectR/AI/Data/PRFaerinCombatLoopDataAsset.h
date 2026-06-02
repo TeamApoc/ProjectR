@@ -87,25 +87,9 @@ struct PROJECTR_API FPRFaerinPhaseLoopConfig
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Faerin")
 	EPRBossPhase Phase = EPRBossPhase::Phase1;
 
-	// 패턴 종료 후 원작형 횡이동 구간을 사용할지 결정한다.
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Faerin")
-	bool bUsePostPatternStrafe = true;
-
-	// 체력이 높은 기준점에서 사용할 횡이동 시간이다.
+	// 현재 페이즈에서 공격 후 strafe가 지속되는 시간이다.
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Faerin", meta = (ClampMin = "0.0"))
-	float StrafeDurationAtHighHealth = 1.35f;
-
-	// 체력이 낮은 기준점에서 사용할 횡이동 시간이다.
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Faerin", meta = (ClampMin = "0.0"))
-	float StrafeDurationAtLowHealth = 0.55f;
-
-	// 높은 체력 시간 보간에 사용할 체력 비율 기준점이다.
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Faerin", meta = (ClampMin = "0.0", ClampMax = "1.0"))
-	float HighHealthRatioReference = 1.0f;
-
-	// 낮은 체력 시간 보간에 사용할 체력 비율 기준점이다.
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Faerin", meta = (ClampMin = "0.0", ClampMax = "1.0"))
-	float LowHealthRatioReference = 0.25f;
+	float StrafeDuration = 1.0f;
 
 	// 현재 거리 대신 강제로 유지할 횡이동 반경이다. 0이면 현재 거리 기반으로 계산한다.
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Faerin", meta = (ClampMin = "0.0"))

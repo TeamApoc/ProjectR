@@ -107,6 +107,13 @@ enum class EPRFaerinObservedAbilityRole : uint8
 	Approach
 };
 
+enum class EPRFaerinPrePatternApproachStartResult : uint8
+{
+	NotNeeded,
+	Started,
+	Failed
+};
+
 // Faerin 전용 공격 루프를 PatternData, LoopData, AbilitySet 기반으로 실행하는 컴포넌트다.
 UCLASS(ClassGroup = (ProjectR), meta = (BlueprintSpawnableComponent))
 class PROJECTR_API UPRFaerinCombatDirectorComponent : public UActorComponent
@@ -134,7 +141,7 @@ public:
 	UFUNCTION(BlueprintPure, Category = "ProjectR|AI|Boss|Faerin")
 	EPRFaerinCombatLoopState GetLoopState() const { return LoopState; }
 
-	// 현재 체력 비율과 페이즈 설정을 기준으로 공격 후 횡이동 시간을 계산한다.
+	// 현재 페이즈 설정을 기준으로 공격 후 횡이동 시간을 반환한다.
 	UFUNCTION(BlueprintCallable, Category = "ProjectR|AI|Boss|Faerin")
 	float CalculateStrafeDuration() const;
 
@@ -153,6 +160,12 @@ protected:
 
 	// 공통 ThreatComponent가 고른 공격 대상을 Blackboard와 Director 캐시에 동기화한다.
 	bool SyncActiveTargetFromThreat(UBehaviorTreeComponent& OwnerComp);
+
+	// 선택된 패턴과 접근/본공격/후속 공격이 같은 대상을 보도록 Threat 타겟을 고정한다.
+	bool BeginLoopTargetCommit();
+
+	// 현재 루프에서 잡은 타겟 고정을 해제한다.
+	void EndLoopTargetCommit();
 
 	// 거리 때문에 패턴 선택이 실패했을 때 sprint 접근으로 유효 사거리까지 진입한다.
 	bool StartOutOfRangeApproach(UBehaviorTreeComponent& OwnerComp);
@@ -177,7 +190,7 @@ protected:
 		EPRFaerinObservedAbilityRole ObservedRole = EPRFaerinObservedAbilityRole::Pattern);
 
 	// Phase1/2 공격 전 접근 루트가 필요하면 접근 Ability를 먼저 실행한다.
-	bool TryStartPrePatternApproach(
+	EPRFaerinPrePatternApproachStartResult TryStartPrePatternApproach(
 		const FPRFaerinPhaseLoopConfig& PhaseConfig,
 		const FPRFaerinPatternPlan& PatternPlan);
 
@@ -272,7 +285,7 @@ protected:
 	bool BuildForcedPatternPlanByTag(const FGameplayTag& AbilityTag, FPRFaerinPatternPlan& OutPlan) const;
 
 	// 공격 후 횡이동이 필요한지 판단한다.
-	bool ShouldRunPostPatternStrafe(const FPRFaerinPatternPlan& PatternPlan, const FPRFaerinPhaseLoopConfig& PhaseConfig) const;
+	bool ShouldRunPostPatternStrafe(const FPRFaerinPatternPlan& PatternPlan) const;
 
 	// 현재 거리가 방금 실행한 패턴의 유효 사거리 밖이라 즉시 접근해야 하는지 판단한다.
 	bool ShouldRunUrgentPatternRangeApproach(const FPRFaerinPatternPlan& PatternPlan, const FPRFaerinPhaseLoopConfig& PhaseConfig) const;
@@ -300,7 +313,15 @@ protected:
 		EPRFaerinObservedAbilityRole InObservedAbilityRole);
 
 	// 스프린트 접근 GA가 사용할 실행 요청을 만든다.
-	bool BuildApproachSprintRequest(const FPRFaerinPhaseLoopConfig& PhaseConfig, FPRFaerinApproachSprintRequest& OutRequest) const;
+	bool BuildApproachSprintRequest(
+		const FPRFaerinPhaseLoopConfig& PhaseConfig,
+		EPRFaerinObservedAbilityRole InObservedAbilityRole,
+		FPRFaerinApproachSprintRequest& OutRequest) const;
+
+	// 현재 접근 역할과 선택 패턴에 맞는 스프린트 종료 거리를 계산한다.
+	float ResolveApproachSprintStopDistance(
+		const FPRFaerinPhaseLoopConfig& PhaseConfig,
+		EPRFaerinObservedAbilityRole InObservedAbilityRole) const;
 
 	// 근거리 텔레포트 접근 GA가 사용할 실행 요청을 만든다.
 	bool BuildNearTeleportRequest(
@@ -337,9 +358,6 @@ protected:
 
 	// 검증 문제를 로그로 출력한다.
 	void LogValidationErrors(const TArray<FString>& Errors) const;
-
-	// 현재 체력 비율을 ASC Attribute에서 계산한다.
-	float ResolveHealthRatio() const;
 
 	// Owner의 현재 보스 페이즈를 반환한다.
 	EPRBossPhase ResolveCurrentPhase() const;
@@ -433,4 +451,5 @@ private:
 	bool bHasLoggedInitializationError = false;
 	bool bHasPendingMainPatternPlan = false;
 	bool bHasPeriodicSidePatternPhase = false;
+	bool bHasLoopTargetCommit = false;
 };

@@ -64,6 +64,9 @@ protected:
 	// 근거리 텔레포트 위치 선정 EQS를 실행한다.
 	bool ResolveEQSReappearLocation(FVector& OutLocation) const;
 
+	// EQS 위치 선정 실패 시 보스의 HomeLocation을 재등장 위치로 사용한다.
+	bool ResolveHomeReappearLocation(FVector& OutLocation) const;
+
 	// 보스 몸에 연결되는 근거리 텔레포트 순간 Niagara를 모든 클라이언트에 요청한다.
 	void SpawnBodyNiagara(UNiagaraSystem* NiagaraSystem) const;
 

@@ -299,6 +299,7 @@ bool UPRGameplayAbility_FaerinNearTeleportApproach::ResolveReappearTransform(
 	}
 
 	const bool bUseTargetBackPlacement = ActiveRequest.PlacementMode == EPRFaerinNearTeleportPlacementMode::TargetBack;
+	bool bUsedHomeFallback = false;
 	if (bUseTargetBackPlacement)
 	{
 		if (!ResolveTargetBackReappearLocation(OutLocation))
@@ -308,7 +309,15 @@ bool UPRGameplayAbility_FaerinNearTeleportApproach::ResolveReappearTransform(
 	}
 	else if (!ResolveEQSReappearLocation(OutLocation))
 	{
-		return false;
+		if (!ResolveHomeReappearLocation(OutLocation))
+		{
+			return false;
+		}
+
+		bUsedHomeFallback = true;
+		UE_LOG(LogPRFaerinNearTeleport, Warning, TEXT("[NearTeleport] EQS 실패로 HomeLocation을 재등장 위치로 사용한다. Boss=%s Home=%s"),
+			*GetNameSafe(AvatarActor),
+			*OutLocation.ToCompactString());
 	}
 
 	if (UWorld* World = GetWorld())
@@ -326,7 +335,9 @@ bool UPRGameplayAbility_FaerinNearTeleportApproach::ResolveReappearTransform(
 		}
 	}
 
-	if (!bUseTargetBackPlacement && FVector::Dist2D(DisappearLocation, OutLocation) > MaxDistanceFromSelf)
+	if (!bUseTargetBackPlacement
+		&& !bUsedHomeFallback
+		&& FVector::Dist2D(DisappearLocation, OutLocation) > MaxDistanceFromSelf)
 	{
 		return false;
 	}
@@ -396,6 +407,18 @@ bool UPRGameplayAbility_FaerinNearTeleportApproach::ResolveEQSReappearLocation(F
 	}
 
 	return true;
+}
+
+bool UPRGameplayAbility_FaerinNearTeleportApproach::ResolveHomeReappearLocation(FVector& OutLocation) const
+{
+	const APREnemyBaseCharacter* EnemyCharacter = Cast<APREnemyBaseCharacter>(GetAvatarActorFromActorInfo());
+	if (!IsValid(EnemyCharacter))
+	{
+		return false;
+	}
+
+	OutLocation = EnemyCharacter->GetHomeLocation();
+	return !OutLocation.ContainsNaN();
 }
 
 void UPRGameplayAbility_FaerinNearTeleportApproach::SpawnBodyNiagara(UNiagaraSystem* NiagaraSystem) const

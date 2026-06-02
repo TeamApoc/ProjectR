@@ -107,6 +107,7 @@ namespace PRGameplayTags
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(State_PlayerHitReactLocked); // 피격 리액션 행동불능 상태
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(State_PhaseTransitioning); // 보스 페이즈 전환 상태.
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(State_Boss_PatternPlaying); // 보스 패턴 실행 중 상태.
+	UE_DECLARE_GAMEPLAY_TAG_EXTERN(State_Boss_Faerin_ForcedFollowUp); // Faerin Shift 이후 강제 연계 상태.
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(State_Boss_WeakpointOpen_Core); // 보스 코어 약점 오픈 상태.
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(State_Armed); // 플레이어 무기 장착중 상태
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(State_Block_Move); // 움직임 비활성화 상태

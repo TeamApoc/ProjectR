@@ -272,17 +272,26 @@ protected:
 	// 공격 전 접근이 끝난 뒤 보관해 둔 본 공격을 이어서 실행한다.
 	void HandlePrePatternApproachFinished(bool bSucceeded);
 
+	// 스프린트 접근 종료 후 본 공격을 시작해도 되는 거리까지 들어왔는지 확인한다.
+	bool CanStartMainPatternAfterPrePatternApproach() const;
+
 	// Ability 종료 이후 후속 루프 동작을 시작한다.
 	void HandlePatternExecutionFinished(bool bSucceeded);
 
 	// ShiftPlayerClose 이후 즉시 Spoke 후속 공격을 실행한다.
 	bool TryStartShiftFollowUpSpoke();
 
+	// ShiftPlayerClose 강제 연계 태그를 붙인 상태에서 후속 패턴을 시작한다.
+	bool StartForcedFollowUpPatternPlan(const FPRFaerinPatternPlan& PatternPlan);
+
 	// Phase1/2에서 공격 후 strafe만 수행하고 다음 루프에서 패턴을 다시 고르는 흐름인지 확인한다.
 	bool ShouldUsePhase12PostPatternStrafeLoop(const FPRFaerinPhaseLoopConfig& PhaseConfig) const;
 
 	// 지정 AbilityTag의 패턴 계획을 강제 후속 실행용으로 만든다.
-	bool BuildForcedPatternPlanByTag(const FGameplayTag& AbilityTag, FPRFaerinPatternPlan& OutPlan) const;
+	bool BuildForcedPatternPlanByTag(
+		const FGameplayTag& AbilityTag,
+		FPRFaerinPatternPlan& OutPlan,
+		bool bIgnoreCooldown = false) const;
 
 	// 공격 후 횡이동이 필요한지 판단한다.
 	bool ShouldRunPostPatternStrafe(const FPRFaerinPatternPlan& PatternPlan) const;

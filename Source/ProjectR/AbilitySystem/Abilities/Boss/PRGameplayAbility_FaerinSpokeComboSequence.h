@@ -71,6 +71,11 @@ public:
 
 	/*~ UGameplayAbility Interface ~*/
 public:
+	// ShiftPlayerClose 이후 강제 연계 상태에서만 SpokeCombo 쿨다운 검사를 통과시킨다.
+	virtual bool CheckCooldown(const FGameplayAbilitySpecHandle Handle,
+		const FGameplayAbilityActorInfo* ActorInfo,
+		FGameplayTagContainer* OptionalRelevantTags = nullptr) const override;
+
 	// 현재 타깃 기준으로 첫 Spoke 방향을 고르고 단일 Spoke 콤보 몽타주를 시작한다.
 	virtual void ActivateAbility(const FGameplayAbilitySpecHandle Handle,
 		const FGameplayAbilityActorInfo* ActorInfo,

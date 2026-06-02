@@ -25,6 +25,8 @@ DEFINE_LOG_CATEGORY_STATIC(LogPRFaerinCombatDirector, Log, All);
 
 namespace
 {
+	constexpr float FaerinDirectAttackDistance = 50.0f;
+
 	struct FPRFaerinPatternCandidate
 	{
 		const FPRPatternRule* PatternRule = nullptr;
@@ -32,9 +34,7 @@ namespace
 		float FinalWeight = 0.0f;
 	};
 
-	bool ShouldIgnoreMainPatternRangeForPhase1And2(
-		const FPRFaerinPhaseLoopConfig* PhaseConfig,
-		const FPRPatternContext& PatternContext)
+	bool ShouldIgnoreMainPatternRangeForPhase1And2(const FPRFaerinPhaseLoopConfig* PhaseConfig)
 	{
 		if (PhaseConfig == nullptr
 			|| !PhaseConfig->bUsePrePatternApproachRoute
@@ -43,11 +43,12 @@ namespace
 			return false;
 		}
 
-		const float MinDistance = FMath::Max(PhaseConfig->PrePatternApproachMinDistance, 0.0f);
-		const float CloseMaxDistance = FMath::Max(PhaseConfig->PrePatternApproachCloseMaxDistance, MinDistance);
-		const float MidMaxDistance = FMath::Max(PhaseConfig->PrePatternApproachMidMaxDistance, CloseMaxDistance);
-		return PatternContext.DistanceToTarget >= MinDistance
-			&& PatternContext.DistanceToTarget <= MidMaxDistance;
+		return true;
+	}
+
+	float ResolveEffectivePrePatternApproachMinDistance(const FPRFaerinPhaseLoopConfig& PhaseConfig)
+	{
+		return FMath::Max(PhaseConfig.PrePatternApproachMinDistance, FaerinDirectAttackDistance);
 	}
 }
 
@@ -325,7 +326,7 @@ bool UPRFaerinCombatDirectorComponent::SelectPatternPlan(UBehaviorTreeComponent&
 		? LoopDataAsset->FindPhaseConfig(ResolveCurrentPhase())
 		: nullptr;
 	const EPRPatternContextMatchMode MainSelectionMatchMode =
-		ShouldIgnoreMainPatternRangeForPhase1And2(PhaseConfig, PatternRuntime.PatternContext)
+		ShouldIgnoreMainPatternRangeForPhase1And2(PhaseConfig)
 			? EPRPatternContextMatchMode::IgnoreRange
 			: EPRPatternContextMatchMode::FullMatch;
 
@@ -704,10 +705,10 @@ bool UPRFaerinCombatDirectorComponent::ResolvePrePatternApproachRoute(
 	}
 
 	const float DistanceToTarget = FVector::Dist2D(OwnerActor->GetActorLocation(), ActiveTarget->GetActorLocation());
-	const float MinDistance = FMath::Max(PhaseConfig.PrePatternApproachMinDistance, 0.0f);
+	const float MinDistance = ResolveEffectivePrePatternApproachMinDistance(PhaseConfig);
 	const float CloseMaxDistance = FMath::Max(PhaseConfig.PrePatternApproachCloseMaxDistance, MinDistance);
 	const float MidMaxDistance = FMath::Max(PhaseConfig.PrePatternApproachMidMaxDistance, CloseMaxDistance);
-	if (DistanceToTarget < MinDistance || DistanceToTarget > MidMaxDistance)
+	if (DistanceToTarget < MinDistance)
 	{
 		return false;
 	}
@@ -728,6 +729,13 @@ bool UPRFaerinCombatDirectorComponent::ResolvePrePatternApproachRoute(
 	if (bIsRanged)
 	{
 		bOutUseNearTeleport = true;
+		return true;
+	}
+
+	if (DistanceToTarget > MidMaxDistance)
+	{
+		bOutUseNearTeleport = true;
+		OutTeleportPlacementMode = EPRFaerinNearTeleportPlacementMode::TargetBack;
 		return true;
 	}
 
@@ -1213,6 +1221,7 @@ void UPRFaerinCombatDirectorComponent::HandleObservedAbilityEnded(const FAbility
 
 	if (FinishedRole == EPRFaerinObservedAbilityRole::PrePatternApproach)
 	{
+		const bool bCanStartMainPattern = bSucceeded && CanStartMainPatternAfterPrePatternApproach();
 		if (UWorld* World = GetWorld())
 		{
 			LastApproachEndTime = World->GetTimeSeconds();
@@ -1220,7 +1229,7 @@ void UPRFaerinCombatDirectorComponent::HandleObservedAbilityEnded(const FAbility
 
 		ClearActiveApproachSprintRequest();
 		ClearActiveNearTeleportRequest();
-		HandlePrePatternApproachFinished(bSucceeded);
+		HandlePrePatternApproachFinished(bCanStartMainPattern);
 		return;
 	}
 
@@ -1281,6 +1290,26 @@ void UPRFaerinCombatDirectorComponent::HandlePrePatternApproachFinished(bool bSu
 	{
 		FinishLoopStep(false);
 	}
+}
+
+bool UPRFaerinCombatDirectorComponent::CanStartMainPatternAfterPrePatternApproach() const
+{
+	if (!ActiveApproachSprintRequest.bIsValid)
+	{
+		return true;
+	}
+
+	const AActor* OwnerActor = GetOwner();
+	const AActor* TargetActor = ActiveApproachSprintRequest.TargetActor.Get();
+	if (!IsValid(OwnerActor) || !IsValid(TargetActor))
+	{
+		return false;
+	}
+
+	const float DistanceToTarget = FVector::Dist2D(OwnerActor->GetActorLocation(), TargetActor->GetActorLocation());
+	const float AllowedDistance = FMath::Max(ActiveApproachSprintRequest.StopDistance, 0.0f)
+		+ FMath::Max(ActiveApproachSprintRequest.AcceptanceRadius, 0.0f);
+	return DistanceToTarget <= AllowedDistance;
 }
 
 void UPRFaerinCombatDirectorComponent::HandlePatternExecutionFinished(bool bSucceeded)
@@ -1345,14 +1374,27 @@ bool UPRFaerinCombatDirectorComponent::TryStartShiftFollowUpSpoke()
 	}
 
 	FPRFaerinPatternPlan SpokePlan;
-	if (!BuildForcedPatternPlanByTag(PRGameplayTags::Ability_Boss_Faerin_SpokeCombo, SpokePlan)
-		|| !StartPatternPlan(SpokePlan))
+	if (!BuildForcedPatternPlanByTag(PRGameplayTags::Ability_Boss_Faerin_SpokeCombo, SpokePlan, true)
+		|| !StartForcedFollowUpPatternPlan(SpokePlan))
 	{
 		FinishLoopStep(true);
 		return true;
 	}
 
 	return true;
+}
+
+bool UPRFaerinCombatDirectorComponent::StartForcedFollowUpPatternPlan(const FPRFaerinPatternPlan& PatternPlan)
+{
+	if (!IsValid(AbilitySystemComponent))
+	{
+		return false;
+	}
+
+	AbilitySystemComponent->AddLooseGameplayTag(PRGameplayTags::State_Boss_Faerin_ForcedFollowUp);
+	const bool bStarted = StartPatternPlan(PatternPlan);
+	AbilitySystemComponent->RemoveLooseGameplayTag(PRGameplayTags::State_Boss_Faerin_ForcedFollowUp);
+	return bStarted;
 }
 
 bool UPRFaerinCombatDirectorComponent::ShouldUsePhase12PostPatternStrafeLoop(
@@ -1363,14 +1405,19 @@ bool UPRFaerinCombatDirectorComponent::ShouldUsePhase12PostPatternStrafeLoop(
 
 bool UPRFaerinCombatDirectorComponent::BuildForcedPatternPlanByTag(
 	const FGameplayTag& AbilityTag,
-	FPRFaerinPatternPlan& OutPlan) const
+	FPRFaerinPatternPlan& OutPlan,
+	const bool bIgnoreCooldown) const
 {
 	OutPlan = FPRFaerinPatternPlan();
 
 	if (!AbilityTag.IsValid()
 		|| !IsValid(PatternDataAsset)
-		|| !IsValid(LoopDataAsset)
-		|| !CanActivatePatternAbilityTag(AbilityTag))
+		|| !IsValid(LoopDataAsset))
+	{
+		return false;
+	}
+
+	if (!bIgnoreCooldown && !CanActivatePatternAbilityTag(AbilityTag))
 	{
 		return false;
 	}
@@ -1782,7 +1829,7 @@ float UPRFaerinCombatDirectorComponent::ResolveApproachSprintStopDistance(
 	}
 
 	const float DistanceToTarget = FVector::Dist2D(OwnerActor->GetActorLocation(), ActiveTarget->GetActorLocation());
-	const float MinDistance = FMath::Max(PhaseConfig.PrePatternApproachMinDistance, 0.0f);
+	const float MinDistance = ResolveEffectivePrePatternApproachMinDistance(PhaseConfig);
 	const float CloseMaxDistance = FMath::Max(PhaseConfig.PrePatternApproachCloseMaxDistance, MinDistance);
 	if (DistanceToTarget > CloseMaxDistance)
 	{

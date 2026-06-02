@@ -106,6 +106,7 @@ namespace PRGameplayTags
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(State_PlayerHitReactLocked, "State.PlayerHitReactLocked", "피격 리액션 행동불능 상태");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(State_PhaseTransitioning, "State.PhaseTransitioning", "보스 페이즈 전환 상태");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(State_Boss_PatternPlaying, "State.Boss.PatternPlaying", "보스 패턴 실행 중 상태");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(State_Boss_Faerin_ForcedFollowUp, "State.Boss.Faerin.ForcedFollowUp", "Faerin Shift 이후 강제 연계 상태");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(State_Boss_WeakpointOpen_Core, "State.Boss.WeakpointOpen.Core", "보스 코어 약점 오픈 상태");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(State_Armed, "State.Armed", "플레이어 무기 장착중 상태");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(State_Block_Move, "State.Block.Move", "움직임 비활성화 상태");

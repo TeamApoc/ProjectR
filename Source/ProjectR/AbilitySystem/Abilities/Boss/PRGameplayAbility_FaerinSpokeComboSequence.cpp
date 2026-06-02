@@ -27,6 +27,22 @@ UPRGameplayAbility_FaerinSpokeComboSequence::UPRGameplayAbility_FaerinSpokeCombo
 	SetAssetTags(PRBossAbility::MakePatternAssetTags(PRGameplayTags::Ability_Boss_Faerin_SpokeCombo));
 }
 
+bool UPRGameplayAbility_FaerinSpokeComboSequence::CheckCooldown(
+	const FGameplayAbilitySpecHandle Handle,
+	const FGameplayAbilityActorInfo* ActorInfo,
+	FGameplayTagContainer* OptionalRelevantTags) const
+{
+	const UAbilitySystemComponent* OwnerASC = ActorInfo != nullptr
+		? ActorInfo->AbilitySystemComponent.Get()
+		: nullptr;
+	if (IsValid(OwnerASC) && OwnerASC->HasMatchingGameplayTag(PRGameplayTags::State_Boss_Faerin_ForcedFollowUp))
+	{
+		return true;
+	}
+
+	return Super::CheckCooldown(Handle, ActorInfo, OptionalRelevantTags);
+}
+
 void UPRGameplayAbility_FaerinSpokeComboSequence::ActivateAbility(
 	const FGameplayAbilitySpecHandle Handle,
 	const FGameplayAbilityActorInfo* ActorInfo,

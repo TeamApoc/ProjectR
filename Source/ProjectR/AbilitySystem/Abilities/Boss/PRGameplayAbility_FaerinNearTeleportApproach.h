@@ -61,6 +61,9 @@ protected:
 	// TargetBack 방식으로 타겟의 등 뒤 재등장 위치를 계산한다.
 	bool ResolveTargetBackReappearLocation(FVector& OutLocation) const;
 
+	// 타겟 기준 앞/뒤 후보 위치를 NavMesh와 방향 조건으로 검증한다.
+	bool ResolveTargetRelativeReappearLocation(const AActor& TargetActor, float DirectionSign, FVector& OutLocation) const;
+
 	// 근거리 텔레포트 위치 선정 EQS를 실행한다.
 	bool ResolveEQSReappearLocation(FVector& OutLocation) const;
 

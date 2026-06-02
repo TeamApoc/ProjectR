@@ -320,17 +320,17 @@ bool UPRGameplayAbility_FaerinNearTeleportApproach::ResolveReappearTransform(
 			*OutLocation.ToCompactString());
 	}
 
-	if (UWorld* World = GetWorld())
+	if (!bUseTargetBackPlacement)
 	{
-		if (UNavigationSystemV1* NavigationSystem = FNavigationSystem::GetCurrent<UNavigationSystemV1>(World))
+		if (UWorld* World = GetWorld())
 		{
-			const FVector NavProjectExtent = bUseTargetBackPlacement
-				? ActiveRequest.TargetBackNavProjectExtent
-				: ReappearNavProjectExtent;
-			FNavLocation ProjectedLocation;
-			if (NavigationSystem->ProjectPointToNavigation(OutLocation, ProjectedLocation, NavProjectExtent))
+			if (UNavigationSystemV1* NavigationSystem = FNavigationSystem::GetCurrent<UNavigationSystemV1>(World))
 			{
-				OutLocation = ProjectedLocation.Location;
+				FNavLocation ProjectedLocation;
+				if (NavigationSystem->ProjectPointToNavigation(OutLocation, ProjectedLocation, ReappearNavProjectExtent))
+				{
+					OutLocation = ProjectedLocation.Location;
+				}
 			}
 		}
 	}
@@ -365,14 +365,59 @@ bool UPRGameplayAbility_FaerinNearTeleportApproach::ResolveTargetBackReappearLoc
 		return false;
 	}
 
-	FVector TargetBackDirection = -TargetActor->GetActorForwardVector();
-	TargetBackDirection.Z = 0.0f;
-	if (!TargetBackDirection.Normalize())
+	if (ResolveTargetRelativeReappearLocation(*TargetActor, -1.0f, OutLocation))
+	{
+		return true;
+	}
+
+	return ResolveTargetRelativeReappearLocation(*TargetActor, 1.0f, OutLocation);
+}
+
+bool UPRGameplayAbility_FaerinNearTeleportApproach::ResolveTargetRelativeReappearLocation(
+	const AActor& TargetActor,
+	const float DirectionSign,
+	FVector& OutLocation) const
+{
+	FVector TargetForward = TargetActor.GetActorForwardVector();
+	TargetForward.Z = 0.0f;
+	if (!TargetForward.Normalize())
 	{
 		return false;
 	}
 
-	OutLocation = TargetActor->GetActorLocation() + TargetBackDirection * ActiveRequest.TargetBackDistance;
+	const FVector CandidateDirection = TargetForward * FMath::Sign(DirectionSign);
+	const FVector RawLocation = TargetActor.GetActorLocation() + CandidateDirection * ActiveRequest.TargetBackDistance;
+	UWorld* World = GetWorld();
+	UNavigationSystemV1* NavigationSystem = World != nullptr
+		? FNavigationSystem::GetCurrent<UNavigationSystemV1>(World)
+		: nullptr;
+	if (!IsValid(NavigationSystem))
+	{
+		return false;
+	}
+
+	FNavLocation ProjectedLocation;
+	if (!NavigationSystem->ProjectPointToNavigation(
+			RawLocation,
+			ProjectedLocation,
+			ActiveRequest.TargetBackNavProjectExtent))
+	{
+		return false;
+	}
+
+	FVector ProjectedDirection = ProjectedLocation.Location - TargetActor.GetActorLocation();
+	ProjectedDirection.Z = 0.0f;
+	if (!ProjectedDirection.Normalize())
+	{
+		return false;
+	}
+
+	if (FVector::DotProduct(ProjectedDirection, CandidateDirection) <= 0.0f)
+	{
+		return false;
+	}
+
+	OutLocation = ProjectedLocation.Location;
 	return true;
 }
 

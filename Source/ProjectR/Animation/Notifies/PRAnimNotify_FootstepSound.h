@@ -33,10 +33,18 @@ protected:
 	bool TraceFootstepSurface(const USkeletalMeshComponent* MeshComp, const FVector& TraceOrigin, FHitResult& OutHit) const;
 
 	// 발소리 재생
-	void PlayFootstepSound(USkeletalMeshComponent* MeshComp, const FPRFootstepSoundEntry& SoundEntry, const FVector& SoundLocation) const;
+	void PlayFootstepSound(
+		USkeletalMeshComponent* MeshComp,
+		const FPRFootstepSoundEntry& SoundEntry,
+		const FPRFootstepMoveModifier& MoveModifier,
+		const FVector& SoundLocation) const;
 
 	// AI 청각 자극 보고
-	void ReportFootstepNoise(const USkeletalMeshComponent* MeshComp, const FPRFootstepSoundEntry& SoundEntry, const FVector& NoiseLocation) const;
+	void ReportFootstepNoise(
+		const USkeletalMeshComponent* MeshComp,
+		const FPRFootstepSoundEntry& SoundEntry,
+		const FPRFootstepMoveModifier& MoveModifier,
+		const FVector& NoiseLocation) const;
 
 protected:
 	// 표면별 발소리 데이터
@@ -46,6 +54,10 @@ protected:
 	// 트레이스에 사용할 발 구분
 	UPROPERTY(EditAnywhere, Category = "ProjectR|Footstep")
 	EPRFootstepFoot Foot = EPRFootstepFoot::Left;
+
+	// 발소리 크기를 보정할 이동 방식
+	UPROPERTY(EditAnywhere, Category = "ProjectR|Footstep")
+	EPRFootstepMoveType MoveType = EPRFootstepMoveType::Jog;
 
 	// 발 소켓 위쪽 시작 보정
 	UPROPERTY(EditAnywhere, Category = "ProjectR|Footstep|Trace", meta = (ClampMin = "0.0"))

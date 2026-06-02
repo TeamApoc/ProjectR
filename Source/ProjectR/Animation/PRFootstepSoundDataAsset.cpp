@@ -27,3 +27,24 @@ const FPRFootstepSoundEntry* UPRFootstepSoundDataAsset::FindSoundEntry(EPhysical
 
 	return &DefaultEntry;
 }
+
+const FPRFootstepMoveModifier& UPRFootstepSoundDataAsset::ResolveMoveModifier(EPRFootstepMoveType MoveType) const
+{
+	switch (MoveType)
+	{
+	case EPRFootstepMoveType::Crouch:
+		return CrouchModifier;
+
+	case EPRFootstepMoveType::Walk:
+		return WalkModifier;
+
+	case EPRFootstepMoveType::Jog:
+		return JogModifier;
+
+	case EPRFootstepMoveType::Sprint:
+		return SprintModifier;
+
+	default:
+		return JogModifier;
+	}
+}

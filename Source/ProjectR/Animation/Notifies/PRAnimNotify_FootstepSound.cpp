@@ -18,7 +18,30 @@
 FString UPRAnimNotify_FootstepSound::GetNotifyName_Implementation() const
 {
 	const TCHAR* FootText = Foot == EPRFootstepFoot::Left ? TEXT("Left") : TEXT("Right");
-	return FString::Printf(TEXT("PR Footstep: %s"), FootText);
+	const TCHAR* MoveText = TEXT("Jog");
+	switch (MoveType)
+	{
+	case EPRFootstepMoveType::Crouch:
+		MoveText = TEXT("Crouch");
+		break;
+
+	case EPRFootstepMoveType::Walk:
+		MoveText = TEXT("Walk");
+		break;
+
+	case EPRFootstepMoveType::Jog:
+		MoveText = TEXT("Jog");
+		break;
+
+	case EPRFootstepMoveType::Sprint:
+		MoveText = TEXT("Sprint");
+		break;
+
+	default:
+		break;
+	}
+
+	return FString::Printf(TEXT("PR Footstep: %s %s"), FootText, MoveText);
 }
 
 void UPRAnimNotify_FootstepSound::Notify(USkeletalMeshComponent* MeshComp,
@@ -55,8 +78,9 @@ void UPRAnimNotify_FootstepSound::Notify(USkeletalMeshComponent* MeshComp,
 	}
 
 	const FVector SoundLocation = bHitSurface ? HitResult.ImpactPoint : TraceOrigin;
-	PlayFootstepSound(MeshComp, *SoundEntry, SoundLocation);
-	ReportFootstepNoise(MeshComp, *SoundEntry, SoundLocation);
+	const FPRFootstepMoveModifier& MoveModifier = FootstepSoundData->ResolveMoveModifier(MoveType);
+	PlayFootstepSound(MeshComp, *SoundEntry, MoveModifier, SoundLocation);
+	ReportFootstepNoise(MeshComp, *SoundEntry, MoveModifier, SoundLocation);
 }
 
 bool UPRAnimNotify_FootstepSound::ResolveTraceOrigin(const USkeletalMeshComponent* MeshComp, FVector& OutTraceOrigin) const
@@ -141,6 +165,7 @@ bool UPRAnimNotify_FootstepSound::TraceFootstepSurface(
 void UPRAnimNotify_FootstepSound::PlayFootstepSound(
 	USkeletalMeshComponent* MeshComp,
 	const FPRFootstepSoundEntry& SoundEntry,
+	const FPRFootstepMoveModifier& MoveModifier,
 	const FVector& SoundLocation) const
 {
 	if (!IsValid(MeshComp) || !IsValid(SoundEntry.Sound))
@@ -148,8 +173,8 @@ void UPRAnimNotify_FootstepSound::PlayFootstepSound(
 		return;
 	}
 
-	const float ClampedVolumeMultiplier = FMath::Max(SoundEntry.VolumeMultiplier, 0.0f);
-	const float ClampedPitchMultiplier = FMath::Max(SoundEntry.PitchMultiplier, 0.1f);
+	const float ClampedVolumeMultiplier = FMath::Max(SoundEntry.VolumeMultiplier * MoveModifier.VolumeMultiplier, 0.0f);
+	const float ClampedPitchMultiplier = FMath::Max(SoundEntry.PitchMultiplier * MoveModifier.PitchMultiplier, 0.1f);
 
 	const APawn* OwnerPawn = Cast<APawn>(MeshComp->GetOwner());
 	if (IsValid(OwnerPawn) && OwnerPawn->IsLocallyControlled())
@@ -160,7 +185,7 @@ void UPRAnimNotify_FootstepSound::PlayFootstepSound(
 			ClampedVolumeMultiplier,
 			ClampedPitchMultiplier,
 			0.0f,
-			SoundEntry.ConcurrencySettings,
+			MoveModifier.ConcurrencySettings,
 			false,
 			true);
 		return;
@@ -174,14 +199,15 @@ void UPRAnimNotify_FootstepSound::PlayFootstepSound(
 		ClampedVolumeMultiplier,
 		ClampedPitchMultiplier,
 		0.0f,
-		SoundEntry.AttenuationSettings,
-		SoundEntry.ConcurrencySettings,
+		MoveModifier.AttenuationSettings,
+		MoveModifier.ConcurrencySettings,
 		true);
 }
 
 void UPRAnimNotify_FootstepSound::ReportFootstepNoise(
 	const USkeletalMeshComponent* MeshComp,
 	const FPRFootstepSoundEntry& SoundEntry,
+	const FPRFootstepMoveModifier& MoveModifier,
 	const FVector& NoiseLocation) const
 {
 	if (!bReportNoiseToAI || !IsValid(MeshComp) || NoiseMaxRange <= 0.0f || NoiseLoudness <= 0.0f)
@@ -207,7 +233,9 @@ void UPRAnimNotify_FootstepSound::ReportFootstepNoise(
 		return;
 	}
 
-	const float FinalLoudness = FMath::Max(NoiseLoudness * SoundEntry.NoiseLoudnessMultiplier, 0.0f);
+	const float FinalLoudness = FMath::Max(
+		NoiseLoudness * SoundEntry.NoiseLoudnessMultiplier * MoveModifier.NoiseLoudnessMultiplier,
+		0.0f);
 	if (FinalLoudness <= 0.0f)
 	{
 		return;

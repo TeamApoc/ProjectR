@@ -11,6 +11,7 @@ class APRBossBaseCharacter;
 class APRFaerinGodFallStaticSwordActor;
 class UNiagaraComponent;
 class UAnimSequenceBase;
+class UCameraShakeBase;
 class UPRFaerinGodFallDataAsset;
 class USkeletalMeshComponent;
 
@@ -118,6 +119,14 @@ private:
 	void StartGodFallBodyNiagaraCuesLocal();
 	void SpawnGodFallBodyNiagaraCueLocal(int32 CueIndex);
 	void CleanupGodFallBodyNiagaraLocal();
+	void StartSwordRiseCameraShakeLocal(TSubclassOf<UCameraShakeBase> CameraShakeClass,
+		float DelaySeconds,
+		float Scale,
+		float DurationOverride);
+	void PlaySwordRiseCameraShakeLocal(TSubclassOf<UCameraShakeBase> CameraShakeClass,
+		float Scale,
+		float DurationOverride) const;
+	void CancelSwordRiseCameraShakeLocal();
 	void DestroyPlacedRigActor();
 	void SetPlacedRigHidden(bool bNewHidden);
 	void ApplyBossPresentationTransform(const FVector& Location, const FRotator& Rotation);
@@ -170,6 +179,17 @@ private:
 	UFUNCTION(NetMulticast, Reliable)
 	void MulticastCleanupGodFallBodyNiagara();
 
+	// God Fall sword rise camera shake를 각 로컬 플레이어 카메라에서 재생한다.
+	UFUNCTION(NetMulticast, Reliable)
+	void MulticastStartSwordRiseCameraShake(TSubclassOf<UCameraShakeBase> CameraShakeClass,
+		float DelaySeconds,
+		float Scale,
+		float DurationOverride);
+
+	// 예약된 God Fall sword rise camera shake를 모든 클라이언트에서 취소한다.
+	UFUNCTION(NetMulticast, Reliable)
+	void MulticastCancelSwordRiseCameraShake();
+
 protected:
 	// God Fall rig, bone, StaticSword 수치를 담은 data asset이다.
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Faerin|GodFall")
@@ -213,6 +233,7 @@ private:
 	FTimerHandle RigChargeTimerHandle;
 	FTimerHandle RigTiltPullTimerHandle;
 	FTimerHandle BossDropTimerHandle;
+	FTimerHandle SwordRiseCameraShakeTimerHandle;
 	TArray<FTimerHandle> BodyNiagaraCueTimerHandles;
 	TArray<FTimerHandle> BodyNiagaraCleanupTimerHandles;
 	int32 NextTargetAssignmentIndex = 0;

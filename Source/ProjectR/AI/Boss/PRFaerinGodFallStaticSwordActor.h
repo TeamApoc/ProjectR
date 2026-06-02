@@ -96,9 +96,24 @@ protected:
 	UFUNCTION()
 	void OnRep_SwordState();
 
+	UFUNCTION()
+	void OnRep_GodFallData();
+
 	// 모든 클라이언트에서 impact visual을 재생한다.
 	UFUNCTION(NetMulticast, Reliable)
-	void MulticastGodFallSwordImpact(FVector_NetQuantize ImpactLocation, FRotator ImpactRotation);
+	void MulticastGodFallSwordImpact(FVector_NetQuantize ImpactLocation,
+		FRotator ImpactRotation,
+		UNiagaraSystem* NiagaraSystem,
+		FVector Scale,
+		float LifeSeconds);
+
+	// 모든 클라이언트에서 impact 경고 visual을 재생한다.
+	UFUNCTION(NetMulticast, Reliable)
+	void MulticastGodFallSwordImpactWarning(FVector_NetQuantize ImpactLocation,
+		FRotator ImpactRotation,
+		UNiagaraSystem* NiagaraSystem,
+		FVector Scale,
+		float LifeSeconds);
 
 	// 모든 클라이언트에서 취소 visual을 재생한다.
 	UFUNCTION(NetMulticast, Reliable)
@@ -139,7 +154,23 @@ private:
 	bool ResolveAssignedImpactLocation(FVector& OutGroundLocation) const;
 	bool ProjectTargetLocationToGround(const FVector& TargetLocation, FVector& OutGroundLocation) const;
 	void ApplySwordPresentationLocation(const FVector& Location);
-	void SpawnImpactNiagaraLocal(const FVector& ImpactLocation, const FRotator& ImpactRotation) const;
+	void SpawnNiagaraAtLocationLocal(UNiagaraSystem* NiagaraSystem,
+		const FVector& Location,
+		const FRotator& Rotation,
+		const FVector& Scale,
+		float LifeSeconds) const;
+	void CaptureMeshBaselineTransform();
+	void ResetSwordVisualTransform();
+	void UpdateSwordVisualPresentation(float DeltaSeconds);
+	bool ShouldTickSwordVisual() const;
+	bool ShouldTickSwordMovement() const;
+	void RefreshSwordTickEnabled();
+	FVector ResolveHoverLocationDelta() const;
+	void ResolveChargeShakeDelta(FVector& OutLocationDelta, FRotator& OutRotationDelta) const;
+	FRotator ResolveImpactSlantRotationDelta() const;
+	float ResolveImpactSlantAlpha() const;
+	void ScheduleImpactWarning();
+	void SpawnImpactWarning();
 	void StartClientSwordPresentationSegment(EPRFaerinGodFallStaticSwordState NewState,
 		const FVector& StartLocation,
 		const FVector& TargetLocation,
@@ -191,17 +222,19 @@ protected:
 	FVector HomeLocation = FVector::ZeroVector;
 
 private:
-	UPROPERTY(Transient)
+	UPROPERTY(ReplicatedUsing = OnRep_GodFallData)
 	TObjectPtr<UPRFaerinGodFallDataAsset> GodFallData;
 
 	FTimerHandle ChargeTimerHandle;
 	FTimerHandle TelegraphTimerHandle;
 	FTimerHandle ImpactHoldTimerHandle;
+	FTimerHandle ImpactWarningTimerHandle;
 
 	FVector SegmentStartLocation = FVector::ZeroVector;
 	FVector SegmentTargetLocation = FVector::ZeroVector;
 	FVector AssignedOverheadLocation = FVector::ZeroVector;
 	FVector AssignedImpactLocation = FVector::ZeroVector;
+	FTransform MeshBaselineRelativeTransform = FTransform::Identity;
 	FVector ClientSegmentStartLocation = FVector::ZeroVector;
 	FVector ClientSegmentTargetLocation = FVector::ZeroVector;
 	FVector ClientAssignedOverheadLocation = FVector::ZeroVector;
@@ -220,8 +253,12 @@ private:
 	float ClientOverheadMoveSpeed = 0.0f;
 	float ClientOverheadMoveAcceleration = 0.0f;
 	float AssignedWarningSeconds = 0.0f;
+	float VisualElapsedSeconds = 0.0f;
+	float VisualStateElapsedSeconds = 0.0f;
 	TWeakObjectPtr<AActor> ClientAssignedTarget;
 	bool bHasAssignedAttackLocation = false;
 	bool bClientSwordPresentationActive = false;
+	bool bMeshBaselineCaptured = false;
+	bool bImpactWarningSpawned = false;
 	EPRFaerinGodFallStaticSwordState ClientPresentationState = EPRFaerinGodFallStaticSwordState::None;
 };

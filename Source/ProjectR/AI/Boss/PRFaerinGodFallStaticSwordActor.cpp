@@ -44,15 +44,19 @@ void APRFaerinGodFallStaticSwordActor::Tick(float DeltaSeconds)
 {
 	Super::Tick(DeltaSeconds);
 
+	UpdateSwordVisualPresentation(DeltaSeconds);
+
 	if (!HasAuthority())
 	{
 		UpdateClientSwordPresentation(DeltaSeconds);
+		RefreshSwordTickEnabled();
 		return;
 	}
 
 	if (SwordState == EPRFaerinGodFallStaticSwordState::MovingToTargetOverhead)
 	{
 		UpdateTargetOverheadMovement(DeltaSeconds);
+		RefreshSwordTickEnabled();
 		return;
 	}
 
@@ -63,6 +67,8 @@ void APRFaerinGodFallStaticSwordActor::Tick(float DeltaSeconds)
 	{
 		UpdateSegmentMovement(DeltaSeconds);
 	}
+
+	RefreshSwordTickEnabled();
 }
 
 void APRFaerinGodFallStaticSwordActor::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const
@@ -73,11 +79,13 @@ void APRFaerinGodFallStaticSwordActor::GetLifetimeReplicatedProps(TArray<FLifeti
 	DOREPLIFETIME(APRFaerinGodFallStaticSwordActor, SwordIndex);
 	DOREPLIFETIME(APRFaerinGodFallStaticSwordActor, SourceBoneName);
 	DOREPLIFETIME(APRFaerinGodFallStaticSwordActor, HomeLocation);
+	DOREPLIFETIME(APRFaerinGodFallStaticSwordActor, GodFallData);
 }
 
 void APRFaerinGodFallStaticSwordActor::EndPlay(const EEndPlayReason::Type EndPlayReason)
 {
 	ClearSwordTimers();
+	ResetSwordVisualTransform();
 	Super::EndPlay(EndPlayReason);
 }
 
@@ -91,7 +99,8 @@ void APRFaerinGodFallStaticSwordActor::CancelPatternActor()
 	}
 
 	ClearSwordTimers();
-	SetActorTickEnabled(false);
+	bImpactWarningSpawned = false;
+	ResetSwordVisualTransform();
 	SetSwordState(EPRFaerinGodFallStaticSwordState::Cancelled);
 	MulticastGodFallSwordCancelled();
 	ExpirePatternActor();
@@ -117,6 +126,8 @@ void APRFaerinGodFallStaticSwordActor::InitializeGodFallStaticSword(APRBossBaseC
 	HomeLocation = InInitialTransform.GetLocation();
 
 	SetActorTransform(InInitialTransform, false, nullptr, ETeleportType::TeleportPhysics);
+	CaptureMeshBaselineTransform();
+	ResetSwordVisualTransform();
 	MulticastSetSwordPresentationLocation(InInitialTransform.GetLocation());
 	InitializeBossPatternActor(InOwnerBoss, InPatternTarget);
 	SetSwordState(EPRFaerinGodFallStaticSwordState::SpawnedFromRigBone);
@@ -132,8 +143,9 @@ void APRFaerinGodFallStaticSwordActor::BeginCharging(const float ChargeSeconds)
 	ClearSwordTimers();
 	PatternTarget = nullptr;
 	bHasAssignedAttackLocation = false;
+	bImpactWarningSpawned = false;
 	OverheadMoveSpeed = 0.0f;
-	SetActorTickEnabled(false);
+	ResetSwordVisualTransform();
 	ApplySwordPresentationLocation(HomeLocation);
 	MulticastSetSwordPresentationLocation(HomeLocation);
 	SetSwordState(EPRFaerinGodFallStaticSwordState::Charging);
@@ -161,6 +173,7 @@ void APRFaerinGodFallStaticSwordActor::FinishCharging()
 
 	ApplySwordPresentationLocation(HomeLocation);
 	MulticastSetSwordPresentationLocation(HomeLocation);
+	ResetSwordVisualTransform();
 	SetSwordState(EPRFaerinGodFallStaticSwordState::Charged);
 	OnChargeFinished.Broadcast(this);
 }
@@ -183,6 +196,7 @@ bool APRFaerinGodFallStaticSwordActor::StartEntryDive(const float DiveDistance,
 	ClearSwordTimers();
 	PatternTarget = nullptr;
 	bHasAssignedAttackLocation = false;
+	bImpactWarningSpawned = false;
 	EntryDiveReturnSeconds = FMath::Max(ReturnSeconds, 0.0f);
 	EntryDiveChargeSecondsAfterReturn = FMath::Max(ChargeSecondsAfterReturn, 0.0f);
 
@@ -203,7 +217,7 @@ bool APRFaerinGodFallStaticSwordActor::StartEntryDive(const float DiveDistance,
 		return true;
 	}
 
-	SetActorTickEnabled(true);
+	RefreshSwordTickEnabled();
 	return true;
 }
 
@@ -231,6 +245,7 @@ bool APRFaerinGodFallStaticSwordActor::StartAssignedAttack(AActor* InAssignedTar
 	}
 
 	ClearSwordTimers();
+	bImpactWarningSpawned = false;
 	AssignedOverheadLocation = ResolvedOverheadLocation;
 	AssignedImpactLocation = ResolvedImpactLocation;
 	AssignedWarningSeconds = FMath::Max(InWarningSeconds, 0.0f);
@@ -273,7 +288,7 @@ bool APRFaerinGodFallStaticSwordActor::StartAssignedAttack(AActor* InAssignedTar
 		return true;
 	}
 
-	SetActorTickEnabled(true);
+	RefreshSwordTickEnabled();
 	return true;
 }
 
@@ -281,19 +296,52 @@ bool APRFaerinGodFallStaticSwordActor::StartAssignedAttack(AActor* InAssignedTar
 
 void APRFaerinGodFallStaticSwordActor::OnRep_SwordState()
 {
+	VisualStateElapsedSeconds = 0.0f;
+	if (SwordState == EPRFaerinGodFallStaticSwordState::Charging
+		|| SwordState == EPRFaerinGodFallStaticSwordState::Charged
+		|| SwordState == EPRFaerinGodFallStaticSwordState::Returning
+		|| SwordState == EPRFaerinGodFallStaticSwordState::Cancelled
+		|| SwordState == EPRFaerinGodFallStaticSwordState::None)
+	{
+		ResetSwordVisualTransform();
+	}
 	BP_OnGodFallSwordStateChanged(SwordState);
+	RefreshSwordTickEnabled();
+}
+
+void APRFaerinGodFallStaticSwordActor::OnRep_GodFallData()
+{
+	if (!bMeshBaselineCaptured)
+	{
+		CaptureMeshBaselineTransform();
+	}
+	RefreshSwordTickEnabled();
 }
 
 void APRFaerinGodFallStaticSwordActor::MulticastGodFallSwordImpact_Implementation(
 	FVector_NetQuantize ImpactLocation,
-	FRotator ImpactRotation)
+	FRotator ImpactRotation,
+	UNiagaraSystem* NiagaraSystem,
+	FVector Scale,
+	float LifeSeconds)
 {
-	SpawnImpactNiagaraLocal(ImpactLocation, ImpactRotation);
+	SpawnNiagaraAtLocationLocal(NiagaraSystem, ImpactLocation, ImpactRotation, Scale, LifeSeconds);
 	BP_OnGodFallSwordImpact();
+}
+
+void APRFaerinGodFallStaticSwordActor::MulticastGodFallSwordImpactWarning_Implementation(
+	FVector_NetQuantize ImpactLocation,
+	FRotator ImpactRotation,
+	UNiagaraSystem* NiagaraSystem,
+	FVector Scale,
+	float LifeSeconds)
+{
+	SpawnNiagaraAtLocationLocal(NiagaraSystem, ImpactLocation, ImpactRotation, Scale, LifeSeconds);
 }
 
 void APRFaerinGodFallStaticSwordActor::MulticastGodFallSwordCancelled_Implementation()
 {
+	ResetSwordVisualTransform();
 	BP_OnGodFallSwordCancelled();
 }
 
@@ -307,7 +355,17 @@ void APRFaerinGodFallStaticSwordActor::SetSwordState(const EPRFaerinGodFallStati
 	}
 
 	SwordState = NewState;
+	VisualStateElapsedSeconds = 0.0f;
+	if (SwordState == EPRFaerinGodFallStaticSwordState::Charging
+		|| SwordState == EPRFaerinGodFallStaticSwordState::Charged
+		|| SwordState == EPRFaerinGodFallStaticSwordState::Returning
+		|| SwordState == EPRFaerinGodFallStaticSwordState::Cancelled
+		|| SwordState == EPRFaerinGodFallStaticSwordState::None)
+	{
+		ResetSwordVisualTransform();
+	}
 	BP_OnGodFallSwordStateChanged(SwordState);
+	RefreshSwordTickEnabled();
 }
 
 void APRFaerinGodFallStaticSwordActor::ClearSwordTimers()
@@ -317,6 +375,7 @@ void APRFaerinGodFallStaticSwordActor::ClearSwordTimers()
 		World->GetTimerManager().ClearTimer(ChargeTimerHandle);
 		World->GetTimerManager().ClearTimer(TelegraphTimerHandle);
 		World->GetTimerManager().ClearTimer(ImpactHoldTimerHandle);
+		World->GetTimerManager().ClearTimer(ImpactWarningTimerHandle);
 	}
 }
 
@@ -332,7 +391,10 @@ void APRFaerinGodFallStaticSwordActor::FinishEntryDiveDown()
 	const FRotator ImpactRotation = IsValid(GodFallData)
 		? GodFallData->SwordImpactNiagaraRotationOffset
 		: FRotator::ZeroRotator;
-	MulticastGodFallSwordImpact(SegmentTargetLocation, ImpactRotation);
+	UNiagaraSystem* ImpactNiagaraSystem = IsValid(GodFallData) ? GodFallData->SwordImpactNiagaraSystem : nullptr;
+	const FVector ImpactNiagaraScale = IsValid(GodFallData) ? GodFallData->SwordImpactNiagaraScale : FVector::OneVector;
+	const float ImpactNiagaraLifeSeconds = IsValid(GodFallData) ? GodFallData->SwordImpactNiagaraLifeSeconds : 0.0f;
+	MulticastGodFallSwordImpact(SegmentTargetLocation, ImpactRotation, ImpactNiagaraSystem, ImpactNiagaraScale, ImpactNiagaraLifeSeconds);
 
 	SegmentStartLocation = GetActorLocation();
 	SegmentTargetLocation = HomeLocation;
@@ -351,7 +413,7 @@ void APRFaerinGodFallStaticSwordActor::FinishEntryDiveDown()
 		return;
 	}
 
-	SetActorTickEnabled(true);
+	RefreshSwordTickEnabled();
 }
 
 void APRFaerinGodFallStaticSwordActor::FinishEntryDiveReturn()
@@ -363,7 +425,7 @@ void APRFaerinGodFallStaticSwordActor::FinishEntryDiveReturn()
 
 	ApplySwordPresentationLocation(HomeLocation);
 	MulticastSetSwordPresentationLocation(HomeLocation);
-	SetActorTickEnabled(false);
+	ResetSwordVisualTransform();
 	BeginCharging(EntryDiveChargeSecondsAfterReturn);
 }
 
@@ -400,7 +462,7 @@ void APRFaerinGodFallStaticSwordActor::BeginDropping()
 		SegmentStartLocation,
 		SegmentTargetLocation,
 		SegmentDurationSeconds);
-	SetActorTickEnabled(true);
+	RefreshSwordTickEnabled();
 }
 
 void APRFaerinGodFallStaticSwordActor::FinishDrop()
@@ -412,14 +474,16 @@ void APRFaerinGodFallStaticSwordActor::FinishDrop()
 
 	ApplySwordPresentationLocation(SegmentTargetLocation);
 	MulticastSetSwordPresentationLocation(SegmentTargetLocation);
-	SetActorTickEnabled(false);
 	SetSwordState(EPRFaerinGodFallStaticSwordState::Impact);
 
 	ApplyImpactDamage();
 	const FRotator ImpactRotation = IsValid(GodFallData)
 		? GodFallData->SwordImpactNiagaraRotationOffset
 		: FRotator::ZeroRotator;
-	MulticastGodFallSwordImpact(SegmentTargetLocation, ImpactRotation);
+	UNiagaraSystem* ImpactNiagaraSystem = IsValid(GodFallData) ? GodFallData->SwordImpactNiagaraSystem : nullptr;
+	const FVector ImpactNiagaraScale = IsValid(GodFallData) ? GodFallData->SwordImpactNiagaraScale : FVector::OneVector;
+	const float ImpactNiagaraLifeSeconds = IsValid(GodFallData) ? GodFallData->SwordImpactNiagaraLifeSeconds : 0.0f;
+	MulticastGodFallSwordImpact(SegmentTargetLocation, ImpactRotation, ImpactNiagaraSystem, ImpactNiagaraScale, ImpactNiagaraLifeSeconds);
 
 	const float HoldSeconds = IsValid(GodFallData) ? GodFallData->ImpactHoldSeconds : 0.0f;
 	if (HoldSeconds <= 0.0f)
@@ -443,6 +507,7 @@ void APRFaerinGodFallStaticSwordActor::BeginReturning()
 		return;
 	}
 
+	GetWorldTimerManager().ClearTimer(ImpactWarningTimerHandle);
 	SegmentStartLocation = GetActorLocation();
 	SegmentTargetLocation = HomeLocation;
 	SegmentElapsedSeconds = 0.0f;
@@ -454,7 +519,7 @@ void APRFaerinGodFallStaticSwordActor::BeginReturning()
 		SegmentStartLocation,
 		SegmentTargetLocation,
 		SegmentDurationSeconds);
-	SetActorTickEnabled(true);
+	RefreshSwordTickEnabled();
 }
 
 void APRFaerinGodFallStaticSwordActor::FinishReturning()
@@ -466,7 +531,8 @@ void APRFaerinGodFallStaticSwordActor::FinishReturning()
 
 	ApplySwordPresentationLocation(HomeLocation);
 	MulticastSetSwordPresentationLocation(HomeLocation);
-	SetActorTickEnabled(false);
+	ResetSwordVisualTransform();
+	RefreshSwordTickEnabled();
 	PatternTarget = nullptr;
 	OnAssignedAttackFinished.Broadcast(this);
 }
@@ -581,7 +647,7 @@ void APRFaerinGodFallStaticSwordActor::FinishMoveToTargetOverhead()
 
 	ApplySwordPresentationLocation(AssignedOverheadLocation);
 	MulticastSetSwordPresentationLocation(AssignedOverheadLocation);
-	SetActorTickEnabled(false);
+	RefreshSwordTickEnabled();
 	BeginTelegraph();
 }
 
@@ -601,6 +667,7 @@ void APRFaerinGodFallStaticSwordActor::BeginTelegraph()
 	ApplySwordPresentationLocation(AssignedOverheadLocation);
 	MulticastSetSwordPresentationLocation(AssignedOverheadLocation);
 	SetSwordState(EPRFaerinGodFallStaticSwordState::Telegraph);
+	ScheduleImpactWarning();
 
 	if (AssignedWarningSeconds <= 0.0f)
 	{
@@ -688,11 +755,13 @@ void APRFaerinGodFallStaticSwordActor::ApplySwordPresentationLocation(const FVec
 	SetActorLocation(Location, false, nullptr, ETeleportType::TeleportPhysics);
 }
 
-void APRFaerinGodFallStaticSwordActor::SpawnImpactNiagaraLocal(
-	const FVector& ImpactLocation,
-	const FRotator& ImpactRotation) const
+void APRFaerinGodFallStaticSwordActor::SpawnNiagaraAtLocationLocal(UNiagaraSystem* NiagaraSystem,
+	const FVector& Location,
+	const FRotator& Rotation,
+	const FVector& Scale,
+	const float LifeSeconds) const
 {
-	if (!IsValid(GodFallData) || !IsValid(GodFallData->SwordImpactNiagaraSystem))
+	if (!IsValid(NiagaraSystem))
 	{
 		return;
 	}
@@ -705,18 +774,17 @@ void APRFaerinGodFallStaticSwordActor::SpawnImpactNiagaraLocal(
 
 	UNiagaraComponent* NiagaraComponent = UNiagaraFunctionLibrary::SpawnSystemAtLocation(
 		World,
-		GodFallData->SwordImpactNiagaraSystem,
-		ImpactLocation,
-		ImpactRotation,
-		GodFallData->SwordImpactNiagaraScale,
+		NiagaraSystem,
+		Location,
+		Rotation,
+		Scale,
 		true,
 		true);
-	if (!IsValid(NiagaraComponent) || GodFallData->SwordImpactNiagaraLifeSeconds <= UE_SMALL_NUMBER)
+	if (!IsValid(NiagaraComponent) || LifeSeconds <= UE_SMALL_NUMBER)
 	{
 		return;
 	}
 
-	const float LifeSeconds = GodFallData->SwordImpactNiagaraLifeSeconds;
 	TWeakObjectPtr<UNiagaraComponent> WeakNiagaraComponent = NiagaraComponent;
 	FTimerHandle CleanupTimerHandle;
 	World->GetTimerManager().SetTimer(
@@ -733,11 +801,274 @@ void APRFaerinGodFallStaticSwordActor::SpawnImpactNiagaraLocal(
 		false);
 }
 
+void APRFaerinGodFallStaticSwordActor::CaptureMeshBaselineTransform()
+{
+	if (!IsValid(StaticSwordMeshComponent))
+	{
+		return;
+	}
+
+	MeshBaselineRelativeTransform = StaticSwordMeshComponent->GetRelativeTransform();
+	bMeshBaselineCaptured = true;
+}
+
+void APRFaerinGodFallStaticSwordActor::ResetSwordVisualTransform()
+{
+	if (!IsValid(StaticSwordMeshComponent))
+	{
+		return;
+	}
+
+	if (!bMeshBaselineCaptured)
+	{
+		CaptureMeshBaselineTransform();
+	}
+
+	StaticSwordMeshComponent->SetRelativeTransform(MeshBaselineRelativeTransform);
+}
+
+void APRFaerinGodFallStaticSwordActor::UpdateSwordVisualPresentation(const float DeltaSeconds)
+{
+	if (!IsValid(StaticSwordMeshComponent))
+	{
+		return;
+	}
+
+	if (!bMeshBaselineCaptured)
+	{
+		CaptureMeshBaselineTransform();
+	}
+
+	if (!ShouldTickSwordVisual())
+	{
+		ResetSwordVisualTransform();
+		return;
+	}
+
+	VisualElapsedSeconds += DeltaSeconds;
+	VisualStateElapsedSeconds += DeltaSeconds;
+
+	// 적용 순서: Baseline -> HoverLocationDelta -> ChargeShakeLocation/RotationDelta -> ImpactSlantRotationDelta -> FinalRelativeTransform.
+	FVector FinalLocation = MeshBaselineRelativeTransform.GetLocation();
+	FQuat FinalRotation = MeshBaselineRelativeTransform.GetRotation();
+	const FVector FinalScale = MeshBaselineRelativeTransform.GetScale3D();
+
+	FinalLocation += ResolveHoverLocationDelta();
+
+	FVector ChargeShakeLocationDelta = FVector::ZeroVector;
+	FRotator ChargeShakeRotationDelta = FRotator::ZeroRotator;
+	ResolveChargeShakeDelta(ChargeShakeLocationDelta, ChargeShakeRotationDelta);
+	FinalLocation += ChargeShakeLocationDelta;
+	FinalRotation = FinalRotation * ChargeShakeRotationDelta.Quaternion();
+
+	FinalRotation = FinalRotation * ResolveImpactSlantRotationDelta().Quaternion();
+
+	StaticSwordMeshComponent->SetRelativeTransform(FTransform(FinalRotation, FinalLocation, FinalScale));
+}
+
+bool APRFaerinGodFallStaticSwordActor::ShouldTickSwordVisual() const
+{
+	if (!IsValid(GodFallData) || !IsValid(StaticSwordMeshComponent))
+	{
+		return false;
+	}
+
+	const EPRFaerinGodFallStaticSwordState VisualState = bClientSwordPresentationActive
+		? ClientPresentationState
+		: SwordState;
+
+	const bool bCanHover = GodFallData->bEnableStaticSwordHoverVisual
+		&& (VisualState == EPRFaerinGodFallStaticSwordState::Charging
+			|| VisualState == EPRFaerinGodFallStaticSwordState::Charged
+			|| VisualState == EPRFaerinGodFallStaticSwordState::MovingToTargetOverhead
+			|| VisualState == EPRFaerinGodFallStaticSwordState::Telegraph);
+	const bool bCanChargeShake = GodFallData->bEnableChargeShakeVisual
+		&& VisualState == EPRFaerinGodFallStaticSwordState::Charging;
+	const bool bCanSlant = GodFallData->bEnableImpactVisualSlant
+		&& (VisualState == EPRFaerinGodFallStaticSwordState::Dropping
+			|| VisualState == EPRFaerinGodFallStaticSwordState::Impact);
+
+	return bCanHover || bCanChargeShake || bCanSlant;
+}
+
+bool APRFaerinGodFallStaticSwordActor::ShouldTickSwordMovement() const
+{
+	if (!HasAuthority())
+	{
+		return bClientSwordPresentationActive;
+	}
+
+	return SwordState == EPRFaerinGodFallStaticSwordState::EntryDiving
+		|| SwordState == EPRFaerinGodFallStaticSwordState::EntryDiveReturning
+		|| SwordState == EPRFaerinGodFallStaticSwordState::MovingToTargetOverhead
+		|| SwordState == EPRFaerinGodFallStaticSwordState::Dropping
+		|| SwordState == EPRFaerinGodFallStaticSwordState::Returning;
+}
+
+void APRFaerinGodFallStaticSwordActor::RefreshSwordTickEnabled()
+{
+	SetActorTickEnabled(ShouldTickSwordMovement() || ShouldTickSwordVisual());
+}
+
+FVector APRFaerinGodFallStaticSwordActor::ResolveHoverLocationDelta() const
+{
+	if (!IsValid(GodFallData) || !GodFallData->bEnableStaticSwordHoverVisual)
+	{
+		return FVector::ZeroVector;
+	}
+
+	const EPRFaerinGodFallStaticSwordState VisualState = bClientSwordPresentationActive
+		? ClientPresentationState
+		: SwordState;
+	if (VisualState != EPRFaerinGodFallStaticSwordState::Charging
+		&& VisualState != EPRFaerinGodFallStaticSwordState::Charged
+		&& VisualState != EPRFaerinGodFallStaticSwordState::MovingToTargetOverhead
+		&& VisualState != EPRFaerinGodFallStaticSwordState::Telegraph)
+	{
+		return FVector::ZeroVector;
+	}
+
+	const float Phase = VisualElapsedSeconds * 2.0f * PI * GodFallData->HoverFrequencyHz
+		+ static_cast<float>(SwordIndex) * GodFallData->HoverPhaseOffsetPerSword;
+	return FVector(
+		FMath::Cos(Phase) * GodFallData->HoverLateralAmplitude,
+		FMath::Sin(Phase * 0.67f) * GodFallData->HoverLateralAmplitude,
+		FMath::Sin(Phase) * GodFallData->HoverAmplitudeZ);
+}
+
+void APRFaerinGodFallStaticSwordActor::ResolveChargeShakeDelta(FVector& OutLocationDelta, FRotator& OutRotationDelta) const
+{
+	OutLocationDelta = FVector::ZeroVector;
+	OutRotationDelta = FRotator::ZeroRotator;
+
+	const EPRFaerinGodFallStaticSwordState VisualState = bClientSwordPresentationActive
+		? ClientPresentationState
+		: SwordState;
+	if (!IsValid(GodFallData)
+		|| !GodFallData->bEnableChargeShakeVisual
+		|| VisualState != EPRFaerinGodFallStaticSwordState::Charging)
+	{
+		return;
+	}
+
+	const float RampAlpha = GodFallData->ChargeShakeRampInSeconds > UE_SMALL_NUMBER
+		? FMath::Clamp(VisualStateElapsedSeconds / GodFallData->ChargeShakeRampInSeconds, 0.0f, 1.0f)
+		: 1.0f;
+	const float Phase = VisualElapsedSeconds * 2.0f * PI * GodFallData->ChargeShakeFrequencyHz
+		+ static_cast<float>(SwordIndex) * GodFallData->ChargeShakePhaseOffsetPerSword;
+
+	OutLocationDelta = FVector(
+		FMath::Sin(Phase) * GodFallData->ChargeShakeAmplitudeLocation.X,
+		FMath::Sin(Phase * 1.31f) * GodFallData->ChargeShakeAmplitudeLocation.Y,
+		FMath::Cos(Phase * 0.73f) * GodFallData->ChargeShakeAmplitudeLocation.Z) * RampAlpha;
+	OutRotationDelta = FRotator(
+		FMath::Sin(Phase * 0.89f) * GodFallData->ChargeShakeAmplitudeRotation.Pitch,
+		FMath::Sin(Phase * 1.17f) * GodFallData->ChargeShakeAmplitudeRotation.Yaw,
+		FMath::Cos(Phase * 1.07f) * GodFallData->ChargeShakeAmplitudeRotation.Roll) * RampAlpha;
+}
+
+FRotator APRFaerinGodFallStaticSwordActor::ResolveImpactSlantRotationDelta() const
+{
+	if (!IsValid(GodFallData) || !GodFallData->bEnableImpactVisualSlant)
+	{
+		return FRotator::ZeroRotator;
+	}
+
+	const float Alpha = ResolveImpactSlantAlpha();
+	if (Alpha <= UE_SMALL_NUMBER)
+	{
+		return FRotator::ZeroRotator;
+	}
+
+	const uint32 Seed = GetTypeHash(SourceBoneName) ^ static_cast<uint32>((SwordIndex + 17) * 196613);
+	FRandomStream RandomStream(static_cast<int32>(Seed));
+	const float MinYaw = FMath::Min(GodFallData->ImpactSlantRandomYawMinDegrees, GodFallData->ImpactSlantRandomYawMaxDegrees);
+	const float MaxYaw = FMath::Max(GodFallData->ImpactSlantRandomYawMinDegrees, GodFallData->ImpactSlantRandomYawMaxDegrees);
+	const float RandomYaw = RandomStream.FRandRange(MinYaw, MaxYaw);
+
+	return FRotator(
+		GodFallData->ImpactSlantPitchDegrees * Alpha,
+		RandomYaw * Alpha,
+		GodFallData->ImpactSlantRollDegrees * Alpha);
+}
+
+float APRFaerinGodFallStaticSwordActor::ResolveImpactSlantAlpha() const
+{
+	const EPRFaerinGodFallStaticSwordState VisualState = bClientSwordPresentationActive
+		? ClientPresentationState
+		: SwordState;
+
+	if (VisualState == EPRFaerinGodFallStaticSwordState::Dropping)
+	{
+		const float ElapsedSeconds = bClientSwordPresentationActive ? ClientSegmentElapsedSeconds : SegmentElapsedSeconds;
+		const float DurationSeconds = bClientSwordPresentationActive ? ClientSegmentDurationSeconds : SegmentDurationSeconds;
+		const float DropAlpha = FMath::Clamp(ElapsedSeconds / FMath::Max(DurationSeconds, UE_SMALL_NUMBER), 0.0f, 1.0f);
+		const float StartAlpha = FMath::Clamp(IsValid(GodFallData) ? GodFallData->ImpactSlantBlendInStartAlpha : 0.0f, 0.0f, 1.0f);
+		return DropAlpha <= StartAlpha
+			? 0.0f
+			: FMath::Clamp((DropAlpha - StartAlpha) / FMath::Max(1.0f - StartAlpha, UE_SMALL_NUMBER), 0.0f, 1.0f);
+	}
+
+	if (VisualState == EPRFaerinGodFallStaticSwordState::Impact)
+	{
+		return 1.0f;
+	}
+
+	return 0.0f;
+}
+
+void APRFaerinGodFallStaticSwordActor::ScheduleImpactWarning()
+{
+	if (!HasAuthority()
+		|| bImpactWarningSpawned
+		|| !bHasAssignedAttackLocation
+		|| !IsValid(GodFallData)
+		|| !IsValid(GodFallData->ImpactWarningNiagaraSystem))
+	{
+		return;
+	}
+
+	const float TimeUntilImpact = FMath::Max(AssignedWarningSeconds, 0.0f) + FMath::Max(GodFallData->DropSeconds, 0.0f);
+	const float WarningDelaySeconds = FMath::Max(TimeUntilImpact - FMath::Max(GodFallData->ImpactWarningLeadSeconds, 0.0f), 0.0f);
+	if (WarningDelaySeconds <= UE_SMALL_NUMBER)
+	{
+		SpawnImpactWarning();
+		return;
+	}
+
+	GetWorldTimerManager().SetTimer(
+		ImpactWarningTimerHandle,
+		this,
+		&APRFaerinGodFallStaticSwordActor::SpawnImpactWarning,
+		WarningDelaySeconds,
+		false);
+}
+
+void APRFaerinGodFallStaticSwordActor::SpawnImpactWarning()
+{
+	if (!HasAuthority()
+		|| bImpactWarningSpawned
+		|| !bHasAssignedAttackLocation
+		|| !IsValid(GodFallData)
+		|| !IsValid(GodFallData->ImpactWarningNiagaraSystem))
+	{
+		return;
+	}
+
+	bImpactWarningSpawned = true;
+	MulticastGodFallSwordImpactWarning(
+		AssignedImpactLocation,
+		GodFallData->ImpactWarningNiagaraRotationOffset,
+		GodFallData->ImpactWarningNiagaraSystem,
+		GodFallData->ImpactWarningNiagaraScale,
+		GodFallData->ImpactWarningNiagaraLifeSeconds);
+}
+
 void APRFaerinGodFallStaticSwordActor::UpdateClientSwordPresentation(const float DeltaSeconds)
 {
 	if (!bClientSwordPresentationActive)
 	{
-		SetActorTickEnabled(false);
+		RefreshSwordTickEnabled();
 		return;
 	}
 
@@ -764,7 +1095,7 @@ void APRFaerinGodFallStaticSwordActor::UpdateClientSegmentMovement(const float D
 	{
 		bClientSwordPresentationActive = false;
 		ClientPresentationState = EPRFaerinGodFallStaticSwordState::None;
-		SetActorTickEnabled(false);
+		RefreshSwordTickEnabled();
 	}
 }
 
@@ -815,7 +1146,7 @@ void APRFaerinGodFallStaticSwordActor::StartClientSwordPresentationSegment(
 		return;
 	}
 
-	SetActorTickEnabled(true);
+	RefreshSwordTickEnabled();
 }
 
 void APRFaerinGodFallStaticSwordActor::StartClientSwordTargetOverhead(
@@ -839,7 +1170,7 @@ void APRFaerinGodFallStaticSwordActor::StartClientSwordTargetOverhead(
 		return;
 	}
 
-	SetActorTickEnabled(true);
+	RefreshSwordTickEnabled();
 }
 
 void APRFaerinGodFallStaticSwordActor::SetClientSwordPresentationLocation(const FVector& Location)
@@ -847,7 +1178,7 @@ void APRFaerinGodFallStaticSwordActor::SetClientSwordPresentationLocation(const 
 	SetActorLocation(Location, false, nullptr, ETeleportType::TeleportPhysics);
 	bClientSwordPresentationActive = false;
 	ClientPresentationState = EPRFaerinGodFallStaticSwordState::None;
-	SetActorTickEnabled(false);
+	RefreshSwordTickEnabled();
 }
 
 void APRFaerinGodFallStaticSwordActor::MulticastSetSwordPresentationLocation_Implementation(FVector Location)

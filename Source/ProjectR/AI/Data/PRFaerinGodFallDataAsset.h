@@ -10,6 +10,7 @@
 class APRFaerinGodFallStaticSwordActor;
 class UAnimMontage;
 class UAnimSequenceBase;
+class UCameraShakeBase;
 class UGameplayEffect;
 class UNiagaraSystem;
 
@@ -184,6 +185,84 @@ public:
 	// 0보다 크면 충돌 Niagara를 해당 시간 뒤 강제로 정리한다.
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Faerin|GodFall|VFX|SwordImpact", meta = (ClampMin = "0.0"))
 	float SwordImpactNiagaraLifeSeconds = 2.0f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Faerin|GodFall|VFX|SwordWarning")
+	TObjectPtr<UNiagaraSystem> ImpactWarningNiagaraSystem;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Faerin|GodFall|VFX|SwordWarning", meta = (ClampMin = "0.0"))
+	float ImpactWarningLeadSeconds = 1.5f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Faerin|GodFall|VFX|SwordWarning")
+	FRotator ImpactWarningNiagaraRotationOffset = FRotator::ZeroRotator;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Faerin|GodFall|VFX|SwordWarning")
+	FVector ImpactWarningNiagaraScale = FVector::OneVector;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Faerin|GodFall|VFX|SwordWarning", meta = (ClampMin = "0.0"))
+	float ImpactWarningNiagaraLifeSeconds = 2.0f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Faerin|GodFall|Visual|Hover")
+	bool bEnableStaticSwordHoverVisual = false;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Faerin|GodFall|Visual|Hover", meta = (ClampMin = "0.0"))
+	float HoverAmplitudeZ = 18.0f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Faerin|GodFall|Visual|Hover", meta = (ClampMin = "0.0"))
+	float HoverLateralAmplitude = 6.0f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Faerin|GodFall|Visual|Hover", meta = (ClampMin = "0.0"))
+	float HoverFrequencyHz = 0.35f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Faerin|GodFall|Visual|Hover")
+	float HoverPhaseOffsetPerSword = 0.73f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Faerin|GodFall|Visual|ChargeShake")
+	bool bEnableChargeShakeVisual = false;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Faerin|GodFall|Visual|ChargeShake")
+	FVector ChargeShakeAmplitudeLocation = FVector(4.0f, 4.0f, 8.0f);
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Faerin|GodFall|Visual|ChargeShake")
+	FRotator ChargeShakeAmplitudeRotation = FRotator(1.8f, 1.2f, 1.8f);
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Faerin|GodFall|Visual|ChargeShake", meta = (ClampMin = "0.0"))
+	float ChargeShakeFrequencyHz = 8.0f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Faerin|GodFall|Visual|ChargeShake")
+	float ChargeShakePhaseOffsetPerSword = 1.37f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Faerin|GodFall|Visual|ChargeShake", meta = (ClampMin = "0.0"))
+	float ChargeShakeRampInSeconds = 0.4f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Faerin|GodFall|Visual|ImpactSlant")
+	bool bEnableImpactVisualSlant = false;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Faerin|GodFall|Visual|ImpactSlant")
+	float ImpactSlantPitchDegrees = -18.0f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Faerin|GodFall|Visual|ImpactSlant")
+	float ImpactSlantRollDegrees = 8.0f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Faerin|GodFall|Visual|ImpactSlant")
+	float ImpactSlantRandomYawMinDegrees = -12.0f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Faerin|GodFall|Visual|ImpactSlant")
+	float ImpactSlantRandomYawMaxDegrees = 12.0f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Faerin|GodFall|Visual|ImpactSlant", meta = (ClampMin = "0.0", ClampMax = "1.0"))
+	float ImpactSlantBlendInStartAlpha = 0.0f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Faerin|GodFall|CameraShake")
+	TSubclassOf<UCameraShakeBase> SwordRiseCameraShakeClass;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Faerin|GodFall|CameraShake", meta = (ClampMin = "0.0"))
+	float SwordRiseCameraShakeDelaySeconds = 0.0f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Faerin|GodFall|CameraShake", meta = (ClampMin = "0.0"))
+	float SwordRiseCameraShakeScale = 1.0f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Faerin|GodFall|CameraShake", meta = (ClampMin = "0.0"))
+	float SwordRiseCameraShakeDurationOverride = 0.0f;
 
 	// God Fall 본체 시전 중 보스 몸에 붙여 재생할 Niagara cue 목록이다.
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Faerin|GodFall|VFX|Body")

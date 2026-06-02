@@ -19,6 +19,7 @@ enum class EPRRepMovementEvent : uint8
 	Spawn,       // 최초 스폰 (SimulatedProxy 언히든 + 시뮬 시작)
 	Bounce,      // 바운스 발생 시 위치/속도 스냅
 	Detonation,  // 폭발/착탄 확정
+	Launch		 // 프로젝타일 런치 상태
 };
 
 // 이벤트 드리븐 투사체 이동 동기화 페이로드. 서버가 이벤트 발생 시에만 Push

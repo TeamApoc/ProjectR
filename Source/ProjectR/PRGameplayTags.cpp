@@ -41,9 +41,10 @@ namespace PRGameplayTags
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Ability_Boss_PhaseTransition, "Ability.Boss.PhaseTransition", "보스 페이즈 전환 공통 루트");
 
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Ability_Enemy_Penitent_Pattern, "Ability.Enemy.Penitent.Pattern", "Penitent 패턴 루트");
-	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Ability_Enemy_Penitent_Fireball, "Ability.Enemy.Penitent.Fireball", "Penitent 기본 화염구");
-	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Ability_Enemy_Penitent_BounceVolley, "Ability.Enemy.Penitent.BounceVolley", "Penitent 강패턴");
-	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Ability_Enemy_Penitent_StaffSwipe, "Ability.Enemy.Penitent.StaffSwipe", "Penitent 근접 반격");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Ability_Enemy_Penitent_Projectile, "Ability.Enemy.Penitent.Projectile", "Penitent 기본 투사체");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Ability_Enemy_Penitent_BarrierSummon, "Ability.Enemy.Penitent.BarrierSummon", "Penitent 배리어 소환");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Ability_Enemy_Penitent_BarrierLaunch, "Ability.Enemy.Penitent.BarrierLaunch", "Penitent 배리어 발사");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Ability_Enemy_Penitent_StaffSwing, "Ability.Enemy.Penitent.StaffSwing", "Penitent 근거리 휘두르기");
 
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Ability_Enemy_RoyalArcher_Pattern, "Ability.Enemy.RoyalArcher.Pattern", "RoyalArcher 패턴 루트");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Ability_Enemy_RoyalArcher_WakeFromPerch, "Ability.Enemy.RoyalArcher.WakeFromPerch", "RoyalArcher 전투 시작");
@@ -98,6 +99,8 @@ namespace PRGameplayTags
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(State_PlayerHitReactLocked, "State.PlayerHitReactLocked", "피격 리액션 행동불능 상태");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(State_PhaseTransitioning, "State.PhaseTransitioning", "보스 페이즈 전환 상태");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(State_Boss_WeakpointOpen_Core, "State.Boss.WeakpointOpen.Core", "보스 코어 약점 오픈 상태");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(State_Enemy_Attacking, "State.Enemy.Attacking", "적 공격 실행중 상태");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(State_Enemy_Penitent_BarrierSummon, "State.Enemy.Penitent.BarrierSummon", "Penitent 배리어 보유 상태");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(State_Armed, "State.Armed", "플레이어 무기 장착중 상태");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(State_Block_Move, "State.Block.Move", "움직임 비활성화 상태");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(State_WeaponZooming, "State.WeaponZooming", "움직임 비활성화 상태");

@@ -15,6 +15,10 @@
 #include "PRProjectileManagerComponent.h"
 #include "Net/UnrealNetwork.h"
 #include "Net/Core/PushModel/PushModel.h"
+#include "ProjectR/Combat/PRCombatGameplayTags.h"
+#include "ProjectR/Combat/PRCombatInterface.h"
+#include "ProjectR/Combat/PRCombatStatics.h"
+#include "ProjectR/Combat/PRDestructableInterface.h"
 
 APRProjectileBase::APRProjectileBase()
 {
@@ -83,6 +87,14 @@ void APRProjectileBase::SetProjectileInitialVelocity(const FVector& Direction, f
 	ProjectileMovementComponent->MaxSpeed = FMath::Max(ProjectileMovementComponent->MaxSpeed, ResolvedSpeed);
 	ProjectileMovementComponent->Velocity = SafeDirection * ResolvedSpeed;
 	SetActorRotation(SafeDirection.Rotation());
+}
+
+float APRProjectileBase::GetProjectileInitialSpeed() const
+{
+	// BP 기본 투사체 속도 조회
+	return IsValid(ProjectileMovementComponent)
+		? ProjectileMovementComponent->InitialSpeed
+		: 0.0f;
 }
 
 void APRProjectileBase::ConfigureProjectileHoming(USceneComponent* HomingTargetComponent, float HomingAcceleration)
@@ -396,21 +408,36 @@ void APRProjectileBase::ApplyEffectToTargetWithHit(AActor* TargetActor, const FH
 	}
 	
 	IAbilitySystemInterface* ASI = Cast<IAbilitySystemInterface>(TargetActor);
-	if (!ASI)
+	if (ASI)
 	{
-		return;
-	}
-
-	UAbilitySystemComponent* TargetASC = ASI->GetAbilitySystemComponent();
-	if (!TargetASC)
-	{
-		return;
+		UAbilitySystemComponent* TargetASC = ASI->GetAbilitySystemComponent();
+		FGameplayEffectSpec* EffectSpec = EffectSpecHandle.Data.Get();
+		if (TargetASC && EffectSpec)
+		{
+			EffectSpec->GetContext().AddHitResult(InHitResult,true);
+			TargetASC->ApplyGameplayEffectSpecToSelf(*EffectSpec);	
+		}
 	}
 	
-	if (FGameplayEffectSpec* EffectSpec = EffectSpecHandle.Data.Get())
+	// 2026.05.31 이건주_ ASC 미보유 대상 대미지 적용 브릿지
+	IPRDestructableInterface* DestructableTarget = Cast<IPRDestructableInterface>(TargetActor);
+	if (DestructableTarget)
 	{
-		EffectSpec->GetContext().AddHitResult(InHitResult,true);
-		TargetASC->ApplyGameplayEffectSpecToSelf(*EffectSpec);	
+		// Instigator, DamageAmount만 전달
+		FGameplayEffectSpec* EffectSpec = EffectSpecHandle.Data.Get();
+		const FGameplayEffectContextHandle& EffectContext = EffectSpec->GetEffectContext();
+	
+		const float BaseDamage = EffectSpec->GetSetByCallerMagnitude(
+		PRCombatGameplayTags::SetByCaller_CurrentWeapon_BaseDamage,
+		false,
+		0.0f);
+	
+		// 파괴 가능 대상 전용 컨텍스트
+		FPRDestructableDamageReceiveContext DestructableDamageContext;
+		DestructableDamageContext.Instigator = EffectContext.GetInstigator();
+		DestructableDamageContext.DamageAmount = BaseDamage;
+
+		DestructableTarget->ReceiveDamageContext(DestructableDamageContext);
 	}
 }
 

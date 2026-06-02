@@ -117,7 +117,7 @@ protected:
 	UFUNCTION()
 	void HandleDeath(AActor* InstigatorActor);
 
-	void HandleDeadTagChanged(bool bEntered);
+	virtual void HandleDeadTagChanged(bool bEntered);
 	void HandleGroggyTagChanged(bool bEntered);
 
 	// 전투 이동 프레젠테이션 적용 전 기존 이동 설정을 캐시한다.

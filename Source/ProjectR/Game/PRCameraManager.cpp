@@ -10,8 +10,8 @@ APRCameraManager::APRCameraManager()
 {
 	// 기본 카메라 설정
 	DefaultFOV = 80.0f;
-	ViewPitchMin = -80.0f;
-	ViewPitchMax = 80.0f;
+	ViewPitchMin = -70.0f;
+	ViewPitchMax = 70.0f;
 	bAlwaysApplyModifiers = true;
 }
 

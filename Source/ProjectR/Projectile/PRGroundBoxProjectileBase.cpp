@@ -8,6 +8,7 @@
 #include "Components/SceneComponent.h"
 #include "Components/StaticMeshComponent.h"
 #include "GameplayEffect.h"
+#include "GameFramework/Pawn.h"
 #include "GameFramework/ProjectileMovementComponent.h"
 #include "NiagaraComponent.h"
 #include "Net/Core/PushModel/PushModel.h"
@@ -47,7 +48,8 @@ APRGroundBoxProjectileBase::APRGroundBoxProjectileBase()
 
 	BreakableDetectionBox = CreateDefaultSubobject<UBoxComponent>(TEXT("BreakableDetectionBox"));
 	BreakableDetectionBox->SetupAttachment(Root);
-	BreakableDetectionBox->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
+	BreakableDetectionBox->SetCollisionObjectType(ECollisionChannel::ECC_WorldDynamic);
+	BreakableDetectionBox->SetCollisionEnabled(ECollisionEnabled::NoCollision);
 	BreakableDetectionBox->SetCollisionResponseToAllChannels(ECR_Ignore);
 	BreakableDetectionBox->SetCollisionResponseToChannel(ECC_WorldStatic, ECR_Overlap);
 	BreakableDetectionBox->SetCollisionResponseToChannel(ECC_WorldDynamic, ECR_Overlap);
@@ -207,6 +209,12 @@ void APRGroundBoxProjectileBase::InitGroundBoxProjectile(const FPRGroundBoxLaunc
 	ResetTargetCooldowns();
 	bDamageEnabled = true;
 
+	if (IsValid(BreakableDetectionBox))
+	{
+		// 발사 전 환경 감지 비활성화
+		BreakableDetectionBox->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+	}
+
 	if (UWorld* World = GetWorld())
 	{
 		World->GetTimerManager().ClearTimer(SafetyLifeTimeTimerHandle);
@@ -365,21 +373,53 @@ void APRGroundBoxProjectileBase::OnBreakableDetectionBoxBeginOverlap(UPrimitiveC
 	AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep,
 	const FHitResult& SweepResult)
 {
-	if (!HasAuthority() || !bLaunched || bDestroyRequested)
+	// 공통 필터
+	if (!IsValid(OtherActor) || OtherActor == this || OtherActor == GetInstigator() || bDestroyRequested)
 	{
 		return;
 	}
 
+	// 플레이어/AI 같은 Pawn 제외
+	if (Cast<APawn>(OtherActor))
+	{
+		return;
+	}
+
+	// 발사 중 충돌만 처리
+	if (!bLaunched)
+	{
+		return;
+	}
+
+	// 초기 겹침 제외
 	if (!bFromSweep)
 	{
-		// 초기 겹침 오인 방지
 		return;
 	}
 
-	if (IsBlockingWallHit(SweepResult))
+	// 벽성 환경 충돌만 처리
+	if (!IsBlockingWallHit(SweepResult))
 	{
-		// 최소 구현의 환경 충돌 결과
-		RequestGroundBoxEnd();
+		return;
+	}
+
+	// 서버 파괴 처리
+	if (HasAuthority())
+	{
+		DestroyGroundBox();
+		return;
+	}
+
+	// 클라이언트 즉시 숨김
+	SetActorHiddenInGame(true);
+	SetActorEnableCollision(false);
+	SetActorTickEnabled(false);
+
+	if (IsValid(MovementComponent))
+	{
+		// 클라이언트 이동 정지
+		MovementComponent->StopMovementImmediately();
+		MovementComponent->Deactivate();
 	}
 }
 
@@ -645,6 +685,12 @@ void APRGroundBoxProjectileBase::ApplyLaunchMovement(const FVector& LaunchDirect
 	bDamageEnabled = true;
 	SetActorTickEnabled(true);
 	SetActorRotation(SafeDirection.Rotation());
+
+	if (IsValid(BreakableDetectionBox))
+	{
+		// 발사 중 환경 감지 활성화
+		BreakableDetectionBox->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
+	}
 
 	if (IsValid(MovementComponent))
 	{

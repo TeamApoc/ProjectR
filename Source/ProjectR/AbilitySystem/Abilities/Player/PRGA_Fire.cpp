@@ -143,7 +143,18 @@ void UPRGA_Fire::OnFailActivateAbility(const UAbilitySystemComponent* InOwnerASC
                                        const FGameplayAbilitySpec* InAbilitySpec) const
 {
 	Super::OnFailActivateAbility(InOwnerASC, InAbilitySpec);
-	
+
+	if (!IsValid(InOwnerASC) || InAbilitySpec == nullptr)
+	{
+		return;
+	}
+
+	const FGameplayAbilityActorInfo* ActorInfo = InOwnerASC->AbilityActorInfo.Get();
+	if (ActorInfo == nullptr || CheckCost(InAbilitySpec->Handle, ActorInfo))
+	{
+		return;
+	}
+
 	OnOutOfAmmo(InOwnerASC);
 }
 

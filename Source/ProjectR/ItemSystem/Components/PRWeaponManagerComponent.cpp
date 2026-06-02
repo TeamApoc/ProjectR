@@ -175,7 +175,7 @@ FPRWeaponManagerSaveData UPRWeaponManagerComponent::MakeSaveData() const
 	SaveData.PrimaryWeaponIndex = Inventory->GetItemIndexByType(PrimaryWeaponInstance, EPRItemType::Weapon);
 	SaveData.SecondaryWeaponIndex = Inventory->GetItemIndexByType(SecondaryWeaponInstance, EPRItemType::Weapon);
 	SaveData.CurrentWeaponSlot = CurrentWeaponSlot;
-	SaveData.ArmedState = ArmedState;
+	
 	const UPRAbilitySystemComponent* SaveASC = CachedASC.IsValid()
 		? CachedASC.Get()
 		: PlayerState->GetPRAbilitySystemComponent();
@@ -236,7 +236,7 @@ void UPRWeaponManagerComponent::ApplySaveData(const FPRWeaponManagerSaveData& In
 	{
 		SetCurrentWeaponSlotInternal(InSaveData.CurrentWeaponSlot);
 	}
-	SetWeaponArmedStateInternal(InSaveData.ArmedState);
+	
 	if (IsValid(RestoredPrimaryItem))
 	{
 		// 주무기 현재 자원 복원

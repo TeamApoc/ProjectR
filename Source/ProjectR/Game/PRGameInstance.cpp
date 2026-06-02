@@ -3,6 +3,8 @@
 #include "PRGameInstance.h"
 #include "PRSessionSubsystem.h"
 #include "PRSaveGame.h"
+#include "Engine/Engine.h"
+#include "GameFramework/GameUserSettings.h"
 #include "Kismet/GameplayStatics.h"
 
 namespace
@@ -17,6 +19,9 @@ namespace
 void UPRGameInstance::Init()
 {
 	Super::Init();
+
+	// 프로젝트 기본 그래픽 품질 프로필 적용
+	ApplyGraphicsQualityProfile(DefaultGraphicsQualityProfile, false);
 
 	// 저장 파일 부재 시 기본 1번 슬롯 생성
 	EnsureInitialLocalCharacterSave();
@@ -62,15 +67,42 @@ void UPRGameInstance::LeaveSession()
 	Session->EndSession();
 }
 
-void UPRGameInstance::ServerTravelToMap(TSoftObjectPtr<UWorld> MapAsset, bool bAbsolute)
+bool UPRGameInstance::ApplyGraphicsQualityProfile(EPRGraphicsQualityProfile QualityProfile, bool bSaveSettings)
+{
+	if (!GEngine)
+	{
+		return false;
+	}
+
+	UGameUserSettings* GameUserSettings = GEngine->GetGameUserSettings();
+	if (!IsValid(GameUserSettings))
+	{
+		return false;
+	}
+
+	// EPRGraphicsQualityProfile 값은 UE Scalability 전체 품질 인덱스와 동일한 순서
+	const int32 ScalabilityLevel = static_cast<int32>(QualityProfile);
+	GameUserSettings->SetOverallScalabilityLevel(ScalabilityLevel);
+	GameUserSettings->ApplySettings(false);
+
+	if (bSaveSettings)
+	{
+		// 사용자가 명시적으로 선택한 품질 프로필의 영구 저장
+		GameUserSettings->SaveSettings();
+	}
+
+	return true;
+}
+
+bool UPRGameInstance::ServerTravelToMap(TSoftObjectPtr<UWorld> MapAsset, bool bAbsolute)
 {
 	UPRSessionSubsystem* Session = GetSubsystem<UPRSessionSubsystem>();
 	if (!IsValid(Session))
 	{
-		return;
+		return false;
 	}
 
-	Session->ServerTravelToMap(MapAsset, bAbsolute);
+	return Session->ServerTravelToMap(MapAsset, bAbsolute);
 }
 
 // ===== 맵 이동 SpawnPoint 컨텍스트 =====

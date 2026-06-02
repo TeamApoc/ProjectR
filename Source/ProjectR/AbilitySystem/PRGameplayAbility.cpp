@@ -228,3 +228,8 @@ void UPRGameplayAbility::ApplySourceModCost() const
 		SourceMod->ApplyModCost(GetCurrentActorInfo());
 	}
 }
+
+void UPRGameplayAbility::OnFailActivateAbility(const UAbilitySystemComponent* InOwnerASC,
+	const FGameplayAbilitySpec* InAbilitySpec) const
+{
+}

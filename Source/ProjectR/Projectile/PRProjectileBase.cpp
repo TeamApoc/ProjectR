@@ -165,6 +165,8 @@ void APRProjectileBase::OnRep_RepMovement()
 	case EPRRepMovementEvent::Detonation:
 		HandleRepCorrection();
 		break;
+	default:
+		break;
 	}
 }
 
@@ -505,7 +507,7 @@ void APRProjectileBase::OnSphereHit(UPrimitiveComponent* HitComponent, AActor* O
 			// 예측 투사체가 먼저 Hit에 성공한 경우
 			if (LinkedCounterpart.IsValid())
 			{
-				LinkedCounterpart->SetActorHiddenInGame(false);
+				//LinkedCounterpart->SetActorHiddenInGame(false);
 				Destroy();
 			}
 		}
@@ -526,7 +528,6 @@ void APRProjectileBase::OnSphereHit(UPrimitiveComponent* HitComponent, AActor* O
 			}
 		}
 		
-		// Replicate된 투사체인 경우
 		if (HasAuthority())
 		{
 			if (!HitActors.Contains(OtherActor))
@@ -540,6 +541,7 @@ void APRProjectileBase::OnSphereHit(UPrimitiveComponent* HitComponent, AActor* O
 				DestroyProjectile();	
 			}
 		}
+		// Replicate된 투사체인 경우
 		else
 		{
 			SetActorHiddenInGame(true);

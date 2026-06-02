@@ -398,7 +398,16 @@ void UPRAbilitySystemComponent::ProcessAbilityInput(float /*DeltaTime*/, bool /*
 
 	for (const FGameplayAbilitySpecHandle& SpecHandle : AbilitiesToActivate)
 	{
-		TryActivateAbility(SpecHandle);
+		// TryActivateAbility
+		if (!TryActivateAbility(SpecHandle))
+		{
+			// 실패시 이벤트 훅 호출
+			if (FGameplayAbilitySpec* Spec = FindAbilitySpecFromHandle(SpecHandle))
+			{
+				const UPRGameplayAbility* CDO = Cast<UPRGameplayAbility>(Spec->Ability);
+				CDO->OnFailActivateAbility(this,Spec);
+			}
+		}
 	}
 
 	// Released

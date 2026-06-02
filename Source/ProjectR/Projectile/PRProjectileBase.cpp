@@ -305,6 +305,7 @@ void APRProjectileBase::BeginPlay()
 			{
 				ProjectileMovementComponent->Deactivate();
 			}
+			SetLifeSpan(0.3f);
 		}
 		return;
 	}
@@ -538,8 +539,16 @@ void APRProjectileBase::OnSphereHit(UPrimitiveComponent* HitComponent, AActor* O
 			{
 				DestroyProjectile();	
 			}
-			// TODO: 권위 투사체의 첫 복제 전 바로 파괴되어 버린 경우 Remote의 파괴 이펙트 보장 필요
 		}
+		else
+		{
+			SetActorHiddenInGame(true);
+			SetActorEnableCollision(false);
+			ProjectileMovementComponent->SetComponentTickEnabled(false);
+		}
+		
+		
+		// TODO: 권위 투사체의 첫 복제 전 바로 파괴되어 버린 경우 Remote의 파괴 이펙트 보장 필요
 	}
 }
 

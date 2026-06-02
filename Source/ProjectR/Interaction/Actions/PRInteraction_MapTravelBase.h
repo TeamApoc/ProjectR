@@ -87,4 +87,7 @@ private:
 	FTimerHandle TravelCheckTimerHandle;
 	FTimerHandle TravelDelayTimerHandle;
 	FTimerHandle TravelMessageTimerHandle;
+
+	// 맵 이동 예약 이후 중복 ServerTravel 요청을 막기 위한 진행 상태
+	bool bTravelInProgress = false;
 };

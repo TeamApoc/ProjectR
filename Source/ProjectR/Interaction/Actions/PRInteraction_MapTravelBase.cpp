@@ -24,6 +24,11 @@ void UPRInteraction_MapTravelBase::Execute_Implementation(AActor* Interactor)
 {
 	Super::Execute_Implementation(Interactor);
 
+	if (bTravelInProgress)
+	{
+		return;
+	}
+
 	AActor* OwnerActor = GetOwner();
 	if (!IsValid(OwnerActor) || !OwnerActor->HasAuthority())
 	{
@@ -62,6 +67,11 @@ void UPRInteraction_MapTravelBase::Execute_Implementation(AActor* Interactor)
 void UPRInteraction_MapTravelBase::EndInteraction_Implementation(AActor* Interactor, bool bCanceled)
 {
 	Super::EndInteraction_Implementation(Interactor, bCanceled);
+
+	if (bTravelInProgress)
+	{
+		return;
+	}
 	
 	if (UWorld* World = GetWorld())
 	{
@@ -123,16 +133,24 @@ FGameplayTag UPRInteraction_MapTravelBase::ResolveTargetSpawnPointId() const
 
 void UPRInteraction_MapTravelBase::StartTravel(TSoftObjectPtr<UWorld> MapToTravel)
 {
-	if (MapToTravel.IsNull())
+	UWorld* World = GetWorld();
+	if (bTravelInProgress || MapToTravel.IsNull() || !IsValid(World))
+	{
+		return;
+	}
+
+	if (World->GetTimerManager().IsTimerActive(TravelDelayTimerHandle))
 	{
 		return;
 	}
 	
 	constexpr float TravelDelay = 1.5f;
+	bTravelInProgress = true;
+	World->GetTimerManager().ClearTimer(TravelCheckTimerHandle);
 	ClearTravelWaitingMessages();
 		
 	// 클라이언트 페이드아웃
-	if (APRGameStateBase* GameState = GetWorld()->GetGameState<APRGameStateBase>())
+	if (APRGameStateBase* GameState = World->GetGameState<APRGameStateBase>())
 	{
 		for (APlayerState* PlayerState : GameState->PlayerArray)
 		{
@@ -158,25 +176,54 @@ void UPRInteraction_MapTravelBase::StartTravel(TSoftObjectPtr<UWorld> MapToTrave
 	}
 		
 	// ServerTravel 시작 예약
-	GetWorld()->GetTimerManager().SetTimer(TravelDelayTimerHandle, FTimerDelegate::CreateWeakLambda(this, [this, MapToTravel]()
+	World->GetTimerManager().SetTimer(TravelDelayTimerHandle, FTimerDelegate::CreateWeakLambda(this, [this, MapToTravel]()
 	{
-		if (UPRGameInstance* GameInstance = GetWorld()->GetGameInstance<UPRGameInstance>())
+		UWorld* TimerWorld = GetWorld();
+		if (!IsValid(TimerWorld))
 		{
-			if (const APRGameStateBase* GameState = GetWorld()->GetGameState<APRGameStateBase>())
+			bTravelInProgress = false;
+			return;
+		}
+
+		if (UPRGameInstance* GameInstance = TimerWorld->GetGameInstance<UPRGameInstance>())
+		{
+			FPRWorldSaveData PendingWorldSaveData;
+			bool bHasPendingWorldSaveData = false;
+			if (const APRGameStateBase* GameState = TimerWorld->GetGameState<APRGameStateBase>())
 			{
-				// 월드 진행 상태 예약
-				GameInstance->SetPendingWorldSaveData(GameState->MakeWorldSaveData());
+				// ServerTravel 성공 이후 기록할 월드 진행 상태 생성
+				PendingWorldSaveData = GameState->MakeWorldSaveData();
+				bHasPendingWorldSaveData = true;
 			}
 
-			// 목적지 SpawnPoint 예약
+			if (!GameInstance->ServerTravelToMap(MapToTravel, false))
+			{
+				bTravelInProgress = false;
+				return;
+			}
+
+			if (bHasPendingWorldSaveData)
+			{
+				// ServerTravel 성공 이후 월드 진행 상태 예약
+				GameInstance->SetPendingWorldSaveData(PendingWorldSaveData);
+			}
+
+			// ServerTravel 성공 이후 목적지 SpawnPoint 예약
 			GameInstance->SetPendingTravelSpawnPointId(ResolveTargetSpawnPointId());
-			GameInstance->ServerTravelToMap(MapToTravel, false);
-		}	
+			return;
+		}
+
+		bTravelInProgress = false;
 	}), TravelDelay, false);
 }
 
 void UPRInteraction_MapTravelBase::CheckTravelCondition()
 {
+	if (bTravelInProgress)
+	{
+		return;
+	}
+
 	AActor* OwnerActor = GetOwner();
 	if (!IsValid(OwnerActor) || !OwnerActor->HasAuthority())
 	{

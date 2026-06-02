@@ -3,12 +3,23 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Engine/EngineTypes.h"
+#include "NiagaraComponentPoolMethodEnum.h"
 #include "PRFXTypes.h"
 #include "StructUtils/InstancedStruct.h"
 #include "UObject/Object.h"
 #include "PRFXCue.generated.h"
 
 DECLARE_LOG_CATEGORY_EXTERN(LogPRFX, Log, All);
+
+class UAudioComponent;
+class UNiagaraComponent;
+class UNiagaraSystem;
+class APawn;
+class UInitialActiveSoundParams;
+class USoundAttenuation;
+class USoundBase;
+class USoundConcurrency;
 
 // 모든 FX Cue의 공통 타입 소거 진입점
 UCLASS(Abstract, Blueprintable, EditInlineNew)
@@ -25,6 +36,115 @@ public:
 
 	// Cue UObject의 재사용 또는 생성 기준 반환
 	EPRFXCueInstancingPolicy GetInstancingPolicy() const;
+
+	// Cue 문맥 기준 World에 Actor 생성
+	UFUNCTION(BlueprintCallable, Category = "ProjectR|FX|Cue", meta = (DeterminesOutputType = "ActorClass"))
+	AActor* SpawnActor(
+		const FPRFXCueContext& Context,
+		TSubclassOf<AActor> ActorClass,
+		const FTransform& SpawnTransform,
+		ESpawnActorCollisionHandlingMethod SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::Undefined,
+		AActor* Owner = nullptr,
+		APawn* Instigator = nullptr);
+
+	// Cue 문맥 기준 World 위치에 Niagara 생성
+	UFUNCTION(BlueprintCallable, Category = "ProjectR|FX|Cue")
+	UNiagaraComponent* SpawnNiagaraAtLocation(
+		const FPRFXCueContext& Context,
+		UNiagaraSystem* SystemTemplate,
+		FVector Location,
+		FRotator Rotation = FRotator::ZeroRotator,
+		FVector Scale = FVector(1.0f),
+		bool bAutoDestroy = true,
+		bool bAutoActivate = true,
+		ENCPoolMethod PoolingMethod = ENCPoolMethod::None,
+		bool bPreCullCheck = true);
+
+	// Cue 문맥 기준 World에서 SceneComponent에 Niagara 부착 생성
+	UFUNCTION(BlueprintCallable, Category = "ProjectR|FX|Cue")
+	UNiagaraComponent* SpawnNiagaraAttached(
+		const FPRFXCueContext& Context,
+		UNiagaraSystem* SystemTemplate,
+		USceneComponent* AttachToComponent,
+		FName AttachPointName = NAME_None,
+		FVector Location = FVector::ZeroVector,
+		FRotator Rotation = FRotator::ZeroRotator,
+		EAttachLocation::Type LocationType = EAttachLocation::KeepRelativeOffset,
+		bool bAutoDestroy = true,
+		bool bAutoActivate = true,
+		ENCPoolMethod PoolingMethod = ENCPoolMethod::None,
+		bool bPreCullCheck = true);
+
+	// Cue 문맥 기준 World 위치에 사운드 재생
+	UFUNCTION(BlueprintCallable, Category = "ProjectR|FX|Cue")
+	void PlaySoundAtLocation(
+		const FPRFXCueContext& Context,
+		USoundBase* Sound,
+		FVector Location,
+		FRotator Rotation = FRotator::ZeroRotator,
+		float VolumeMultiplier = 1.0f,
+		float PitchMultiplier = 1.0f,
+		float StartTime = 0.0f,
+		USoundAttenuation* AttenuationSettings = nullptr,
+		USoundConcurrency* ConcurrencySettings = nullptr,
+		const AActor* OwningActor = nullptr,
+		const UInitialActiveSoundParams* InitialParams = nullptr);
+
+	// Cue 문맥 기준 World 위치에 사운드 컴포넌트 생성
+	UFUNCTION(BlueprintCallable, Category = "ProjectR|FX|Cue")
+	UAudioComponent* SpawnSoundAtLocation(
+		const FPRFXCueContext& Context,
+		USoundBase* Sound,
+		FVector Location,
+		FRotator Rotation = FRotator::ZeroRotator,
+		float VolumeMultiplier = 1.0f,
+		float PitchMultiplier = 1.0f,
+		float StartTime = 0.0f,
+		USoundAttenuation* AttenuationSettings = nullptr,
+		USoundConcurrency* ConcurrencySettings = nullptr,
+		bool bAutoDestroy = true);
+
+	// Cue 문맥 기준 SceneComponent에 사운드 컴포넌트 부착 생성
+	UFUNCTION(BlueprintCallable, Category = "ProjectR|FX|Cue")
+	UAudioComponent* SpawnSoundAttached(
+		const FPRFXCueContext& Context,
+		USoundBase* Sound,
+		USceneComponent* AttachToComponent,
+		FName AttachPointName = NAME_None,
+		FVector Location = FVector(ForceInit),
+		FRotator Rotation = FRotator::ZeroRotator,
+		EAttachLocation::Type LocationType = EAttachLocation::KeepRelativeOffset,
+		bool bStopWhenAttachedToDestroyed = false,
+		float VolumeMultiplier = 1.0f,
+		float PitchMultiplier = 1.0f,
+		float StartTime = 0.0f,
+		USoundAttenuation* AttenuationSettings = nullptr,
+		USoundConcurrency* ConcurrencySettings = nullptr,
+		bool bAutoDestroy = true);
+
+	// Cue 문맥 기준 World에 2D 사운드 재생
+	UFUNCTION(BlueprintCallable, Category = "ProjectR|FX|Cue")
+	void PlaySound2D(
+		const FPRFXCueContext& Context,
+		USoundBase* Sound,
+		float VolumeMultiplier = 1.0f,
+		float PitchMultiplier = 1.0f,
+		float StartTime = 0.0f,
+		USoundConcurrency* ConcurrencySettings = nullptr,
+		const AActor* OwningActor = nullptr,
+		bool bIsUISound = true);
+
+	// Cue 문맥 기준 World에 2D 사운드 컴포넌트 생성
+	UFUNCTION(BlueprintCallable, Category = "ProjectR|FX|Cue")
+	UAudioComponent* SpawnSound2D(
+		const FPRFXCueContext& Context,
+		USoundBase* Sound,
+		float VolumeMultiplier = 1.0f,
+		float PitchMultiplier = 1.0f,
+		float StartTime = 0.0f,
+		USoundConcurrency* ConcurrencySettings = nullptr,
+		bool bPersistAcrossLevelTransition = false,
+		bool bAutoDestroy = true);
 
 public:
 	// Cue UObject의 재사용 또는 생성 기준

@@ -77,10 +77,13 @@ protected:
 	// 서버가 샷을 확정 처리. 데미지 적용 (현재는 로그만)
 	virtual void ServerConfirmShot(const FPRFireShotPayload& Payload);
 
-	// 데미지 적용. Payload의 HitResult를 바탕으로 GE를 생성해 타겟 ASC에 적용한다
+	// Payload의 HitResult 기반 데미지 GameplayEffect 적용
 	virtual void ApplyDamageFromShot(const FPRFireShotPayload& Payload);
+
+	// 히트스캔 발사 결과를 Trail FX Payload로 변환해 예측 재생과 서버 전파 요청
+	void PlayTrailFX(const FVector& StartLocation, const FVector& EndLocation, bool bBlockingHit);
 	
-	// 지정한 무기 몽타주를 현재 어빌리티 컨텍스트에서 재생한다
+	// 현재 어빌리티 컨텍스트에서 지정 무기 몽타주 재생
 	void PlayWeaponMontage(UAnimMontage* Montage, float PlayRate);
 
 	// 플레이어 무기 데미지 GE를 타겟에 적용한다. HitResult를 EffectContext에 포함시킨다
@@ -119,6 +122,10 @@ protected:
 	
 	UPROPERTY(EditDefaultsOnly, Category = "ProjectR|Fire")
 	TEnumAsByte<ECollisionChannel> CameraTraceChannel = ECC_Visibility;
+
+	// 발사 시점에 재생할 Trail FX Cue 태그
+	UPROPERTY(EditDefaultsOnly, Category = "ProjectR|FX")
+	FGameplayTag TrailCueTag;
 
 	// 카메라 트레이스(1차, 시안색) 디버그 표시 여부
 	UPROPERTY(EditDefaultsOnly, Category = "ProjectR|Fire|Debug")

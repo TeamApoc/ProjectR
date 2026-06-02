@@ -10,6 +10,8 @@
 #include "ProjectR/Combat/PRCombatGameplayTags.h"
 #include "ProjectR/AbilitySystem/Data/PRAbilitySystemRegistry.h"
 #include "ProjectR/AbilitySystem/Tasks/PRAT_SpawnPredictedProjectile.h"
+#include "ProjectR/FX/PRFXTags.h"
+#include "ProjectR/FX/PRFXTypes.h"
 #include "ProjectR/PRGameplayTags.h"
 #include "ProjectR/Character/PRPlayerCharacter.h"
 #include "ProjectR/Combat/PRCombatInterface.h"
@@ -38,6 +40,9 @@ UPRGA_Fire::UPRGA_Fire()
 
 	// GetCooldownTags가 반환할 컨테이너 1회 초기화
 	CooldownTagsContainer.AddTag(PRGameplayTags::Cooldown_Ability_Fire);
+
+	// 기본 테스트 Trail Cue 태그 지정
+	TrailCueTag = PRFXTags::FX_Weapon_Trail;
 }
 
 void UPRGA_Fire::ActivateAbility(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo,
@@ -299,6 +304,10 @@ void UPRGA_Fire::FireHitScan()
 
 	// 2차: 총구에서 조준점으로 실제 발사 트레이스
 	const FHitResult Hit = PerformMuzzleTrace(MuzzleLoc, AimPoint);
+	const FVector TrailEndLocation = Hit.bBlockingHit ? Hit.ImpactPoint : AimPoint;
+	
+	// Tail 재생
+	PlayTrailFX(MuzzleLoc, TrailEndLocation, Hit.bBlockingHit);
 
 	if (Hit.GetActor() != nullptr)
 	{
@@ -331,7 +340,6 @@ void UPRGA_Fire::FireHitScan()
 		}
 	}
 	
-
 	// 권위가 있는 로컬(Standalone/ListenServer 호스트)은 RPC 없이 직접 확정
 	if (bHasAuthority)
 	{
@@ -482,6 +490,33 @@ void UPRGA_Fire::ApplyDamageFromShot(const FPRFireShotPayload& Payload)
 	}
 
 	ApplyDamage(HitActor, Payload.ClientHitResult.Get());
+}
+
+void UPRGA_Fire::PlayTrailFX(const FVector& StartLocation, const FVector& EndLocation, bool bBlockingHit)
+{
+	if (!TrailCueTag.IsValid())
+	{
+		return;
+	}
+
+	FPRFXTrailPayload TrailPayload;
+	// Cue의 현재 무기 Actor 검증용 발사 문맥
+	TrailPayload.SourceActor = GetAvatarActorFromActorInfo();
+	TrailPayload.WeaponData = GetActiveWeaponData(GetCurrentActorInfo());
+	TrailPayload.StartLocation = StartLocation;
+	TrailPayload.AddTrailEnd(EndLocation);
+	TrailPayload.bBlockingHit = bBlockingHit;
+
+	// Trail Cue가 Niagara 파라미터나 회전 계산에 사용할 발사 방향 산출
+	TrailPayload.Direction = (EndLocation - StartLocation).GetSafeNormal();
+	if (TrailPayload.Direction.IsNearlyZero())
+	{
+		TrailPayload.Direction = FVector::ForwardVector;
+	}
+
+	// 구체 Payload를 FInstancedStruct에 담아 GameplayStatics의 FX 헬퍼로 전달
+	const FInstancedStruct PayloadStruct = FInstancedStruct::Make(TrailPayload);
+	UPRGameplayStatics::PlayPredictiveNetworkFX(this, GetAvatarActorFromActorInfo(), TrailCueTag, PayloadStruct);
 }
 
 void UPRGA_Fire::ApplyDamage(AActor* TargetActor, const FHitResult* HitResult)

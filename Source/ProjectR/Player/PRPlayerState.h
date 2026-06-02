@@ -10,6 +10,7 @@
 #include "ProjectR/ItemSystem/Types/PRWeaponTypes.h"
 #include "PRPlayerState.generated.h"
 
+class UPRFXNetworkComponent;
 struct FPRInventoryChangeEventData;
 enum class EPRInventoryChangeReason : uint8;
 class UPRAbilitySystemComponent;

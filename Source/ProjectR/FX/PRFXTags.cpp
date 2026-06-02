@@ -1,0 +1,8 @@
+// Copyright ProjectR. All Rights Reserved.
+
+#include "PRFXTags.h"
+
+namespace PRFXTags
+{
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(FX_Weapon_Trail, "FX.Weapon.Trail", "무기 발사 Trail 테스트 Cue 태그");
+}

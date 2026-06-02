@@ -35,9 +35,13 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "ProjectR|Session")
 	void LeaveSession();
 
+	// 전체 Scalability 그룹에 그래픽 품질 프로필 적용
+	UFUNCTION(BlueprintCallable, Category = "ProjectR|Settings")
+	bool ApplyGraphicsQualityProfile(EPRGraphicsQualityProfile QualityProfile, bool bSaveSettings = false);
+
 	// 소프트 참조된 맵으로 ServerTravel 진입. 호스트 권위에서만 동작
 	UFUNCTION(BlueprintCallable, Category = "ProjectR|Session")
-	void ServerTravelToMap(TSoftObjectPtr<UWorld> MapAsset, bool bAbsolute = false);
+	bool ServerTravelToMap(TSoftObjectPtr<UWorld> MapAsset, bool bAbsolute = false);
 
 	// 다음 맵 진입 시 사용할 SpawnPoint 태그를 저장
 	void SetPendingTravelSpawnPointId(FGameplayTag SpawnPointId);
@@ -124,6 +128,10 @@ private:
 	bool IsDefaultLocalCharacterSaveData(const FPRCharacterSaveData& SaveData) const;
 
 protected:
+	// 게임 시작 시 기본으로 적용할 그래픽 품질 프로필
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "ProjectR|Settings")
+	EPRGraphicsQualityProfile DefaultGraphicsQualityProfile = EPRGraphicsQualityProfile::High;
+
 	// 현재 플레이어가 들고 다니는 캐릭터 스펙. Join 시 이 데이터가 호스트로 전송됨
 	UPROPERTY(VisibleInstanceOnly, Category = "ProjectR|Save")
 	FPRCharacterSaveData LocalCharacterSave;

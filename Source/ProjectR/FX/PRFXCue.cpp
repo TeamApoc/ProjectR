@@ -3,12 +3,20 @@
 #include "PRFXCue.h"
 
 #include "PRFXSubsystem.h"
+#include "Components/AudioComponent.h"
 #include "Engine/World.h"
+#include "Kismet/GameplayStatics.h"
+#include "NiagaraComponent.h"
+#include "NiagaraFunctionLibrary.h"
+#include "NiagaraSystem.h"
 #include "ProjectR/ItemSystem/Actors/PRWeaponActor.h"
 #include "ProjectR/ItemSystem/Components/PRWeaponManagerComponent.h"
 #include "ProjectR/ItemSystem/Data/PRWeaponDataAsset.h"
 #include "ProjectR/ItemSystem/Types/PRWeaponTypes.h"
 #include "ProjectR/Utils/PRGameplayStatics.h"
+#include "Sound/SoundAttenuation.h"
+#include "Sound/SoundBase.h"
+#include "Sound/SoundConcurrency.h"
 
 DEFINE_LOG_CATEGORY(LogPRFX);
 
@@ -45,6 +53,26 @@ namespace PRFXCuePrivate
 
 		return nullptr;
 	}
+
+	UWorld* ResolveCueWorld(const UObject* CueObject, const FPRFXCueContext& Context)
+	{
+		if (IsValid(Context.WorldContext))
+		{
+			return Context.WorldContext->GetWorld();
+		}
+		
+		UWorld* World = IsValid(CueObject) ? CueObject->GetWorld() : nullptr;
+		if (IsValid(World))
+		{
+			return World;
+		}
+
+		UE_LOG(LogPRFX, Warning,
+			TEXT("FX Cue World 조회 실패. Cue=%s, FXTag=%s"),
+			*GetNameSafe(CueObject),
+			*Context.FXTag.ToString());
+		return nullptr;
+	}
 }
 
 /*~ UPRFXCue ~*/
@@ -66,6 +94,243 @@ const UScriptStruct* UPRFXCue::GetExpectedPayloadType() const
 EPRFXCueInstancingPolicy UPRFXCue::GetInstancingPolicy() const
 {
 	return InstancingPolicy;
+}
+
+AActor* UPRFXCue::SpawnActor(
+	const FPRFXCueContext& Context,
+	TSubclassOf<AActor> ActorClass,
+	const FTransform& SpawnTransform,
+	ESpawnActorCollisionHandlingMethod SpawnCollisionHandlingOverride,
+	AActor* Owner,
+	APawn* Instigator)
+{
+	UWorld* World = PRFXCuePrivate::ResolveCueWorld(this, Context);
+	if (!IsValid(World) || !IsValid(ActorClass))
+	{
+		return nullptr;
+	}
+
+	FActorSpawnParameters SpawnParameters;
+	SpawnParameters.Owner = Owner;
+	SpawnParameters.Instigator = Instigator;
+	SpawnParameters.SpawnCollisionHandlingOverride = SpawnCollisionHandlingOverride;
+
+	return World->SpawnActor<AActor>(ActorClass, SpawnTransform, SpawnParameters);
+}
+
+UNiagaraComponent* UPRFXCue::SpawnNiagaraAtLocation(
+	const FPRFXCueContext& Context,
+	UNiagaraSystem* SystemTemplate,
+	FVector Location,
+	FRotator Rotation,
+	FVector Scale,
+	bool bAutoDestroy,
+	bool bAutoActivate,
+	ENCPoolMethod PoolingMethod,
+	bool bPreCullCheck)
+{
+	UWorld* World = PRFXCuePrivate::ResolveCueWorld(this, Context);
+	if (!IsValid(World) || !IsValid(SystemTemplate))
+	{
+		return nullptr;
+	}
+
+	return UNiagaraFunctionLibrary::SpawnSystemAtLocation(
+		World,
+		SystemTemplate,
+		Location,
+		Rotation,
+		Scale,
+		bAutoDestroy,
+		bAutoActivate,
+		PoolingMethod,
+		bPreCullCheck);
+}
+
+UNiagaraComponent* UPRFXCue::SpawnNiagaraAttached(
+	const FPRFXCueContext& Context,
+	UNiagaraSystem* SystemTemplate,
+	USceneComponent* AttachToComponent,
+	FName AttachPointName,
+	FVector Location,
+	FRotator Rotation,
+	EAttachLocation::Type LocationType,
+	bool bAutoDestroy,
+	bool bAutoActivate,
+	ENCPoolMethod PoolingMethod,
+	bool bPreCullCheck)
+{
+	if (!IsValid(SystemTemplate) || !IsValid(AttachToComponent))
+	{
+		return nullptr;
+	}
+
+	return UNiagaraFunctionLibrary::SpawnSystemAttached(
+		SystemTemplate,
+		AttachToComponent,
+		AttachPointName,
+		Location,
+		Rotation,
+		LocationType,
+		bAutoDestroy,
+		bAutoActivate,
+		PoolingMethod,
+		bPreCullCheck);
+}
+
+void UPRFXCue::PlaySoundAtLocation(
+	const FPRFXCueContext& Context,
+	USoundBase* Sound,
+	FVector Location,
+	FRotator Rotation,
+	float VolumeMultiplier,
+	float PitchMultiplier,
+	float StartTime,
+	USoundAttenuation* AttenuationSettings,
+	USoundConcurrency* ConcurrencySettings,
+	const AActor* OwningActor,
+	const UInitialActiveSoundParams* InitialParams)
+{
+	UWorld* World = PRFXCuePrivate::ResolveCueWorld(this, Context);
+	if (!IsValid(World) || !IsValid(Sound))
+	{
+		return;
+	}
+
+	UGameplayStatics::PlaySoundAtLocation(
+		World,
+		Sound,
+		Location,
+		Rotation,
+		VolumeMultiplier,
+		PitchMultiplier,
+		StartTime,
+		AttenuationSettings,
+		ConcurrencySettings,
+		OwningActor,
+		InitialParams);
+}
+
+UAudioComponent* UPRFXCue::SpawnSoundAtLocation(
+	const FPRFXCueContext& Context,
+	USoundBase* Sound,
+	FVector Location,
+	FRotator Rotation,
+	float VolumeMultiplier,
+	float PitchMultiplier,
+	float StartTime,
+	USoundAttenuation* AttenuationSettings,
+	USoundConcurrency* ConcurrencySettings,
+	bool bAutoDestroy)
+{
+	UWorld* World = PRFXCuePrivate::ResolveCueWorld(this, Context);
+	if (!IsValid(World) || !IsValid(Sound))
+	{
+		return nullptr;
+	}
+
+	return UGameplayStatics::SpawnSoundAtLocation(
+		World,
+		Sound,
+		Location,
+		Rotation,
+		VolumeMultiplier,
+		PitchMultiplier,
+		StartTime,
+		AttenuationSettings,
+		ConcurrencySettings,
+		bAutoDestroy);
+}
+
+UAudioComponent* UPRFXCue::SpawnSoundAttached(
+	const FPRFXCueContext& Context,
+	USoundBase* Sound,
+	USceneComponent* AttachToComponent,
+	FName AttachPointName,
+	FVector Location,
+	FRotator Rotation,
+	EAttachLocation::Type LocationType,
+	bool bStopWhenAttachedToDestroyed,
+	float VolumeMultiplier,
+	float PitchMultiplier,
+	float StartTime,
+	USoundAttenuation* AttenuationSettings,
+	USoundConcurrency* ConcurrencySettings,
+	bool bAutoDestroy)
+{
+	if (!IsValid(Sound) || !IsValid(AttachToComponent))
+	{
+		return nullptr;
+	}
+
+	return UGameplayStatics::SpawnSoundAttached(
+		Sound,
+		AttachToComponent,
+		AttachPointName,
+		Location,
+		Rotation,
+		LocationType,
+		bStopWhenAttachedToDestroyed,
+		VolumeMultiplier,
+		PitchMultiplier,
+		StartTime,
+		AttenuationSettings,
+		ConcurrencySettings,
+		bAutoDestroy);
+}
+
+void UPRFXCue::PlaySound2D(
+	const FPRFXCueContext& Context,
+	USoundBase* Sound,
+	float VolumeMultiplier,
+	float PitchMultiplier,
+	float StartTime,
+	USoundConcurrency* ConcurrencySettings,
+	const AActor* OwningActor,
+	bool bIsUISound)
+{
+	UWorld* World = PRFXCuePrivate::ResolveCueWorld(this, Context);
+	if (!IsValid(World) || !IsValid(Sound))
+	{
+		return;
+	}
+
+	UGameplayStatics::PlaySound2D(
+		World,
+		Sound,
+		VolumeMultiplier,
+		PitchMultiplier,
+		StartTime,
+		ConcurrencySettings,
+		OwningActor,
+		bIsUISound);
+}
+
+UAudioComponent* UPRFXCue::SpawnSound2D(
+	const FPRFXCueContext& Context,
+	USoundBase* Sound,
+	float VolumeMultiplier,
+	float PitchMultiplier,
+	float StartTime,
+	USoundConcurrency* ConcurrencySettings,
+	bool bPersistAcrossLevelTransition,
+	bool bAutoDestroy)
+{
+	UWorld* World = PRFXCuePrivate::ResolveCueWorld(this, Context);
+	if (!IsValid(World) || !IsValid(Sound))
+	{
+		return nullptr;
+	}
+
+	return UGameplayStatics::SpawnSound2D(
+		World,
+		Sound,
+		VolumeMultiplier,
+		PitchMultiplier,
+		StartTime,
+		ConcurrencySettings,
+		bPersistAcrossLevelTransition,
+		bAutoDestroy);
 }
 
 void UPRFXSimpleCue::NativeExecuteFX(const FPRFXCueContext& Context, const FInstancedStruct& Payload)

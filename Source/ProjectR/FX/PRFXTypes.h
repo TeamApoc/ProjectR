@@ -183,6 +183,9 @@ struct PROJECTR_API FPRFXCueContext
 	// 예측 재생과 서버 확정 재생을 연결하는 식별자
 	UPROPERTY(BlueprintReadWrite, Category = "ProjectR|FX")
 	FPRFXPredictionKey PredictionKey;
+	
+	UPROPERTY(BlueprintReadWrite, Category = "ProjectR|FX")
+	UObject* WorldContext;
 };
 
 // 모든 FX Payload가 공유하는 수명 입력값

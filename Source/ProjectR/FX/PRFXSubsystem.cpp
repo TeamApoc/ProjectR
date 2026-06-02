@@ -232,6 +232,7 @@ FPRFXCueContext UPRFXSubsystem::BuildCueContext(const FPRFXRequest& Request, EPR
 	Context.FXTag = Request.FXTag;
 	Context.PlaybackMode = PlaybackMode;
 	Context.PredictionKey = Request.PredictionKey;
+	Context.WorldContext = GetWorld();
 	return Context;
 }
 

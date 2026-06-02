@@ -702,7 +702,13 @@ void APRBossPortalActor::ConfigureSpawnedPortalProjectile(APRProjectileBase* Spa
 		return;
 	}
 
-	SpawnedProjectile->AddProjectileIgnoredActor(this);
+	if (UWorld* World = GetWorld())
+	{
+		for (TActorIterator<APRBossPortalActor> PortalIt(World); PortalIt; ++PortalIt)
+		{
+			SpawnedProjectile->AddProjectileIgnoredActor(*PortalIt);
+		}
+	}
 
 	if (bIgnoreEnemyActorsForProjectile)
 	{

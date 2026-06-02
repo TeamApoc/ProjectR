@@ -75,6 +75,8 @@ protected:
 
 	// 보스의 숨김/충돌 상태를 원래 전투 가능 상태로 되돌린다.
 	void RestoreBossPresentation(ACharacter* BossCharacter) const;
+	void BeginBossMovementReplicationOverride(ACharacter* BossCharacter);
+	void EndBossMovementReplicationOverride(ACharacter* BossCharacter);
 
 	// 현재 Ability를 종료한다.
 	void FinishNearTeleport(bool bWasCancelled);
@@ -156,4 +158,7 @@ private:
 	bool bOriginalActorCollisionEnabled = true;
 	bool bHasCachedReappearTransform = false;
 	bool bNearTeleportFinished = false;
+	bool bPresentationRestoredDuringTeleport = false;
+	bool bSavedBossReplicateMovement = true;
+	bool bHasSavedBossReplicateMovement = false;
 };

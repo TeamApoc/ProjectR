@@ -76,6 +76,7 @@ void UPRGameplayAbility_FaerinNearTeleportApproach::ActivateAbility(
 	}
 
 	bNearTeleportFinished = false;
+	bPresentationRestoredDuringTeleport = false;
 	bOriginalActorCollisionEnabled = BossCharacter->GetActorEnableCollision();
 	DisappearLocation = BossCharacter->GetActorLocation();
 	bHasCachedReappearTransform = ResolveReappearTransform(CachedReappearLocation, CachedReappearRotation);
@@ -118,7 +119,11 @@ void UPRGameplayAbility_FaerinNearTeleportApproach::EndAbility(
 
 	if (ACharacter* BossCharacter = Cast<ACharacter>(GetAvatarActorFromActorInfo()))
 	{
-		RestoreBossPresentation(BossCharacter);
+		if (!bPresentationRestoredDuringTeleport)
+		{
+			RestoreBossPresentation(BossCharacter);
+		}
+		EndBossMovementReplicationOverride(BossCharacter);
 	}
 
 	ActiveDirectorComponent = nullptr;
@@ -176,6 +181,7 @@ void UPRGameplayAbility_FaerinNearTeleportApproach::BeginDisappear(ACharacter* B
 		AIController->ClearFocus(EAIFocusPriority::Gameplay);
 	}
 
+	BeginBossMovementReplicationOverride(BossCharacter);
 	BossCharacter->SetActorEnableCollision(false);
 	SpawnBodyNiagara(DisappearDissolveNiagaraSystem);
 	SpawnBodyNiagara(TeleportInNiagaraSystem);
@@ -274,14 +280,17 @@ void UPRGameplayAbility_FaerinNearTeleportApproach::ReappearNearSelf()
 			TeleportOutNiagaraSystem,
 			ReappearDissolveNiagaraSystem,
 			BodyNiagaraAttachSocketName);
+		bPresentationRestoredDuringTeleport = true;
 	}
 	else
 	{
 		RestoreBossPresentation(BossCharacter);
 		SpawnBodyNiagara(TeleportOutNiagaraSystem);
 		SpawnBodyNiagara(ReappearDissolveNiagaraSystem);
+		bPresentationRestoredDuringTeleport = true;
 	}
 	BossCharacter->SetActorEnableCollision(bOriginalActorCollisionEnabled);
+	EndBossMovementReplicationOverride(BossCharacter);
 	BossCharacter->ForceNetUpdate();
 
 	FinishNearTeleport(false);
@@ -498,6 +507,31 @@ void UPRGameplayAbility_FaerinNearTeleportApproach::RestoreBossPresentation(ACha
 		BossCharacter->SetActorHiddenInGame(false);
 	}
 	BossCharacter->SetActorEnableCollision(bOriginalActorCollisionEnabled);
+}
+
+void UPRGameplayAbility_FaerinNearTeleportApproach::BeginBossMovementReplicationOverride(ACharacter* BossCharacter)
+{
+	if (!IsValid(BossCharacter) || !BossCharacter->HasAuthority() || bHasSavedBossReplicateMovement)
+	{
+		return;
+	}
+
+	bSavedBossReplicateMovement = BossCharacter->IsReplicatingMovement();
+	bHasSavedBossReplicateMovement = true;
+	BossCharacter->SetReplicateMovement(false);
+	BossCharacter->ForceNetUpdate();
+}
+
+void UPRGameplayAbility_FaerinNearTeleportApproach::EndBossMovementReplicationOverride(ACharacter* BossCharacter)
+{
+	if (!IsValid(BossCharacter) || !BossCharacter->HasAuthority() || !bHasSavedBossReplicateMovement)
+	{
+		return;
+	}
+
+	BossCharacter->SetReplicateMovement(bSavedBossReplicateMovement);
+	bHasSavedBossReplicateMovement = false;
+	BossCharacter->ForceNetUpdate();
 }
 
 void UPRGameplayAbility_FaerinNearTeleportApproach::FinishNearTeleport(bool bWasCancelled)

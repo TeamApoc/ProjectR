@@ -11,6 +11,24 @@
 #include "ProjectR/ItemSystem/Types/PREquipmentTypes.h"
 #include "PRGameTypes.generated.h"
 
+/*~ 그래픽 설정 ~*/
+
+// 전체 Scalability 그룹에 적용할 그래픽 품질 단계
+UENUM(BlueprintType)
+enum class EPRGraphicsQualityProfile : uint8
+{
+	// 낮음 프로필
+	Low = 0,
+	// 보통 프로필
+	Medium = 1,
+	// 높음 프로필
+	High = 2,
+	// 에픽 프로필
+	Epic = 3,
+	// 시네마틱 프로필
+	Cinematic = 4,
+};
+
 /*~ 성장 / 특성 ~*/
 
 // 특성 투자 대상 능력치 종류
@@ -378,10 +396,6 @@ struct FPRWeaponManagerSaveData
 	// 현재 무기 슬롯
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	EPRWeaponSlotType CurrentWeaponSlot = EPRWeaponSlotType::None;
-
-	// 현재 무장 상태
-	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	EPRArmedState ArmedState = EPRArmedState::Unarmed;
 
 	// 주무기 현재 탄창 탄약
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)

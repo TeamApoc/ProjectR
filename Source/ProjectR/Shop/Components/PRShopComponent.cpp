@@ -71,6 +71,7 @@ FPRShopBuyResult UPRShopComponent::RequestBuyItem(APRPlayerController* Requestin
 	UPRItemDataAsset* ItemData = Entry ? ResolveItemData(*Entry) : nullptr;
 	UPRInventoryComponent* InventoryComponent = ResolveInventoryComponent(RequestingController);
 	UPRCurrencyComponent* CurrencyComponent = ResolveCurrencyComponent(RequestingController);
+	TMap<UPRMaterialDataAsset*, int32> MaterialCosts;
 
 	if (!Entry)
 	{
@@ -92,47 +93,70 @@ FPRShopBuyResult UPRShopComponent::RequestBuyItem(APRPlayerController* Requestin
 	{
 		Result = MakeBuyFailureResult(RequestingController, EntryId, Quantity, EPRShopBuyFailReason::OutOfStock);
 	}
-		else if (!IsValid(InventoryComponent) || !IsValid(CurrencyComponent))
-		{
-			Result = MakeBuyFailureResult(RequestingController, EntryId, Quantity, EPRShopBuyFailReason::InvalidBuyer);
-		}
-		else if (!CanGrantItem(InventoryComponent, ItemData, Entry->Quantity * Quantity))
-		{
-			Result = MakeBuyFailureResult(RequestingController, EntryId, Quantity, EPRShopBuyFailReason::InventoryFull);
-		}
-		else
-		{
-			const int32 TotalScrapPrice = Entry->BaseScrapPrice * Quantity;
-			const int32 TotalItemQuantity = Entry->Quantity * Quantity;
+	else if (!IsValid(InventoryComponent) || !IsValid(CurrencyComponent))
+	{
+		Result = MakeBuyFailureResult(RequestingController, EntryId, Quantity, EPRShopBuyFailReason::InvalidBuyer);
+	}
+	else if (!CanGrantItem(InventoryComponent, ItemData, Entry->Quantity * Quantity))
+	{
+		Result = MakeBuyFailureResult(RequestingController, EntryId, Quantity, EPRShopBuyFailReason::InventoryFull);
+	}
+	else if (!ResolveBuyMaterialCosts(*Entry, Quantity, MaterialCosts))
+	{
+		Result = MakeBuyFailureResult(RequestingController, EntryId, Quantity, EPRShopBuyFailReason::MissingItemData);
+	}
+	else
+	{
+		const int32 TotalScrapPrice = Entry->BaseScrapPrice * Quantity;
+		const int32 TotalItemQuantity = Entry->Quantity * Quantity;
 		if (CurrencyComponent->GetScrap() < TotalScrapPrice)
 		{
 			Result = MakeBuyFailureResult(RequestingController, EntryId, Quantity, EPRShopBuyFailReason::NotEnoughScrap);
+		}
+		else if (!HasEnoughBuyMaterialCosts(InventoryComponent, MaterialCosts))
+		{
+			Result = MakeBuyFailureResult(RequestingController, EntryId, Quantity, EPRShopBuyFailReason::NotEnoughMaterial);
 		}
 		else if (TotalScrapPrice > 0 && !CurrencyComponent->TrySpendScrap(TotalScrapPrice))
 		{
 			Result = MakeBuyFailureResult(RequestingController, EntryId, Quantity, EPRShopBuyFailReason::ConsumeFailed);
 		}
-		else if (!IsValid(InventoryComponent->AddItem(ItemData, TotalItemQuantity)))
-		{
-			if (TotalScrapPrice > 0)
-			{
-				CurrencyComponent->AddScrap(TotalScrapPrice);
-			}
-
-			Result = MakeBuyFailureResult(RequestingController, EntryId, Quantity, EPRShopBuyFailReason::GrantFailed);
-		}
-		else if (!ConsumeStock(*Entry, Quantity))
-		{
-			if (TotalScrapPrice > 0)
-			{
-				CurrencyComponent->AddScrap(TotalScrapPrice);
-			}
-
-			Result = MakeBuyFailureResult(RequestingController, EntryId, Quantity, EPRShopBuyFailReason::OutOfStock);
-		}
 		else
 		{
-			Result = MakeBuySuccessResult(RequestingController, EntryId, Quantity);
+			TArray<TPair<UPRMaterialDataAsset*, int32>> ConsumedMaterials;
+			if (!ConsumeBuyMaterialCosts(InventoryComponent, MaterialCosts, ConsumedMaterials))
+			{
+				if (TotalScrapPrice > 0)
+				{
+					CurrencyComponent->AddScrap(TotalScrapPrice);
+				}
+
+				Result = MakeBuyFailureResult(RequestingController, EntryId, Quantity, EPRShopBuyFailReason::ConsumeFailed);
+			}
+			else if (!IsValid(InventoryComponent->AddItem(ItemData, TotalItemQuantity)))
+			{
+				if (TotalScrapPrice > 0)
+				{
+					CurrencyComponent->AddScrap(TotalScrapPrice);
+				}
+
+				RefundBuyMaterialCosts(InventoryComponent, ConsumedMaterials);
+				Result = MakeBuyFailureResult(RequestingController, EntryId, Quantity, EPRShopBuyFailReason::GrantFailed);
+			}
+			else if (!ConsumeStock(*Entry, Quantity))
+			{
+				if (TotalScrapPrice > 0)
+				{
+					CurrencyComponent->AddScrap(TotalScrapPrice);
+				}
+
+				RefundBuyMaterialCosts(InventoryComponent, ConsumedMaterials);
+				Result = MakeBuyFailureResult(RequestingController, EntryId, Quantity, EPRShopBuyFailReason::OutOfStock);
+			}
+			else
+			{
+				Result = MakeBuySuccessResult(RequestingController, EntryId, Quantity);
+			}
 		}
 	}
 
@@ -507,6 +531,92 @@ bool UPRShopComponent::CanGrantItem(UPRInventoryComponent* InventoryComponent, U
 	}
 
 	return false;
+}
+
+bool UPRShopComponent::ResolveBuyMaterialCosts(const FPRShopEntry& Entry, int32 TransactionQuantity, TMap<UPRMaterialDataAsset*, int32>& OutMaterialCosts) const
+{
+	OutMaterialCosts.Reset();
+
+	if (TransactionQuantity <= 0)
+	{
+		return false;
+	}
+
+	for (const FPRShopMaterialCost& MaterialCost : Entry.BuyMaterialCosts)
+	{
+		if (!MaterialCost.MaterialAssetId.IsValid() || MaterialCost.Quantity <= 0)
+		{
+			return false;
+		}
+
+		UPRItemDataAsset* ItemData = UPRAssetManager::Get().GetItemDataByPrimaryAssetId(MaterialCost.MaterialAssetId);
+		UPRMaterialDataAsset* MaterialData = Cast<UPRMaterialDataAsset>(ItemData);
+		if (!IsValid(MaterialData))
+		{
+			return false;
+		}
+
+		int32& Quantity = OutMaterialCosts.FindOrAdd(MaterialData);
+		Quantity += MaterialCost.Quantity * TransactionQuantity;
+	}
+
+	return true;
+}
+
+bool UPRShopComponent::HasEnoughBuyMaterialCosts(UPRInventoryComponent* InventoryComponent, const TMap<UPRMaterialDataAsset*, int32>& MaterialCosts) const
+{
+	if (!IsValid(InventoryComponent))
+	{
+		return false;
+	}
+
+	for (const TPair<UPRMaterialDataAsset*, int32>& MaterialCost : MaterialCosts)
+	{
+		const UPRItemInstance_Material* MaterialItem = InventoryComponent->FindItemByData<UPRItemInstance_Material>(MaterialCost.Key);
+		if (!IsValid(MaterialItem) || MaterialItem->GetStackCount() < MaterialCost.Value)
+		{
+			return false;
+		}
+	}
+
+	return true;
+}
+
+bool UPRShopComponent::ConsumeBuyMaterialCosts(UPRInventoryComponent* InventoryComponent, const TMap<UPRMaterialDataAsset*, int32>& MaterialCosts, TArray<TPair<UPRMaterialDataAsset*, int32>>& OutConsumedMaterials) const
+{
+	OutConsumedMaterials.Reset();
+
+	if (!IsValid(InventoryComponent))
+	{
+		return false;
+	}
+
+	for (const TPair<UPRMaterialDataAsset*, int32>& MaterialCost : MaterialCosts)
+	{
+		if (!InventoryComponent->RemoveItemByData(MaterialCost.Key, MaterialCost.Value))
+		{
+			RefundBuyMaterialCosts(InventoryComponent, OutConsumedMaterials);
+			OutConsumedMaterials.Reset();
+			return false;
+		}
+
+		OutConsumedMaterials.Add(MaterialCost);
+	}
+
+	return true;
+}
+
+void UPRShopComponent::RefundBuyMaterialCosts(UPRInventoryComponent* InventoryComponent, const TArray<TPair<UPRMaterialDataAsset*, int32>>& ConsumedMaterials) const
+{
+	if (!IsValid(InventoryComponent))
+	{
+		return;
+	}
+
+	for (const TPair<UPRMaterialDataAsset*, int32>& ConsumedMaterial : ConsumedMaterials)
+	{
+		InventoryComponent->AddItem<UPRItemInstance_Material>(ConsumedMaterial.Key, ConsumedMaterial.Value);
+	}
 }
 
 bool UPRShopComponent::ConsumeStock(const FPRShopEntry& Entry, int32 Quantity)

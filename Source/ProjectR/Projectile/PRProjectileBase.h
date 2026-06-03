@@ -120,7 +120,7 @@ protected:
 	
 	UFUNCTION(BlueprintCallable)
 	void ApplyEffectToTargetWithHit(AActor* TargetActor, const FHitResult& InHitResult);
-	
+
 private:
 	// Predicted-Auth 양방향 링크
 	void LinkCounterpart(APRProjectileBase* InCounterpart);

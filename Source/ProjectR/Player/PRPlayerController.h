@@ -21,6 +21,7 @@ enum class EPRMapTransitionType : uint8
 	None,
 	MapTravel,
 	Respawn,
+	CancelTravel,
 };
 
 class UPRInteractorComponent;
@@ -36,6 +37,7 @@ class UPRUIControllerComponent;
 class UPRInteractionSensor;
 class UPRCheatHandler;
 class UPRItemInstance_Weapon;
+class UPRInteraction_Waypoint;
 class UPRShopComponent;
 class UPRWeaponUpgradeComponent;
 class UPRFXNetworkComponent;
@@ -104,7 +106,7 @@ public:
 
 	// 맵 이동 또는 리스폰 전환 연출 시작
 	UFUNCTION(Client, Reliable)
-	void ClientStartMapTransition(float Delay, EPRMapTransitionType TransitionType);
+	void ClientNotifyMapTransition(float Delay, EPRMapTransitionType TransitionType);
 	
 	// 서버 -> 본인 클라. 무기 강화 결과를 UI에 전달한다
 	UFUNCTION(Client, Reliable)
@@ -117,6 +119,10 @@ public:
 	// 서버 -> 본인 클라. 상점 UI를 열고 상점 컴포넌트 Context를 전달한다
 	UFUNCTION(Client, Reliable)
 	void ClientOpenShopUI(UPRShopComponent* ShopComponent);
+
+	// 서버 -> 호스트 클라. 웨이포인트 Travel UI 열기
+	UFUNCTION(Client, Reliable)
+	void ClientOpenWaypointTravelUI();
 
 	// 서버 -> 본인 클라. 상점 구매 결과를 UI에 전달한다
 	UFUNCTION(Client, Reliable)
@@ -154,6 +160,18 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "ProjectR|Shop")
 	void RequestSellShopItem(UPRShopComponent* ShopComponent, FName EntryId, int32 Quantity);
 
+	// 웨이포인트 Travel UI 선택 목적지 이동 서버 요청
+	void RequestWaypointTravel(FSoftObjectPath WorldDataAssetPath, FGameplayTag WaypointId);
+
+	// 웨이포인트 Travel UI 닫힘 서버 통지
+	void RequestCancelWaypointTravel();
+
+	// 서버 웨이포인트 Travel UI 대기 상호작용 등록
+	void SetPendingWaypointTravelInteraction(UPRInteraction_Waypoint* WaypointInteraction);
+
+	// 서버 웨이포인트 Travel UI 대기 상호작용 정리
+	void ClearPendingWaypointTravelInteraction(const UPRInteraction_Waypoint* WaypointInteraction);
+
 	// 성장 UI에서 특성 투자 확정을 서버에 요청한다
 	UFUNCTION(BlueprintCallable, Category = "ProjectR|Growth")
 	void RequestConfirmTraitInvestment(const FPRTraitInvestmentInfo& DesiredInvestment);
@@ -180,6 +198,14 @@ protected:
 	// 클라이언트 -> 서버. 상점 컴포넌트에 아이템 판매를 위임한다
 	UFUNCTION(Server, Reliable)
 	void ServerRequestSellShopItem(UPRShopComponent* ShopComponent, FName EntryId, int32 Quantity);
+
+	// 클라이언트 -> 서버. 활성 또는 UI 대기 웨이포인트 상호작용 목적지 이동 위임
+	UFUNCTION(Server, Reliable)
+	void ServerRequestWaypointTravel(FSoftObjectPath WorldDataAssetPath, FGameplayTag WaypointId);
+
+	// 클라이언트 -> 서버. 활성 또는 UI 대기 웨이포인트 상호작용 취소 위임
+	UFUNCTION(Server, Reliable)
+	void ServerRequestCancelWaypointTravel();
 
 	// 클라이언트 -> 서버. 성장 컴포넌트에 특성 투자 확정을 위임한다
 	UFUNCTION(Server, Reliable)
@@ -219,6 +245,12 @@ protected:
 private:
 	// 로컬 상호작용 포커스와 본인 캐릭터 외곽선 정리
 	void ResetLocalInteractionVisualState();
+
+	// 활성 또는 UI 대기 중인 웨이포인트 상호작용 액션 반환
+	UPRInteraction_Waypoint* ResolveWaypointTravelInteraction() const;
+
+	// 서버 객체 기준 호스트 컨트롤러 여부 확인
+	bool IsHostControllerForWaypointTravel() const;
 
 	void UpdateCompanionHighlight();
 
@@ -312,4 +344,7 @@ private:
 	// FX 서버 요청과 Client RPC 수신을 담당하는 Player 소유 컴포넌트
 	UPROPERTY(VisibleAnywhere, Category = "ProjectR|FX")
 	TObjectPtr<UPRFXNetworkComponent> FXNetworkComponent;
+
+	// 서버 전용 웨이포인트 Travel UI 요청 대상 상호작용
+	TWeakObjectPtr<UPRInteraction_Waypoint> PendingWaypointTravelInteraction;
 };

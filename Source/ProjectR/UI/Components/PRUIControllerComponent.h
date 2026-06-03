@@ -25,6 +25,7 @@ class UPRShopComponent;
 class UPRShopWidget;
 class UPRTraitWindowWidget;
 class UPRUIManagerSubsystem;
+class UPRWaypointTravelWidget;
 class UPRWeaponManagerComponent;
 class UPRWeaponUpgradeComponent;
 class UPRWeaponUpgradeWidget;
@@ -71,6 +72,10 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "ProjectR|UI")
 	void OpenShop(UPRShopComponent* ShopComponent);
 
+	// 웨이포인트 Travel UI 열기
+	UFUNCTION(BlueprintCallable, Category = "ProjectR|UI")
+	void OpenWaypointTravel();
+
 	// 강화 위젯이 열려 있으면 닫는다
 	UFUNCTION(BlueprintCallable, Category = "ProjectR|UI")
 	void CloseWeaponUpgrade();
@@ -78,6 +83,10 @@ public:
 	// 상점 위젯이 열려 있으면 닫는다
 	UFUNCTION(BlueprintCallable, Category = "ProjectR|UI")
 	void CloseShop();
+
+	// 웨이포인트 Travel UI 닫기
+	UFUNCTION(BlueprintCallable, Category = "ProjectR|UI")
+	void CloseWaypointTravel();
 
 	// 현재 캐시된 인벤토리 위젯을 반환한다
 	UFUNCTION(BlueprintPure, Category = "ProjectR|UI")
@@ -160,6 +169,9 @@ private:
 	// 상점 위젯 인스턴스를 생성하거나 캐시된 인스턴스를 반환한다
 	UPRShopWidget* GetOrCreateShopWidget();
 
+	// 웨이포인트 Travel UI 인스턴스 생성 또는 캐시 반환
+	UPRWaypointTravelWidget* GetOrCreateWaypointTravelWidget();
+
 	// 특성 창 위젯 인스턴스를 생성하거나 캐시된 인스턴스를 반환한다
 	UPRTraitWindowWidget* GetOrCreateTraitWindowWidget();
 
@@ -203,6 +215,10 @@ protected:
 	UPROPERTY(EditDefaultsOnly, Category = "ProjectR|Shop")
 	TSubclassOf<UPRShopWidget> ShopWidgetClass;
 
+	// 웨이포인트 Travel UI 위젯 클래스
+	UPROPERTY(EditDefaultsOnly, Category = "ProjectR|WaypointTravel")
+	TSubclassOf<UPRWaypointTravelWidget> WaypointTravelWidgetClass;
+
 	// 특성 창 위젯 클래스
 	UPROPERTY(EditDefaultsOnly, Category = "ProjectR|Growth")
 	TSubclassOf<UPRTraitWindowWidget> TraitWindowWidgetClass;
@@ -214,6 +230,10 @@ protected:
 	// 생성 후 재사용할 상점 위젯
 	UPROPERTY(Transient)
 	TObjectPtr<UPRShopWidget> ShopWidget;
+
+	// 생성 후 재사용할 웨이포인트 Travel UI 위젯
+	UPROPERTY(Transient)
+	TObjectPtr<UPRWaypointTravelWidget> WaypointTravelWidget;
 
 	// HUD 위젯 클래스
 	UPROPERTY(EditDefaultsOnly, Category = "ProjectR|HUD")

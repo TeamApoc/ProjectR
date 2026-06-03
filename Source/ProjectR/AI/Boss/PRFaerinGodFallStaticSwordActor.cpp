@@ -8,6 +8,7 @@
 #include "DrawDebugHelpers.h"
 #include "Engine/OverlapResult.h"
 #include "Engine/World.h"
+#include "GameFramework/GameStateBase.h"
 #include "GameplayEffect.h"
 #include "Net/UnrealNetwork.h"
 #include "NiagaraComponent.h"
@@ -32,6 +33,8 @@ APRFaerinGodFallStaticSwordActor::APRFaerinGodFallStaticSwordActor()
 	PrimaryActorTick.bStartWithTickEnabled = false;
 	PatternLifeSpan = 0.0f;
 	SetReplicateMovement(false);
+	bAlwaysRelevant = true;
+	SetNetDormancy(DORM_Awake);
 
 	StaticSwordMeshComponent = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("StaticSwordMeshComponent"));
 	StaticSwordMeshComponent->SetupAttachment(SceneRoot);
@@ -131,6 +134,7 @@ void APRFaerinGodFallStaticSwordActor::InitializeGodFallStaticSword(APRBossBaseC
 	MulticastSetSwordPresentationLocation(InInitialTransform.GetLocation());
 	InitializeBossPatternActor(InOwnerBoss, InPatternTarget);
 	SetSwordState(EPRFaerinGodFallStaticSwordState::SpawnedFromRigBone);
+	ForceNetUpdate();
 }
 
 void APRFaerinGodFallStaticSwordActor::BeginCharging(const float ChargeSeconds)
@@ -303,6 +307,8 @@ void APRFaerinGodFallStaticSwordActor::OnRep_SwordState()
 		|| SwordState == EPRFaerinGodFallStaticSwordState::Cancelled
 		|| SwordState == EPRFaerinGodFallStaticSwordState::None)
 	{
+		GetWorldTimerManager().ClearTimer(ImpactWarningTimerHandle);
+		bImpactWarningSpawned = false;
 		ResetSwordVisualTransform();
 	}
 	BP_OnGodFallSwordStateChanged(SwordState);
@@ -329,14 +335,21 @@ void APRFaerinGodFallStaticSwordActor::MulticastGodFallSwordImpact_Implementatio
 	BP_OnGodFallSwordImpact();
 }
 
-void APRFaerinGodFallStaticSwordActor::MulticastGodFallSwordImpactWarning_Implementation(
+void APRFaerinGodFallStaticSwordActor::MulticastScheduleGodFallSwordImpactWarning_Implementation(
 	FVector_NetQuantize ImpactLocation,
 	FRotator ImpactRotation,
-	UNiagaraSystem* NiagaraSystem,
+	FSoftObjectPath NiagaraSystemPath,
 	FVector Scale,
-	float LifeSeconds)
+	float LifeSeconds,
+	float SpawnServerWorldTimeSeconds)
 {
-	SpawnNiagaraAtLocationLocal(NiagaraSystem, ImpactLocation, ImpactRotation, Scale, LifeSeconds);
+	if (bImpactWarningSpawned || !NiagaraSystemPath.IsValid())
+	{
+		return;
+	}
+
+	const float DelaySeconds = FMath::Max(SpawnServerWorldTimeSeconds - ResolveServerWorldTimeSeconds(), 0.0f);
+	ScheduleImpactWarningLocal(ImpactLocation, DelaySeconds, ImpactRotation, NiagaraSystemPath, Scale, LifeSeconds);
 }
 
 void APRFaerinGodFallStaticSwordActor::MulticastGodFallSwordCancelled_Implementation()
@@ -362,6 +375,8 @@ void APRFaerinGodFallStaticSwordActor::SetSwordState(const EPRFaerinGodFallStati
 		|| SwordState == EPRFaerinGodFallStaticSwordState::Cancelled
 		|| SwordState == EPRFaerinGodFallStaticSwordState::None)
 	{
+		GetWorldTimerManager().ClearTimer(ImpactWarningTimerHandle);
+		bImpactWarningSpawned = false;
 		ResetSwordVisualTransform();
 	}
 	BP_OnGodFallSwordStateChanged(SwordState);
@@ -1030,38 +1045,97 @@ void APRFaerinGodFallStaticSwordActor::ScheduleImpactWarning()
 
 	const float TimeUntilImpact = FMath::Max(AssignedWarningSeconds, 0.0f) + FMath::Max(GodFallData->DropSeconds, 0.0f);
 	const float WarningDelaySeconds = FMath::Max(TimeUntilImpact - FMath::Max(GodFallData->ImpactWarningLeadSeconds, 0.0f), 0.0f);
-	if (WarningDelaySeconds <= UE_SMALL_NUMBER)
+	const float SpawnServerWorldTimeSeconds = ResolveServerWorldTimeSeconds() + WarningDelaySeconds;
+	const FVector WarningLocation = AssignedImpactLocation + GodFallData->ImpactWarningLocationOffset;
+	const FSoftObjectPath WarningSystemPath(GodFallData->ImpactWarningNiagaraSystem.Get());
+
+	MulticastScheduleGodFallSwordImpactWarning(
+		WarningLocation,
+		GodFallData->ImpactWarningNiagaraRotationOffset,
+		WarningSystemPath,
+		GodFallData->ImpactWarningNiagaraScale,
+		GodFallData->ImpactWarningNiagaraLifeSeconds,
+		SpawnServerWorldTimeSeconds);
+	ForceNetUpdate();
+}
+
+void APRFaerinGodFallStaticSwordActor::ScheduleImpactWarningLocal(
+	const FVector& ImpactLocation,
+	const float DelaySeconds,
+	const FRotator& ImpactRotation,
+	const FSoftObjectPath& NiagaraSystemPath,
+	const FVector& Scale,
+	const float LifeSeconds)
+{
+	if (bImpactWarningSpawned || !NiagaraSystemPath.IsValid())
 	{
-		SpawnImpactWarning();
 		return;
 	}
 
-	GetWorldTimerManager().SetTimer(
+	UWorld* World = GetWorld();
+	if (!IsValid(World))
+	{
+		return;
+	}
+
+	World->GetTimerManager().ClearTimer(ImpactWarningTimerHandle);
+	if (DelaySeconds <= UE_SMALL_NUMBER)
+	{
+		SpawnImpactWarningLocal(ImpactLocation, ImpactRotation, NiagaraSystemPath, Scale, LifeSeconds);
+		return;
+	}
+
+	World->GetTimerManager().SetTimer(
 		ImpactWarningTimerHandle,
-		this,
-		&APRFaerinGodFallStaticSwordActor::SpawnImpactWarning,
-		WarningDelaySeconds,
+		FTimerDelegate::CreateWeakLambda(this, [this, ImpactLocation, ImpactRotation, NiagaraSystemPath, Scale, LifeSeconds]()
+		{
+			SpawnImpactWarningLocal(ImpactLocation, ImpactRotation, NiagaraSystemPath, Scale, LifeSeconds);
+		}),
+		DelaySeconds,
 		false);
 }
 
-void APRFaerinGodFallStaticSwordActor::SpawnImpactWarning()
+void APRFaerinGodFallStaticSwordActor::SpawnImpactWarningLocal(
+	const FVector& ImpactLocation,
+	const FRotator& ImpactRotation,
+	const FSoftObjectPath& NiagaraSystemPath,
+	const FVector& Scale,
+	const float LifeSeconds)
 {
-	if (!HasAuthority()
-		|| bImpactWarningSpawned
-		|| !bHasAssignedAttackLocation
-		|| !IsValid(GodFallData)
-		|| !IsValid(GodFallData->ImpactWarningNiagaraSystem))
+	if (bImpactWarningSpawned || !NiagaraSystemPath.IsValid())
 	{
+		return;
+	}
+
+	UNiagaraSystem* NiagaraSystem = Cast<UNiagaraSystem>(NiagaraSystemPath.ResolveObject());
+	if (!IsValid(NiagaraSystem))
+	{
+		NiagaraSystem = Cast<UNiagaraSystem>(NiagaraSystemPath.TryLoad());
+	}
+
+	if (!IsValid(NiagaraSystem))
+	{
+		UE_LOG(LogPRFaerinGodFallSword, Warning,
+			TEXT("God Fall warning VFX skipped because Niagara failed to resolve. Sword=%s, Path=%s"),
+			*GetNameSafe(this),
+			*NiagaraSystemPath.ToString());
 		return;
 	}
 
 	bImpactWarningSpawned = true;
-	MulticastGodFallSwordImpactWarning(
-		AssignedImpactLocation,
-		GodFallData->ImpactWarningNiagaraRotationOffset,
-		GodFallData->ImpactWarningNiagaraSystem,
-		GodFallData->ImpactWarningNiagaraScale,
-		GodFallData->ImpactWarningNiagaraLifeSeconds);
+	SpawnNiagaraAtLocationLocal(NiagaraSystem, ImpactLocation, ImpactRotation, Scale, LifeSeconds);
+}
+
+float APRFaerinGodFallStaticSwordActor::ResolveServerWorldTimeSeconds() const
+{
+	const UWorld* World = GetWorld();
+	if (!IsValid(World))
+	{
+		return 0.0f;
+	}
+
+	const AGameStateBase* GameState = World->GetGameState();
+	return IsValid(GameState) ? GameState->GetServerWorldTimeSeconds() : World->GetTimeSeconds();
 }
 
 void APRFaerinGodFallStaticSwordActor::UpdateClientSwordPresentation(const float DeltaSeconds)
@@ -1131,6 +1205,14 @@ void APRFaerinGodFallStaticSwordActor::StartClientSwordPresentationSegment(
 	const FVector& TargetLocation,
 	const float DurationSeconds)
 {
+	if (NewState == EPRFaerinGodFallStaticSwordState::Returning
+		|| NewState == EPRFaerinGodFallStaticSwordState::EntryDiving
+		|| NewState == EPRFaerinGodFallStaticSwordState::EntryDiveReturning)
+	{
+		GetWorldTimerManager().ClearTimer(ImpactWarningTimerHandle);
+		bImpactWarningSpawned = false;
+	}
+
 	ClientPresentationState = NewState;
 	ClientSegmentStartLocation = StartLocation;
 	ClientSegmentTargetLocation = TargetLocation;
@@ -1155,6 +1237,8 @@ void APRFaerinGodFallStaticSwordActor::StartClientSwordTargetOverhead(
 	const float MoveDurationSeconds,
 	const float MoveAcceleration)
 {
+	GetWorldTimerManager().ClearTimer(ImpactWarningTimerHandle);
+	bImpactWarningSpawned = false;
 	ClientAssignedTarget = AssignedTarget;
 	ClientAssignedOverheadLocation = InitialOverheadLocation;
 	ClientOverheadMoveElapsedSeconds = 0.0f;

@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "ProjectR/AI/Boss/PRBossPatternActor.h"
+#include "UObject/SoftObjectPath.h"
 #include "PRFaerinGodFallStaticSwordActor.generated.h"
 
 class UPRFaerinGodFallDataAsset;
@@ -107,13 +108,14 @@ protected:
 		FVector Scale,
 		float LifeSeconds);
 
-	// 모든 클라이언트에서 impact 경고 visual을 재생한다.
+	// 모든 클라이언트에서 impact 경고 visual 예약을 시작한다.
 	UFUNCTION(NetMulticast, Reliable)
-	void MulticastGodFallSwordImpactWarning(FVector_NetQuantize ImpactLocation,
+	void MulticastScheduleGodFallSwordImpactWarning(FVector_NetQuantize ImpactLocation,
 		FRotator ImpactRotation,
-		UNiagaraSystem* NiagaraSystem,
+		FSoftObjectPath NiagaraSystemPath,
 		FVector Scale,
-		float LifeSeconds);
+		float LifeSeconds,
+		float SpawnServerWorldTimeSeconds);
 
 	// 모든 클라이언트에서 취소 visual을 재생한다.
 	UFUNCTION(NetMulticast, Reliable)
@@ -170,7 +172,18 @@ private:
 	FRotator ResolveImpactSlantRotationDelta() const;
 	float ResolveImpactSlantAlpha() const;
 	void ScheduleImpactWarning();
-	void SpawnImpactWarning();
+	void ScheduleImpactWarningLocal(const FVector& ImpactLocation,
+		float DelaySeconds,
+		const FRotator& ImpactRotation,
+		const FSoftObjectPath& NiagaraSystemPath,
+		const FVector& Scale,
+		float LifeSeconds);
+	void SpawnImpactWarningLocal(const FVector& ImpactLocation,
+		const FRotator& ImpactRotation,
+		const FSoftObjectPath& NiagaraSystemPath,
+		const FVector& Scale,
+		float LifeSeconds);
+	float ResolveServerWorldTimeSeconds() const;
 	void StartClientSwordPresentationSegment(EPRFaerinGodFallStaticSwordState NewState,
 		const FVector& StartLocation,
 		const FVector& TargetLocation,

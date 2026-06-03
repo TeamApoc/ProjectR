@@ -189,6 +189,10 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Faerin|GodFall|VFX|SwordWarning")
 	TObjectPtr<UNiagaraSystem> ImpactWarningNiagaraSystem;
 
+	// warning VFX가 바닥에 묻히지 않도록 impact 위치에 더할 월드 오프셋이다.
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Faerin|GodFall|VFX|SwordWarning")
+	FVector ImpactWarningLocationOffset = FVector(0.0f, 0.0f, 8.0f);
+
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Faerin|GodFall|VFX|SwordWarning", meta = (ClampMin = "0.0"))
 	float ImpactWarningLeadSeconds = 1.5f;
 

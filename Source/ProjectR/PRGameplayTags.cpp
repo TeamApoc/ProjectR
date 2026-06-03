@@ -138,6 +138,7 @@ namespace PRGameplayTags
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Event_Ability_Revive_Canceled, "Event.Ability.Revive.Canceled", "소생 취소 이벤트");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Event_Ability_Waypoint_Start, "Event.Ability.Waypoint.Start", "크리스탈 상호작용 시작");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Event_Ability_Waypoint_End, "Event.Ability.Waypoint.End", "크리스탈 상호작용 취소");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Event_Ability_Waypoint_Cancel, "Event.Ability.Waypoint.Cancel", "크리스탈 UI 취소 이벤트");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Event_Ability_GroggyEntered, "Event.Ability.GroggyEntered", "그로기 진입 이벤트");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Event_Ability_PhaseTransition, "Event.Ability.PhaseTransition", "페이즈 전환 이벤트");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Event_Ability_PlayerHitReact_Weak, "Event.Ability.PlayerHitReact.Weak", "플레이어 약한 경직 이벤트");

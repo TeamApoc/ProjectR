@@ -3,9 +3,13 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "GameplayTagContainer.h"
 #include "PRInteraction_MapTravelBase.h"
 #include "PRInteraction_EntranceGate.generated.h"
 
+class UWorld;
+
+// 고정 맵과 고정 SpawnPoint로 이동하는 입장 게이트 상호작용
 UCLASS()
 class PROJECTR_API UPRInteraction_EntranceGate : public UPRInteraction_MapTravelBase
 {
@@ -15,10 +19,20 @@ public:
 	UPRInteraction_EntranceGate();
 
 protected:
-	virtual void NotifyTravelInteractionStarted(AActor* Interactor) override;
-	virtual void NotifyTravelInteractionEnded(AActor* Interactor, bool bCanceled) override;
-	
-	// 입장 게이트 이동 성립 시 진행 상태를 기록하지 않는 후크
-	virtual void OnTravelConditionMet() override;
-	
+	/*~ UPRInteraction_PartySyncBase Interface ~*/
+	// 입장 게이트 조건 충족 시 고정 목적지 이동 처리
+	virtual void HandlePartySyncConditionMet() override;
+
+	/*~ UPRInteraction_EntranceGate Interface ~*/
+	// 입장 게이트 목적지 SpawnPoint 태그 반환
+	FGameplayTag ResolveTargetSpawnPointId() const;
+
+protected:
+	// 입장 게이트 이동 대상 맵
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|Interaction|EntranceGate")
+	TSoftObjectPtr<UWorld> TargetMap;
+
+	// 입장 게이트 목적지 SpawnPoint 태그
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|Interaction|EntranceGate")
+	FGameplayTag TargetSpawnPointId;
 };

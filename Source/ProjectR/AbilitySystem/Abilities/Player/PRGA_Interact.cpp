@@ -2,8 +2,6 @@
 
 
 #include "PRGA_Interact.h"
-
-#include "Abilities/Tasks/AbilityTask_WaitInputPress.h"
 #include "Abilities/Tasks/AbilityTask_WaitInputRelease.h"
 #include "ProjectR/PRGameplayTags.h"
 #include "ProjectR/Interaction/PRInteractorComponent.h"
@@ -16,6 +14,8 @@ UPRGA_Interact::UPRGA_Interact()
 	FGameplayTagContainer DefaultAbilityTags;
 	DefaultAbilityTags.AddTag(PRGameplayTags::Ability_Player_Interaction);
 	SetAssetTags(DefaultAbilityTags);
+	
+	ActivationBlockedTags.AddTag(PRGameplayTags::State_Block_Interaction);
 	
 	InputTag = PRGameplayTags::Input_Ability_Interact;
 }
@@ -85,7 +85,11 @@ void UPRGA_Interact::InputPressed(const FGameplayAbilitySpecHandle Handle,
    const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilityActivationInfo ActivationInfo)
 {
 	Super::InputPressed(Handle, ActorInfo, ActivationInfo);
-	EndAbility(Handle,ActorInfo,ActivationInfo,true,false);
+	
+	if (CanActivateAbility(Handle,ActorInfo,nullptr,nullptr,nullptr))
+	{
+		EndAbility(Handle,ActorInfo,ActivationInfo,true,false);
+	}
 }
 
 UPRInteractorComponent* UPRGA_Interact::GetInteractorComponent(AController* InController)

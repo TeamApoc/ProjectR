@@ -221,6 +221,23 @@ UAbilitySystemComponent* UPRGameplayStatics::GetAbilitySystemComponent(AActor* A
 	return UAbilitySystemBlueprintLibrary::GetAbilitySystemComponent(Actor);
 }
 
+void UPRGameplayStatics::CancelAbilityWithTags(AActor* TargetActor, const FGameplayTagContainer& AbilityTags)
+{
+	if (AbilityTags.IsEmpty())
+	{
+		return;
+	}
+
+	UAbilitySystemComponent* TargetASC = GetAbilitySystemComponent(TargetActor);
+	if (!IsValid(TargetASC))
+	{
+		return;
+	}
+
+	// GAS 활성 어빌리티 태그 기반 취소
+	TargetASC->CancelAbilities(&AbilityTags);
+}
+
 void UPRGameplayStatics::GrantAmmo(AActor* TargetActor, TSubclassOf<UGameplayEffect> AmmoEffect,
 	float AmmoAmount)
 {

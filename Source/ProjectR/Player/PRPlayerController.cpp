@@ -16,6 +16,7 @@
 #include "ProjectR/Player/PRPlayerState.h"
 #include "ProjectR/Projectile/PRProjectileManagerComponent.h"
 #include "ProjectR/ItemSystem/Components/PRQuickSlotComponent.h"
+#include "ProjectR/Interaction/Actions/PRInteraction_Waypoint.h"
 #include "ProjectR/UI/Components/PRUIControllerComponent.h"
 #include "ProjectR/UI/FloatingText/PRFloatingTextManager.h"
 #include "ProjectR/Interaction/PRInteractionSensor.h"
@@ -195,39 +196,54 @@ void APRPlayerController::PostProcessInput(const float DeltaTime, const bool bGa
 	Super::PostProcessInput(DeltaTime, bGamePaused);
 }
 
-void APRPlayerController::ClientStartMapTransition_Implementation(float Delay, EPRMapTransitionType TransitionType)
+void APRPlayerController::ClientNotifyMapTransition_Implementation(float Delay, EPRMapTransitionType TransitionType)
 {
-	ResetPlayer();
-
-	if (IsValid(UIControllerComponent))
-	{
-		// UI 정리
-		UIControllerComponent->RemoveAllWidget();
-	}
-
 	if (TransitionType == EPRMapTransitionType::None)
 	{
 		return;
 	}
 
-	APRCameraManager* CM = Cast<APRCameraManager>(PlayerCameraManager);
-	if (!IsValid(CM))
+	ResetPlayer();
+	
+	// Handle UI Display
+	if (IsValid(UIControllerComponent))
 	{
-		return;
+		switch (TransitionType)
+		{
+		case EPRMapTransitionType::MapTravel:
+		case EPRMapTransitionType::Respawn:
+		
+			// UI 정리
+			UIControllerComponent->RemoveAllWidget();
+			break;
+		case EPRMapTransitionType::CancelTravel:
+			// UI 정리
+			UIControllerComponent->RefreshForPawn(GetPawn());
+			break;
+		default:
+			break;
+		}
 	}
-
-	switch (TransitionType)
+	
+	// Handle Fade In/Out
+	if (APRCameraManager* CM = Cast<APRCameraManager>(PlayerCameraManager))
 	{
-	case EPRMapTransitionType::MapTravel:
-		// 맵 이동 페이드
-		CM->FadeOut(EPRFadeColorPreset::White, Delay, false);
-		break;
-	case EPRMapTransitionType::Respawn:
-		// 리스폰 페이드
-		CM->FadeOut(EPRFadeColorPreset::Black, Delay, false);
-		break;
-	default:
-		break;
+		switch (TransitionType)
+		{
+		case EPRMapTransitionType::MapTravel:
+			// 맵 이동 페이드
+			CM->FadeOut(EPRFadeColorPreset::White, Delay, false);
+			break;
+		case EPRMapTransitionType::Respawn:
+			// 리스폰 페이드
+			CM->FadeOut(EPRFadeColorPreset::Black, Delay, false);
+			break;
+		case EPRMapTransitionType::CancelTravel:
+			CM->FadeIn(EPRFadeColorPreset::White, Delay, false);
+			break;
+		default:
+			break;
+		}
 	}
 }
 
@@ -537,6 +553,17 @@ void APRPlayerController::ClientOpenShopUI_Implementation(UPRShopComponent* Shop
 	UIControllerComponent->OpenShop(ShopComponent);
 }
 
+void APRPlayerController::ClientOpenWaypointTravelUI_Implementation()
+{
+	if (!IsValid(UIControllerComponent))
+	{
+		return;
+	}
+
+	// 호스트 로컬 UI 표시
+	UIControllerComponent->OpenWaypointTravel();
+}
+
 void APRPlayerController::ClientNotifyShopBuyResult_Implementation(const FPRShopBuyResult& Result)
 {
 	OnShopBuyResult.Broadcast(Result);
@@ -613,6 +640,48 @@ void APRPlayerController::RequestSellShopItem(UPRShopComponent* ShopComponent, F
 	ServerRequestSellShopItem(ShopComponent, EntryId, Quantity);
 }
 
+void APRPlayerController::RequestWaypointTravel(FSoftObjectPath WorldDataAssetPath, FGameplayTag WaypointId)
+{
+	if (!WorldDataAssetPath.IsValid() || !WaypointId.IsValid())
+	{
+		return;
+	}
+
+	// 서버 목적지 검증 요청
+	ServerRequestWaypointTravel(WorldDataAssetPath, WaypointId);
+}
+
+void APRPlayerController::RequestCancelWaypointTravel()
+{
+	// 서버 취소 이벤트 요청
+	ServerRequestCancelWaypointTravel();
+}
+
+void APRPlayerController::SetPendingWaypointTravelInteraction(UPRInteraction_Waypoint* WaypointInteraction)
+{
+	if (!HasAuthority() || !IsValid(WaypointInteraction))
+	{
+		return;
+	}
+
+	// UI 입력 대기 중 ActiveAction 해제 대비 서버 참조 보관
+	PendingWaypointTravelInteraction = WaypointInteraction;
+}
+
+void APRPlayerController::ClearPendingWaypointTravelInteraction(const UPRInteraction_Waypoint* WaypointInteraction)
+{
+	if (!HasAuthority())
+	{
+		return;
+	}
+
+	if (!PendingWaypointTravelInteraction.IsValid() || PendingWaypointTravelInteraction.Get() == WaypointInteraction)
+	{
+		// 완료 또는 취소된 UI 대기 참조 정리
+		PendingWaypointTravelInteraction.Reset();
+	}
+}
+
 void APRPlayerController::RequestConfirmTraitInvestment(const FPRTraitInvestmentInfo& DesiredInvestment)
 {
 	ServerRequestConfirmTraitInvestment(DesiredInvestment);
@@ -672,6 +741,44 @@ void APRPlayerController::ServerRequestSellShopItem_Implementation(UPRShopCompon
 	}
 
 	ShopComponent->RequestSellItem(this, EntryId, Quantity);
+}
+
+void APRPlayerController::ServerRequestWaypointTravel_Implementation(FSoftObjectPath WorldDataAssetPath, FGameplayTag WaypointId)
+{
+	if (!IsHostControllerForWaypointTravel())
+	{
+		UE_LOG(LogTemp, Warning, TEXT("WaypointTravel rejected: requester is not host"));
+		return;
+	}
+
+	UPRInteraction_Waypoint* WaypointInteraction = ResolveWaypointTravelInteraction();
+	if (!IsValid(WaypointInteraction))
+	{
+		UE_LOG(LogTemp, Warning, TEXT("WaypointTravel rejected: waypoint interaction not found"));
+		return;
+	}
+
+	// 웨이포인트 상호작용에 이동 위임
+	WaypointInteraction->RequestWaypointTravel(this, WorldDataAssetPath, WaypointId);
+}
+
+void APRPlayerController::ServerRequestCancelWaypointTravel_Implementation()
+{
+	if (!IsHostControllerForWaypointTravel())
+	{
+		UE_LOG(LogTemp, Warning, TEXT("WaypointTravel cancel rejected: requester is not host"));
+		return;
+	}
+
+	UPRInteraction_Waypoint* WaypointInteraction = ResolveWaypointTravelInteraction();
+	if (!IsValid(WaypointInteraction))
+	{
+		UE_LOG(LogTemp, Warning, TEXT("WaypointTravel cancel rejected: waypoint interaction not found"));
+		return;
+	}
+
+	// 웨이포인트 상호작용에 취소 위임
+	WaypointInteraction->CancelWaypointTravel(this);
 }
 
 void APRPlayerController::ServerRequestConfirmTraitInvestment_Implementation(const FPRTraitInvestmentInfo& DesiredInvestment)
@@ -754,4 +861,34 @@ UPRQuickSlotComponent* APRPlayerController::GetQuickSlotComponent() const
 	}
 
 	return PRPlayerState->GetQuickSlotComponent();
+}
+
+UPRInteraction_Waypoint* APRPlayerController::ResolveWaypointTravelInteraction() const
+{
+	const UPRInteractorComponent* ActiveInteractorComponent = IsValid(InteractorComponent)
+		? InteractorComponent.Get()
+		: FindComponentByClass<UPRInteractorComponent>();
+	if (IsValid(ActiveInteractorComponent))
+	{
+		if (UPRInteraction_Waypoint* ActiveWaypointInteraction = Cast<UPRInteraction_Waypoint>(ActiveInteractorComponent->GetActiveAction()))
+		{
+			// 입력 유지 중인 활성 상호작용 우선 사용
+			return ActiveWaypointInteraction;
+		}
+	}
+
+	UPRInteraction_Waypoint* PendingWaypointInteraction = PendingWaypointTravelInteraction.Get();
+	if (IsValid(PendingWaypointInteraction) && PendingWaypointInteraction->IsWaitingForWaypointTravelSelection())
+	{
+		// UI 표시 이후 입력 해제에 따른 ActiveAction 소실 대비
+		return PendingWaypointInteraction;
+	}
+
+	return nullptr;
+}
+
+bool APRPlayerController::IsHostControllerForWaypointTravel() const
+{
+	// 리슨 서버 호스트 또는 스탠드얼론 호스트 판정
+	return HasAuthority() && IsLocalController();
 }

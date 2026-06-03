@@ -19,6 +19,7 @@
 #include "ProjectR/UI/Growth/PRTraitWindowWidget.h"
 #include "ProjectR/UI/PRUIManagerSubsystem.h"
 #include "ProjectR/UI/Shop/PRShopWidget.h"
+#include "ProjectR/UI/WaypointTravel/PRWaypointTravelWidget.h"
 #include "ProjectR/UI/WeaponUpgrade/PRWeaponUpgradeWidget.h"
 #include "ProjectR/PRGameplayTags.h"
 #include "ProjectR/Shop/Components/PRShopComponent.h"
@@ -276,6 +277,32 @@ void UPRUIControllerComponent::OpenShop(UPRShopComponent* ShopComponent)
 	UIManager->PushUIInstance(CreatedShopWidget);
 }
 
+void UPRUIControllerComponent::OpenWaypointTravel()
+{
+	if (!IsLocalPlayer())
+	{
+		return;
+	}
+
+	HideItemTooltip();
+
+	UPRUIManagerSubsystem* UIManager = GetUIManager();
+	if (!IsValid(UIManager))
+	{
+		return;
+	}
+
+	UPRWaypointTravelWidget* CreatedWaypointTravelWidget = GetOrCreateWaypointTravelWidget();
+	if (!IsValid(CreatedWaypointTravelWidget))
+	{
+		return;
+	}
+
+	// 임시 목적지 목록 갱신
+	CreatedWaypointTravelWidget->RebuildNodeList();
+	UIManager->PushUIInstance(CreatedWaypointTravelWidget);
+}
+
 void UPRUIControllerComponent::CloseWeaponUpgrade()
 {
 	if (!IsLocalPlayer())
@@ -323,6 +350,30 @@ void UPRUIControllerComponent::CloseShop()
 	else
 	{
 		ShopWidget->RemoveFromParent();
+	}
+}
+
+void UPRUIControllerComponent::CloseWaypointTravel()
+{
+	if (!IsLocalPlayer())
+	{
+		return;
+	}
+
+	if (!IsValid(WaypointTravelWidget) || !WaypointTravelWidget->IsInViewport())
+	{
+		return;
+	}
+
+	UPRUIManagerSubsystem* UIManager = GetUIManager();
+	if (IsValid(UIManager))
+	{
+		// Travel UI 스택 제거
+		UIManager->PopUI(WaypointTravelWidget);
+	}
+	else
+	{
+		WaypointTravelWidget->RemoveFromParent();
 	}
 }
 
@@ -448,6 +499,8 @@ void UPRUIControllerComponent::EndPlay(const EEndPlayReason::Type EndPlayReason)
 	WeaponUpgradeWidget = nullptr;
 	CloseShop();
 	ShopWidget = nullptr;
+	CloseWaypointTravel();
+	WaypointTravelWidget = nullptr;
 	CloseInGameMenu();
 	InGameMenuWidget = nullptr;
 
@@ -505,6 +558,10 @@ void UPRUIControllerComponent::RemoveAllWidget()
 	if (InGameMenuWidget)
 	{
 		InGameMenuWidget->RemoveFromParent();
+	}
+	if (WaypointTravelWidget)
+	{
+		WaypointTravelWidget->RemoveFromParent();
 	}
 	if (UPRUIManagerSubsystem* UIManager = GetUIManager())
 	{
@@ -661,6 +718,24 @@ UPRShopWidget* UPRUIControllerComponent::GetOrCreateShopWidget()
 
 	ShopWidget = CreateWidget<UPRShopWidget>(PlayerController, ShopWidgetClass);
 	return ShopWidget;
+}
+
+UPRWaypointTravelWidget* UPRUIControllerComponent::GetOrCreateWaypointTravelWidget()
+{
+	if (IsValid(WaypointTravelWidget))
+	{
+		return WaypointTravelWidget;
+	}
+
+	APlayerController* PlayerController = GetOwningPlayerController();
+	if (!IsValid(PlayerController) || !IsValid(WaypointTravelWidgetClass.Get()))
+	{
+		return nullptr;
+	}
+
+	// Travel UI 인스턴스 생성
+	WaypointTravelWidget = CreateWidget<UPRWaypointTravelWidget>(PlayerController, WaypointTravelWidgetClass);
+	return WaypointTravelWidget;
 }
 
 UPRTraitWindowWidget* UPRUIControllerComponent::GetOrCreateTraitWindowWidget()

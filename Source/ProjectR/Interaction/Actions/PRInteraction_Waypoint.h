@@ -57,6 +57,9 @@ private:
 	// Waypoint 활성 상태와 체크포인트 상태 갱신
 	void RecordWaypointActivation();
 
+	// Waypoint 활성화에 따른 월드 오브젝트 복구
+	void RespawnWorldObjects();
+
 	// 전원 FadeOut 이후 호스트 Travel UI 표시 예약
 	void ScheduleWaypointTravelUI();
 

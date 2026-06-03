@@ -121,8 +121,8 @@ public:
 	// 현재 플레이어 Pawn에게 생존 상태 전환 이벤트를 보낸다.
 	void SendSurvivalGameplayEvent(const FGameplayTag& EventTag) const;
 	
-	// 리스폰 전 생존 상태 태그와 입력 캐시를 초기화한다
-	void ResetSurvivalStateForRespawn();
+	// 리스폰 전 PlayerState와 소유 시스템의 런타임 상태 초기화
+	void ResetState();
 	
 	// 현재 캐릭터 Pawn 기준 AbilitySet을 재부여한다
 	void GrantCharacterAbilitySet(const UPRAbilitySet* InAbilitySet, UObject* InSourceObject = nullptr);

@@ -708,6 +708,12 @@ void UPRInventoryComponent::OnInventoryChanged(const FPRInventoryChangeEventData
 	OnInventoryChangedDelegate.Broadcast(this, EventData);
 }
 
+void UPRInventoryComponent::ResetSystem()
+{
+	// 정본 Item 배열 기준 캐시 복구
+	RebuildInventoryCaches();
+}
+
 FPRInventorySaveData UPRInventoryComponent::MakeSaveData() const
 {
 	FPRInventorySaveData SaveData;

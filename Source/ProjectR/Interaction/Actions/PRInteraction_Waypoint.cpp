@@ -11,6 +11,7 @@
 #include "ProjectR/Game/PRGameStateBase.h"
 #include "ProjectR/Player/PRPlayerController.h"
 #include "ProjectR/PRGameplayTags.h"
+#include "ProjectR/System/PRRespawnSubsystem.h"
 #include "ProjectR/Utils/PRGameplayStatics.h"
 #include "ProjectR/World/PRWorldDataAsset.h"
 #include "ProjectR/World/PRWaypointActor.h"
@@ -129,6 +130,7 @@ void UPRInteraction_Waypoint::HandlePartySyncConditionMet()
 	}
 
 	RecordWaypointActivation();
+	RespawnWorldObjects();
 	ClearPartySyncWaitingMessages();
 
 	// 호스트 목적지 선택 대기
@@ -158,6 +160,21 @@ void UPRInteraction_Waypoint::RecordWaypointActivation()
 
 	// 전멸 리스폰 기준 체크포인트 기록
 	GameState->SetActiveCheckpoint(SpawnPointId);
+}
+
+void UPRInteraction_Waypoint::RespawnWorldObjects()
+{
+	UWorld* World = GetWorld();
+	if (!IsValid(World))
+	{
+		return;
+	}
+
+	if (UPRRespawnSubsystem* RespawnSubsystem = World->GetSubsystem<UPRRespawnSubsystem>())
+	{
+		// Waypoint 활성화 월드 오브젝트 복구
+		RespawnSubsystem->RespawnWorldObjects();
+	}
 }
 
 void UPRInteraction_Waypoint::NotifyPartySyncInteractionStarted(AActor* Interactor)

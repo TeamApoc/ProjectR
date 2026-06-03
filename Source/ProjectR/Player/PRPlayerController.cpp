@@ -220,6 +220,10 @@ void APRPlayerController::ClientNotifyMapTransition_Implementation(float Delay, 
 			// UI 정리
 			UIControllerComponent->RefreshForPawn(GetPawn());
 			break;
+		case EPRMapTransitionType::RespawnComplete:
+			// 리스폰 완료 UI 복구
+			UIControllerComponent->RefreshForPawn(GetPawn());
+			break;
 		default:
 			break;
 		}
@@ -237,6 +241,10 @@ void APRPlayerController::ClientNotifyMapTransition_Implementation(float Delay, 
 		case EPRMapTransitionType::Respawn:
 			// 리스폰 페이드
 			CM->FadeOut(EPRFadeColorPreset::Black, Delay, false);
+			break;
+		case EPRMapTransitionType::RespawnComplete:
+			// 리스폰 완료 페이드
+			CM->FadeIn(EPRFadeColorPreset::Black, Delay, false);
 			break;
 		case EPRMapTransitionType::CancelTravel:
 			CM->FadeIn(EPRFadeColorPreset::White, Delay, false);

@@ -71,6 +71,9 @@ public:
 
 	// 저장 데이터 기반 퀵슬롯 등록 상태 복원
 	void ApplySaveData(const FPRQuickSlotSaveData& InSaveData);
+
+	// 리스폰 전 퀵슬롯 소비 아이템 캐시 재조회
+	void ResetSystem();
 protected:
 	// 퀵슬롯 복제 결과를 로컬 UI에 알린다
 	UFUNCTION()

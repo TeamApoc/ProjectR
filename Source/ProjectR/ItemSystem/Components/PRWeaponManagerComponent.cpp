@@ -162,6 +162,39 @@ void UPRWeaponManagerComponent::InitializeWithPawn(APRCharacterBase* InPawn)
 	RefreshAnimLayer();
 }
 
+void UPRWeaponManagerComponent::ResetSystem()
+{
+	// 기존 Pawn 무기 Actor 제거
+	DestroyWeaponActorForSlot(EPRWeaponSlotType::Primary);
+	DestroyWeaponActorForSlot(EPRWeaponSlotType::Secondary);
+
+	// 무장 표현 상태 초기화
+	ArmedState = EPRArmedState::Unarmed;
+	CurrentLinkedAnimLayerClass = nullptr;
+
+	if (APRPlayerState* PlayerState = GetOwnerPlayerState())
+	{
+		if (UPRAbilitySystemComponent* ASC = PlayerState->GetPRAbilitySystemComponent())
+		{
+			// 무장 태그 잔류 제거
+			ASC->RemoveLooseGameplayTag(PRGameplayTags::State_Armed);
+			ASC->RemoveReplicatedLooseGameplayTag(PRGameplayTags::State_Armed);
+		}
+	}
+
+	// Pawn 의존 캐시 초기화
+	CachedPawnOwner = nullptr;
+	CachedASC = nullptr;
+	CachedWeaponSet = nullptr;
+	CachedInventory = nullptr;
+
+	if (IsValid(GetOwner()))
+	{
+		// 무장 상태 복제 갱신
+		GetOwner()->ForceNetUpdate();
+	}
+}
+
 
 FPRWeaponManagerSaveData UPRWeaponManagerComponent::MakeSaveData() const
 {

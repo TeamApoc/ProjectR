@@ -271,7 +271,7 @@ void APRPlayGameMode::ConfirmPartyWipe()
 		if (IsValid(PlayerController))
 		{
 			// 리스폰 전환 연출
-			PlayerController->ClientStartMapTransition(PartyWipeRespawnDelay, EPRMapTransitionType::Respawn);
+			PlayerController->ClientNotifyMapTransition(PartyWipeRespawnDelay, EPRMapTransitionType::Respawn);
 		}
 		
 		// if (PRPlayerState->IsDown())

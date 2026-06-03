@@ -21,6 +21,7 @@ enum class EPRMapTransitionType : uint8
 	None,
 	MapTravel,
 	Respawn,
+	CancelTravel,
 };
 
 class UPRInteractorComponent;
@@ -105,7 +106,7 @@ public:
 
 	// 맵 이동 또는 리스폰 전환 연출 시작
 	UFUNCTION(Client, Reliable)
-	void ClientStartMapTransition(float Delay, EPRMapTransitionType TransitionType);
+	void ClientNotifyMapTransition(float Delay, EPRMapTransitionType TransitionType);
 	
 	// 서버 -> 본인 클라. 무기 강화 결과를 UI에 전달한다
 	UFUNCTION(Client, Reliable)

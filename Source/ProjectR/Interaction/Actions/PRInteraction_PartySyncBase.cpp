@@ -76,6 +76,18 @@ void UPRInteraction_PartySyncBase::EndInteraction_Implementation(AActor* Interac
 	NotifyPartySyncInteractionEnded(Interactor, bCanceled);
 }
 
+TArray<TObjectPtr<APlayerState>> UPRInteraction_PartySyncBase::GetPlayerArray() const
+{
+	if (const UWorld* World = GetWorld())
+	{
+		if (const APRGameStateBase* GameState = World->GetGameState<APRGameStateBase>())
+		{
+			return GameState->PlayerArray;
+		}	
+	}
+	return TArray<TObjectPtr<APlayerState>>();
+}
+
 void UPRInteraction_PartySyncBase::HandlePartySyncConditionMet()
 {
 	// 기본 처리 없음
@@ -137,14 +149,7 @@ void UPRInteraction_PartySyncBase::ClearPartySyncCheckTimer()
 
 void UPRInteraction_PartySyncBase::ClearPartySyncWaitingMessages() const
 {
-	const UWorld* World = GetWorld();
-	const APRGameStateBase* GameState = IsValid(World) ? World->GetGameState<APRGameStateBase>() : nullptr;
-	if (!IsValid(GameState))
-	{
-		return;
-	}
-
-	for (APlayerState* PlayerState : GameState->PlayerArray)
+	for (APlayerState* PlayerState :GetPlayerArray())
 	{
 		const APRPlayerState* PRPlayerState = Cast<APRPlayerState>(PlayerState);
 		APRPlayerController* Controller = ResolvePlayerController(PRPlayerState);
@@ -179,15 +184,8 @@ void UPRInteraction_PartySyncBase::CheckPartySyncCondition()
 
 int32 UPRInteraction_PartySyncBase::CountInteractingPlayers() const
 {
-	const UWorld* World = GetWorld();
-	const APRGameStateBase* GameState = IsValid(World) ? World->GetGameState<APRGameStateBase>() : nullptr;
-	if (!IsValid(GameState))
-	{
-		return 0;
-	}
-
 	int32 InteractingPlayerCount = 0;
-	for (APlayerState* PlayerState : GameState->PlayerArray)
+	for (APlayerState* PlayerState : GetPlayerArray())
 	{
 		const APRPlayerState* PRPlayerState = Cast<APRPlayerState>(PlayerState);
 		if (!IsValid(PRPlayerState) || !PRPlayerState->IsCombatParticipant() || PRPlayerState->IsOutOfFight())
@@ -206,15 +204,8 @@ int32 UPRInteraction_PartySyncBase::CountInteractingPlayers() const
 
 int32 UPRInteraction_PartySyncBase::CountFightCapablePlayers() const
 {
-	const UWorld* World = GetWorld();
-	const APRGameStateBase* GameState = IsValid(World) ? World->GetGameState<APRGameStateBase>() : nullptr;
-	if (!IsValid(GameState))
-	{
-		return 0;
-	}
-
 	int32 FightCapablePlayerCount = 0;
-	for (APlayerState* PlayerState : GameState->PlayerArray)
+	for (APlayerState* PlayerState : GetPlayerArray())
 	{
 		const APRPlayerState* PRPlayerState = Cast<APRPlayerState>(PlayerState);
 		if (!IsValid(PRPlayerState) || !PRPlayerState->IsCombatParticipant() || PRPlayerState->IsOutOfFight())
@@ -230,13 +221,6 @@ int32 UPRInteraction_PartySyncBase::CountFightCapablePlayers() const
 
 void UPRInteraction_PartySyncBase::RefreshPartySyncWaitingMessages()
 {
-	const UWorld* World = GetWorld();
-	const APRGameStateBase* GameState = IsValid(World) ? World->GetGameState<APRGameStateBase>() : nullptr;
-	if (!IsValid(GameState))
-	{
-		return;
-	}
-
 	const int32 FightCapablePlayerCount = CountFightCapablePlayers();
 	const int32 InteractingPlayerCount = CountInteractingPlayers();
 	// 파티 일부만 상호작용 중일 때만 대기 안내 표시
@@ -245,7 +229,7 @@ void UPRInteraction_PartySyncBase::RefreshPartySyncWaitingMessages()
 		&& InteractingPlayerCount > 0
 		&& InteractingPlayerCount < FightCapablePlayerCount;
 
-	for (APlayerState* PlayerState : GameState->PlayerArray)
+	for (APlayerState* PlayerState : GetPlayerArray())
 	{
 		const APRPlayerState* PRPlayerState = Cast<APRPlayerState>(PlayerState);
 		APRPlayerController* Controller = ResolvePlayerController(PRPlayerState);

@@ -29,6 +29,8 @@ public:
 	virtual void EndInteraction_Implementation(AActor* Interactor, bool bCanceled) override;
 
 protected:
+	TArray<TObjectPtr<APlayerState>> GetPlayerArray() const;
+	
 	// 전투 가능 플레이어 전원 상호작용 충족 처리
 	virtual void HandlePartySyncConditionMet();
 

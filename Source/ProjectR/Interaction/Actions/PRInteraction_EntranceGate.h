@@ -35,4 +35,9 @@ protected:
 	// 입장 게이트 목적지 SpawnPoint 태그
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|Interaction|EntranceGate")
 	FGameplayTag TargetSpawnPointId;
+	
+	// 페이드 아웃 시간
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|Interaction|EntranceGate")
+	float FadeDuration = 1.6f;
+	
 };

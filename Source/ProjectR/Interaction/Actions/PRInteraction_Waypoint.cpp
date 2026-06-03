@@ -3,8 +3,10 @@
 #include "PRInteraction_Waypoint.h"
 
 #include "Engine/Blueprint.h"
+#include "Engine/World.h"
 #include "GameFramework/PlayerState.h"
 #include "GameplayEffect.h"
+#include "TimerManager.h"
 #include "ProjectR/AbilitySystem/PRAbilitySystemComponent.h"
 #include "ProjectR/Game/PRGameStateBase.h"
 #include "ProjectR/Player/PRPlayerController.h"
@@ -51,7 +53,14 @@ void UPRInteraction_Waypoint::RequestWaypointTravel(APRPlayerController* Request
 
 	// UI 선택 대기 종료
 	bWaitingForWaypointTravelSelection = false;
+	bWaitingForTravelUIFadeOut = false;
+	if (UWorld* World = GetWorld())
+	{
+		// Travel UI 오픈 예약 정리
+		World->GetTimerManager().ClearTimer(TravelUIOpenTimerHandle);
+	}
 	RequestingController->ClearPendingWaypointTravelInteraction(this);
+	UnlockPlayerInteraction();
 
 	// 선택 노드 목적지 이동과 Waypoint 전용 효과 적용
 	StartTravelToSpawnPoint(WorldDataAsset->MapAsset, WaypointId, WaypointGameplayEffect);
@@ -78,13 +87,43 @@ void UPRInteraction_Waypoint::CancelWaypointTravel(APRPlayerController* Requesti
 
 	// UI 선택 대기 취소
 	bWaitingForWaypointTravelSelection = false;
+	bWaitingForTravelUIFadeOut = false;
+	if (UWorld* World = GetWorld())
+	{
+		// Travel UI 오픈 예약 정리
+		World->GetTimerManager().ClearTimer(TravelUIOpenTimerHandle);
+	}
 	RequestingController->ClearPendingWaypointTravelInteraction(this);
 	BroadcastWaypointCancelEventToAllPlayers();
+	NotifyMapTransitionToAllPlayers(EPRMapTransitionType::CancelTravel);
+	ClearPartySyncWaitingMessages();
+	UnlockPlayerInteraction();
+}
+
+bool UPRInteraction_Waypoint::CanInteract_Implementation(AActor* Interactor) const
+{
+	if (auto ASC = UPRGameplayStatics::GetAbilitySystemComponent(Interactor))
+	{
+		return !ASC->HasMatchingGameplayTag(PRGameplayTags::State_Block_Interaction);
+	}
+
+	return Super::CanInteract_Implementation(Interactor);
+}
+
+void UPRInteraction_Waypoint::EndInteraction_Implementation(AActor* Interactor, bool bCanceled)
+{
+	if (!bWaitingForTravelUIFadeOut && !bWaitingForWaypointTravelSelection)
+	{
+		// UI 전환 외부 종료에 따른 잠금 해제
+		UnlockPlayerInteraction();
+	}
+
+	Super::EndInteraction_Implementation(Interactor, bCanceled);
 }
 
 void UPRInteraction_Waypoint::HandlePartySyncConditionMet()
 {
-	if (bWaitingForWaypointTravelSelection)
+	if (bWaitingForTravelUIFadeOut || bWaitingForWaypointTravelSelection)
 	{
 		return;
 	}
@@ -93,13 +132,14 @@ void UPRInteraction_Waypoint::HandlePartySyncConditionMet()
 	ClearPartySyncWaitingMessages();
 
 	// 호스트 목적지 선택 대기
-	bWaitingForWaypointTravelSelection = OpenWaypointTravelUI();
+	LockPlayerInteraction();
+	ScheduleWaypointTravelUI();
 }
 
 bool UPRInteraction_Waypoint::IsPartySyncActionLocked() const
 {
-	// Travel UI 대기 중 상호작용 입력 해제에 따른 중복 종료 피드백 차단
-	return Super::IsPartySyncActionLocked() || bWaitingForWaypointTravelSelection;
+	// Travel UI 전환 중 상호작용 입력 해제에 따른 중복 종료 피드백 차단
+	return Super::IsPartySyncActionLocked() || bWaitingForTravelUIFadeOut || bWaitingForWaypointTravelSelection;
 }
 
 void UPRInteraction_Waypoint::RecordWaypointActivation()
@@ -134,20 +174,95 @@ void UPRInteraction_Waypoint::NotifyPartySyncInteractionEnded(AActor* Interactor
 {
 	if (UPRAbilitySystemComponent* ASC = Cast<UPRAbilitySystemComponent>(UPRGameplayStatics::GetAbilitySystemComponent(Interactor)))
 	{
-		if (bCanceled)
-		{
-			// Waypoint 활성화 어빌리티 취소
-			FGameplayTagContainer CancelTags;
-			CancelTags.AddTag(PRGameplayTags::Ability_Player_Waypoint);
-			ASC->CancelAbilities(&CancelTags);
-		}
-		else
-		{
-			// Waypoint 상호작용 종료 이벤트 전송
-			ASC->MulticastTriggerEvent(PRGameplayTags::Event_Ability_Waypoint_End);
-		}
+		// Waypoint 상호작용 종료 이벤트 전송
+		ASC->MulticastTriggerEvent(PRGameplayTags::Event_Ability_Waypoint_End);
 	}
 	Super::NotifyPartySyncInteractionEnded(Interactor, bCanceled);
+}
+
+void UPRInteraction_Waypoint::LockPlayerInteraction()
+{
+	for (APlayerState* PlayerState : GetPlayerArray())
+	{
+		UPRAbilitySystemComponent* ASC = Cast<UPRAbilitySystemComponent>(UPRGameplayStatics::GetAbilitySystemComponent(PlayerState));
+		if (!IsValid(ASC))
+		{
+			continue;
+		}
+
+		ASC->AddReplicatedLooseGameplayTag(PRGameplayTags::State_Block_Interaction);
+	}
+
+	bInteractionLocked = true;
+}
+
+void UPRInteraction_Waypoint::UnlockPlayerInteraction()
+{
+	if (!bInteractionLocked)
+	{
+		return;
+	}
+
+	for (APlayerState* PlayerState : GetPlayerArray())
+	{
+		UPRAbilitySystemComponent* ASC = Cast<UPRAbilitySystemComponent>(UPRGameplayStatics::GetAbilitySystemComponent(PlayerState));
+		if (!IsValid(ASC))
+		{
+			continue;
+		}
+
+		ASC->RemoveReplicatedLooseGameplayTag(PRGameplayTags::State_Block_Interaction);
+	}
+
+	bInteractionLocked = false;
+}
+
+void UPRInteraction_Waypoint::ScheduleWaypointTravelUI()
+{
+	UWorld* World = GetWorld();
+	if (!IsValid(World))
+	{
+		bWaitingForTravelUIFadeOut = false;
+		UnlockPlayerInteraction();
+		return;
+	}
+
+	bWaitingForTravelUIFadeOut = true;
+
+	// 전원 FadeOut 알림
+	NotifyMapTransitionToAllPlayers(EPRMapTransitionType::MapTravel);
+
+	World->GetTimerManager().ClearTimer(TravelUIOpenTimerHandle);
+	if (TravelUIFadeDuration <= 0.0f)
+	{
+		OpenWaypointTravelUIAfterFadeOut();
+		return;
+	}
+
+	// FadeOut 종료 후 호스트 UI 표시 예약
+	World->GetTimerManager().SetTimer(
+		TravelUIOpenTimerHandle,
+		this,
+		&UPRInteraction_Waypoint::OpenWaypointTravelUIAfterFadeOut,
+		TravelUIFadeDuration,
+		false);
+}
+
+void UPRInteraction_Waypoint::OpenWaypointTravelUIAfterFadeOut()
+{
+	if (!bWaitingForTravelUIFadeOut)
+	{
+		return;
+	}
+
+	bWaitingForTravelUIFadeOut = false;
+	bWaitingForWaypointTravelSelection = OpenWaypointTravelUI();
+	if (!bWaitingForWaypointTravelSelection)
+	{
+		// UI 오픈 실패 후 Fade 복구
+		NotifyMapTransitionToAllPlayers(EPRMapTransitionType::CancelTravel);
+		UnlockPlayerInteraction();
+	}
 }
 
 bool UPRInteraction_Waypoint::OpenWaypointTravelUI()
@@ -167,16 +282,34 @@ bool UPRInteraction_Waypoint::OpenWaypointTravelUI()
 	return true;
 }
 
+void UPRInteraction_Waypoint::NotifyMapTransitionToAllPlayers(EPRMapTransitionType TransitionType) const
+{
+	for (APlayerState* PlayerState : GetPlayerArray())
+	{
+		if (!IsValid(PlayerState))
+		{
+			continue;
+		}
+
+		APRPlayerController* Controller = Cast<APRPlayerController>(PlayerState->GetOwner());
+		if (!IsValid(Controller) && IsValid(PlayerState->GetPawn()))
+		{
+			Controller = Cast<APRPlayerController>(PlayerState->GetPawn()->GetController());
+		}
+
+		if (!IsValid(Controller))
+		{
+			continue;
+		}
+
+		// 로컬 맵 전환 페이드 알림
+		Controller->ClientNotifyMapTransition(TravelUIFadeDuration, TransitionType);
+	}
+}
+
 APRPlayerController* UPRInteraction_Waypoint::FindHostPlayerController() const
 {
-	const UWorld* World = GetWorld();
-	const APRGameStateBase* GameState = IsValid(World) ? World->GetGameState<APRGameStateBase>() : nullptr;
-	if (!IsValid(GameState))
-	{
-		return nullptr;
-	}
-
-	for (APlayerState* PlayerState : GameState->PlayerArray)
+	for (APlayerState* PlayerState :GetPlayerArray())
 	{
 		if (!IsValid(PlayerState))
 		{
@@ -241,14 +374,7 @@ bool UPRInteraction_Waypoint::ValidateWaypointTravelRequest(FSoftObjectPath Worl
 
 void UPRInteraction_Waypoint::BroadcastWaypointCancelEventToAllPlayers() const
 {
-	const UWorld* World = GetWorld();
-	const APRGameStateBase* GameState = IsValid(World) ? World->GetGameState<APRGameStateBase>() : nullptr;
-	if (!IsValid(GameState))
-	{
-		return;
-	}
-
-	for (APlayerState* PlayerState : GameState->PlayerArray)
+	for (APlayerState* PlayerState : GetPlayerArray())
 	{
 		UPRAbilitySystemComponent* ASC = Cast<UPRAbilitySystemComponent>(UPRGameplayStatics::GetAbilitySystemComponent(PlayerState));
 		if (!IsValid(ASC))
@@ -256,7 +382,12 @@ void UPRInteraction_Waypoint::BroadcastWaypointCancelEventToAllPlayers() const
 			continue;
 		}
 
-		// UI 취소 Gameplay Event 전파
-		ASC->MulticastTriggerEvent(PRGameplayTags::Event_Ability_Waypoint_Cancel);
+		// 상호작용 어빌리티 취소
+		FGameplayTagContainer CancelTags;
+		CancelTags.AddTag(PRGameplayTags::Ability_Player_Interaction);
+		ASC->CancelAbilities(&CancelTags);
+
+		// Waypoint 종료 이벤트 전파
+		ASC->MulticastTriggerEvent(PRGameplayTags::Event_Ability_Waypoint_End);
 	}
 }

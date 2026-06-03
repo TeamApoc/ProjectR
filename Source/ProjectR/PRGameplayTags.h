@@ -31,7 +31,7 @@ namespace PRGameplayTags
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Ability_Player_Down); // 플레이어 다운 어빌리티
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Ability_Player_GetUp); // 플레이어 기상 어빌리티
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Ability_Player_Revive); // 플레이어 동료 소생 어빌리티
-	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Ability_Player_Waypoint); // 크리스탈 상호작용 어빌리티
+	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Ability_Player_Action_Waypoint); // 크리스탈 상호작용 어빌리티
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Ability_Player_CombatEngaged); // 플레이어 전투 교전 갱신 어빌리티
 	
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Ability_Player_Weapon_Zoom); // 플레이어 볼트액션 줌 어빌리티
@@ -104,6 +104,7 @@ namespace PRGameplayTags
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(State_Enemy_Penitent_BarrierSummon); // Penitent 배리어 보유 상태
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(State_Armed); // 플레이어 무기 장착중 상태
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(State_Block_Move); // 움직임 비활성화 상태
+	UE_DECLARE_GAMEPLAY_TAG_EXTERN(State_Block_Interaction); // 상호작용 비활성화 상태
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(State_Reviving); // 소생중 상태
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(State_WeaponZooming); // 무기 줌 상태
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(State_SwappingWeapon); // 무기 교체 Draw 몽타주 진행 상태
@@ -137,7 +138,6 @@ namespace PRGameplayTags
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Event_Ability_Revive_Canceled);
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Event_Ability_Waypoint_Start); // 크리스탈 상호작용 시작
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Event_Ability_Waypoint_End); // 크리스탈 상호작용 취소
-	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Event_Ability_Waypoint_Cancel); // 크리스탈 UI 취소
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Event_Ability_GroggyEntered); // 그로기 진입 이벤트.
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Event_Ability_PhaseTransition); // 페이즈 전환 이벤트.
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Event_Ability_PlayerHitReact_Weak); // 플레이어 약한 경직 이벤트

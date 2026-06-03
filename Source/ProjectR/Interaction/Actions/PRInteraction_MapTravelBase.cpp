@@ -43,28 +43,23 @@ void UPRInteraction_MapTravelBase::StartTravelToSpawnPoint(TSoftObjectPtr<UWorld
 	ClearPartySyncCheckTimer();
 	ClearPartySyncWaitingMessages();
 
-	// 클라이언트 페이드아웃 및 이동 직전 효과 처리
-	if (APRGameStateBase* GameState = World->GetGameState<APRGameStateBase>())
+
+	for (APlayerState* PlayerState : GetPlayerArray())
 	{
-		for (APlayerState* PlayerState : GameState->PlayerArray)
+		APRPlayerController* Controller = Cast<APRPlayerController>(PlayerState->GetOwner());
+		if (!IsValid(Controller))
 		{
-			APRPlayerController* Controller = Cast<APRPlayerController>(PlayerState->GetOwner());
-			if (!IsValid(Controller))
-			{
-				continue;
-			}
+			continue;
+		}
 
-			Controller->ClientStartMapTransition(TravelDelay, EPRMapTransitionType::MapTravel);
-
-			if (IsValid(OptionalGameplayEffect.Get()))
+		if (IsValid(OptionalGameplayEffect.Get()))
+		{
+			if (UAbilitySystemComponent* ASC = UPRGameplayStatics::GetAbilitySystemComponent(PlayerState))
 			{
-				if (UAbilitySystemComponent* ASC = UPRGameplayStatics::GetAbilitySystemComponent(PlayerState))
-				{
-					// 이동 직전 선택 효과 적용
-					FGameplayEffectContextHandle EffectContext = ASC->MakeEffectContext();
-					FGameplayEffectSpecHandle SpecHandle = ASC->MakeOutgoingSpec(OptionalGameplayEffect, 1.0f, EffectContext);
-					ASC->BP_ApplyGameplayEffectSpecToSelf(SpecHandle);
-				}
+				// 이동 직전 선택 효과 적용
+				FGameplayEffectContextHandle EffectContext = ASC->MakeEffectContext();
+				FGameplayEffectSpecHandle SpecHandle = ASC->MakeOutgoingSpec(OptionalGameplayEffect, 1.0f, EffectContext);
+				ASC->BP_ApplyGameplayEffectSpecToSelf(SpecHandle);
 			}
 		}
 	}

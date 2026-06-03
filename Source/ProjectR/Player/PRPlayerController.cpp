@@ -196,39 +196,54 @@ void APRPlayerController::PostProcessInput(const float DeltaTime, const bool bGa
 	Super::PostProcessInput(DeltaTime, bGamePaused);
 }
 
-void APRPlayerController::ClientStartMapTransition_Implementation(float Delay, EPRMapTransitionType TransitionType)
+void APRPlayerController::ClientNotifyMapTransition_Implementation(float Delay, EPRMapTransitionType TransitionType)
 {
-	ResetPlayer();
-
-	if (IsValid(UIControllerComponent))
-	{
-		// UI 정리
-		UIControllerComponent->RemoveAllWidget();
-	}
-
 	if (TransitionType == EPRMapTransitionType::None)
 	{
 		return;
 	}
 
-	APRCameraManager* CM = Cast<APRCameraManager>(PlayerCameraManager);
-	if (!IsValid(CM))
+	ResetPlayer();
+	
+	// Handle UI Display
+	if (IsValid(UIControllerComponent))
 	{
-		return;
+		switch (TransitionType)
+		{
+		case EPRMapTransitionType::MapTravel:
+		case EPRMapTransitionType::Respawn:
+		
+			// UI 정리
+			UIControllerComponent->RemoveAllWidget();
+			break;
+		case EPRMapTransitionType::CancelTravel:
+			// UI 정리
+			UIControllerComponent->RefreshForPawn(GetPawn());
+			break;
+		default:
+			break;
+		}
 	}
-
-	switch (TransitionType)
+	
+	// Handle Fade In/Out
+	if (APRCameraManager* CM = Cast<APRCameraManager>(PlayerCameraManager))
 	{
-	case EPRMapTransitionType::MapTravel:
-		// 맵 이동 페이드
-		CM->FadeOut(EPRFadeColorPreset::White, Delay, false);
-		break;
-	case EPRMapTransitionType::Respawn:
-		// 리스폰 페이드
-		CM->FadeOut(EPRFadeColorPreset::Black, Delay, false);
-		break;
-	default:
-		break;
+		switch (TransitionType)
+		{
+		case EPRMapTransitionType::MapTravel:
+			// 맵 이동 페이드
+			CM->FadeOut(EPRFadeColorPreset::White, Delay, false);
+			break;
+		case EPRMapTransitionType::Respawn:
+			// 리스폰 페이드
+			CM->FadeOut(EPRFadeColorPreset::Black, Delay, false);
+			break;
+		case EPRMapTransitionType::CancelTravel:
+			CM->FadeIn(EPRFadeColorPreset::White, Delay, false);
+			break;
+		default:
+			break;
+		}
 	}
 }
 

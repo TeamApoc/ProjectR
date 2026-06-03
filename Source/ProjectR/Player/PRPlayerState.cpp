@@ -392,45 +392,14 @@ void APRPlayerState::ResetState()
 		return;
 	}
 
-	// 활성 Ability와 입력 캐시 정리
-	AbilitySystemComponent->CancelAllAbilities();
-	AbilitySystemComponent->ClearAbilityInput();
-
-	const FGameplayTag RespawnClearedTags[] =
-	{
-		PRGameplayTags::State_Dead,
-		PRGameplayTags::State_Down,
-		PRGameplayTags::State_Block_Move,
-		PRGameplayTags::State_Block_Interaction,
-		PRGameplayTags::State_PlayerInputLocked,
-		PRGameplayTags::State_PlayerHitReactLocked,
-		PRGameplayTags::State_Aiming,
-		PRGameplayTags::State_Armed,
-	};
-
-	for (const FGameplayTag& Tag : RespawnClearedTags)
-	{
-		// 리스폰 잔류 상태 제거
-		AbilitySystemComponent->RemoveLooseGameplayTag(Tag);
-		AbilitySystemComponent->RemoveReplicatedLooseGameplayTag(Tag);
-	}
+	// ASC 런타임 상태 정리
+	AbilitySystemComponent->ResetSystem();
 
 	if (IsValid(GrowthComponent))
 	{
 		// 성장 보너스 효과 재동기화
 		GrowthComponent->ResetSystem();
 	}
-
-	// 생존 수치 복구
-	AbilitySystemComponent->SetNumericAttributeBase(
-		UPRAttributeSet_Common::GetHealthAttribute(),
-		AbilitySystemComponent->GetNumericAttribute(UPRAttributeSet_Common::GetMaxHealthAttribute()));
-	AbilitySystemComponent->SetNumericAttributeBase(
-		UPRAttributeSet_Player::GetRecoverableHealthAttribute(),
-		0.0f);
-	AbilitySystemComponent->SetNumericAttributeBase(
-		UPRAttributeSet_Player::GetStaminaAttribute(),
-		AbilitySystemComponent->GetNumericAttribute(UPRAttributeSet_Player::GetMaxStaminaAttribute()));
 
 	if (IsValid(InventoryComponent))
 	{
@@ -461,6 +430,30 @@ void APRPlayerState::ResetState()
 		// 재화 시스템 리스폰 정리
 		CurrencyComponent->ResetSystem();
 	}
+}
+
+void APRPlayerState::PrepareStateForRespawn()
+{
+	if (!HasAuthority())
+	{
+		return;
+	}
+
+	// 새 Pawn PossessedBy 이후 ApplySaveData가 장비, 무기, 인벤토리를 같은 경로로 복원하도록 리스폰 직전 상태 보관
+	CurrentSaveData = MakeSaveData();
+	bPendingSaveDataApply = true;
+	bPendingRespawnRecovery = true;
+}
+
+bool APRPlayerState::ConsumePendingRespawnRecovery()
+{
+	if (!HasAuthority() || !bPendingRespawnRecovery)
+	{
+		return false;
+	}
+
+	bPendingRespawnRecovery = false;
+	return true;
 }
 
 void APRPlayerState::GrantCharacterAbilitySet(const UPRAbilitySet* InAbilitySet, UObject* InSourceObject)

@@ -173,6 +173,9 @@ bool UPRRespawnSubsystem::RespawnPlayers(FGameplayTag SpawnPointId)
 			continue;
 		}
 
+		// 리스폰 후 새 Pawn 저장 데이터 복원 준비
+		PRPlayerState->PrepareStateForRespawn();
+
 		// PlayerState 런타임 상태 정리
 		PRPlayerState->ResetState();
 

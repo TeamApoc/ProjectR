@@ -80,6 +80,9 @@ private:
     // PredictProjectilePath 1회 호출 + 결과를 SampleSpacing 기준으로 다운샘플링하여 LastResult 갱신
     void RebuildPath();
 
+    // PlayerState 복제 지연 이후 무기 매니저 재조회 캐시
+    UPRWeaponManagerComponent* GetWeaponManager();
+
 protected:
     // 발사 파라미터 묶음. 무기/탄종 변경 시 일괄 교체
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|Projectile|Preview")

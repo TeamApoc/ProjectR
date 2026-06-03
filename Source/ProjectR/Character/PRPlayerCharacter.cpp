@@ -32,6 +32,8 @@
 #include "ProjectR/System/PREventManagerSubsystem.h"
 #include "ProjectR/ItemSystem/Actors/PRWeaponActor.h"
 
+DEFINE_LOG_CATEGORY_STATIC(LogPRPathPreviewCharacter, Log, All);
+
 // Sets default values
 APRPlayerCharacter::APRPlayerCharacter()
 {
@@ -376,6 +378,13 @@ void APRPlayerCharacter::HandleGameplayTagUpdated(const FGameplayTag& ChangedTag
 	
 	if (ChangedTag.MatchesTagExact(PRGameplayTags::State_Aiming))
 	{
+		UE_LOG(LogPRPathPreviewCharacter, Log,
+			TEXT("Aiming 태그 변경. Player=%s, TagExists=%d, bLocallyControlled=%d, Preview=%s"),
+			*GetNameSafe(this),
+			bTagExists,
+			IsLocallyControlled(),
+			*GetNameSafe(ProjectileTrajectoryPreviewComponent));
+
 		bIsAiming = bTagExists;
 		UpdateMaxWalkSpeed();
 
@@ -394,13 +403,29 @@ void APRPlayerCharacter::HandleGameplayTagUpdated(const FGameplayTag& ChangedTag
 			{
 				if (bTagExists)
 				{
+					UE_LOG(LogPRPathPreviewCharacter, Log, TEXT("Preview Show 호출. Player=%s, Preview=%s"),
+						*GetNameSafe(this),
+						*GetNameSafe(ProjectileTrajectoryPreviewComponent));
 					ProjectileTrajectoryPreviewComponent->Show();
 				}
 				else
 				{
+					UE_LOG(LogPRPathPreviewCharacter, Log, TEXT("Preview Hide 호출. Player=%s, Preview=%s"),
+						*GetNameSafe(this),
+						*GetNameSafe(ProjectileTrajectoryPreviewComponent));
 					ProjectileTrajectoryPreviewComponent->Hide();
 				}
 			}	
+			else
+			{
+				UE_LOG(LogPRPathPreviewCharacter, Warning, TEXT("Aiming 태그 처리 중단. PreviewComponent 없음, Player=%s"),
+					*GetNameSafe(this));
+			}
+		}
+		else
+		{
+			UE_LOG(LogPRPathPreviewCharacter, Log, TEXT("Preview Show/Hide 생략. 로컬 컨트롤 아님, Player=%s"),
+				*GetNameSafe(this));
 		}
 	}
 	if (ChangedTag.MatchesTagExact(PRGameplayTags::State_Sprinting))

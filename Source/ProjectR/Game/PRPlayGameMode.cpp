@@ -41,11 +41,11 @@ void APRPlayGameMode::InitGame(const FString& MapName, const FString& Options, F
 	}
 }
 
-void APRPlayGameMode::PostLogin(APlayerController* NewPlayer)
+void APRPlayGameMode::InitGameState()
 {
-	Super::PostLogin(NewPlayer);
+	Super::InitGameState();
 
-	// GameState에 월드 세이브 주입 (최초 1회만 수행)
+	// 심리스 트래블 기존 플레이어도 공유할 월드 진행 상태 주입 위치
 	if (APRGameStateBase* GS = GetGameState<APRGameStateBase>())
 	{
 		const bool bHasHostWorldSaveData =
@@ -58,6 +58,11 @@ void APRPlayGameMode::PostLogin(APlayerController* NewPlayer)
 			GS->InitializeFromWorldSave(HostWorldSave);
 		}
 	}
+}
+
+void APRPlayGameMode::PostLogin(APlayerController* NewPlayer)
+{
+	Super::PostLogin(NewPlayer);
 
 	APRPlayerController* PRPlayerController = Cast<APRPlayerController>(NewPlayer);
 	if (IsValid(PRPlayerController)

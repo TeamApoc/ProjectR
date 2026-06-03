@@ -30,6 +30,7 @@
 #include "Engine/DataTable.h"
 #include "ProjectR/PRGameplayTags.h"
 #include "ProjectR/System/PRAssetManager.h"
+#include "ProjectR/System/PRRespawnSubsystem.h"
 #include "ProjectR/System/PRWorldTickOptimizerSubsystem.h"
 #include "ProjectR/Player/PRPlayerController.h"
 #include "ProjectR/UI/FloatingText/PRFloatingTextManager.h"
@@ -105,6 +106,18 @@ void APREnemyBaseCharacter::BeginPlay()
 	
 	InitializeHomeLocation();
 	InitializeEnemyWorldHealthBar();
+
+	if (HasAuthority() && bIsRespawnable)
+	{
+		if (UWorld* World = GetWorld())
+		{
+			if (UPRRespawnSubsystem* RespawnSubsystem = World->GetSubsystem<UPRRespawnSubsystem>())
+			{
+				// 리스폰 시스템 등록
+				RespawnSubsystem->RegisterRespawnableActor(this);
+			}
+		}
+	}
 
 	if (HasAuthority() && bUseTickOptimization)
 	{

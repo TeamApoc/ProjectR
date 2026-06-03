@@ -121,15 +121,21 @@ public:
 	// 현재 플레이어 Pawn에게 생존 상태 전환 이벤트를 보낸다.
 	void SendSurvivalGameplayEvent(const FGameplayTag& EventTag) const;
 	
-	// 리스폰 전 생존 상태 태그와 입력 캐시를 초기화한다
-	void ResetSurvivalStateForRespawn();
+	// 리스폰 전 PlayerState와 소유 시스템의 런타임 상태 초기화
+	void ResetState();
+
+	// 리스폰 후 새 Pawn에서 저장 데이터 복원과 생존 수치 복구를 수행하도록 준비
+	void PrepareStateForRespawn();
 	
 	// 현재 캐릭터 Pawn 기준 AbilitySet을 재부여한다
 	void GrantCharacterAbilitySet(const UPRAbilitySet* InAbilitySet, UObject* InSourceObject = nullptr);
 	
 	// 저장 데이터 적용 대기 여부
 	bool HasPendingSaveDataApply() const { return bPendingSaveDataApply; }
-	
+
+	// 다음 PossessedBy 이후 리스폰 생존 수치 복구 필요 여부 소비
+	bool ConsumePendingRespawnRecovery();
+
 	// 현재 보관 중인 캐릭터 저장 데이터
 	const FPRCharacterSaveData& GetCurrentSaveData() const { return CurrentSaveData; }
 	
@@ -248,4 +254,7 @@ private:
 	
 	// PossessedBy 이후 적용할 저장 데이터 존재 여부
 	bool bPendingSaveDataApply = false;
+
+	// 리스폰 복원 SaveData 적용 이후 생존 수치 초기화 GE 재적용 여부
+	bool bPendingRespawnRecovery = false;
 };

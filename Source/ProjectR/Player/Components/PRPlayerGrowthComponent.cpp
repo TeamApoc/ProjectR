@@ -172,6 +172,18 @@ FPRCharacterStatUpgradeInfo UPRPlayerGrowthComponent::MakeGrowthSaveData() const
 	return SaveData;
 }
 
+void UPRPlayerGrowthComponent::ResetSystem()
+{
+	if (!IsValid(GetOwner()) || !GetOwner()->HasAuthority())
+	{
+		return;
+	}
+
+	// 특성 보너스 효과 재적용
+	ApplyTraitBonusEffect();
+	OnTraitInvestmentChanged.Broadcast(TraitInvestmentInfo);
+}
+
 void UPRPlayerGrowthComponent::OnRep_TraitInvestmentInfo()
 {
 	OnTraitInvestmentChanged.Broadcast(TraitInvestmentInfo);

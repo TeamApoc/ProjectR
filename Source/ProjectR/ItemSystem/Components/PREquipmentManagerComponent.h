@@ -100,6 +100,9 @@ public:
 	// 저장 데이터 기반 비무기 장비 상태 복원
 	void ApplySaveData(const FPREquipmentSaveData& InSaveData);
 
+	// 리스폰 전 장비 외형 알림 재동기화
+	void ResetSystem();
+
 public:
 	// 장비 슬롯 변경 델리게이트
 	UPROPERTY(BlueprintAssignable, Category = "ProjectR|Equipment")

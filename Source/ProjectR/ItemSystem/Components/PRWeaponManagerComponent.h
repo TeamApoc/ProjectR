@@ -73,6 +73,9 @@ public:
 	// 새 폰(Pawn)이 배정될 때 호출하여 무기 부착과 애니메이션을 갱신한다
 	void InitializeWithPawn(APRCharacterBase* InPawn);
 
+	// 리스폰 전 기존 Pawn 무기 Actor와 표현 상태 정리
+	void ResetSystem();
+
 	// Save Data
 	FPRWeaponManagerSaveData MakeSaveData() const;
 	void ApplySaveData(const FPRWeaponManagerSaveData& InSaveData);

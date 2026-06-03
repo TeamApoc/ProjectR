@@ -87,6 +87,9 @@ public:
 	// 성장 저장 데이터를 만든다
 	FPRCharacterStatUpgradeInfo MakeGrowthSaveData() const;
 
+	// 리스폰 전 성장 보너스 GameplayEffect 재동기화
+	void ResetSystem();
+
 protected:
 	UFUNCTION()
 	void OnRep_TraitInvestmentInfo();

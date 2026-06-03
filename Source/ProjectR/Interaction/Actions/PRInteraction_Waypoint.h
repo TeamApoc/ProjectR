@@ -57,14 +57,20 @@ private:
 	// Waypoint 활성 상태와 체크포인트 상태 갱신
 	void RecordWaypointActivation();
 
+	// Waypoint 활성화에 따른 월드 오브젝트 복구
+	void RespawnWorldObjects();
+
 	// 전원 FadeOut 이후 호스트 Travel UI 표시 예약
 	void ScheduleWaypointTravelUI();
 
 	// FadeOut 종료 후 호스트 Travel UI 표시
-	void OpenWaypointTravelUIAfterFadeOut();
+	void OnWaypointActivate();
 
 	// 호스트 Travel UI 열기
 	bool OpenWaypointTravelUI();
+
+	// FadeOut 완료 후 모든 플레이어 Waypoint 효과 적용
+	void ApplyWaypointGameplayEffectToAllPlayers() const;
 
 	// 모든 플레이어 맵 전환 연출 알림
 	void NotifyMapTransitionToAllPlayers(EPRMapTransitionType TransitionType) const;
@@ -83,13 +89,13 @@ private:
 	bool bWaitingForWaypointTravelSelection = false;
 
 	// 호스트 Travel UI 표시 전 FadeOut 대기 상태
-	bool bWaitingForTravelUIFadeOut = false;
+	bool bWaitingActivateFadeOut = false;
 
 	// 전체 플레이어 상호작용 차단 태그 적용 상태
 	bool bInteractionLocked = false;
 
 	// 호스트 Travel UI 표시 예약 타이머
-	FTimerHandle TravelUIOpenTimerHandle;
+	FTimerHandle WaypointActivateTimerHandle;
 
 	// Waypoint 이동 직전 자원 충전 또는 회복 GameplayEffect
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|Interaction|Waypoint", meta = (AllowPrivateAccess = "true"))

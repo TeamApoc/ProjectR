@@ -8,7 +8,6 @@
 #include "ProjectR/Interaction/Actions/PRInteraction_PartySyncBase.h"
 #include "PRInteraction_MapTravelBase.generated.h"
 
-class UGameplayEffect;
 class UWorld;
 
 // 파티 동기화 완료 이후 ServerTravel 실행 기반 클래스
@@ -26,8 +25,8 @@ protected:
 	// 맵 이동 진행 중 파티 동기화 중복 처리 차단 여부
 	virtual bool IsPartySyncActionLocked() const override;
 
-	// 하위 클래스가 제공한 맵과 SpawnPoint 태그와 선택 효과로 ServerTravel 실행
-	void StartTravelToSpawnPoint(TSoftObjectPtr<UWorld> MapToTravel, FGameplayTag SpawnPointId, TSubclassOf<UGameplayEffect> OptionalGameplayEffect = nullptr);
+	// 하위 클래스가 제공한 맵과 SpawnPoint 태그로 ServerTravel 실행
+	void StartTravelToSpawnPoint(TSoftObjectPtr<UWorld> MapToTravel, FGameplayTag SpawnPointId);
 
 private:
 	// 페이드아웃 이후 ServerTravel 예약 타이머

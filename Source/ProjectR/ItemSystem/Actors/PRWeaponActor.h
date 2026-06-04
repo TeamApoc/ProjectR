@@ -47,6 +47,9 @@ struct PROJECTR_API FPRWeaponFireFXParams
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "ProjectR|Weapon|FX")
 	FVector Direction = FVector::ForwardVector;
 
+	// Trail 존재 여부
+	bool HasTrail() const {return !TrailEnds.IsEmpty();}
+	
 	// Trail 종료 위치 추가
 	void AddTrailEnd(const FVector& InEndLocation);
 

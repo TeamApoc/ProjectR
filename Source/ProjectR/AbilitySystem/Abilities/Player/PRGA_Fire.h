@@ -85,7 +85,10 @@ protected:
 	virtual void ApplyDamageFromShot(const FPRFireShotPayload& Payload);
 
 	// 히트스캔 발사 결과를 Trail FX Payload로 변환해 예측 재생과 서버 전파 요청
-	void PlayTrailFX(const FVector& StartLocation, const FVector& EndLocation, bool bBlockingHit);
+	void PlayFireFX_Trail(const FVector& StartLocation, const FVector& EndLocation, bool bBlockingHit);
+	
+	// Trail 없는 FireFX
+	void PlayFireFX();
 	
 	// 현재 어빌리티 컨텍스트에서 지정 무기 몽타주 재생
 	void PlayWeaponMontage(UAnimMontage* Montage, float PlayRate);
@@ -130,6 +133,11 @@ protected:
 	// 발사 시점에 재생할 Trail FX Cue 태그
 	UPROPERTY(EditDefaultsOnly, Category = "ProjectR|FX")
 	FGameplayTag TrailCueTag;
+	
+	// 발사 시점에 재생할 발사 FX Cue 태그
+	UPROPERTY(EditDefaultsOnly, Category = "ProjectR|FX")
+	FGameplayTag SimpleFireCueTag;
+
 
 	// 카메라 트레이스(1차, 시안색) 디버그 표시 여부
 	UPROPERTY(EditDefaultsOnly, Category = "ProjectR|Fire|Debug")

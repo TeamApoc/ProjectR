@@ -201,7 +201,11 @@ void APRWeaponActor::TriggerFireFX(const FPRWeaponFireFXParams& Params)
 	// 발사 FX 단계별 호출
 	PlayFireSFX(Params);
 	PlayMuzzleFlashVFX(Params);
-	PlayTrailVFX(Params);
+	
+	if (Params.HasTrail())
+	{
+		PlayTrailVFX(Params);	
+	}
 }
 
 void APRWeaponActor::PlayFireSFX_Implementation(const FPRWeaponFireFXParams& Params)

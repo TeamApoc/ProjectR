@@ -10,4 +10,5 @@ namespace PRFXTags
 	// 무기 발사 Trail 테스트 Cue 태그
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(FX_Weapon_Trail);
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(FX_Weapon_OutOfAmmo);
+	UE_DECLARE_GAMEPLAY_TAG_EXTERN(FX_Weapon_SimpleFire);
 }

@@ -9,6 +9,7 @@
 #include "GameplayEffect.h"
 #include "Kismet/GameplayStatics.h"
 #include "ProjectR/Combat/PRCombatGameplayTags.h"
+#include "ProjectR/Combat/PRDirectDamageReceiverInterface.h"
 #include "ProjectR/AbilitySystem/Data/PRAbilitySystemRegistry.h"
 #include "ProjectR/AbilitySystem/Tasks/PRAT_SpawnPredictedProjectile.h"
 #include "ProjectR/FX/PRFXTags.h"
@@ -44,6 +45,7 @@ UPRGA_Fire::UPRGA_Fire()
 
 	// 기본 테스트 Trail Cue 태그 지정
 	TrailCueTag = PRFXTags::FX_Weapon_Trail;
+	SimpleFireCueTag = PRFXTags::FX_Weapon_SimpleFire;
 }
 
 void UPRGA_Fire::ActivateAbility(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo,
@@ -335,7 +337,7 @@ void UPRGA_Fire::FireHitScan()
 	const FVector TrailEndLocation = Hit.bBlockingHit ? Hit.ImpactPoint : AimPoint;
 	
 	// Tail 재생
-	PlayTrailFX(MuzzleLoc, TrailEndLocation, Hit.bBlockingHit);
+	PlayFireFX_Trail(MuzzleLoc, TrailEndLocation, Hit.bBlockingHit);
 
 	if (Hit.GetActor() != nullptr)
 	{
@@ -438,6 +440,9 @@ void UPRGA_Fire::FireProjectile(TSubclassOf<APRProjectileBase> ProjectileClass, 
 	{
 		SendRecoilEvent();
 	}
+	
+	// FX재생
+	PlayFireFX();
 }
 
 void UPRGA_Fire::OnProjectileSpawnSuccess(APRProjectileBase* SpawnedProjectile)
@@ -525,7 +530,7 @@ void UPRGA_Fire::ApplyDamageFromShot(const FPRFireShotPayload& Payload)
 	ApplyDamage(HitActor, Payload.ClientHitResult.Get());
 }
 
-void UPRGA_Fire::PlayTrailFX(const FVector& StartLocation, const FVector& EndLocation, bool bBlockingHit)
+void UPRGA_Fire::PlayFireFX_Trail(const FVector& StartLocation, const FVector& EndLocation, bool bBlockingHit)
 {
 	if (!TrailCueTag.IsValid())
 	{
@@ -550,6 +555,24 @@ void UPRGA_Fire::PlayTrailFX(const FVector& StartLocation, const FVector& EndLoc
 	// 구체 Payload를 FInstancedStruct에 담아 GameplayStatics의 FX 헬퍼로 전달
 	const FInstancedStruct PayloadStruct = FInstancedStruct::Make(TrailPayload);
 	UPRGameplayStatics::PlayPredictiveNetworkFX(this, GetAvatarActorFromActorInfo(), TrailCueTag, PayloadStruct);
+}
+
+void UPRGA_Fire::PlayFireFX()
+{
+	if (!TrailCueTag.IsValid())
+	{
+		return;
+	}
+
+	FPRFXFirePayload FirePayload;
+	// Cue의 현재 무기 Actor 검증용 발사 문맥
+	FirePayload.SourceActor = GetAvatarActorFromActorInfo();
+	FirePayload.WeaponData = GetActiveWeaponData(GetCurrentActorInfo());
+	FirePayload.Direction = FVector::ForwardVector;
+
+	// 구체 Payload를 FInstancedStruct에 담아 GameplayStatics의 FX 헬퍼로 전달
+	const FInstancedStruct PayloadStruct = FInstancedStruct::Make(FirePayload);
+	UPRGameplayStatics::PlayPredictiveNetworkFX(this, GetAvatarActorFromActorInfo(), SimpleFireCueTag, PayloadStruct);
 }
 
 void UPRGA_Fire::ApplyDamage(AActor* TargetActor, const FHitResult* HitResult)
@@ -602,6 +625,14 @@ void UPRGA_Fire::ApplyDamage(AActor* TargetActor, const FHitResult* HitResult)
 	{
 		SourceASC->ApplyGameplayEffectSpecToTarget(*SpecHandle.Data.Get(), TargetASC);
 		return;
+	}
+
+	if (IPRDirectDamageReceiverInterface* DirectDamageReceiver = Cast<IPRDirectDamageReceiverInterface>(TargetActor))
+	{
+		const FHitResult EmptyHitResult;
+		DirectDamageReceiver->ApplyDirectDamageFromSpec(
+			*SpecHandle.Data.Get(),
+			HitResult != nullptr ? *HitResult : EmptyHitResult);
 	}
 	
 }

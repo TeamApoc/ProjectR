@@ -25,7 +25,7 @@ struct FPRPickupNotificationEntryState
 	UPROPERTY(Transient)
 	EPRRewardType RewardType = EPRRewardType::None;
 
-	// 아이템 알림 병합 여부를 판단할 Primary Asset Id
+	// 아이템 또는 탄약 알림 병합 여부를 판단할 Primary Asset Id
 	UPROPERTY(Transient)
 	FPrimaryAssetId ItemAssetId;
 

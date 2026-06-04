@@ -198,6 +198,18 @@ bool FPRFXTrailPayload::NetSerialize(FArchive& Ar, UPackageMap* Map, bool& bOutS
 	return true;
 }
 
+bool FPRFXFirePayload::NetSerialize(FArchive& Ar, UPackageMap* Map, bool& bOutSuccess)
+{
+	bool bLocalSuccess = true;
+	// 무기 발사 Trail 식별값과 경로 데이터 전송
+	FPRFXPayloadBase::NetSerialize(Ar, Map, bOutSuccess);
+	PRFXTypesPrivate::NetSerializeObject(Ar, SourceActor);
+	PRFXTypesPrivate::NetSerializeObject(Ar, WeaponData);
+	
+	bOutSuccess = bLocalSuccess;
+	return true;
+}
+
 bool FPRFXHitPayload::NetSerialize(FArchive& Ar, UPackageMap* Map, bool& bOutSuccess)
 {
 	bool bLocalSuccess = true;

@@ -18,6 +18,7 @@ class USkeletalMeshComponent;
 class USpringArmComponent;
 class USpotLightComponent;
 class UTextureRenderTarget2D;
+class UPREquipmentDataAsset;
 class UPRWeaponManagerComponent;
 
 // 인벤토리 캐릭터 프리뷰를 위한 별도 3D 렌더 액터
@@ -75,6 +76,9 @@ private:
 	// 저장 데이터의 장비 상태를 기준으로 캐릭터 파츠 메시 갱신
 	void RefreshCharacterMeshFromSaveData(const FPRCharacterSaveData& SaveData);
 
+	// 프리뷰 얼굴 파츠 표시 상태 갱신
+	void UpdatePreviewPlayerFaceVisibility(const UPREquipmentDataAsset* HeadEquipmentData);
+
 	// 프리뷰 캐릭터 클래스의 기본 오브젝트 조회
 	const APRPlayerCharacter* GetPreviewCharacterDefaultObject() const;
 
@@ -86,6 +90,9 @@ private:
 
 	// 저장 데이터에서 지정 슬롯의 장비 메시 조회
 	USkeletalMesh* ResolveEquipmentMeshFromSaveData(const FPRCharacterSaveData& SaveData, EPREquipmentSlotType SlotType) const;
+
+	// 저장 데이터에서 지정 슬롯의 장비 데이터 조회
+	const UPREquipmentDataAsset* ResolveEquipmentDataFromSaveData(const FPRCharacterSaveData& SaveData, EPREquipmentSlotType SlotType) const;
 
 	// 저장 데이터에서 지정 슬롯의 무기 공개 비주얼 정보 조회
 	FPRWeaponVisualInfo ResolveWeaponVisualInfoFromSaveData(const FPRCharacterSaveData& SaveData, EPRWeaponSlotType SlotType) const;
@@ -120,6 +127,10 @@ protected:
 	// 프리뷰 머리 파츠 메시
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "ProjectR|Inventory|Preview")
 	TObjectPtr<USkeletalMeshComponent> PreviewHeadMeshComponent;
+
+	// 프리뷰 플레이어 얼굴 파츠 메시
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "ProjectR|Inventory|Preview")
+	TObjectPtr<USkeletalMeshComponent> PreviewPlayerFaceMeshComponent;
 
 	// 프리뷰 몸통 파츠 메시
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "ProjectR|Inventory|Preview")
@@ -164,6 +175,10 @@ protected:
 	// PreviewCharacterClass 기본 오브젝트에 머리 메시가 없을 때 사용할 폴백 머리 메시
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "ProjectR|Inventory|Preview")
 	TObjectPtr<USkeletalMesh> DefaultPreviewHeadMesh;
+
+	// PreviewCharacterClass 기본 오브젝트에 얼굴 메시가 없을 때 사용할 폴백 얼굴 메시
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "ProjectR|Inventory|Preview")
+	TObjectPtr<USkeletalMesh> DefaultPreviewPlayerFaceMesh;
 
 	// PreviewCharacterClass 기본 오브젝트에 몸통 메시가 없을 때 사용할 폴백 몸통 메시
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "ProjectR|Inventory|Preview")

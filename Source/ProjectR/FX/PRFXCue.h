@@ -233,12 +233,24 @@ public:
 
 // 무기 발사 Trail Cue
 UCLASS(Blueprintable, EditInlineNew)
-class PROJECTR_API UPRFXWeaponFireTrailCue : public UPRFXTrailCue
+class PROJECTR_API UPRFXWeaponFireCue : public UPRFXCue
 {
 	GENERATED_BODY()
 	
-	// 일치하는 무기 Actor의 발사 FX 진입점 호출
-	virtual void ExecuteFX_Implementation(const FPRFXCueContext& Context, const FPRFXTrailPayload& Payload) override;
+public:
+	// Trail Payload 검증 후 typed ExecuteFX로 전달
+	virtual void NativeExecuteFX(const FPRFXCueContext& Context, const FInstancedStruct& Payload) override;
+
+	// Cue 클래스가 처리할 수 있는 Payload 구조체 타입 반환
+	virtual const UScriptStruct* GetExpectedPayloadType() const override;
+
+	// Blueprint와 C++ 파생 클래스가 구현하는 Trail 재생 함수
+	UFUNCTION(BlueprintNativeEvent, Category = "ProjectR|FX")
+	void ExecuteFX(const FPRFXCueContext& Context, const FPRFXFirePayload& Payload);
+	
+	// 현재 손에 든 무기 Actor와 Payload 무기 데이터 일치 확인
+	UFUNCTION(BlueprintPure, Category = "ProjectR|FX")
+	APRWeaponActor* ResolveMatchingWeaponActor(const FPRFXFirePayload& Payload) const;
 };
 
 // 탄착과 피격 기반 Cue

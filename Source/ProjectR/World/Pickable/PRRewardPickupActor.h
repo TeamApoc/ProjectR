@@ -59,10 +59,14 @@ public:
 public:
 	// 서버에서 확정 보상 정보를 초기화한다
 	UFUNCTION(BlueprintAuthorityOnly)
-	void InitializeReward(const FPRResolvedDropReward& InReward, APRPlayerState* InPersonalRecipient = nullptr);
+	void InitializeReward(const FPRResolvedDropReward& InReward);
 
 	// 픽업이 보유한 확정 보상 정보를 반환한다
 	const FPRResolvedDropReward& GetReward() const { return Reward; }
+
+	// 서버에서 픽업 보상 수량을 갱신한다
+	UFUNCTION(BlueprintAuthorityOnly)
+	void SetRewardQuantity(int32 NewQuantity);
 
 	// 이미 지급 처리된 픽업인지 반환한다
 	bool IsClaimed() const { return bClaimed; }
@@ -78,9 +82,6 @@ protected:
 	void OnRep_Reward();
 
 	UFUNCTION()
-	void OnRep_PersonalRecipient();
-
-	UFUNCTION()
 	void OnRep_DropSettled();
 
 	UFUNCTION()
@@ -94,12 +95,6 @@ protected:
 
 	// 나이아가라와 라이트 표현을 비활성화한다
 	void DeactivateEffectVisual();
-
-	// 개인 보상 픽업을 로컬 수령자에게만 보이도록 갱신한다
-	void RefreshLocalVisibility();
-
-	// 로컬 표현 컴포넌트 표시 여부를 변경한다
-	void SetLocalVisualVisible(bool bVisible);
 
 	// 상호작용자에서 PRPlayerState를 찾는다
 	APRPlayerState* ResolveInteractorPlayerState(AActor* Interactor) const;
@@ -165,10 +160,6 @@ protected:
 	// Manager가 확정한 보상 페이로드
 	UPROPERTY(ReplicatedUsing = OnRep_Reward, VisibleInstanceOnly, BlueprintReadOnly, Category = "Reward")
 	FPRResolvedDropReward Reward;
-
-	// 개인 보상 픽업을 볼 수 있고 획득할 수 있는 대상
-	UPROPERTY(ReplicatedUsing = OnRep_PersonalRecipient, VisibleInstanceOnly, BlueprintReadOnly, Category = "Reward")
-	TObjectPtr<APRPlayerState> PersonalRecipient;
 
 	// 중복 Claim 방어 상태
 	UPROPERTY(Replicated, VisibleInstanceOnly, BlueprintReadOnly, Category = "Reward")

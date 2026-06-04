@@ -13,13 +13,17 @@ enum class EPRRewardType : uint8
 {
 	None,
 	Currency,
-	Item
+	Item,
+	Ammo
 };
 
 UENUM(BlueprintType)
 enum class EPRRewardDistributionRule : uint8
 {
+	// 월드 픽업은 Claim한 플레이어 지급, 즉시 지급은 개인 대상 지급
 	Personal,
+
+	// 파티 대상 전원 지급
 	PartyShared
 };
 
@@ -32,20 +36,20 @@ struct FPRDropRewardEntry
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	EPRRewardType RewardType = EPRRewardType::None;
 
-	// 보상을 받을 대상 산정 규칙
+	// 보상을 받을 대상 산정 규칙. 월드 픽업 Personal은 Claim자 기준
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	EPRRewardDistributionRule DistributionRule = EPRRewardDistributionRule::Personal;
 
-	// 아이템 보상일 때 조회할 Primary Asset Id
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (EditCondition = "RewardType == EPRRewardType::Item"))
+	// 아이템 또는 탄약 보상일 때 조회할 Primary Asset Id
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (EditCondition = "RewardType == EPRRewardType::Item || RewardType == EPRRewardType::Ammo"))
 	FPrimaryAssetId ItemAssetId;
 
-	// 아이템 보상 최소 수량
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (EditCondition = "RewardType == EPRRewardType::Item", ClampMin = "1"))
+	// 아이템 또는 탄약 보상 최소 수량
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (EditCondition = "RewardType == EPRRewardType::Item || RewardType == EPRRewardType::Ammo", ClampMin = "1"))
 	int32 MinQuantity = 1;
 
-	// 아이템 보상 최대 수량
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (EditCondition = "RewardType == EPRRewardType::Item", ClampMin = "1"))
+	// 아이템 또는 탄약 보상 최대 수량
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (EditCondition = "RewardType == EPRRewardType::Item || RewardType == EPRRewardType::Ammo", ClampMin = "1"))
 	int32 MaxQuantity = 1;
 
 	// 고철 보상 최소 수량
@@ -96,7 +100,7 @@ struct FPRMonsterDeathDropRequest
 	UPROPERTY()
 	TWeakObjectPtr<AActor> DeadMonster;
 
-	// 개인 보상 대상 산정에 사용할 처치자 컨트롤러
+	// 즉시 개인 지급 대상 산정에 사용할 처치자 컨트롤러
 	UPROPERTY()
 	TWeakObjectPtr<AController> KillerController;
 
@@ -118,15 +122,15 @@ struct FPRResolvedDropReward
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly)
 	EPRRewardDistributionRule DistributionRule = EPRRewardDistributionRule::Personal;
 
-	// 확정된 아이템 데이터
+	// 확정된 아이템 또는 탄약 데이터
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly)
 	TObjectPtr<UPRItemDataAsset> ItemData = nullptr;
 
-	// 확정된 아이템 Primary Asset Id
+	// 확정된 아이템 또는 탄약 Primary Asset Id
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly)
 	FPrimaryAssetId ItemAssetId;
 
-	// 확정된 아이템 수량
+	// 확정된 아이템 또는 탄약 수량
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly)
 	int32 Quantity = 0;
 
@@ -148,11 +152,11 @@ struct FPRPickupNotificationPayload
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly)
 	EPRRewardType RewardType = EPRRewardType::None;
 
-	// 아이템 보상일 때 표시 데이터를 조회할 Primary Asset Id
+	// 아이템 또는 탄약 보상일 때 표시 데이터를 조회할 Primary Asset Id
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly)
 	FPrimaryAssetId ItemAssetId;
 
-	// 아이템 수량 또는 고철 획득량
+	// 아이템 수량, 탄약 수량 또는 고철 획득량
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly)
 	int32 Quantity = 0;
 };

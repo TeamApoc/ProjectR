@@ -4,6 +4,7 @@
 
 #include "ProjectR/ItemSystem/Items/PRItemInstance_Weapon.h"
 #include "ProjectR/System/PRDeveloperSettings.h"
+#include "ProjectR/UI/Crosshair/PRCrosshairConfig.h"
 
 UPRWeaponDataAsset::UPRWeaponDataAsset()
 {

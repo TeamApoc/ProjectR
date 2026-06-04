@@ -5,6 +5,10 @@
 #include "Components/WidgetComponent.h"
 #include "GameFramework/PlayerController.h"
 #include "ProjectR/System/PRDeveloperSettings.h"
+#include "TimerManager.h"
+#include "Widgets/SWidget.h"
+
+DEFINE_LOG_CATEGORY_STATIC(LogPRFloatingText, Log, All);
 
 // ===== 생성자 =====
 
@@ -100,6 +104,16 @@ void UPRFloatingTextManager::ShowFloatingText(const FPRFloatingTextRequest& Requ
 
 	// 기존 위젯의 클래스가 동일하면 재사용, 다르면 재생성
 	UPRFloatingTextWidget* FloatingWidget = Cast<UPRFloatingTextWidget>(WidgetComp->GetWidget());
+	if (IsValid(FloatingWidget) && FloatingWidget->GetClass() != Style.WidgetClass)
+	{
+		// 위젯 클래스 교체 전 기존 위젯의 BP Delay와 애니메이션 상태 제거
+		FloatingWidget->ResetFloatingTextForReuse();
+		UE_LOG(LogPRFloatingText, Log, TEXT("[FloatingText] Replace WidgetClass OldWidget=%s OldClass=%s NewClass=%s"),
+			*GetNameSafe(FloatingWidget),
+			*GetNameSafe(FloatingWidget->GetClass()),
+			*GetNameSafe(Style.WidgetClass));
+	}
+
 	if (!IsValid(FloatingWidget) || FloatingWidget->GetClass() != Style.WidgetClass)
 	{
 		WidgetComp->SetWidgetClass(Style.WidgetClass);
@@ -113,6 +127,12 @@ void UPRFloatingTextManager::ShowFloatingText(const FPRFloatingTextRequest& Requ
 		ReleaseWidgetComponent(WidgetComp);
 		return;
 	}
+
+	// WidgetComponent의 화면 레이어 등록보다 먼저 Slate 위젯 생성
+	FloatingWidget->TakeWidget();
+
+	// 풀에서 재사용된 위젯의 이전 BP Delay와 애니메이션 상태 제거
+	FloatingWidget->ResetFloatingTextForReuse();
 
 	// WidgetComponent 위치/가시성 설정 (랜덤 오프셋 적용)
 	const FVector RandomOffset(
@@ -140,7 +160,45 @@ void UPRFloatingTextManager::ShowFloatingText(const FPRFloatingTextRequest& Requ
 
 	// 위젯 초기화 및 연출 시작
 	FloatingWidget->InitFloatingText(Params);
-	FloatingWidget->OnPlay();
+
+	// 화면 레이어 등록 후 다음 Tick 재생 예약
+	TWeakObjectPtr<UPRFloatingTextWidget> WeakFloatingWidget = FloatingWidget;
+	TWeakObjectPtr<UWidgetComponent> WeakWidgetComp = WidgetComp;
+	GetWorld()->GetTimerManager().SetTimerForNextTick(FTimerDelegate::CreateWeakLambda(this, [this, WeakFloatingWidget, WeakWidgetComp]()
+	{
+		UPRFloatingTextWidget* DeferredWidget = WeakFloatingWidget.Get();
+		UWidgetComponent* DeferredComp = WeakWidgetComp.Get();
+		if (!IsValid(DeferredWidget) || !IsValid(DeferredComp))
+		{
+			UE_LOG(LogPRFloatingText, Warning, TEXT("[FloatingText] DeferredPlaySkipped Invalid Widget=%s Comp=%s"),
+				*GetNameSafe(DeferredWidget),
+				*GetNameSafe(DeferredComp));
+			return;
+		}
+
+		TObjectPtr<UWidgetComponent>* FoundComp = WidgetToComponentMap.Find(DeferredWidget);
+		if (!FoundComp || *FoundComp != DeferredComp)
+		{
+			UE_LOG(LogPRFloatingText, Warning, TEXT("[FloatingText] DeferredPlaySkipped Released Widget=%s Comp=%s"),
+				*GetNameSafe(DeferredWidget),
+				*GetNameSafe(DeferredComp));
+			return;
+		}
+
+		DeferredWidget->PlayFloatingText();
+
+		UE_LOG(LogPRFloatingText, Log, TEXT("[FloatingText] DeferredPlay Widget=%s Comp=%s"),
+			*GetNameSafe(DeferredWidget),
+			*GetNameSafe(DeferredComp));
+	}));
+
+	UE_LOG(LogPRFloatingText, Log, TEXT("[FloatingText] Show Text=%s Type=%d Comp=%s Widget=%s Active=%d Pool=%d"),
+		*Request.Text.ToString(),
+		static_cast<int32>(Request.TextType),
+		*GetNameSafe(WidgetComp),
+		*GetNameSafe(FloatingWidget),
+		ActiveWidgets.Num(),
+		AvailablePool.Num());
 }
 
 // ===== 풀 관리 =====
@@ -156,6 +214,10 @@ UWidgetComponent* UPRFloatingTextManager::AcquireWidgetComponent()
 			continue;
 		}
 		ActiveWidgets.Add(Comp);
+		UE_LOG(LogPRFloatingText, Log, TEXT("[FloatingText] Acquire Reuse Comp=%s Active=%d Pool=%d"),
+			*GetNameSafe(Comp),
+			ActiveWidgets.Num(),
+			AvailablePool.Num());
 		return Comp;
 	}
 
@@ -178,6 +240,11 @@ UWidgetComponent* UPRFloatingTextManager::AcquireWidgetComponent()
 
 	ActiveWidgets.Add(NewComp);
 
+	UE_LOG(LogPRFloatingText, Log, TEXT("[FloatingText] Acquire New Comp=%s Active=%d Pool=%d"),
+		*GetNameSafe(NewComp),
+		ActiveWidgets.Num(),
+		AvailablePool.Num());
+
 	return NewComp;
 }
 
@@ -191,17 +258,25 @@ void UPRFloatingTextManager::ReleaseWidgetComponent(UWidgetComponent* InComponen
 	UPRFloatingTextWidget* CurrentWidget = Cast<UPRFloatingTextWidget>(InComponent->GetWidget());
 	if (IsValid(CurrentWidget))
 	{
+		// 풀 반납 전 남은 BP Delay와 애니메이션 상태 제거
+		CurrentWidget->ResetFloatingTextForReuse();
 		CurrentWidget->SetVisibility(ESlateVisibility::Collapsed);
-		CurrentWidget->RemoveFromParent();
 		CurrentWidget->OnFloatingTextFinished.Unbind();
 		WidgetToComponentMap.Remove(CurrentWidget);
 	}
 
+	// WidgetComponent 소유 위젯의 Slate 경로 유지
 	// 위젯 인스턴스는 유지한 채 숨기기만 한다 (풀링 재사용)
 	InComponent->SetVisibility(false);
 	
 	ActiveWidgets.Remove(InComponent);
 	AvailablePool.Add(InComponent);
+
+	UE_LOG(LogPRFloatingText, Log, TEXT("[FloatingText] Release Comp=%s Widget=%s Active=%d Pool=%d"),
+		*GetNameSafe(InComponent),
+		*GetNameSafe(CurrentWidget),
+		ActiveWidgets.Num(),
+		AvailablePool.Num());
 }
 
 void UPRFloatingTextManager::OnFloatingTextFinished(UPRFloatingTextWidget* InWidget)
@@ -214,7 +289,15 @@ void UPRFloatingTextManager::OnFloatingTextFinished(UPRFloatingTextWidget* InWid
 	TObjectPtr<UWidgetComponent>* FoundComp = WidgetToComponentMap.Find(InWidget);
 	if (FoundComp && IsValid(*FoundComp))
 	{
+		UE_LOG(LogPRFloatingText, Log, TEXT("[FloatingText] Finish Callback Widget=%s Comp=%s"),
+			*GetNameSafe(InWidget),
+			*GetNameSafe(*FoundComp));
 		ReleaseWidgetComponent(*FoundComp);
+	}
+	else
+	{
+		UE_LOG(LogPRFloatingText, Warning, TEXT("[FloatingText] Finish Callback Missing Mapping Widget=%s"),
+			*GetNameSafe(InWidget));
 	}
 }
 
@@ -251,8 +334,13 @@ void UPRFloatingTextManager::ForceRetireOldest()
 		UPRFloatingTextWidget* OldestWidget = Cast<UPRFloatingTextWidget>(OldestComp->GetWidget());
 		if (IsValid(OldestWidget))
 		{
-			OldestWidget->FinishFloatingText();
-			break;
+			UE_LOG(LogPRFloatingText, Warning, TEXT("[FloatingText] ForceRetire Comp=%s Widget=%s Active=%d Max=%d"),
+				*GetNameSafe(OldestComp),
+				*GetNameSafe(OldestWidget),
+				ActiveWidgets.Num(),
+				MaxActiveCount);
+			ReleaseWidgetComponent(OldestComp);
+			continue;
 		}
 
 		ReleaseWidgetComponent(OldestComp);

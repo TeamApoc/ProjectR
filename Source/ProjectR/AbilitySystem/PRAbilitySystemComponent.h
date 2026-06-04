@@ -41,6 +41,9 @@ public:
 	// 이전 부여 시 받은 핸들로 ClearAbility · RemoveActiveGameplayEffect 후 Reset
 	void ClearAbilitySetByHandles(FPRAbilitySetHandles& Handles);
 
+	// 리스폰 시 ASC에 남은 런타임 어빌리티와 GameplayEffect 정리
+	void ResetSystem();
+
 	// Registry 기반 Row 리플렉션 주입으로 속성 초기화. 서버 전용. 1회 호출
 	bool InitializeAttributesFromRegistry(const UPRAbilitySystemRegistry* Registry,
 	                                       EPRCharacterRole Role, FName RowName);

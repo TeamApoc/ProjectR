@@ -12,6 +12,7 @@ class APRPlayerState;
 class UPRCurrencyComponent;
 class UPRInventoryComponent;
 class UPRItemDataAsset;
+class UPRMaterialDataAsset;
 class UPRShopDataAsset;
 
 // NPC 또는 터미널이 제공하는 상점 거래를 서버 권위로 처리
@@ -108,6 +109,18 @@ private:
 
 	// 구매 수량만큼 인벤토리에 지급 가능한지 확인
 	bool CanGrantItem(UPRInventoryComponent* InventoryComponent, UPRItemDataAsset* ItemData, int32 TotalItemQuantity) const;
+
+	// 구매 비용 재료 데이터를 조회하고 총 요구량을 계산
+	bool ResolveBuyMaterialCosts(const FPRShopEntry& Entry, int32 TransactionQuantity, TMap<UPRMaterialDataAsset*, int32>& OutMaterialCosts) const;
+
+	// 구매 비용 재료 보유량 충족 여부 확인
+	bool HasEnoughBuyMaterialCosts(UPRInventoryComponent* InventoryComponent, const TMap<UPRMaterialDataAsset*, int32>& MaterialCosts) const;
+
+	// 구매 비용 재료 소비
+	bool ConsumeBuyMaterialCosts(UPRInventoryComponent* InventoryComponent, const TMap<UPRMaterialDataAsset*, int32>& MaterialCosts, TArray<TPair<UPRMaterialDataAsset*, int32>>& OutConsumedMaterials) const;
+
+	// 실패한 구매에서 소비한 재료 복구
+	void RefundBuyMaterialCosts(UPRInventoryComponent* InventoryComponent, const TArray<TPair<UPRMaterialDataAsset*, int32>>& ConsumedMaterials) const;
 
 	// 구매 성공 후 유한 재고를 차감
 	bool ConsumeStock(const FPRShopEntry& Entry, int32 Quantity);

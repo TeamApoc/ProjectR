@@ -23,6 +23,7 @@ APRRewardPickupActor::APRRewardPickupActor()
 	SetReplicates(true);
 	SetReplicateMovement(true);
 	SetNetCullDistanceSquared(FMath::Square(5000.f));
+	bDisposable = true;
 
 	DropCollision = CreateDefaultSubobject<USphereComponent>(TEXT("DropCollision"));
 	DropCollision->InitSphereRadius(18.0f);

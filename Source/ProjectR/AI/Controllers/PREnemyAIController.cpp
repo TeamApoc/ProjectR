@@ -37,9 +37,57 @@ namespace
 		return IsValid(Actor) ? Actor->GetActorLocation() : FVector::ZeroVector;
 	}
 
-	bool IsSightStimulus(const UAISenseConfig_Sight* SightConfig, const FAIStimulus& Stimulus)
+	bool HasActivePerceptionStimulus(UAIPerceptionComponent* PerceptionComponent, AActor* Actor)
 	{
-		return IsValid(SightConfig) && Stimulus.Type == SightConfig->GetSenseID();
+		if (!IsValid(PerceptionComponent) || !IsValid(Actor))
+		{
+			return false;
+		}
+
+		FActorPerceptionBlueprintInfo PerceptionInfo;
+		if (!PerceptionComponent->GetActorsPerception(Actor, PerceptionInfo))
+		{
+			return false;
+		}
+
+		// Actor별 현재 활성 감각 확인
+		for (const FAIStimulus& PerceivedStimulus : PerceptionInfo.LastSensedStimuli)
+		{
+			if (PerceivedStimulus.WasSuccessfullySensed())
+			{
+				return true;
+			}
+		}
+
+		return false;
+	}
+
+	bool HasActiveSightStimulus(
+		UAIPerceptionComponent* PerceptionComponent,
+		const UAISenseConfig_Sight* SightConfig,
+		AActor* Actor)
+	{
+		if (!IsValid(PerceptionComponent) || !IsValid(SightConfig) || !IsValid(Actor))
+		{
+			return false;
+		}
+
+		FActorPerceptionBlueprintInfo PerceptionInfo;
+		if (!PerceptionComponent->GetActorsPerception(Actor, PerceptionInfo))
+		{
+			return false;
+		}
+
+		// Sight 감각만 별도 확인
+		for (const FAIStimulus& PerceivedStimulus : PerceptionInfo.LastSensedStimuli)
+		{
+			if (PerceivedStimulus.Type == SightConfig->GetSenseID() && PerceivedStimulus.WasSuccessfullySensed())
+			{
+				return true;
+			}
+		}
+
+		return false;
 	}
 
 	bool IsCurrentThreatTarget(const UPREnemyThreatComponent* ThreatComponent, const AActor* Actor)
@@ -183,7 +231,7 @@ void APREnemyAIController::HandleTargetPerceptionUpdated(AActor* Actor, FAIStimu
 
 	if (Stimulus.WasSuccessfullySensed())
 	{
-		const bool bHasLOS = IsSightStimulus(SightConfig, Stimulus);
+		const bool bHasLOS = HasActiveSightStimulus(EnemyPerceptionComponent, SightConfig, Actor);
 		CachedThreatComponent->UpdatePerceivedTarget(Actor, StimulusLocation, bHasLOS);
 
 		// Perception은 여러 플레이어의 이벤트를 받을 수 있으므로,
@@ -204,6 +252,29 @@ void APREnemyAIController::HandleTargetPerceptionUpdated(AActor* Actor, FAIStimu
 	}
 	else
 	{
+		const bool bHasActivePerception = HasActivePerceptionStimulus(EnemyPerceptionComponent, Actor);
+		const bool bHasLOS = HasActiveSightStimulus(EnemyPerceptionComponent, SightConfig, Actor);
+		if (bHasActivePerception)
+		{
+			const FVector TrackingLocation = bHasLOS ? Actor->GetActorLocation() : StimulusLocation;
+			CachedThreatComponent->UpdatePerceivedTarget(Actor, TrackingLocation, bHasLOS);
+
+			// 감각 일부 상실 중 현재 타겟 추적 유지
+			if (IsCurrentThreatTarget(CachedThreatComponent, Actor))
+			{
+				WriteCurrentTargetTrackingToBlackboard(
+					CachedBlackboardComponent,
+					TargetLocationKey,
+					LastKnownTargetLocationKey,
+					HasLOSKey,
+					TrackingLocation,
+					TrackingLocation,
+					bHasLOS);
+			}
+
+			return;
+		}
+
 		const bool bWasCurrentTarget = IsCurrentThreatTarget(CachedThreatComponent, Actor);
 
 		switch (TargetLostPolicy)

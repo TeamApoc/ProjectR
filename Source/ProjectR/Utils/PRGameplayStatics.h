@@ -3,6 +3,8 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "GameplayTagContainer.h"
+#include "ProjectR/FX/PRFXTypes.h"
 #include "Kismet/BlueprintFunctionLibrary.h"
 #include "PRGameplayStatics.generated.h"
 
@@ -46,6 +48,10 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "PR|Utils")
 	static UAbilitySystemComponent* GetAbilitySystemComponent(AActor* Actor);
 
+	/** TargetActor의 ASC에서 지정 태그를 가진 활성 어빌리티 취소 */
+	UFUNCTION(BlueprintCallable, Category = "PR|Ability")
+	static void CancelAbilityWithTags(AActor* TargetActor, const FGameplayTagContainer& AbilityTags);
+
 	// Ammo 부여
 	UFUNCTION(BlueprintCallable, Category = "PR|Utils")
 	static void GrantAmmo(AActor* TargetActor,TSubclassOf<UGameplayEffect> AmmoEffect,  float AmmoAmount);
@@ -68,4 +74,20 @@ public:
 	 * 위치 = MuzzleLocation, 회전 = (AimPoint - MuzzleLocation) Rotation. 거리 0이면 카메라 정면으로 폴백
 	 */
 	static FTransform ResolveProjectileLaunchTransform(const APawn* Pawn, const FVector& MuzzleLocation, float TraceDistance, ECollisionChannel TraceChannel, const TArray<AActor*>& IgnoredActors);
+
+	// 로컬 월드에서만 FX Cue 실행
+	UFUNCTION(BlueprintCallable, Category = "PR|FX", meta = (WorldContext = "WorldContextObject"))
+	static void PlayLocalFX(const UObject* WorldContextObject, FGameplayTag FXTag, FInstancedStruct Payload);
+
+	// 로컬 예측 FX Cue 실행 후 서버 확정 FX 중복 제거에 사용할 PredictionKey 반환
+	UFUNCTION(BlueprintCallable, Category = "PR|FX", meta = (WorldContext = "WorldContextObject"))
+	static FPRFXPredictionKey PlayPredictiveFX(const UObject* WorldContextObject, FGameplayTag FXTag, FInstancedStruct Payload);
+
+	// 서버에서 확정된 FX Cue를 현재 클라이언트 월드에서 실행
+	UFUNCTION(BlueprintCallable, Category = "PR|FX", meta = (WorldContext = "WorldContextObject"))
+	static void PlayConfirmedFX(const UObject* WorldContextObject, FGameplayTag FXTag, FInstancedStruct Payload, FPRFXPredictionKey PredictionKey);
+
+	// 로컬 예측 FX Cue 실행과 서버 전파 요청을 한 번에 처리
+	UFUNCTION(BlueprintCallable, Category = "PR|FX", meta = (WorldContext = "WorldContextObject"))
+	static FPRFXPredictionKey PlayPredictiveNetworkFX(const UObject* WorldContextObject, AActor* NetworkSourceActor, FGameplayTag FXTag, FInstancedStruct Payload);
 };

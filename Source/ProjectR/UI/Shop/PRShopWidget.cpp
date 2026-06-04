@@ -21,6 +21,13 @@
 #include "ProjectR/UI/Shop/PRShopItemListWidget.h"
 #include "ProjectR/ItemSystem/Data/PRWeaponModDataAsset.h"
 
+UPRShopWidget::UPRShopWidget()
+{
+	Layer = EPRUILayer::Menu;
+	InputMode = EPBUIInputMode::UIOnly;
+	bShowMouseCursor = true;
+}
+
 void UPRShopWidget::SetShopContext(UPRShopComponent* InShopComponent)
 {
 	ShopComponent = InShopComponent;
@@ -232,6 +239,7 @@ void UPRShopWidget::RefreshItemList()
 	const TArray<FPRShopItemSlotViewData> ListItems = CurrentTabType == EPRShopTabType::Buy
 		? BuildBuyListItems()
 		: BuildSellListItems();
+	SyncSelectedItemFromList(ListItems);
 	ItemListWidget->SetShopItemList(CurrentTabType, ListItems);
 }
 
@@ -289,6 +297,24 @@ void UPRShopWidget::RefreshTabVisuals()
 	{
 		SellTabSelectedImage->SetVisibility(CurrentTabType == EPRShopTabType::Sell ? ESlateVisibility::HitTestInvisible : ESlateVisibility::Collapsed);
 	}
+}
+
+void UPRShopWidget::SyncSelectedItemFromList(const TArray<FPRShopItemSlotViewData>& ListItems)
+{
+	if (SelectedItem.EntryId.IsNone())
+	{
+		return;
+	}
+
+	const FName SelectedEntryId = SelectedItem.EntryId;
+	const EPRShopTabType SelectedTabType = SelectedItem.TabType;
+	const FPRShopItemSlotViewData* UpdatedSelectedItem = ListItems.FindByPredicate(
+		[SelectedEntryId, SelectedTabType](const FPRShopItemSlotViewData& ViewData)
+		{
+			return ViewData.EntryId == SelectedEntryId && ViewData.TabType == SelectedTabType;
+		});
+
+	SelectedItem = UpdatedSelectedItem ? *UpdatedSelectedItem : FPRShopItemSlotViewData();
 }
 
 TArray<FPRShopItemSlotViewData> UPRShopWidget::BuildBuyListItems() const
@@ -373,13 +399,77 @@ FPRShopItemSlotViewData UPRShopWidget::BuildShopSlotViewData(const FPRShopEntry&
 	ViewData.ItemViewData.ItemType = ItemData->GetItemType();
 	ViewData.ItemViewData.StackCount = GetOwnedStackCount(ItemData);
 	ViewData.ItemViewData.bShowStackCount = true;
+	ViewData.ItemViewData.OwnedStackCount = ViewData.ItemViewData.StackCount;
+	ViewData.ItemViewData.bHasOwnedStackCount = true;
 	ViewData.bSelected = SelectedItem.EntryId == Entry.EntryId && SelectedItem.TabType == TabType;
 	ViewData.UnitScrapPrice = TabType == EPRShopTabType::Buy
 		? Entry.BaseScrapPrice
 		: IsValid(ShopComponent) ? ShopComponent->CalculateSellScrapPrice(Entry) : 0;
-	ViewData.bCanRequestTransaction = ViewData.UnitScrapPrice > 0
-		&& (TabType == EPRShopTabType::Sell || Entry.bUnlimitedStock || ViewData.RemainingStock > 0);
+	ViewData.OwnedScrap = IsValid(CurrencyComponent) ? CurrencyComponent->GetScrap() : 0;
+	ViewData.bEnoughScrap = TabType != EPRShopTabType::Buy || ViewData.OwnedScrap >= ViewData.UnitScrapPrice;
+
+	const bool bValidMaterialCosts = TabType != EPRShopTabType::Buy
+		|| BuildMaterialCostViewData(Entry, 1, ViewData.MaterialCosts);
+	if (!bValidMaterialCosts)
+	{
+		ViewData.MaterialCosts.Reset();
+	}
+
+	const bool bHasStock = TabType == EPRShopTabType::Sell || Entry.bUnlimitedStock || ViewData.RemainingStock > 0;
+	const bool bHasBuyCost = ViewData.UnitScrapPrice > 0 || !ViewData.MaterialCosts.IsEmpty();
+	ViewData.bCanRequestTransaction = bHasStock
+		&& (TabType == EPRShopTabType::Sell
+			? ViewData.UnitScrapPrice > 0
+			: bValidMaterialCosts && bHasBuyCost);
 	return ViewData;
+}
+
+bool UPRShopWidget::BuildMaterialCostViewData(const FPRShopEntry& Entry, int32 TransactionQuantity, TArray<FPRShopMaterialCostViewData>& OutMaterialCosts) const
+{
+	OutMaterialCosts.Reset();
+
+	if (TransactionQuantity <= 0)
+	{
+		return false;
+	}
+
+	TMap<UPRMaterialDataAsset*, int32> RequiredQuantities;
+	for (const FPRShopMaterialCost& MaterialCost : Entry.BuyMaterialCosts)
+	{
+		if (!MaterialCost.MaterialAssetId.IsValid() || MaterialCost.Quantity <= 0)
+		{
+			return false;
+		}
+
+		UPRItemDataAsset* ItemData = UPRAssetManager::Get().GetItemDataByPrimaryAssetId(MaterialCost.MaterialAssetId);
+		UPRMaterialDataAsset* MaterialData = Cast<UPRMaterialDataAsset>(ItemData);
+		if (!IsValid(MaterialData))
+		{
+			return false;
+		}
+
+		int32& RequiredQuantity = RequiredQuantities.FindOrAdd(MaterialData);
+		RequiredQuantity += MaterialCost.Quantity * TransactionQuantity;
+	}
+
+	for (const TPair<UPRMaterialDataAsset*, int32>& RequiredQuantity : RequiredQuantities)
+	{
+		FPRShopMaterialCostViewData MaterialCostViewData;
+		MaterialCostViewData.MaterialData = RequiredQuantity.Key;
+		MaterialCostViewData.RequiredQuantity = RequiredQuantity.Value;
+		MaterialCostViewData.DisplayName = RequiredQuantity.Key->GetDisplayName();
+		MaterialCostViewData.Icon = RequiredQuantity.Key->GetIcon();
+
+		const UPRItemInstance_Material* MaterialItem = IsValid(InventoryComponent)
+			? InventoryComponent->FindItemByData<UPRItemInstance_Material>(RequiredQuantity.Key)
+			: nullptr;
+		MaterialCostViewData.OwnedQuantity = IsValid(MaterialItem) ? MaterialItem->GetStackCount() : 0;
+		MaterialCostViewData.bEnough = MaterialCostViewData.OwnedQuantity >= MaterialCostViewData.RequiredQuantity;
+
+		OutMaterialCosts.Add(MaterialCostViewData);
+	}
+
+	return true;
 }
 
 int32 UPRShopWidget::GetOwnedStackCount(const UPRItemDataAsset* ItemData) const
@@ -404,6 +494,31 @@ int32 UPRShopWidget::GetOwnedStackCount(const UPRItemDataAsset* ItemData) const
 	return 0;
 }
 
+bool UPRShopWidget::HasEnoughSelectedMaterialCosts() const
+{
+	if (!IsValid(InventoryComponent))
+	{
+		return SelectedItem.MaterialCosts.IsEmpty();
+	}
+
+	for (const FPRShopMaterialCostViewData& MaterialCost : SelectedItem.MaterialCosts)
+	{
+		if (!IsValid(MaterialCost.MaterialData.Get()) || MaterialCost.RequiredQuantity <= 0)
+		{
+			return false;
+		}
+
+		const UPRItemInstance_Material* MaterialItem = InventoryComponent->FindItemByData<UPRItemInstance_Material>(MaterialCost.MaterialData.Get());
+		const int32 OwnedQuantity = IsValid(MaterialItem) ? MaterialItem->GetStackCount() : 0;
+		if (OwnedQuantity < MaterialCost.RequiredQuantity)
+		{
+			return false;
+		}
+	}
+
+	return true;
+}
+
 bool UPRShopWidget::CanRequestSelectedTransaction() const
 {
 	if (!IsValid(ShopComponent) || SelectedItem.EntryId.IsNone() || !SelectedItem.bCanRequestTransaction)
@@ -414,7 +529,7 @@ bool UPRShopWidget::CanRequestSelectedTransaction() const
 	if (CurrentTabType == EPRShopTabType::Buy)
 	{
 		const int32 OwnedScrap = IsValid(CurrencyComponent) ? CurrencyComponent->GetScrap() : 0;
-		return OwnedScrap >= SelectedItem.UnitScrapPrice;
+		return OwnedScrap >= SelectedItem.UnitScrapPrice && HasEnoughSelectedMaterialCosts();
 	}
 
 	return GetOwnedStackCount(SelectedItem.ItemViewData.ItemData.Get()) > 0;
@@ -489,7 +604,11 @@ void UPRShopWidget::HandleInventoryChanged(UPRInventoryComponent* ChangedInvento
 
 void UPRShopWidget::HandleScrapChanged(int32 NewScrap)
 {
+	static_cast<void>(NewScrap);
+
 	RefreshHeader();
+	RefreshItemList();
+	RefreshSelectedItemDetails();
 	RefreshTransactionButtons();
 }
 

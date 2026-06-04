@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "PRCharacterBase.h"
 #include "Net/UnrealNetwork.h"
+#include "TimerManager.h"
 #include "ProjectR/AbilitySystem/Data/PRAbilitySet.h"
 #include "ProjectR/Interaction/PRInteractionInterface.h"
 #include "ProjectR/ItemSystem/Types/PREquipmentTypes.h"
@@ -25,6 +26,8 @@ class UPRSpringArmComponent;
 class UPRActionInputRouterComponent;
 class UPRProjectileTrajectoryPreviewComponent;
 class UPRFlashlightComponent;
+class UPRConsumableDataAsset;
+class UStaticMeshComponent;
 struct FInputActionValue;
 struct FOnAttributeChangeData;
 //무기 테스트용
@@ -44,7 +47,7 @@ public:
 	/*~ APawn Interface ~*/
 	virtual void PossessedBy(AController* NewController) override;
 	virtual void OnRep_PlayerState() override;
-	
+
 	/*~ ACharacter Interface ~*/
 	virtual void Crouch(bool bClientSimulation = false) override;
 	virtual void UnCrouch(bool bClientSimulation = false) override;
@@ -76,13 +79,26 @@ public:
 	
 	/** Sprint Ability가 질주 상태를 캐릭터 이동 상태에 반영 */
 	void SetSprintingFromAbility(bool bNewSprinting);
+
+	/** 서버가 결정한 외부 강제 이동을 소유 클라이언트에서도 동일하게 재생한다. */
+	UFUNCTION(Client, Reliable)
+	void ClientStartExternalForcedMove(FVector_NetQuantize Destination, FRotator Rotation, float Duration, float TickInterval, float EaseExponent, bool bSweep, bool bStopMovement);
+
+	
 	
 	void SetFlashlightEnabled(bool bEnabled) const;
-	bool IsFlashlightEnabled() const;
+	
+	UFUNCTION(Server, Reliable)
+	void ServerSetFlashlightEnabled(bool bEnabled) const;
 	
 	UFUNCTION(NetMulticast, Reliable)
-	void MulticastSetMovementMode(EMovementMode NewMovementMode);
+	void MulticastSetFlashlightEnabled(bool bEnabled) const;
 	
+	bool IsFlashlightEnabled() const;
+
+	UFUNCTION(NetMulticast, Reliable)
+	void MulticastSetMovementMode(EMovementMode NewMovementMode);
+
 	// ===== Component getters =====
 	
 	/** 액션 입력 라우터 컴포넌트를 반환 */
@@ -91,13 +107,22 @@ public:
 	/** 플래시라이트 컴포넌트 반환 */
 	UFUNCTION(BlueprintPure, Category = "PR|Flashlight")
 	UPRFlashlightComponent* GetFlashlightComponent() const { return FlashlightComponent; }
-	
+
 	UFUNCTION(BlueprintPure, Category = "PR|Weapon")
 	UPRWeaponManagerComponent* GetWeaponManager() const;
 
 	// 장비 매니저 컴포넌트 반환
 	UFUNCTION(BlueprintPure, Category = "PR|Equipment")
 	UPREquipmentManagerComponent* GetEquipmentManager() const;
+
+	// 지정 장비 슬롯에 대응하는 기본 메시 조회
+	USkeletalMesh* GetDefaultEquipmentMesh(EPREquipmentSlotType SlotType) const;
+
+	// 소비 아이템 PickupMesh 표시 요청
+	void RequestConsumablePickupMeshBegin(UPRConsumableDataAsset* ConsumableData, FName AttachSocketName);
+
+	// 소비 아이템 PickupMesh 제거 요청
+	void RequestConsumablePickupMeshEnd();
 
 	
 protected:
@@ -120,6 +145,14 @@ private:
 	/** 상태 태그 기준으로 이동 입력이 차단되는지 반환한다 */
 	bool IsMoveInputLockedByState() const;
 
+	/** 외부 강제 이동을 현재 머신에서 시작한다. */
+	void StartExternalForcedMoveLocal(const FVector& Destination, const FRotator& Rotation, float Duration, float TickInterval, float EaseExponent, bool bSweep, bool bStopMovement);
+
+	/** 외부 강제 이동 보간을 갱신한다. */
+	void TickExternalForcedMove();
+
+	/** 외부 강제 이동을 종료하고 최종 위치를 보정한다. */
+	void CompleteExternalForcedMove(bool bWasCancelled);
 	/** 이동속도 배율 Attribute 변경 시 MaxWalkSpeed를 갱신하도록 바인딩한다 */
 	void BindMovementSpeedAttributeChange();
 
@@ -147,12 +180,31 @@ private:
 	// 지정 장비 슬롯에 대응하는 파츠 컴포넌트 조회
 	USkeletalMeshComponent* GetEquipmentMeshComponent(EPREquipmentSlotType SlotType) const;
 
-	// 지정 장비 슬롯에 대응하는 기본 메시 조회
-	USkeletalMesh* GetDefaultEquipmentMesh(EPREquipmentSlotType SlotType) const;
-
 	// 장비 외형 정보 변경 알림 처리
 	UFUNCTION()
 	void HandleEquipmentVisualInfosChanged(UPREquipmentManagerComponent* ChangedEquipmentManagerComponent);
+
+	// 소비 아이템 PickupMesh 표시 서버 요청
+	UFUNCTION(Server, Unreliable)
+	void Server_RequestConsumablePickupMeshBegin(UPRConsumableDataAsset* ConsumableData, FName AttachSocketName);
+
+	// 소비 아이템 PickupMesh 제거 서버 요청
+	UFUNCTION(Server, Reliable)
+	void Server_RequestConsumablePickupMeshEnd();
+
+	// 소비 아이템 PickupMesh 표시 전파
+	UFUNCTION(NetMulticast, Unreliable)
+	void Multicast_ShowConsumablePickupMesh(UPRConsumableDataAsset* ConsumableData, FName AttachSocketName);
+
+	// 소비 아이템 PickupMesh 제거 전파
+	UFUNCTION(NetMulticast, Reliable)
+	void Multicast_HideConsumablePickupMesh();
+
+	// 소비 아이템 PickupMesh 표시 적용
+	void ShowConsumablePickupMesh(UPRConsumableDataAsset* ConsumableData, FName AttachSocketName);
+
+	// 소비 아이템 PickupMesh 제거 적용
+	void HideConsumablePickupMesh();
 
 public:
 	/** 컴포넌트 */
@@ -167,6 +219,15 @@ public:
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Mesh")
 	TObjectPtr<USkeletalMeshComponent> Mesh_Legs;
+	
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Mesh")
+	TObjectPtr<USkeletalMeshComponent> Mesh_BackPack;
+	
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Mesh")
+	TObjectPtr<UStaticMeshComponent> Mesh_Flashlight;
+	
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Mesh")
+	TObjectPtr<UStaticMeshComponent> Mesh_FlashlightGlow;
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Camera")
 	TObjectPtr<UPRSpringArmComponent> CameraBoom;
@@ -235,7 +296,7 @@ protected:
 	/** 플래시 라이트 위치 설정 */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "PR|Flashlight")
 	FVector FlashlightStandingLocation = FVector(50.0f, 0.0f, 55.0f);
-	
+
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "PR|Flashlight")
 	FVector FlashlightCrouchingLocation = FVector(50.0f, 0.0f, 22.0f);
 
@@ -254,7 +315,7 @@ protected:
 	// 다리 슬롯 해제 시 복원할 기본 메시
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "PR|Equipment")
 	TObjectPtr<USkeletalMesh> DefaultLegsMesh;
-	
+
 private:
 	bool bIsSprinting = false;
 	bool bIsAiming = false;
@@ -266,7 +327,24 @@ private:
 	UPROPERTY()
 	TObjectPtr<UPRCameraModifier> CrouchCameraModifier; 
 
+	FTimerHandle ExternalForcedMoveTimerHandle;
+	FVector ExternalForcedMoveStartLocation = FVector::ZeroVector;
+	FVector ExternalForcedMoveEndLocation = FVector::ZeroVector;
+	FRotator ExternalForcedMoveStartRotation = FRotator::ZeroRotator;
+	FRotator ExternalForcedMoveEndRotation = FRotator::ZeroRotator;
+	float ExternalForcedMoveDuration = 0.0f;
+	float ExternalForcedMoveElapsedSeconds = 0.0f;
+	float ExternalForcedMoveLastUpdateTime = 0.0f;
+	float ExternalForcedMoveTickInterval = 0.016f;
+	float ExternalForcedMoveEaseExponent = 2.0f;
+	bool bExternalForcedMoveSweep = false;
+	bool bExternalForcedMoveStopMovement = true;
+	bool bExternalForcedMoveActive = false;
 	// 현재 외형 변경 이벤트를 받고 있는 장비 매니저
 	UPROPERTY(Transient)
 	TObjectPtr<UPREquipmentManagerComponent> BoundEquipmentManager;
+
+	// 현재 표시 중인 소비 아이템 PickupMesh 컴포넌트
+	UPROPERTY(Transient)
+	TObjectPtr<UStaticMeshComponent> ActiveConsumablePickupMeshComponent;
 };

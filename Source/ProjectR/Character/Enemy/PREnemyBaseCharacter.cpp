@@ -18,6 +18,7 @@
 #include "NiagaraComponent.h"
 #include "NiagaraFunctionLibrary.h"
 #include "NiagaraSystem.h"
+#include "Perception/AIPerceptionComponent.h"
 #include "ProjectR/AI/Components/PREnemyCombatEventRelayComponent.h"
 #include "ProjectR/AI/Components/PREnemyThreatComponent.h"
 #include "ProjectR/AI/Data/PREnemyCombatDataAsset.h"
@@ -29,6 +30,8 @@
 #include "Engine/DataTable.h"
 #include "ProjectR/PRGameplayTags.h"
 #include "ProjectR/System/PRAssetManager.h"
+#include "ProjectR/System/PRRespawnSubsystem.h"
+#include "ProjectR/System/PRWorldTickOptimizerSubsystem.h"
 #include "ProjectR/Player/PRPlayerController.h"
 #include "ProjectR/UI/FloatingText/PRFloatingTextManager.h"
 #include "ProjectR/UI/HUD/PREnemyWorldHealthBarComponent.h"
@@ -103,6 +106,55 @@ void APREnemyBaseCharacter::BeginPlay()
 	
 	InitializeHomeLocation();
 	InitializeEnemyWorldHealthBar();
+
+	if (HasAuthority() && bIsRespawnable)
+	{
+		if (UWorld* World = GetWorld())
+		{
+			if (UPRRespawnSubsystem* RespawnSubsystem = World->GetSubsystem<UPRRespawnSubsystem>())
+			{
+				// 리스폰 시스템 등록
+				RespawnSubsystem->RegisterRespawnableActor(this);
+			}
+		}
+	}
+
+	if (HasAuthority() && bUseTickOptimization)
+	{
+		if (UWorld* World = GetWorld())
+		{
+			if (UPRWorldTickOptimizerSubsystem* TickOptimizer = World->GetSubsystem<UPRWorldTickOptimizerSubsystem>())
+			{
+				TickOptimizer->RegisterTarget(this);
+			}
+		}
+
+		if (!bStartTickActive)
+		{
+			SetTickActive(false);
+		}
+
+		if (!bStartVisibilityActive)
+		{
+			SetVisibilityActive(false);
+		}
+	}
+}
+
+void APREnemyBaseCharacter::EndPlay(const EEndPlayReason::Type EndPlayReason)
+{
+	if (HasAuthority() && bUseTickOptimization)
+	{
+		if (UWorld* World = GetWorld())
+		{
+			if (UPRWorldTickOptimizerSubsystem* TickOptimizer = World->GetSubsystem<UPRWorldTickOptimizerSubsystem>())
+			{
+				TickOptimizer->UnregisterTarget(this);
+			}
+		}
+	}
+
+	Super::EndPlay(EndPlayReason);
 }
 
 void APREnemyBaseCharacter::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const
@@ -113,6 +165,7 @@ void APREnemyBaseCharacter::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>
 	DOREPLIFETIME(APREnemyBaseCharacter, bUseCombatMovePose);
 	DOREPLIFETIME(APREnemyBaseCharacter, bUseCombatAimOffset);
 	DOREPLIFETIME(APREnemyBaseCharacter, bUseCombatStrafeState);
+	DOREPLIFETIME(APREnemyBaseCharacter, bVisibilityActive);
 }
 
 void APREnemyBaseCharacter::PossessedBy(AController* NewController)
@@ -121,6 +174,11 @@ void APREnemyBaseCharacter::PossessedBy(AController* NewController)
 	Super::PossessedBy(NewController);
 
 	InitializeEnemyAbilitySystem();
+
+	if (bUseTickOptimization && !bTickActive)
+	{
+		ApplyTickOptimizationState(false);
+	}
 }
 
 UPRAbilitySystemComponent* APREnemyBaseCharacter::GetPRAbilitySystemComponent() const
@@ -729,6 +787,73 @@ bool APREnemyBaseCharacter::ShouldPingMarkerVisible_Implementation() const
 	return !IsDead();
 }
 
+/*~ IPRTickOptimizable ~*/
+
+FPRTickOptimizationConfig APREnemyBaseCharacter::GetTickConfig() const
+{
+	FPRTickOptimizationConfig Config;
+	Config.TickActivationRadius = TickActivationRadius;
+	Config.TickDeactivationRadius = TickDeactivationRadius;
+	Config.VisibilityActivationRadius = VisibilityActivationRadius;
+	Config.VisibilityDeactivationRadius = VisibilityDeactivationRadius;
+	Config.bStartTickActive = bStartTickActive;
+	Config.bStartVisibilityActive = bStartVisibilityActive;
+	Config.bAllowTargetRuntimeEvaluationGate = true;
+	return Config;
+}
+
+FVector APREnemyBaseCharacter::GetTickLocation() const
+{
+	return GetActorLocation();
+}
+
+bool APREnemyBaseCharacter::CanOptimizeTick() const
+{
+	return bUseTickOptimization && !IsDead();
+}
+
+bool APREnemyBaseCharacter::IsTickActive() const
+{
+	return bTickActive;
+}
+
+void APREnemyBaseCharacter::SetTickActive(bool bActive)
+{
+	if (!HasAuthority())
+	{
+		return;
+	}
+
+	if (bTickActive == bActive)
+	{
+		return;
+	}
+
+	bTickActive = bActive;
+	ApplyTickOptimizationState(bActive);
+}
+
+bool APREnemyBaseCharacter::IsVisibilityActive() const
+{
+	return bVisibilityActive;
+}
+
+void APREnemyBaseCharacter::SetVisibilityActive(bool bActive)
+{
+	if (!HasAuthority())
+	{
+		return;
+	}
+
+	if (bVisibilityActive == bActive)
+	{
+		return;
+	}
+
+	bVisibilityActive = bActive;
+	ApplyVisibilityOptimizationState(bActive);
+}
+
 void APREnemyBaseCharacter::HandleGameplayTagUpdated(const FGameplayTag& ChangedTag, bool TagExists)
 {
 	Super::HandleGameplayTagUpdated(ChangedTag, TagExists);
@@ -809,6 +934,92 @@ void APREnemyBaseCharacter::InitializeEnemyWorldHealthBar()
 	EnemyWorldHealthBarComponent->InitializeFromAbilitySystem(AbilitySystemComponent);
 }
 
+/*~ Tick 최적화 ~*/
+
+void APREnemyBaseCharacter::OnRep_VisibilityActive()
+{
+	ApplyVisibilityOptimizationState(bVisibilityActive);
+}
+
+void APREnemyBaseCharacter::ApplyTickOptimizationState(bool bActive)
+{
+	if (!HasAuthority())
+	{
+		return;
+	}
+
+	UCharacterMovementComponent* MovementComponent = GetCharacterMovement();
+	if (IsValid(MovementComponent))
+	{
+		MovementComponent->SetComponentTickEnabled(bActive);
+		if (!bActive)
+		{
+			MovementComponent->StopMovementImmediately();
+		}
+	}
+
+	if (AAIController* AIController = Cast<AAIController>(GetController()))
+	{
+		if (bActive)
+		{
+			if (UBrainComponent* BrainComponent = AIController->GetBrainComponent())
+			{
+				BrainComponent->RestartLogic();
+			}
+
+			if (UAIPerceptionComponent* PerceptionComponent = AIController->GetPerceptionComponent())
+			{
+				PerceptionComponent->SetComponentTickEnabled(true);
+				PerceptionComponent->Activate(true);
+			}
+		}
+		else
+		{
+			AIController->StopMovement();
+			AIController->ClearFocus(EAIFocusPriority::Gameplay);
+
+			if (UBrainComponent* BrainComponent = AIController->GetBrainComponent())
+			{
+				BrainComponent->StopLogic(TEXT("TickOptimization"));
+			}
+
+			if (UAIPerceptionComponent* PerceptionComponent = AIController->GetPerceptionComponent())
+			{
+				PerceptionComponent->Deactivate();
+				PerceptionComponent->SetComponentTickEnabled(false);
+			}
+		}
+	}
+
+	if (!bActive)
+	{
+		ClearCombatMovePresentationContext();
+	}
+}
+
+void APREnemyBaseCharacter::ApplyVisibilityOptimizationState(bool bActive)
+{
+	if (IsDead())
+	{
+		return;
+	}
+
+	SetActorHiddenInGame(!bActive);
+
+	USkeletalMeshComponent* MeshComponent = GetMesh();
+	if (IsValid(MeshComponent))
+	{
+		MeshComponent->SetVisibility(bActive, true);
+		MeshComponent->SetComponentTickEnabled(bActive);
+	}
+
+	if (IsValid(EnemyWorldHealthBarComponent))
+	{
+		EnemyWorldHealthBarComponent->SetVisibility(bActive && bUseWorldHealthBar, true);
+		EnemyWorldHealthBarComponent->SetComponentTickEnabled(bActive && bUseWorldHealthBar);
+	}
+}
+
 void APREnemyBaseCharacter::HandleDeath(AActor* InstigatorActor)
 {
 	// 사망은 Ability 쪽에서도 처리하지만, 캐릭터 레벨에서도 Brain/Movement를 확실히 멈춘다.
@@ -830,6 +1041,13 @@ void APREnemyBaseCharacter::HandleDeadTagChanged(bool bEntered)
 	// 사망 상태 진입
 	if (bEntered)
 	{
+		SetActorHiddenInGame(false);
+		if (USkeletalMeshComponent* MeshComponent = GetMesh())
+		{
+			MeshComponent->SetVisibility(true, true);
+			MeshComponent->SetComponentTickEnabled(true);
+		}
+
 		if (IsValid(ThreatComponent))
 		{
 			ThreatComponent->ForceClearAttackCommit();

@@ -9,15 +9,19 @@
 #include "InputCoreTypes.h"
 #include "ProjectR/ItemSystem/Data/PRItemDataAsset.h"
 #include "ProjectR/ItemSystem/Items/PRItemInstance.h"
-#include "ProjectR/UI/Inventory/PRItemTooltipWidget.h"
+#include "ProjectR/Player/PRPlayerController.h"
+#include "ProjectR/UI/Components/PRUIControllerComponent.h"
 
 void UPRItemSlotWidget::SetSlotViewData(const FPRInventoryItemSlotViewData& InViewData)
 {
 	ViewData = InViewData;
 	// 현재 표시 데이터를 네이티브 바인딩 위젯에 반영한다
 	RefreshNativeDisplay();
-	// 현재 표시 데이터로 툴팁 위젯을 갱신한다
-	RefreshTooltipWidget();
+	if (bIsMouseHovering)
+	{
+		// 현재 표시 데이터로 툴팁 위젯을 갱신한다
+		ShowTooltip();
+	}
 }
 
 /*~ UUserWidget Interface ~*/
@@ -34,13 +38,33 @@ void UPRItemSlotWidget::NativeOnInitialized()
 	}
 	// 현재 표시 데이터를 네이티브 바인딩 위젯에 반영한다
 	RefreshNativeDisplay();
-	// 현재 표시 데이터로 툴팁 위젯을 갱신한다
-	RefreshTooltipWidget();
 	
 	if (IsValid(EquippedIndicatorImage))
 	{
 		EquippedIndicatorImage->SetVisibility(ESlateVisibility::Hidden);
 	}
+}
+
+void UPRItemSlotWidget::NativeOnMouseEnter(const FGeometry& InGeometry, const FPointerEvent& InMouseEvent)
+{
+	Super::NativeOnMouseEnter(InGeometry, InMouseEvent);
+
+	bIsMouseHovering = true;
+	ShowTooltip();
+}
+
+void UPRItemSlotWidget::NativeOnMouseLeave(const FPointerEvent& InMouseEvent)
+{
+	bIsMouseHovering = false;
+	HideTooltip();
+
+	Super::NativeOnMouseLeave(InMouseEvent);
+}
+
+void UPRItemSlotWidget::NativeDestruct()
+{
+	HideTooltip();
+	Super::NativeDestruct();
 }
 
 FReply UPRItemSlotWidget::NativeOnMouseButtonDown(const FGeometry& InGeometry, const FPointerEvent& InMouseEvent)
@@ -91,8 +115,8 @@ void UPRItemSlotWidget::RefreshNativeDisplay()
 	{
 		// 실제 아이템 항목의 장착 상태 표시와 명령 항목 표시 분리
 		const bool bShowEquippedIndicator = ViewData.InventoryAction == EPRInventoryAction::Deactivate
-			&& IsValid(ViewData.ItemInstance)
-			&& IsValid(ViewData.ItemData);
+			&& IsValid(ViewData.ItemInstance.Get())
+			&& IsValid(ViewData.ItemData.Get());
 		const bool bShowIndicator = bShowEquippedIndicator || ViewData.bSelected;
 		const ESlateVisibility EquippedIndicatorVisibility = bShowIndicator
 			? ESlateVisibility::Visible
@@ -108,29 +132,33 @@ void UPRItemSlotWidget::RefreshNativeDisplay()
 	}
 }
 
-void UPRItemSlotWidget::RefreshTooltipWidget()
+void UPRItemSlotWidget::ShowTooltip()
 {
-	const bool bHasTooltipSource = IsValid(ViewData.ItemData.Get()) || ViewData.InventoryAction != EPRInventoryAction::None;
-	if (!IsValid(TooltipWidgetClass) || !bHasTooltipSource)
+	if (!IsValid(ViewData.ItemData.Get()))
 	{
-		SetToolTip(nullptr);
+		HideTooltip();
 		return;
 	}
 
-	APlayerController* OwningPlayer = GetOwningPlayer();
-	if (!IsValid(OwningPlayer))
+	UPRUIControllerComponent* UIController = ResolveUIController();
+	if (!IsValid(UIController))
 	{
-		SetToolTip(nullptr);
 		return;
 	}
 
-	UPRItemTooltipWidget* TooltipWidget = CreateWidget<UPRItemTooltipWidget>(OwningPlayer, TooltipWidgetClass);
-	if (!IsValid(TooltipWidget))
-	{
-		SetToolTip(nullptr);
-		return;
-	}
+	UIController->ShowItemTooltip(this, ViewData);
+}
 
-	TooltipWidget->SetTooltipViewData(ViewData);
-	SetToolTip(TooltipWidget);
+void UPRItemSlotWidget::HideTooltip()
+{
+	if (UPRUIControllerComponent* UIController = ResolveUIController())
+	{
+		UIController->HideItemTooltip();
+	}
+}
+
+UPRUIControllerComponent* UPRItemSlotWidget::ResolveUIController() const
+{
+	const APRPlayerController* PRPlayerController = Cast<APRPlayerController>(GetOwningPlayer());
+	return IsValid(PRPlayerController) ? PRPlayerController->GetUIController() : nullptr;
 }

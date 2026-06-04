@@ -4,12 +4,16 @@
 
 #include "CoreMinimal.h"
 #include "GameFramework/Actor.h"
+#include "ProjectR/Game/PRGameTypes.h"
 #include "ProjectR/ItemSystem/Types/PRWeaponTypes.h"
 #include "PRCharacterPreviewActor.generated.h"
 
 class APRPlayerCharacter;
 class APRWeaponActor;
+class UDirectionalLightComponent;
+class UMeshComponent;
 class USceneCaptureComponent2D;
+class USceneComponent;
 class USkeletalMeshComponent;
 class USpringArmComponent;
 class USpotLightComponent;
@@ -23,56 +27,92 @@ class PROJECTR_API APRCharacterPreviewActor : public AActor
 	GENERATED_BODY()
 
 public:
-	// 프리뷰 액터 기본 컴포넌트를 초기화한다
+	// 프리뷰 액터 기본 컴포넌트 초기화
 	APRCharacterPreviewActor();
 
-	// 프리뷰 캡처가 사용할 렌더 타겟을 설정한다
+	// 프리뷰 캡처가 사용할 렌더 타겟 설정
 	UFUNCTION(BlueprintCallable, Category = "ProjectR|Inventory|Preview")
 	void SetRenderTargetToSceneCapture(UTextureRenderTarget2D* InRenderTarget);
 
-	// 플레이어 캐릭터의 외형과 장착 무기 상태를 프리뷰에 반영한다
+	// 플레이어 캐릭터의 외형과 장착 무기 상태를 프리뷰에 반영함
 	UFUNCTION(BlueprintCallable, Category = "ProjectR|Inventory|Preview")
 	void RefreshPreviewActorFromPlayer(APRPlayerCharacter* SourceCharacter, UPRWeaponManagerComponent* WeaponManagerComponent);
 
-	// 프리뷰 캡처를 즉시 갱신한다
+	// 저장 데이터의 외형과 장착 무기 상태를 프리뷰에 반영함
+	UFUNCTION(BlueprintCallable, Category = "ProjectR|Inventory|Preview")
+	void RefreshPreviewActorFromSaveData(const FPRCharacterSaveData& SaveData);
+
+	// 프리뷰 캡처 즉시 갱신
 	UFUNCTION(BlueprintCallable, Category = "ProjectR|Inventory|Preview")
 	void CapturePreview();
 
-	// 프리뷰 캡처를 매 프레임 갱신할지 설정한다
+	// 프리뷰 캡처 매 프레임 갱신 여부 설정
 	UFUNCTION(BlueprintCallable, Category = "ProjectR|Inventory|Preview")
 	void SetContinuousCapture(bool bEnabled);
 
+	// 프리뷰 메시 텍스처 스트리밍 준비
+	UFUNCTION(BlueprintCallable, Category = "ProjectR|Inventory|Preview")
+	void InitTextureStreaming(float StreamingDuration, float StreamingDistanceMultiplier);
+
 protected:
 	/*~ AActor Interface ~*/
-	// 액터 제거 시 생성한 무기 프리뷰 액터를 정리한다
+	// 액터 제거 시 생성한 무기 프리뷰 액터 정리
 	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 
 private:
-	// 캐릭터 메시를 소스 캐릭터 기준으로 갱신한다
+	// 캐릭터 메시를 소스 캐릭터 기준으로 갱신함
 	void RefreshCharacterMesh(APRPlayerCharacter* SourceCharacter);
 
 	// 프리뷰 파츠 메시를 소스 파츠 메시 기준으로 갱신
 	void RefreshCharacterPartMesh(USkeletalMeshComponent* PreviewPartMeshComponent, USkeletalMeshComponent* SourcePartMeshComponent);
 
-	// 무기 매니저의 공개 비주얼 상태를 기준으로 무기 프리뷰를 갱신한다
+	// 무기 매니저의 공개 비주얼 상태를 기준으로 무기 프리뷰 갱신
 	void RefreshWeaponPreview(UPRWeaponManagerComponent* WeaponManagerComponent);
 
-	// 지정 슬롯의 무기 프리뷰 액터를 생성하거나 갱신한다
+	// 저장 데이터의 공개 비주얼 상태를 기준으로 무기 프리뷰 갱신
+	void RefreshWeaponPreviewFromSaveData(const FPRCharacterSaveData& SaveData);
+
+	// 저장 데이터의 장비 상태를 기준으로 캐릭터 파츠 메시 갱신
+	void RefreshCharacterMeshFromSaveData(const FPRCharacterSaveData& SaveData);
+
+	// 프리뷰 캐릭터 클래스의 기본 오브젝트 조회
+	const APRPlayerCharacter* GetPreviewCharacterDefaultObject() const;
+
+	// 프리뷰 캐릭터 기본 메시를 저장 데이터 프리뷰의 기본 외형으로 적용
+	void ApplyDefaultPreviewCharacterMesh();
+
+	// 프리뷰 캐릭터 기본 장비 메시와 파츠 트랜스폼을 저장 데이터 프리뷰 기본 파츠로 적용
+	void ApplyDefaultPreviewPartMesh(USkeletalMeshComponent* PreviewPartMeshComponent, const APRPlayerCharacter* DefaultCharacter, const USkeletalMeshComponent* SourcePartMeshComponent, EPREquipmentSlotType SlotType, USkeletalMesh* FallbackMesh) const;
+
+	// 저장 데이터에서 지정 슬롯의 장비 메시 조회
+	USkeletalMesh* ResolveEquipmentMeshFromSaveData(const FPRCharacterSaveData& SaveData, EPREquipmentSlotType SlotType) const;
+
+	// 저장 데이터에서 지정 슬롯의 무기 공개 비주얼 정보 조회
+	FPRWeaponVisualInfo ResolveWeaponVisualInfoFromSaveData(const FPRCharacterSaveData& SaveData, EPRWeaponSlotType SlotType) const;
+
+	// 지정 슬롯의 무기 프리뷰 액터 생성 또는 갱신
 	void RefreshWeaponActorForSlot(EPRWeaponSlotType SlotType, const FPRWeaponVisualInfo& VisualInfo);
 
-	// 지정 슬롯의 무기 프리뷰 액터를 제거한다
+	// 지정 슬롯의 무기 프리뷰 액터 제거
 	void DestroyWeaponActorForSlot(EPRWeaponSlotType SlotType);
 
-	// 지정 슬롯의 무기 프리뷰 액터를 반환한다
+	// 지정 슬롯의 무기 프리뷰 액터 반환
 	APRWeaponActor* GetWeaponActorBySlot(EPRWeaponSlotType SlotType) const;
 
-	// 지정 슬롯의 무기 프리뷰 액터 참조를 설정한다
+	// 지정 슬롯의 무기 프리뷰 액터 참조 설정
 	void SetWeaponActorBySlot(EPRWeaponSlotType SlotType, APRWeaponActor* NewWeaponActor);
 
-	// 지정 슬롯의 무기 프리뷰 액터 참조를 비운다
+	// 지정 슬롯의 무기 프리뷰 액터 참조 비움
 	void ClearWeaponActorBySlot(EPRWeaponSlotType SlotType);
 
+	// 프리뷰 메시 컴포넌트 텍스처 스트리밍 설정
+	void InitMeshTextureStreaming(USkeletalMeshComponent* MeshComponent, float StreamingDuration, float StreamingDistanceMultiplier) const;
+
 protected:
+	// 프리뷰 카메라와 조명의 고정 기준 루트
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "ProjectR|Inventory|Preview")
+	TObjectPtr<USceneComponent> PreviewRootComponent;
+
 	// 프리뷰 포즈와 무기 소켓 기준으로 사용하는 숨김 메시
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "ProjectR|Inventory|Preview")
 	TObjectPtr<USkeletalMeshComponent> PreviewMeshComponent;
@@ -108,6 +148,34 @@ protected:
 	// 프리뷰 전용 조명
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "ProjectR|Inventory|Preview")
 	TObjectPtr<USpotLightComponent> KeyLightComponent;
+
+	// 프리뷰 전용 방향광
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "ProjectR|Inventory|Preview")
+	TObjectPtr<UDirectionalLightComponent> DirectionalLightComponent;
+
+	// 저장 데이터 프리뷰 기본 외형을 읽을 플레이어 캐릭터 클래스
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "ProjectR|Inventory|Preview")
+	TSubclassOf<APRPlayerCharacter> PreviewCharacterClass;
+
+	// PreviewCharacterClass 기본 오브젝트에 리더 메시가 없을 때 사용할 폴백 리더 메시
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "ProjectR|Inventory|Preview")
+	TObjectPtr<USkeletalMesh> DefaultPreviewMesh;
+
+	// PreviewCharacterClass 기본 오브젝트에 머리 메시가 없을 때 사용할 폴백 머리 메시
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "ProjectR|Inventory|Preview")
+	TObjectPtr<USkeletalMesh> DefaultPreviewHeadMesh;
+
+	// PreviewCharacterClass 기본 오브젝트에 몸통 메시가 없을 때 사용할 폴백 몸통 메시
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "ProjectR|Inventory|Preview")
+	TObjectPtr<USkeletalMesh> DefaultPreviewBodyMesh;
+
+	// PreviewCharacterClass 기본 오브젝트에 손 메시가 없을 때 사용할 폴백 손 메시
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "ProjectR|Inventory|Preview")
+	TObjectPtr<USkeletalMesh> DefaultPreviewHandsMesh;
+
+	// PreviewCharacterClass 기본 오브젝트에 다리 메시가 없을 때 사용할 폴백 다리 메시
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "ProjectR|Inventory|Preview")
+	TObjectPtr<USkeletalMesh> DefaultPreviewLegsMesh;
 
 private:
 	// 주무기 프리뷰 액터

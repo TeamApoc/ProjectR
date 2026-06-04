@@ -3,6 +3,7 @@
 #include "PRUIControllerComponent.h"
 
 #include "Blueprint/UserWidget.h"
+#include "Components/Widget.h"
 #include "Engine/LocalPlayer.h"
 #include "GameFramework/PlayerController.h"
 #include "ProjectR/Character/PRPlayerCharacter.h"
@@ -11,15 +12,39 @@
 #include "ProjectR/Player/PRPlayerState.h"
 #include "ProjectR/ItemSystem/Components/PRQuickSlotComponent.h"
 #include "ProjectR/UI/HUD/PRHUDWidget.h"
+#include "ProjectR/UI/InGameMenu/PRInGameMenuWidget.h"
 #include "ProjectR/UI/Inventory/PRInventoryWidget.h"
+#include "ProjectR/UI/Inventory/PRItemTooltipWidget.h"
+#include "ProjectR/UI/Inventory/PRItemTooltipViewDataBuilder.h"
 #include "ProjectR/UI/Growth/PRTraitWindowWidget.h"
 #include "ProjectR/UI/PRUIManagerSubsystem.h"
 #include "ProjectR/UI/Shop/PRShopWidget.h"
+#include "ProjectR/UI/WaypointTravel/PRWaypointTravelWidget.h"
 #include "ProjectR/UI/WeaponUpgrade/PRWeaponUpgradeWidget.h"
+#include "ProjectR/PRGameplayTags.h"
 #include "ProjectR/Shop/Components/PRShopComponent.h"
+#include "ProjectR/System/PREventManagerSubsystem.h"
+#include "ProjectR/System/PREventTypes.h"
 #include "ProjectR/ItemSystem/Components/PRWeaponUpgradeComponent.h"
 #include "ProjectR/ItemSystem/Components/PRWeaponManagerComponent.h"
 #include "ProjectR/ItemSystem/Data/PRWeaponDataAsset.h"
+
+namespace
+{
+	// HUD 메시지 타입별 표시 문구 해석
+	FText ResolveHUDMessageText(EPRHUDMessageType MessageType)
+	{
+		switch (MessageType)
+		{
+		case EPRHUDMessageType::WaitingForOtherPlayers:
+			return NSLOCTEXT("ProjectR", "HUDMessage_WaitingForOtherPlayers", "다른 플레이어 기다리는 중");
+		case EPRHUDMessageType::OtherPlayersWaiting:
+			return NSLOCTEXT("ProjectR", "HUDMessage_OtherPlayersWaiting", "다른 플레이어들이 기다리는 중");
+		default:
+			return FText::GetEmpty();
+		}
+	}
+}
 
 UPRUIControllerComponent::UPRUIControllerComponent()
 {
@@ -41,6 +66,7 @@ void UPRUIControllerComponent::ToggleInventory()
 
 	if (IsValid(InventoryWidget) && InventoryWidget->IsInViewport())
 	{
+		HideItemTooltip();
 		UIManager->PopUI(InventoryWidget);
 		return;
 	}
@@ -70,6 +96,8 @@ void UPRUIControllerComponent::CloseInventory()
 	{
 		return;
 	}
+
+	HideItemTooltip();
 
 	if (!IsValid(InventoryWidget) || !InventoryWidget->IsInViewport())
 	{
@@ -146,6 +174,57 @@ void UPRUIControllerComponent::CloseTraitWindow()
 	}
 }
 
+void UPRUIControllerComponent::ToggleInGameMenu()
+{
+	if (!IsLocalPlayer())
+	{
+		return;
+	}
+
+	UPRUIManagerSubsystem* UIManager = GetUIManager();
+	if (!IsValid(UIManager))
+	{
+		return;
+	}
+
+	if (IsValid(InGameMenuWidget) && InGameMenuWidget->IsInViewport())
+	{
+		UIManager->PopUI(InGameMenuWidget);
+		return;
+	}
+
+	UPRInGameMenuWidget* CreatedInGameMenuWidget = GetOrCreateInGameMenuWidget();
+	if (!IsValid(CreatedInGameMenuWidget))
+	{
+		return;
+	}
+
+	UIManager->PushUIInstance(CreatedInGameMenuWidget);
+}
+
+void UPRUIControllerComponent::CloseInGameMenu()
+{
+	if (!IsLocalPlayer())
+	{
+		return;
+	}
+
+	if (!IsValid(InGameMenuWidget) || !InGameMenuWidget->IsInViewport())
+	{
+		return;
+	}
+
+	UPRUIManagerSubsystem* UIManager = GetUIManager();
+	if (IsValid(UIManager))
+	{
+		UIManager->PopUI(InGameMenuWidget);
+	}
+	else
+	{
+		InGameMenuWidget->RemoveFromParent();
+	}
+}
+
 void UPRUIControllerComponent::OpenWeaponUpgrade(UPRWeaponUpgradeComponent* UpgradeComponent)
 {
 	if (!IsLocalPlayer() || !IsValid(UpgradeComponent))
@@ -153,6 +232,7 @@ void UPRUIControllerComponent::OpenWeaponUpgrade(UPRWeaponUpgradeComponent* Upgr
 		return;
 	}
 
+	HideItemTooltip();
 	CloseShop();
 
 	UPRUIManagerSubsystem* UIManager = GetUIManager();
@@ -178,6 +258,7 @@ void UPRUIControllerComponent::OpenShop(UPRShopComponent* ShopComponent)
 		return;
 	}
 
+	HideItemTooltip();
 	CloseWeaponUpgrade();
 
 	UPRUIManagerSubsystem* UIManager = GetUIManager();
@@ -196,12 +277,40 @@ void UPRUIControllerComponent::OpenShop(UPRShopComponent* ShopComponent)
 	UIManager->PushUIInstance(CreatedShopWidget);
 }
 
+void UPRUIControllerComponent::OpenWaypointTravel()
+{
+	if (!IsLocalPlayer())
+	{
+		return;
+	}
+
+	HideItemTooltip();
+
+	UPRUIManagerSubsystem* UIManager = GetUIManager();
+	if (!IsValid(UIManager))
+	{
+		return;
+	}
+
+	UPRWaypointTravelWidget* CreatedWaypointTravelWidget = GetOrCreateWaypointTravelWidget();
+	if (!IsValid(CreatedWaypointTravelWidget))
+	{
+		return;
+	}
+
+	// 임시 목적지 목록 갱신
+	CreatedWaypointTravelWidget->RebuildNodeList();
+	UIManager->PushUIInstance(CreatedWaypointTravelWidget);
+}
+
 void UPRUIControllerComponent::CloseWeaponUpgrade()
 {
 	if (!IsLocalPlayer())
 	{
 		return;
 	}
+
+	HideItemTooltip();
 
 	if (!IsValid(WeaponUpgradeWidget) || !WeaponUpgradeWidget->IsInViewport())
 	{
@@ -226,6 +335,8 @@ void UPRUIControllerComponent::CloseShop()
 		return;
 	}
 
+	HideItemTooltip();
+
 	if (!IsValid(ShopWidget) || !ShopWidget->IsInViewport())
 	{
 		return;
@@ -239,6 +350,30 @@ void UPRUIControllerComponent::CloseShop()
 	else
 	{
 		ShopWidget->RemoveFromParent();
+	}
+}
+
+void UPRUIControllerComponent::CloseWaypointTravel()
+{
+	if (!IsLocalPlayer())
+	{
+		return;
+	}
+
+	if (!IsValid(WaypointTravelWidget) || !WaypointTravelWidget->IsInViewport())
+	{
+		return;
+	}
+
+	UPRUIManagerSubsystem* UIManager = GetUIManager();
+	if (IsValid(UIManager))
+	{
+		// Travel UI 스택 제거
+		UIManager->PopUI(WaypointTravelWidget);
+	}
+	else
+	{
+		WaypointTravelWidget->RemoveFromParent();
 	}
 }
 
@@ -294,6 +429,66 @@ void UPRUIControllerComponent::ShowPickupRewardNotification(const FPRPickupNotif
 	}
 }
 
+void UPRUIControllerComponent::NotifyHUDMessage(EPRHUDMessageType MessageType)
+{
+	if (!IsLocalPlayer())
+	{
+		return;
+	}
+
+	UWorld* World = GetWorld();
+	if (!IsValid(World))
+	{
+		return;
+	}
+
+	UPREventManagerSubsystem* EventManager = World->GetSubsystem<UPREventManagerSubsystem>();
+	if (!IsValid(EventManager))
+	{
+		return;
+	}
+
+	// HUD 메시지 위젯이 구독하는 로컬 EventManager 이벤트 발송
+	FPRHUDMessageEventPayload Payload;
+	Payload.bShow = MessageType != EPRHUDMessageType::None;
+	Payload.Message = ResolveHUDMessageText(MessageType);
+	EventManager->BroadcastTyped(PRGameplayTags::Event_Player_HUDMessage, Payload);
+}
+
+void UPRUIControllerComponent::ShowItemTooltip(UWidget* TooltipOwner, const FPRInventoryItemSlotViewData& SlotViewData)
+{
+	if (!IsLocalPlayer() || !IsValid(TooltipOwner) || !IsValid(SlotViewData.ItemData.Get()))
+	{
+		HideItemTooltip();
+		return;
+	}
+
+	UPRItemTooltipWidget* TooltipWidget = GetOrCreateItemTooltipWidget();
+	if (!IsValid(TooltipWidget))
+	{
+		return;
+	}
+
+	if (IsValid(ActiveTooltipOwner) && ActiveTooltipOwner != TooltipOwner)
+	{
+		ActiveTooltipOwner->SetToolTip(nullptr);
+	}
+
+	TooltipWidget->SetTooltipViewData(UPRItemTooltipViewDataBuilder::BuildTooltipViewData(SlotViewData));
+	TooltipOwner->SetToolTip(TooltipWidget);
+	ActiveTooltipOwner = TooltipOwner;
+}
+
+void UPRUIControllerComponent::HideItemTooltip()
+{
+	if (IsValid(ActiveTooltipOwner))
+	{
+		ActiveTooltipOwner->SetToolTip(nullptr);
+	}
+
+	ActiveTooltipOwner = nullptr;
+}
+
 void UPRUIControllerComponent::EndPlay(const EEndPlayReason::Type EndPlayReason)
 {
 	CloseInventory();
@@ -304,9 +499,14 @@ void UPRUIControllerComponent::EndPlay(const EEndPlayReason::Type EndPlayReason)
 	WeaponUpgradeWidget = nullptr;
 	CloseShop();
 	ShopWidget = nullptr;
+	CloseWaypointTravel();
+	WaypointTravelWidget = nullptr;
+	CloseInGameMenu();
+	InGameMenuWidget = nullptr;
 
 	UnbindWeaponManager();
 	RemoveWeaponScopeWidget();
+	RemoveItemTooltipWidget();
 	TearDownHUDWidget();
 
 	Super::EndPlay(EndPlayReason);
@@ -349,6 +549,19 @@ void UPRUIControllerComponent::RemoveAllWidget()
 	if (WeaponScopeWidget)
 	{
 		WeaponScopeWidget->RemoveFromParent();
+	}
+	if (ItemTooltipWidget)
+	{
+		HideItemTooltip();
+		ItemTooltipWidget = nullptr;
+	}
+	if (InGameMenuWidget)
+	{
+		InGameMenuWidget->RemoveFromParent();
+	}
+	if (WaypointTravelWidget)
+	{
+		WaypointTravelWidget->RemoveFromParent();
 	}
 	if (UPRUIManagerSubsystem* UIManager = GetUIManager())
 	{
@@ -507,6 +720,24 @@ UPRShopWidget* UPRUIControllerComponent::GetOrCreateShopWidget()
 	return ShopWidget;
 }
 
+UPRWaypointTravelWidget* UPRUIControllerComponent::GetOrCreateWaypointTravelWidget()
+{
+	if (IsValid(WaypointTravelWidget))
+	{
+		return WaypointTravelWidget;
+	}
+
+	APlayerController* PlayerController = GetOwningPlayerController();
+	if (!IsValid(PlayerController) || !IsValid(WaypointTravelWidgetClass.Get()))
+	{
+		return nullptr;
+	}
+
+	// Travel UI 인스턴스 생성
+	WaypointTravelWidget = CreateWidget<UPRWaypointTravelWidget>(PlayerController, WaypointTravelWidgetClass);
+	return WaypointTravelWidget;
+}
+
 UPRTraitWindowWidget* UPRUIControllerComponent::GetOrCreateTraitWindowWidget()
 {
 	if (IsValid(TraitWindowWidget))
@@ -522,6 +753,51 @@ UPRTraitWindowWidget* UPRUIControllerComponent::GetOrCreateTraitWindowWidget()
 
 	TraitWindowWidget = CreateWidget<UPRTraitWindowWidget>(PlayerController, TraitWindowWidgetClass);
 	return TraitWindowWidget;
+}
+
+UPRInGameMenuWidget* UPRUIControllerComponent::GetOrCreateInGameMenuWidget()
+{
+	if (IsValid(InGameMenuWidget))
+	{
+		return InGameMenuWidget;
+	}
+
+	APlayerController* PlayerController = GetOwningPlayerController();
+	if (!IsValid(PlayerController) || !IsValid(InGameMenuWidgetClass.Get()))
+	{
+		return nullptr;
+	}
+
+	InGameMenuWidget = CreateWidget<UPRInGameMenuWidget>(PlayerController, InGameMenuWidgetClass);
+	return InGameMenuWidget;
+}
+
+UPRItemTooltipWidget* UPRUIControllerComponent::GetOrCreateItemTooltipWidget()
+{
+	if (IsValid(ItemTooltipWidget))
+	{
+		return ItemTooltipWidget;
+	}
+
+	APlayerController* PlayerController = GetOwningPlayerController();
+	if (!IsValid(PlayerController) || !IsValid(ItemTooltipWidgetClass.Get()))
+	{
+		return nullptr;
+	}
+
+	ItemTooltipWidget = CreateWidget<UPRItemTooltipWidget>(PlayerController, ItemTooltipWidgetClass);
+	if (!IsValid(ItemTooltipWidget))
+	{
+		return nullptr;
+	}
+
+	return ItemTooltipWidget;
+}
+
+void UPRUIControllerComponent::RemoveItemTooltipWidget()
+{
+	HideItemTooltip();
+	ItemTooltipWidget = nullptr;
 }
 
 void UPRUIControllerComponent::TearDownHUDWidget()

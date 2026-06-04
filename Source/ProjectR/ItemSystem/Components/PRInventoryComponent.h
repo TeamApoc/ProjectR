@@ -7,6 +7,7 @@
 #include "ProjectR/Game/PRGameTypes.h"
 #include "ProjectR/ItemSystem/Items/PRItemInstance.h"
 #include "ProjectR/ItemSystem/Items/PRItemInstance_Consumable.h"
+#include "ProjectR/ItemSystem/Items/PRItemInstance_Equipment.h"
 #include "ProjectR/ItemSystem/Items/PRItemInstance_Material.h"
 #include "ProjectR/ItemSystem/Items/PRItemInstance_Mod.h"
 #include "ProjectR/ItemSystem/Items/PRItemInstance_Weapon.h"
@@ -204,6 +205,9 @@ public:
 
 	// 저장 데이터 기반 인벤토리 복원
 	void ApplySaveData(const FPRInventorySaveData& InSaveData);
+
+	// 리스폰 전 인벤토리 조회 캐시 재구성
+	void ResetSystem();
 	
 protected:
 	// 클라이언트에서 Item 목록 복제 결과를 확인

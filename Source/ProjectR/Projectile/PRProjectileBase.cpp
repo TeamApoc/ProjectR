@@ -9,12 +9,20 @@
 #include "AbilitySystemInterface.h"
 #include "Components/SphereComponent.h"
 #include "DrawDebugHelpers.h"
+#include "Engine/World.h"
 #include "GameFramework/Controller.h"
 #include "GameFramework/Pawn.h"
+#include "GameFramework/PlayerController.h"
 #include "PRProjectileMovementComponent.h"
 #include "PRProjectileManagerComponent.h"
 #include "Net/UnrealNetwork.h"
 #include "Net/Core/PushModel/PushModel.h"
+#include "ProjectR/Combat/PRCombatGameplayTags.h"
+#include "ProjectR/Combat/PRCombatInterface.h"
+#include "ProjectR/Combat/PRCombatStatics.h"
+#include "ProjectR/Combat/PRDestructableInterface.h"
+#include "ProjectR/System/PRRespawnSubsystem.h"
+#include "ProjectR/Combat/PRDirectDamageReceiverInterface.h"
 
 APRProjectileBase::APRProjectileBase()
 {
@@ -85,6 +93,14 @@ void APRProjectileBase::SetProjectileInitialVelocity(const FVector& Direction, f
 	SetActorRotation(SafeDirection.Rotation());
 }
 
+float APRProjectileBase::GetProjectileInitialSpeed() const
+{
+	// BP 기본 투사체 속도 조회
+	return IsValid(ProjectileMovementComponent)
+		? ProjectileMovementComponent->InitialSpeed
+		: 0.0f;
+}
+
 void APRProjectileBase::ConfigureProjectileHoming(USceneComponent* HomingTargetComponent, float HomingAcceleration)
 {
 	if (!IsValid(ProjectileMovementComponent))
@@ -102,6 +118,43 @@ void APRProjectileBase::ConfigureProjectileHoming(USceneComponent* HomingTargetC
 	ProjectileMovementComponent->bIsHomingProjectile = true;
 	ProjectileMovementComponent->HomingTargetComponent = HomingTargetComponent;
 	ProjectileMovementComponent->HomingAccelerationMagnitude = HomingAcceleration;
+}
+
+void APRProjectileBase::ConfigureProjectileHomingSchedule(
+	AActor* HomingTargetActor,
+	float HomingAcceleration,
+	float StartDelay,
+	float Duration)
+{
+	if (!HasAuthority())
+	{
+		return;
+	}
+
+	PendingHomingSchedule.Reset();
+	if (!IsValid(HomingTargetActor) || HomingAcceleration <= 0.0f)
+	{
+		return;
+	}
+
+	PendingHomingSchedule.HomingTargetActor = HomingTargetActor;
+	PendingHomingSchedule.HomingAcceleration = FMath::Max(HomingAcceleration, 0.0f);
+	PendingHomingSchedule.StartDelay = FMath::Max(StartDelay, 0.0f);
+	PendingHomingSchedule.Duration = FMath::Max(Duration, 0.0f);
+	++PendingHomingSchedule.Revision;
+}
+
+void APRProjectileBase::AddProjectileIgnoredActor(AActor* ActorToIgnore)
+{
+	if (!IsValid(ActorToIgnore))
+	{
+		return;
+	}
+
+	if (IsValid(SphereComponent))
+	{
+		SphereComponent->IgnoreActorWhenMoving(ActorToIgnore, true);
+	}
 }
 
 void APRProjectileBase::ApplyFastForward(float ForwardSeconds)
@@ -138,8 +191,31 @@ void APRProjectileBase::PushRepMovement(EPRRepMovementEvent Event)
 	RepMovement.Location = GetActorLocation();
 	RepMovement.Rotation = GetActorRotation();
 	RepMovement.Velocity = ProjectileMovementComponent->Velocity;
+	if (Event == EPRRepMovementEvent::Spawn)
+	{
+		RepMovement.HomingSchedule = PendingHomingSchedule;
+	}
+	else
+	{
+		RepMovement.HomingSchedule.Reset();
+	}
 
 	MARK_PROPERTY_DIRTY_FROM_NAME(APRProjectileBase, RepMovement, this);
+	ForceNetUpdate();
+
+	if (Event == EPRRepMovementEvent::Spawn)
+	{
+		StartProjectileHomingSchedule(RepMovement.HomingSchedule);
+		if (RepMovement.HomingSchedule.IsEnabled())
+		{
+			MulticastStartProjectileHomingPresentation(
+				RepMovement.HomingSchedule.HomingTargetActor.Get(),
+				RepMovement.HomingSchedule.HomingAcceleration,
+				RepMovement.HomingSchedule.StartDelay,
+				RepMovement.HomingSchedule.Duration,
+				RepMovement.HomingSchedule.Revision);
+		}
+	}
 }
 
 void APRProjectileBase::OnRep_RepMovement()
@@ -153,12 +229,237 @@ void APRProjectileBase::OnRep_RepMovement()
 	case EPRRepMovementEvent::Detonation:
 		HandleRepCorrection();
 		break;
+	default:
+		break;
 	}
+}
+
+void APRProjectileBase::StartProjectileHomingSchedule(const FPRProjectileRepHomingSchedule& HomingSchedule)
+{
+	ClearProjectileHomingScheduleTimers();
+	if (!HomingSchedule.IsEnabled())
+	{
+		return;
+	}
+
+	if (HomingSchedule.StartDelay <= 0.0f)
+	{
+		ApplyProjectileHomingScheduleStart(HomingSchedule);
+		return;
+	}
+
+	GetWorldTimerManager().SetTimer(
+		ProjectileHomingStartTimerHandle,
+		FTimerDelegate::CreateWeakLambda(this, [this, HomingSchedule]()
+		{
+			ApplyProjectileHomingScheduleStart(HomingSchedule);
+		}),
+		HomingSchedule.StartDelay,
+		false);
+}
+
+void APRProjectileBase::ApplyProjectileHomingScheduleStart(FPRProjectileRepHomingSchedule HomingSchedule)
+{
+	AActor* HomingTargetActor = HomingSchedule.HomingTargetActor.Get();
+	USceneComponent* HomingTargetComponent = IsValid(HomingTargetActor)
+		? HomingTargetActor->GetRootComponent()
+		: nullptr;
+	if (!IsValid(HomingTargetComponent))
+	{
+		return;
+	}
+
+	ConfigureProjectileHoming(HomingTargetComponent, HomingSchedule.HomingAcceleration);
+	if (HomingSchedule.Duration <= 0.0f)
+	{
+		return;
+	}
+
+	GetWorldTimerManager().SetTimer(
+		ProjectileHomingStopTimerHandle,
+		this,
+		&APRProjectileBase::StopProjectileHomingSchedule,
+		HomingSchedule.Duration,
+		false);
+}
+
+void APRProjectileBase::StopProjectileHomingSchedule()
+{
+	ConfigureProjectileHoming(nullptr, 0.0f);
+}
+
+void APRProjectileBase::ClearProjectileHomingScheduleTimers()
+{
+	if (UWorld* World = GetWorld())
+	{
+		World->GetTimerManager().ClearTimer(ProjectileHomingStartTimerHandle);
+		World->GetTimerManager().ClearTimer(ProjectileHomingStopTimerHandle);
+	}
+}
+
+bool APRProjectileBase::IsRemoteAuthProjectilePresentation() const
+{
+	if (HasAuthority() || ProjectileRole != EPRProjectileRole::Auth)
+	{
+		return false;
+	}
+
+	const APlayerController* NetOwnerPlayerController = Cast<APlayerController>(GetNetOwner());
+	return !IsValid(NetOwnerPlayerController) || !NetOwnerPlayerController->IsLocalController();
+}
+
+void APRProjectileBase::StartClientProjectileHomingPresentation(const FPRProjectileRepHomingSchedule& HomingSchedule)
+{
+	bIsRemoteProjectile = IsRemoteAuthProjectilePresentation();
+	if (!bIsRemoteProjectile || !HomingSchedule.IsEnabled())
+	{
+		return;
+	}
+
+	if ((bClientProjectilePresentationActive || bHasPendingClientHomingPresentation)
+		&& ClientPresentationRevision == HomingSchedule.Revision)
+	{
+		return;
+	}
+
+	ClientPresentationRevision = HomingSchedule.Revision;
+	if (!bHasRepSpawnHandled)
+	{
+		PendingClientHomingPresentationSchedule = HomingSchedule;
+		bHasPendingClientHomingPresentation = true;
+		return;
+	}
+
+	bHasPendingClientHomingPresentation = false;
+	PendingClientHomingPresentationSchedule.Reset();
+	ClientPresentationHomingTarget = HomingSchedule.HomingTargetActor;
+	ClientPresentationHomingAcceleration = FMath::Max(HomingSchedule.HomingAcceleration, 0.0f);
+	ClientPresentationHomingStartDelay = FMath::Max(HomingSchedule.StartDelay, 0.0f);
+	ClientPresentationHomingDuration = FMath::Max(HomingSchedule.Duration, 0.0f);
+	ClientPresentationElapsedSeconds = 0.0f;
+	ClientPresentationHomingElapsedSeconds = 0.0f;
+	bClientProjectileHomingStarted = ClientPresentationHomingStartDelay <= UE_SMALL_NUMBER;
+	bClientProjectilePresentationActive = true;
+
+	ClientPresentationVelocity = RepMovement.Velocity;
+	if (ClientPresentationVelocity.IsNearlyZero() && IsValid(ProjectileMovementComponent))
+	{
+		ClientPresentationVelocity = ProjectileMovementComponent->Velocity;
+	}
+	if (ClientPresentationVelocity.IsNearlyZero())
+	{
+		const float ResolvedSpeed = IsValid(ProjectileMovementComponent)
+			? ProjectileMovementComponent->InitialSpeed
+			: 0.0f;
+		ClientPresentationVelocity = GetActorForwardVector() * ResolvedSpeed;
+	}
+
+	if (IsValid(ProjectileMovementComponent))
+	{
+		ProjectileMovementComponent->Deactivate();
+		ConfigureProjectileHoming(nullptr, 0.0f);
+	}
+
+	SetActorEnableCollision(false);
+	SetActorTickEnabled(true);
+}
+
+void APRProjectileBase::UpdateClientProjectileHomingPresentation(const float DeltaSeconds)
+{
+	if (!bClientProjectilePresentationActive || DeltaSeconds <= 0.0f)
+	{
+		return;
+	}
+
+	ClientPresentationElapsedSeconds += DeltaSeconds;
+	if (!bClientProjectileHomingStarted
+		&& ClientPresentationElapsedSeconds >= ClientPresentationHomingStartDelay)
+	{
+		bClientProjectileHomingStarted = true;
+	}
+
+	const bool bCanApplyHoming = bClientProjectileHomingStarted
+		&& (ClientPresentationHomingDuration <= 0.0f
+			|| ClientPresentationHomingElapsedSeconds < ClientPresentationHomingDuration);
+	if (bCanApplyHoming)
+	{
+		if (AActor* HomingTargetActor = ClientPresentationHomingTarget.Get())
+		{
+			const FVector ToTarget = HomingTargetActor->GetActorLocation() - GetActorLocation();
+			if (!ToTarget.IsNearlyZero())
+			{
+				ClientPresentationVelocity += ToTarget.GetSafeNormal()
+					* ClientPresentationHomingAcceleration
+					* DeltaSeconds;
+
+				const float MaxSpeed = IsValid(ProjectileMovementComponent)
+					? FMath::Max(ProjectileMovementComponent->MaxSpeed, ProjectileMovementComponent->InitialSpeed)
+					: ClientPresentationVelocity.Size();
+				if (MaxSpeed > UE_SMALL_NUMBER)
+				{
+					ClientPresentationVelocity = ClientPresentationVelocity.GetClampedToMaxSize(MaxSpeed);
+				}
+			}
+		}
+
+		if (ClientPresentationHomingDuration > 0.0f)
+		{
+			ClientPresentationHomingElapsedSeconds += DeltaSeconds;
+		}
+	}
+
+	const FVector MoveDelta = ClientPresentationVelocity * DeltaSeconds;
+	if (!MoveDelta.IsNearlyZero())
+	{
+		const FRotator NextRotation = ClientPresentationVelocity.GetSafeNormal().Rotation();
+		SetActorLocationAndRotation(
+			GetActorLocation() + MoveDelta,
+			NextRotation,
+			false,
+			nullptr,
+			ETeleportType::TeleportPhysics);
+	}
+}
+
+void APRProjectileBase::StopClientProjectileHomingPresentation()
+{
+	bClientProjectilePresentationActive = false;
+	bClientProjectileHomingStarted = false;
+	bHasPendingClientHomingPresentation = false;
+	PendingClientHomingPresentationSchedule.Reset();
+	ClientPresentationHomingTarget.Reset();
+	ClientPresentationVelocity = FVector::ZeroVector;
+	ClientPresentationHomingAcceleration = 0.0f;
+	ClientPresentationHomingStartDelay = 0.0f;
+	ClientPresentationHomingDuration = 0.0f;
+	ClientPresentationElapsedSeconds = 0.0f;
+	ClientPresentationHomingElapsedSeconds = 0.0f;
+}
+
+void APRProjectileBase::MulticastStartProjectileHomingPresentation_Implementation(
+	AActor* HomingTargetActor,
+	const float HomingAcceleration,
+	const float StartDelay,
+	const float Duration,
+	const uint8 Revision)
+{
+	if (HasAuthority())
+	{
+		return;
+	}
+
+	FPRProjectileRepHomingSchedule HomingSchedule;
+	HomingSchedule.HomingTargetActor = HomingTargetActor;
+	HomingSchedule.HomingAcceleration = HomingAcceleration;
+	HomingSchedule.StartDelay = StartDelay;
+	HomingSchedule.Duration = Duration;
+	HomingSchedule.Revision = Revision;
+	StartClientProjectileHomingPresentation(HomingSchedule);
 }
 
 void APRProjectileBase::HandleRepSpawn()
 {
-	bIsRemoteProjectile = GetNetOwner() == nullptr;
+	bIsRemoteProjectile = IsRemoteAuthProjectilePresentation();
 	if (!bIsRemoteProjectile)
 	{
 		return;
@@ -170,14 +471,32 @@ void APRProjectileBase::HandleRepSpawn()
 	if (IsValid(ProjectileMovementComponent))
 	{
 		ProjectileMovementComponent->Velocity = RepMovement.Velocity;
-		ProjectileMovementComponent->Activate();
+		if (RepMovement.HomingSchedule.IsEnabled() || bHasPendingClientHomingPresentation)
+		{
+			ProjectileMovementComponent->Deactivate();
+		}
+		else
+		{
+			ProjectileMovementComponent->Activate();
+		}
 	}
 
 	// SimulatedProxy에서 숨김 처리 했던 상태를 복구
 	SetActorHiddenInGame(false);
-	SetActorEnableCollision(true);
+	// 원격 클라이언트는 서버 판정 결과만 따르고, 로컬 충돌로 시각용 궤적이 멈추지 않게 한다.
+	SetActorEnableCollision(false);
 	
 	bHasRepSpawnHandled = true;
+	if (bHasPendingClientHomingPresentation)
+	{
+		const FPRProjectileRepHomingSchedule HomingSchedule = PendingClientHomingPresentationSchedule;
+		StopClientProjectileHomingPresentation();
+		StartClientProjectileHomingPresentation(HomingSchedule);
+	}
+	else if (RepMovement.HomingSchedule.IsEnabled())
+	{
+		StartClientProjectileHomingPresentation(RepMovement.HomingSchedule);
+	}
 }
 
 void APRProjectileBase::HandleRepCorrection()
@@ -217,6 +536,10 @@ void APRProjectileBase::HandleRepCorrection()
 
 void APRProjectileBase::DestroyProjectile()
 {
+	ClearProjectileHomingScheduleTimers();
+	StopClientProjectileHomingPresentation();
+	ConfigureProjectileHoming(nullptr, 0.0f);
+
 	if (HasAuthority())
 	{
 		PushRepMovement(EPRRepMovementEvent::Detonation);
@@ -252,6 +575,9 @@ void APRProjectileBase::BeginPlay()
 {
 	Super::BeginPlay();
 
+	// 투사체 궤적은 RepMovement 이벤트와 로컬 시뮬레이션으로 맞춘다.
+	SetReplicatingMovement(false);
+
 	// 발사자 충돌 제외
 	AActor* IgnoredInstigator = GetInstigator();
 	if (!IsValid(IgnoredInstigator))
@@ -274,8 +600,8 @@ void APRProjectileBase::BeginPlay()
 		}
 	}
 	
-	// 투사체의 NetOwner는 PC로 설정되므로, 클라이언트 remote에서는 nullptr이다.
-	bIsRemoteProjectile = !HasAuthority() && GetNetOwner() == nullptr;
+	// 클라이언트 원격 투사체는 Spawn payload를 받은 뒤 프레젠테이션을 시작한다.
+	bIsRemoteProjectile = IsRemoteAuthProjectilePresentation();
 	
 	if (bIsRemoteProjectile)
 	{
@@ -293,8 +619,21 @@ void APRProjectileBase::BeginPlay()
 			{
 				ProjectileMovementComponent->Deactivate();
 			}
+			SetLifeSpan(0.3f);
 		}
 		return;
+	}
+
+	if (HasProjectileAuthority())
+	{
+		if (UWorld* World = GetWorld())
+		{
+			if (UPRRespawnSubsystem* RespawnSubsystem = World->GetSubsystem<UPRRespawnSubsystem>())
+			{
+				// 일회성 투사체 등록
+				RespawnSubsystem->RegisterDisposableActor(this);
+			}
+		}
 	}
 
 #if WITH_EDITOR
@@ -309,6 +648,12 @@ void APRProjectileBase::Tick(float DeltaSeconds)
 #if WITH_EDITOR
 	DrawDebugs(DeltaSeconds);
 #endif
+
+	if (bIsRemoteProjectile && bClientProjectilePresentationActive)
+	{
+		UpdateClientProjectileHomingPresentation(DeltaSeconds);
+		return;
+	}
 	
 	if (bShouldSyncToAuth && LinkedCounterpart.IsValid())
 	{
@@ -332,8 +677,22 @@ void APRProjectileBase::Tick(float DeltaSeconds)
 
 void APRProjectileBase::EndPlay(const EEndPlayReason::Type EndPlayReason)
 {
+	if (HasProjectileAuthority())
+	{
+		if (UWorld* World = GetWorld())
+		{
+			if (UPRRespawnSubsystem* RespawnSubsystem = World->GetSubsystem<UPRRespawnSubsystem>())
+			{
+				// 일회성 투사체 등록 해제
+				RespawnSubsystem->UnregisterDisposableActor(this);
+			}
+		}
+	}
+
+	ClearProjectileHomingScheduleTimers();
+	StopClientProjectileHomingPresentation();
 	Super::EndPlay(EndPlayReason);
-	
+
 	if (ProjectileRole == EPRProjectileRole::Predicted)
 	{
 		UPRProjectileManagerComponent* Manager = UPRProjectileManagerComponent::FindForActor(GetWorld()->GetFirstPlayerController());
@@ -369,22 +728,27 @@ void APRProjectileBase::ApplyEffectToTarget(AActor* TargetActor)
 	{
 		return;
 	}
-	
-	IAbilitySystemInterface* ASI = Cast<IAbilitySystemInterface>(TargetActor);
-	if (!ASI)
+
+	FGameplayEffectSpec* EffectSpec = EffectSpecHandle.Data.Get();
+	if (EffectSpec == nullptr)
 	{
 		return;
 	}
 
-	UAbilitySystemComponent* TargetASC = ASI->GetAbilitySystemComponent();
-	if (!TargetASC)
+	IAbilitySystemInterface* ASI = Cast<IAbilitySystemInterface>(TargetActor);
+	if (ASI)
 	{
+		UAbilitySystemComponent* TargetASC = ASI->GetAbilitySystemComponent();
+		if (TargetASC)
+		{
+			TargetASC->ApplyGameplayEffectSpecToSelf(*EffectSpec);
+		}
 		return;
 	}
-	
-	if (FGameplayEffectSpec* EffectSpec = EffectSpecHandle.Data.Get())
+
+	if (IPRDirectDamageReceiverInterface* DirectDamageReceiver = Cast<IPRDirectDamageReceiverInterface>(TargetActor))
 	{
-		TargetASC->ApplyGameplayEffectSpecToSelf(*EffectSpec);	
+		DirectDamageReceiver->ApplyDirectDamageFromSpec(*EffectSpec, FHitResult());
 	}
 }
 
@@ -395,22 +759,68 @@ void APRProjectileBase::ApplyEffectToTargetWithHit(AActor* TargetActor, const FH
 		return;
 	}
 	
-	IAbilitySystemInterface* ASI = Cast<IAbilitySystemInterface>(TargetActor);
-	if (!ASI)
+	IAbilitySystemInterface* InitialASI = Cast<IAbilitySystemInterface>(TargetActor);
+	if (InitialASI)
+	{
+		UAbilitySystemComponent* TargetASC = InitialASI->GetAbilitySystemComponent();
+		FGameplayEffectSpec* EffectSpec = EffectSpecHandle.Data.Get();
+		if (TargetASC && EffectSpec)
+		{
+			EffectSpec->GetContext().AddHitResult(InHitResult,true);
+			TargetASC->ApplyGameplayEffectSpecToSelf(*EffectSpec);	
+		}
+		return;
+	}
+	
+	// 2026.05.31 이건주_ ASC 미보유 대상 대미지 적용 브릿지
+	IPRDestructableInterface* DestructableTarget = Cast<IPRDestructableInterface>(TargetActor);
+	if (DestructableTarget)
+	{
+		// Instigator, DamageAmount만 전달
+		FGameplayEffectSpec* EffectSpec = EffectSpecHandle.Data.Get();
+		if (EffectSpec == nullptr)
+		{
+			return;
+		}
+
+		const FGameplayEffectContextHandle& EffectContext = EffectSpec->GetEffectContext();
+	
+		const float BaseDamage = EffectSpec->GetSetByCallerMagnitude(
+		PRCombatGameplayTags::SetByCaller_CurrentWeapon_BaseDamage,
+		false,
+		0.0f);
+	
+		// 파괴 가능 대상 전용 컨텍스트
+		FPRDestructableDamageReceiveContext DestructableDamageContext;
+		DestructableDamageContext.Instigator = EffectContext.GetInstigator();
+		DestructableDamageContext.DamageAmount = BaseDamage;
+		DestructableDamageContext.HitResult = InHitResult;
+
+		DestructableTarget->ReceiveDamageContext(DestructableDamageContext);
+		return;
+	}
+
+	FGameplayEffectSpec* EffectSpec = EffectSpecHandle.Data.Get();
+	if (EffectSpec == nullptr)
 	{
 		return;
 	}
 
-	UAbilitySystemComponent* TargetASC = ASI->GetAbilitySystemComponent();
-	if (!TargetASC)
+	IAbilitySystemInterface* ASI = Cast<IAbilitySystemInterface>(TargetActor);
+	if (ASI)
 	{
+		UAbilitySystemComponent* TargetASC = ASI->GetAbilitySystemComponent();
+		if (TargetASC)
+		{
+			EffectSpec->GetContext().AddHitResult(InHitResult, true);
+			TargetASC->ApplyGameplayEffectSpecToSelf(*EffectSpec);
+		}
 		return;
 	}
-	
-	if (FGameplayEffectSpec* EffectSpec = EffectSpecHandle.Data.Get())
+
+	if (IPRDirectDamageReceiverInterface* DirectDamageReceiver = Cast<IPRDirectDamageReceiverInterface>(TargetActor))
 	{
-		EffectSpec->GetContext().AddHitResult(InHitResult,true);
-		TargetASC->ApplyGameplayEffectSpecToSelf(*EffectSpec);	
+		DirectDamageReceiver->ApplyDirectDamageFromSpec(*EffectSpec, InHitResult);
 	}
 }
 
@@ -477,7 +887,7 @@ void APRProjectileBase::OnSphereHit(UPrimitiveComponent* HitComponent, AActor* O
 			// 예측 투사체가 먼저 Hit에 성공한 경우
 			if (LinkedCounterpart.IsValid())
 			{
-				LinkedCounterpart->SetActorHiddenInGame(false);
+				//LinkedCounterpart->SetActorHiddenInGame(false);
 				Destroy();
 			}
 		}
@@ -498,7 +908,6 @@ void APRProjectileBase::OnSphereHit(UPrimitiveComponent* HitComponent, AActor* O
 			}
 		}
 		
-		// Replicate된 투사체인 경우
 		if (HasAuthority())
 		{
 			if (!HitActors.Contains(OtherActor))
@@ -511,8 +920,17 @@ void APRProjectileBase::OnSphereHit(UPrimitiveComponent* HitComponent, AActor* O
 			{
 				DestroyProjectile();	
 			}
-			// TODO: 권위 투사체의 첫 복제 전 바로 파괴되어 버린 경우 Remote의 파괴 이펙트 보장 필요
 		}
+		// Replicate된 투사체인 경우
+		else
+		{
+			SetActorHiddenInGame(true);
+			SetActorEnableCollision(false);
+			ProjectileMovementComponent->SetComponentTickEnabled(false);
+		}
+		
+		
+		// TODO: 권위 투사체의 첫 복제 전 바로 파괴되어 버린 경우 Remote의 파괴 이펙트 보장 필요
 	}
 }
 

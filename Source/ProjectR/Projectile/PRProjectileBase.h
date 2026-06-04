@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "GameplayEffectTypes.h"
 #include "GameFramework/Actor.h"
+#include "TimerManager.h"
 #include "PRProjectileTypes.h"
 #include "PRProjectileBase.generated.h"
 
@@ -51,8 +52,17 @@ public:
 	// 서버가 직접 생성한 투사체의 초기 진행 방향과 속도를 설정한다.
 	void SetProjectileInitialVelocity(const FVector& Direction, float SpeedOverride = 0.0f);
 
+	// 투사체 이동 컴포넌트 기본 속도 조회
+	float GetProjectileInitialSpeed() const;
+
 	// 서버가 직접 생성한 투사체의 Homing 타겟을 설정한다.
 	void ConfigureProjectileHoming(USceneComponent* HomingTargetComponent, float HomingAcceleration);
+
+	// 서버 권위 투사체의 Spawn 복제 payload에 담을 Homing 스케줄을 설정한다.
+	void ConfigureProjectileHomingSchedule(AActor* HomingTargetActor, float HomingAcceleration, float StartDelay, float Duration);
+
+	// 투사체 이동/충돌에서 지정 Actor를 무시하도록 등록한다.
+	void AddProjectileIgnoredActor(AActor* ActorToIgnore);
 
 	// 서버 권위 투사체를 클라이언트 발사 시점까지 전진. HasAuthority() && bUseFastForward인 경우만 실행
 	void ApplyFastForward(float ForwardSeconds);
@@ -117,13 +127,45 @@ protected:
 	
 	UFUNCTION(BlueprintCallable)
 	void ApplyEffectToTargetWithHit(AActor* TargetActor, const FHitResult& InHitResult);
-	
+
 private:
 	// Predicted-Auth 양방향 링크
 	void LinkCounterpart(APRProjectileBase* InCounterpart);
 	
 	// 소유 클라이언트에서 Auth 액터 도착 시 매니저의 Predicted와 매칭하여 링크
 	void TryLinkToPredictedOnClient();
+
+	// Spawn payload에 포함된 Homing 스케줄을 현재 월드 타이머로 실행한다.
+	void StartProjectileHomingSchedule(const FPRProjectileRepHomingSchedule& HomingSchedule);
+
+	// Homing 스케줄의 시작 시점에 실제 이동 컴포넌트 Homing을 켠다.
+	void ApplyProjectileHomingScheduleStart(FPRProjectileRepHomingSchedule HomingSchedule);
+
+	// Homing 스케줄의 종료 시점에 실제 이동 컴포넌트 Homing을 끈다.
+	void StopProjectileHomingSchedule();
+
+	// Homing 스케줄 타이머를 정리한다.
+	void ClearProjectileHomingScheduleTimers();
+
+	// 현재 클라이언트 인스턴스가 서버 투사체의 원격 프레젠테이션인지 확인한다.
+	bool IsRemoteAuthProjectilePresentation() const;
+
+	// 클라이언트 remote 투사체의 GodFall 방식 로컬 homing 프레젠테이션을 시작한다.
+	void StartClientProjectileHomingPresentation(const FPRProjectileRepHomingSchedule& HomingSchedule);
+
+	// 클라이언트 remote 투사체의 로컬 homing 프레젠테이션을 갱신한다.
+	void UpdateClientProjectileHomingPresentation(float DeltaSeconds);
+
+	// 클라이언트 remote 투사체의 로컬 homing 프레젠테이션을 정리한다.
+	void StopClientProjectileHomingPresentation();
+
+	// 클라이언트 remote 투사체가 로컬 homing 프레젠테이션을 시작하도록 알린다.
+	UFUNCTION(NetMulticast, Reliable)
+	void MulticastStartProjectileHomingPresentation(AActor* HomingTargetActor,
+		float HomingAcceleration,
+		float StartDelay,
+		float Duration,
+		uint8 Revision);
 	
 	void DrawDebugs(float DeltaSeconds);
 	
@@ -174,6 +216,22 @@ private:
 	bool bIsRemoteProjectile = false;
 	bool bShouldSyncToAuth = false;
 	bool bHasRepSpawnHandled = false;
+
+	FPRProjectileRepHomingSchedule PendingHomingSchedule;
+	FPRProjectileRepHomingSchedule PendingClientHomingPresentationSchedule;
+	FTimerHandle ProjectileHomingStartTimerHandle;
+	FTimerHandle ProjectileHomingStopTimerHandle;
+	TWeakObjectPtr<AActor> ClientPresentationHomingTarget;
+	FVector ClientPresentationVelocity = FVector::ZeroVector;
+	float ClientPresentationHomingAcceleration = 0.0f;
+	float ClientPresentationHomingStartDelay = 0.0f;
+	float ClientPresentationHomingDuration = 0.0f;
+	float ClientPresentationElapsedSeconds = 0.0f;
+	float ClientPresentationHomingElapsedSeconds = 0.0f;
+	uint8 ClientPresentationRevision = 0;
+	bool bHasPendingClientHomingPresentation = false;
+	bool bClientProjectilePresentationActive = false;
+	bool bClientProjectileHomingStarted = false;
 	
 	TSet<TWeakObjectPtr<AActor>> HitActors;
 	

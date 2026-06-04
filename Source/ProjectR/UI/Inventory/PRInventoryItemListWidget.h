@@ -20,6 +20,9 @@ class PROJECTR_API UPRInventoryItemListWidget : public UPRWidgetBase
 	GENERATED_BODY()
 
 public:
+	// 인벤토리 리스트 위젯의 UI 스택 속성을 초기화한다
+	UPRInventoryItemListWidget();
+
 	// 리스트 타입과 표시 항목을 갱신한다
 	UFUNCTION(BlueprintCallable, Category = "ProjectR|Inventory")
 	void SetItemList(EPRItemType InListType, const TArray<FPRInventoryItemSlotViewData>& InItems);

@@ -23,6 +23,8 @@ APRRewardPickupActor::APRRewardPickupActor()
 	SetReplicates(true);
 	SetReplicateMovement(true);
 	SetNetCullDistanceSquared(FMath::Square(5000.f));
+	bOnlyRelevantToOwner = false;
+	bDisposable = true;
 
 	DropCollision = CreateDefaultSubobject<USphereComponent>(TEXT("DropCollision"));
 	DropCollision->InitSphereRadius(18.0f);
@@ -85,12 +87,11 @@ void APRRewardPickupActor::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>&
 	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
 
 	DOREPLIFETIME(APRRewardPickupActor, Reward);
-	DOREPLIFETIME(APRRewardPickupActor, PersonalRecipient);
 	DOREPLIFETIME(APRRewardPickupActor, bClaimed);
 	DOREPLIFETIME(APRRewardPickupActor, bDropSettled);
 }
 
-void APRRewardPickupActor::InitializeReward(const FPRResolvedDropReward& InReward, APRPlayerState* InPersonalRecipient)
+void APRRewardPickupActor::InitializeReward(const FPRResolvedDropReward& InReward)
 {
 	if (!HasAuthority())
 	{
@@ -98,17 +99,10 @@ void APRRewardPickupActor::InitializeReward(const FPRResolvedDropReward& InRewar
 	}
 
 	Reward = InReward;
-	PersonalRecipient = InPersonalRecipient;
 	bDropSettled = false;
-	bOnlyRelevantToOwner = Reward.DistributionRule == EPRRewardDistributionRule::Personal;
-
-	if (bOnlyRelevantToOwner && IsValid(PersonalRecipient))
-	{
-		SetOwner(PersonalRecipient->GetOwner());
-	}
+	bOnlyRelevantToOwner = false;
 
 	RefreshVisual();
-	RefreshLocalVisibility();
 	StartDropMotion();
 	ForceNetUpdate();
 }
@@ -131,7 +125,7 @@ bool APRRewardPickupActor::CanBeClaimedBy(AActor* Interactor) const
 	}
 
 	const APRPlayerState* InteractorPlayerState = ResolveInteractorPlayerState(Interactor);
-	return IsValid(PersonalRecipient) && InteractorPlayerState == PersonalRecipient;
+	return IsValid(InteractorPlayerState);
 }
 
 void APRRewardPickupActor::MarkClaimed()
@@ -147,12 +141,6 @@ void APRRewardPickupActor::MarkClaimed()
 void APRRewardPickupActor::OnRep_Reward()
 {
 	RefreshVisual();
-	RefreshLocalVisibility();
-}
-
-void APRRewardPickupActor::OnRep_PersonalRecipient()
-{
-	RefreshLocalVisibility();
 }
 
 void APRRewardPickupActor::OnRep_DropSettled()
@@ -186,12 +174,16 @@ void APRRewardPickupActor::RefreshVisual()
 			RewardMesh->SetStaticMesh(CurrencyMesh.Get());
 			RewardMesh->SetRelativeScale3D(CurrencyMeshScale);
 		}
+		if (IsValid(RewardNiagara))
+		{
+			RewardNiagara->SetRelativeLocation(FVector::ZeroVector);
+		}
 
 		ApplyEffectVisualInfo(CurrencyVisual);
 		return;
 	}
 
-	if (Reward.RewardType == EPRRewardType::Item)
+	if (Reward.RewardType == EPRRewardType::Item || Reward.RewardType == EPRRewardType::Ammo)
 	{
 		UPRItemDataAsset* ItemData = Reward.ItemData;
 		if (!IsValid(ItemData) && Reward.ItemAssetId.IsValid())
@@ -209,6 +201,10 @@ void APRRewardPickupActor::RefreshVisual()
 		{
 			RewardMesh->SetStaticMesh(ItemData->GetPickupMesh());
 			RewardMesh->SetRelativeScale3D(ItemData->GetPickupMeshScale());
+		}
+		if (IsValid(RewardNiagara))
+		{
+			RewardNiagara->SetRelativeLocation(ItemData->GetRarityNiagaraOffset());
 		}
 
 		const FPRRewardPickupEffectVisualInfo* VisualInfo = ItemRarityVisuals.Find(ItemData->GetRarity());
@@ -252,43 +248,6 @@ void APRRewardPickupActor::ApplyEffectVisualInfo(const FPRRewardPickupEffectVisu
 		RewardLight->SetLightColor(VisualInfo.LightColor);
 		RewardLight->SetIntensity(VisualInfo.LightIntensity);
 		RewardLight->SetVisibility(VisualInfo.LightIntensity > 0.0f);
-	}
-}
-
-void APRRewardPickupActor::RefreshLocalVisibility()
-{
-	if (Reward.DistributionRule != EPRRewardDistributionRule::Personal)
-	{
-		SetLocalVisualVisible(true);
-		return;
-	}
-
-	const UWorld* World = GetWorld();
-	if (!IsValid(World) || World->GetNetMode() == NM_DedicatedServer)
-	{
-		return;
-	}
-
-	APlayerController* LocalController = World->GetFirstPlayerController();
-	const APRPlayerState* LocalPlayerState = IsValid(LocalController) ? LocalController->GetPlayerState<APRPlayerState>() : nullptr;
-	SetLocalVisualVisible(IsValid(PersonalRecipient) && LocalPlayerState == PersonalRecipient);
-}
-
-void APRRewardPickupActor::SetLocalVisualVisible(bool bVisible)
-{
-	if (IsValid(RewardMesh))
-	{
-		RewardMesh->SetVisibility(bVisible, true);
-	}
-
-	if (IsValid(RewardNiagara))
-	{
-		RewardNiagara->SetVisibility(bVisible, true);
-	}
-
-	if (IsValid(RewardLight))
-	{
-		RewardLight->SetVisibility(bVisible && RewardLight->Intensity > 0.0f);
 	}
 }
 

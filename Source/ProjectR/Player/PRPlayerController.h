@@ -9,6 +9,7 @@
 #include "ProjectR/ItemSystem/Types/PRDropTypes.h"
 #include "ProjectR/Player/Components/PRPlayerGrowthComponent.h"
 #include "ProjectR/Shop/Types/PRShopTypes.h"
+#include "ProjectR/UI/HUD/PRHUDMessageTypes.h"
 #include "ProjectR/ItemSystem/Types/PRWeaponUpgradeTypes.h"
 #include "PRPlayerController.generated.h"
 
@@ -20,6 +21,8 @@ enum class EPRMapTransitionType : uint8
 	None,
 	MapTravel,
 	Respawn,
+	RespawnComplete,
+	CancelTravel,
 };
 
 class UPRInteractorComponent;
@@ -35,8 +38,10 @@ class UPRUIControllerComponent;
 class UPRInteractionSensor;
 class UPRCheatHandler;
 class UPRItemInstance_Weapon;
+class UPRInteraction_Waypoint;
 class UPRShopComponent;
 class UPRWeaponUpgradeComponent;
+class UPRFXNetworkComponent;
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FPRWeaponUpgradeResultSignature, const FPRWeaponUpgradeResult&, Result);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FPRShopBuyResultSignature, const FPRShopBuyResult&, Result);
@@ -59,6 +64,7 @@ public:
 	virtual void BeginPlay() override;
 	
 	/*~ APlayerController Interface ~*/
+	virtual void ReceivedPlayer() override;
 	virtual void AcknowledgePossession(APawn* InPawn) override;
 	virtual void SetupInputComponent() override;
 	virtual void PostProcessInput(const float DeltaTime, const bool bGamePaused) override;
@@ -75,11 +81,14 @@ public:
 	// 플로팅 텍스트 매니저 컴포넌트를 반환
 	UPRFloatingTextManager* GetFloatingTextManager() const { return FloatingTextManager; }
 	
-	// 폰 -> PlayerState 경로로 ASC 조회
+	// PlayerState 우선 경로로 ASC 조회
 	UPRAbilitySystemComponent* GetPRASC() const;
+
+	// 플레이어 컨트롤러에 남은 로컬 런타임 상태와 ASC 캐시를 초기화한다
+	void ResetPlayer();
 	
-	// 로컬 클라에서 호출. GameInstance의 LocalCharacter를 서버로 제출
-	// 자동 호출(BeginPlay)과 수동 호출(재제출) 모두 허용
+	// 로컬 클라에서 호출. GameInstance의 LocalCharacterSave를 서버로 제출
+	// ReceivedPlayer 조기 제출과 possession fallback 재시도 허용
 	UFUNCTION(BlueprintCallable, Category = "ProjectR|Session")
 	void SubmitLocalCharacterToServer();
 
@@ -98,7 +107,7 @@ public:
 
 	// 맵 이동 또는 리스폰 전환 연출 시작
 	UFUNCTION(Client, Reliable)
-	void ClientStartMapTransition(float Delay, EPRMapTransitionType TransitionType);
+	void ClientNotifyMapTransition(float Delay, EPRMapTransitionType TransitionType);
 	
 	// 서버 -> 본인 클라. 무기 강화 결과를 UI에 전달한다
 	UFUNCTION(Client, Reliable)
@@ -111,6 +120,10 @@ public:
 	// 서버 -> 본인 클라. 상점 UI를 열고 상점 컴포넌트 Context를 전달한다
 	UFUNCTION(Client, Reliable)
 	void ClientOpenShopUI(UPRShopComponent* ShopComponent);
+
+	// 서버 -> 호스트 클라. 웨이포인트 Travel UI 열기
+	UFUNCTION(Client, Reliable)
+	void ClientOpenWaypointTravelUI();
 
 	// 서버 -> 본인 클라. 상점 구매 결과를 UI에 전달한다
 	UFUNCTION(Client, Reliable)
@@ -132,6 +145,10 @@ public:
 	UFUNCTION(Client, Reliable)
 	void ClientNotifyPickupReward(const FPRPickupNotificationPayload& Payload);
 
+	// 서버에서 owning client로 HUD 안내 메시지 표시 상태 전달
+	UFUNCTION(Client, Reliable)
+	void ClientNotifyHUDMessage(EPRHUDMessageType MessageType);
+
 	// 강화 UI에서 선택한 무기 강화를 서버에 요청한다
 	UFUNCTION(BlueprintCallable, Category = "ProjectR|WeaponUpgrade")
 	void RequestUpgradeWeapon(UPRWeaponUpgradeComponent* UpgradeComponent, UPRItemInstance_Weapon* WeaponItem);
@@ -143,6 +160,18 @@ public:
 	// 상점 UI에서 선택한 아이템 판매를 서버에 요청한다
 	UFUNCTION(BlueprintCallable, Category = "ProjectR|Shop")
 	void RequestSellShopItem(UPRShopComponent* ShopComponent, FName EntryId, int32 Quantity);
+
+	// 웨이포인트 Travel UI 선택 목적지 이동 서버 요청
+	void RequestWaypointTravel(FSoftObjectPath WorldDataAssetPath, FGameplayTag WaypointId);
+
+	// 웨이포인트 Travel UI 닫힘 서버 통지
+	void RequestCancelWaypointTravel();
+
+	// 서버 웨이포인트 Travel UI 대기 상호작용 등록
+	void SetPendingWaypointTravelInteraction(UPRInteraction_Waypoint* WaypointInteraction);
+
+	// 서버 웨이포인트 Travel UI 대기 상호작용 정리
+	void ClearPendingWaypointTravelInteraction(const UPRInteraction_Waypoint* WaypointInteraction);
 
 	// 성장 UI에서 특성 투자 확정을 서버에 요청한다
 	UFUNCTION(BlueprintCallable, Category = "ProjectR|Growth")
@@ -171,6 +200,14 @@ protected:
 	UFUNCTION(Server, Reliable)
 	void ServerRequestSellShopItem(UPRShopComponent* ShopComponent, FName EntryId, int32 Quantity);
 
+	// 클라이언트 -> 서버. 활성 또는 UI 대기 웨이포인트 상호작용 목적지 이동 위임
+	UFUNCTION(Server, Reliable)
+	void ServerRequestWaypointTravel(FSoftObjectPath WorldDataAssetPath, FGameplayTag WaypointId);
+
+	// 클라이언트 -> 서버. 활성 또는 UI 대기 웨이포인트 상호작용 취소 위임
+	UFUNCTION(Server, Reliable)
+	void ServerRequestCancelWaypointTravel();
+
 	// 클라이언트 -> 서버. 성장 컴포넌트에 특성 투자 확정을 위임한다
 	UFUNCTION(Server, Reliable)
 	void ServerRequestConfirmTraitInvestment(const FPRTraitInvestmentInfo& DesiredInvestment);
@@ -196,6 +233,9 @@ protected:
 
 	// 특성 투자창 입력 시작을 처리
 	void OnTraitWindowInputStarted();
+
+	// 인게임 메뉴 입력 시작을 처리
+	void OnInGameMenuInputStarted();
 	
 	// 퀵슬롯 입력 시작을 처리
 	void OnQuickSlotInputStarted(int32 SlotIndex);
@@ -204,6 +244,15 @@ protected:
 	UPRQuickSlotComponent* GetQuickSlotComponent() const;
 	
 private:
+	// 로컬 상호작용 포커스와 본인 캐릭터 외곽선 정리
+	void ResetLocalInteractionVisualState();
+
+	// 활성 또는 UI 대기 중인 웨이포인트 상호작용 액션 반환
+	UPRInteraction_Waypoint* ResolveWaypointTravelInteraction() const;
+
+	// 서버 객체 기준 호스트 컨트롤러 여부 확인
+	bool IsHostControllerForWaypointTravel() const;
+
 	void UpdateCompanionHighlight();
 
 public:
@@ -243,6 +292,10 @@ protected:
 	// 특성 투자창 열기 입력 액션
 	UPROPERTY(EditDefaultsOnly, Category = "ProjectR|Input")
 	TObjectPtr<const UInputAction> TraitWindowAction;
+
+	// 인게임 메뉴 열기 입력 액션
+	UPROPERTY(EditDefaultsOnly, Category = "ProjectR|Input")
+	TObjectPtr<const UInputAction> InGameMenuAction;
 
 	// 퀵슬롯 입력 액션 목록. 배열 인덱스가 퀵슬롯 인덱스와 일치한다
 	UPROPERTY(EditDefaultsOnly, Category = "ProjectR|Input")
@@ -288,4 +341,11 @@ private:
 	// 상호작용 매니저 컴포넌트
 	UPROPERTY(VisibleAnywhere, Category = "ProjectR|Interaction")
 	TObjectPtr<UPRInteractorComponent> InteractorComponent;
+	
+	// FX 서버 요청과 Client RPC 수신을 담당하는 Player 소유 컴포넌트
+	UPROPERTY(VisibleAnywhere, Category = "ProjectR|FX")
+	TObjectPtr<UPRFXNetworkComponent> FXNetworkComponent;
+
+	// 서버 전용 웨이포인트 Travel UI 요청 대상 상호작용
+	TWeakObjectPtr<UPRInteraction_Waypoint> PendingWaypointTravelInteraction;
 };

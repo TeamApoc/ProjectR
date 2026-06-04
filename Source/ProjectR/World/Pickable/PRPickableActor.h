@@ -17,8 +17,16 @@ class PROJECTR_API APRPickableActor : public APRInteractableActor
 public:
 	APRPickableActor();
 
+	/*~ AActor Interface ~*/
+	virtual void BeginPlay() override;
+	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
+
 protected:
 	// ===== Components =====
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "ProjectR|UI")
 	TObjectPtr<USphereComponent> InteractionCollision;
+
+	// 월드 오브젝트 리스폰 시 파괴할 일회성 액터 여부
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|Respawn")
+	bool bDisposable = false;
 };

@@ -21,6 +21,7 @@ namespace PRGameplayTags
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Ability_Player_Aim, "Ability.Player.Aim", "플레이어 구르기 어빌리티");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Ability_Player_Sprint, "Ability.Player.Sprint", "플레이어 질주 어빌리티");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Ability_Player_Interaction, "Ability.Player.Interaction", "플레이어 상호작용 어빌리티");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Ability_Player_Action_Waypoint, "Ability.Player.Action.Waypoint", "플레이어 크리스탈 상호작용 어빌리티");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Ability_Player_Ping, "Ability.Player.Ping", "플레이어 핑 어빌리티");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Ability_Player_Reload, "Ability.Player.Reload", "플레이어 재장전 어빌리티");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Ability_Player_UseConsumable, "Ability.Player.UseConsumable", "플레이어 소비 아이템 사용 어빌리티");
@@ -31,7 +32,7 @@ namespace PRGameplayTags
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Ability_Player_Weapon_Zoom, "Ability.Player.Weapon.Zoom", "플레이어 볼트액션 줌 어빌리티");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Ability_Player_GetUp, "Ability.Player.GetUp", "플레이어 기상 어빌리티");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Ability_Player_Revive, "Ability.Player.Revive", "플레이어 동료 소생 어빌리티");
-	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Ability_Player_Waypoint, "Ability.Player.Waypoint", "플레이어 크리스탈 상호작용 어빌리티");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Ability_Player_CombatEngaged, "Ability.Player.CombatEngaged", "플레이어 전투 교전 갱신 어빌리티");
 
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Ability_Enemy_Pattern, "Ability.Enemy.Pattern", "일반 적 패턴 공통 루트");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Ability_Enemy_Alert, "Ability.Enemy.Alert", "일반 적 최초 발견 Alert");
@@ -40,9 +41,10 @@ namespace PRGameplayTags
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Ability_Boss_PhaseTransition, "Ability.Boss.PhaseTransition", "보스 페이즈 전환 공통 루트");
 
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Ability_Enemy_Penitent_Pattern, "Ability.Enemy.Penitent.Pattern", "Penitent 패턴 루트");
-	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Ability_Enemy_Penitent_Fireball, "Ability.Enemy.Penitent.Fireball", "Penitent 기본 화염구");
-	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Ability_Enemy_Penitent_BounceVolley, "Ability.Enemy.Penitent.BounceVolley", "Penitent 강패턴");
-	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Ability_Enemy_Penitent_StaffSwipe, "Ability.Enemy.Penitent.StaffSwipe", "Penitent 근접 반격");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Ability_Enemy_Penitent_Projectile, "Ability.Enemy.Penitent.Projectile", "Penitent 기본 투사체");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Ability_Enemy_Penitent_BarrierSummon, "Ability.Enemy.Penitent.BarrierSummon", "Penitent 배리어 소환");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Ability_Enemy_Penitent_BarrierLaunch, "Ability.Enemy.Penitent.BarrierLaunch", "Penitent 배리어 발사");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Ability_Enemy_Penitent_StaffSwing, "Ability.Enemy.Penitent.StaffSwing", "Penitent 근거리 휘두르기");
 
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Ability_Enemy_RoyalArcher_Pattern, "Ability.Enemy.RoyalArcher.Pattern", "RoyalArcher 패턴 루트");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Ability_Enemy_RoyalArcher_WakeFromPerch, "Ability.Enemy.RoyalArcher.WakeFromPerch", "RoyalArcher 전투 시작");
@@ -57,10 +59,20 @@ namespace PRGameplayTags
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Ability_Boss_Faerin_Pattern, "Ability.Boss.Faerin.Pattern", "Faerin 전투 패턴 루트");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Ability_Boss_Faerin_PhaseTransition, "Ability.Boss.Faerin.PhaseTransition", "Faerin 페이즈 전환");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Ability_Boss_Faerin_MeleeQuickCombo, "Ability.Boss.Faerin.MeleeQuickCombo", "Faerin 빠른 근접 콤보");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Ability_Boss_Faerin_SpokeCombo, "Ability.Boss.Faerin.SpokeCombo", "Faerin Spoke R/L 1타 연계 콤보");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Ability_Boss_Faerin_PortalPairSequence, "Ability.Boss.Faerin.PortalPairSequence", "Faerin 포털 연계");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Ability_Boss_Faerin_PortalMissileSequence, "Ability.Boss.Faerin.PortalMissileSequence", "Faerin 원작형 미사일 포털 소환");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Ability_Boss_Faerin_PortalBarrageSequence, "Ability.Boss.Faerin.PortalBarrageSequence", "Faerin 포털 연속 포격");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Ability_Boss_Faerin_PortalAttachedSequence, "Ability.Boss.Faerin.PortalAttachedSequence", "Faerin 부착 포털 소환");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Ability_Boss_Faerin_PortalTorrentSequence, "Ability.Boss.Faerin.PortalTorrentSequence", "Faerin Torrent 포털 소환");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Ability_Boss_Faerin_RainPortalSequence, "Ability.Boss.Faerin.RainPortalSequence", "Faerin Rain Portal 소환");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Ability_Boss_Faerin_TeleportLungeSequence, "Ability.Boss.Faerin.TeleportLungeSequence", "Faerin 원작형 텔레포트 런지");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Ability_Boss_Faerin_ShiftPlayerClose, "Ability.Boss.Faerin.ShiftPlayerClose", "Faerin Shift Player Close 패턴 어빌리티");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Ability_Boss_Faerin_TeleportDownSequence, "Ability.Boss.Faerin.TeleportDownSequence", "Faerin TeleportDown 패턴 어빌리티");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Ability_Boss_Faerin_CrashSequence, "Ability.Boss.Faerin.CrashSequence", "Faerin Crash 패턴 어빌리티");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Ability_Boss_Faerin_CrashDropSequence, "Ability.Boss.Faerin.CrashDropSequence", "Faerin CrashDrop 패턴 어빌리티");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Ability_Boss_Faerin_ThrowSequence, "Ability.Boss.Faerin.ThrowSequence", "Faerin Throw 패턴 어빌리티");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Ability_Boss_Faerin_ApproachSprint, "Ability.Boss.Faerin.ApproachSprint", "Faerin 스프린트 접근 액션");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Ability_Boss_Faerin_TeleportDash, "Ability.Boss.Faerin.TeleportDash", "Faerin 텔레포트 대시");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Ability_Boss_Faerin_EnergyRain, "Ability.Boss.Faerin.EnergyRain", "Faerin 범위 압박");
 
@@ -83,6 +95,7 @@ namespace PRGameplayTags
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(State_Groggy, "State.Groggy", "그로기 상태");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(State_StaminaDepleted, "State.StaminaDepleted", "스태미너 고갈 상태");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(State_Down, "State.Down", "전투불능 다운 상태");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(State_Combating, "State.Combating", "전투 중 스태미나 제한 상태");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(State_Invulnerable, "State.Invulnerable", "무적 상태 (회피 i-frame 등)");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(State_Dodging, "State.Dodging", "구르기 중 (무적이 아님)");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(State_Crouching, "State.Crouching", "앉기 상태");
@@ -95,10 +108,16 @@ namespace PRGameplayTags
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(State_PlayerInputLocked, "State.PlayerInputLocked", "플레이어 입력 차단 상태");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(State_PlayerHitReactLocked, "State.PlayerHitReactLocked", "피격 리액션 행동불능 상태");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(State_PhaseTransitioning, "State.PhaseTransitioning", "보스 페이즈 전환 상태");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(State_Boss_PatternPlaying, "State.Boss.PatternPlaying", "보스 패턴 실행 중 상태");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(State_Boss_Faerin_ForcedFollowUp, "State.Boss.Faerin.ForcedFollowUp", "Faerin Shift 이후 강제 연계 상태");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(State_Boss_WeakpointOpen_Core, "State.Boss.WeakpointOpen.Core", "보스 코어 약점 오픈 상태");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(State_Enemy_Attacking, "State.Enemy.Attacking", "적 공격 실행중 상태");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(State_Enemy_Penitent_BarrierSummon, "State.Enemy.Penitent.BarrierSummon", "Penitent 배리어 보유 상태");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(State_Armed, "State.Armed", "플레이어 무기 장착중 상태");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(State_Block_Move, "State.Block.Move", "움직임 비활성화 상태");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(State_Block_Interaction, "State.Block.Interaction", "상호작용 비활성화 상태");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(State_WeaponZooming, "State.WeaponZooming", "움직임 비활성화 상태");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(State_SwappingWeapon, "State.SwappingWeapon", "무기 교체 Draw 몽타주 진행 상태");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(State_Mod_Primary_GaugeLocked, "State.Mod.Primary.GaugeLocked", "주무기 Mod 게이지 축적 차단 상태");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(State_Mod_Secondary_GaugeLocked, "State.Mod.Secondary.GaugeLocked", "보조무기 Mod 게이지 축적 차단 상태");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(State_Mod_Fire_Enabled, "State.Mod.Fire.Enabled", "발사형 모드 활성 상태");
@@ -117,12 +136,23 @@ namespace PRGameplayTags
 	
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Cooldown_Boss_Faerin_TeleportLunge, "Cooldown.Boss.Faerin.TeleportLunge", "Faerin Teleport Lunge 패턴 쿨다운");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Cooldown_Boss_Faerin_PortalMissile, "Cooldown.Boss.Faerin.PortalMissile", "Faerin 포털 미사일 패턴 쿨다운");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Cooldown_Boss_Faerin_PortalPair, "Cooldown.Boss.Faerin.PortalPair", "Faerin 포털 2개 설치 패턴 쿨다운");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Cooldown_Boss_Faerin_PortalBarrage, "Cooldown.Boss.Faerin.PortalBarrage", "Faerin 포털 연속 포격 패턴 쿨다운");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Cooldown_Boss_Faerin_PortalAttached, "Cooldown.Boss.Faerin.PortalAttached", "Faerin 부착 포털 패턴 쿨다운");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Cooldown_Boss_Faerin_PortalTorrent, "Cooldown.Boss.Faerin.PortalTorrent", "Faerin Torrent 포털 패턴 쿨다운");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Cooldown_Boss_Faerin_RainPortal, "Cooldown.Boss.Faerin.RainPortal", "Faerin Rain Portal 패턴 쿨다운");
 
+
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Cooldown_Boss_Faerin_Shift, "Cooldown.Boss.Faerin.Shift", "Faerin Shift 계열 공용 쿨다운");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Cooldown_Boss_Faerin_TeleportDown, "Cooldown.Boss.Faerin.TeleportDown", "Faerin TeleportDown 패턴 쿨다운");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Cooldown_Boss_Faerin_Crash, "Cooldown.Boss.Faerin.Crash", "Faerin Crash 패턴 쿨다운");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Cooldown_Boss_Faerin_Throw, "Cooldown.Boss.Faerin.Throw", "Faerin Throw 패턴 쿨다운");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Cooldown_Boss_Faerin_SpokeCombo, "Cooldown.Boss.Faerin.SpokeCombo", "Faerin Spoke Combo 패턴 쿨다운");
 
 	// ===== Event.* =====
 
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Event_Hit, "Event.Hit", "피격 이벤트");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Event_Combat_Engaged, "Event.Combat.Engaged", "전투 교전 유지 이벤트");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Event_Ability_Death, "Event.Ability.Death", "사망 이벤트");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Event_Ability_Down, "Event.Ability.Down", "다운 이벤트");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Event_Ability_GetUp, "Event.Ability.GetUp", "기상 이벤트");
@@ -150,6 +180,7 @@ namespace PRGameplayTags
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Event_Player_Interactable, "Event.Player.Interactable", "상호작용 가능 알림");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Event_Player_ModActivation, "Event.Player.ModActivation", "Mod On/Off 이벤트");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Event_Player_WorldMarker, "Event.Player.WorldMarker", "월드 마커 추가 제거 알림");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Event_Player_HUDMessage, "Event.Player.HUDMessage", "HUD 안내 메시지 표시 알림");
 
 	// ===== Event.Boss.* =====
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Event_Boss_Encounter_Begin, "Event.Boss.Encounter.Begin", "보스 조우 시작 (FPRBossEncounterEventPayload 동반)");

@@ -44,6 +44,8 @@ void UPRGameplayAbility_FaerinTeleportLungeSequence::ActivateAbility(const FGame
 		return;
 	}
 
+	BeginBossPatternAttackCommit();
+
 	DamagedActors.Reset();
 	bHasPreviousBladeTracePoint = false;
 	PreviousBladeTracePoint = FVector::ZeroVector;
@@ -65,13 +67,13 @@ void UPRGameplayAbility_FaerinTeleportLungeSequence::ActivateAbility(const FGame
 	BossCharacter->GetCharacterMovement()->StopMovementImmediately();
 	FaceCurrentTarget();
 
-	if (IsValid(TeleportInMontage))
+	if (bPlayTeleportOutStage && IsValid(TeleportOutMontage))
 	{
-		PlayStageMontage(TeleportInMontage, EPRFaerinTeleportLungeStage::TeleportIn);
+		PlayStageMontage(TeleportOutMontage, EPRFaerinTeleportLungeStage::TeleportOut);
 		return;
 	}
 
-	PlayLungeStartStage();
+	PlayTeleportInStage();
 }
 
 void UPRGameplayAbility_FaerinTeleportLungeSequence::EndAbility(const FGameplayAbilitySpecHandle Handle,
@@ -98,6 +100,7 @@ void UPRGameplayAbility_FaerinTeleportLungeSequence::EndAbility(const FGameplayA
 	WeaponVisualComponent = nullptr;
 	ActiveLungeStage = EPRFaerinTeleportLungeStage::None;
 
+	EndBossPatternAttackCommit();
 	Super::EndAbility(Handle, ActorInfo, ActivationInfo, bReplicateEndAbility, bWasCancelled);
 }
 
@@ -147,6 +150,12 @@ void UPRGameplayAbility_FaerinTeleportLungeSequence::HandleFaerinCharacterEvent(
 
 	if (EventName == StopLungeEventName)
 	{
+		if (ActiveLungeStage == EPRFaerinTeleportLungeStage::LungeEnd)
+		{
+			StopLungeMovementAndHitWindow();
+			return;
+		}
+
 		PlayLungeEndStage();
 	}
 }
@@ -203,6 +212,22 @@ bool UPRGameplayAbility_FaerinTeleportLungeSequence::PlayStageMontage(
 	ActiveMontageTask->OnCancelled.AddDynamic(this, &UPRGameplayAbility_FaerinTeleportLungeSequence::HandleStageMontageInterrupted);
 	ActiveMontageTask->ReadyForActivation();
 	return true;
+}
+
+void UPRGameplayAbility_FaerinTeleportLungeSequence::PlayTeleportInStage()
+{
+	if (!bPlayTeleportInStage)
+	{
+		PlayLungeStartStage();
+		return;
+	}
+
+	if (PlayStageMontage(TeleportInMontage, EPRFaerinTeleportLungeStage::TeleportIn))
+	{
+		return;
+	}
+
+	PlayLungeStartStage();
 }
 
 void UPRGameplayAbility_FaerinTeleportLungeSequence::PlayLungeStartStage()
@@ -544,6 +569,9 @@ void UPRGameplayAbility_FaerinTeleportLungeSequence::HandleStageMontageCompleted
 
 	switch (ActiveLungeStage)
 	{
+	case EPRFaerinTeleportLungeStage::TeleportOut:
+		PlayTeleportInStage();
+		break;
 	case EPRFaerinTeleportLungeStage::TeleportIn:
 		PlayLungeStartStage();
 		break;
@@ -572,6 +600,9 @@ void UPRGameplayAbility_FaerinTeleportLungeSequence::HandleStageMontageBlendOut(
 
 	switch (ActiveLungeStage)
 	{
+	case EPRFaerinTeleportLungeStage::TeleportOut:
+		PlayTeleportInStage();
+		break;
 	case EPRFaerinTeleportLungeStage::TeleportIn:
 		PlayLungeStartStage();
 		break;

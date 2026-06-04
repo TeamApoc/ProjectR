@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "Blueprint/UserWidget.h"
+#include "InputCoreTypes.h"
 #include "PRWidgetBase.generated.h"
 
 class UPREventManagerSubsystem;
@@ -34,6 +35,41 @@ enum class EPRUILayer : uint8
 };
 
 /**
+ * UI 전용 입력 의도.
+ * UIOnly 위젯은 FKey를 이 enum으로 변환해 키보드와 게임패드 입력을 동일한 의미로 처리한다.
+ */
+UENUM(BlueprintType)
+enum class EPRUIInputAction : uint8
+{
+	// 처리 대상 아님
+	None,
+
+	// 선택 확정
+	Confirm,
+
+	// 취소 또는 뒤로가기
+	Cancel,
+
+	// 위쪽 항목 이동
+	NavigateUp,
+
+	// 아래쪽 항목 이동
+	NavigateDown,
+
+	// 왼쪽 항목 이동
+	NavigateLeft,
+
+	// 오른쪽 항목 이동
+	NavigateRight,
+
+	// 이전 탭 이동
+	TabLeft,
+
+	// 다음 탭 이동
+	TabRight,
+};
+
+/**
  * UI 위젯 기본 클래스
  * Push/Pop 스택에서 관리되는 모든 위젯의 부모 클래스
  */
@@ -43,8 +79,19 @@ class PROJECTR_API UPRWidgetBase : public UUserWidget
 	GENERATED_BODY()
 
 public:
+	// UI 위젯 기본 포커스 설정 초기화
+	UPRWidgetBase(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
+
 	// 현재 월드의 EventManager 조회
 	UPREventManagerSubsystem* GetEventManager() const;
+
+	// Key 입력을 프로젝트 UI 입력 의도로 변환
+	UFUNCTION(BlueprintPure, Category = "ProjectR|UI|Input")
+	virtual EPRUIInputAction GetUIInputAction(const FKey& Key) const;
+
+protected:
+	/*~ UUserWidget Interface ~*/
+	virtual FReply NativeOnKeyDown(const FGeometry& InGeometry, const FKeyEvent& InKeyEvent) override;
 
 public:
 	// 이 위젯이 속한 레이어. UIManager가 ZOrder/스택 정렬에 사용
@@ -57,7 +104,7 @@ public:
 
 	// 이 위젯이 활성화될 때 마우스 커서 표시 여부
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "UI")
-	bool bShowMouseCursor = true;
+	bool bShowMouseCursor = false;
 };
 
 /** TODO [고도화]:

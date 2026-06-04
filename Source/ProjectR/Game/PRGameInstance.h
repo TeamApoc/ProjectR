@@ -35,18 +35,22 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "ProjectR|Session")
 	void LeaveSession();
 
+	// 전체 Scalability 그룹에 그래픽 품질 프로필 적용
+	UFUNCTION(BlueprintCallable, Category = "ProjectR|Settings")
+	bool ApplyGraphicsQualityProfile(EPRGraphicsQualityProfile QualityProfile, bool bSaveSettings = false);
+
 	// 소프트 참조된 맵으로 ServerTravel 진입. 호스트 권위에서만 동작
 	UFUNCTION(BlueprintCallable, Category = "ProjectR|Session")
-	void ServerTravelToMap(TSoftObjectPtr<UWorld> MapAsset, bool bAbsolute = false);
+	bool ServerTravelToMap(TSoftObjectPtr<UWorld> MapAsset, bool bAbsolute = false);
 
-	// 다음 맵 진입 시 사용할 Waypoint 태그를 저장
-	void SetPendingTravelWaypointId(FGameplayTag WaypointId);
+	// 다음 맵 진입 시 사용할 SpawnPoint 태그를 저장
+	void SetPendingTravelSpawnPointId(FGameplayTag SpawnPointId);
 
-	// 다음 맵 진입 Waypoint 태그를 반환하고 초기화
-	FGameplayTag ConsumePendingTravelWaypointId();
+	// 다음 맵 진입 SpawnPoint 태그를 반환하고 초기화
+	FGameplayTag ConsumePendingTravelSpawnPointId();
 
-	// 다음 맵 진입 Waypoint 태그 존재 여부 반환
-	bool HasPendingTravelWaypointId() const { return PendingTravelWaypointId.IsValid(); }
+	// 다음 맵 진입 SpawnPoint 태그 존재 여부 반환
+	bool HasPendingTravelSpawnPointId() const { return PendingTravelSpawnPointId.IsValid(); }
 
 	// 다음 맵 진입 시 복원할 월드 저장 데이터 설정
 	void SetPendingWorldSaveData(const FPRWorldSaveData& WorldSaveData);
@@ -55,7 +59,6 @@ public:
 	bool ConsumePendingWorldSaveData(FPRWorldSaveData& OutWorldSaveData);
 
 	// 로컬 캐릭터 세이브 로드. 메뉴에서 "이어하기" 선택 시 호출
-	// 현재 단계에서는 스켈레톤 구현. 세이브 시스템 연동 시 본 메서드에서 SaveGame 로드 분기 추가
 	UFUNCTION(BlueprintCallable, Category = "ProjectR|Save")
 	bool LoadLocalCharacter(FName SlotName);
 
@@ -63,24 +66,82 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "ProjectR|Save")
 	bool SaveLocalCharacter(FName SlotName);
 
+	// 1~4번 로컬 캐릭터 슬롯 존재 여부 반환
+	UFUNCTION(BlueprintPure, Category = "ProjectR|Save")
+	bool DoesLocalCharacterSaveExist(int32 SlotIndex) const;
+
+	// 1~4번 로컬 캐릭터 슬롯 로드
+	UFUNCTION(BlueprintCallable, Category = "ProjectR|Save")
+	bool LoadLocalCharacterSlot(int32 SlotIndex);
+
+	// 1~4번 로컬 캐릭터 슬롯 데이터를 조회만 함
+	UFUNCTION(BlueprintCallable, Category = "ProjectR|Save")
+	bool TryGetLocalCharacterSaveSlotData(int32 SlotIndex, FPRCharacterSaveData& OutSaveData) const;
+
+	// 1~4번 로컬 캐릭터 슬롯 저장
+	UFUNCTION(BlueprintCallable, Category = "ProjectR|Save")
+	bool SaveLocalCharacterSlot(int32 SlotIndex);
+
+	// 현재 활성 로컬 캐릭터 슬롯 저장
+	UFUNCTION(BlueprintCallable, Category = "ProjectR|Save")
+	bool SaveActiveLocalCharacterSlot();
+
+	// 로컬 캐릭터 저장 파일이 하나도 없을 때 1번 슬롯 초기 저장 생성
+	UFUNCTION(BlueprintCallable, Category = "ProjectR|Save")
+	bool EnsureInitialLocalCharacterSave();
+
+	// 신규 게임 진입용 빈 로컬 캐릭터 슬롯을 하나 보장
+	UFUNCTION(BlueprintCallable, Category = "ProjectR|Save")
+	bool EnsureEmptyLocalCharacterSaveSlot();
+
+	// 세션 진입 직전 로컬 캐릭터 페이로드 준비
+	UFUNCTION(BlueprintCallable, Category = "ProjectR|Save")
+	bool EnsureLocalCharacterReadyForSession();
+
 	// 보상 이벤트 발생 시 서버가 푸시한 Grant를 로컬 캐릭터에 즉시 반영
 	// PlayerController.ClientGrantReward 수신 경로의 종착점
 	UFUNCTION(BlueprintCallable, Category = "ProjectR|Save")
 	void ApplyRewardGrant(const FPRRewardGrant& Grant);
 
 	// 현재 로컬 캐릭터 데이터 조회. Join 시 PlayerController가 서버로 제출할 때 사용
-	const FPRCharacterSaveData& GetLocalCharacter() const { return LocalCharacter; }
+	const FPRCharacterSaveData& GetLocalCharacter() const { return LocalCharacterSave; }
+
+	// 현재 플레이 중인 로컬 캐릭터 슬롯 번호 조회
+	UFUNCTION(BlueprintPure, Category = "ProjectR|Save")
+	int32 GetActiveLocalCharacterSlotIndex() const { return ActiveLocalCharacterSlotIndex; }
+
+	// 현재 플레이 중인 로컬 캐릭터 슬롯 존재 여부 조회
+	UFUNCTION(BlueprintPure, Category = "ProjectR|Save")
+	bool HasActiveLocalCharacterSlot() const { return IsValidLocalCharacterSlotIndex(ActiveLocalCharacterSlotIndex); }
 
 	// 로컬 캐릭터 직접 갱신. 신규 캐릭터 생성 UI 등에서 호출
-	void SetLocalCharacter(const FPRCharacterSaveData& NewData) { LocalCharacter = NewData; }
+	void SetLocalCharacterSave(const FPRCharacterSaveData& NewData) { LocalCharacterSave = NewData; }
+
+private:
+	// 1~4번 로컬 캐릭터 슬롯 이름 생성
+	FString BuildLocalCharacterSlotName(int32 SlotIndex) const;
+
+	// 로컬 캐릭터 슬롯 번호 유효성 확인
+	bool IsValidLocalCharacterSlotIndex(int32 SlotIndex) const;
+
+	// 신규 게임용 기본 캐릭터 저장 데이터 여부 확인
+	bool IsDefaultLocalCharacterSaveData(const FPRCharacterSaveData& SaveData) const;
 
 protected:
-	// 현재 플레이어가 들고 다니는 캐릭터 스펙. Join 시 이 데이터가 호스트로 전송된다
-	UPROPERTY(VisibleInstanceOnly, Category = "ProjectR|Save")
-	FPRCharacterSaveData LocalCharacter;
+	// 게임 시작 시 기본으로 적용할 그래픽 품질 프로필
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "ProjectR|Settings")
+	EPRGraphicsQualityProfile DefaultGraphicsQualityProfile = EPRGraphicsQualityProfile::High;
 
-	// ServerTravel 이후 최초 스폰에 사용할 Waypoint 태그
-	FGameplayTag PendingTravelWaypointId;
+	// 현재 플레이어가 들고 다니는 캐릭터 스펙. Join 시 이 데이터가 호스트로 전송됨
+	UPROPERTY(VisibleInstanceOnly, Category = "ProjectR|Save")
+	FPRCharacterSaveData LocalCharacterSave;
+
+	// 현재 플레이 중인 로컬 캐릭터 저장 슬롯 번호
+	UPROPERTY(VisibleInstanceOnly, Category = "ProjectR|Save")
+	int32 ActiveLocalCharacterSlotIndex = INDEX_NONE;
+
+	// ServerTravel 이후 최초 스폰에 사용할 SpawnPoint 태그
+	FGameplayTag PendingTravelSpawnPointId;
 
 	// ServerTravel 이후 복원할 월드 진행 상태
 	FPRWorldSaveData PendingWorldSaveData;

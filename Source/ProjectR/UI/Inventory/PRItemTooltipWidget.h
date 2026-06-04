@@ -17,20 +17,26 @@ class PROJECTR_API UPRItemTooltipWidget : public UPRWidgetBase
 	GENERATED_BODY()
 
 public:
-	// 툴팁 표시 데이터를 갱신한다
-	UFUNCTION(BlueprintCallable, Category = "ProjectR|Inventory")
-	void SetTooltipViewData(const FPRInventoryItemSlotViewData& InViewData);
+	// 툴팁 표시 데이터 갱신
+	UFUNCTION(BlueprintCallable, Category = "ProjectR|Inventory|Tooltip")
+	void SetTooltipViewData(const FPRItemTooltipViewData& InViewData);
 
-	// 현재 툴팁 표시 데이터를 반환한다
-	UFUNCTION(BlueprintPure, Category = "ProjectR|Inventory")
-	FPRInventoryItemSlotViewData GetTooltipViewData() const;
+	// 현재 툴팁 표시 데이터 반환
+	UFUNCTION(BlueprintPure, Category = "ProjectR|Inventory|Tooltip")
+	FPRItemTooltipViewData GetTooltipViewData() const;
 
 private:
-	// 현재 표시 데이터를 네이티브 바인딩 위젯에 반영한다
+	// 현재 표시 데이터를 네이티브 바인딩 위젯에 반영
 	void RefreshNativeDisplay();
 
-	// 아이템 타입 표시 텍스트를 만든다
-	FText GetItemTypeText() const;
+	// 상세 항목 표시 텍스트 생성
+	FText MakeDetailText() const;
+
+	// 상세 항목 이름 목록 텍스트 생성
+	FText MakeDetailLabelText() const;
+
+	// 상세 항목 값 목록 텍스트 생성
+	FText MakeDetailValueText() const;
 
 protected:
 	// UMG에서 바인딩할 아이템 이름 텍스트
@@ -49,8 +55,20 @@ protected:
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "ProjectR|Inventory")
 	TObjectPtr<UTextBlock> DescriptionText;
 
+	// UMG에서 바인딩할 상세 항목 텍스트
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "ProjectR|Inventory")
+	TObjectPtr<UTextBlock> DetailText;
+
+	// UMG에서 바인딩할 상세 항목 이름 텍스트
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "ProjectR|Inventory")
+	TObjectPtr<UTextBlock> DetailLabelText;
+
+	// UMG에서 바인딩할 상세 항목 값 텍스트
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "ProjectR|Inventory")
+	TObjectPtr<UTextBlock> DetailValueText;
+
 private:
 	// 현재 툴팁 표시 데이터
 	UPROPERTY(BlueprintReadOnly, Category = "ProjectR|Inventory", meta = (AllowPrivateAccess = "true"))
-	FPRInventoryItemSlotViewData ViewData;
+	FPRItemTooltipViewData ViewData;
 };

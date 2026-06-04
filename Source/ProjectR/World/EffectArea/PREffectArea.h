@@ -74,6 +74,12 @@ protected:
 	// 등록된 컴포넌트들을 지표면 높이로 스냅
 	void SnapComponentsToGround();
 
+	// 차폐 확인 후 대상에게 이펙트 적용
+	FActiveGameplayEffectHandle ApplyEffectToActorWithOcclusion(AActor* TargetActor);
+
+	// 범위 중심과 대상 사이 차폐 확인
+	bool IsAreaDamageBlocked(AActor* TargetActor, FHitResult& OutBlockHit) const;
+
 private:
 	// 영역 수명 만료 시 호출되어 잔여 GE 해제 후 액터 파괴
 	void OnLifetimeExpired();
@@ -83,6 +89,9 @@ private:
 
 	// 대상 액터에 이펙트 스펙 적용 후 핸들 반환
 	FActiveGameplayEffectHandle ApplyEffectToActor(AActor* TargetActor) const;
+
+	// ASC 미보유 전투 대상에게 대미지 컨텍스트 적용
+	bool TryApplyEffectToCombatTarget(AActor* TargetActor, const FHitResult* HitResult) const;
 
 	// 추적 중인 WhileOverlap 핸들 일괄 제거
 	void RemoveAllTrackedEffects();

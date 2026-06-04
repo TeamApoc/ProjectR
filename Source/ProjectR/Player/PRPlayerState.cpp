@@ -16,6 +16,7 @@
 #include "ProjectR/PRGameplayTags.h"
 #include "ProjectR/AbilitySystem/Data/PRAbilitySystemRegistry.h"
 #include "ProjectR/Character/PRPlayerCharacter.h"
+#include "ProjectR/FX/PRFXNetworkComponent.h"
 #include "ProjectR/ItemSystem/Components/PRQuickSlotComponent.h"
 #include "ProjectR/ItemSystem/Data/PRItemDataAsset.h"
 #include "ProjectR/ItemSystem/Items/PRItemInstance_Consumable.h"
@@ -381,44 +382,78 @@ void APRPlayerState::SendSurvivalGameplayEvent(const FGameplayTag& EventTag) con
 		AvatarActor,
 		EventTag,
 		Payload);
-	
-	//
-	// if (EventTag.MatchesTagExact(PRGameplayTags::Event_Ability_PlayerDeathConfirmed))
-	// {
-	// 	APRPlayerController* PlayerController = Cast<APRPlayerController>(GetOwner());
-	// 	if (IsValid(PlayerController))
-	// 	{
-	// 		PlayerController->ClientDispatchSurvivalGameplayEvent(EventTag);
-	// 	}
-	// }
 }
 
-void APRPlayerState::ResetSurvivalStateForRespawn()
+void APRPlayerState::ResetState()
 {
-	// 서버에서만 실행
+	// 서버 권위 전용
 	if (!HasAuthority() || !IsValid(AbilitySystemComponent))
 	{
 		return;
 	}
 
-	// 생존 전환 Ability 정리
-	AbilitySystemComponent->CancelAllAbilities();
-	AbilitySystemComponent->ClearAbilityInput();
+	// ASC 런타임 상태 정리
+	AbilitySystemComponent->ResetSystem();
 
-	const FGameplayTag RespawnClearedTags[] =
+	if (IsValid(GrowthComponent))
 	{
-		PRGameplayTags::State_Dead,
-		PRGameplayTags::State_Down,
-		PRGameplayTags::State_Block_Move,
-		PRGameplayTags::State_PlayerInputLocked,
-		PRGameplayTags::State_PlayerHitReactLocked,
-	};
-
-	for (const FGameplayTag& Tag : RespawnClearedTags)
-	{
-		AbilitySystemComponent->RemoveLooseGameplayTag(Tag);
-		AbilitySystemComponent->RemoveReplicatedLooseGameplayTag(Tag);
+		// 성장 보너스 효과 재동기화
+		GrowthComponent->ResetSystem();
 	}
+
+	if (IsValid(InventoryComponent))
+	{
+		// 인벤토리 런타임 캐시 정리
+		InventoryComponent->ResetSystem();
+	}
+
+	if (IsValid(EquipmentManagerComponent))
+	{
+		// 장비 외형 알림 재동기화
+		EquipmentManagerComponent->ResetSystem();
+	}
+
+	if (IsValid(WeaponManagerComponent))
+	{
+		// 기존 Pawn 무기 부착 상태 정리
+		WeaponManagerComponent->ResetSystem();
+	}
+
+	if (IsValid(QuickSlotComponent))
+	{
+		// 퀵슬롯 소비 아이템 캐시 재조회
+		QuickSlotComponent->ResetSystem();
+	}
+
+	if (IsValid(CurrencyComponent))
+	{
+		// 재화 시스템 리스폰 정리
+		CurrencyComponent->ResetSystem();
+	}
+}
+
+void APRPlayerState::PrepareStateForRespawn()
+{
+	if (!HasAuthority())
+	{
+		return;
+	}
+
+	// 새 Pawn PossessedBy 이후 ApplySaveData가 장비, 무기, 인벤토리를 같은 경로로 복원하도록 리스폰 직전 상태 보관
+	CurrentSaveData = MakeSaveData();
+	bPendingSaveDataApply = true;
+	bPendingRespawnRecovery = true;
+}
+
+bool APRPlayerState::ConsumePendingRespawnRecovery()
+{
+	if (!HasAuthority() || !bPendingRespawnRecovery)
+	{
+		return false;
+	}
+
+	bPendingRespawnRecovery = false;
+	return true;
 }
 
 void APRPlayerState::GrantCharacterAbilitySet(const UPRAbilitySet* InAbilitySet, UObject* InSourceObject)

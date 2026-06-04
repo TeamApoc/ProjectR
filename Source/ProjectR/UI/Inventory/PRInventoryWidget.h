@@ -17,6 +17,7 @@ class UPRConsumableDataAsset;
 class UPRItemDataAsset;
 class UPRInventoryComponent;
 class UPRInventoryItemListWidget;
+class UPRUIManagerSubsystem;
 class UPRItemInstance_Consumable;
 class UPRItemInstance_Material;
 class UPRItemInstance_Weapon;
@@ -36,6 +37,8 @@ class PROJECTR_API UPRInventoryWidget : public UPRWidgetBase
 	GENERATED_BODY()
 
 public:
+	UPRInventoryWidget();
+
 	// 인벤토리 위젯에 표시할 Item 소스와 장착 상태 컴포넌트를 설정한다
 	UFUNCTION(BlueprintCallable, Category = "ProjectR|Inventory")
 	void SetInventorySources(UPRInventoryComponent* InInventoryComponent, UPRWeaponManagerComponent* InWeaponManagerComponent, UPRQuickSlotComponent* InQuickSlotComponent, UPREquipmentManagerComponent* InEquipmentManagerComponent);
@@ -68,6 +71,9 @@ protected:
 
 	// 화면에서 제거될 때 표시 상태와 하위 위젯 이벤트 바인딩을 정리한다
 	virtual void NativeDestruct() override;
+
+	/*~ UPRWidgetBase Interface ~*/
+	virtual EPRUIInputAction GetUIInputAction(const FKey& Key) const override;
 
 private:
 	// BindWidgetOptional 슬롯들을 반복 처리용 배열로 캐싱한다
@@ -165,6 +171,9 @@ private:
 	// 아이템 리스트를 숨긴다
 	void CloseItemList();
 
+	// 아이템 리스트에 표시 데이터를 설정하고 UI 스택에 Push한다
+	void PushItemList(EPRItemType ListType, const TArray<FPRInventoryItemSlotViewData>& ListItems);
+
 	// 현재 장착 슬롯 위젯을 갱신한다
 	void RefreshEquippedSlotWidgets();
 
@@ -227,6 +236,9 @@ private:
 
 	// 현재 인벤토리 소유자의 재화 컴포넌트를 조회한다
 	UPRCurrencyComponent* ResolveCurrencyComponent() const;
+
+	// 로컬 플레이어 UI 매니저를 조회한다
+	UPRUIManagerSubsystem* ResolveUIManager() const;
 
 protected:
 	// UMG에서 바인딩할 주무기 슬롯 위젯

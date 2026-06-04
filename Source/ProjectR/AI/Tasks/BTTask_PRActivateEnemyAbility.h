@@ -74,6 +74,14 @@ protected:
 	UPROPERTY(EditAnywhere, Category = "ProjectR|Ability")
 	bool bResetAttackPressureOnAbilityActivated = true;
 
+	// true면 활성화 성공한 AbilityTag를 Blackboard에 기록한다.
+	UPROPERTY(EditAnywhere, Category = "ProjectR|Ability")
+	bool bWriteActivatedAbilityTagToBlackboard = false;
+
+	// 활성화 성공한 AbilityTag 이름을 저장할 Blackboard 키다.
+	UPROPERTY(EditAnywhere, Category = "ProjectR|Ability", meta = (EditCondition = "bWriteActivatedAbilityTagToBlackboard"))
+	FName ActivatedAbilityTagWriteKey = TEXT("last_used_ranged_ability");
+
 	// Ability 종료 후 다음 패턴 재평가 전까지 유지할 회복 시간이다.
 	UPROPERTY(EditAnywhere, Category = "ProjectR|Ability", meta = (ClampMin = "0.0", EditCondition = "bWaitUntilAbilityEnds"))
 	float PostAbilityEndDelay = 0.0f;

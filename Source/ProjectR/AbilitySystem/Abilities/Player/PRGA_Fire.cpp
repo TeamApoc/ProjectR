@@ -7,11 +7,18 @@
 #include "AbilitySystemBlueprintLibrary.h"
 #include "DrawDebugHelpers.h"
 #include "GameplayEffect.h"
+#include "Kismet/GameplayStatics.h"
 #include "ProjectR/Combat/PRCombatGameplayTags.h"
+#include "ProjectR/Combat/PRDirectDamageReceiverInterface.h"
 #include "ProjectR/AbilitySystem/Data/PRAbilitySystemRegistry.h"
 #include "ProjectR/AbilitySystem/Tasks/PRAT_SpawnPredictedProjectile.h"
+#include "ProjectR/FX/PRFXTags.h"
+#include "ProjectR/FX/PRFXTypes.h"
 #include "ProjectR/PRGameplayTags.h"
 #include "ProjectR/Character/PRPlayerCharacter.h"
+#include "ProjectR/Combat/PRCombatInterface.h"
+#include "ProjectR/Combat/PRCombatStatics.h"
+#include "ProjectR/Combat/PRDestructableInterface.h"
 #include "ProjectR/Projectile/PRProjectileBase.h"
 #include "ProjectR/System/PRAssetManager.h"
 #include "ProjectR/System/PREventManagerSubsystem.h"
@@ -35,6 +42,9 @@ UPRGA_Fire::UPRGA_Fire()
 
 	// GetCooldownTags가 반환할 컨테이너 1회 초기화
 	CooldownTagsContainer.AddTag(PRGameplayTags::Cooldown_Ability_Fire);
+
+	// 기본 테스트 Trail Cue 태그 지정
+	TrailCueTag = PRFXTags::FX_Weapon_Trail;
 }
 
 void UPRGA_Fire::ActivateAbility(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo,
@@ -130,6 +140,32 @@ void UPRGA_Fire::ApplyCooldown(const FGameplayAbilitySpecHandle Handle, const FG
 	}
 }
 
+void UPRGA_Fire::OnFailActivateAbility(const UAbilitySystemComponent* InOwnerASC,
+                                       const FGameplayAbilitySpec* InAbilitySpec) const
+{
+	Super::OnFailActivateAbility(InOwnerASC, InAbilitySpec);
+
+	if (!IsValid(InOwnerASC) || InAbilitySpec == nullptr)
+	{
+		return;
+	}
+
+	const FGameplayAbilityActorInfo* ActorInfo = InOwnerASC->AbilityActorInfo.Get();
+	if (ActorInfo == nullptr || CheckCost(InAbilitySpec->Handle, ActorInfo))
+	{
+		return;
+	}
+
+	OnOutOfAmmo(InOwnerASC);
+}
+
+void UPRGA_Fire::OnOutOfAmmo(const UObject* WorldContext) const
+{
+	FPRFXPayloadBase Payload;
+	Payload.bHasLifeTime = false;
+	const FInstancedStruct PayloadStruct = FInstancedStruct::Make(Payload);
+	UPRGameplayStatics::PlayLocalFX(WorldContext,PRFXTags::FX_Weapon_OutOfAmmo,PayloadStruct);
+}
 
 FVector UPRGA_Fire::GetMuzzleLocation()
 {
@@ -265,6 +301,7 @@ void UPRGA_Fire::FireHitScan()
 	{
 		if (!CommitAbilityCost(CurrentSpecHandle, CurrentActorInfo, CurrentActivationInfo))
 		{
+			OnOutOfAmmo(AvatarActor);
 			UE_LOG(LogFire, Verbose, TEXT("Client predicted cost failed (탄약 부족). 사격 차단."));
 			EndAbility(CurrentSpecHandle, CurrentActorInfo, CurrentActivationInfo, /*bReplicateEndAbility=*/true, /*bWasCancelled=*/true);
 			return;
@@ -296,6 +333,10 @@ void UPRGA_Fire::FireHitScan()
 
 	// 2차: 총구에서 조준점으로 실제 발사 트레이스
 	const FHitResult Hit = PerformMuzzleTrace(MuzzleLoc, AimPoint);
+	const FVector TrailEndLocation = Hit.bBlockingHit ? Hit.ImpactPoint : AimPoint;
+	
+	// Tail 재생
+	PlayTrailFX(MuzzleLoc, TrailEndLocation, Hit.bBlockingHit);
 
 	if (Hit.GetActor() != nullptr)
 	{
@@ -328,7 +369,6 @@ void UPRGA_Fire::FireHitScan()
 		}
 	}
 	
-
 	// 권위가 있는 로컬(Standalone/ListenServer 호스트)은 RPC 없이 직접 확정
 	if (bHasAuthority)
 	{
@@ -452,6 +492,11 @@ void UPRGA_Fire::ServerConfirmShot(const FPRFireShotPayload& Payload)
 	// CheckCost 실패 시 탄약 부족으로 간주해 데미지를 적용하지 않고 어빌리티 종료
 	if (!CommitAbilityCost(CurrentSpecHandle, CurrentActorInfo, CurrentActivationInfo))
 	{
+		if (IsLocallyControlled())
+		{
+			OnOutOfAmmo(GetAvatarActorFromActorInfo());
+		}
+		
 		UE_LOG(LogFire, Warning, TEXT("Cost commit failed (탄약 부족). ShotID: %u"), Payload.ShotID);
 		EndAbility(CurrentSpecHandle, CurrentActorInfo, CurrentActivationInfo, /*bReplicateEndAbility=*/true, /*bWasCancelled=*/true);
 		return;
@@ -481,12 +526,64 @@ void UPRGA_Fire::ApplyDamageFromShot(const FPRFireShotPayload& Payload)
 	ApplyDamage(HitActor, Payload.ClientHitResult.Get());
 }
 
+void UPRGA_Fire::PlayTrailFX(const FVector& StartLocation, const FVector& EndLocation, bool bBlockingHit)
+{
+	if (!TrailCueTag.IsValid())
+	{
+		return;
+	}
+
+	FPRFXTrailPayload TrailPayload;
+	// Cue의 현재 무기 Actor 검증용 발사 문맥
+	TrailPayload.SourceActor = GetAvatarActorFromActorInfo();
+	TrailPayload.WeaponData = GetActiveWeaponData(GetCurrentActorInfo());
+	TrailPayload.StartLocation = StartLocation;
+	TrailPayload.AddTrailEnd(EndLocation);
+	TrailPayload.bBlockingHit = bBlockingHit;
+
+	// Trail Cue가 Niagara 파라미터나 회전 계산에 사용할 발사 방향 산출
+	TrailPayload.Direction = (EndLocation - StartLocation).GetSafeNormal();
+	if (TrailPayload.Direction.IsNearlyZero())
+	{
+		TrailPayload.Direction = FVector::ForwardVector;
+	}
+
+	// 구체 Payload를 FInstancedStruct에 담아 GameplayStatics의 FX 헬퍼로 전달
+	const FInstancedStruct PayloadStruct = FInstancedStruct::Make(TrailPayload);
+	UPRGameplayStatics::PlayPredictiveNetworkFX(this, GetAvatarActorFromActorInfo(), TrailCueTag, PayloadStruct);
+}
+
 void UPRGA_Fire::ApplyDamage(AActor* TargetActor, const FHitResult* HitResult)
 {
 	if (!IsValid(TargetActor))
 	{
 		return;
 	}
+	
+	// 2026.05.30 이건주 수정_ ASC 미보유 대상 대미지 전달 브릿지
+	if (IPRDestructableInterface* DestructableTarget = Cast<IPRDestructableInterface>(TargetActor))
+	{
+		// 파괴 가능 대상 전용 컨텍스트
+		FPRDestructableDamageReceiveContext DestructableDamageContext;
+		DestructableDamageContext.Instigator = GetAvatarActorFromActorInfo();
+		
+		if (auto WeaponData = GetCurrentWeaponData())
+		{
+			DestructableDamageContext.DamageAmount = WeaponData->BaseDamage;
+		}
+		else
+		{
+			DestructableDamageContext.DamageAmount = 10.f;
+		}
+		
+		if (HitResult)
+		{
+			DestructableDamageContext.HitResult = *HitResult;
+		}
+		
+		DestructableTarget->ReceiveDamageContext(DestructableDamageContext);
+	}
+	
 
 	UAbilitySystemComponent* SourceASC = GetAbilitySystemComponentFromActorInfo();
 	if (!IsValid(SourceASC))
@@ -500,11 +597,22 @@ void UPRGA_Fire::ApplyDamage(AActor* TargetActor, const FHitResult* HitResult)
 		return;
 	}
 
+	
 	UAbilitySystemComponent* TargetASC = UAbilitySystemBlueprintLibrary::GetAbilitySystemComponent(TargetActor);
 	if (IsValid(TargetASC))
 	{
 		SourceASC->ApplyGameplayEffectSpecToTarget(*SpecHandle.Data.Get(), TargetASC);
+		return;
 	}
+
+	if (IPRDirectDamageReceiverInterface* DirectDamageReceiver = Cast<IPRDirectDamageReceiverInterface>(TargetActor))
+	{
+		const FHitResult EmptyHitResult;
+		DirectDamageReceiver->ApplyDirectDamageFromSpec(
+			*SpecHandle.Data.Get(),
+			HitResult != nullptr ? *HitResult : EmptyHitResult);
+	}
+	
 }
 
 void UPRGA_Fire::PlayWeaponMontage(UAnimMontage* Montage, float PlayRate)

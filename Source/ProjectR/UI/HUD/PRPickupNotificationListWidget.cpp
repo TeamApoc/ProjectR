@@ -100,7 +100,7 @@ FPRPickupNotificationViewData UPRPickupNotificationListWidget::MakeViewData(cons
 		return ViewData;
 	}
 
-	if (Payload.RewardType == EPRRewardType::Item && Payload.ItemAssetId.IsValid())
+	if ((Payload.RewardType == EPRRewardType::Item || Payload.RewardType == EPRRewardType::Ammo) && Payload.ItemAssetId.IsValid())
 	{
 		UPRItemDataAsset* ItemData = UPRAssetManager::Get().GetItemDataByPrimaryAssetId(Payload.ItemAssetId);
 		const FText ItemName = IsValid(ItemData)
@@ -142,7 +142,7 @@ bool UPRPickupNotificationListWidget::IsSameNotification(const FPRPickupNotifica
 		return true;
 	}
 
-	if (Payload.RewardType == EPRRewardType::Item)
+	if (Payload.RewardType == EPRRewardType::Item || Payload.RewardType == EPRRewardType::Ammo)
 	{
 		return EntryState.ItemAssetId == Payload.ItemAssetId;
 	}

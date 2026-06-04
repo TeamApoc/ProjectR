@@ -10,11 +10,13 @@
 #include "AbilitySystemBlueprintLibrary.h"
 #include "EnhancedInputComponent.h"
 #include "InputAction.h"
+#include "ProjectR/FX/PRFXNetworkComponent.h"
 #include "ProjectR/Game/PRCameraManager.h"
 #include "ProjectR/Input/PRInputConfigDataAsset.h"
 #include "ProjectR/Player/PRPlayerState.h"
 #include "ProjectR/Projectile/PRProjectileManagerComponent.h"
 #include "ProjectR/ItemSystem/Components/PRQuickSlotComponent.h"
+#include "ProjectR/Interaction/Actions/PRInteraction_Waypoint.h"
 #include "ProjectR/UI/Components/PRUIControllerComponent.h"
 #include "ProjectR/UI/FloatingText/PRFloatingTextManager.h"
 #include "ProjectR/Interaction/PRInteractionSensor.h"
@@ -26,7 +28,6 @@
 #include "ProjectR/ItemSystem/Components/PRWeaponUpgradeComponent.h"
 #include "ProjectR/ItemSystem/Items/PRItemInstance_Weapon.h"
 
-
 APRPlayerController::APRPlayerController()
 {
 	PlayerCameraManagerClass = APRCameraManager::StaticClass();
@@ -36,10 +37,12 @@ APRPlayerController::APRPlayerController()
 
 	ProjectileManager = CreateDefaultSubobject<UPRProjectileManagerComponent>(TEXT("ProjectileManager"));
 	FloatingTextManager = CreateDefaultSubobject<UPRFloatingTextManager>(TEXT("FloatingTextManager"));
-	// 2026.05.01 이건주 | UI 컨트롤러 컴포넌트 추가 
 	UIControllerComponent = CreateDefaultSubobject<UPRUIControllerComponent>(TEXT("UIControllerComponent"));
 	InteractionSensor = CreateDefaultSubobject<UPRInteractionSensor>(TEXT("InteractionSensor"));
 	InteractorComponent = CreateDefaultSubobject<UPRInteractorComponent>(TEXT("InteractorComponent"));
+	
+	// Player 소유 Client RPC와 owning client의 Server RPC 호출을 위한 FX 네트워크 컴포넌트
+	FXNetworkComponent = CreateDefaultSubobject<UPRFXNetworkComponent>(TEXT("FXNetworkComponent"));
 }
 
 // =====  APlayerController Interface =====
@@ -73,17 +76,25 @@ void APRPlayerController::BeginPlay()
 	}
 #endif
 
-	// TODO: 로컬 클라만 서버로 캐릭터 페이로드 제출
-	// 호스트의 경우 GameMode가 직접 LocalCharacter를 주입하므로 별도 경로로 처리
-	// if (IsLocalController() && GetNetMode() == NM_Client)
-	// {
-	// 	SubmitLocalCharacterToServer();
-	// }
+	// 캐릭터 세이브 제출은 ReceivedPlayer와 possession fallback 경로 처리
+}
+
+void APRPlayerController::ReceivedPlayer()
+{
+	Super::ReceivedPlayer();
+
+	if (IsLocalController() && GetNetMode() == NM_Client)
+	{
+		// possession 이전 캐릭터 세이브 페이로드 조기 제출
+		SubmitLocalCharacterToServer();
+	}
 }
 
 void APRPlayerController::AcknowledgePossession(APawn* InPawn)
 {
 	Super::AcknowledgePossession(InPawn);
+
+	ResetPlayer();
 
 	// 새 폰 possession 시점에 폰 의존 UI를 재초기화. 초기 possession과 리스폰 양쪽에서 동작
 	if (IsValid(UIControllerComponent))
@@ -98,6 +109,12 @@ void APRPlayerController::AcknowledgePossession(APawn* InPawn)
 		{
 			CM->FadeIn(EPRFadeColorPreset::Black, FadeInDuration, false);
 		}
+	}
+
+	if (IsLocalController() && GetNetMode() == NM_Client)
+	{
+		// 조기 제출 실패 또는 travel 타이밍 차이 대비 재시도
+		SubmitLocalCharacterToServer();
 	}
 }
 
@@ -134,6 +151,11 @@ void APRPlayerController::SetupInputComponent()
 	if (IsValid(TraitWindowAction.Get()))
 	{
 		EIC->BindAction(TraitWindowAction.Get(), ETriggerEvent::Started, this, &APRPlayerController::OnTraitWindowInputStarted);
+	}
+
+	if (IsValid(InGameMenuAction.Get()))
+	{
+		EIC->BindAction(InGameMenuAction.Get(), ETriggerEvent::Started, this, &APRPlayerController::OnInGameMenuInputStarted);
 	}
 
 	
@@ -174,37 +196,62 @@ void APRPlayerController::PostProcessInput(const float DeltaTime, const bool bGa
 	Super::PostProcessInput(DeltaTime, bGamePaused);
 }
 
-void APRPlayerController::ClientStartMapTransition_Implementation(float Delay, EPRMapTransitionType TransitionType)
+void APRPlayerController::ClientNotifyMapTransition_Implementation(float Delay, EPRMapTransitionType TransitionType)
 {
-	if (IsValid(UIControllerComponent))
-	{
-		// UI 정리
-		UIControllerComponent->RemoveAllWidget();
-	}
-
 	if (TransitionType == EPRMapTransitionType::None)
 	{
 		return;
 	}
 
-	APRCameraManager* CM = Cast<APRCameraManager>(PlayerCameraManager);
-	if (!IsValid(CM))
+	ResetPlayer();
+	
+	// Handle UI Display
+	if (IsValid(UIControllerComponent))
 	{
-		return;
+		switch (TransitionType)
+		{
+		case EPRMapTransitionType::MapTravel:
+		case EPRMapTransitionType::Respawn:
+		
+			// UI 정리
+			UIControllerComponent->RemoveAllWidget();
+			break;
+		case EPRMapTransitionType::CancelTravel:
+			// UI 정리
+			UIControllerComponent->RefreshForPawn(GetPawn());
+			break;
+		case EPRMapTransitionType::RespawnComplete:
+			// 리스폰 완료 UI 복구
+			UIControllerComponent->RefreshForPawn(GetPawn());
+			break;
+		default:
+			break;
+		}
 	}
-
-	switch (TransitionType)
+	
+	// Handle Fade In/Out
+	if (APRCameraManager* CM = Cast<APRCameraManager>(PlayerCameraManager))
 	{
-	case EPRMapTransitionType::MapTravel:
-		// 맵 이동 페이드
-		CM->FadeOut(EPRFadeColorPreset::White, Delay, false);
-		break;
-	case EPRMapTransitionType::Respawn:
-		// 리스폰 페이드
-		CM->FadeOut(EPRFadeColorPreset::Black, Delay, false);
-		break;
-	default:
-		break;
+		switch (TransitionType)
+		{
+		case EPRMapTransitionType::MapTravel:
+			// 맵 이동 페이드
+			CM->FadeOut(EPRFadeColorPreset::White, Delay, false);
+			break;
+		case EPRMapTransitionType::Respawn:
+			// 리스폰 페이드
+			CM->FadeOut(EPRFadeColorPreset::Black, Delay, false);
+			break;
+		case EPRMapTransitionType::RespawnComplete:
+			// 리스폰 완료 페이드
+			CM->FadeIn(EPRFadeColorPreset::Black, Delay, false);
+			break;
+		case EPRMapTransitionType::CancelTravel:
+			CM->FadeIn(EPRFadeColorPreset::White, Delay, false);
+			break;
+		default:
+			break;
+		}
 	}
 }
 
@@ -263,6 +310,15 @@ UPRAbilitySystemComponent* APRPlayerController::GetPRASC() const
 	{
 		return CachedASC.Get();
 	}
+
+	if (APRPlayerState* PRPlayerState = GetPlayerState<APRPlayerState>())
+	{
+		if (UPRAbilitySystemComponent* ASC = PRPlayerState->GetPRAbilitySystemComponent())
+		{
+			CachedASC = ASC;
+			return ASC;
+		}
+	}
 	
 	if (APawn* LocalPawn = GetPawn())
 	{
@@ -273,6 +329,40 @@ UPRAbilitySystemComponent* APRPlayerController::GetPRASC() const
 		}
 	}
 	return nullptr;
+}
+
+void APRPlayerController::ResetPlayer()
+{
+	CachedASC.Reset();
+	if (APRPlayerState* PRPlayerState = GetPlayerState<APRPlayerState>())
+	{
+		// PlayerState 소유 ASC 캐시 갱신
+		CachedASC = PRPlayerState->GetPRAbilitySystemComponent();
+	}
+
+	ResetLocalInteractionVisualState();
+}
+
+void APRPlayerController::ResetLocalInteractionVisualState()
+{
+	if (!IsLocalController())
+	{
+		return;
+	}
+
+	if (IsValid(InteractorComponent))
+	{
+		// 전환 전 로컬 포커스 정리
+		InteractorComponent->ClearFocus();
+	}
+
+	APRPlayerCharacter* LocalCharacter = Cast<APRPlayerCharacter>(GetPawn());
+	UPRInteractableComponent* Interactable = IsValid(LocalCharacter) ? LocalCharacter->GetInteractableComponent() : nullptr;
+	if (IsValid(Interactable) && Interactable->IsDepthStencilApplied())
+	{
+		// 본인 캐릭터 외곽선 잔상 제거
+		Interactable->ResetDepthStencilValues();
+	}
 }
 
 void APRPlayerController::UpdateCompanionHighlight()
@@ -305,11 +395,19 @@ void APRPlayerController::UpdateCompanionHighlight()
 	{
 		if (OtherCharacter == MyPawn)
 		{
+			UPRInteractableComponent* OwnInteractable = OtherCharacter->GetInteractableComponent();
+			if (IsValid(OwnInteractable) && OwnInteractable->IsDepthStencilApplied())
+			{
+				// 본인 캐릭터 외곽선 방어 정리
+				OwnInteractable->ResetDepthStencilValues();
+			}
 			continue;
 		}
 		
 		UPRInteractableComponent* Interactable = OtherCharacter->GetInteractableComponent();
-		if (InteractorComponent->GetFocusedComponent() == Interactable)
+		const bool bFocusedByInteractor = IsValid(InteractorComponent)
+			&& InteractorComponent->GetFocusedComponent() == Interactable;
+		if (bFocusedByInteractor)
 		{
 			continue;
 		}
@@ -351,6 +449,11 @@ void APRPlayerController::SubmitLocalCharacterToServer()
 
 	UPRGameInstance* GI = GetGameInstance<UPRGameInstance>();
 	if (!IsValid(GI))
+	{
+		return;
+	}
+
+	if (!GI->EnsureLocalCharacterReadyForSession())
 	{
 		return;
 	}
@@ -458,6 +561,17 @@ void APRPlayerController::ClientOpenShopUI_Implementation(UPRShopComponent* Shop
 	UIControllerComponent->OpenShop(ShopComponent);
 }
 
+void APRPlayerController::ClientOpenWaypointTravelUI_Implementation()
+{
+	if (!IsValid(UIControllerComponent))
+	{
+		return;
+	}
+
+	// 호스트 로컬 UI 표시
+	UIControllerComponent->OpenWaypointTravel();
+}
+
 void APRPlayerController::ClientNotifyShopBuyResult_Implementation(const FPRShopBuyResult& Result)
 {
 	OnShopBuyResult.Broadcast(Result);
@@ -493,6 +607,17 @@ void APRPlayerController::ClientNotifyPickupReward_Implementation(const FPRPicku
 	UIControllerComponent->ShowPickupRewardNotification(Payload);
 }
 
+void APRPlayerController::ClientNotifyHUDMessage_Implementation(EPRHUDMessageType MessageType)
+{
+	if (!IsValid(UIControllerComponent))
+	{
+		return;
+	}
+
+	// 네트워크 수신 후 로컬 UI 계층에 HUD 메시지 처리 위임
+	UIControllerComponent->NotifyHUDMessage(MessageType);
+}
+
 void APRPlayerController::RequestUpgradeWeapon(UPRWeaponUpgradeComponent* UpgradeComponent, UPRItemInstance_Weapon* WeaponItem)
 {
 	if (!IsValid(UpgradeComponent) || !IsValid(WeaponItem))
@@ -521,6 +646,48 @@ void APRPlayerController::RequestSellShopItem(UPRShopComponent* ShopComponent, F
 	}
 
 	ServerRequestSellShopItem(ShopComponent, EntryId, Quantity);
+}
+
+void APRPlayerController::RequestWaypointTravel(FSoftObjectPath WorldDataAssetPath, FGameplayTag WaypointId)
+{
+	if (!WorldDataAssetPath.IsValid() || !WaypointId.IsValid())
+	{
+		return;
+	}
+
+	// 서버 목적지 검증 요청
+	ServerRequestWaypointTravel(WorldDataAssetPath, WaypointId);
+}
+
+void APRPlayerController::RequestCancelWaypointTravel()
+{
+	// 서버 취소 이벤트 요청
+	ServerRequestCancelWaypointTravel();
+}
+
+void APRPlayerController::SetPendingWaypointTravelInteraction(UPRInteraction_Waypoint* WaypointInteraction)
+{
+	if (!HasAuthority() || !IsValid(WaypointInteraction))
+	{
+		return;
+	}
+
+	// UI 입력 대기 중 ActiveAction 해제 대비 서버 참조 보관
+	PendingWaypointTravelInteraction = WaypointInteraction;
+}
+
+void APRPlayerController::ClearPendingWaypointTravelInteraction(const UPRInteraction_Waypoint* WaypointInteraction)
+{
+	if (!HasAuthority())
+	{
+		return;
+	}
+
+	if (!PendingWaypointTravelInteraction.IsValid() || PendingWaypointTravelInteraction.Get() == WaypointInteraction)
+	{
+		// 완료 또는 취소된 UI 대기 참조 정리
+		PendingWaypointTravelInteraction.Reset();
+	}
 }
 
 void APRPlayerController::RequestConfirmTraitInvestment(const FPRTraitInvestmentInfo& DesiredInvestment)
@@ -584,6 +751,44 @@ void APRPlayerController::ServerRequestSellShopItem_Implementation(UPRShopCompon
 	ShopComponent->RequestSellItem(this, EntryId, Quantity);
 }
 
+void APRPlayerController::ServerRequestWaypointTravel_Implementation(FSoftObjectPath WorldDataAssetPath, FGameplayTag WaypointId)
+{
+	if (!IsHostControllerForWaypointTravel())
+	{
+		UE_LOG(LogTemp, Warning, TEXT("WaypointTravel rejected: requester is not host"));
+		return;
+	}
+
+	UPRInteraction_Waypoint* WaypointInteraction = ResolveWaypointTravelInteraction();
+	if (!IsValid(WaypointInteraction))
+	{
+		UE_LOG(LogTemp, Warning, TEXT("WaypointTravel rejected: waypoint interaction not found"));
+		return;
+	}
+
+	// 웨이포인트 상호작용에 이동 위임
+	WaypointInteraction->RequestWaypointTravel(this, WorldDataAssetPath, WaypointId);
+}
+
+void APRPlayerController::ServerRequestCancelWaypointTravel_Implementation()
+{
+	if (!IsHostControllerForWaypointTravel())
+	{
+		UE_LOG(LogTemp, Warning, TEXT("WaypointTravel cancel rejected: requester is not host"));
+		return;
+	}
+
+	UPRInteraction_Waypoint* WaypointInteraction = ResolveWaypointTravelInteraction();
+	if (!IsValid(WaypointInteraction))
+	{
+		UE_LOG(LogTemp, Warning, TEXT("WaypointTravel cancel rejected: waypoint interaction not found"));
+		return;
+	}
+
+	// 웨이포인트 상호작용에 취소 위임
+	WaypointInteraction->CancelWaypointTravel(this);
+}
+
 void APRPlayerController::ServerRequestConfirmTraitInvestment_Implementation(const FPRTraitInvestmentInfo& DesiredInvestment)
 {
 	APRPlayerState* PRPlayerState = GetPlayerState<APRPlayerState>();
@@ -637,6 +842,16 @@ void APRPlayerController::OnTraitWindowInputStarted()
 	UIControllerComponent->ToggleTraitWindow();
 }
 
+void APRPlayerController::OnInGameMenuInputStarted()
+{
+	if (!IsValid(UIControllerComponent))
+	{
+		return;
+	}
+
+	UIControllerComponent->ToggleInGameMenu();
+}
+
 void APRPlayerController::OnQuickSlotInputStarted(int32 SlotIndex)
 {
 	if (UPRQuickSlotComponent* QuickSlotComponent = GetQuickSlotComponent())
@@ -654,4 +869,34 @@ UPRQuickSlotComponent* APRPlayerController::GetQuickSlotComponent() const
 	}
 
 	return PRPlayerState->GetQuickSlotComponent();
+}
+
+UPRInteraction_Waypoint* APRPlayerController::ResolveWaypointTravelInteraction() const
+{
+	const UPRInteractorComponent* ActiveInteractorComponent = IsValid(InteractorComponent)
+		? InteractorComponent.Get()
+		: FindComponentByClass<UPRInteractorComponent>();
+	if (IsValid(ActiveInteractorComponent))
+	{
+		if (UPRInteraction_Waypoint* ActiveWaypointInteraction = Cast<UPRInteraction_Waypoint>(ActiveInteractorComponent->GetActiveAction()))
+		{
+			// 입력 유지 중인 활성 상호작용 우선 사용
+			return ActiveWaypointInteraction;
+		}
+	}
+
+	UPRInteraction_Waypoint* PendingWaypointInteraction = PendingWaypointTravelInteraction.Get();
+	if (IsValid(PendingWaypointInteraction) && PendingWaypointInteraction->IsWaitingForWaypointTravelSelection())
+	{
+		// UI 표시 이후 입력 해제에 따른 ActiveAction 소실 대비
+		return PendingWaypointInteraction;
+	}
+
+	return nullptr;
+}
+
+bool APRPlayerController::IsHostControllerForWaypointTravel() const
+{
+	// 리슨 서버 호스트 또는 스탠드얼론 호스트 판정
+	return HasAuthority() && IsLocalController();
 }

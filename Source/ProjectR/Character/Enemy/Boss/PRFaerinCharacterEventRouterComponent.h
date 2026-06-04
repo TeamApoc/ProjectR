@@ -52,6 +52,10 @@ protected:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Faerin|Debug")
 	bool bWarnIfWeaponVisualMissing = true;
 
+	// Faerin CharacterEvent 라우팅 여부를 로그로 확인할지 여부다.
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Faerin|Debug")
+	bool bLogRoutedEvents = false;
+
 private:
 	FFaerinCharacterEventSignature OnFaerinCharacterEvent;
 };

@@ -4,6 +4,7 @@
 
 #include "Engine/World.h"
 #include "MotionWarpingComponent.h"
+#include "NiagaraComponent.h"
 #include "NiagaraFunctionLibrary.h"
 #include "NiagaraSystem.h"
 #include "ProjectR/AI/Components/PRFaerinCombatDirectorComponent.h"
@@ -12,6 +13,7 @@
 #include "ProjectR/AI/Components/PRFaerinTeleportVFXComponent.h"
 #include "ProjectR/PRGameplayTags.h"
 #include "ProjectR/System/PREventManagerSubsystem.h"
+#include "TimerManager.h"
 
 APRFaerinCharacter::APRFaerinCharacter()
 {
@@ -49,6 +51,16 @@ void APRFaerinCharacter::Multicast_SpawnNearTeleportBodyNiagara_Implementation(
 	SpawnNearTeleportBodyNiagaraLocal(NiagaraSystem, AttachSocketName);
 }
 
+void APRFaerinCharacter::Multicast_SpawnFaerinWorldNiagara_Implementation(
+	FSoftObjectPath NiagaraSystemPath,
+	FVector_NetQuantize Location,
+	FRotator Rotation,
+	FVector Scale,
+	float LifeSeconds)
+{
+	SpawnFaerinWorldNiagaraLocal(NiagaraSystemPath, Location, Rotation, Scale, LifeSeconds);
+}
+
 void APRFaerinCharacter::Multicast_PlayNearTeleportReappearPresentation_Implementation(
 	FVector ReappearLocation,
 	FRotator ReappearRotation,
@@ -66,8 +78,6 @@ void APRFaerinCharacter::Multicast_SetNearTeleportHidden_Implementation(bool bSh
 {
 	SetActorHiddenInGame(bShouldHide);
 }
-
-/*~ 보스 조우 이벤트 브로드캐스트 ~*/
 
 void APRFaerinCharacter::SpawnNearTeleportBodyNiagaraLocal(
 	UNiagaraSystem* NiagaraSystem,
@@ -89,6 +99,65 @@ void APRFaerinCharacter::SpawnNearTeleportBodyNiagaraLocal(
 		SpawnTransform.GetScale3D(),
 		true);
 }
+
+void APRFaerinCharacter::SpawnFaerinWorldNiagaraLocal(const FSoftObjectPath& NiagaraSystemPath,
+	const FVector& Location,
+	const FRotator& Rotation,
+	const FVector& Scale,
+	const float LifeSeconds) const
+{
+	if (!NiagaraSystemPath.IsValid())
+	{
+		return;
+	}
+
+	UWorld* World = GetWorld();
+	if (!IsValid(World))
+	{
+		return;
+	}
+
+	UNiagaraSystem* NiagaraSystem = Cast<UNiagaraSystem>(NiagaraSystemPath.ResolveObject());
+	if (!IsValid(NiagaraSystem))
+	{
+		NiagaraSystem = Cast<UNiagaraSystem>(NiagaraSystemPath.TryLoad());
+	}
+
+	if (!IsValid(NiagaraSystem))
+	{
+		return;
+	}
+
+	UNiagaraComponent* NiagaraComponent = UNiagaraFunctionLibrary::SpawnSystemAtLocation(
+		World,
+		NiagaraSystem,
+		Location,
+		Rotation,
+		Scale,
+		true,
+		true);
+	if (!IsValid(NiagaraComponent) || LifeSeconds <= UE_SMALL_NUMBER)
+	{
+		return;
+	}
+
+	TWeakObjectPtr<UNiagaraComponent> WeakNiagaraComponent = NiagaraComponent;
+	FTimerHandle CleanupTimerHandle;
+	World->GetTimerManager().SetTimer(
+		CleanupTimerHandle,
+		FTimerDelegate::CreateWeakLambda(this, [WeakNiagaraComponent]()
+		{
+			if (UNiagaraComponent* ActiveNiagaraComponent = WeakNiagaraComponent.Get())
+			{
+				ActiveNiagaraComponent->Deactivate();
+				ActiveNiagaraComponent->DestroyComponent();
+			}
+		}),
+		LifeSeconds,
+		false);
+}
+
+/*~ 보스 조우 이벤트 브로드캐스트 ~*/
 
 void APRFaerinCharacter::BroadcastBossEncounterBegin()
 {

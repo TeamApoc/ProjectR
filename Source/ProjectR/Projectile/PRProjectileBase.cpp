@@ -11,6 +11,7 @@
 #include "DrawDebugHelpers.h"
 #include "GameFramework/Controller.h"
 #include "GameFramework/Pawn.h"
+#include "GameFramework/PlayerController.h"
 #include "PRProjectileMovementComponent.h"
 #include "PRProjectileManagerComponent.h"
 #include "Net/UnrealNetwork.h"
@@ -186,6 +187,7 @@ void APRProjectileBase::PushRepMovement(EPRRepMovementEvent Event)
 	}
 
 	MARK_PROPERTY_DIRTY_FROM_NAME(APRProjectileBase, RepMovement, this);
+	ForceNetUpdate();
 
 	if (Event == EPRRepMovementEvent::Spawn)
 	{
@@ -281,20 +283,18 @@ void APRProjectileBase::ClearProjectileHomingScheduleTimers()
 
 bool APRProjectileBase::IsRemoteAuthProjectilePresentation() const
 {
-	return !HasAuthority()
-		&& ProjectileRole == EPRProjectileRole::Auth
-		&& (GetNetOwner() == nullptr
-			|| RepMovement.HomingSchedule.IsEnabled()
-			|| PendingClientHomingPresentationSchedule.IsEnabled()
-			|| bHasPendingClientHomingPresentation
-			|| bClientProjectilePresentationActive);
+	if (HasAuthority() || ProjectileRole != EPRProjectileRole::Auth)
+	{
+		return false;
+	}
+
+	const APlayerController* NetOwnerPlayerController = Cast<APlayerController>(GetNetOwner());
+	return !IsValid(NetOwnerPlayerController) || !NetOwnerPlayerController->IsLocalController();
 }
 
 void APRProjectileBase::StartClientProjectileHomingPresentation(const FPRProjectileRepHomingSchedule& HomingSchedule)
 {
-	bIsRemoteProjectile = !HasAuthority()
-		&& ProjectileRole == EPRProjectileRole::Auth
-		&& (GetNetOwner() == nullptr || HomingSchedule.IsEnabled());
+	bIsRemoteProjectile = IsRemoteAuthProjectilePresentation();
 	if (!bIsRemoteProjectile || !HomingSchedule.IsEnabled())
 	{
 		return;

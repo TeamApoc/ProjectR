@@ -14,6 +14,7 @@ class UAbilityTask_PlayMontageAndWait;
 class UAnimMontage;
 class UEnvQuery;
 class UPRFaerinCharacterEventRouterComponent;
+class UNiagaraSystem;
 
 // Faerin Shift 패턴에서 타겟 이동 위치를 산출하는 방식이다.
 UENUM(BlueprintType)
@@ -68,6 +69,12 @@ protected:
 
 	// 현재 타겟이 Shift 판정을 회피할 수 있는 상태인지 확인한다.
 	bool ShouldTargetAvoidShift(AActor* TargetActor) const;
+
+	// Shift 시전 대상 발밑에 경고 Niagara를 재생한다.
+	void SpawnShiftWarningVFX() const;
+
+	// Shift 경고 Niagara를 재생할 바닥 위치를 계산한다.
+	bool ResolveShiftWarningLocation(AActor* TargetActor, FVector& OutLocation) const;
 
 	// 현재 설정에 맞춰 타겟 이동 목적지를 계산한다.
 	bool ResolveShiftDestination(FVector& OutDestination) const;
@@ -255,6 +262,38 @@ protected:
 	// Shift 적중 시 플레이어 강인도 피해로 HitReact를 유도한다. 체력 피해는 주지 않는다.
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Faerin|Shift|Impact", meta = (ClampMin = "0.0"))
 	float ShiftImpactPoiseDamage = 0.0f;
+
+	// Shift 시전 시 대상 발밑에 표시할 경고 Niagara다.
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Faerin|Shift|Warning")
+	TObjectPtr<UNiagaraSystem> ShiftWarningNiagaraSystem;
+
+	// Shift 경고 Niagara 위치에 더할 월드 오프셋이다.
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Faerin|Shift|Warning")
+	FVector ShiftWarningLocationOffset = FVector(0.0f, 0.0f, 8.0f);
+
+	// Shift 경고 Niagara 회전 보정값이다.
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Faerin|Shift|Warning")
+	FRotator ShiftWarningNiagaraRotationOffset = FRotator::ZeroRotator;
+
+	// Shift 경고 Niagara 스케일이다.
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Faerin|Shift|Warning")
+	FVector ShiftWarningNiagaraScale = FVector::OneVector;
+
+	// 0보다 크면 Shift 경고 Niagara를 해당 시간 뒤 강제 정리한다.
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Faerin|Shift|Warning", meta = (ClampMin = "0.0"))
+	float ShiftWarningNiagaraLifeSeconds = 1.2f;
+
+	// Shift 경고 위치를 바닥으로 보정할 때 위로 올릴 trace 시작 높이다.
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Faerin|Shift|Warning", meta = (ClampMin = "0.0"))
+	float ShiftWarningGroundTraceUpOffset = 500.0f;
+
+	// Shift 경고 위치를 바닥으로 보정할 때 아래로 내릴 trace 길이다.
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Faerin|Shift|Warning", meta = (ClampMin = "0.0"))
+	float ShiftWarningGroundTraceDownOffset = 1500.0f;
+
+	// Shift 경고 위치의 바닥 trace channel이다.
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Faerin|Shift|Warning")
+	TEnumAsByte<ECollisionChannel> ShiftWarningGroundTraceChannel = ECC_Visibility;
 
 	// 이 Shift Ability 동안 보스에게 무적 태그를 부여할지 여부다.
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Faerin|Shift|Invulnerability")

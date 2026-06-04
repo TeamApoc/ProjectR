@@ -318,15 +318,23 @@ bool UPRGameplayAbility_FaerinNearTeleportApproach::ResolveReappearTransform(
 	}
 	else if (!ResolveEQSReappearLocation(OutLocation))
 	{
-		if (!ResolveHomeReappearLocation(OutLocation))
+		if (ResolveNavmeshFallbackReappearLocation(OutLocation))
+		{
+			UE_LOG(LogPRFaerinNearTeleport, Verbose, TEXT("[NearTeleport] EQS 실패 후 NavMesh 후보를 재등장 위치로 사용한다. Boss=%s Location=%s"),
+				*GetNameSafe(AvatarActor),
+				*OutLocation.ToCompactString());
+		}
+		else if (!ResolveHomeReappearLocation(OutLocation))
 		{
 			return false;
 		}
-
-		bUsedHomeFallback = true;
-		UE_LOG(LogPRFaerinNearTeleport, Warning, TEXT("[NearTeleport] EQS 실패로 HomeLocation을 재등장 위치로 사용한다. Boss=%s Home=%s"),
-			*GetNameSafe(AvatarActor),
-			*OutLocation.ToCompactString());
+		else
+		{
+			bUsedHomeFallback = true;
+			UE_LOG(LogPRFaerinNearTeleport, Warning, TEXT("[NearTeleport] EQS/NavMesh fallback 실패로 HomeLocation을 재등장 위치로 사용한다. Boss=%s Home=%s"),
+				*GetNameSafe(AvatarActor),
+				*OutLocation.ToCompactString());
+		}
 	}
 
 	if (!bUseTargetBackPlacement)
@@ -461,6 +469,56 @@ bool UPRGameplayAbility_FaerinNearTeleportApproach::ResolveEQSReappearLocation(F
 	}
 
 	return true;
+}
+
+bool UPRGameplayAbility_FaerinNearTeleportApproach::ResolveNavmeshFallbackReappearLocation(FVector& OutLocation) const
+{
+	if (NavmeshFallbackAttempts <= 0 || MaxDistanceFromSelf <= 0.0f)
+	{
+		return false;
+	}
+
+	UWorld* World = GetWorld();
+	UNavigationSystemV1* NavigationSystem = World != nullptr
+		? FNavigationSystem::GetCurrent<UNavigationSystemV1>(World)
+		: nullptr;
+	if (!IsValid(NavigationSystem))
+	{
+		return false;
+	}
+
+	const float MinDistance = FMath::Clamp(NavmeshFallbackMinDistanceFromSelf, 0.0f, MaxDistanceFromSelf);
+	for (int32 AttemptIndex = 0; AttemptIndex < NavmeshFallbackAttempts; ++AttemptIndex)
+	{
+		FNavLocation CandidateLocation;
+		if (!NavigationSystem->GetRandomPointInNavigableRadius(
+				DisappearLocation,
+				MaxDistanceFromSelf,
+				CandidateLocation))
+		{
+			continue;
+		}
+
+		FNavLocation ProjectedLocation;
+		if (!NavigationSystem->ProjectPointToNavigation(
+				CandidateLocation.Location,
+				ProjectedLocation,
+				ReappearNavProjectExtent))
+		{
+			continue;
+		}
+
+		const float CandidateDistance = FVector::Dist2D(DisappearLocation, ProjectedLocation.Location);
+		if (CandidateDistance > MaxDistanceFromSelf || CandidateDistance < MinDistance)
+		{
+			continue;
+		}
+
+		OutLocation = ProjectedLocation.Location;
+		return !OutLocation.ContainsNaN();
+	}
+
+	return false;
 }
 
 bool UPRGameplayAbility_FaerinNearTeleportApproach::ResolveHomeReappearLocation(FVector& OutLocation) const

@@ -67,6 +67,9 @@ protected:
 	// 근거리 텔레포트 위치 선정 EQS를 실행한다.
 	bool ResolveEQSReappearLocation(FVector& OutLocation) const;
 
+	// EQS 실패 시 현재 보스 주변 NavMesh에서 재등장 후보 위치를 찾는다.
+	bool ResolveNavmeshFallbackReappearLocation(FVector& OutLocation) const;
+
 	// EQS 위치 선정 실패 시 보스의 HomeLocation을 재등장 위치로 사용한다.
 	bool ResolveHomeReappearLocation(FVector& OutLocation) const;
 
@@ -145,6 +148,14 @@ protected:
 	// 재등장 위치를 NavMesh 위로 보정할 때 사용하는 검색 범위다.
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Faerin|NearTeleport|EQS", meta = (ClampMin = "0.0"))
 	FVector ReappearNavProjectExtent = FVector(240.0f, 240.0f, 360.0f);
+
+	// EQS 실패 시 현재 보스 주변 NavMesh 후보를 탐색하는 횟수다. 0이면 HomeLocation fallback만 사용한다.
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Faerin|NearTeleport|NavmeshFallback", meta = (ClampMin = "0"))
+	int32 NavmeshFallbackAttempts = 12;
+
+	// NavMesh fallback 후보가 현재 위치에서 최소한 떨어져야 하는 2D 거리다.
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Faerin|NearTeleport|NavmeshFallback", meta = (ClampMin = "0.0"))
+	float NavmeshFallbackMinDistanceFromSelf = 120.0f;
 
 private:
 	UPROPERTY(Transient)

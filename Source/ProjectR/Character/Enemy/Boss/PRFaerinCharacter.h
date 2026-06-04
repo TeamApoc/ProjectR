@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "ProjectR/Character/Enemy/PRBossBaseCharacter.h"
+#include "UObject/SoftObjectPath.h"
 #include "PRFaerinCharacter.generated.h"
 
 class UPRFaerinDebugDrawComponent;
@@ -34,6 +35,14 @@ public:
 	// 근거리 텔레포트 순간 보스 몸 위치의 Niagara를 모든 클라이언트에 재생한다.
 	UFUNCTION(NetMulticast, Reliable)
 	void Multicast_SpawnNearTeleportBodyNiagara(UNiagaraSystem* NiagaraSystem, FName AttachSocketName);
+
+	// 서버가 확정한 월드 위치에 Faerin 패턴용 Niagara를 모든 클라이언트에서 재생한다.
+	UFUNCTION(NetMulticast, Reliable)
+	void Multicast_SpawnFaerinWorldNiagara(FSoftObjectPath NiagaraSystemPath,
+		FVector_NetQuantize Location,
+		FRotator Rotation,
+		FVector Scale,
+		float LifeSeconds);
 
 	// 근거리 텔레포트 재등장 위치와 VFX를 모든 클라이언트에 같은 순서로 적용한다.
 	UFUNCTION(NetMulticast, Reliable)
@@ -77,6 +86,13 @@ protected:
 private:
 	// 현재 보스 Mesh 위치를 기준으로 근거리 텔레포트 Niagara를 재생한다.
 	void SpawnNearTeleportBodyNiagaraLocal(UNiagaraSystem* NiagaraSystem, FName AttachSocketName) const;
+
+	// 서버가 전달한 soft path를 클라이언트에서 로드해 월드 Niagara를 재생한다.
+	void SpawnFaerinWorldNiagaraLocal(const FSoftObjectPath& NiagaraSystemPath,
+		const FVector& Location,
+		const FRotator& Rotation,
+		const FVector& Scale,
+		float LifeSeconds) const;
 
 	// EventManager로 보스 조우 시작 알림 브로드캐스트
 	void BroadcastBossEncounterBegin();

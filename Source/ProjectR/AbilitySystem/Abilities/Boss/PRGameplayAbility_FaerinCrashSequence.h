@@ -6,6 +6,8 @@
 #include "ProjectR/AbilitySystem/Abilities/Boss/PRGameplayAbility_FaerinStagedMontagePattern.h"
 #include "PRGameplayAbility_FaerinCrashSequence.generated.h"
 
+class UNiagaraSystem;
+
 // Faerin Crash 계열의 피해 적용 방식을 구분한다.
 UENUM(BlueprintType)
 enum class EPRFaerinCrashDamageMode : uint8
@@ -45,6 +47,12 @@ protected:
 	// Crash AoE 중심점을 계산한다.
 	FVector ResolveCrashAreaCenter() const;
 
+	// Crash 판정 시 보스 바닥에 충돌 Niagara를 재생한다.
+	void SpawnCrashImpactVFX() const;
+
+	// Crash 충돌 Niagara를 재생할 보스 바닥 위치를 계산한다.
+	bool ResolveCrashImpactLocation(FVector& OutLocation) const;
+
 	// Crash AoE 반경 안의 유효 대상에게 피해를 적용한다.
 	void ApplyCrashAreaDamage();
 
@@ -79,6 +87,38 @@ protected:
 	// Crash AoE 대상 탐색에 사용할 채널이다.
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Faerin|Crash")
 	TEnumAsByte<ECollisionChannel> CrashOverlapChannel = ECC_Pawn;
+
+	// Crash/CrashDrop 판정 순간 보스 바닥에 재생할 Niagara다.
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Faerin|Crash|ImpactVFX")
+	TObjectPtr<UNiagaraSystem> CrashImpactNiagaraSystem;
+
+	// Crash 충돌 Niagara 위치에 더할 월드 오프셋이다.
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Faerin|Crash|ImpactVFX")
+	FVector CrashImpactLocationOffset = FVector(0.0f, 0.0f, 8.0f);
+
+	// Crash 충돌 Niagara 회전 보정값이다.
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Faerin|Crash|ImpactVFX")
+	FRotator CrashImpactNiagaraRotationOffset = FRotator::ZeroRotator;
+
+	// Crash 충돌 Niagara 스케일이다.
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Faerin|Crash|ImpactVFX")
+	FVector CrashImpactNiagaraScale = FVector::OneVector;
+
+	// 0보다 크면 Crash 충돌 Niagara를 해당 시간 뒤 강제 정리한다.
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Faerin|Crash|ImpactVFX", meta = (ClampMin = "0.0"))
+	float CrashImpactNiagaraLifeSeconds = 2.0f;
+
+	// Crash 충돌 위치를 바닥으로 보정할 때 위로 올릴 trace 시작 높이다.
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Faerin|Crash|ImpactVFX", meta = (ClampMin = "0.0"))
+	float CrashImpactGroundTraceUpOffset = 500.0f;
+
+	// Crash 충돌 위치를 바닥으로 보정할 때 아래로 내릴 trace 길이다.
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Faerin|Crash|ImpactVFX", meta = (ClampMin = "0.0"))
+	float CrashImpactGroundTraceDownOffset = 1500.0f;
+
+	// Crash 충돌 위치의 바닥 trace channel이다.
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Faerin|Crash|ImpactVFX")
+	TEnumAsByte<ECollisionChannel> CrashImpactGroundTraceChannel = ECC_Visibility;
 
 	// 하나의 Ability 실행에서 DoCrashAoE가 여러 번 들어와도 한 번만 피해를 적용할지 여부다.
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Faerin|Crash")

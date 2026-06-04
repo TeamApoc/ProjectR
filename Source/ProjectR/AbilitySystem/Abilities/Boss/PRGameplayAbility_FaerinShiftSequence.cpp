@@ -11,12 +11,15 @@
 #include "EnvironmentQuery/EnvQuery.h"
 #include "GameFramework/Character.h"
 #include "GameFramework/CharacterMovementComponent.h"
+#include "NiagaraSystem.h"
 #include "ProjectR/AI/PREnemyEQSSelectionUtils.h"
 #include "ProjectR/Character/PRPlayerCharacter.h"
 #include "ProjectR/Character/Enemy/PRBossBaseCharacter.h"
+#include "ProjectR/Character/Enemy/Boss/PRFaerinCharacter.h"
 #include "ProjectR/Character/Enemy/Boss/PRFaerinCharacterEventRouterComponent.h"
 #include "ProjectR/PRGameplayTags.h"
 #include "TimerManager.h"
+#include "UObject/SoftObjectPath.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogPRFaerinShiftSequence, Log, All);
 
@@ -58,6 +61,7 @@ void UPRGameplayAbility_FaerinShiftSequence::ActivateAbility(
 	LastSmoothShiftUpdateTime = 0.0f;
 
 	ApplyOwnerInvulnerabilityIfNeeded();
+	SpawnShiftWarningVFX();
 
 	if (!RegisterCharacterEventListener() && bRequireCharacterEventForShift)
 	{
@@ -234,6 +238,74 @@ bool UPRGameplayAbility_FaerinShiftSequence::ShouldTargetAvoidShift(AActor* Targ
 
 	const UAbilitySystemComponent* TargetAbilitySystem = UAbilitySystemBlueprintLibrary::GetAbilitySystemComponent(TargetActor);
 	return IsValid(TargetAbilitySystem) && TargetAbilitySystem->HasMatchingGameplayTag(PRGameplayTags::State_Dodging);
+}
+
+void UPRGameplayAbility_FaerinShiftSequence::SpawnShiftWarningVFX() const
+{
+	if (!IsValid(ShiftWarningNiagaraSystem))
+	{
+		return;
+	}
+
+	APRFaerinCharacter* FaerinCharacter = Cast<APRFaerinCharacter>(GetAvatarActorFromActorInfo());
+	AActor* TargetActor = GetBossPatternTarget();
+	if (!IsValid(FaerinCharacter) || !FaerinCharacter->HasAuthority() || !IsValid(TargetActor))
+	{
+		return;
+	}
+
+	FVector WarningLocation = FVector::ZeroVector;
+	if (!ResolveShiftWarningLocation(TargetActor, WarningLocation))
+	{
+		return;
+	}
+
+	const FSoftObjectPath WarningSystemPath(ShiftWarningNiagaraSystem.Get());
+	FaerinCharacter->Multicast_SpawnFaerinWorldNiagara(
+		WarningSystemPath,
+		WarningLocation,
+		ShiftWarningNiagaraRotationOffset,
+		ShiftWarningNiagaraScale,
+		ShiftWarningNiagaraLifeSeconds);
+}
+
+bool UPRGameplayAbility_FaerinShiftSequence::ResolveShiftWarningLocation(AActor* TargetActor, FVector& OutLocation) const
+{
+	if (!IsValid(TargetActor))
+	{
+		return false;
+	}
+
+	const AActor* AvatarActor = GetAvatarActorFromActorInfo();
+	UWorld* World = GetWorld();
+	const FVector TargetLocation = TargetActor->GetActorLocation();
+	if (!IsValid(World) || !IsValid(AvatarActor))
+	{
+		OutLocation = TargetLocation + ShiftWarningLocationOffset;
+		return true;
+	}
+
+	FCollisionQueryParams QueryParams(SCENE_QUERY_STAT(FaerinShiftWarningGroundTrace), false, AvatarActor);
+	QueryParams.AddIgnoredActor(AvatarActor);
+	QueryParams.AddIgnoredActor(TargetActor);
+
+	const FVector TraceStart = TargetLocation + FVector(0.0f, 0.0f, ShiftWarningGroundTraceUpOffset);
+	const FVector TraceEnd = TargetLocation - FVector(0.0f, 0.0f, ShiftWarningGroundTraceDownOffset);
+
+	FHitResult HitResult;
+	if (World->LineTraceSingleByChannel(
+		HitResult,
+		TraceStart,
+		TraceEnd,
+		ShiftWarningGroundTraceChannel,
+		QueryParams))
+	{
+		OutLocation = HitResult.ImpactPoint + ShiftWarningLocationOffset;
+		return true;
+	}
+
+	OutLocation = TargetLocation + ShiftWarningLocationOffset;
+	return true;
 }
 
 bool UPRGameplayAbility_FaerinShiftSequence::ResolveShiftDestination(FVector& OutDestination) const

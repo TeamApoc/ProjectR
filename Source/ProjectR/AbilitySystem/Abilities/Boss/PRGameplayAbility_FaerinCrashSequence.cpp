@@ -8,8 +8,11 @@
 #include "Engine/World.h"
 #include "GameFramework/Pawn.h"
 #include "GameFramework/PlayerController.h"
+#include "NiagaraSystem.h"
 #include "ProjectR/AbilitySystem/Abilities/Boss/PRBossAbilityTagUtils.h"
+#include "ProjectR/Character/Enemy/Boss/PRFaerinCharacter.h"
 #include "ProjectR/PRGameplayTags.h"
+#include "UObject/SoftObjectPath.h"
 
 UPRGameplayAbility_FaerinCrashSequence::UPRGameplayAbility_FaerinCrashSequence()
 {
@@ -58,6 +61,7 @@ void UPRGameplayAbility_FaerinCrashSequence::NativeOnStageCharacterEvent(
 		return;
 	}
 
+	SpawnCrashImpactVFX();
 	ApplyCrashAreaDamage();
 	bCrashDamageApplied = true;
 }
@@ -71,6 +75,72 @@ FVector UPRGameplayAbility_FaerinCrashSequence::ResolveCrashAreaCenter() const
 	}
 
 	return AvatarActor->GetActorTransform().TransformPositionNoScale(CrashAreaLocalOffset);
+}
+
+void UPRGameplayAbility_FaerinCrashSequence::SpawnCrashImpactVFX() const
+{
+	if (!IsValid(CrashImpactNiagaraSystem))
+	{
+		return;
+	}
+
+	APRFaerinCharacter* FaerinCharacter = Cast<APRFaerinCharacter>(GetAvatarActorFromActorInfo());
+	if (!IsValid(FaerinCharacter) || !FaerinCharacter->HasAuthority())
+	{
+		return;
+	}
+
+	FVector ImpactLocation = FVector::ZeroVector;
+	if (!ResolveCrashImpactLocation(ImpactLocation))
+	{
+		return;
+	}
+
+	const FSoftObjectPath ImpactSystemPath(CrashImpactNiagaraSystem.Get());
+	FaerinCharacter->Multicast_SpawnFaerinWorldNiagara(
+		ImpactSystemPath,
+		ImpactLocation,
+		CrashImpactNiagaraRotationOffset,
+		CrashImpactNiagaraScale,
+		CrashImpactNiagaraLifeSeconds);
+}
+
+bool UPRGameplayAbility_FaerinCrashSequence::ResolveCrashImpactLocation(FVector& OutLocation) const
+{
+	const AActor* AvatarActor = GetAvatarActorFromActorInfo();
+	if (!IsValid(AvatarActor))
+	{
+		return false;
+	}
+
+	UWorld* World = GetWorld();
+	const FVector BossLocation = AvatarActor->GetActorLocation();
+	if (!IsValid(World))
+	{
+		OutLocation = BossLocation + CrashImpactLocationOffset;
+		return true;
+	}
+
+	FCollisionQueryParams QueryParams(SCENE_QUERY_STAT(FaerinCrashImpactGroundTrace), false, AvatarActor);
+	QueryParams.AddIgnoredActor(AvatarActor);
+
+	const FVector TraceStart = BossLocation + FVector(0.0f, 0.0f, CrashImpactGroundTraceUpOffset);
+	const FVector TraceEnd = BossLocation - FVector(0.0f, 0.0f, CrashImpactGroundTraceDownOffset);
+
+	FHitResult HitResult;
+	if (World->LineTraceSingleByChannel(
+		HitResult,
+		TraceStart,
+		TraceEnd,
+		CrashImpactGroundTraceChannel,
+		QueryParams))
+	{
+		OutLocation = HitResult.ImpactPoint + CrashImpactLocationOffset;
+		return true;
+	}
+
+	OutLocation = BossLocation + CrashImpactLocationOffset;
+	return true;
 }
 
 void UPRGameplayAbility_FaerinCrashSequence::ApplyCrashAreaDamage()

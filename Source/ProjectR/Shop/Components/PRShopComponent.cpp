@@ -275,6 +275,17 @@ FPRShopSellResult UPRShopComponent::RequestSellItem(APRPlayerController* Request
 
 /*~ 조회 ~*/
 
+FText UPRShopComponent::GetShopDisplayName() const
+{
+	return IsValid(ShopData) ? ShopData->DisplayName : FText::GetEmpty();
+}
+
+const TArray<FPRShopEntry>& UPRShopComponent::GetShopEntries() const
+{
+	static const TArray<FPRShopEntry> EmptyEntries;
+	return IsValid(ShopData) ? ShopData->Entries : EmptyEntries;
+}
+
 int32 UPRShopComponent::GetRemainingStock(FName EntryId) const
 {
 	const FPRShopEntry* Entry = FindEntry(EntryId);

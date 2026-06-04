@@ -13,7 +13,6 @@
 #include "ProjectR/Player/PRPlayerController.h"
 #include "ProjectR/Player/PRPlayerState.h"
 #include "ProjectR/Shop/Components/PRShopComponent.h"
-#include "ProjectR/Shop/Data/PRShopDataAsset.h"
 #include "ProjectR/System/PRAssetManager.h"
 #include "ProjectR/UI/Components/PRUIControllerComponent.h"
 #include "ProjectR/UI/Inventory/PRCurrencyDisplayWidget.h"
@@ -247,8 +246,7 @@ void UPRShopWidget::RefreshHeader()
 {
 	if (IsValid(ShopNameText))
 	{
-		UPRShopDataAsset* ShopData = IsValid(ShopComponent) ? ShopComponent->GetShopData() : nullptr;
-		ShopNameText->SetText(IsValid(ShopData) ? ShopData->DisplayName : FText::GetEmpty());
+		ShopNameText->SetText(IsValid(ShopComponent) ? ShopComponent->GetShopDisplayName() : FText::GetEmpty());
 	}
 
 	if (IsValid(OwnedScrapText))
@@ -320,13 +318,12 @@ void UPRShopWidget::SyncSelectedItemFromList(const TArray<FPRShopItemSlotViewDat
 TArray<FPRShopItemSlotViewData> UPRShopWidget::BuildBuyListItems() const
 {
 	TArray<FPRShopItemSlotViewData> ListItems;
-	UPRShopDataAsset* ShopData = IsValid(ShopComponent) ? ShopComponent->GetShopData() : nullptr;
-	if (!IsValid(ShopData))
+	if (!IsValid(ShopComponent))
 	{
 		return ListItems;
 	}
 
-	for (const FPRShopEntry& Entry : ShopData->Entries)
+	for (const FPRShopEntry& Entry : ShopComponent->GetShopEntries())
 	{
 		if (!Entry.bCanShopSellToPlayer)
 		{
@@ -346,13 +343,12 @@ TArray<FPRShopItemSlotViewData> UPRShopWidget::BuildBuyListItems() const
 TArray<FPRShopItemSlotViewData> UPRShopWidget::BuildSellListItems() const
 {
 	TArray<FPRShopItemSlotViewData> ListItems;
-	UPRShopDataAsset* ShopData = IsValid(ShopComponent) ? ShopComponent->GetShopData() : nullptr;
-	if (!IsValid(ShopData) || !IsValid(InventoryComponent))
+	if (!IsValid(ShopComponent) || !IsValid(InventoryComponent))
 	{
 		return ListItems;
 	}
 
-	for (const FPRShopEntry& Entry : ShopData->Entries)
+	for (const FPRShopEntry& Entry : ShopComponent->GetShopEntries())
 	{
 		if (!Entry.bCanPlayerSellToShop)
 		{

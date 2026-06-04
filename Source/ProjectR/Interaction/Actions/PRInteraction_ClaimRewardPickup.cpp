@@ -10,7 +10,7 @@ UPRInteraction_ClaimRewardPickup::UPRInteraction_ClaimRewardPickup()
 	InteractionType = EPRInteractionType::Instant;
 	TriggerType = EPRTriggerType::Tap;
 	bRequiresRange = true;
-	bShowHint = true;
+	bShowHint = false;
 	ActionName = NSLOCTEXT("ProjectR", "ClaimRewardPickupActionName", "획득");
 	ActionHintText = NSLOCTEXT("ProjectR", "ClaimRewardPickupActionHint", "획득");
 }

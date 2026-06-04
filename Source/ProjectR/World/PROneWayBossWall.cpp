@@ -86,9 +86,11 @@ void APROneWayBossWall::HandleBossDefeated(FName DefeatedBossId)
 {
 	if (!HasAuthority() || !bDeactivateWhenBossDefeated || BossId.IsNone() || DefeatedBossId != BossId)
 	{
+		UE_LOG(LogTemp,Warning,TEXT("Boss Defeated, but invalid ID"));
 		return;
 	}
 
+	UE_LOG(LogTemp,Warning,TEXT("Boss Defeated"));
 	bBarrierActive = false;
 	ApplyBarrierState();
 }

@@ -31,4 +31,7 @@ public:
 	
 	UFUNCTION(BlueprintNativeEvent, BlueprintCallable)
 	void OnRecoil(float Speed, float Strength);
+
+	UFUNCTION(BlueprintNativeEvent, BlueprintCallable)
+	void OnPreviewHit(bool bHit);
 };

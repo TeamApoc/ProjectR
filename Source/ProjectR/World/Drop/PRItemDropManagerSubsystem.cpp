@@ -25,6 +25,18 @@ namespace
 	constexpr float RewardPickupGroundTraceUpDistance = 200.0f;
 	constexpr float RewardPickupGroundTraceDownDistance = 3000.0f;
 	constexpr float RewardPickupSpawnHeight = 120.0f;
+
+	// 보상 구조체의 탄약 데이터 조회
+	const UPRAmmoDataAsset* ResolveAmmoData(const FPRResolvedDropReward& Reward)
+	{
+		const UPRAmmoDataAsset* AmmoData = Cast<UPRAmmoDataAsset>(Reward.ItemData);
+		if (!IsValid(AmmoData) && Reward.ItemAssetId.IsValid())
+		{
+			AmmoData = Cast<UPRAmmoDataAsset>(UPRAssetManager::Get().GetItemDataByPrimaryAssetId(Reward.ItemAssetId));
+		}
+
+		return AmmoData;
+	}
 }
 
 void UPRItemDropManagerSubsystem::HandleMonsterDied(const FPRMonsterDeathDropRequest& Request)
@@ -100,17 +112,19 @@ bool UPRItemDropManagerSubsystem::ClaimPickup(APRRewardPickupActor* PickupActor,
 		&& PickupReward.DistributionRule == EPRRewardDistributionRule::Personal
 		&& Recipients.Num() == 1)
 	{
-		const int32 GrantedQuantity = GrantAmmoRewardAmountToPlayer(Recipients[0], PickupReward);
-		if (GrantedQuantity <= 0)
+		const FPRAmmoGrantResult GrantResult = GrantAmmoRewardAmountToPlayer(Recipients[0], PickupReward);
+		if (GrantResult.GrantedQuantity <= 0)
 		{
 			return false;
 		}
 
-		const int32 RemainingQuantity = FMath::Max(PickupReward.Quantity - GrantedQuantity, 0);
-		if (RemainingQuantity > 0)
+		// 잔여 raw를 백분율로 환산하여 픽업에 저장
+		const int32 RemainingRaw = FMath::Max(GrantResult.DesiredQuantity - GrantResult.GrantedQuantity, 0);
+		if (RemainingRaw > 0 && GrantResult.DesiredQuantity > 0)
 		{
-			// 개인 탄약 픽업 부분 획득 잔량 유지
-			PickupActor->SetRewardQuantity(RemainingQuantity);
+			const int32 RemainingPercent = FMath::CeilToInt(
+				static_cast<float>(RemainingRaw) * static_cast<float>(PickupReward.Quantity) / static_cast<float>(GrantResult.DesiredQuantity));
+			PickupActor->SetRewardQuantity(FMath::Max(RemainingPercent, 1));
 			return true;
 		}
 
@@ -442,26 +456,22 @@ bool UPRItemDropManagerSubsystem::GrantRewardToPlayer(APRPlayerState* PlayerStat
 
 bool UPRItemDropManagerSubsystem::GrantAmmoRewardToPlayer(APRPlayerState* PlayerState, const FPRResolvedDropReward& Reward) const
 {
-	return GrantAmmoRewardAmountToPlayer(PlayerState, Reward) > 0;
+	return GrantAmmoRewardAmountToPlayer(PlayerState, Reward).GrantedQuantity > 0;
 }
 
-int32 UPRItemDropManagerSubsystem::GrantAmmoRewardAmountToPlayer(APRPlayerState* PlayerState, const FPRResolvedDropReward& Reward) const
+FPRAmmoGrantResult UPRItemDropManagerSubsystem::GrantAmmoRewardAmountToPlayer(APRPlayerState* PlayerState, const FPRResolvedDropReward& Reward) const
 {
+	FPRAmmoGrantResult Result;
 	if (!IsValid(PlayerState) || !PlayerState->HasAuthority() || Reward.Quantity <= 0)
 	{
-		return 0;
+		return Result;
 	}
 
-	UPRAmmoDataAsset* AmmoData = Cast<UPRAmmoDataAsset>(Reward.ItemData);
-	if (!IsValid(AmmoData) && Reward.ItemAssetId.IsValid())
-	{
-		AmmoData = Cast<UPRAmmoDataAsset>(UPRAssetManager::Get().GetItemDataByPrimaryAssetId(Reward.ItemAssetId));
-	}
-
+	const UPRAmmoDataAsset* AmmoData = ResolveAmmoData(Reward);
 	if (!IsValid(AmmoData))
 	{
 		UE_LOG(LogTemp, Warning, TEXT("[Drop][Server] 탄약 지급 실패. AmmoData 없음. PlayerState = %s"), *GetNameSafe(PlayerState));
-		return 0;
+		return Result;
 	}
 
 	UPRAbilitySystemComponent* ASC = PlayerState->GetPRAbilitySystemComponent();
@@ -469,26 +479,36 @@ int32 UPRItemDropManagerSubsystem::GrantAmmoRewardAmountToPlayer(APRPlayerState*
 	if (!IsValid(WeaponSet))
 	{
 		UE_LOG(LogTemp, Warning, TEXT("[Drop][Server] 탄약 지급 실패. WeaponSet 없음. PlayerState = %s"), *GetNameSafe(PlayerState));
-		return 0;
+		return Result;
 	}
 
 	const EPRAmmoType AmmoType = AmmoData->GetAmmoType();
 	const float CurrentReserveAmmo = WeaponSet->GetReserveAmmoByType(AmmoType);
 	const float MaxReserveAmmo = WeaponSet->GetMaxReserveAmmoByType(AmmoType);
-	const float GrantedAmmo = FMath::Min(static_cast<float>(Reward.Quantity), FMath::Max(MaxReserveAmmo - CurrentReserveAmmo, 0.0f));
-	const int32 GrantedQuantity = FMath::Clamp(FMath::RoundToInt(GrantedAmmo), 0, Reward.Quantity);
-	if (GrantedQuantity <= 0)
+
+	// Quantity를 MaxMagazineAmmo 대비 백분율로 해석하여 실제 획득 목표량 계산
+	const float MaxMagazineAmmo = WeaponSet->GetMaxMagazineAmmoByType(AmmoType);
+	Result.DesiredQuantity = FMath::FloorToInt(MaxMagazineAmmo * static_cast<float>(Reward.Quantity) / 100.0f);
+	if (Result.DesiredQuantity <= 0)
 	{
-		return 0;
+		return Result;
+	}
+
+	const float GrantedAmmo = FMath::Min(static_cast<float>(Result.DesiredQuantity), FMath::Max(MaxReserveAmmo - CurrentReserveAmmo, 0.0f));
+	Result.GrantedQuantity = FMath::Clamp(FMath::RoundToInt(GrantedAmmo), 0, Result.DesiredQuantity);
+	if (Result.GrantedQuantity <= 0)
+	{
+		return Result;
 	}
 
 	const FGameplayAttribute ReserveAmmoAttribute = UPRAttributeSet_Weapon::GetReserveAmmoAttribute(AmmoType);
-	ASC->SetNumericAttributeBase(ReserveAmmoAttribute, CurrentReserveAmmo + static_cast<float>(GrantedQuantity));
+	ASC->SetNumericAttributeBase(ReserveAmmoAttribute, CurrentReserveAmmo + static_cast<float>(Result.GrantedQuantity));
 
+	// 알림에는 실제 지급된 탄약 개수를 전달
 	FPRResolvedDropReward GrantedReward = Reward;
-	GrantedReward.Quantity = GrantedQuantity;
+	GrantedReward.Quantity = Result.GrantedQuantity;
 	NotifyPickupRewardGranted(PlayerState, GrantedReward);
-	return GrantedReward.Quantity;
+	return Result;
 }
 
 void UPRItemDropManagerSubsystem::NotifyPickupRewardGranted(APRPlayerState* PlayerState, const FPRResolvedDropReward& Reward) const

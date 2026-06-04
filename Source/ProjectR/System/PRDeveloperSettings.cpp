@@ -3,6 +3,7 @@
 #include "PRDeveloperSettings.h"
 #include "Blueprint/UserWidget.h"
 #include "ProjectR/UI/FloatingText/PRFloatingTextWidget.h"
+#include "ProjectR/UI/Crosshair/PRCrosshairConfig.h"
 
 TSubclassOf<UUserWidget> UPRDeveloperSettings::GetCrosshairWidgetSync(EPRCrosshairType CrosshairType) const
 {
@@ -12,6 +13,11 @@ TSubclassOf<UUserWidget> UPRDeveloperSettings::GetCrosshairWidgetSync(EPRCrossha
 	}
 	
 	return nullptr;
+}
+
+const UPRCrosshairConfig* UPRDeveloperSettings::GetDefaultCrosshairConfigSync() const
+{
+	return DefaultCrosshairConfig.LoadSynchronous();
 }
 
 FPRFloatingTextStyle UPRDeveloperSettings::GetFloatingTextStyleSync(EPRFloatingTextType TextType) const

@@ -39,6 +39,14 @@ bool UPRGA_Reload::CanActivateAbility(const FGameplayAbilitySpecHandle Handle,
 	{
 		return false;
 	}
+	
+	if (UPRWeaponManagerComponent* WeaponManager = GetWeaponManager(ActorInfo))
+	{
+		if (WeaponManager->GetArmedState() == EPRArmedState::Unarmed)
+		{
+			return false;
+		}
+	}
 
 	EPRAmmoType AmmoType;
 	if (!TryGetActiveAmmoType(AmmoType))

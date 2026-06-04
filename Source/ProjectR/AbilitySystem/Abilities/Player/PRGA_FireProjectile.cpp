@@ -6,7 +6,7 @@
 #include "GameFramework/ProjectileMovementComponent.h"
 #include "ProjectR/Character/PRPlayerCharacter.h"
 #include "ProjectR/Projectile/PRProjectileBase.h"
-#include "ProjectR/Projectile/PRProjectileTrajectoryPreviewComponent.h"
+#include "ProjectR/Projectile/PRFirePreviewComponent.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogPRPathPreviewAbility, Log, All);
 
@@ -39,7 +39,7 @@ void UPRGA_FireProjectile::OnGiveAbility(const FGameplayAbilityActorInfo* ActorI
 			return;
 		}
 
-		UPRProjectileTrajectoryPreviewComponent* Preview = PlayerChar->FindComponentByClass<UPRProjectileTrajectoryPreviewComponent>();
+		UPRFirePreviewComponent* Preview = PlayerChar->FindComponentByClass<UPRFirePreviewComponent>();
 		if (!IsValid(Preview))
 		{
 			UE_LOG(LogPRPathPreviewAbility, Warning, TEXT("OnGiveAbility 중단. PreviewComponent 없음, Player=%s"),
@@ -72,7 +72,7 @@ void UPRGA_FireProjectile::OnGiveAbility(const FGameplayAbilityActorInfo* ActorI
 
 		// 무기 액터 바인딩은 별도 경로(PlayerCharacter의 State.Armed 태그 토글)에서 수행하므로 본 함수에서는 다루지 않음
 		Preview->SetFireParams(Params);
-		Preview->SetPreviewEnabled(true);
+		Preview->SetTrajectoryPreviewEnabled(true);
 
 		UE_LOG(LogPRPathPreviewAbility, Log,
 			TEXT("Preview 활성화 요청 완료. Ability=%s, Player=%s, Preview=%s, ProjectileClass=%s, InitialSpeed=%.2f, GravityScale=%.2f, CollisionRadius=%.2f"),
@@ -123,7 +123,7 @@ void UPRGA_FireProjectile::OnRemoveAbility(const FGameplayAbilityActorInfo* Acto
 			return;
 		}
 
-		UPRProjectileTrajectoryPreviewComponent* Preview = PlayerChar->FindComponentByClass<UPRProjectileTrajectoryPreviewComponent>();
+		UPRFirePreviewComponent* Preview = PlayerChar->FindComponentByClass<UPRFirePreviewComponent>();
 		if (!IsValid(Preview) || Preview->GetBoundObject() != this)
 		{
 			UE_LOG(LogPRPathPreviewAbility, Warning,
@@ -135,7 +135,7 @@ void UPRGA_FireProjectile::OnRemoveAbility(const FGameplayAbilityActorInfo* Acto
 			return;
 		}
 		
-		Preview->SetPreviewEnabled(false);
+		Preview->SetTrajectoryPreviewEnabled(false);
 
 		UE_LOG(LogPRPathPreviewAbility, Log, TEXT("Preview 비활성화 요청 완료. Ability=%s, Player=%s, Preview=%s"),
 			*GetNameSafe(this),

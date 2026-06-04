@@ -158,7 +158,7 @@ struct FPRProjectilePreviewParams
 
 	// 샘플 포인트 사이의 최소 거리(cm). 다운샘플링 기준. 너무 작으면 포인트 과다, 너무 크면 굴곡 표현 부족
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "ProjectR|Projectile|Preview", meta = (ClampMin = "1.0"))
-	float SampleSpacing = 50.f;
+	float SampleSpacing = 40.f;
 
 	// 표시할 최대 포인트 수. 출력 배열 상한 보호. 0이면 무제한
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "ProjectR|Projectile|Preview", meta = (ClampMin = "0"))

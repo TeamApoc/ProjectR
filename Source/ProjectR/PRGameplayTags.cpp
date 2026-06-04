@@ -175,6 +175,7 @@ namespace PRGameplayTags
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Event_Player_Aim_Start, "Event.Player.Aim.Start", "에이밍 진입");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Event_Player_Aim_End, "Event.Player.Aim.End", "에이밍 해제");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Event_Player_ChangeCrosshair, "Event.Player.ChangeCrosshair", "크로스헤어 Config 교체");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Event_Player_PreviewHit, "Event.Player.PreviewHit", "히트스캔 미리보기 적중 상태");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Event_Player_ReloadCommit, "Event.Player.ReloadCommit", "재장전 자원 이동 트리거");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Event_Player_ConsumableCommit, "Event.Player.ConsumableCommit", "소비 아이템 사용 확정 트리거");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Event_Player_Interaction_Hold, "Event.Player.Interaction.Hold", "Hold 상호작용 단계 알림");

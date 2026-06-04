@@ -7,7 +7,7 @@
 #include "ProjectR/Player/Components/PRSpringArmComponent.h"
 #include "ProjectR/PRGameplayTags.h"
 #include "ProjectR/System/PREventManagerSubsystem.h"
-#include "ProjectR/UI/Crosshair/PRCrosshairConfig.h"
+#include "ProjectR/UI/Crosshair/PRCrosshairTypes.h"
 #include "ProjectR/ItemSystem/Components/PRWeaponManagerComponent.h"
 
 UPRGA_PlayerAim::UPRGA_PlayerAim()
@@ -58,9 +58,11 @@ void UPRGA_PlayerAim::ActivateAbility(const FGameplayAbilitySpecHandle Handle,
 		return;
 	}
 
+	UPRWeaponManagerComponent* WeaponManager = nullptr;
 	if (APRPlayerCharacter* AvatarCharacter = Cast<APRPlayerCharacter>(GetAvatarActorFromActorInfo()))
 	{
-		if (UPRWeaponManagerComponent* WeaponManager = AvatarCharacter->GetWeaponManager())
+		WeaponManager = AvatarCharacter->GetWeaponManager();
+		if (IsValid(WeaponManager))
 		{
 			if (WeaponManager->GetArmedState() != EPRArmedState::Armed)
 			{
@@ -89,7 +91,7 @@ void UPRGA_PlayerAim::ActivateAbility(const FGameplayAbilitySpecHandle Handle,
 			if (UPREventManagerSubsystem* EventMgr = World->GetSubsystem<UPREventManagerSubsystem>())
 			{
 				FPRChangeCrosshairEventPayload CrosshairPayload;
-				CrosshairPayload.Config = AimCrosshairConfig;
+				CrosshairPayload.Config = IsValid(WeaponManager) ? WeaponManager->GetActiveCrosshairConfig() : nullptr;
 				EventMgr->BroadcastTyped(PRGameplayTags::Event_Player_ChangeCrosshair, CrosshairPayload);
 				EventMgr->BroadcastEmpty(PRGameplayTags::Event_Player_Aim_Start);
 			}

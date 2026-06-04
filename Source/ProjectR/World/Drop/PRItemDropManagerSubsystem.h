@@ -24,6 +24,9 @@ public:
 	// 월드 보상 픽업 Claim을 처리한다
 	bool ClaimPickup(APRRewardPickupActor* PickupActor, AActor* Interactor);
 
+	// 외부 시스템에서 확정 보상 픽업을 월드에 생성
+	APRRewardPickupActor* SpawnResolvedRewardPickup(const FPRResolvedDropReward& Reward, const FVector& DropLocation, const AActor* IgnoredActor) const;
+
 protected:
 	// 드롭 Entry를 확정 보상으로 변환한다
 	bool ResolveReward(const FPRDropRewardEntry& Entry, FPRResolvedDropReward& OutReward) const;
@@ -51,6 +54,9 @@ protected:
 
 	// 플레이어 ASC의 예비탄에 탄약 보상을 지급한다
 	bool GrantAmmoRewardToPlayer(APRPlayerState* PlayerState, const FPRResolvedDropReward& Reward) const;
+
+	// 플레이어 ASC의 예비탄에 실제로 적립된 탄약 수량을 반환한다
+	int32 GrantAmmoRewardAmountToPlayer(APRPlayerState* PlayerState, const FPRResolvedDropReward& Reward) const;
 
 	// 지급에 성공한 드롭 보상 알림을 대상 클라이언트로 전달
 	void NotifyPickupRewardGranted(APRPlayerState* PlayerState, const FPRResolvedDropReward& Reward) const;

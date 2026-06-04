@@ -64,6 +64,10 @@ public:
 	// 픽업이 보유한 확정 보상 정보를 반환한다
 	const FPRResolvedDropReward& GetReward() const { return Reward; }
 
+	// 서버에서 픽업 보상 수량을 갱신한다
+	UFUNCTION(BlueprintAuthorityOnly)
+	void SetRewardQuantity(int32 NewQuantity);
+
 	// 이미 지급 처리된 픽업인지 반환한다
 	bool IsClaimed() const { return bClaimed; }
 

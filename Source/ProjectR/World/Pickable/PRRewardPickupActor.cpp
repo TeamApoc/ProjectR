@@ -107,6 +107,18 @@ void APRRewardPickupActor::InitializeReward(const FPRResolvedDropReward& InRewar
 	ForceNetUpdate();
 }
 
+void APRRewardPickupActor::SetRewardQuantity(int32 NewQuantity)
+{
+	if (!HasAuthority())
+	{
+		return;
+	}
+
+	// 부분 획득 후 남은 보상 수량 복제
+	Reward.Quantity = FMath::Max(NewQuantity, 0);
+	ForceNetUpdate();
+}
+
 bool APRRewardPickupActor::CanBeClaimedBy(AActor* Interactor) const
 {
 	if (!bDropSettled)

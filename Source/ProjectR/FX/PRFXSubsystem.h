@@ -46,8 +46,8 @@ public:
 	bool FindRegistryEntry(FGameplayTag FXTag, FPRFXRegistryEntry& OutEntry) const;
 
 protected:
-	// Registry에서 Cue 클래스를 찾고 Instancing 정책에 맞는 Cue 반환
-	UPRFXCue* ResolveCue(FGameplayTag FXTag);
+	// Registry에서 Cue 클래스들을 찾고 Instancing 정책에 맞는 Cue 목록 구성
+	bool ResolveCues(FGameplayTag FXTag, TArray<UPRFXCue*>& OutCues);
 
 	// Registry 에셋을 DeveloperSettings에서 로드
 	UPRFXRegistryDataAsset* GetRegistry() const;

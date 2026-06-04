@@ -163,6 +163,9 @@ private:
 	// 지정 슬롯에 장비 메시 또는 기본 메시 적용
 	void ApplyEquipmentVisual(EPREquipmentSlotType SlotType, const UPREquipmentDataAsset* EquipmentData);
 
+	// 머리 장비 설정에 따른 플레이어 얼굴 표시 상태 갱신
+	void UpdatePlayerFaceVisibility(const UPREquipmentDataAsset* HeadEquipmentData);
+
 	// 지정 장비 슬롯에 대응하는 파츠 컴포넌트 조회
 	USkeletalMeshComponent* GetEquipmentMeshComponent(EPREquipmentSlotType SlotType) const;
 
@@ -196,6 +199,9 @@ public:
 	/** 컴포넌트 */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Mesh")
 	TObjectPtr<USkeletalMeshComponent> Mesh_Head;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Mesh")
+	TObjectPtr<USkeletalMeshComponent> Mesh_PlayerFace;
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Mesh")
 	TObjectPtr<USkeletalMeshComponent> Mesh_Body;

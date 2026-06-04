@@ -451,9 +451,61 @@ APRWeaponActor* UPRFXTrailCue::ResolveMatchingWeaponActor(const FPRFXTrailPayloa
 	return WeaponManager->GetActiveWeaponActor();
 }
 
-/*~ UPRFXWeaponFireTrailCue ~*/
-void UPRFXWeaponFireTrailCue::ExecuteFX_Implementation(const FPRFXCueContext& Context, const FPRFXTrailPayload& Payload)
+/*~ UPRFXWeaponFireCue  ~*/
+void UPRFXWeaponFireCue::NativeExecuteFX(const FPRFXCueContext& Context, const FInstancedStruct& Payload)
 {
+	// FInstancedStruct Payload를 Trail 기반 Payload로 확인한 뒤 BlueprintNativeEvent 호출
+	if (const FPRFXFirePayload* TypedPayload = PRFXCuePrivate::ResolveTypedPayload<FPRFXFirePayload>(this, Payload, Context))
+	{
+		ExecuteFX(Context, *TypedPayload);
+	}
+}
+
+const UScriptStruct* UPRFXWeaponFireCue::GetExpectedPayloadType() const
+{
+	return FPRFXFirePayload::StaticStruct();
+}
+
+void UPRFXWeaponFireCue::ExecuteFX_Implementation(const FPRFXCueContext& Context, const FPRFXFirePayload& Payload)
+{
+	// Payload 무기 데이터와 현재 무기 데이터 일치 확인
+	APRWeaponActor* WeaponActor = ResolveMatchingWeaponActor(Payload);
+	if (!IsValid(WeaponActor))
+	{
+		return;
+	}
+
+	// FX 시스템 Payload를 무기 Actor 전용 파라미터로 변환
+	FPRWeaponFireFXParams FireFXParams;
+	FireFXParams.Direction = Payload.Direction;
+
+	// 무기 Actor 소유 발사 FX 재생
+	WeaponActor->TriggerFireFX(FireFXParams);
+}
+
+APRWeaponActor* UPRFXWeaponFireCue::ResolveMatchingWeaponActor(const FPRFXFirePayload& Payload) const
+{
+	if (!IsValid(Payload.SourceActor) || !IsValid(Payload.WeaponData))
+	{
+		return nullptr;
+	}
+
+	// 발사자 기준 무기 매니저 조회
+	UPRWeaponManagerComponent* WeaponManager = UPRGameplayStatics::GetWeaponManagerComponent(Payload.SourceActor);
+	if (!IsValid(WeaponManager))
+	{
+		return nullptr;
+	}
+
+	// 지연 도착 FX의 무기 교체 오재생 방지
+	const FPRWeaponVisualInfo& VisualInfo = WeaponManager->GetCurrentWeaponVisualInfo();
+	if (VisualInfo.WeaponData.Get() != Payload.WeaponData.Get())
+	{
+		return nullptr;
+	}
+
+	// 현재 손에 든 로컬 무기 Actor 반환
+	return WeaponManager->GetActiveWeaponActor();
 }
 
 /*~ UPRFXHitCue ~*/

@@ -146,6 +146,9 @@ APRCharacterPreviewActor::APRCharacterPreviewActor()
 	PreviewHeadMeshComponent = CreateDefaultSubobject<USkeletalMeshComponent>(TEXT("PreviewHeadMeshComponent"));
 	ConfigurePreviewPartMeshComponent(PreviewHeadMeshComponent, PreviewMeshComponent);
 
+	PreviewPlayerFaceMeshComponent = CreateDefaultSubobject<USkeletalMeshComponent>(TEXT("PreviewPlayerFaceMeshComponent"));
+	ConfigurePreviewPartMeshComponent(PreviewPlayerFaceMeshComponent, PreviewMeshComponent);
+
 	PreviewBodyMeshComponent = CreateDefaultSubobject<USkeletalMeshComponent>(TEXT("PreviewBodyMeshComponent"));
 	ConfigurePreviewPartMeshComponent(PreviewBodyMeshComponent, PreviewMeshComponent);
 
@@ -290,6 +293,7 @@ void APRCharacterPreviewActor::CapturePreview()
 
 	// 실제 표시 대상은 숨김 리더가 아닌 모듈러 파츠 메시
 	AddPreviewPartToCapture(SceneCaptureComponent, PreviewHeadMeshComponent);
+	AddPreviewPartToCapture(SceneCaptureComponent, PreviewPlayerFaceMeshComponent);
 	AddPreviewPartToCapture(SceneCaptureComponent, PreviewBodyMeshComponent);
 	AddPreviewPartToCapture(SceneCaptureComponent, PreviewHandsMeshComponent);
 	AddPreviewPartToCapture(SceneCaptureComponent, PreviewLegsMeshComponent);
@@ -317,6 +321,7 @@ void APRCharacterPreviewActor::InitTextureStreaming(float StreamingDuration, flo
 {
 	InitMeshTextureStreaming(PreviewMeshComponent, StreamingDuration, StreamingDistanceMultiplier);
 	InitMeshTextureStreaming(PreviewHeadMeshComponent, StreamingDuration, StreamingDistanceMultiplier);
+	InitMeshTextureStreaming(PreviewPlayerFaceMeshComponent, StreamingDuration, StreamingDistanceMultiplier);
 	InitMeshTextureStreaming(PreviewBodyMeshComponent, StreamingDuration, StreamingDistanceMultiplier);
 	InitMeshTextureStreaming(PreviewHandsMeshComponent, StreamingDuration, StreamingDistanceMultiplier);
 	InitMeshTextureStreaming(PreviewLegsMeshComponent, StreamingDuration, StreamingDistanceMultiplier);
@@ -353,6 +358,7 @@ void APRCharacterPreviewActor::RefreshCharacterMesh(APRPlayerCharacter* SourceCh
 	{
 		PreviewMeshComponent->SetSkeletalMesh(nullptr);
 		RefreshCharacterPartMesh(PreviewHeadMeshComponent, nullptr);
+		RefreshCharacterPartMesh(PreviewPlayerFaceMeshComponent, nullptr);
 		RefreshCharacterPartMesh(PreviewBodyMeshComponent, nullptr);
 		RefreshCharacterPartMesh(PreviewHandsMeshComponent, nullptr);
 		RefreshCharacterPartMesh(PreviewLegsMeshComponent, nullptr);
@@ -365,6 +371,7 @@ void APRCharacterPreviewActor::RefreshCharacterMesh(APRPlayerCharacter* SourceCh
 
 	// 장비 장착으로 교체된 실제 표시 파츠 복사
 	RefreshCharacterPartMesh(PreviewHeadMeshComponent, SourceCharacter->Mesh_Head);
+	RefreshCharacterPartMesh(PreviewPlayerFaceMeshComponent, SourceCharacter->Mesh_PlayerFace);
 	RefreshCharacterPartMesh(PreviewBodyMeshComponent, SourceCharacter->Mesh_Body);
 	RefreshCharacterPartMesh(PreviewHandsMeshComponent, SourceCharacter->Mesh_Hands);
 	RefreshCharacterPartMesh(PreviewLegsMeshComponent, SourceCharacter->Mesh_Legs);
@@ -382,11 +389,13 @@ void APRCharacterPreviewActor::RefreshCharacterPartMesh(USkeletalMeshComponent* 
 	if (!IsValid(SourcePartMeshComponent))
 	{
 		PreviewPartMeshComponent->SetSkeletalMesh(nullptr);
+		PreviewPartMeshComponent->SetVisibility(false, true);
 		return;
 	}
 
 	// 플레이어 캐릭터 파츠 컴포넌트에 이미 적용된 최종 메시 복사
 	PreviewPartMeshComponent->SetSkeletalMesh(SourcePartMeshComponent->GetSkeletalMeshAsset());
+	PreviewPartMeshComponent->SetVisibility(SourcePartMeshComponent->IsVisible(), true);
 	PreviewPartMeshComponent->UpdateBounds();
 }
 
@@ -431,10 +440,13 @@ void APRCharacterPreviewActor::RefreshCharacterMeshFromSaveData(const FPRCharact
 	// 저장 데이터의 장비 메시가 있으면 기본 파츠 메시를 대체
 	if (IsValid(PreviewHeadMeshComponent))
 	{
-		if (USkeletalMesh* HeadMesh = ResolveEquipmentMeshFromSaveData(SaveData, EPREquipmentSlotType::Head))
+		const UPREquipmentDataAsset* HeadEquipmentData = ResolveEquipmentDataFromSaveData(SaveData, EPREquipmentSlotType::Head);
+		if (USkeletalMesh* HeadMesh = IsValid(HeadEquipmentData) ? HeadEquipmentData->GetEquipmentMesh().LoadSynchronous() : nullptr)
 		{
 			PreviewHeadMeshComponent->SetSkeletalMesh(HeadMesh);
 		}
+
+		UpdatePreviewPlayerFaceVisibility(HeadEquipmentData);
 	}
 
 	if (IsValid(PreviewBodyMeshComponent))
@@ -462,6 +474,18 @@ void APRCharacterPreviewActor::RefreshCharacterMeshFromSaveData(const FPRCharact
 	}
 
 	PreviewMeshComponent->UpdateBounds();
+}
+
+void APRCharacterPreviewActor::UpdatePreviewPlayerFaceVisibility(const UPREquipmentDataAsset* HeadEquipmentData)
+{
+	if (!IsValid(PreviewPlayerFaceMeshComponent))
+	{
+		return;
+	}
+
+	// 얼굴 전체를 덮는 머리 장비만 프리뷰 얼굴 파츠 숨김
+	const bool bShouldShowPlayerFace = !IsValid(HeadEquipmentData) || !HeadEquipmentData->ShouldHidePlayerFace();
+	PreviewPlayerFaceMeshComponent->SetVisibility(bShouldShowPlayerFace, true);
 }
 
 const APRPlayerCharacter* APRCharacterPreviewActor::GetPreviewCharacterDefaultObject() const
@@ -504,6 +528,12 @@ void APRCharacterPreviewActor::ApplyDefaultPreviewCharacterMesh()
 		EPREquipmentSlotType::Head,
 		DefaultPreviewHeadMesh.Get());
 	ApplyDefaultPreviewPartMesh(
+		PreviewPlayerFaceMeshComponent,
+		DefaultCharacter,
+		IsValid(DefaultCharacter) ? DefaultCharacter->Mesh_PlayerFace.Get() : nullptr,
+		EPREquipmentSlotType::None,
+		DefaultPreviewPlayerFaceMesh.Get());
+	ApplyDefaultPreviewPartMesh(
 		PreviewBodyMeshComponent,
 		DefaultCharacter,
 		IsValid(DefaultCharacter) ? DefaultCharacter->Mesh_Body.Get() : nullptr,
@@ -524,6 +554,7 @@ void APRCharacterPreviewActor::ApplyDefaultPreviewCharacterMesh()
 
 	const bool bHasAnyPartMesh =
 		(IsValid(PreviewHeadMeshComponent) && IsValid(PreviewHeadMeshComponent->GetSkeletalMeshAsset()))
+		|| (IsValid(PreviewPlayerFaceMeshComponent) && IsValid(PreviewPlayerFaceMeshComponent->GetSkeletalMeshAsset()))
 		|| (IsValid(PreviewBodyMeshComponent) && IsValid(PreviewBodyMeshComponent->GetSkeletalMeshAsset()))
 		|| (IsValid(PreviewHandsMeshComponent) && IsValid(PreviewHandsMeshComponent->GetSkeletalMeshAsset()))
 		|| (IsValid(PreviewLegsMeshComponent) && IsValid(PreviewLegsMeshComponent->GetSkeletalMeshAsset()));
@@ -543,6 +574,11 @@ void APRCharacterPreviewActor::ApplyDefaultPreviewPartMesh(USkeletalMeshComponen
 	USkeletalMesh* PartMesh = IsValid(DefaultCharacter)
 		? DefaultCharacter->GetDefaultEquipmentMesh(SlotType)
 		: nullptr;
+	if (!IsValid(PartMesh) && IsValid(SourcePartMeshComponent))
+	{
+		PartMesh = SourcePartMeshComponent->GetSkeletalMeshAsset();
+	}
+
 	if (!IsValid(PartMesh))
 	{
 		PartMesh = FallbackMesh;
@@ -550,10 +586,17 @@ void APRCharacterPreviewActor::ApplyDefaultPreviewPartMesh(USkeletalMeshComponen
 
 	// 플레이어 캐릭터 기본 장비 메시 기반 파츠 메시 적용
 	PreviewPartMeshComponent->SetSkeletalMesh(PartMesh);
+	PreviewPartMeshComponent->SetVisibility(true, true);
 	PreviewPartMeshComponent->UpdateBounds();
 }
 
 USkeletalMesh* APRCharacterPreviewActor::ResolveEquipmentMeshFromSaveData(const FPRCharacterSaveData& SaveData, EPREquipmentSlotType SlotType) const
+{
+	const UPREquipmentDataAsset* EquipmentData = ResolveEquipmentDataFromSaveData(SaveData, SlotType);
+	return IsValid(EquipmentData) ? EquipmentData->GetEquipmentMesh().LoadSynchronous() : nullptr;
+}
+
+const UPREquipmentDataAsset* APRCharacterPreviewActor::ResolveEquipmentDataFromSaveData(const FPRCharacterSaveData& SaveData, EPREquipmentSlotType SlotType) const
 {
 	for (const FPREquipmentSlotSaveEntry& EquippedSlot : SaveData.Equipment.EquippedSlots)
 	{
@@ -567,10 +610,9 @@ USkeletalMesh* APRCharacterPreviewActor::ResolveEquipmentMeshFromSaveData(const 
 			return nullptr;
 		}
 
-		// 장비 저장 인덱스 기반 메시 조회
+		// 장비 저장 인덱스 기반 데이터 조회
 		const FPREquipmentItemSaveEntry& EquipmentEntry = SaveData.Inventory.Equipments[EquippedSlot.EquipmentItemIndex];
-		const UPREquipmentDataAsset* EquipmentData = EquipmentEntry.EquipmentData.LoadSynchronous();
-		return IsValid(EquipmentData) ? EquipmentData->GetEquipmentMesh().LoadSynchronous() : nullptr;
+		return EquipmentEntry.EquipmentData.LoadSynchronous();
 	}
 
 	return nullptr;

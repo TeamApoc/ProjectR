@@ -56,6 +56,10 @@ APRPlayerCharacter::APRPlayerCharacter()
 	Mesh_Head->SetupAttachment(LeaderMesh);
 	Mesh_Head->SetLeaderPoseComponent(LeaderMesh);
 	Mesh_Head->bUseAttachParentBound = true;
+	Mesh_PlayerFace = CreateDefaultSubobject<USkeletalMeshComponent>(TEXT("Mesh_PlayerFace"));
+	Mesh_PlayerFace->SetupAttachment(LeaderMesh);
+	Mesh_PlayerFace->SetLeaderPoseComponent(LeaderMesh);
+	Mesh_PlayerFace->bUseAttachParentBound = true;
 	Mesh_Body = CreateDefaultSubobject<USkeletalMeshComponent>(TEXT("Mesh_Body"));
 	Mesh_Body->SetupAttachment(LeaderMesh);
 	Mesh_Body->SetLeaderPoseComponent(LeaderMesh);
@@ -777,6 +781,12 @@ void APRPlayerCharacter::CacheDefaultEquipmentMeshes()
 
 void APRPlayerCharacter::ApplyEquipmentVisual(EPREquipmentSlotType SlotType, const UPREquipmentDataAsset* EquipmentData)
 {
+	if (SlotType == EPREquipmentSlotType::Head)
+	{
+		// 머리 장비 데이터 기준 얼굴 메시 표시 상태 갱신
+		UpdatePlayerFaceVisibility(EquipmentData);
+	}
+
 	USkeletalMeshComponent* PartMeshComponent = GetEquipmentMeshComponent(SlotType);
 	if (!IsValid(PartMeshComponent))
 	{
@@ -799,6 +809,18 @@ void APRPlayerCharacter::ApplyEquipmentVisual(EPREquipmentSlotType SlotType, con
 	}
 
 	PartMeshComponent->SetSkeletalMesh(MeshToApply);
+}
+
+void APRPlayerCharacter::UpdatePlayerFaceVisibility(const UPREquipmentDataAsset* HeadEquipmentData)
+{
+	if (!IsValid(Mesh_PlayerFace))
+	{
+		return;
+	}
+
+	// 얼굴 전체를 덮는 머리 장비만 PlayerFace 파츠 숨김
+	const bool bShouldShowPlayerFace = !IsValid(HeadEquipmentData) || !HeadEquipmentData->ShouldHidePlayerFace();
+	Mesh_PlayerFace->SetVisibility(bShouldShowPlayerFace, true);
 }
 
 USkeletalMeshComponent* APRPlayerCharacter::GetEquipmentMeshComponent(EPREquipmentSlotType SlotType) const

@@ -7,6 +7,7 @@
 #include "GameFramework/Actor.h"
 #include "ProjectR/Combat/PRCombatInterface.h"
 #include "ProjectR/Combat/PRDestructableInterface.h"
+#include "ProjectR/Projectile/PRProjectileTypes.h"
 #include "PRGroundBoxProjectileBase.generated.h"
 
 class APRGroundBoxProjectileBase;
@@ -64,6 +65,7 @@ public:
 	APRGroundBoxProjectileBase();
 
 	/*~ AActor Interface ~*/
+	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
 	virtual void BeginPlay() override;
 	virtual void Tick(float DeltaSeconds) override;
 	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
@@ -81,7 +83,7 @@ public:
 	void InitializeAttachedBarrier(APRPenitentCharacter* OwnerPenitent);
 
 	// 이동 시작 처리
-	UFUNCTION(BlueprintCallable, BlueprintAuthorityOnly, Category = "ProjectR|GroundBox")
+	UFUNCTION(BlueprintCallable, Category = "ProjectR|GroundBox")
 	void LaunchGroundBoxProjectile(const FVector& LaunchDirection, float LaunchSpeed);
 
 	// 대상 쿨다운 초기화
@@ -110,10 +112,10 @@ protected:
 	void OnDamageDetectionBoxBeginOverlap(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor,
 		UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepResult);
 
-	// 환경 박스 오버랩 처리
+	// 환경 박스 히트 처리
 	UFUNCTION()
-	void OnBreakableDetectionBoxBeginOverlap(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor,
-		UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepResult);
+	void OnBreakableDetectionBoxHit(UPrimitiveComponent* HitComponent, AActor* OtherActor,
+		UPrimitiveComponent* OtherComp, FVector NormalImpulse, const FHitResult& Hit);
 
 	// 피해 대상 필터
 	bool CanApplyDamageToTarget(AActor* TargetActor, UAbilitySystemComponent* TargetAbilitySystemComponent) const;
@@ -139,13 +141,28 @@ protected:
 	// 소멸 처리
 	void DestroyGroundBox();
 
+	// 투사체 이동 복제 수신
+	UFUNCTION()
+	void OnRep_ProjectileRepMovement();
+
+	// 투사체 이동 복제 전송
+	void PushProjectileRepMovement(EPRRepMovementEvent Event);
+
+	// 런치 공통 이동 적용
+	void ApplyLaunchMovement(const FVector& LaunchDirection, float LaunchSpeed);
+
+	// 런치 서버 상태 적용
+	void ApplyLaunchAuthorityState();
+
+	// 런치 복제 상태 적용
+	void ApplyLaunchRepMovement(const FPRProjectileRepMovement& RepMovement);
+
+	// 런치 복제 보간 처리
+	void InterpLaunchRepMovement(float DeltaSeconds);
+
 	// 생성 연출 동기화
 	UFUNCTION(NetMulticast, Reliable)
 	void MulticastHandleSpawned();
-
-	// 런치 연출 동기화
-	UFUNCTION(NetMulticast, Reliable)
-	void MulticastHandleLaunched();
 
 	// 대상 피격 연출 동기화
 	UFUNCTION(NetMulticast, Reliable)
@@ -264,10 +281,26 @@ protected:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "ProjectR|GroundBox|GroundSnap", meta = (ClampMin = "0.0"))
 	float GroundSnapTolerance = 1.0f;
 
+	// 런치 복제 보간 속도
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "ProjectR|GroundBox|Replication", meta = (ClampMin = "0.0"))
+	float LaunchRepInterpSpeed = 30.0f;
+
+	// 런치 복제 스냅 거리
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "ProjectR|GroundBox|Replication", meta = (ClampMin = "0.0"))
+	float LaunchRepSnapDistance = 300.0f;
+
+	// 런치 복제 보간 최대 시간
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "ProjectR|GroundBox|Replication", meta = (ClampMin = "0.0"))
+	float LaunchRepInterpMaxTime = 0.25f;
+
 private:
 	// 소스 액터 약참조
 	UPROPERTY()
 	TObjectPtr<AActor> SourceActor;
+
+	// 투사체 이동 복제 상태
+	UPROPERTY(ReplicatedUsing = OnRep_ProjectileRepMovement)
+	FPRProjectileRepMovement ProjectileRepMovement;
 
 	// 대상 피해 스펙
 	FGameplayEffectSpecHandle DamageEffectSpecHandle;
@@ -281,6 +314,15 @@ private:
 	// 안전 수명 타이머
 	FTimerHandle SafetyLifeTimeTimerHandle;
 
+	// 런치 복제 보간 기준
+	FPRProjectileRepMovement PendingLaunchRepMovement;
+
+	// 런치 복제 보간 시작 시간
+	float LaunchRepInterpStartTime = 0.0f;
+	
+	// 스냅 보정 Z 위치
+	float CorrectionZLocation = -160.0f;
+
 	// 소스 팀 캐시
 	EPRTeam SourceTeam = EPRTeam::Neutral;
 
@@ -289,6 +331,9 @@ private:
 
 	// 현재 런치 상태
 	bool bLaunched = false;
+
+	// 런치 복제 보간 상태
+	bool bLaunchRepInterpActive = false;
 
 	// 소멸 처리 중복 방지
 	bool bDestroyRequested = false;

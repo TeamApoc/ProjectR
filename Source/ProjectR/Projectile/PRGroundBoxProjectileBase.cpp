@@ -9,8 +9,11 @@
 #include "Components/StaticMeshComponent.h"
 #include "Engine/World.h"
 #include "GameplayEffect.h"
+#include "GameFramework/Pawn.h"
 #include "GameFramework/ProjectileMovementComponent.h"
 #include "NiagaraComponent.h"
+#include "Net/Core/PushModel/PushModel.h"
+#include "Net/UnrealNetwork.h"
 #include "TimerManager.h"
 #include "ProjectR/Character/Enemy/Penitent/PRPenitentCharacter.h"
 #include "ProjectR/Combat/PRCombatGameplayTags.h"
@@ -29,14 +32,22 @@ APRGroundBoxProjectileBase::APRGroundBoxProjectileBase()
 	PrimaryActorTick.bStartWithTickEnabled = false;
 
 	bReplicates = true;
-	SetReplicateMovement(true);
+	SetReplicatingMovement(false);
 
-	Root = CreateDefaultSubobject<USceneComponent>(TEXT("Root"));
-	SetRootComponent(Root);
+	BreakableDetectionBox = CreateDefaultSubobject<UBoxComponent>(TEXT("BreakableDetectionBox"));
+	Root = BreakableDetectionBox;
+	SetRootComponent(BreakableDetectionBox);
+	BreakableDetectionBox->SetCollisionObjectType(ECollisionChannel::ECC_WorldDynamic);
+	BreakableDetectionBox->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+	BreakableDetectionBox->SetCollisionResponseToAllChannels(ECR_Ignore);
+	BreakableDetectionBox->SetCollisionResponseToChannel(ECC_WorldStatic, ECR_Block);
+	BreakableDetectionBox->SetGenerateOverlapEvents(false);
+	BreakableDetectionBox->SetNotifyRigidBodyCollision(true);
+	BreakableDetectionBox->SetBoxExtent(FVector(40.f, 60.f, 40.f));
 	
 	TraceStartPoint = CreateDefaultSubobject<USceneComponent>(TEXT("TraceStartPoint"));
 	TraceStartPoint->SetupAttachment(Root);
-	TraceStartPoint->SetRelativeLocation(FVector(0.0f, 0.0f, 220.0f));
+	TraceStartPoint->SetRelativeLocation(FVector(40.0f, 0.0f, 40.0f));
 	
 	DamageDetectionBox = CreateDefaultSubobject<UBoxComponent>(TEXT("DamageDetectionBox"));
 	DamageDetectionBox->SetupAttachment(Root);
@@ -44,14 +55,7 @@ APRGroundBoxProjectileBase::APRGroundBoxProjectileBase()
 	DamageDetectionBox->SetCollisionResponseToAllChannels(ECR_Ignore);
 	DamageDetectionBox->SetCollisionResponseToChannel(ECC_Pawn, ECR_Overlap);
 	DamageDetectionBox->SetGenerateOverlapEvents(true);
-
-	BreakableDetectionBox = CreateDefaultSubobject<UBoxComponent>(TEXT("BreakableDetectionBox"));
-	BreakableDetectionBox->SetupAttachment(Root);
-	BreakableDetectionBox->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
-	BreakableDetectionBox->SetCollisionResponseToAllChannels(ECR_Ignore);
-	BreakableDetectionBox->SetCollisionResponseToChannel(ECC_WorldStatic, ECR_Overlap);
-	BreakableDetectionBox->SetCollisionResponseToChannel(ECC_WorldDynamic, ECR_Overlap);
-	BreakableDetectionBox->SetGenerateOverlapEvents(true);
+	DamageDetectionBox->SetRelativeLocation(FVector(0.0f, 0.0f, -60.0f));
 
 	WallMeshComponent = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("WallMeshComponent"));
 	WallMeshComponent->SetupAttachment(Root);
@@ -65,13 +69,14 @@ APRGroundBoxProjectileBase::APRGroundBoxProjectileBase()
 	WallMeshComponent->SetCollisionResponseToChannel(ECC_Visibility, ECR_Ignore);
 	// AI 시야 무시
 	WallMeshComponent->SetCollisionResponseToChannel(PRCollisionChannels::ECC_AISight, ECR_Ignore);
+	WallMeshComponent->SetRelativeLocation(FVector(40.0f, 0.0f, -160.0f));
 	
 
 	AmbientVFXComponent = CreateDefaultSubobject<UNiagaraComponent>(TEXT("AmbientVFXComponent"));
 	AmbientVFXComponent->SetupAttachment(Root);
 
 	MovementComponent = CreateDefaultSubobject<UProjectileMovementComponent>(TEXT("MovementComponent"));
-	MovementComponent->UpdatedComponent = Root;
+	MovementComponent->UpdatedComponent = BreakableDetectionBox;
 	MovementComponent->InitialSpeed = 0.0f;
 	MovementComponent->MaxSpeed = 0.0f;
 	MovementComponent->ProjectileGravityScale = 0.0f;
@@ -79,6 +84,15 @@ APRGroundBoxProjectileBase::APRGroundBoxProjectileBase()
 }
 
 /*~ AActor Interface ~*/
+
+void APRGroundBoxProjectileBase::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const
+{
+	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
+
+	constexpr bool bUsePushModel = true;
+	FDoRepLifetimeParams RepMovementParams{COND_None, REPNOTIFY_Always, bUsePushModel};
+	DOREPLIFETIME_WITH_PARAMS_FAST(APRGroundBoxProjectileBase, ProjectileRepMovement, RepMovementParams);
+}
 
 void APRGroundBoxProjectileBase::BeginPlay()
 {
@@ -106,13 +120,20 @@ void APRGroundBoxProjectileBase::BeginPlay()
 
 	if (IsValid(BreakableDetectionBox))
 	{
-		BreakableDetectionBox->OnComponentBeginOverlap.AddDynamic(this, &ThisClass::OnBreakableDetectionBoxBeginOverlap);
+		BreakableDetectionBox->OnComponentHit.AddDynamic(this, &ThisClass::OnBreakableDetectionBoxHit);
+	}
+	
+	if (IsValid(WallMeshComponent))
+	{
+			CorrectionZLocation = WallMeshComponent->GetRelativeLocation().Z;
 	}
 }
 
 void APRGroundBoxProjectileBase::Tick(float DeltaSeconds)
 {
 	Super::Tick(DeltaSeconds);
+
+	InterpLaunchRepMovement(DeltaSeconds);
 
 	if (!bLaunched || bDestroyRequested)
 	{
@@ -220,6 +241,12 @@ void APRGroundBoxProjectileBase::InitGroundBoxProjectile(const FPRGroundBoxLaunc
 	ResetTargetCooldowns();
 	bDamageEnabled = true;
 
+	if (IsValid(BreakableDetectionBox))
+	{
+		// 발사 전 환경 감지 비활성화
+		BreakableDetectionBox->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+	}
+
 	if (UWorld* World = GetWorld())
 	{
 		World->GetTimerManager().ClearTimer(SafetyLifeTimeTimerHandle);
@@ -255,6 +282,7 @@ void APRGroundBoxProjectileBase::InitializeAttachedBarrier(APRPenitentCharacter*
 	InitGroundBoxProjectile(Params);
 
 	bLaunched = false;
+	bLaunchRepInterpActive = false;
 	SetActorTickEnabled(false);
 
 	if (IsValid(MovementComponent))
@@ -267,7 +295,7 @@ void APRGroundBoxProjectileBase::InitializeAttachedBarrier(APRPenitentCharacter*
 
 void APRGroundBoxProjectileBase::LaunchGroundBoxProjectile(const FVector& LaunchDirection, float LaunchSpeed)
 {
-	if (!HasAuthority() || bDestroyRequested)
+	if (bDestroyRequested)
 	{
 		return;
 	}
@@ -278,40 +306,12 @@ void APRGroundBoxProjectileBase::LaunchGroundBoxProjectile(const FVector& Launch
 		return;
 	}
 
-	ResetTargetCooldowns();
-
-	bLaunched = true;
-	bDamageEnabled = true;
-	SetActorTickEnabled(true);
-
-	if (IsValid(MovementComponent))
-	{
-		// 런치 입력을 서버 이동 상태로 확정
-		MovementComponent->InitialSpeed = LaunchSpeed;
-		MovementComponent->MaxSpeed = FMath::Max(MovementComponent->MaxSpeed, LaunchSpeed);
-		MovementComponent->Velocity = SafeDirection * LaunchSpeed;
-		MovementComponent->Activate(true);
-	}
-
-	SetActorRotation(SafeDirection.Rotation());
-	// SnapToGround(0.0f, true);
+	ApplyLaunchMovement(SafeDirection, LaunchSpeed);
 	
-	if (UWorld* World = GetWorld())
+	if (HasAuthority())
 	{
-		World->GetTimerManager().ClearTimer(SafetyLifeTimeTimerHandle);
-		if (MaxSafetyLifeTime > 0.0f)
-		{
-			// 명시 종료 누락에 대비한 안전 제거 예약
-			World->GetTimerManager().SetTimer(
-				SafetyLifeTimeTimerHandle,
-				this,
-				&ThisClass::HandleSafetyLifeTimeExpired,
-				LaunchLifeTime,
-				false);
-		}
+		ApplyLaunchAuthorityState();
 	}
-
-	MulticastHandleLaunched();
 }
 
 void APRGroundBoxProjectileBase::ResetTargetCooldowns()
@@ -350,6 +350,7 @@ void APRGroundBoxProjectileBase::HandleSourceOwnerDead()
 	// 소유자 사망 후 잔존 연출만 허용
 	bDamageEnabled = false;
 	bLaunched = false;
+	bLaunchRepInterpActive = false;
 	SetActorTickEnabled(false);
 	ResetTargetCooldowns();
 
@@ -375,7 +376,8 @@ void APRGroundBoxProjectileBase::HandleSafetyLifeTimeExpired()
 
 /*~ 오버랩 처리 ~*/
 
-void APRGroundBoxProjectileBase::OnDamageDetectionBoxBeginOverlap(UPrimitiveComponent* OverlappedComponent,
+void APRGroundBoxProjectileBase::
+OnDamageDetectionBoxBeginOverlap(UPrimitiveComponent* OverlappedComponent,
 	AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep,
 	const FHitResult& SweepResult)
 {
@@ -400,25 +402,50 @@ void APRGroundBoxProjectileBase::OnDamageDetectionBoxBeginOverlap(UPrimitiveComp
 	ApplyDamageToTarget(OtherActor, TargetAbilitySystemComponent, SweepResult);
 }
 
-void APRGroundBoxProjectileBase::OnBreakableDetectionBoxBeginOverlap(UPrimitiveComponent* OverlappedComponent,
-	AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep,
-	const FHitResult& SweepResult)
+void APRGroundBoxProjectileBase::OnBreakableDetectionBoxHit(UPrimitiveComponent* HitComponent,
+	AActor* OtherActor, UPrimitiveComponent* OtherComp, FVector NormalImpulse, const FHitResult& Hit)
 {
-	if (!HasAuthority() || !bLaunched || bDestroyRequested)
+	// 공통 필터
+	if (!IsValid(OtherActor) || OtherActor == this || OtherActor == GetInstigator() || bDestroyRequested)
 	{
 		return;
 	}
 
-	if (!bFromSweep)
+	// 플레이어/AI 같은 Pawn 제외
+	if (Cast<APawn>(OtherActor))
 	{
-		// 초기 겹침 오인 방지
 		return;
 	}
 
-	if (IsBlockingWallHit(SweepResult))
+	// 발사 상태 검사
+	if (!bLaunched)
 	{
-		// 최소 구현의 환경 충돌 결과
-		RequestGroundBoxEnd();
+		return;
+	}
+
+	// 벽 충돌 검사
+	if (!IsBlockingWallHit(Hit))
+	{
+		return;
+	}
+
+	// 서버 파괴 처리
+	if (HasAuthority())
+	{
+		DestroyGroundBox();
+		return;
+	}
+
+	// 클라이언트 즉시 숨김
+	SetActorHiddenInGame(true);
+	SetActorEnableCollision(false);
+	SetActorTickEnabled(false);
+
+	if (IsValid(MovementComponent))
+	{
+		// 클라이언트 이동 정지
+		MovementComponent->StopMovementImmediately();
+		MovementComponent->Deactivate();
 	}
 }
 
@@ -604,7 +631,7 @@ void APRGroundBoxProjectileBase::SnapToGround(float DeltaSeconds, bool bInstant)
 	if (!bInstant && GroundSnapInterpSpeed > 0.0f)
 	{
 		// 지면 높이 보간 추적
-		NewZ = FMath::FInterpTo(CurrentLocation.Z, TargetZ, DeltaSeconds, GroundSnapInterpSpeed);
+		NewZ = FMath::FInterpTo(CurrentLocation.Z, TargetZ - CorrectionZLocation, DeltaSeconds, GroundSnapInterpSpeed);
 		if (FMath::Abs(NewZ - TargetZ) <= GroundSnapTolerance)
 		{
 			// 미세 떨림 방지
@@ -640,6 +667,158 @@ bool APRGroundBoxProjectileBase::IsBlockingWallHit(const FHitResult& HitResult) 
 	return true;
 }
 
+void APRGroundBoxProjectileBase::OnRep_ProjectileRepMovement()
+{
+	switch (ProjectileRepMovement.Event)
+	{
+	case EPRRepMovementEvent::Launch:
+		ApplyLaunchRepMovement(ProjectileRepMovement);
+		break;
+	default:
+		break;
+	}
+}
+
+void APRGroundBoxProjectileBase::PushProjectileRepMovement(EPRRepMovementEvent Event)
+{
+	if (!HasAuthority())
+	{
+		return;
+	}
+
+	ProjectileRepMovement.Event = Event;
+	ProjectileRepMovement.Location = GetActorLocation();
+	ProjectileRepMovement.Rotation = GetActorRotation();
+	ProjectileRepMovement.Velocity = IsValid(MovementComponent)
+		? MovementComponent->Velocity
+		: FVector::ZeroVector;
+
+	MARK_PROPERTY_DIRTY_FROM_NAME(APRGroundBoxProjectileBase, ProjectileRepMovement, this);
+	ForceNetUpdate();
+}
+
+void APRGroundBoxProjectileBase::ApplyLaunchMovement(const FVector& LaunchDirection, float LaunchSpeed)
+{
+	const FVector SafeDirection = LaunchDirection.GetSafeNormal();
+	if (SafeDirection.IsNearlyZero() || LaunchSpeed <= 0.0f)
+	{
+		return;
+	}
+
+	DetachFromActor(FDetachmentTransformRules::KeepWorldTransform);
+
+	bLaunched = true;
+	bDamageEnabled = true;
+	SetActorTickEnabled(true);
+	SetActorRotation(SafeDirection.Rotation());
+
+	if (IsValid(BreakableDetectionBox))
+	{
+		// 발사 중 환경 감지 활성화
+		BreakableDetectionBox->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
+	}
+
+	if (IsValid(MovementComponent))
+	{
+		// 런치 이동 상태
+		MovementComponent->InitialSpeed = LaunchSpeed;
+		MovementComponent->MaxSpeed = FMath::Max(MovementComponent->MaxSpeed, LaunchSpeed);
+		MovementComponent->Velocity = SafeDirection * LaunchSpeed;
+		MovementComponent->Activate(true);
+	}
+
+	// 지면 높이 보정
+	SnapToGround(0.0f, true);
+
+	OnGroundBoxLaunched.Broadcast(this);
+}
+
+void APRGroundBoxProjectileBase::ApplyLaunchAuthorityState()
+{
+	ResetTargetCooldowns();
+
+	if (UWorld* World = GetWorld())
+	{
+		World->GetTimerManager().ClearTimer(SafetyLifeTimeTimerHandle);
+		if (MaxSafetyLifeTime > 0.0f)
+		{
+			// 런치 수명 예약
+			World->GetTimerManager().SetTimer(
+				SafetyLifeTimeTimerHandle,
+				this,
+				&ThisClass::HandleSafetyLifeTimeExpired,
+				LaunchLifeTime,
+				false);
+		}
+	}
+
+	PushProjectileRepMovement(EPRRepMovementEvent::Launch);
+}
+
+void APRGroundBoxProjectileBase::ApplyLaunchRepMovement(const FPRProjectileRepMovement& RepMovement)
+{
+	if (bDestroyRequested || RepMovement.Event != EPRRepMovementEvent::Launch || RepMovement.Velocity.IsNearlyZero())
+	{
+		return;
+	}
+
+	const float LaunchSpeed = RepMovement.Velocity.Size();
+	const FVector LaunchDirection = RepMovement.Velocity.GetSafeNormal();
+	if (LaunchDirection.IsNearlyZero() || LaunchSpeed <= 0.0f)
+	{
+		return;
+	}
+
+	const float LocationDelta = FVector::Dist(GetActorLocation(), RepMovement.Location);
+	if (LocationDelta > LaunchRepSnapDistance)
+	{
+		SetActorLocationAndRotation(RepMovement.Location, RepMovement.Rotation, false, nullptr, ETeleportType::TeleportPhysics);
+		bLaunchRepInterpActive = false;
+	}
+	else
+	{
+		PendingLaunchRepMovement = RepMovement;
+		LaunchRepInterpStartTime = GetWorld() ? GetWorld()->GetTimeSeconds() : 0.0f;
+		bLaunchRepInterpActive = LaunchRepInterpSpeed > 0.0f && LaunchRepInterpMaxTime > 0.0f;
+	}
+
+	ApplyLaunchMovement(LaunchDirection, LaunchSpeed);
+}
+
+void APRGroundBoxProjectileBase::InterpLaunchRepMovement(float DeltaSeconds)
+{
+	if (!bLaunchRepInterpActive || bDestroyRequested)
+	{
+		return;
+	}
+
+	UWorld* World = GetWorld();
+	if (!IsValid(World))
+	{
+		bLaunchRepInterpActive = false;
+		return;
+	}
+
+	const float ElapsedSeconds = World->GetTimeSeconds() - LaunchRepInterpStartTime;
+	if (ElapsedSeconds >= LaunchRepInterpMaxTime)
+	{
+		bLaunchRepInterpActive = false;
+		return;
+	}
+
+	const FVector TargetLocation = PendingLaunchRepMovement.Location + PendingLaunchRepMovement.Velocity * ElapsedSeconds;
+	const FRotator TargetRotation = PendingLaunchRepMovement.Rotation;
+	const FVector NewLocation = FMath::VInterpTo(GetActorLocation(), TargetLocation, DeltaSeconds, LaunchRepInterpSpeed);
+	const FRotator NewRotation = FMath::RInterpTo(GetActorRotation(), TargetRotation, DeltaSeconds, LaunchRepInterpSpeed);
+
+	SetActorLocationAndRotation(NewLocation, NewRotation, false, nullptr, ETeleportType::TeleportPhysics);
+
+	if (FVector::DistSquared(NewLocation, TargetLocation) <= FMath::Square(GroundSnapTolerance))
+	{
+		bLaunchRepInterpActive = false;
+	}
+}
+
 /*~ 소멸 처리 ~*/
 
 void APRGroundBoxProjectileBase::DestroyGroundBox()
@@ -652,6 +831,7 @@ void APRGroundBoxProjectileBase::DestroyGroundBox()
 	bDestroyRequested = true;
 	bDamageEnabled = false;
 	bLaunched = false;
+	bLaunchRepInterpActive = false;
 	SetActorTickEnabled(false);
 	ResetTargetCooldowns();
 
@@ -675,11 +855,6 @@ void APRGroundBoxProjectileBase::DestroyGroundBox()
 void APRGroundBoxProjectileBase::MulticastHandleSpawned_Implementation()
 {
 	OnGroundBoxSpawned.Broadcast(this);
-}
-
-void APRGroundBoxProjectileBase::MulticastHandleLaunched_Implementation()
-{
-	OnGroundBoxLaunched.Broadcast(this);
 }
 
 void APRGroundBoxProjectileBase::MulticastHandleTargetHit_Implementation(AActor* TargetActor, const FHitResult& HitResult)

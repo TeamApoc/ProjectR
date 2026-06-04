@@ -41,7 +41,7 @@ public:
 	// 소프트 참조된 맵으로 ServerTravel을 수행한다. 호스트(리슨/데디케이티드/스탠드얼론)에서만 동작
 	// bAbsolute=true 이면 URL 옵션을 보존하지 않고 새 맵으로 절대 이동
 	UFUNCTION(BlueprintCallable, Category = "ProjectR|Session")
-	void ServerTravelToMap(TSoftObjectPtr<UWorld> MapAsset, bool bAbsolute = true);
+	bool ServerTravelToMap(TSoftObjectPtr<UWorld> MapAsset, bool bAbsolute = true);
 
 	// 현재 세션 상태 조회
 	EPRSessionState GetState() const { return CurrentState; }
@@ -72,8 +72,8 @@ protected:
 	// 호스트 개시 시 보관된 파라미터. 맵 전이 이후 로직에서 참조
 	FPRHostSessionParams PendingHostParams;
 
-	// 메뉴 복귀 시 사용할 맵 이름. 프로젝트 설정에서 주입
-	FName MenuMapName = TEXT("MainMenu");
+	// 메뉴 복귀 시 사용할 기본 메뉴 맵
+	FName MenuMapName = TEXT("/Game/1_Maps/L_Menu");
 
 	// 호스트 리슨 포트와 클라 접속 포트 통일값. 프로젝트 단일 진입점 고정
 	static constexpr int32 SessionPort = 7777;

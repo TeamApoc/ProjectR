@@ -11,6 +11,24 @@
 #include "ProjectR/ItemSystem/Types/PREquipmentTypes.h"
 #include "PRGameTypes.generated.h"
 
+/*~ 그래픽 설정 ~*/
+
+// 전체 Scalability 그룹에 적용할 그래픽 품질 단계
+UENUM(BlueprintType)
+enum class EPRGraphicsQualityProfile : uint8
+{
+	// 낮음 프로필
+	Low = 0,
+	// 보통 프로필
+	Medium = 1,
+	// 높음 프로필
+	High = 2,
+	// 에픽 프로필
+	Epic = 3,
+	// 시네마틱 프로필
+	Cinematic = 4,
+};
+
 /*~ 성장 / 특성 ~*/
 
 // 특성 투자 대상 능력치 종류
@@ -130,6 +148,7 @@ public:
 class UPRItemDataAsset;
 class UPRConsumableDataAsset;
 class UPRMaterialDataAsset;
+class UPREquipmentDataAsset;
 class UPRWeaponDataAsset;
 class UPRWeaponModDataAsset;
 // 세이브 파일 포맷 버전. Join 시 호스트-게스트 간 호환성 체크에 사용
@@ -318,6 +337,21 @@ struct FPRMaterialSaveEntry
 	int32 StackCount = 0;
 };
 
+// 장비 아이템 저장 엔트리
+USTRUCT(BlueprintType)
+struct FPREquipmentItemSaveEntry
+{
+	GENERATED_BODY()
+
+	// 장비 데이터 소프트 참조
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	TSoftObjectPtr<UPREquipmentDataAsset> EquipmentData;
+
+	// 보유 개수
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	int32 StackCount = 1;
+};
+
 // 인벤토리 저장 데이터
 USTRUCT(BlueprintType)
 struct FPRInventorySaveData
@@ -339,6 +373,10 @@ struct FPRInventorySaveData
 	// 재료 아이템 목록
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	TArray<FPRMaterialSaveEntry> Materials;
+
+	// 장비 아이템 목록
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	TArray<FPREquipmentItemSaveEntry> Equipments;
 };
 
 // 무기 매니저 저장 데이터
@@ -358,10 +396,6 @@ struct FPRWeaponManagerSaveData
 	// 현재 무기 슬롯
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	EPRWeaponSlotType CurrentWeaponSlot = EPRWeaponSlotType::None;
-
-	// 현재 무장 상태
-	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	EPRArmedState ArmedState = EPRArmedState::Unarmed;
 
 	// 주무기 현재 탄창 탄약
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
@@ -534,17 +568,17 @@ struct FPRWorldSaveData
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	EPRSaveVersion Version = EPRSaveVersion::V1;
 
-	// 마지막으로 활성화된 체크포인트 ID. 리스폰 지점 결정에 사용
+	// 마지막으로 활성화된 체크포인트이자 리스폰 기준 SpawnPoint 태그
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	FName LastCheckpointId;
+	FGameplayTag LastCheckpointId;
 
-	// 마지막으로 활성화된 Waypoint ID. 전멸 리스폰 지점 결정에 사용
+	// 마지막으로 활성화된 Waypoint ID. UI와 Waypoint 진행 상태에 사용
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	FGameplayTag LastActiveWaypointId;
 
 	// 활성화된 체크포인트 집합. UI 목록·워프에 사용
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	TArray<FName> UnlockedCheckpoints;
+	TArray<FGameplayTag> UnlockedCheckpoints;
 
 	// 처치 완료된 보스 ID 집합. 재도전 시 상태 초기화 분기
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
@@ -565,7 +599,7 @@ struct FPRHostSessionParams
 
 	// 허용 최대 인원. GameMode의 MaxPlayers로 반영
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	int32 MaxPlayers = 4;
+	int32 MaxPlayers = 3;
 
 	// 비공개 여부. 현재는 표시용. OSS 단계에서 세션 검색 필터에 사용 예정
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)

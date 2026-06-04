@@ -25,6 +25,8 @@ class PROJECTR_API UPRShopWidget : public UPRWidgetBase
 	GENERATED_BODY()
 
 public:
+	UPRShopWidget();
+	
 	// 상점 거래 요청 대상 Context를 설정
 	UFUNCTION(BlueprintCallable, Category = "ProjectR|Shop")
 	void SetShopContext(UPRShopComponent* InShopComponent);
@@ -84,6 +86,9 @@ private:
 	// 현재 탭 선택 표시를 갱신
 	void RefreshTabVisuals();
 
+	// 새 목록 기준으로 선택 슬롯 데이터를 갱신
+	void SyncSelectedItemFromList(const TArray<FPRShopItemSlotViewData>& ListItems);
+
 	// 구매 탭 표시 데이터를 만듬
 	TArray<FPRShopItemSlotViewData> BuildBuyListItems() const;
 
@@ -93,8 +98,14 @@ private:
 	// 상점 Entry를 슬롯 표시 데이터로 변환
 	FPRShopItemSlotViewData BuildShopSlotViewData(const FPRShopEntry& Entry, EPRShopTabType TabType) const;
 
+	// 상점 Entry의 구매 재료 비용 표시 데이터를 만듬
+	bool BuildMaterialCostViewData(const FPRShopEntry& Entry, int32 TransactionQuantity, TArray<FPRShopMaterialCostViewData>& OutMaterialCosts) const;
+
 	// 지정 아이템 데이터의 현재 보유 수량을 반환
 	int32 GetOwnedStackCount(const UPRItemDataAsset* ItemData) const;
+
+	// 선택된 구매 재료 비용을 보유했는지 확인
+	bool HasEnoughSelectedMaterialCosts() const;
 
 	// 현재 선택으로 거래 요청이 가능한지 확인
 	bool CanRequestSelectedTransaction() const;

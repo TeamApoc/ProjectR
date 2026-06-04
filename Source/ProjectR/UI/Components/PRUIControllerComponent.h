@@ -6,22 +6,29 @@
 #include "Components/ActorComponent.h"
 #include "ProjectR/ItemSystem/Types/PRDropTypes.h"
 #include "ProjectR/ItemSystem/Types/PRWeaponTypes.h"
+#include "ProjectR/UI/HUD/PRHUDMessageTypes.h"
+#include "ProjectR/UI/Inventory/PRInventoryUITypes.h"
 #include "PRUIControllerComponent.generated.h"
 
 class APlayerController;
+class APawn;
+class UWidget;
 class UUserWidget;
+class UPREquipmentManagerComponent;
 class UPRHUDWidget;
+class UPRInGameMenuWidget;
 class UPRInventoryComponent;
 class UPRInventoryWidget;
-class UPREquipmentManagerComponent;
+class UPRItemTooltipWidget;
 class UPRQuickSlotComponent;
 class UPRShopComponent;
 class UPRShopWidget;
 class UPRTraitWindowWidget;
 class UPRUIManagerSubsystem;
+class UPRWaypointTravelWidget;
+class UPRWeaponManagerComponent;
 class UPRWeaponUpgradeComponent;
 class UPRWeaponUpgradeWidget;
-class UPRWeaponManagerComponent;
 
 // 플레이어 컨트롤러에 부착되어 로컬 플레이어 UI 표시 흐름을 관리한다
 UCLASS(ClassGroup=(UI), meta=(BlueprintSpawnableComponent))
@@ -30,32 +37,44 @@ class PROJECTR_API UPRUIControllerComponent : public UActorComponent
 	GENERATED_BODY()
 
 public:
-	// UI 매니저 컴포넌트 기본 설정을 초기화한다
+	// UI 컨트롤러 컴포넌트 기본 설정을 초기화한다
 	UPRUIControllerComponent();
 
 	// 인벤토리 위젯을 열거나 닫는다
 	UFUNCTION(BlueprintCallable, Category = "ProjectR|UI")
 	void ToggleInventory();
 
-	// 특성 투자 위젯을 열거나 닫는다
+	// 특성 창 위젯을 열거나 닫는다
 	UFUNCTION(BlueprintCallable, Category = "ProjectR|UI")
 	void ToggleTraitWindow();
+
+	// 인게임 메뉴 위젯을 열거나 닫는다
+	UFUNCTION(BlueprintCallable, Category = "ProjectR|UI")
+	void ToggleInGameMenu();
 
 	// 인벤토리 위젯이 열려 있으면 닫는다
 	UFUNCTION(BlueprintCallable, Category = "ProjectR|UI")
 	void CloseInventory();
 
-	// 특성 투자 위젯이 열려 있으면 닫는다
+	// 특성 창 위젯이 열려 있으면 닫는다
 	UFUNCTION(BlueprintCallable, Category = "ProjectR|UI")
 	void CloseTraitWindow();
 
-	// 강화 위젯을 열고 강화 컴포넌트 Context를 전달한다
+	// 인게임 메뉴 위젯이 열려 있으면 닫는다
+	UFUNCTION(BlueprintCallable, Category = "ProjectR|UI")
+	void CloseInGameMenu();
+
+	// 강화 위젯을 열고 강화 컴포넌트 컨텍스트를 전달한다
 	UFUNCTION(BlueprintCallable, Category = "ProjectR|UI")
 	void OpenWeaponUpgrade(UPRWeaponUpgradeComponent* UpgradeComponent);
 
-	// 상점 위젯을 열고 상점 컴포넌트 Context를 전달한다
+	// 상점 위젯을 열고 상점 컴포넌트 컨텍스트를 전달한다
 	UFUNCTION(BlueprintCallable, Category = "ProjectR|UI")
 	void OpenShop(UPRShopComponent* ShopComponent);
+
+	// 웨이포인트 Travel UI 열기
+	UFUNCTION(BlueprintCallable, Category = "ProjectR|UI")
+	void OpenWaypointTravel();
 
 	// 강화 위젯이 열려 있으면 닫는다
 	UFUNCTION(BlueprintCallable, Category = "ProjectR|UI")
@@ -65,33 +84,49 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "ProjectR|UI")
 	void CloseShop();
 
+	// 웨이포인트 Travel UI 닫기
+	UFUNCTION(BlueprintCallable, Category = "ProjectR|UI")
+	void CloseWaypointTravel();
+
 	// 현재 캐시된 인벤토리 위젯을 반환한다
 	UFUNCTION(BlueprintPure, Category = "ProjectR|UI")
 	UPRInventoryWidget* GetInventoryWidget() const { return InventoryWidget; }
 
-	// 현재 HUD 위젯 반환
+	// 현재 HUD 위젯을 반환한다
 	UFUNCTION(BlueprintPure, Category = "ProjectR|UI")
 	UPRHUDWidget* GetHUDWidget() const { return HUDWidget; }
 
-	// 레벨업 팝업 생성 및 표시 요청
+	// 레벨업 팝업 표시를 요청한다
 	UFUNCTION(BlueprintCallable, Category = "ProjectR|UI")
 	void ShowLevelUpPopup(int32 PreviousLevel, int32 CurrentLevel);
 
-	// 드롭 보상 획득 알림을 현재 HUD에 전달
+	// 획득 보상 알림 표시를 현재 HUD에 전달한다
 	UFUNCTION(BlueprintCallable, Category = "ProjectR|UI")
 	void ShowPickupRewardNotification(const FPRPickupNotificationPayload& Payload);
 
-	// 장착 무기에 맞는 스코프 위젯을 표시한다.
+	// HUD 안내 메시지 타입을 로컬 EventManager 이벤트로 발송한다
+	UFUNCTION(BlueprintCallable, Category = "ProjectR|UI")
+	void NotifyHUDMessage(EPRHUDMessageType MessageType);
+
+	// 아이템 슬롯 툴팁을 지정 위젯에 연결한다
+	UFUNCTION(BlueprintCallable, Category = "ProjectR|UI|Tooltip")
+	void ShowItemTooltip(UWidget* TooltipOwner, const FPRInventoryItemSlotViewData& SlotViewData);
+
+	// 현재 표시 중인 아이템 슬롯 툴팁을 숨긴다
+	UFUNCTION(BlueprintCallable, Category = "ProjectR|UI|Tooltip")
+	void HideItemTooltip();
+
+	// 장착 무기에 맞는 스코프 위젯을 표시한다
 	UFUNCTION(BlueprintCallable, Category = "ProjectR|UI")
 	void ShowWeaponScope();
 
-	// 현재 스코프 위젯을 숨긴다.
+	// 현재 스코프 위젯을 숨긴다
 	UFUNCTION(BlueprintCallable, Category = "ProjectR|UI")
 	void HideWeaponScope();
 
-	// 새 폰 possession 시점에 폰 의존 위젯을 재초기화. 초기 possession과 리스폰 양쪽에서 호출 가능
+	// possession 시점에 의존하는 위젯을 재초기화한다
 	void RefreshForPawn(APawn* InPawn);
-	
+
 	UFUNCTION(BlueprintCallable)
 	void RemoveAllWidget();
 
@@ -104,7 +139,7 @@ private:
 	UFUNCTION()
 	void HandleWeaponEquipmentChanged(UPRWeaponManagerComponent* WeaponManagerComponent, EPRWeaponSlotType ChangedSlot);
 
-	// 소유 플레이어 컨트롤러가 로컬 컨트롤러인지 확인. PlayerController 유효성과 IsLocalController 검사를 묶음
+	// 소유 플레이어 컨트롤러가 로컬 컨트롤러인지 확인한다
 	bool IsLocalPlayer() const;
 
 	// 소유 플레이어 컨트롤러를 조회한다
@@ -134,8 +169,20 @@ private:
 	// 상점 위젯 인스턴스를 생성하거나 캐시된 인스턴스를 반환한다
 	UPRShopWidget* GetOrCreateShopWidget();
 
-	// 특성 투자 위젯 인스턴스를 생성하거나 캐시된 인스턴스를 반환한다
+	// 웨이포인트 Travel UI 인스턴스 생성 또는 캐시 반환
+	UPRWaypointTravelWidget* GetOrCreateWaypointTravelWidget();
+
+	// 특성 창 위젯 인스턴스를 생성하거나 캐시된 인스턴스를 반환한다
 	UPRTraitWindowWidget* GetOrCreateTraitWindowWidget();
+
+	// 인게임 메뉴 위젯 인스턴스를 생성하거나 캐시된 인스턴스를 반환한다
+	UPRInGameMenuWidget* GetOrCreateInGameMenuWidget();
+
+	// 아이템 툴팁 위젯 인스턴스를 생성하거나 캐시된 인스턴스를 반환한다
+	UPRItemTooltipWidget* GetOrCreateItemTooltipWidget();
+
+	// 아이템 툴팁 위젯 참조를 정리한다
+	void RemoveItemTooltipWidget();
 
 	// 현재 HUD 위젯을 UIManager에서 Pop하고 참조 정리
 	void TearDownHUDWidget();
@@ -143,20 +190,19 @@ private:
 	// HUDWidgetClass로 HUD 위젯을 새로 생성하여 UIManager에 Push
 	void CreateHUDWidget();
 
-	// 현재 무기에 맞는 스코프 위젯을 준비한다.
+	// 현재 무기에 맞는 스코프 위젯을 준비한다
 	void RefreshWeaponScopeWidget();
 
-	// 스코프 위젯을 제거한다.
+	// 스코프 위젯을 제거한다
 	void RemoveWeaponScopeWidget();
 
-	// 무기 장비 변경 델리게이트를 바인딩한다.
+	// 무기 장비 변경 델리게이트를 바인딩한다
 	void BindWeaponManager(UPRWeaponManagerComponent* WeaponManagerComponent);
 
-	// 무기 장비 변경 델리게이트 바인딩을 해제한다.
+	// 무기 장비 변경 델리게이트 바인딩을 해제한다
 	void UnbindWeaponManager();
 
 protected:
-	// ========= Configs ==========
 	// 인벤토리 위젯 클래스
 	UPROPERTY(EditDefaultsOnly, Category = "ProjectR|Inventory")
 	TSubclassOf<UPRInventoryWidget> InventoryWidgetClass;
@@ -169,24 +215,39 @@ protected:
 	UPROPERTY(EditDefaultsOnly, Category = "ProjectR|Shop")
 	TSubclassOf<UPRShopWidget> ShopWidgetClass;
 
-	// 특성 투자 위젯 클래스
+	// 웨이포인트 Travel UI 위젯 클래스
+	UPROPERTY(EditDefaultsOnly, Category = "ProjectR|WaypointTravel")
+	TSubclassOf<UPRWaypointTravelWidget> WaypointTravelWidgetClass;
+
+	// 특성 창 위젯 클래스
 	UPROPERTY(EditDefaultsOnly, Category = "ProjectR|Growth")
 	TSubclassOf<UPRTraitWindowWidget> TraitWindowWidgetClass;
+
+	// 인게임 메뉴 위젯 클래스
+	UPROPERTY(EditDefaultsOnly, Category = "ProjectR|InGameMenu")
+	TSubclassOf<UPRInGameMenuWidget> InGameMenuWidgetClass;
 
 	// 생성 후 재사용할 상점 위젯
 	UPROPERTY(Transient)
 	TObjectPtr<UPRShopWidget> ShopWidget;
-	
-	// HUD 위젯 클래스. BP에서 지정
+
+	// 생성 후 재사용할 웨이포인트 Travel UI 위젯
+	UPROPERTY(Transient)
+	TObjectPtr<UPRWaypointTravelWidget> WaypointTravelWidget;
+
+	// HUD 위젯 클래스
 	UPROPERTY(EditDefaultsOnly, Category = "ProjectR|HUD")
 	TSubclassOf<UPRHUDWidget> HUDWidgetClass;
-	
+
+	// 아이템 툴팁 위젯 클래스
+	UPROPERTY(EditDefaultsOnly, Category = "ProjectR|Tooltip")
+	TSubclassOf<UPRItemTooltipWidget> ItemTooltipWidgetClass;
+
 private:
-	// ======= Widget Instances =======
 	// 생성 후 재사용할 인벤토리 위젯
 	UPROPERTY(Transient)
 	TObjectPtr<UPRInventoryWidget> InventoryWidget;
-	
+
 	// 현재 활성 HUD 위젯 인스턴스
 	UPROPERTY(Transient)
 	TObjectPtr<UPRHUDWidget> HUDWidget;
@@ -194,23 +255,34 @@ private:
 	// 장착 무기 데이터로 생성한 스코프 위젯
 	UPROPERTY(Transient)
 	TObjectPtr<UUserWidget> WeaponScopeWidget;
-	
+
+	// 아이템 툴팁 표시를 담당하는 전역 위젯
+	UPROPERTY(Transient)
+	TObjectPtr<UPRItemTooltipWidget> ItemTooltipWidget;
+
+	// 현재 툴팁을 연결한 위젯
+	UPROPERTY(Transient)
+	TObjectPtr<UWidget> ActiveTooltipOwner;
+
 	// 생성 후 재사용할 강화 위젯
 	UPROPERTY(Transient)
 	TObjectPtr<UPRWeaponUpgradeWidget> WeaponUpgradeWidget;
 
-	// 생성 후 재사용할 특성 투자 위젯
+	// 생성 후 재사용할 특성 창 위젯
 	UPROPERTY(Transient)
 	TObjectPtr<UPRTraitWindowWidget> TraitWindowWidget;
 
-	// ====== Variables =======
+	// 생성 후 재사용할 인게임 메뉴 위젯
+	UPROPERTY(Transient)
+	TObjectPtr<UPRInGameMenuWidget> InGameMenuWidget;
+
 	// 현재 바인딩된 무기 매니저
 	UPROPERTY(Transient)
 	TObjectPtr<UPRWeaponManagerComponent> BoundWeaponManager;
-	
+
 	// 현재 스코프 위젯 클래스
 	UPROPERTY(Transient)
 	TSubclassOf<UUserWidget> CurrentScopeWidgetClass;
-	
+
 	bool bWantsWeaponScopeVisible = false;
 };

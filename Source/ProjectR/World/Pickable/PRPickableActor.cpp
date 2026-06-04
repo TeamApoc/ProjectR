@@ -7,6 +7,7 @@
 #include "ProjectR/Interaction/PRInteractableComponent.h"
 #include "ProjectR/Interaction/Actions/PRInteraction_PickUpAmmo.h"
 #include "ProjectR/System/PRDeveloperSettings.h"
+#include "ProjectR/System/PRRespawnSubsystem.h"
 
 APRPickableActor::APRPickableActor()
 {
@@ -17,4 +18,38 @@ APRPickableActor::APRPickableActor()
 	InteractionCollision->SetCollisionProfileName(FName("Interactable"));
 	InteractionCollision->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
 	SetRootComponent(InteractionCollision);
+}
+
+void APRPickableActor::BeginPlay()
+{
+	Super::BeginPlay();
+
+	if (HasAuthority() && bDisposable)
+	{
+		if (UWorld* World = GetWorld())
+		{
+			if (UPRRespawnSubsystem* RespawnSubsystem = World->GetSubsystem<UPRRespawnSubsystem>())
+			{
+				// 일회성 액터 등록
+				RespawnSubsystem->RegisterDisposableActor(this);
+			}
+		}
+	}
+}
+
+void APRPickableActor::EndPlay(const EEndPlayReason::Type EndPlayReason)
+{
+	if (HasAuthority() && bDisposable)
+	{
+		if (UWorld* World = GetWorld())
+		{
+			if (UPRRespawnSubsystem* RespawnSubsystem = World->GetSubsystem<UPRRespawnSubsystem>())
+			{
+				// 일회성 액터 등록 해제
+				RespawnSubsystem->UnregisterDisposableActor(this);
+			}
+		}
+	}
+
+	Super::EndPlay(EndPlayReason);
 }

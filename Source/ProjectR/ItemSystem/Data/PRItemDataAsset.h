@@ -53,6 +53,10 @@ public:
 	UFUNCTION(BlueprintPure, Category = "Item")
 	const FVector& GetPickupMeshScale() const { return PickupMeshScale; }
 
+	// 월드 픽업 희귀도 나이아가라 상대 위치를 반환
+	UFUNCTION(BlueprintPure, Category = "Item")
+	const FVector& GetRarityNiagaraOffset() const { return RarityNiagaraOffset; }
+
 public:
 	// 아이템 타입
 	UPROPERTY(VisibleDefaultsOnly, BlueprintReadOnly, Category = "Item")
@@ -85,6 +89,10 @@ public:
 	// 월드 픽업에 표시할 메시 스케일
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Item", meta = (ClampMin = "0.0"))
 	FVector PickupMeshScale = FVector::OneVector;
+
+	// 월드 픽업 희귀도 나이아가라의 메시 기준 상대 위치
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Item")
+	FVector RarityNiagaraOffset = FVector::ZeroVector;
 
 	// 인벤토리 생성 Item 인스턴스 클래스
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Item")

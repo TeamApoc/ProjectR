@@ -12,10 +12,32 @@
 #include "ProjectR/AbilitySystem/AttributeSets/PRAttributeSet_Weapon.h"
 #include "ProjectR/Character/PRPlayerCharacter.h"
 #include "ProjectR/Combat/PRCombatGameplayTags.h"
+#include "ProjectR/FX/PRFXNetworkComponent.h"
+#include "ProjectR/FX/PRFXSubsystem.h"
 #include "ProjectR/Player/PRPlayerState.h"
 #include "ProjectR/Game/PRGameInstance.h"
 #include "ProjectR/ItemSystem/Components/PRWeaponManagerComponent.h"
 #include "ProjectR/ItemSystem/Components/PRQuickSlotComponent.h"
+
+namespace PRGameplayStaticsPrivate
+{
+	// GameplayStatics 헬퍼들이 동일한 요청 구조를 만들기 위한 공통 변환 함수
+	FPRFXRequest MakeFXRequest(FGameplayTag FXTag, FInstancedStruct Payload, FPRFXPredictionKey PredictionKey = FPRFXPredictionKey())
+	{
+		FPRFXRequest Request;
+		Request.FXTag = FXTag;
+		Request.Payload = Payload;
+		Request.PredictionKey = PredictionKey;
+		return Request;
+	}
+
+	// WorldContextObject에서 FX Subsystem을 찾기 위한 공통 조회 함수
+	UPRFXSubsystem* GetFXSubsystem(const UObject* WorldContextObject)
+	{
+		const UWorld* World = IsValid(WorldContextObject) ? WorldContextObject->GetWorld() : nullptr;
+		return IsValid(World) ? World->GetSubsystem<UPRFXSubsystem>() : nullptr;
+	}
+}
 
 void UPRGameplayStatics::GetAllMeshComponents(AActor* Actor, TArray<UMeshComponent*>& OutMeshes)
 {
@@ -199,6 +221,23 @@ UAbilitySystemComponent* UPRGameplayStatics::GetAbilitySystemComponent(AActor* A
 	return UAbilitySystemBlueprintLibrary::GetAbilitySystemComponent(Actor);
 }
 
+void UPRGameplayStatics::CancelAbilityWithTags(AActor* TargetActor, const FGameplayTagContainer& AbilityTags)
+{
+	if (AbilityTags.IsEmpty())
+	{
+		return;
+	}
+
+	UAbilitySystemComponent* TargetASC = GetAbilitySystemComponent(TargetActor);
+	if (!IsValid(TargetASC))
+	{
+		return;
+	}
+
+	// GAS 활성 어빌리티 태그 기반 취소
+	TargetASC->CancelAbilities(&AbilityTags);
+}
+
 void UPRGameplayStatics::GrantAmmo(AActor* TargetActor, TSubclassOf<UGameplayEffect> AmmoEffect,
 	float AmmoAmount)
 {
@@ -305,4 +344,72 @@ FTransform UPRGameplayStatics::ResolveProjectileLaunchTransform(const APawn* Paw
 	}
 
 	return FTransform(LaunchDir.Rotation(), MuzzleLocation);
+}
+
+void UPRGameplayStatics::PlayLocalFX(const UObject* WorldContextObject, FGameplayTag FXTag, FInstancedStruct Payload)
+{
+	UPRFXSubsystem* FXSubsystem = PRGameplayStaticsPrivate::GetFXSubsystem(WorldContextObject);
+	if (!IsValid(FXSubsystem))
+	{
+		return;
+	}
+
+	// 호출자가 가진 FXTag와 구체 Payload를 FX 시스템의 표준 요청 구조로 변환
+	const FPRFXRequest Request = PRGameplayStaticsPrivate::MakeFXRequest(FXTag, Payload);
+	FXSubsystem->PlayLocalFX(Request);
+}
+
+FPRFXPredictionKey UPRGameplayStatics::PlayPredictiveFX(const UObject* WorldContextObject, FGameplayTag FXTag, FInstancedStruct Payload)
+{
+	UPRFXSubsystem* FXSubsystem = PRGameplayStaticsPrivate::GetFXSubsystem(WorldContextObject);
+	if (!IsValid(FXSubsystem))
+	{
+		return FPRFXPredictionKey();
+	}
+
+	// 예측 재생 요청은 Subsystem이 PredictionKey를 발급하고 내부 중복 제거 목록에 등록
+	const FPRFXRequest Request = PRGameplayStaticsPrivate::MakeFXRequest(FXTag, Payload);
+	return FXSubsystem->PlayPredictiveFX(Request);
+}
+
+void UPRGameplayStatics::PlayConfirmedFX(const UObject* WorldContextObject, FGameplayTag FXTag, FInstancedStruct Payload, FPRFXPredictionKey PredictionKey)
+{
+	UPRFXSubsystem* FXSubsystem = PRGameplayStaticsPrivate::GetFXSubsystem(WorldContextObject);
+	if (!IsValid(FXSubsystem))
+	{
+		return;
+	}
+
+	// 서버 확정 재생은 호출자가 전달한 PredictionKey로 로컬 예측 재생과의 중복 여부를 검사
+	const FPRFXRequest Request = PRGameplayStaticsPrivate::MakeFXRequest(FXTag, Payload, PredictionKey);
+	FXSubsystem->PlayConfirmedFX(Request);
+}
+
+FPRFXPredictionKey UPRGameplayStatics::PlayPredictiveNetworkFX(const UObject* WorldContextObject, AActor* NetworkSourceActor, FGameplayTag FXTag, FInstancedStruct Payload)
+{
+	FPRFXRequest Request = PRGameplayStaticsPrivate::MakeFXRequest(FXTag, Payload);
+	FPRFXPredictionKey PredictionKey;
+
+	if (UPRFXSubsystem* FXSubsystem = PRGameplayStaticsPrivate::GetFXSubsystem(WorldContextObject))
+	{
+		// 로컬 예측 재생으로 만든 PredictionKey를 같은 서버 전파 요청에 넣어 소유 클라이언트 중복 재생 방지
+		PredictionKey = FXSubsystem->PlayPredictiveFX(Request);
+		Request.PredictionKey = PredictionKey;
+	}
+
+	const UWorld* World = IsValid(WorldContextObject) ? WorldContextObject->GetWorld() : nullptr;
+	if (!IsValid(World) || World->GetNetMode() == NM_Standalone)
+	{
+		return PredictionKey;
+	}
+
+	UPRFXNetworkComponent* FXNetworkComponent = UPRFXNetworkComponent::FindForActor(NetworkSourceActor);
+	if (!IsValid(FXNetworkComponent))
+	{
+		return PredictionKey;
+	}
+
+	// PlayerController 소유 RPC 컴포넌트를 통해 서버가 Registry 정책에 맞는 클라이언트 전파 수행
+	FXNetworkComponent->ServerPlayFX_Unreliable(Request);
+	return PredictionKey;
 }

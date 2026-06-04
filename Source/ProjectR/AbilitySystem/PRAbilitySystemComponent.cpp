@@ -193,6 +193,21 @@ void UPRAbilitySystemComponent::ClearAbilitySetByHandles(FPRAbilitySetHandles& H
 	Handles.Reset();
 }
 
+void UPRAbilitySystemComponent::ResetSystem()
+{
+	if (!IsOwnerActorAuthoritative())
+	{
+		return;
+	}
+
+	// 리스폰 이전 Pawn과 입력에서 이어진 활성 어빌리티 상태 정리
+	CancelAllAbilities();
+	ClearAbilityInput();
+
+	// 리스폰 후 ApplySaveData가 장비, 무기, 특성 효과를 다시 부여하므로 현재 활성 GameplayEffect 일괄 제거
+	RemoveActiveEffects(FGameplayEffectQuery());
+}
+
 bool UPRAbilitySystemComponent::InitializeAttributesFromRegistry(const UPRAbilitySystemRegistry* Registry,
                                                                    EPRCharacterRole Role, FName RowName)
 {
@@ -398,7 +413,16 @@ void UPRAbilitySystemComponent::ProcessAbilityInput(float /*DeltaTime*/, bool /*
 
 	for (const FGameplayAbilitySpecHandle& SpecHandle : AbilitiesToActivate)
 	{
-		TryActivateAbility(SpecHandle);
+		// TryActivateAbility
+		if (!TryActivateAbility(SpecHandle))
+		{
+			// 실패시 이벤트 훅 호출
+			if (FGameplayAbilitySpec* Spec = FindAbilitySpecFromHandle(SpecHandle))
+			{
+				const UPRGameplayAbility* CDO = Cast<UPRGameplayAbility>(Spec->Ability);
+				CDO->OnFailActivateAbility(this,Spec);
+			}
+		}
 	}
 
 	// Released

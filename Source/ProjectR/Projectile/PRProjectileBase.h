@@ -52,6 +52,9 @@ public:
 	// 서버가 직접 생성한 투사체의 초기 진행 방향과 속도를 설정한다.
 	void SetProjectileInitialVelocity(const FVector& Direction, float SpeedOverride = 0.0f);
 
+	// 투사체 이동 컴포넌트 기본 속도 조회
+	float GetProjectileInitialSpeed() const;
+
 	// 서버가 직접 생성한 투사체의 Homing 타겟을 설정한다.
 	void ConfigureProjectileHoming(USceneComponent* HomingTargetComponent, float HomingAcceleration);
 
@@ -124,7 +127,7 @@ protected:
 	
 	UFUNCTION(BlueprintCallable)
 	void ApplyEffectToTargetWithHit(AActor* TargetActor, const FHitResult& InHitResult);
-	
+
 private:
 	// Predicted-Auth 양방향 링크
 	void LinkCounterpart(APRProjectileBase* InCounterpart);

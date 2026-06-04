@@ -9,13 +9,79 @@
 #include "PRWeaponActor.generated.h"
 
 enum class EPRArmedState : uint8;
+class UNiagaraComponent;
 class UNiagaraSystem;
+class USoundBase;
 class ACharacter;
 class USceneComponent;
 class USkeletalMeshComponent;
 class UPRWeaponAnimInstance;
 
-// 슬롯에 장착된 무기의 로컬 공개 표현만 담당하는 Actor다.
+// Trail 끝점 파라미터 타입
+UENUM(BlueprintType)
+enum class EPRTrailEndParamType : uint8
+{
+	SingleFloat3,
+	ArrayFloat3
+};
+
+// 무기 Actor가 발사 FX 재생에 사용하는 전용 파라미터
+USTRUCT(BlueprintType)
+struct PROJECTR_API FPRWeaponFireFXParams
+{
+	GENERATED_BODY()
+
+	// Trail 시작 위치
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "ProjectR|Weapon|FX")
+	FVector StartLocation = FVector::ZeroVector;
+
+	// Trail 종료 위치 목록
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "ProjectR|Weapon|FX")
+	TArray<FVector> TrailEnds;
+
+	// Trail 충돌 도달 여부
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "ProjectR|Weapon|FX")
+	bool bBlockingHit = false;
+
+	// Trail 방향
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "ProjectR|Weapon|FX")
+	FVector Direction = FVector::ForwardVector;
+
+	// Trail 종료 위치 추가
+	void AddTrailEnd(const FVector& InEndLocation);
+
+	// 대표 Trail 종료 위치 반환
+	FVector GetPrimaryTrailEnd() const;
+};
+
+/**
+ * 플레이어 WeaponManager 슬롯에 장착되는 무기의 VisualActor로, 각 클라이언트가 로컬에 Spawn함
+ *
+ * 발사 FX 재생 흐름
+ * UPRFXWeaponFireTrailCue가 현재 손에 든 무기 Actor를 찾은 뒤 TriggerFireFX 호출
+ * TriggerFireFX는 PlayFireSFX, PlayMuzzleFlashVFX, PlayTrailVFX를 순서대로 호출
+ * 각 함수는 BlueprintNativeEvent이므로 무기 BP에서 필요한 단계만 교체 가능
+ *
+ * 기본 설정 방법
+ * FireSFX에는 발사음 지정
+ * MuzzleFlashVFX에는 총구 화염 Niagara System 지정
+ * TrailVFX에는 캐시 컴포넌트가 없을 때 SpawnSystemAtLocation으로 생성할 Niagara System 지정
+ * TrailStartParamName에는 Trail 시작점 Vector User Parameter 이름 지정
+ * TrailEndParamName에는 Trail 끝점 User Parameter 이름 지정
+ * TrailEndParamType이 SingleFloat3이면 대표 끝점 하나를 Vector로 주입
+ * TrailEndParamType이 ArrayFloat3이면 모든 끝점을 Niagara Array Float 3로 주입
+ *
+ * 캐시 컴포넌트 방식
+ * 무기 BP에 Trail NiagaraComponent를 미리 배치한 경우 GetCachedTrailComponent를 override해 해당 컴포넌트 반환
+ * 반환값이 유효하면 PlayTrailVFX는 새 컴포넌트를 생성하지 않고 위치, 회전, User Parameter만 갱신
+ * 반환값이 없으면 TrailVFX를 SpawnSystemAtLocation으로 생성
+ *
+ * Trigger 파라미터 방식
+ * Niagara가 User.Trigger 같은 bool 값으로 Spawn을 제어한다면 bUseTrailTriggerParam 활성화
+ * TrailTriggerParamName에는 해당 bool User Parameter 이름 지정
+ * PlayTrailVFX는 파라미터 주입 후 Trigger를 true로 올리고 TrailTriggerHoldTime 이후 false로 변경
+ * 새 발사가 들어오면 이전 Trigger 초기화 타이머를 취소하고 다시 예약
+ */
 UCLASS()
 class PROJECTR_API APRWeaponActor : public AActor
 {
@@ -62,9 +128,28 @@ public:
 	// 총구 트랜스폼 반환 함수, BP에서 override
 	UFUNCTION(BlueprintNativeEvent)
 	FTransform GetMuzzleTransform() const;
+
+	// 발사 FX 통합 진입점
+	UFUNCTION(BlueprintCallable, Category = "ProjectR|Weapon|FX")
+	void TriggerFireFX(const FPRWeaponFireFXParams& Params);
+
+	// 발사 SFX 재생
+	UFUNCTION(BlueprintNativeEvent, Category = "ProjectR|Weapon|FX")
+	void PlayFireSFX(const FPRWeaponFireFXParams& Params);
+
+	// 총구 화염 VFX 재생
+	UFUNCTION(BlueprintNativeEvent, Category = "ProjectR|Weapon|FX")
+	void PlayMuzzleFlashVFX(const FPRWeaponFireFXParams& Params);
+
+	// Trail VFX 재생
+	UFUNCTION(BlueprintNativeEvent, Category = "ProjectR|Weapon|FX")
+	void PlayTrailVFX(const FPRWeaponFireFXParams& Params);
+
+	// 재사용할 Trail Niagara Component 반환
+	UFUNCTION(BlueprintNativeEvent, BlueprintPure, Category = "ProjectR|Weapon|FX")
+	UNiagaraComponent* GetCachedTrailComponent() const;
 	
-	// 26.05.04, Yuchan, 총구 이펙트 재생 추가
-	// 총기 관련 특정 이펙트 재생, BP에서 선택적 override 가능
+	// 레거시 Niagara 재생 경로, 제거 예정
 	UFUNCTION(BlueprintNativeEvent)
 	void PlayNiagaraEffect(EPRWeaponEffectType EffectType, UNiagaraSystem* InNiagaraSystem = nullptr);
 	
@@ -86,6 +171,9 @@ public:
 	
 protected:
 	void Internal_SetIsIKSuppressed();
+
+	// Trail Trigger 파라미터 초기화
+	void ResetTrailTriggerParam();
 	
 public:
 	// 이 무기가 왼손 IK 보정을 사용할지 결정
@@ -101,6 +189,42 @@ public:
 	FTransform LeftHandIKOffset = FTransform::Identity;
 	
 protected:
+	// 발사 시점 SFX
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "ProjectR|Weapon|FX")
+	TObjectPtr<USoundBase> FireSFX;
+
+	// 발사 Trail VFX
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "ProjectR|Weapon|FX")
+	TObjectPtr<UNiagaraSystem> TrailVFX;
+
+	// 총구 화염 VFX
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "ProjectR|Weapon|FX")
+	TObjectPtr<UNiagaraSystem> MuzzleFlashVFX;
+
+	// Trail 시작점 Niagara User Parameter 이름
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "ProjectR|Weapon|FX")
+	FName TrailStartParamName = FName(TEXT("User.TrailStart"));
+
+	// Trail 끝점 Niagara User Parameter 이름
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "ProjectR|Weapon|FX")
+	FName TrailEndParamName = FName(TEXT("User.TrailEnd"));
+
+	// Trail 끝점 Niagara User Parameter 타입
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "ProjectR|Weapon|FX")
+	EPRTrailEndParamType TrailEndParamType = EPRTrailEndParamType::SingleFloat3;
+
+	// Trail Trigger 파라미터 사용 여부
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "ProjectR|Weapon|FX")
+	bool bUseTrailTriggerParam = false;
+
+	// Trail Trigger Niagara User Parameter 이름
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "ProjectR|Weapon|FX")
+	FName TrailTriggerParamName = FName(TEXT("User.Trigger"));
+	
+	// Trail Trigger 유지 시간
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "ProjectR|Weapon|FX", meta = (ClampMin = "0.0", Units = "s"))
+	float TrailTriggerHoldTime = 0.03f;
+	
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "ProjectR|Weapon")
 	TObjectPtr<USceneComponent> SceneRoot;
 
@@ -113,4 +237,10 @@ private:
 	bool bIsIKSuppressed = false;
 	
 	FTimerHandle IKSuppressedTimerHandle;
+
+	// 다음 틱 Trigger 초기화 예약 핸들
+	FTimerHandle TrailTriggerResetTimerHandle;
+
+	// Trigger 초기화 대상 Niagara Component
+	TWeakObjectPtr<UNiagaraComponent> PendingTrailTriggerComponent;
 };

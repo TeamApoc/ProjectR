@@ -7,7 +7,9 @@
 #include "ProjectR/UI/Inventory/PRInventoryUITypes.h"
 #include "PRShopTypes.generated.h"
 
+class UPRMaterialDataAsset;
 class UPRShopComponent;
+class UTexture2D;
 
 // 상점 거래 유형
 UENUM(BlueprintType)
@@ -32,6 +34,7 @@ enum class EPRShopBuyFailReason : uint8
 	Locked,
 	OutOfStock,
 	NotEnoughScrap,
+	NotEnoughMaterial,
 	InventoryFull,
 	ConsumeFailed,
 	GrantFailed
@@ -65,6 +68,21 @@ enum class EPRShopTabType : uint8
 	Sell
 };
 
+// 상점 구매 비용으로 요구하는 재료 수량
+USTRUCT(BlueprintType)
+struct PROJECTR_API FPRShopMaterialCost
+{
+	GENERATED_BODY()
+
+	// 구매 비용으로 요구하는 재료 Primary Asset Id
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|Shop", meta = (AllowedTypes = "PRMaterialDataAsset"))
+	FPrimaryAssetId MaterialAssetId;
+
+	// 요구 수량
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|Shop", meta = (ClampMin = "1"))
+	int32 Quantity = 1;
+};
+
 // 상점 데이터 에셋에 저장되는 품목 거래 조건
 USTRUCT(BlueprintType)
 struct PROJECTR_API FPRShopEntry
@@ -86,6 +104,10 @@ struct PROJECTR_API FPRShopEntry
 	// 상점 기준 고철 가격
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|Shop", meta = (ClampMin = "0"))
 	int32 BaseScrapPrice = 0;
+
+	// 플레이어 구매 시 추가로 요구하는 재료 비용 목록
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|Shop")
+	TArray<FPRShopMaterialCost> BuyMaterialCosts;
 
 	// 상점이 플레이어에게 판매할 수 있는지 여부
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|Shop")
@@ -123,6 +145,37 @@ struct PROJECTR_API FPRShopRuntimeStock
 	int32 RemainingStock = 0;
 };
 
+// 상점 UI에 표시할 재료 비용 데이터
+USTRUCT(BlueprintType)
+struct PROJECTR_API FPRShopMaterialCostViewData
+{
+	GENERATED_BODY()
+
+	// 요구 재료 데이터
+	UPROPERTY(BlueprintReadOnly, Category = "ProjectR|Shop")
+	TObjectPtr<UPRMaterialDataAsset> MaterialData = nullptr;
+
+	// UI 표시 이름
+	UPROPERTY(BlueprintReadOnly, Category = "ProjectR|Shop")
+	FText DisplayName;
+
+	// UI 표시 아이콘
+	UPROPERTY(BlueprintReadOnly, Category = "ProjectR|Shop")
+	TObjectPtr<UTexture2D> Icon = nullptr;
+
+	// 요구 수량
+	UPROPERTY(BlueprintReadOnly, Category = "ProjectR|Shop")
+	int32 RequiredQuantity = 0;
+
+	// 현재 보유 수량
+	UPROPERTY(BlueprintReadOnly, Category = "ProjectR|Shop")
+	int32 OwnedQuantity = 0;
+
+	// 요구 수량 충족 여부
+	UPROPERTY(BlueprintReadOnly, Category = "ProjectR|Shop")
+	bool bEnough = false;
+};
+
 // 상점 UI 전용 슬롯 표시 데이터
 USTRUCT(BlueprintType)
 struct PROJECTR_API FPRShopItemSlotViewData
@@ -144,6 +197,18 @@ struct PROJECTR_API FPRShopItemSlotViewData
 	// 단위 거래 고철 가격
 	UPROPERTY(BlueprintReadOnly, Category = "ProjectR|Shop")
 	int32 UnitScrapPrice = 0;
+
+	// 현재 보유 고철 수량
+	UPROPERTY(BlueprintReadOnly, Category = "ProjectR|Shop")
+	int32 OwnedScrap = 0;
+
+	// 고철 가격 충족 여부
+	UPROPERTY(BlueprintReadOnly, Category = "ProjectR|Shop")
+	bool bEnoughScrap = true;
+
+	// 구매 탭에서 요구하는 재료 비용 목록
+	UPROPERTY(BlueprintReadOnly, Category = "ProjectR|Shop")
+	TArray<FPRShopMaterialCostViewData> MaterialCosts;
 
 	// 유한 재고일 때 남은 재고 수량
 	UPROPERTY(BlueprintReadOnly, Category = "ProjectR|Shop")

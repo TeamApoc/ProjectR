@@ -83,6 +83,11 @@ void UPRCurrencyComponent::ApplySaveData(const FPRCurrencySaveData& InSaveData)
 	GetOwner()->ForceNetUpdate();
 }
 
+void UPRCurrencyComponent::ResetSystem()
+{
+	// 영구 재화 유지
+}
+
 void UPRCurrencyComponent::OnRep_Scrap()
 {
 	OnScrapChanged.Broadcast(Scrap);

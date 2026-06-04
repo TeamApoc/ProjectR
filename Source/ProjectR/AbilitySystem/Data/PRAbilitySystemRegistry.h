@@ -62,7 +62,11 @@ public:
 	// 초기화 GE
 	UPROPERTY(EditAnywhere, Category = "Registry")
 	TSubclassOf<UGameplayEffect>  InitializeGE;
-	
+
+	// 플레이어 생존 수치 초기화 GE
+	UPROPERTY(EditAnywhere, Category = "Registry|Player")
+	TSubclassOf<UGameplayEffect> PlayerInitializeGE;
+
 	// ==== 데미지 적용 GE ====
 	UPROPERTY(EditAnywhere, Category = "Registry|DamageGE")
 	TSubclassOf<UGameplayEffect>  DamageGE_FromEnemy;

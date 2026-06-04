@@ -5,7 +5,10 @@
 #include "GameFramework/Controller.h"
 #include "GameFramework/GameStateBase.h"
 #include "GameFramework/Pawn.h"
+#include "ProjectR/AbilitySystem/AttributeSets/PRAttributeSet_Weapon.h"
+#include "ProjectR/AbilitySystem/PRAbilitySystemComponent.h"
 #include "ProjectR/ItemSystem/Components/PRInventoryComponent.h"
+#include "ProjectR/ItemSystem/Data/PRAmmoDataAsset.h"
 #include "ProjectR/ItemSystem/Data/PRItemDataAsset.h"
 #include "ProjectR/ItemSystem/Items/PRItemInstance.h"
 #include "ProjectR/Player/Components/PRCurrencyComponent.h"
@@ -136,7 +139,7 @@ bool UPRItemDropManagerSubsystem::ResolveReward(const FPRDropRewardEntry& Entry,
 		return OutReward.ScrapAmount > 0;
 	}
 
-	if (Entry.RewardType == EPRRewardType::Item)
+	if (Entry.RewardType == EPRRewardType::Item || Entry.RewardType == EPRRewardType::Ammo)
 	{
 		if (!Entry.ItemAssetId.IsValid() || Entry.MinQuantity <= 0 || Entry.MaxQuantity < Entry.MinQuantity)
 		{
@@ -147,6 +150,12 @@ bool UPRItemDropManagerSubsystem::ResolveReward(const FPRDropRewardEntry& Entry,
 		if (!IsValid(ItemData))
 		{
 			UE_LOG(LogTemp, Warning, TEXT("[Drop][Server] 아이템 데이터 조회 실패. ItemAssetId = %s"), *Entry.ItemAssetId.ToString());
+			return false;
+		}
+
+		if (Entry.RewardType == EPRRewardType::Ammo && !IsValid(Cast<UPRAmmoDataAsset>(ItemData)))
+		{
+			UE_LOG(LogTemp, Warning, TEXT("[Drop][Server] 탄약 데이터 타입 불일치. ItemAssetId = %s"), *Entry.ItemAssetId.ToString());
 			return false;
 		}
 
@@ -163,23 +172,7 @@ void UPRItemDropManagerSubsystem::CommitResolvedReward(const FPRResolvedDropRewa
 {
 	if (Reward.bSpawnPickup)
 	{
-		APRPlayerState* PersonalRecipient = nullptr;
-		AController* PersonalController = Request.KillerController.Get();
-		if (Reward.DistributionRule == EPRRewardDistributionRule::Personal)
-		{
-			TArray<APRPlayerState*> Recipients;
-			ResolveRecipients(Reward.DistributionRule, PersonalController, Recipients);
-			if (Recipients.IsEmpty())
-			{
-				UE_LOG(LogTemp, Warning, TEXT("[Drop][Server] 개인 픽업 대상 없음. MonsterId = %s"), *Request.MonsterId.ToString());
-				return;
-			}
-
-			PersonalRecipient = Recipients[0];
-			PersonalController = IsValid(PersonalController) ? PersonalController : Cast<AController>(PersonalRecipient->GetOwner());
-		}
-
-		SpawnRewardPickup(Reward, Request.DropLocation, Request.DeadMonster.Get(), PersonalRecipient, PersonalController);
+		SpawnRewardPickup(Reward, Request.DropLocation, Request.DeadMonster.Get());
 		return;
 	}
 
@@ -230,7 +223,7 @@ void UPRItemDropManagerSubsystem::GrantExperienceReward(const FPRMonsterDropTabl
 	}
 }
 
-APRRewardPickupActor* UPRItemDropManagerSubsystem::SpawnRewardPickup(const FPRResolvedDropReward& Reward, const FVector& DropLocation, const AActor* IgnoredActor, APRPlayerState* PersonalRecipient, AController* PersonalController) const
+APRRewardPickupActor* UPRItemDropManagerSubsystem::SpawnRewardPickup(const FPRResolvedDropReward& Reward, const FVector& DropLocation, const AActor* IgnoredActor) const
 {
 	UWorld* World = GetWorld();
 	if (!IsValid(World))
@@ -240,10 +233,6 @@ APRRewardPickupActor* UPRItemDropManagerSubsystem::SpawnRewardPickup(const FPRRe
 
 	FActorSpawnParameters SpawnParams;
 	SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AdjustIfPossibleButAlwaysSpawn;
-	if (Reward.DistributionRule == EPRRewardDistributionRule::Personal)
-	{
-		SpawnParams.Owner = PersonalController;
-	}
 
 	TSubclassOf<APRRewardPickupActor> PickupClass = APRRewardPickupActor::StaticClass();
 	const UPRDeveloperSettings* Settings = GetDefault<UPRDeveloperSettings>();
@@ -269,7 +258,7 @@ APRRewardPickupActor* UPRItemDropManagerSubsystem::SpawnRewardPickup(const FPRRe
 		return nullptr;
 	}
 
-	PickupActor->InitializeReward(Reward, PersonalRecipient);
+	PickupActor->InitializeReward(Reward);
 	return PickupActor;
 }
 
@@ -398,6 +387,11 @@ bool UPRItemDropManagerSubsystem::GrantRewardToPlayer(APRPlayerState* PlayerStat
 		return bGranted;
 	}
 
+	if (Reward.RewardType == EPRRewardType::Ammo)
+	{
+		return GrantAmmoRewardToPlayer(PlayerState, Reward);
+	}
+
 	if (Reward.RewardType == EPRRewardType::Item)
 	{
 		UPRInventoryComponent* InventoryComponent = PlayerState->GetInventoryComponent();
@@ -413,6 +407,51 @@ bool UPRItemDropManagerSubsystem::GrantRewardToPlayer(APRPlayerState* PlayerStat
 	}
 
 	return false;
+}
+
+bool UPRItemDropManagerSubsystem::GrantAmmoRewardToPlayer(APRPlayerState* PlayerState, const FPRResolvedDropReward& Reward) const
+{
+	if (!IsValid(PlayerState) || !PlayerState->HasAuthority() || Reward.Quantity <= 0)
+	{
+		return false;
+	}
+
+	UPRAmmoDataAsset* AmmoData = Cast<UPRAmmoDataAsset>(Reward.ItemData);
+	if (!IsValid(AmmoData) && Reward.ItemAssetId.IsValid())
+	{
+		AmmoData = Cast<UPRAmmoDataAsset>(UPRAssetManager::Get().GetItemDataByPrimaryAssetId(Reward.ItemAssetId));
+	}
+
+	if (!IsValid(AmmoData))
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[Drop][Server] 탄약 지급 실패. AmmoData 없음. PlayerState = %s"), *GetNameSafe(PlayerState));
+		return false;
+	}
+
+	UPRAbilitySystemComponent* ASC = PlayerState->GetPRAbilitySystemComponent();
+	const UPRAttributeSet_Weapon* WeaponSet = IsValid(ASC) ? ASC->GetSet<UPRAttributeSet_Weapon>() : nullptr;
+	if (!IsValid(WeaponSet))
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[Drop][Server] 탄약 지급 실패. WeaponSet 없음. PlayerState = %s"), *GetNameSafe(PlayerState));
+		return false;
+	}
+
+	const EPRAmmoType AmmoType = AmmoData->GetAmmoType();
+	const float CurrentReserveAmmo = WeaponSet->GetReserveAmmoByType(AmmoType);
+	const float MaxReserveAmmo = WeaponSet->GetMaxReserveAmmoByType(AmmoType);
+	const float GrantedAmmo = FMath::Min(static_cast<float>(Reward.Quantity), FMath::Max(MaxReserveAmmo - CurrentReserveAmmo, 0.0f));
+	if (GrantedAmmo <= 0.0f)
+	{
+		return false;
+	}
+
+	const FGameplayAttribute ReserveAmmoAttribute = UPRAttributeSet_Weapon::GetReserveAmmoAttribute(AmmoType);
+	ASC->SetNumericAttributeBase(ReserveAmmoAttribute, CurrentReserveAmmo + GrantedAmmo);
+
+	FPRResolvedDropReward GrantedReward = Reward;
+	GrantedReward.Quantity = FMath::RoundToInt(GrantedAmmo);
+	NotifyPickupRewardGranted(PlayerState, GrantedReward);
+	return true;
 }
 
 void UPRItemDropManagerSubsystem::NotifyPickupRewardGranted(APRPlayerState* PlayerState, const FPRResolvedDropReward& Reward) const

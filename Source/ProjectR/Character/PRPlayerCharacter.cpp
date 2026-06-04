@@ -11,9 +11,11 @@
 #include "EnhancedInputSubsystems.h"
 #include "Components/CapsuleComponent.h"
 #include "Components/SphereComponent.h"
+#include "Components/StaticMeshComponent.h"
 #include "Kismet/KismetMathLibrary.h"
 #include "ProjectR/ProjectR.h"
 #include "ProjectR/AbilitySystem/PRAbilitySystemComponent.h"
+#include "ProjectR/AbilitySystem/Data/PRAbilitySystemRegistry.h"
 #include "ProjectR/Player/PRPlayerState.h"
 #include "ProjectR/System/PRAssetManager.h"
 #include "ProjectR/PRGameplayTags.h"
@@ -22,6 +24,7 @@
 #include "ProjectR/ItemSystem/Components/PREquipmentManagerComponent.h"
 #include "ProjectR/Player/PRCameraModifier.h"
 #include "ProjectR/ItemSystem/Data/PREquipmentDataAsset.h"
+#include "ProjectR/ItemSystem/Data/PRConsumableDataAsset.h"
 #include "ProjectR/ItemSystem/Components/PRWeaponManagerComponent.h"
 #include "ProjectR/Player/Components/PRActionInputRouterComponent.h"
 #include "ProjectR/Player/Components/PRFlashlightComponent.h"
@@ -31,6 +34,7 @@
 #include "ProjectR/ItemSystem/Actors/PRWeaponActor.h"
 #include "TimerManager.h"
 
+DEFINE_LOG_CATEGORY_STATIC(LogPRPathPreviewCharacter, Log, All);
 
 // Sets default values
 APRPlayerCharacter::APRPlayerCharacter()
@@ -65,7 +69,18 @@ APRPlayerCharacter::APRPlayerCharacter()
 	Mesh_Legs->SetupAttachment(LeaderMesh);
 	Mesh_Legs->SetLeaderPoseComponent(LeaderMesh);
 	Mesh_Legs->bUseAttachParentBound = true;
-
+	Mesh_BackPack = CreateDefaultSubobject<USkeletalMeshComponent>(TEXT("Mesh_BackPack"));
+	Mesh_BackPack->SetupAttachment(LeaderMesh);
+	Mesh_BackPack->SetLeaderPoseComponent(LeaderMesh);
+	Mesh_BackPack->bUseAttachParentBound = true;
+	
+	Mesh_Flashlight = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("Mesh_Flashlight"));
+	Mesh_Flashlight->SetupAttachment(LeaderMesh,TEXT("Light_Socket"));
+	Mesh_Flashlight->SetRelativeRotation(FRotator(90.0f, 180.0f, 0.0f));
+	Mesh_FlashlightGlow = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("Mesh_FlashlightGlow"));
+	Mesh_FlashlightGlow->SetupAttachment(Mesh_Flashlight);
+	Mesh_FlashlightGlow->SetRelativeLocationAndRotation(FVector(0.f,4.1f,8.2f),FRotator(0.f,0.f,90.f));
+	
 	// 카메라 붐 설정 (캐릭터 뒤에 배치)
 	CameraBoom = CreateDefaultSubobject<UPRSpringArmComponent>(TEXT("CameraBoom"));
 	CameraBoom->SetupAttachment(RootComponent);
@@ -159,22 +174,61 @@ void APRPlayerCharacter::PossessedBy(AController* NewController)
 	{
 		if (UPRAbilitySystemComponent* ASC = PS->GetPRAbilitySystemComponent())
 		{
+			const UPRAbilitySystemRegistry* Registry = UPRAssetManager::Get().GetAbilitySystemRegistry();
 			ASC->InitAbilityActorInfo(PS, this);
 			ASC->InitializeAttributesFromRegistry(
-				UPRAssetManager::Get().GetAbilitySystemRegistry(),
+				Registry,
 				EPRCharacterRole::Player,
 				PRRowNames::Player::Default);
+			
+			if (IsValid(Registry) && IsValid(Registry->PlayerInitializeGE))
+			{
+				// 플레이어 최초 초기화 생존 수치 적용. 저장 데이터가 있으면 이후 ApplySaveData에서 저장값으로 덮어씀
+				FGameplayEffectContextHandle EffectContextHandle = ASC->MakeEffectContext();
+				EffectContextHandle.AddSourceObject(this);
+				const FGameplayEffectSpecHandle DefaultInitSpecHandle = ASC->MakeOutgoingSpec(Registry->InitializeGE, 1.0f, EffectContextHandle);
+				if (DefaultInitSpecHandle.IsValid())
+				{
+					ASC->ApplyGameplayEffectSpecToSelf(*DefaultInitSpecHandle.Data.Get());
+				}
+				
+				const FGameplayEffectSpecHandle PlayerInitSpecHandle = ASC->MakeOutgoingSpec(Registry->PlayerInitializeGE, 1.0f, EffectContextHandle);
+				if (PlayerInitSpecHandle.IsValid())
+				{
+					ASC->ApplyGameplayEffectSpecToSelf(*PlayerInitSpecHandle.Data.Get());
+				}
+			}
+			
 			PS->GrantCharacterAbilitySet(AbilitySet, this);
 			
 			// 이 시점에서 플레이어의 ASC 유효하므로 BindTagChangeEvent 호출
 			BindTagChangeEvent();
 			BindMovementSpeedAttributeChange();
 		}
-		
+
 		if (PS->HasPendingSaveDataApply())
 		{
 			// 저장 데이터 1회 복원
 			PS->ApplySaveData(PS->GetCurrentSaveData());
+		}
+
+		if (PS->ConsumePendingRespawnRecovery())
+		{
+			if (UPRAbilitySystemComponent* ASC = PS->GetPRAbilitySystemComponent())
+			{
+				const UPRAbilitySystemRegistry* Registry = UPRAssetManager::Get().GetAbilitySystemRegistry();
+				if (IsValid(Registry) && IsValid(Registry->PlayerInitializeGE))
+				{
+					// 리스폰 복원 이후 생존 수치 재적용. 일반 저장 복원과 맵 이동은 이 경로를 사용하지 않음
+					FGameplayEffectContextHandle EffectContextHandle = ASC->MakeEffectContext();
+					EffectContextHandle.AddSourceObject(this);
+					const FGameplayEffectSpecHandle SpecHandle = ASC->MakeOutgoingSpec(Registry->PlayerInitializeGE, 1.0f, EffectContextHandle);
+					if (SpecHandle.IsValid())
+					{
+						ASC->ApplyGameplayEffectSpecToSelf(*SpecHandle.Data.Get());
+					}
+				}
+			}
 		}
 
 		if (UPRWeaponManagerComponent* WeaponManager = GetWeaponManager())
@@ -378,6 +432,13 @@ void APRPlayerCharacter::HandleGameplayTagUpdated(const FGameplayTag& ChangedTag
 	
 	if (ChangedTag.MatchesTagExact(PRGameplayTags::State_Aiming))
 	{
+		UE_LOG(LogPRPathPreviewCharacter, Log,
+			TEXT("Aiming 태그 변경. Player=%s, TagExists=%d, bLocallyControlled=%d, Preview=%s"),
+			*GetNameSafe(this),
+			bTagExists,
+			IsLocallyControlled(),
+			*GetNameSafe(ProjectileTrajectoryPreviewComponent));
+
 		bIsAiming = bTagExists;
 		UpdateMaxWalkSpeed();
 
@@ -396,13 +457,29 @@ void APRPlayerCharacter::HandleGameplayTagUpdated(const FGameplayTag& ChangedTag
 			{
 				if (bTagExists)
 				{
+					UE_LOG(LogPRPathPreviewCharacter, Log, TEXT("Preview Show 호출. Player=%s, Preview=%s"),
+						*GetNameSafe(this),
+						*GetNameSafe(ProjectileTrajectoryPreviewComponent));
 					ProjectileTrajectoryPreviewComponent->Show();
 				}
 				else
 				{
+					UE_LOG(LogPRPathPreviewCharacter, Log, TEXT("Preview Hide 호출. Player=%s, Preview=%s"),
+						*GetNameSafe(this),
+						*GetNameSafe(ProjectileTrajectoryPreviewComponent));
 					ProjectileTrajectoryPreviewComponent->Hide();
 				}
 			}	
+			else
+			{
+				UE_LOG(LogPRPathPreviewCharacter, Warning, TEXT("Aiming 태그 처리 중단. PreviewComponent 없음, Player=%s"),
+					*GetNameSafe(this));
+			}
+		}
+		else
+		{
+			UE_LOG(LogPRPathPreviewCharacter, Log, TEXT("Preview Show/Hide 생략. 로컬 컨트롤 아님, Player=%s"),
+				*GetNameSafe(this));
 		}
 	}
 	if (ChangedTag.MatchesTagExact(PRGameplayTags::State_Sprinting))
@@ -939,6 +1016,114 @@ void APRPlayerCharacter::HandleEquipmentVisualInfosChanged(UPREquipmentManagerCo
 	ApplyEquipmentVisualsFromManager();
 }
 
+void APRPlayerCharacter::RequestConsumablePickupMeshBegin(UPRConsumableDataAsset* ConsumableData, FName AttachSocketName)
+{
+	if (!IsLocallyControlled())
+	{
+		return;
+	}
+
+	Server_RequestConsumablePickupMeshBegin(ConsumableData, AttachSocketName);
+}
+
+void APRPlayerCharacter::RequestConsumablePickupMeshEnd()
+{
+	if (!IsLocallyControlled())
+	{
+		return;
+	}
+
+	Server_RequestConsumablePickupMeshEnd();
+}
+
+void APRPlayerCharacter::Server_RequestConsumablePickupMeshBegin_Implementation(UPRConsumableDataAsset* ConsumableData, FName AttachSocketName)
+{
+	if (!IsValid(ConsumableData) || !IsValid(ConsumableData->GetPickupMesh()))
+	{
+		return;
+	}
+
+	UPRAbilitySystemComponent* ASC = GetPRAbilitySystemComponent();
+	if (!IsValid(ASC) || !ASC->HasMatchingGameplayTag(PRGameplayTags::State_UsingConsumable))
+	{
+		return;
+	}
+
+	USkeletalMeshComponent* MeshComp = GetMesh();
+	if (!IsValid(MeshComp) || AttachSocketName.IsNone() || !MeshComp->DoesSocketExist(AttachSocketName))
+	{
+		return;
+	}
+
+	Multicast_ShowConsumablePickupMesh(ConsumableData, AttachSocketName);
+}
+
+void APRPlayerCharacter::Server_RequestConsumablePickupMeshEnd_Implementation()
+{
+	Multicast_HideConsumablePickupMesh();
+}
+
+void APRPlayerCharacter::Multicast_ShowConsumablePickupMesh_Implementation(UPRConsumableDataAsset* ConsumableData, FName AttachSocketName)
+{
+	ShowConsumablePickupMesh(ConsumableData, AttachSocketName);
+}
+
+void APRPlayerCharacter::Multicast_HideConsumablePickupMesh_Implementation()
+{
+	HideConsumablePickupMesh();
+}
+
+void APRPlayerCharacter::ShowConsumablePickupMesh(UPRConsumableDataAsset* ConsumableData, FName AttachSocketName)
+{
+	if (!IsValid(ConsumableData) || !IsValid(ConsumableData->GetPickupMesh()))
+	{
+		return;
+	}
+
+	USkeletalMeshComponent* MeshComp = GetMesh();
+	if (!IsValid(MeshComp) || AttachSocketName.IsNone() || !MeshComp->DoesSocketExist(AttachSocketName))
+	{
+		return;
+	}
+
+	HideConsumablePickupMesh();
+
+	UStaticMeshComponent* PickupMeshComponent = NewObject<UStaticMeshComponent>(
+		this,
+		UStaticMeshComponent::StaticClass(),
+		NAME_None,
+		RF_Transient);
+	if (!IsValid(PickupMeshComponent))
+	{
+		return;
+	}
+
+	PickupMeshComponent->SetStaticMesh(ConsumableData->GetPickupMesh());
+	PickupMeshComponent->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+	PickupMeshComponent->SetGenerateOverlapEvents(false);
+	PickupMeshComponent->SetCanEverAffectNavigation(false);
+	PickupMeshComponent->SetMobility(EComponentMobility::Movable);
+	PickupMeshComponent->SetupAttachment(MeshComp, AttachSocketName);
+
+	PickupMeshComponent->RegisterComponent();
+	PickupMeshComponent->SetRelativeLocation(ConsumableData->GetPickupMeshSocketLocationOffset());
+	PickupMeshComponent->SetRelativeRotation(ConsumableData->GetPickupMeshSocketRotationOffset());
+	PickupMeshComponent->SetRelativeScale3D(ConsumableData->GetPickupMeshScale().ComponentMax(FVector::ZeroVector));
+	ActiveConsumablePickupMeshComponent = PickupMeshComponent;
+}
+
+void APRPlayerCharacter::HideConsumablePickupMesh()
+{
+	if (!IsValid(ActiveConsumablePickupMeshComponent))
+	{
+		ActiveConsumablePickupMeshComponent = nullptr;
+		return;
+	}
+
+	ActiveConsumablePickupMeshComponent->DestroyComponent();
+	ActiveConsumablePickupMeshComponent = nullptr;
+}
+
 void APRPlayerCharacter::HandleMouseSensitivityChanged(float NewSensitivity)
 {
 	CachedCameraSensitivity = NewSensitivity;
@@ -954,13 +1139,25 @@ void APRPlayerCharacter::SetSprintingFromAbility(bool bNewSprinting)
 
 void APRPlayerCharacter::SetFlashlightEnabled(bool bEnabled) const
 {
-	if (IsLocallyControlled())
+	FlashlightComponent->SetFlashlightEnabled(bEnabled);
+	Mesh_FlashlightGlow->SetVisibility(bEnabled);
+	ServerSetFlashlightEnabled(bEnabled);
+}
+
+void APRPlayerCharacter::ServerSetFlashlightEnabled_Implementation(bool bEnabled) const
+{
+	if (HasAuthority())
 	{
-		FlashlightComponent->SetFlashlightEnabled(bEnabled);
+		MulticastSetFlashlightEnabled(bEnabled);
 	}
-	else
+}
+
+void APRPlayerCharacter::MulticastSetFlashlightEnabled_Implementation(bool bEnabled) const
+{
+	if (!IsLocallyControlled())
 	{
 		FlashlightComponent->SetFlashlightEnabled(false);
+		Mesh_FlashlightGlow->SetVisibility(bEnabled);	
 	}
 }
 
@@ -971,6 +1168,19 @@ bool APRPlayerCharacter::IsFlashlightEnabled() const
 
 void APRPlayerCharacter::MulticastSetMovementMode_Implementation(EMovementMode NewMovementMode)
 {
+	if (GetCharacterMovement()->MovementMode == MOVE_Flying)
+	{
+		if (NewMovementMode == MOVE_Walking)
+		{
+			SetActorEnableCollision(true);
+		}
+	}
+	// God모드 Collision 설정
+	if (NewMovementMode == MOVE_Flying)
+	{
+		SetActorEnableCollision(false);
+	}
+	
 	GetCharacterMovement()->SetMovementMode(NewMovementMode);
 	UpdateMaxWalkSpeed();
 }

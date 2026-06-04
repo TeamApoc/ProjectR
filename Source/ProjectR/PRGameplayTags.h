@@ -31,7 +31,8 @@ namespace PRGameplayTags
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Ability_Player_Down); // 플레이어 다운 어빌리티
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Ability_Player_GetUp); // 플레이어 기상 어빌리티
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Ability_Player_Revive); // 플레이어 동료 소생 어빌리티
-	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Ability_Player_Waypoint); // 크리스탈 상호작용 어빌리티
+	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Ability_Player_Action_Waypoint); // 크리스탈 상호작용 어빌리티
+	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Ability_Player_CombatEngaged); // 플레이어 전투 교전 갱신 어빌리티
 	
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Ability_Player_Weapon_Zoom); // 플레이어 볼트액션 줌 어빌리티
 
@@ -42,9 +43,10 @@ namespace PRGameplayTags
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Ability_Boss_PhaseTransition); // 보스 페이즈 전환 공통 루트
 
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Ability_Enemy_Penitent_Pattern); // Penitent 패턴 루트
-	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Ability_Enemy_Penitent_Fireball); // Penitent 기본 화염구
-	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Ability_Enemy_Penitent_BounceVolley); // Penitent 강패턴
-	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Ability_Enemy_Penitent_StaffSwipe); // Penitent 근접 반격
+	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Ability_Enemy_Penitent_Projectile); // Penitent 기본 투사체
+	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Ability_Enemy_Penitent_BarrierSummon); // Penitent 배리어 소환
+	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Ability_Enemy_Penitent_BarrierLaunch); // Penitent 배리어 발사
+	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Ability_Enemy_Penitent_StaffSwing); // Penitent 근거리 휘두르기
 
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Ability_Enemy_RoyalArcher_Pattern); // RoyalArcher 패턴 루트
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Ability_Enemy_RoyalArcher_WakeFromPerch); // RoyalArcher 전투 시작
@@ -94,6 +96,7 @@ namespace PRGameplayTags
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(State_Groggy); // 그로기 상태.
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(State_StaminaDepleted); // 스태미너 고갈 상태.
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(State_Down); // 전투불능 다운 상태.
+	UE_DECLARE_GAMEPLAY_TAG_EXTERN(State_Combating); // 전투 중 스태미나 제한 상태
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(State_Invulnerable); // 무적 상태.
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(State_Dodging); // 구르기 동작중
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(State_Crouching); // 구르기 동작중
@@ -109,10 +112,14 @@ namespace PRGameplayTags
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(State_Boss_PatternPlaying); // 보스 패턴 실행 중 상태.
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(State_Boss_Faerin_ForcedFollowUp); // Faerin Shift 이후 강제 연계 상태.
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(State_Boss_WeakpointOpen_Core); // 보스 코어 약점 오픈 상태.
+	UE_DECLARE_GAMEPLAY_TAG_EXTERN(State_Enemy_Attacking); // 적 공격 실행중 상태
+	UE_DECLARE_GAMEPLAY_TAG_EXTERN(State_Enemy_Penitent_BarrierSummon); // Penitent 배리어 보유 상태
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(State_Armed); // 플레이어 무기 장착중 상태
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(State_Block_Move); // 움직임 비활성화 상태
+	UE_DECLARE_GAMEPLAY_TAG_EXTERN(State_Block_Interaction); // 상호작용 비활성화 상태
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(State_Reviving); // 소생중 상태
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(State_WeaponZooming); // 무기 줌 상태
+	UE_DECLARE_GAMEPLAY_TAG_EXTERN(State_SwappingWeapon); // 무기 교체 Draw 몽타주 진행 상태
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(State_Mod_Primary_GaugeLocked); // 주무기 Mod 게이지 축적 차단 상태
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(State_Mod_Secondary_GaugeLocked); // 보조무기 Mod 게이지 축적 차단 상태
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(State_Mod_Fire_Enabled); // 발사형 모드 활성 상태
@@ -141,6 +148,7 @@ namespace PRGameplayTags
 
 	// ===== Event.* — SendGameplayEventToActor 이벤트 키 =====
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Event_Hit); // 피격 이벤트.
+	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Event_Combat_Engaged); // 전투 교전 유지 이벤트
 	
 	// Ability Triggers
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Event_Ability_Death); // 사망 이벤트.
@@ -170,6 +178,7 @@ namespace PRGameplayTags
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Event_Player_Interactable); // 상호작용 가능 알림
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Event_Player_ModActivation); // Mod On / Off 이벤트
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Event_Player_WorldMarker); // 월드 마커 추가·제거 알림
+	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Event_Player_HUDMessage); // HUD 안내 메시지 표시 알림
 
 	// ===== Event.Boss.* — 보스 조우 이벤트 =====
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Event_Boss_Encounter_Begin); // 보스 조우 시작 (FPRBossEncounterEventPayload 동반)

@@ -9,6 +9,7 @@
 #include "AbilitySystemInterface.h"
 #include "Components/SphereComponent.h"
 #include "DrawDebugHelpers.h"
+#include "Engine/World.h"
 #include "GameFramework/Controller.h"
 #include "GameFramework/Pawn.h"
 #include "GameFramework/PlayerController.h"
@@ -16,6 +17,11 @@
 #include "PRProjectileManagerComponent.h"
 #include "Net/UnrealNetwork.h"
 #include "Net/Core/PushModel/PushModel.h"
+#include "ProjectR/Combat/PRCombatGameplayTags.h"
+#include "ProjectR/Combat/PRCombatInterface.h"
+#include "ProjectR/Combat/PRCombatStatics.h"
+#include "ProjectR/Combat/PRDestructableInterface.h"
+#include "ProjectR/System/PRRespawnSubsystem.h"
 #include "ProjectR/Combat/PRDirectDamageReceiverInterface.h"
 
 APRProjectileBase::APRProjectileBase()
@@ -85,6 +91,14 @@ void APRProjectileBase::SetProjectileInitialVelocity(const FVector& Direction, f
 	ProjectileMovementComponent->MaxSpeed = FMath::Max(ProjectileMovementComponent->MaxSpeed, ResolvedSpeed);
 	ProjectileMovementComponent->Velocity = SafeDirection * ResolvedSpeed;
 	SetActorRotation(SafeDirection.Rotation());
+}
+
+float APRProjectileBase::GetProjectileInitialSpeed() const
+{
+	// BP 기본 투사체 속도 조회
+	return IsValid(ProjectileMovementComponent)
+		? ProjectileMovementComponent->InitialSpeed
+		: 0.0f;
 }
 
 void APRProjectileBase::ConfigureProjectileHoming(USceneComponent* HomingTargetComponent, float HomingAcceleration)
@@ -214,6 +228,8 @@ void APRProjectileBase::OnRep_RepMovement()
 	case EPRRepMovementEvent::Bounce:
 	case EPRRepMovementEvent::Detonation:
 		HandleRepCorrection();
+		break;
+	default:
 		break;
 	}
 }
@@ -603,8 +619,21 @@ void APRProjectileBase::BeginPlay()
 			{
 				ProjectileMovementComponent->Deactivate();
 			}
+			SetLifeSpan(0.3f);
 		}
 		return;
+	}
+
+	if (HasProjectileAuthority())
+	{
+		if (UWorld* World = GetWorld())
+		{
+			if (UPRRespawnSubsystem* RespawnSubsystem = World->GetSubsystem<UPRRespawnSubsystem>())
+			{
+				// 일회성 투사체 등록
+				RespawnSubsystem->RegisterDisposableActor(this);
+			}
+		}
 	}
 
 #if WITH_EDITOR
@@ -648,10 +677,22 @@ void APRProjectileBase::Tick(float DeltaSeconds)
 
 void APRProjectileBase::EndPlay(const EEndPlayReason::Type EndPlayReason)
 {
+	if (HasProjectileAuthority())
+	{
+		if (UWorld* World = GetWorld())
+		{
+			if (UPRRespawnSubsystem* RespawnSubsystem = World->GetSubsystem<UPRRespawnSubsystem>())
+			{
+				// 일회성 투사체 등록 해제
+				RespawnSubsystem->UnregisterDisposableActor(this);
+			}
+		}
+	}
+
 	ClearProjectileHomingScheduleTimers();
 	StopClientProjectileHomingPresentation();
 	Super::EndPlay(EndPlayReason);
-	
+
 	if (ProjectileRole == EPRProjectileRole::Predicted)
 	{
 		UPRProjectileManagerComponent* Manager = UPRProjectileManagerComponent::FindForActor(GetWorld()->GetFirstPlayerController());
@@ -717,6 +758,38 @@ void APRProjectileBase::ApplyEffectToTargetWithHit(AActor* TargetActor, const FH
 	{
 		return;
 	}
+	
+	IAbilitySystemInterface* ASI = Cast<IAbilitySystemInterface>(TargetActor);
+	if (ASI)
+	{
+		UAbilitySystemComponent* TargetASC = ASI->GetAbilitySystemComponent();
+		FGameplayEffectSpec* EffectSpec = EffectSpecHandle.Data.Get();
+		if (TargetASC && EffectSpec)
+		{
+			EffectSpec->GetContext().AddHitResult(InHitResult,true);
+			TargetASC->ApplyGameplayEffectSpecToSelf(*EffectSpec);	
+		}
+	}
+	
+	// 2026.05.31 이건주_ ASC 미보유 대상 대미지 적용 브릿지
+	IPRDestructableInterface* DestructableTarget = Cast<IPRDestructableInterface>(TargetActor);
+	if (DestructableTarget)
+	{
+		// Instigator, DamageAmount만 전달
+		FGameplayEffectSpec* EffectSpec = EffectSpecHandle.Data.Get();
+		const FGameplayEffectContextHandle& EffectContext = EffectSpec->GetEffectContext();
+	
+		const float BaseDamage = EffectSpec->GetSetByCallerMagnitude(
+		PRCombatGameplayTags::SetByCaller_CurrentWeapon_BaseDamage,
+		false,
+		0.0f);
+	
+		// 파괴 가능 대상 전용 컨텍스트
+		FPRDestructableDamageReceiveContext DestructableDamageContext;
+		DestructableDamageContext.Instigator = EffectContext.GetInstigator();
+		DestructableDamageContext.DamageAmount = BaseDamage;
+
+		DestructableTarget->ReceiveDamageContext(DestructableDamageContext);
 
 	FGameplayEffectSpec* EffectSpec = EffectSpecHandle.Data.Get();
 	if (EffectSpec == nullptr)
@@ -805,7 +878,7 @@ void APRProjectileBase::OnSphereHit(UPrimitiveComponent* HitComponent, AActor* O
 			// 예측 투사체가 먼저 Hit에 성공한 경우
 			if (LinkedCounterpart.IsValid())
 			{
-				LinkedCounterpart->SetActorHiddenInGame(false);
+				//LinkedCounterpart->SetActorHiddenInGame(false);
 				Destroy();
 			}
 		}
@@ -826,7 +899,6 @@ void APRProjectileBase::OnSphereHit(UPrimitiveComponent* HitComponent, AActor* O
 			}
 		}
 		
-		// Replicate된 투사체인 경우
 		if (HasAuthority())
 		{
 			if (!HitActors.Contains(OtherActor))
@@ -839,8 +911,17 @@ void APRProjectileBase::OnSphereHit(UPrimitiveComponent* HitComponent, AActor* O
 			{
 				DestroyProjectile();	
 			}
-			// TODO: 권위 투사체의 첫 복제 전 바로 파괴되어 버린 경우 Remote의 파괴 이펙트 보장 필요
 		}
+		// Replicate된 투사체인 경우
+		else
+		{
+			SetActorHiddenInGame(true);
+			SetActorEnableCollision(false);
+			ProjectileMovementComponent->SetComponentTickEnabled(false);
+		}
+		
+		
+		// TODO: 권위 투사체의 첫 복제 전 바로 파괴되어 버린 경우 Remote의 파괴 이펙트 보장 필요
 	}
 }
 

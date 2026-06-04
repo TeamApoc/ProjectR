@@ -4,6 +4,7 @@
 
 #include "AbilitySystemComponent.h"
 #include "ProjectR/AI/PREnemyAIDebug.h"
+#include "ProjectR/Combat/PRCombatEngagementSubsystem.h"
 #include "ProjectR/Combat/PRCombatStatics.h"
 #include "ProjectR/PRGameplayTags.h"
 
@@ -71,6 +72,18 @@ UPREnemyThreatComponent::UPREnemyThreatComponent()
 {
 	PrimaryComponentTick.bCanEverTick = false;
 	SetIsReplicatedByDefault(false);
+}
+
+void UPREnemyThreatComponent::BeginPlay()
+{
+	Super::BeginPlay();
+	StartCombatEngagementReportTimer();
+}
+
+void UPREnemyThreatComponent::EndPlay(const EEndPlayReason::Type EndPlayReason)
+{
+	StopCombatEngagementReportTimer();
+	Super::EndPlay(EndPlayReason);
 }
 
 AActor* UPREnemyThreatComponent::GetAttackTarget() const
@@ -422,6 +435,65 @@ void UPREnemyThreatComponent::OnTargetLost(AActor* LostTarget)
 	ReevaluateTarget();
 	LogTargetDebugState(TEXT("OnTargetLost"));
 	DrawTargetDebugState(TEXT("OnTargetLost"));
+}
+
+void UPREnemyThreatComponent::StartCombatEngagementReportTimer()
+{
+	AActor* OwnerActor = GetOwner();
+	UWorld* World = GetWorld();
+	if (!IsValid(OwnerActor) || !OwnerActor->HasAuthority() || !IsValid(World))
+	{
+		return;
+	}
+
+	const float SanitizedInterval = FMath::Max(CombatEngagementReportInterval, 0.1f);
+	World->GetTimerManager().SetTimer(
+		CombatEngagementReportTimerHandle,
+		this,
+		&UPREnemyThreatComponent::ReportCombatEngagedCandidates,
+		SanitizedInterval,
+		true,
+		FMath::FRandRange(0.0f, SanitizedInterval));
+}
+
+void UPREnemyThreatComponent::StopCombatEngagementReportTimer()
+{
+	UWorld* World = GetWorld();
+	if (!IsValid(World))
+	{
+		return;
+	}
+
+	World->GetTimerManager().ClearTimer(CombatEngagementReportTimerHandle);
+}
+
+void UPREnemyThreatComponent::ReportCombatEngagedCandidates()
+{
+	AActor* OwnerActor = GetOwner();
+	UWorld* World = GetWorld();
+	if (!IsValid(OwnerActor) || !OwnerActor->HasAuthority() || !IsValid(World) || TargetCandidates.IsEmpty())
+	{
+		return;
+	}
+
+	UPRCombatEngagementSubsystem* EngagementSubsystem = World->GetSubsystem<UPRCombatEngagementSubsystem>();
+	if (!IsValid(EngagementSubsystem))
+	{
+		return;
+	}
+
+	for (const FPREnemyTargetCandidate& Candidate : TargetCandidates)
+	{
+		if (ShouldReportCombatEngagedCandidate(Candidate))
+		{
+			EngagementSubsystem->ReportCombatEngagedCandidate(OwnerActor, Candidate.Target.Get());
+		}
+	}
+}
+
+bool UPREnemyThreatComponent::ShouldReportCombatEngagedCandidate(const FPREnemyTargetCandidate& Candidate) const
+{
+	return IsValidThreatTarget(Candidate.Target);
 }
 
 void UPREnemyThreatComponent::ReevaluateTarget(bool bResetScoreWindow)

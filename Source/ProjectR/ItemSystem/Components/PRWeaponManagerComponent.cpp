@@ -24,6 +24,7 @@
 #include "ProjectR/ItemSystem/Data/PRWeaponModDataAsset.h"
 #include "ProjectR/ItemSystem/Items/PRItemInstance_Mod.h"
 #include "ProjectR/ItemSystem/Items/PRItemInstance_Weapon.h"
+#include "ProjectR/ItemSystem/PRWeaponStatStatics.h"
 
 namespace
 {
@@ -80,17 +81,6 @@ namespace
 		}
 	}
 
-	// 강화 단계가 반영된 최종 기본 피해량을 계산
-	float CalculateUpgradedBaseDamage(const UPRWeaponDataAsset* WeaponData, const UPRItemInstance_Weapon* WeaponItem)
-	{
-		if (!IsValid(WeaponData))
-		{
-			return 0.0f;
-		}
-
-		const int32 UpgradeLevel = IsValid(WeaponItem) ? WeaponItem->GetUpgradeLevel() : 0;
-		return FMath::Max(WeaponData->BaseDamage * (1.0f + static_cast<float>(UpgradeLevel) * 0.1f), 0.0f);
-	}
 }
 
 UPRWeaponManagerComponent::UPRWeaponManagerComponent()
@@ -172,6 +162,39 @@ void UPRWeaponManagerComponent::InitializeWithPawn(APRCharacterBase* InPawn)
 	RefreshAnimLayer();
 }
 
+void UPRWeaponManagerComponent::ResetSystem()
+{
+	// 기존 Pawn 무기 Actor 제거
+	DestroyWeaponActorForSlot(EPRWeaponSlotType::Primary);
+	DestroyWeaponActorForSlot(EPRWeaponSlotType::Secondary);
+
+	// 무장 표현 상태 초기화
+	ArmedState = EPRArmedState::Unarmed;
+	CurrentLinkedAnimLayerClass = nullptr;
+
+	if (APRPlayerState* PlayerState = GetOwnerPlayerState())
+	{
+		if (UPRAbilitySystemComponent* ASC = PlayerState->GetPRAbilitySystemComponent())
+		{
+			// 무장 태그 잔류 제거
+			ASC->RemoveLooseGameplayTag(PRGameplayTags::State_Armed);
+			ASC->RemoveReplicatedLooseGameplayTag(PRGameplayTags::State_Armed);
+		}
+	}
+
+	// Pawn 의존 캐시 초기화
+	CachedPawnOwner = nullptr;
+	CachedASC = nullptr;
+	CachedWeaponSet = nullptr;
+	CachedInventory = nullptr;
+
+	if (IsValid(GetOwner()))
+	{
+		// 무장 상태 복제 갱신
+		GetOwner()->ForceNetUpdate();
+	}
+}
+
 
 FPRWeaponManagerSaveData UPRWeaponManagerComponent::MakeSaveData() const
 {
@@ -185,7 +208,7 @@ FPRWeaponManagerSaveData UPRWeaponManagerComponent::MakeSaveData() const
 	SaveData.PrimaryWeaponIndex = Inventory->GetItemIndexByType(PrimaryWeaponInstance, EPRItemType::Weapon);
 	SaveData.SecondaryWeaponIndex = Inventory->GetItemIndexByType(SecondaryWeaponInstance, EPRItemType::Weapon);
 	SaveData.CurrentWeaponSlot = CurrentWeaponSlot;
-	SaveData.ArmedState = ArmedState;
+	
 	const UPRAbilitySystemComponent* SaveASC = CachedASC.IsValid()
 		? CachedASC.Get()
 		: PlayerState->GetPRAbilitySystemComponent();
@@ -246,7 +269,7 @@ void UPRWeaponManagerComponent::ApplySaveData(const FPRWeaponManagerSaveData& In
 	{
 		SetCurrentWeaponSlotInternal(InSaveData.CurrentWeaponSlot);
 	}
-	SetWeaponArmedStateInternal(InSaveData.ArmedState);
+	
 	if (IsValid(RestoredPrimaryItem))
 	{
 		// 주무기 현재 자원 복원
@@ -315,8 +338,7 @@ UPRWeaponDataAsset* UPRWeaponManagerComponent::GetWeaponDataBySlotType(EPRWeapon
 float UPRWeaponManagerComponent::GetCurrentWeaponBaseDamage() const
 {
 	const UPRItemInstance_Weapon* CurrentWeapon = GetWeaponInstanceBySlotType(CurrentWeaponSlot);
-	const UPRWeaponDataAsset* CurrentWeaponData = IsValid(CurrentWeapon) ? CurrentWeapon->GetWeaponData() : nullptr;
-	return CalculateUpgradedBaseDamage(CurrentWeaponData, CurrentWeapon);
+	return UPRWeaponStatStatics::CalculateWeaponItemBaseDamage(CurrentWeapon);
 }
 
 const FPRWeaponVisualInfo& UPRWeaponManagerComponent::GetCurrentWeaponVisualInfo() const
@@ -879,7 +901,7 @@ void UPRWeaponManagerComponent::ApplyCurrentWeaponGE(UObject* SourceObject)
 	}
 
 	const UPRItemInstance_Weapon* CurrentWeapon = GetWeaponInstanceBySlotType(CurrentWeaponSlot);
-	SpecHandle.Data->SetSetByCallerMagnitude(PRCombatGameplayTags::SetByCaller_CurrentWeapon_BaseDamage, CalculateUpgradedBaseDamage(CurrentWeaponData, CurrentWeapon));
+	SpecHandle.Data->SetSetByCallerMagnitude(PRCombatGameplayTags::SetByCaller_CurrentWeapon_BaseDamage, UPRWeaponStatStatics::CalculateWeaponItemBaseDamage(CurrentWeapon));
 	SpecHandle.Data->SetSetByCallerMagnitude(PRCombatGameplayTags::SetByCaller_CurrentWeapon_ArmorPenetration, FMath::Max(CurrentWeaponData->ArmorPenetration, 0.0f));
 	SpecHandle.Data->SetSetByCallerMagnitude(PRCombatGameplayTags::SetByCaller_CurrentWeapon_WeakpointMultiplier, FMath::Max(CurrentWeaponData->WeakpointMultiplier, 0.0f));
 	SpecHandle.Data->SetSetByCallerMagnitude(PRCombatGameplayTags::SetByCaller_CurrentWeapon_GroggyDamageMultiplier, FMath::Max(CurrentWeaponData->GroggyDamageMultiplier, 0.0f));
@@ -1223,6 +1245,7 @@ void UPRWeaponManagerComponent::SetWeaponArmedStateInternal(EPRArmedState NewArm
 
 	// 서버 로컬 Actor도 무장 상태에 맞춰 즉시 최신화
 	RefreshAllWeaponActors();
+	RefreshAnimLayer();
 }
 
 void UPRWeaponManagerComponent::SetCurrentWeaponSlotInternal(EPRWeaponSlotType TargetSlot)
@@ -1565,6 +1588,7 @@ void UPRWeaponManagerComponent::OnRep_ArmedState(EPRArmedState OldArmedState)
 
 	// 무장 상태 변화에 맞춰 두 슬롯의 Actor와 부착 상태 갱신
 	RefreshAllWeaponActors();
+	RefreshAnimLayer();
 }
 
 void UPRWeaponManagerComponent::OnRep_PrimaryWeaponInstance()
@@ -1880,7 +1904,9 @@ void UPRWeaponManagerComponent::RefreshAnimLayer()
 	TSubclassOf<UAnimInstance> TargetAnimLayerClass = nullptr;
 
 	const FPRWeaponVisualInfo& CurrentWeaponVisualInfo = GetCurrentWeaponVisualInfo();
-	if (!CurrentWeaponVisualInfo.IsEmpty() && IsValid(CurrentWeaponVisualInfo.WeaponData))
+	if (ArmedState == EPRArmedState::Armed
+		&& !CurrentWeaponVisualInfo.IsEmpty()
+		&& IsValid(CurrentWeaponVisualInfo.WeaponData))
 	{
 		TargetAnimLayerClass = CurrentWeaponVisualInfo.WeaponData->WeaponAnimLayerClass;
 	}

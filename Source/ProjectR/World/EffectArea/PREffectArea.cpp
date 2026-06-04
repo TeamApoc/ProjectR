@@ -14,6 +14,7 @@
 #include "ProjectR/Combat/PRDestructableInterface.h"
 #include "ProjectR/ProjectR.h"
 #include "ProjectR/Combat/PRCombatGameplayTags.h"
+#include "ProjectR/System/PRRespawnSubsystem.h"
 
 DEFINE_LOG_CATEGORY(LogPREffectArea);
 
@@ -85,6 +86,18 @@ void APREffectArea::BeginPlay()
 {
 	Super::BeginPlay();
 
+	if (HasAuthority())
+	{
+		if (UWorld* World = GetWorld())
+		{
+			if (UPRRespawnSubsystem* RespawnSubsystem = World->GetSubsystem<UPRRespawnSubsystem>())
+			{
+				// 일회성 이펙트 영역 등록
+				RespawnSubsystem->RegisterDisposableActor(this);
+			}
+		}
+	}
+
 	if (IsValid(CollisionComponent))
 	{
 		CollisionComponent->OnComponentBeginOverlap.AddDynamic(this, &ThisClass::OnAreaBeginOverlap);
@@ -97,6 +110,18 @@ void APREffectArea::BeginPlay()
 
 void APREffectArea::EndPlay(const EEndPlayReason::Type EndPlayReason)
 {
+	if (HasAuthority())
+	{
+		if (UWorld* World = GetWorld())
+		{
+			if (UPRRespawnSubsystem* RespawnSubsystem = World->GetSubsystem<UPRRespawnSubsystem>())
+			{
+				// 일회성 이펙트 영역 등록 해제
+				RespawnSubsystem->UnregisterDisposableActor(this);
+			}
+		}
+	}
+
 	if (HasAuthority())
 	{
 		if (UWorld* World = GetWorld())

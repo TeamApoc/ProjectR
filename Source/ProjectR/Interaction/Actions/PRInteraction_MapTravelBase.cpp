@@ -2,14 +2,10 @@
 
 #include "PRInteraction_MapTravelBase.h"
 
-#include "AbilitySystemComponent.h"
 #include "Engine/World.h"
-#include "GameFramework/PlayerState.h"
 #include "TimerManager.h"
 #include "ProjectR/Game/PRGameInstance.h"
 #include "ProjectR/Game/PRGameStateBase.h"
-#include "ProjectR/Player/PRPlayerController.h"
-#include "ProjectR/Utils/PRGameplayStatics.h"
 #include "ProjectR/World/PRSpawnPointTags.h"
 
 UPRInteraction_MapTravelBase::UPRInteraction_MapTravelBase()
@@ -22,7 +18,7 @@ bool UPRInteraction_MapTravelBase::IsPartySyncActionLocked() const
 	return bTravelInProgress;
 }
 
-void UPRInteraction_MapTravelBase::StartTravelToSpawnPoint(TSoftObjectPtr<UWorld> MapToTravel, FGameplayTag SpawnPointId, TSubclassOf<UGameplayEffect> OptionalGameplayEffect)
+void UPRInteraction_MapTravelBase::StartTravelToSpawnPoint(TSoftObjectPtr<UWorld> MapToTravel, FGameplayTag SpawnPointId)
 {
 	UWorld* World = GetWorld();
 	// 목적지 데이터는 EntranceGate 또는 Waypoint 같은 하위 클래스 소유
@@ -42,27 +38,6 @@ void UPRInteraction_MapTravelBase::StartTravelToSpawnPoint(TSoftObjectPtr<UWorld
 	// 이동 확정 이후 파티 대기 판정과 안내 메시지 정리
 	ClearPartySyncCheckTimer();
 	ClearPartySyncWaitingMessages();
-
-
-	for (APlayerState* PlayerState : GetPlayerArray())
-	{
-		APRPlayerController* Controller = Cast<APRPlayerController>(PlayerState->GetOwner());
-		if (!IsValid(Controller))
-		{
-			continue;
-		}
-
-		if (IsValid(OptionalGameplayEffect.Get()))
-		{
-			if (UAbilitySystemComponent* ASC = UPRGameplayStatics::GetAbilitySystemComponent(PlayerState))
-			{
-				// 이동 직전 선택 효과 적용
-				FGameplayEffectContextHandle EffectContext = ASC->MakeEffectContext();
-				FGameplayEffectSpecHandle SpecHandle = ASC->MakeOutgoingSpec(OptionalGameplayEffect, 1.0f, EffectContext);
-				ASC->BP_ApplyGameplayEffectSpecToSelf(SpecHandle);
-			}
-		}
-	}
 
 	// ServerTravel 시작 예약
 	World->GetTimerManager().SetTimer(TravelDelayTimerHandle, FTimerDelegate::CreateWeakLambda(this, [this, MapToTravel, ResolvedSpawnPointId]()

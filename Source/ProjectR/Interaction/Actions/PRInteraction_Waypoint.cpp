@@ -11,6 +11,7 @@
 #include "ProjectR/Game/PRGameStateBase.h"
 #include "ProjectR/Player/PRPlayerController.h"
 #include "ProjectR/PRGameplayTags.h"
+#include "ProjectR/System/PRRespawnSubsystem.h"
 #include "ProjectR/Utils/PRGameplayStatics.h"
 #include "ProjectR/World/PRWorldDataAsset.h"
 #include "ProjectR/World/PRWaypointActor.h"
@@ -20,7 +21,7 @@ UPRInteraction_Waypoint::UPRInteraction_Waypoint()
 {
 	// Waypoint 파티 동기화 기본 설정
 	static ConstructorHelpers::FObjectFinder<UBlueprint> WaypointGameplayEffectBlueprint(
-		TEXT("/Script/Engine.Blueprint'/Game/0_BP/Player/GE/GE_Waypoint.GE_Waypoint'"));
+		TEXT("/Script/Engine.Blueprint'/Game/0_BP/Player/GE/GE_PlayerReset.GE_PlayerReset'"));
 	if (WaypointGameplayEffectBlueprint.Succeeded()
 		&& IsValid(WaypointGameplayEffectBlueprint.Object)
 		&& IsValid(WaypointGameplayEffectBlueprint.Object->GeneratedClass)
@@ -53,17 +54,17 @@ void UPRInteraction_Waypoint::RequestWaypointTravel(APRPlayerController* Request
 
 	// UI 선택 대기 종료
 	bWaitingForWaypointTravelSelection = false;
-	bWaitingForTravelUIFadeOut = false;
+	bWaitingActivateFadeOut = false;
 	if (UWorld* World = GetWorld())
 	{
 		// Travel UI 오픈 예약 정리
-		World->GetTimerManager().ClearTimer(TravelUIOpenTimerHandle);
+		World->GetTimerManager().ClearTimer(WaypointActivateTimerHandle);
 	}
 	RequestingController->ClearPendingWaypointTravelInteraction(this);
 	UnlockPlayerInteraction();
 
-	// 선택 노드 목적지 이동과 Waypoint 전용 효과 적용
-	StartTravelToSpawnPoint(WorldDataAsset->MapAsset, WaypointId, WaypointGameplayEffect);
+	// 선택 노드 목적지 이동
+	StartTravelToSpawnPoint(WorldDataAsset->MapAsset, WaypointId);
 }
 
 void UPRInteraction_Waypoint::CancelWaypointTravel(APRPlayerController* RequestingController)
@@ -87,11 +88,11 @@ void UPRInteraction_Waypoint::CancelWaypointTravel(APRPlayerController* Requesti
 
 	// UI 선택 대기 취소
 	bWaitingForWaypointTravelSelection = false;
-	bWaitingForTravelUIFadeOut = false;
+	bWaitingActivateFadeOut = false;
 	if (UWorld* World = GetWorld())
 	{
 		// Travel UI 오픈 예약 정리
-		World->GetTimerManager().ClearTimer(TravelUIOpenTimerHandle);
+		World->GetTimerManager().ClearTimer(WaypointActivateTimerHandle);
 	}
 	RequestingController->ClearPendingWaypointTravelInteraction(this);
 	BroadcastWaypointCancelEventToAllPlayers();
@@ -112,7 +113,7 @@ bool UPRInteraction_Waypoint::CanInteract_Implementation(AActor* Interactor) con
 
 void UPRInteraction_Waypoint::EndInteraction_Implementation(AActor* Interactor, bool bCanceled)
 {
-	if (!bWaitingForTravelUIFadeOut && !bWaitingForWaypointTravelSelection)
+	if (!bWaitingActivateFadeOut && !bWaitingForWaypointTravelSelection)
 	{
 		// UI 전환 외부 종료에 따른 잠금 해제
 		UnlockPlayerInteraction();
@@ -123,12 +124,13 @@ void UPRInteraction_Waypoint::EndInteraction_Implementation(AActor* Interactor, 
 
 void UPRInteraction_Waypoint::HandlePartySyncConditionMet()
 {
-	if (bWaitingForTravelUIFadeOut || bWaitingForWaypointTravelSelection)
+	if (bWaitingActivateFadeOut || bWaitingForWaypointTravelSelection)
 	{
 		return;
 	}
 
 	RecordWaypointActivation();
+	RespawnWorldObjects();
 	ClearPartySyncWaitingMessages();
 
 	// 호스트 목적지 선택 대기
@@ -139,7 +141,7 @@ void UPRInteraction_Waypoint::HandlePartySyncConditionMet()
 bool UPRInteraction_Waypoint::IsPartySyncActionLocked() const
 {
 	// Travel UI 전환 중 상호작용 입력 해제에 따른 중복 종료 피드백 차단
-	return Super::IsPartySyncActionLocked() || bWaitingForTravelUIFadeOut || bWaitingForWaypointTravelSelection;
+	return Super::IsPartySyncActionLocked() || bWaitingActivateFadeOut || bWaitingForWaypointTravelSelection;
 }
 
 void UPRInteraction_Waypoint::RecordWaypointActivation()
@@ -158,6 +160,21 @@ void UPRInteraction_Waypoint::RecordWaypointActivation()
 
 	// 전멸 리스폰 기준 체크포인트 기록
 	GameState->SetActiveCheckpoint(SpawnPointId);
+}
+
+void UPRInteraction_Waypoint::RespawnWorldObjects()
+{
+	UWorld* World = GetWorld();
+	if (!IsValid(World))
+	{
+		return;
+	}
+
+	if (UPRRespawnSubsystem* RespawnSubsystem = World->GetSubsystem<UPRRespawnSubsystem>())
+	{
+		// Waypoint 활성화 월드 오브젝트 복구
+		RespawnSubsystem->RespawnWorldObjects();
+	}
 }
 
 void UPRInteraction_Waypoint::NotifyPartySyncInteractionStarted(AActor* Interactor)
@@ -222,40 +239,45 @@ void UPRInteraction_Waypoint::ScheduleWaypointTravelUI()
 	UWorld* World = GetWorld();
 	if (!IsValid(World))
 	{
-		bWaitingForTravelUIFadeOut = false;
+		bWaitingActivateFadeOut = false;
 		UnlockPlayerInteraction();
 		return;
 	}
 
-	bWaitingForTravelUIFadeOut = true;
+	bWaitingActivateFadeOut = true;
 
 	// 전원 FadeOut 알림
 	NotifyMapTransitionToAllPlayers(EPRMapTransitionType::MapTravel);
 
-	World->GetTimerManager().ClearTimer(TravelUIOpenTimerHandle);
+	World->GetTimerManager().ClearTimer(WaypointActivateTimerHandle);
 	if (TravelUIFadeDuration <= 0.0f)
 	{
-		OpenWaypointTravelUIAfterFadeOut();
+		OnWaypointActivate();
 		return;
 	}
 
 	// FadeOut 종료 후 호스트 UI 표시 예약
 	World->GetTimerManager().SetTimer(
-		TravelUIOpenTimerHandle,
+		WaypointActivateTimerHandle,
 		this,
-		&UPRInteraction_Waypoint::OpenWaypointTravelUIAfterFadeOut,
+		&UPRInteraction_Waypoint::OnWaypointActivate,
 		TravelUIFadeDuration,
 		false);
 }
 
-void UPRInteraction_Waypoint::OpenWaypointTravelUIAfterFadeOut()
+void UPRInteraction_Waypoint::OnWaypointActivate()
 {
-	if (!bWaitingForTravelUIFadeOut)
+	if (!bWaitingActivateFadeOut)
 	{
 		return;
 	}
 
-	bWaitingForTravelUIFadeOut = false;
+	bWaitingActivateFadeOut = false;
+	
+	// GE 적용
+	ApplyWaypointGameplayEffectToAllPlayers();
+	
+	// 호스트 UI 오픈
 	bWaitingForWaypointTravelSelection = OpenWaypointTravelUI();
 	if (!bWaitingForWaypointTravelSelection)
 	{
@@ -280,6 +302,36 @@ bool UPRInteraction_Waypoint::OpenWaypointTravelUI()
 	// 호스트 로컬 클라이언트 UI 열기
 	HostController->ClientOpenWaypointTravelUI();
 	return true;
+}
+
+void UPRInteraction_Waypoint::ApplyWaypointGameplayEffectToAllPlayers() const
+{
+	if (!IsValid(WaypointGameplayEffect))
+	{
+		return;
+	}
+
+	for (APlayerState* PlayerState : GetPlayerArray())
+	{
+		if (!IsValid(PlayerState))
+		{
+			continue;
+		}
+
+		UAbilitySystemComponent* ASC = UPRGameplayStatics::GetAbilitySystemComponent(PlayerState);
+		if (!IsValid(ASC))
+		{
+			continue;
+		}
+
+		// FadeOut 완료 후 Travel UI 표시 시점 효과 적용
+		FGameplayEffectContextHandle EffectContext = ASC->MakeEffectContext();
+		FGameplayEffectSpecHandle SpecHandle = ASC->MakeOutgoingSpec(WaypointGameplayEffect, 1.0f, EffectContext);
+		if (SpecHandle.IsValid())
+		{
+			ASC->ApplyGameplayEffectSpecToSelf(*SpecHandle.Data.Get());
+		}
+	}
 }
 
 void UPRInteraction_Waypoint::NotifyMapTransitionToAllPlayers(EPRMapTransitionType TransitionType) const

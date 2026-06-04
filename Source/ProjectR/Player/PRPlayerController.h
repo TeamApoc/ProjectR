@@ -21,6 +21,7 @@ enum class EPRMapTransitionType : uint8
 	None,
 	MapTravel,
 	Respawn,
+	RespawnComplete,
 	CancelTravel,
 };
 

@@ -11,7 +11,6 @@
 
 class APRPlayerController;
 class APRPlayerState;
-class APRSpawnPoint;
 
 // 인게임 GameMode. 호스트 프로세스에만 존재
 // 로그인 승인, 게스트 캐릭터 페이로드 검증, 월드 상태 주입, 이탈 시 보상 커밋을 담당
@@ -56,20 +55,14 @@ protected:
 	// 전멸을 확정하고 모든 전투 참여 플레이어에게 최종 사망 이벤트를 보낸다.
 	void ConfirmPartyWipe();
 
-	// 전멸 파티의 마지막 체크포인트 기준 같은 맵 서버 이동 재시작
-	void RestartMapForPartyRespawn();
-
-	// 지정 SpawnPoint 태그와 일치하는 SpawnPoint Actor를 찾는다
-	APRSpawnPoint* FindSpawnPointById(FGameplayTag SpawnPointId) const;
+	// 전멸 파티를 마지막 체크포인트 기준으로 현재 월드에서 복구
+	void RespawnParty();
 
 	// 일반 스폰에 사용할 SpawnPoint 태그를 결정한다
 	FGameplayTag ResolvePlayerStartSpawnPointId() const;
 
 	// 전멸 리스폰에 사용할 SpawnPoint 태그를 결정한다
 	FGameplayTag ResolvePartyRespawnSpawnPointId() const;
-
-	// PlayerArray 기준 플레이어 인덱스를 결정한다
-	int32 ResolvePlayerIndex(const AController* Controller) const;
 
 protected:
 	// 호스트 시작 시 로드된 월드 세이브. InitGame에서 주입되어 GameState에 전달된다

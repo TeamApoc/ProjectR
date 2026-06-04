@@ -255,6 +255,10 @@ protected:
 	UPROPERTY(EditDefaultsOnly, Category = "ProjectR|TickOptimization")
 	bool bUseTickOptimization = true;
 
+	// 리스폰 시스템 자동 등록 여부
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|Respawn")
+	bool bIsRespawnable = true;
+
 	// 비활성 상태에서 플레이어 접근 시 AI 비용을 다시 활성화하는 반경
 	UPROPERTY(EditDefaultsOnly, Category = "ProjectR|TickOptimization", meta = (ClampMin = "0.0"))
 	float TickActivationRadius = 3000.0f;

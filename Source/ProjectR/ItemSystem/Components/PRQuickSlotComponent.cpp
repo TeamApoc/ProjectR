@@ -226,6 +226,14 @@ void UPRQuickSlotComponent::ApplySaveData(const FPRQuickSlotSaveData& InSaveData
 	OnQuickSlotChanged.Broadcast(this, INDEX_NONE);
 }
 
+void UPRQuickSlotComponent::ResetSystem()
+{
+	// 소비 아이템 인스턴스 캐시 재조회
+	CachedInventoryComponent = ResolveInventoryComponent();
+	RefreshAllCachedConsumableItems();
+	OnQuickSlotChanged.Broadcast(this, INDEX_NONE);
+}
+
 void UPRQuickSlotComponent::OnRep_QuickSlots()
 {
 	InitializeQuickSlots(ResolveInventoryComponent());

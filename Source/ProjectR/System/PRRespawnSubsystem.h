@@ -1,0 +1,94 @@
+// Copyright ProjectR. All Rights Reserved.
+
+#pragma once
+
+#include "CoreMinimal.h"
+#include "GameplayTagContainer.h"
+#include "Subsystems/WorldSubsystem.h"
+#include "PRRespawnSubsystem.generated.h"
+
+class AActor;
+class AController;
+class APlayerState;
+class APRSpawnPoint;
+
+// 현재 월드에서 재생성할 액터의 등록 시점 정보
+USTRUCT(BlueprintType)
+struct FPRRespawnActorInfo
+{
+	GENERATED_BODY()
+
+	// 현재 월드에 존재하는 리스폰 대상 액터
+	UPROPERTY()
+	TWeakObjectPtr<AActor> Actor;
+
+	// 리스폰 시 생성할 액터 클래스
+	UPROPERTY()
+	TSubclassOf<AActor> ActorClass;
+
+	// 리스폰 기준 Transform
+	UPROPERTY()
+	FTransform SpawnTransform;
+};
+
+// 월드 오브젝트와 플레이어 Pawn 복구를 서버 권위로 처리하는 월드 서브시스템
+UCLASS()
+class PROJECTR_API UPRRespawnSubsystem : public UWorldSubsystem
+{
+	GENERATED_BODY()
+
+public:
+	// 현재 액터를 월드 오브젝트 리스폰 대상 목록에 등록
+	void RegisterRespawnableActor(AActor* InActor);
+
+	// 월드 오브젝트 리스폰 시 파괴할 일회성 액터 등록
+	void RegisterDisposableActor(AActor* InActor);
+
+	// 일회성 액터 파괴 대상 목록에서 제거
+	void UnregisterDisposableActor(AActor* InActor);
+
+	// 등록된 월드 오브젝트 리스폰 목록 초기화
+	void ClearRegisteredActors();
+
+	// 등록된 월드 오브젝트를 등록 정보 기준으로 재생성
+	bool RespawnWorldObjects();
+
+	// 플레이어 상태와 Pawn을 지정 SpawnPoint 기준으로 복구
+	bool RespawnPlayers(FGameplayTag SpawnPointId);
+
+	// 월드 오브젝트와 플레이어를 순서대로 복구
+	bool RespawnWorldAndPlayers(FGameplayTag SpawnPointId);
+
+	// 현재 월드에서 SpawnPoint 태그와 일치하는 SpawnPoint 검색
+	APRSpawnPoint* FindSpawnPointById(FGameplayTag SpawnPointId) const;
+
+	// GameState PlayerArray 기준 플레이어 인덱스 산출
+	int32 ResolvePlayerIndex(const AController* Controller) const;
+
+	// 일반 스폰에서 사용할 PlayerStart 또는 SpawnPoint Actor 산출
+	AActor* ResolvePlayerStartActor(AController* Controller, FGameplayTag SpawnPointId) const;
+
+	// 플레이어별 리스폰 Transform 산출
+	bool ResolvePlayerRespawnTransform(AController* Controller, FGameplayTag SpawnPointId, FTransform& OutTransform) const;
+
+protected:
+	// 서버 또는 Standalone 월드 여부 확인
+	bool IsServerWorld() const;
+
+	// PlayerState에서 현재 소유 컨트롤러 조회
+	AController* ResolveControllerFromPlayerState(APlayerState* PlayerState) const;
+
+	// 기존 Pawn 연결 해제와 파괴 처리
+	void DestroyControllerPawn(AController* Controller) const;
+
+	// 리스폰 완료 전환 연출 알림
+	void NotifyRespawnComplete(AController* Controller) const;
+
+private:
+	// 등록된 월드 오브젝트 리스폰 정보 목록
+	UPROPERTY()
+	TArray<FPRRespawnActorInfo> RegisteredActors;
+
+	// 월드 오브젝트 리스폰 시 파괴할 일회성 액터 목록
+	TSet<TWeakObjectPtr<AActor>> DisposableActors;
+};

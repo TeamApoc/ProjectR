@@ -1,17 +1,15 @@
 // Copyright ProjectR. All Rights Reserved.
 
 #include "PRPlayGameMode.h"
-#include "EngineUtils.h"
 #include "Engine/World.h"
 #include "GameFramework/GameStateBase.h"
-#include "GameFramework/PlayerStart.h"
 #include "PRGameStateBase.h"
 #include "TimerManager.h"
 #include "ProjectR/PRGameplayTags.h"
 #include "ProjectR/Game/PRGameInstance.h"
 #include "ProjectR/Player/PRPlayerController.h"
 #include "ProjectR/Player/PRPlayerState.h"
-#include "ProjectR/World/PRSpawnPoint.h"
+#include "ProjectR/System/PRRespawnSubsystem.h"
 #include "ProjectR/World/PRSpawnPointTags.h"
 
 APRPlayGameMode::APRPlayGameMode()
@@ -92,15 +90,15 @@ AActor* APRPlayGameMode::ChoosePlayerStart_Implementation(AController* Player)
 {
 	// SpawnPoint 우선 스폰 지점
 	const FGameplayTag SpawnPointId = ResolvePlayerStartSpawnPointId();
-	if (APRSpawnPoint* SpawnPoint = FindSpawnPointById(SpawnPointId))
+	if (UWorld* World = GetWorld())
 	{
-		const int32 PlayerIndex = ResolvePlayerIndex(Player);
-		if (APlayerStart* LinkedPlayerStart = SpawnPoint->GetLinkedPlayerStart(PlayerIndex))
+		if (UPRRespawnSubsystem* RespawnSubsystem = World->GetSubsystem<UPRRespawnSubsystem>())
 		{
-			return LinkedPlayerStart;
+			if (AActor* ResolvedStartActor = RespawnSubsystem->ResolvePlayerStartActor(Player, SpawnPointId))
+			{
+				return ResolvedStartActor;
+			}
 		}
-
-		return SpawnPoint;
 	}
 
 	return Super::ChoosePlayerStart_Implementation(Player);
@@ -290,56 +288,25 @@ void APRPlayGameMode::ConfirmPartyWipe()
 		World->GetTimerManager().SetTimer(
 			PartyWipeRespawnTimerHandle,
 			this,
-			&ThisClass::RestartMapForPartyRespawn,
+			&ThisClass::RespawnParty,
 			PartyWipeRespawnDelay,
 			false);
 	}
 	else
 	{
-		RestartMapForPartyRespawn();
+		RespawnParty();
 	}
 }
 
-void APRPlayGameMode::RestartMapForPartyRespawn()
+void APRPlayGameMode::RespawnParty()
 {
-	// 서버 권위 재시작
+	// 서버 권위 리스폰
 	if (!HasAuthority())
 	{
 		return;
 	}
 
-	AGameStateBase* CurrentGameState = GameState;
-	if (!IsValid(CurrentGameState))
-	{
-		bPartyWipeInProgress = false;
-		return;
-	}
-
 	const FGameplayTag RespawnSpawnPointId = ResolvePartyRespawnSpawnPointId();
-	for (APlayerState* PlayerState : CurrentGameState->PlayerArray)
-	{
-		APRPlayerState* PRPlayerState = Cast<APRPlayerState>(PlayerState);
-		if (!IsValid(PRPlayerState) || !PRPlayerState->IsCombatParticipant())
-		{
-			continue;
-		}
-
-		// 심리스 이동 보존 대상의 사망 상태 제거
-		PRPlayerState->ResetSurvivalStateForRespawn();
-	}
-
-	if (UPRGameInstance* GameInstance = GetGameInstance<UPRGameInstance>())
-	{
-		if (const APRGameStateBase* PRGameState = GetGameState<APRGameStateBase>())
-		{
-			// 전멸 리스폰용 월드 진행 상태 보존
-			FPRWorldSaveData WorldSaveData = PRGameState->MakeWorldSaveData();
-			GameInstance->SetPendingWorldSaveData(WorldSaveData);
-		}
-
-		// 새 맵 최초 스폰 지점 예약
-		GameInstance->SetPendingTravelSpawnPointId(RespawnSpawnPointId);
-	}
 
 	UWorld* World = GetWorld();
 	if (!IsValid(World))
@@ -348,51 +315,19 @@ void APRPlayGameMode::RestartMapForPartyRespawn()
 		return;
 	}
 
-	// 현재 맵 재오픈
-	const bool bTravelStarted = World->ServerTravel(TEXT("?Restart"), false);
-	if (!bTravelStarted)
+	bool bRespawned = false;
+	if (UPRRespawnSubsystem* RespawnSubsystem = World->GetSubsystem<UPRRespawnSubsystem>())
 	{
-		UE_LOG(LogTemp, Warning, TEXT("Party respawn map restart failed."));
-		bPartyWipeInProgress = false;
-	}
-}
-
-APRSpawnPoint* APRPlayGameMode::FindSpawnPointById(FGameplayTag SpawnPointId) const
-{
-	// 현재 월드 탐색
-	UWorld* World = GetWorld();
-	if (!IsValid(World))
-	{
-		return nullptr;
+		// 월드 오브젝트와 플레이어 복구
+		bRespawned = RespawnSubsystem->RespawnWorldAndPlayers(RespawnSpawnPointId);
 	}
 
-	const FGameplayTag TargetSpawnPointId = SpawnPointId.IsValid() ? SpawnPointId : PRSpawnPointTags::SpawnPoint_Default;
-	APRSpawnPoint* FoundSpawnPoint = nullptr;
-
-	for (TActorIterator<APRSpawnPoint> It(World); It; ++It)
+	if (!bRespawned)
 	{
-		APRSpawnPoint* SpawnPoint = *It;
-		if (!IsValid(SpawnPoint) || !SpawnPoint->MatchesSpawnPointId(TargetSpawnPointId))
-		{
-			continue;
-		}
-
-		if (IsValid(FoundSpawnPoint))
-		{
-			// 중복 SpawnPoint 진단
-			UE_LOG(
-				LogTemp,
-				Warning,
-				TEXT("Duplicate spawn point tag %s found. Using first spawn point %s."),
-				*TargetSpawnPointId.ToString(),
-				*FoundSpawnPoint->GetName());
-			continue;
-		}
-
-		FoundSpawnPoint = SpawnPoint;
+		UE_LOG(LogTemp, Warning, TEXT("Party respawn failed."));
 	}
 
-	return FoundSpawnPoint;
+	bPartyWipeInProgress = false;
 }
 
 FGameplayTag APRPlayGameMode::ResolvePlayerStartSpawnPointId() const
@@ -438,31 +373,4 @@ FGameplayTag APRPlayGameMode::ResolvePartyRespawnSpawnPointId() const
 
 	UE_LOG(LogTemp, Log, TEXT("Party respawn spawn point fallback to default"));
 	return PRSpawnPointTags::SpawnPoint_Default;
-}
-
-int32 APRPlayGameMode::ResolvePlayerIndex(const AController* Controller) const
-{
-	// 컨트롤러 미지정
-	if (!IsValid(Controller))
-	{
-		return INDEX_NONE;
-	}
-
-	const AGameStateBase* CurrentGameState = GameState;
-	if (!IsValid(CurrentGameState))
-	{
-		return INDEX_NONE;
-	}
-
-	const APlayerState* TargetPlayerState = Controller->PlayerState;
-	for (int32 PlayerIndex = 0; PlayerIndex < CurrentGameState->PlayerArray.Num(); ++PlayerIndex)
-	{
-		if (CurrentGameState->PlayerArray[PlayerIndex] == TargetPlayerState)
-		{
-			// PlayerArray 순번
-			return PlayerIndex;
-		}
-	}
-
-	return INDEX_NONE;
 }

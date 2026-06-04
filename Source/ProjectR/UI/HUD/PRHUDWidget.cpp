@@ -6,6 +6,7 @@
 #include "PRInteractionProgressBar.h"
 #include "EngineUtils.h"
 #include "PRInteractionHintWidget.h"
+#include "ProjectR/Character/Enemy/Boss/PRFaerinCharacter.h"
 #include "ProjectR/Character/Enemy/PRBossBaseCharacter.h"
 #include "ProjectR/Interaction/PRInteractionAction.h"
 #include "ProjectR/PRGameplayTags.h"
@@ -155,6 +156,11 @@ void UPRHUDWidget::NativeOnInitialized()
 void UPRHUDWidget::NativeConstruct()
 {
 	Super::NativeConstruct();
+
+	if (IsValid(BossHealthBar) && !BossHealthBar->IsBossBound())
+	{
+		DiscoverActiveBossInWorld();
+	}
 }
 
 void UPRHUDWidget::NativeDestruct()
@@ -326,11 +332,24 @@ void UPRHUDWidget::DiscoverActiveBossInWorld()
 	for (TActorIterator<APRBossBaseCharacter> It(World); It; ++It)
 	{
 		APRBossBaseCharacter* Boss = *It;
-		if (IsValid(Boss))
+		if (!IsValid(Boss))
+		{
+			continue;
+		}
+
+		if (APRFaerinCharacter* Faerin = Cast<APRFaerinCharacter>(Boss))
+		{
+			if (!Faerin->IsBossEncounterActive())
+			{
+				continue;
+			}
+		}
+
+		if (!BossHealthBar->IsBossBound())
 		{
 			BindBossHealthBar(Boss);
-			return;
 		}
+		return;
 	}
 }
 

@@ -24,6 +24,9 @@ class PROJECTR_API APRFaerinCharacter : public APRBossBaseCharacter
 public:
 	APRFaerinCharacter();
 
+	/*~ AActor Interface ~*/
+	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
+
 	// God Fall 맵 배치 Rig 전환과 지속 검 hazard를 담당하는 component를 반환한다.
 	UFUNCTION(BlueprintPure, Category = "ProjectR|AI|Boss|Faerin|GodFall")
 	UPRFaerinGodFallComponent* GetGodFallComponent() const { return GodFallComponent; }
@@ -31,6 +34,9 @@ public:
 	// Phase3 이후 공격 전 Teleport Out / VFX 집결 연출 컴포넌트를 반환한다.
 	UFUNCTION(BlueprintPure, Category = "ProjectR|AI|Boss|Faerin|TeleportVFX")
 	UPRFaerinTeleportVFXComponent* GetTeleportVFXComponent() const { return TeleportVFXComponent; }
+
+	UFUNCTION(BlueprintPure, Category = "ProjectR|AI|Boss|Faerin")
+	bool IsBossEncounterActive() const { return bBossEncounterActive; }
 
 	// 근거리 텔레포트 순간 보스 몸 위치의 Niagara를 모든 클라이언트에 재생한다.
 	UFUNCTION(NetMulticast, Reliable)
@@ -99,4 +105,16 @@ private:
 
 	// EventManager로 보스 조우 종료 알림 브로드캐스트
 	void BroadcastBossEncounterEnd();
+
+	void SetBossEncounterActive(bool bActive);
+	void HandleBossEncounterActiveChanged();
+
+	UFUNCTION()
+	void OnRep_BossEncounterActive();
+
+private:
+	UPROPERTY(ReplicatedUsing = OnRep_BossEncounterActive)
+	bool bBossEncounterActive = false;
+
+	bool bBossEncounterEventBroadcasted = false;
 };

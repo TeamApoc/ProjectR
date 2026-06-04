@@ -28,7 +28,7 @@ public:
 	int32 GetScrap() const { return Scrap; }
 
 	// 서버에서 고철을 증가시킨다
-	UFUNCTION(BlueprintAuthorityOnly, Category = "ProjectR|Currency")
+	UFUNCTION(BlueprintAuthorityOnly, BlueprintCallable, Category = "ProjectR|Currency")
 	bool AddScrap(int32 Amount);
 
 	// 서버에서 고철을 소비하고 성공 여부를 반환한다

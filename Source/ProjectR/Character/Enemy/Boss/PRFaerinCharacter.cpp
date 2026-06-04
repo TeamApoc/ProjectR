@@ -13,6 +13,7 @@
 #include "ProjectR/AI/Components/PRFaerinTeleportVFXComponent.h"
 #include "ProjectR/PRGameplayTags.h"
 #include "ProjectR/System/PREventManagerSubsystem.h"
+#include "Net/UnrealNetwork.h"
 #include "TimerManager.h"
 
 APRFaerinCharacter::APRFaerinCharacter()
@@ -34,14 +35,32 @@ void APRFaerinCharacter::BeginPlay()
 {
 	Super::BeginPlay();
 
-	BroadcastBossEncounterBegin();
+	if (HasAuthority())
+	{
+		SetBossEncounterActive(true);
+	}
 }
 
 void APRFaerinCharacter::EndPlay(const EEndPlayReason::Type EndPlayReason)
 {
-	BroadcastBossEncounterEnd();
+	if (HasAuthority())
+	{
+		SetBossEncounterActive(false);
+	}
+	else if (bBossEncounterEventBroadcasted)
+	{
+		BroadcastBossEncounterEnd();
+		bBossEncounterEventBroadcasted = false;
+	}
 
 	Super::EndPlay(EndPlayReason);
+}
+
+void APRFaerinCharacter::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const
+{
+	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
+
+	DOREPLIFETIME(APRFaerinCharacter, bBossEncounterActive);
 }
 
 void APRFaerinCharacter::Multicast_SpawnNearTeleportBodyNiagara_Implementation(
@@ -158,6 +177,40 @@ void APRFaerinCharacter::SpawnFaerinWorldNiagaraLocal(const FSoftObjectPath& Nia
 }
 
 /*~ 보스 조우 이벤트 브로드캐스트 ~*/
+
+void APRFaerinCharacter::SetBossEncounterActive(bool bActive)
+{
+	if (!HasAuthority() || bBossEncounterActive == bActive)
+	{
+		return;
+	}
+
+	bBossEncounterActive = bActive;
+	HandleBossEncounterActiveChanged();
+	ForceNetUpdate();
+}
+
+void APRFaerinCharacter::HandleBossEncounterActiveChanged()
+{
+	if (bBossEncounterActive)
+	{
+		if (!bBossEncounterEventBroadcasted)
+		{
+			BroadcastBossEncounterBegin();
+			bBossEncounterEventBroadcasted = true;
+		}
+	}
+	else if (bBossEncounterEventBroadcasted)
+	{
+		BroadcastBossEncounterEnd();
+		bBossEncounterEventBroadcasted = false;
+	}
+}
+
+void APRFaerinCharacter::OnRep_BossEncounterActive()
+{
+	HandleBossEncounterActiveChanged();
+}
 
 void APRFaerinCharacter::BroadcastBossEncounterBegin()
 {

@@ -20,6 +20,7 @@ class UAnimMontage;
 class UDataTable;
 class UGameplayEffect;
 class UUserWidget;
+class UPRCrosshairConfig;
 
 // 무기 1종의 정적 장착 규칙과 기본 탄약 설정을 담는다
 UCLASS(BlueprintType)
@@ -33,6 +34,10 @@ public:
 	// 탄약 타입 반환 (무기 슬롯 타입에 따름)
 	UFUNCTION(BlueprintPure)
 	EPRAmmoType GetAmmoType() const {return SlotType == EPRWeaponSlotType::Primary ? EPRAmmoType::Primary : EPRAmmoType::Secondary;}
+
+	// 무기 전용 크로스헤어 설정 또는 프로젝트 기본 설정 반환
+	UFUNCTION(BlueprintPure)
+	const UPRCrosshairConfig* GetCrosshairConfig() const;
 
 	void GiveToAbilitySystem(UAbilitySystemComponent* TargetASC, FPRAbilitySetHandles& OutHandles, UObject* InSourceObject);
 	
@@ -62,13 +67,13 @@ public:
 	float BaseDamage = 10.f;
 	
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Item|Weapon|Stat", meta = (ClampMin = "0.0"))
-	float ArmorPenetration = 10.f;
+	float AdditiveArmorPenetration = 10.f;
 	
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Item|Weapon|Stat", meta = (ClampMin = "0.0"))
-	float GroggyDamageMultiplier = 0.f;
+	float AdditiveGroggyDamageMultiplier = 0.f;
 	
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Item|Weapon|Stat", meta = (ClampMin = "0.0"))
-	float WeakpointMultiplier = 0.2f;
+	float AdditiveWeakpointMultiplier = 0.2f;
 	
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Item|Weapon|Ammo", meta = (ClampMin = "0.0"))
 	float MaxMagazineAmmo = 30.f;
@@ -123,7 +128,15 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Item|Weapon|Fire", meta = (ClampMin = "0.01"))
 	float FireInterval = 0.1f;
 
+	// 사격 판정과 조준 미리보기에 사용할 최대 거리(cm)
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Item|Weapon|Fire", meta = (ClampMin = "0.0"))
+	float MaxFireDistance = 20000.f;
+
 	// 무기 장착 중 HUD에 준비할 스코프 위젯 클래스
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Item|Weapon|UI")
 	TSubclassOf<UUserWidget> ScopeWidgetClass;
+
+	// 조준 시 HUD에 적용할 크로스헤어 설정
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Item|Weapon|UI")
+	TObjectPtr<UPRCrosshairConfig> CrosshairConfig = nullptr;
 };

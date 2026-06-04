@@ -24,7 +24,7 @@ class UInputAction;
 class UPRWeaponManagerComponent;
 class UPRSpringArmComponent;
 class UPRActionInputRouterComponent;
-class UPRProjectileTrajectoryPreviewComponent;
+class UPRFirePreviewComponent;
 class UPRFlashlightComponent;
 class UPRConsumableDataAsset;
 class UStaticMeshComponent;
@@ -245,9 +245,9 @@ public:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Input")
 	TObjectPtr<UPRActionInputRouterComponent> ActionInputRouterComponent;
 
-	/** 투사체 발사 예측 경로 표시 컴포넌트. 로컬 시각 효과 전용 */
+	/** 발사 예측 경로 표시 컴포넌트. 로컬 시각 효과 전용 */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Projectile")
-	TObjectPtr<UPRProjectileTrajectoryPreviewComponent> ProjectileTrajectoryPreviewComponent;
+	TObjectPtr<UPRFirePreviewComponent> FirePreviewComponent;
 
 	/** 로컬 플레이어 조준 방향 플래시라이트 */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Light")

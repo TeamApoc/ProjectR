@@ -347,6 +347,19 @@ const FPRWeaponVisualInfo& UPRWeaponManagerComponent::GetCurrentWeaponVisualInfo
 	return GetVisualInfoBySlotType(CurrentWeaponSlot);
 }
 
+const UPRCrosshairConfig* UPRWeaponManagerComponent::GetActiveCrosshairConfig() const
+{
+	const FPRWeaponVisualInfo& CurrentVisualInfo = GetCurrentWeaponVisualInfo();
+	const UPRWeaponDataAsset* WeaponData = CurrentVisualInfo.WeaponData;
+	if (!IsValid(WeaponData))
+	{
+		return nullptr;
+	}
+
+	// 무기 데이터의 전용 설정 또는 프로젝트 기본 설정 반환
+	return WeaponData->GetCrosshairConfig();
+}
+
 const FPRWeaponVisualInfo& UPRWeaponManagerComponent::GetVisualInfoBySlotType(EPRWeaponSlotType SlotType) const
 {
 	// 주무기 슬롯 요청인 경우
@@ -902,9 +915,9 @@ void UPRWeaponManagerComponent::ApplyCurrentWeaponGE(UObject* SourceObject)
 
 	const UPRItemInstance_Weapon* CurrentWeapon = GetWeaponInstanceBySlotType(CurrentWeaponSlot);
 	SpecHandle.Data->SetSetByCallerMagnitude(PRCombatGameplayTags::SetByCaller_CurrentWeapon_BaseDamage, UPRWeaponStatStatics::CalculateWeaponItemBaseDamage(CurrentWeapon));
-	SpecHandle.Data->SetSetByCallerMagnitude(PRCombatGameplayTags::SetByCaller_CurrentWeapon_ArmorPenetration, FMath::Max(CurrentWeaponData->ArmorPenetration, 0.0f));
-	SpecHandle.Data->SetSetByCallerMagnitude(PRCombatGameplayTags::SetByCaller_CurrentWeapon_WeakpointMultiplier, FMath::Max(CurrentWeaponData->WeakpointMultiplier, 0.0f));
-	SpecHandle.Data->SetSetByCallerMagnitude(PRCombatGameplayTags::SetByCaller_CurrentWeapon_GroggyDamageMultiplier, FMath::Max(CurrentWeaponData->GroggyDamageMultiplier, 0.0f));
+	SpecHandle.Data->SetSetByCallerMagnitude(PRCombatGameplayTags::SetByCaller_CurrentWeapon_ArmorPenetration, FMath::Max(CurrentWeaponData->AdditiveArmorPenetration, 0.0f));
+	SpecHandle.Data->SetSetByCallerMagnitude(PRCombatGameplayTags::SetByCaller_CurrentWeapon_WeakpointMultiplier, FMath::Max(CurrentWeaponData->AdditiveWeakpointMultiplier, 0.0f));
+	SpecHandle.Data->SetSetByCallerMagnitude(PRCombatGameplayTags::SetByCaller_CurrentWeapon_GroggyDamageMultiplier, FMath::Max(CurrentWeaponData->AdditiveGroggyDamageMultiplier, 0.0f));
 
 	CurrentWeaponEffectHandle = CachedASC->ApplyGameplayEffectSpecToSelf(*SpecHandle.Data);
 }

@@ -5,6 +5,7 @@
 
 #include "InstancedStruct.h"
 #include "PRCrosshairConfig.h"
+#include "PRCrosshairTypes.h"
 #include "ProjectR/PRGameplayTags.h"
 #include "ProjectR/System/PREventManagerSubsystem.h"
 
@@ -36,6 +37,10 @@ void UPRCrosshairWidget::NativeOnInitialized()
 		ChangeCrosshairHandle = EventMgr->Listen(
 			Event_Player_ChangeCrosshair,
 			FPREventMulticast::FDelegate::CreateUObject(this, &UPRCrosshairWidget::HandleChangeCrosshair));
+
+		PreviewHitHandle = EventMgr->Listen(
+			Event_Player_PreviewHit,
+			FPREventMulticast::FDelegate::CreateUObject(this, &UPRCrosshairWidget::HandlePreviewHit));
 	}
 }
 
@@ -77,6 +82,17 @@ void UPRCrosshairWidget::HandleChangeCrosshair(FGameplayTag EventTag, const FIns
 	Execute_InitCrosshair(this, NewConfig);
 }
 
+void UPRCrosshairWidget::HandlePreviewHit(FGameplayTag EventTag, const FInstancedStruct& Payload)
+{
+	bool bHit = false;
+	if (const FPRPreviewHitEventPayload* Data = Payload.GetPtr<FPRPreviewHitEventPayload>())
+	{
+		bHit = Data->bHit;
+	}
+
+	Execute_OnPreviewHit(this, bHit);
+}
+
 void UPRCrosshairWidget::UnbindFromEventManager()
 {
 	if (UPREventManagerSubsystem* EventMgr = GetEventManager())
@@ -93,8 +109,13 @@ void UPRCrosshairWidget::UnbindFromEventManager()
 		{
 			EventMgr->Unlisten(Event_Player_ChangeCrosshair, ChangeCrosshairHandle);
 		}
+		if (PreviewHitHandle.IsValid())
+		{
+			EventMgr->Unlisten(Event_Player_PreviewHit, PreviewHitHandle);
+		}
 	}
 	HitShotHandle.Reset();
 	RecoilHandle.Reset();
 	ChangeCrosshairHandle.Reset();
+	PreviewHitHandle.Reset();
 }

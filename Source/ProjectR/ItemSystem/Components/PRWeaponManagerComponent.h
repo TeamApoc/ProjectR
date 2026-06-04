@@ -22,6 +22,7 @@ class UPRItemInstance_Weapon;
 class UPRWeaponDataAsset;
 class UPRWeaponManagerComponent;
 class UPRWeaponModDataAsset;
+class UPRCrosshairConfig;
 class APRCharacterBase;
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FPRWeaponEquipmentChangedSignature, UPRWeaponManagerComponent*, WeaponManagerComponent, EPRWeaponSlotType, ChangedSlot);
@@ -62,6 +63,9 @@ public:
 
 	// 현재 활성 무기의 공개 비주얼 정보를 반환한다
 	const FPRWeaponVisualInfo& GetCurrentWeaponVisualInfo() const;
+
+	// 현재 활성 무기의 크로스헤어 설정을 반환한다
+	const UPRCrosshairConfig* GetActiveCrosshairConfig() const;
 
 	// 현재 무장 상태를 반환한다
 	UFUNCTION(BlueprintPure, Category = "ProjectR|Weapon")

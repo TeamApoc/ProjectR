@@ -45,6 +45,13 @@ public:
 	UFUNCTION(BlueprintPure, Category = "ProjectR|Shop")
 	UPRShopDataAsset* GetShopData() const { return ShopData; }
 
+	// 상점 표시 이름 반환
+	UFUNCTION(BlueprintPure, Category = "ProjectR|Shop")
+	FText GetShopDisplayName() const;
+
+	// 상점 Entry 목록 반환
+	const TArray<FPRShopEntry>& GetShopEntries() const;
+
 	// 지정 Entry의 현재 남은 재고를 반환
 	UFUNCTION(BlueprintPure, Category = "ProjectR|Shop")
 	int32 GetRemainingStock(FName EntryId) const;

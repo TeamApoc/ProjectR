@@ -15,9 +15,12 @@
 #include "ProjectR/Character/Enemy/PRBossBaseCharacter.h"
 #include "ProjectR/Combat/PRCombatGameplayTags.h"
 #include "ProjectR/ProjectR.h"
+#include "ProjectR/Player/PRPlayerController.h"
 #include "ProjectR/Projectile/PRBossProjectileActor.h"
 #include "ProjectR/Projectile/PRProjectileBase.h"
 #include "ProjectR/System/PRAssetManager.h"
+#include "ProjectR/UI/FloatingText/PRFloatingTextManager.h"
+#include "ProjectR/UI/FloatingText/PRFloatingTextTypes.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogPRBossPortal, Log, All);
 
@@ -62,9 +65,64 @@ void APRBossPortalActor::CancelPatternActor()
 	ForceExpirePortal();
 }
 
-bool APRBossPortalActor::ApplyDirectDamageFromSpec(const FGameplayEffectSpec& DamageSpec, const FHitResult& HitResult)
+// 2026.06.04 이건주_ 주석처리
+// bool APRBossPortalActor::ApplyDirectDamageFromSpec(const FGameplayEffectSpec& DamageSpec, const FHitResult& HitResult)
+// {
+// 	return ApplyPortalDamage(ResolvePortalDamageAmountFromSpec(DamageSpec), HitResult);
+// }
+
+/*~ IPRDestructableInterface Interface ~*/
+bool APRBossPortalActor::ReceiveDamageContext(const FPRDestructableDamageReceiveContext& Context)
 {
-	return ApplyPortalDamage(ResolvePortalDamageAmountFromSpec(DamageSpec), HitResult);
+	if (!HasAuthority()
+		|| !bCanTakePlayerWeaponDamage
+		|| bPortalHealthDepleted
+		|| PortalState == EPRBossPortalState::Expired
+		|| PortalState == EPRBossPortalState::Expiring)
+	{
+		return false;
+	}
+
+	const float ResolvedDamageAmount = FMath::Max(Context.DamageAmount, 0.0f);
+	if (ResolvedDamageAmount <= 0.0f)
+	{
+		return false;
+	}
+
+	const float PreviousHealth = CurrentPortalHealth;
+	CurrentPortalHealth = FMath::Clamp(CurrentPortalHealth - ResolvedDamageAmount, 0.0f, MaxPortalHealth);
+
+	const FVector HitLocation = Context.HitResult.bBlockingHit ? FVector(Context.HitResult.ImpactPoint) : GetActorLocation();
+	MulticastPortalDamaged(CurrentPortalHealth, PreviousHealth, ResolvedDamageAmount, HitLocation);
+	ForceNetUpdate();
+	
+	// 대미지 후처리
+	if (Context.DamageAmount > 0.0f)
+	{
+		if (APawn* InstigatorPawn = Cast<APawn>(Context.Instigator))
+		{
+			if (APRPlayerController* PC = Cast<APRPlayerController>(InstigatorPawn->GetController()))
+			{
+				UPRFloatingTextManager* FloatingTextManager = PC->GetFloatingTextManager();
+				
+				// 텍스트 타입 결정
+				EPRFloatingTextType TextType = EPRFloatingTextType::NormalDamage;
+				FPRFloatingTextRequest Request;
+				Request.Text = FText::AsNumber(FMath::CeilToInt(Context.DamageAmount));
+				Request.TextType = TextType;
+				Request.WorldLocation = Context.HitResult.ImpactPoint;
+
+				FloatingTextManager->ClientShowFloatingText_Unreliable(Request);
+			}
+		}
+	}
+
+	if (CurrentPortalHealth <= 0.0f)
+	{
+		HandlePortalHealthDepleted(Context.HitResult);
+	}
+
+	return true;
 }
 
 void APRBossPortalActor::SetAndLockPortalTarget(AActor* InTarget)
@@ -519,37 +577,38 @@ float APRBossPortalActor::GetPortalHealthRatio() const
 	return MaxPortalHealth > 0.0f ? CurrentPortalHealth / MaxPortalHealth : 0.0f;
 }
 
-bool APRBossPortalActor::ApplyPortalDamage(float DamageAmount, const FHitResult& HitResult)
-{
-	if (!HasAuthority()
-		|| !bCanTakePlayerWeaponDamage
-		|| bPortalHealthDepleted
-		|| PortalState == EPRBossPortalState::Expired
-		|| PortalState == EPRBossPortalState::Expiring)
-	{
-		return false;
-	}
-
-	const float ResolvedDamageAmount = FMath::Max(DamageAmount, 0.0f);
-	if (ResolvedDamageAmount <= 0.0f)
-	{
-		return false;
-	}
-
-	const float PreviousHealth = CurrentPortalHealth;
-	CurrentPortalHealth = FMath::Clamp(CurrentPortalHealth - ResolvedDamageAmount, 0.0f, MaxPortalHealth);
-
-	const FVector HitLocation = HitResult.bBlockingHit ? FVector(HitResult.ImpactPoint) : GetActorLocation();
-	MulticastPortalDamaged(CurrentPortalHealth, PreviousHealth, ResolvedDamageAmount, HitLocation);
-	ForceNetUpdate();
-
-	if (CurrentPortalHealth <= 0.0f)
-	{
-		HandlePortalHealthDepleted(HitResult);
-	}
-
-	return true;
-}
+// // 2026.06.04 이건주_ 주석처리
+// bool APRBossPortalActor::ApplyPortalDamage(float DamageAmount, const FHitResult& HitResult)
+// {
+// 	if (!HasAuthority()
+// 		|| !bCanTakePlayerWeaponDamage
+// 		|| bPortalHealthDepleted
+// 		|| PortalState == EPRBossPortalState::Expired
+// 		|| PortalState == EPRBossPortalState::Expiring)
+// 	{
+// 		return false;
+// 	}
+//
+// 	const float ResolvedDamageAmount = FMath::Max(DamageAmount, 0.0f);
+// 	if (ResolvedDamageAmount <= 0.0f)
+// 	{
+// 		return false;
+// 	}
+//
+// 	const float PreviousHealth = CurrentPortalHealth;
+// 	CurrentPortalHealth = FMath::Clamp(CurrentPortalHealth - ResolvedDamageAmount, 0.0f, MaxPortalHealth);
+//
+// 	const FVector HitLocation = HitResult.bBlockingHit ? FVector(HitResult.ImpactPoint) : GetActorLocation();
+// 	MulticastPortalDamaged(CurrentPortalHealth, PreviousHealth, ResolvedDamageAmount, HitLocation);
+// 	ForceNetUpdate();
+//
+// 	if (CurrentPortalHealth <= 0.0f)
+// 	{
+// 		HandlePortalHealthDepleted(HitResult);
+// 	}
+//
+// 	return true;
+// }
 
 void APRBossPortalActor::BeginPlay()
 {

@@ -9,6 +9,7 @@
 
 class UPanelWidget;
 class UPRShopItemSlotWidget;
+class UScrollBox;
 class UTextBlock;
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FPRShopItemSelectedSignature, const FPRShopItemSlotViewData&, ViewData);
@@ -41,14 +42,20 @@ protected:
 	virtual void NativeOnInitialized() override;
 
 private:
-	// RowCount와 ColumnCount에 맞춰 동적 슬롯을 다시 생성
+	// 기본 표시 칸과 아이템 수에 맞춰 동적 슬롯을 다시 생성
 	void RebuildNativeItemSlots();
+
+	// 기본 표시 칸과 아이템 수를 반영한 슬롯 수 계산
+	int32 GetDesiredSlotCount() const;
 
 	// 생성한 동적 슬롯과 이벤트 바인딩을 정리
 	void ClearGeneratedItemSlots();
 
 	// 생성한 슬롯에 현재 리스트 항목을 반영
 	void RebuildNativeItemList();
+
+	// 리스트 스크롤 위치 초기화
+	void ResetItemListScroll();
 
 	// 슬롯을 패널 종류에 맞게 추가
 	void AddItemSlotToPanel(UPRShopItemSlotWidget* ItemSlotWidget, int32 SlotIndex);
@@ -69,6 +76,10 @@ protected:
 	// 동적 슬롯이 추가될 UMG 패널
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "ProjectR|Shop")
 	TObjectPtr<UPanelWidget> ItemListPanel;
+
+	// 아이템 목록 그리드를 감싸는 스크롤 박스
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "ProjectR|Shop")
+	TObjectPtr<UScrollBox> ItemListScrollBox;
 
 	// 현재 탭 이름을 표시할 텍스트
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "ProjectR|Shop")

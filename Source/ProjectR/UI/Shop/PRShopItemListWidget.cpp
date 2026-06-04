@@ -5,12 +5,14 @@
 #include "Blueprint/WidgetTree.h"
 #include "Components/GridPanel.h"
 #include "Components/PanelWidget.h"
+#include "Components/ScrollBox.h"
 #include "Components/TextBlock.h"
 #include "ProjectR/ItemSystem/Data/PRItemDataAsset.h"
 #include "ProjectR/UI/Shop/PRShopItemSlotWidget.h"
 
 void UPRShopItemListWidget::SetShopItemList(EPRShopTabType InTabType, const TArray<FPRShopItemSlotViewData>& InItems)
 {
+	const bool bTabChanged = TabType != InTabType;
 	TabType = InTabType;
 	Items = InItems;
 
@@ -22,7 +24,19 @@ void UPRShopItemListWidget::SetShopItemList(EPRShopTabType InTabType, const TArr
 		ItemListTypeText->SetText(TabText);
 	}
 
+	const int32 DesiredSlotCount = GetDesiredSlotCount();
+	const bool bSlotCountChanged = ItemSlotWidgets.Num() != DesiredSlotCount;
+	if (bSlotCountChanged)
+	{
+		RebuildNativeItemSlots();
+	}
+
 	RebuildNativeItemList();
+
+	if (bTabChanged || bSlotCountChanged)
+	{
+		ResetItemListScroll();
+	}
 }
 
 /*~ UUserWidget Interface ~*/
@@ -53,9 +67,7 @@ void UPRShopItemListWidget::RebuildNativeItemSlots()
 		return;
 	}
 
-	const int32 ValidRowCount = FMath::Max(0, RowCount);
-	const int32 ValidColumnCount = FMath::Max(1, ColumnCount);
-	const int32 ValidSlotCount = ValidRowCount * ValidColumnCount;
+	const int32 ValidSlotCount = GetDesiredSlotCount();
 	for (int32 SlotIndex = 0; SlotIndex < ValidSlotCount; ++SlotIndex)
 	{
 		UPRShopItemSlotWidget* ItemSlotWidget = nullptr;
@@ -77,6 +89,14 @@ void UPRShopItemListWidget::RebuildNativeItemSlots()
 		AddGeneratedItemSlot(ItemSlotWidget);
 		AddItemSlotToPanel(ItemSlotWidget, SlotIndex);
 	}
+}
+
+int32 UPRShopItemListWidget::GetDesiredSlotCount() const
+{
+	const int32 ValidRowCount = FMath::Max(0, RowCount);
+	const int32 ValidColumnCount = FMath::Max(1, ColumnCount);
+	const int32 VisibleSlotCount = ValidRowCount * ValidColumnCount;
+	return FMath::Max(VisibleSlotCount, Items.Num());
 }
 
 void UPRShopItemListWidget::ClearGeneratedItemSlots()
@@ -119,6 +139,14 @@ void UPRShopItemListWidget::RebuildNativeItemList()
 		FPRShopItemSlotViewData EmptyViewData;
 		ItemSlotWidget->SetSlotViewData(EmptyViewData);
 		ItemSlotWidget->SetVisibility(ESlateVisibility::Collapsed);
+	}
+}
+
+void UPRShopItemListWidget::ResetItemListScroll()
+{
+	if (IsValid(ItemListScrollBox))
+	{
+		ItemListScrollBox->SetScrollOffset(0.0f);
 	}
 }
 

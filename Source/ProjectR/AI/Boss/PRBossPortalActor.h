@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "GameplayEffectTypes.h"
 #include "ProjectR/AI/Boss/PRBossPatternActor.h"
+#include "ProjectR/Combat/PRDestructableInterface.h"
 #include "ProjectR/Combat/PRDirectDamageReceiverInterface.h"
 #include "PRBossPortalActor.generated.h"
 
@@ -28,7 +29,7 @@ enum class EPRBossPortalState : uint8
 // 보스 포털 패턴의 공용 Helper Actor다.
 // 기존 텔레그래프/활성/만료 생명주기를 유지하면서 타겟락, 반복 발사, 일시정지를 함께 관리한다.
 UCLASS(Blueprintable)
-class PROJECTR_API APRBossPortalActor : public APRBossPatternActor, public IPRDirectDamageReceiverInterface
+class PROJECTR_API APRBossPortalActor : public APRBossPatternActor, public IPRDestructableInterface
 {
 	GENERATED_BODY()
 
@@ -39,7 +40,12 @@ public:
 	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
 	virtual void RequestPatternActorExpire() override;
 	virtual void CancelPatternActor() override;
-	virtual bool ApplyDirectDamageFromSpec(const FGameplayEffectSpec& DamageSpec, const FHitResult& HitResult) override;
+	
+	// 2026.06.04 이건주_ 주석처리
+	// virtual bool ApplyDirectDamageFromSpec(const FGameplayEffectSpec& DamageSpec, const FHitResult& HitResult) override;
+	
+	/*~ IPRDestructableInterface Interface ~*/
+	virtual bool ReceiveDamageContext(const FPRDestructableDamageReceiveContext& Context) override;
 
 	// 현재 포털이 발사/위험 상태인지 반환한다.
 	UFUNCTION(BlueprintPure, Category = "ProjectR|AI|Boss|Portal")
@@ -120,9 +126,10 @@ public:
 	UFUNCTION(BlueprintPure, Category = "ProjectR|AI|Boss|Portal|Health")
 	float GetPortalHealthRatio() const;
 
-	// 서버 권위에서 포털 체력을 직접 감소시킨다.
-	UFUNCTION(BlueprintCallable, BlueprintAuthorityOnly, Category = "ProjectR|AI|Boss|Portal|Health")
-	bool ApplyPortalDamage(float DamageAmount, const FHitResult& HitResult);
+	// 2026.06.04 이건주_ 주석처리
+	// // 서버 권위에서 포털 체력을 직접 감소시킨다.
+	// UFUNCTION(BlueprintCallable, BlueprintAuthorityOnly, Category = "ProjectR|AI|Boss|Portal|Health")
+	// bool ApplyPortalDamage(float DamageAmount, const FHitResult& HitResult);
 
 protected:
 	virtual void BeginPlay() override;

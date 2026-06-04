@@ -49,7 +49,7 @@ public:
 	virtual FPRFireViewpoint GetFireViewpoint() const;
 
 	// 1차 트레이스: 카메라에서 조준 방향으로 트레이스해 조준 끝점(월드 좌표)을 산출한다
-	virtual FVector ResolveAimPoint(const FPRFireViewpoint& View, float InMaxTraceDistance) const;
+	virtual FVector ResolveAimPoint(const FPRFireViewpoint& View, float InTraceDistance) const;
 
 	// 2차 트레이스: 총구에서 조준 끝점으로 트레이스해 실제 발사 히트 결과를 산출한다
 	virtual FHitResult PerformMuzzleTrace(const FVector& MuzzleLoc, const FVector& AimPoint) const;
@@ -74,6 +74,9 @@ public:
 	virtual FTransform GetProjectileLaunchTransform();
 	
 protected:
+	// 현재 활성 무기 데이터 기준 최대 사격 거리 반환
+	float GetMaxFireDistance() const;
+
 	// 04.28 김동석 추가, // strength, speed는 삭제
 	// 연속 발사 횟수를 초기화한다
 	void ResetConsecutiveShots();
@@ -118,10 +121,6 @@ protected:
 	// Override가 true일 때 사용할 발사 간격(초). 0.1 = 600 RPM
 	UPROPERTY(EditDefaultsOnly, Category = "ProjectR|Fire|FullAuto")
 	float FireIntervalOverride = 0.1f;
-
-	// 트레이스 최대 거리
-	UPROPERTY(EditDefaultsOnly, Category = "ProjectR|Fire")
-	float MaxTraceDistance = 20000.f;
 
 	// 사격 트레이스에 사용할 충돌 채널
 	UPROPERTY(EditDefaultsOnly, Category = "ProjectR|Fire")

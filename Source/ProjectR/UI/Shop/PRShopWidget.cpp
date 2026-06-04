@@ -8,7 +8,7 @@
 #include "ProjectR/ItemSystem/Data/PRConsumableDataAsset.h"
 #include "ProjectR/ItemSystem/Data/PRItemDataAsset.h"
 #include "ProjectR/ItemSystem/Data/PRMaterialDataAsset.h"
-#include "ProjectR/ItemSystem/Items/PRItemInstance_Consumable.h"
+#include "ProjectR/ItemSystem/Items/PRItemInstance.h"
 #include "ProjectR/ItemSystem/Items/PRItemInstance_Material.h"
 #include "ProjectR/Player/PRPlayerController.h"
 #include "ProjectR/Player/PRPlayerState.h"
@@ -479,19 +479,8 @@ int32 UPRShopWidget::GetOwnedStackCount(const UPRItemDataAsset* ItemData) const
 		return 0;
 	}
 
-	if (const UPRConsumableDataAsset* ConsumableData = Cast<UPRConsumableDataAsset>(ItemData))
-	{
-		const UPRItemInstance_Consumable* ConsumableItem = InventoryComponent->FindItemByData<UPRItemInstance_Consumable>(ConsumableData);
-		return IsValid(ConsumableItem) ? ConsumableItem->GetStackCount() : 0;
-	}
-
-	if (const UPRMaterialDataAsset* MaterialData = Cast<UPRMaterialDataAsset>(ItemData))
-	{
-		const UPRItemInstance_Material* MaterialItem = InventoryComponent->FindItemByData<UPRItemInstance_Material>(MaterialData);
-		return IsValid(MaterialItem) ? MaterialItem->GetStackCount() : 0;
-	}
-
-	return 0;
+	const UPRItemInstance* Item = InventoryComponent->FindItemByData(ItemData);
+	return IsValid(Item) ? Item->GetStackCount() : 0;
 }
 
 bool UPRShopWidget::HasEnoughSelectedMaterialCosts() const
@@ -621,6 +610,7 @@ void UPRShopWidget::HandleShopBuyResult(const FPRShopBuyResult& Result)
 
 	RefreshItemList();
 	RefreshHeader();
+	RefreshSelectedItemDetails();
 	RefreshTransactionButtons();
 }
 
@@ -633,5 +623,6 @@ void UPRShopWidget::HandleShopSellResult(const FPRShopSellResult& Result)
 
 	RefreshItemList();
 	RefreshHeader();
+	RefreshSelectedItemDetails();
 	RefreshTransactionButtons();
 }

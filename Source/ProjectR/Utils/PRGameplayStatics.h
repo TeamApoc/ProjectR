@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "GameplayTagContainer.h"
 #include "ProjectR/FX/PRFXTypes.h"
 #include "Kismet/BlueprintFunctionLibrary.h"
 #include "PRGameplayStatics.generated.h"
@@ -46,6 +47,10 @@ public:
 	/** Actor로 부터 ASC 획득 (Controller or Owner or Avatar 자동) */
 	UFUNCTION(BlueprintCallable, Category = "PR|Utils")
 	static UAbilitySystemComponent* GetAbilitySystemComponent(AActor* Actor);
+
+	/** TargetActor의 ASC에서 지정 태그를 가진 활성 어빌리티 취소 */
+	UFUNCTION(BlueprintCallable, Category = "PR|Ability")
+	static void CancelAbilityWithTags(AActor* TargetActor, const FGameplayTagContainer& AbilityTags);
 
 	// Ammo 부여
 	UFUNCTION(BlueprintCallable, Category = "PR|Utils")

@@ -8,8 +8,52 @@
 #include "GameFramework/PlayerController.h"
 #include "Kismet/GameplayStatics.h"
 #include "Internationalization/Regex.h"
+#include "Misc/PackageName.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogPRSession, Log, All);
+
+namespace
+{
+	FString NormalizeMapPackageName(const FString& MapPackageName)
+	{
+		// PIE 접두사와 오브젝트 이름 접미사를 제거한 비교용 패키지 이름
+		FString NormalizedName = UWorld::RemovePIEPrefix(MapPackageName);
+		int32 ObjectNameSeparatorIndex = INDEX_NONE;
+		if (NormalizedName.FindChar(TEXT('.'), ObjectNameSeparatorIndex))
+		{
+			NormalizedName.LeftInline(ObjectNameSeparatorIndex);
+		}
+
+		return NormalizedName;
+	}
+
+	bool IsSameMapForRestart(const UWorld* World, const FString& TargetPackageName)
+	{
+		if (!IsValid(World) || TargetPackageName.IsEmpty())
+		{
+			return false;
+		}
+
+		const FString NormalizedTargetPackageName = NormalizeMapPackageName(TargetPackageName);
+		const FString NormalizedCurrentPackageName = NormalizeMapPackageName(World->GetOutermost()->GetName());
+		if (NormalizedCurrentPackageName == NormalizedTargetPackageName)
+		{
+			return true;
+		}
+
+		const FString NormalizedCurrentMapName = NormalizeMapPackageName(World->GetMapName());
+		if (NormalizedCurrentMapName == NormalizedTargetPackageName)
+		{
+			return true;
+		}
+
+		// PIE와 Restart URL 경로에서 짧은 맵 이름만 남는 경우를 위한 보조 판정
+		const FString CurrentShortName = FPackageName::GetShortName(NormalizedCurrentPackageName);
+		const FString CurrentMapShortName = FPackageName::GetShortName(NormalizedCurrentMapName);
+		const FString TargetShortName = FPackageName::GetShortName(NormalizedTargetPackageName);
+		return CurrentShortName == TargetShortName || CurrentMapShortName == TargetShortName;
+	}
+}
 
 // ===== 초기화 ===== 
 
@@ -131,26 +175,33 @@ void UPRSessionSubsystem::StartJoin(const FPRJoinSessionParams& Params)
 
 // ===== ServerTravel =====
 
-void UPRSessionSubsystem::ServerTravelToMap(TSoftObjectPtr<UWorld> MapAsset, bool bAbsolute)
+bool UPRSessionSubsystem::ServerTravelToMap(TSoftObjectPtr<UWorld> MapAsset, bool bAbsolute)
 {
 	if (MapAsset.IsNull())
 	{
 		OnSessionFailed.Broadcast(EPRSessionFailReason::MapLoadFailed, TEXT("MapAsset is null"));
-		return;
+		return false;
 	}
 
 	UWorld* World = GetWorld();
 	if (!IsValid(World))
 	{
 		OnSessionFailed.Broadcast(EPRSessionFailReason::Unknown, TEXT("World invalid"));
-		return;
+		return false;
 	}
 
 	const ENetMode NetMode = World->GetNetMode();
 	if (NetMode != NM_ListenServer && NetMode != NM_DedicatedServer && NetMode != NM_Standalone)
 	{
 		OnSessionFailed.Broadcast(EPRSessionFailReason::Unknown, TEXT("ServerTravel requires server authority"));
-		return;
+		return false;
+	}
+
+	if (World->IsInSeamlessTravel())
+	{
+		// 이미 진행 중인 SeamlessTravel에 대한 중복 요청 차단
+		OnSessionFailed.Broadcast(EPRSessionFailReason::Unknown, TEXT("ServerTravel already in progress"));
+		return false;
 	}
 
 	// 소프트 참조의 LongPackageName을 ServerTravel URL로 사용 (예: /Game/.../L_MyMap)
@@ -158,10 +209,39 @@ void UPRSessionSubsystem::ServerTravelToMap(TSoftObjectPtr<UWorld> MapAsset, boo
 	if (PackageName.IsEmpty())
 	{
 		OnSessionFailed.Broadcast(EPRSessionFailReason::MapLoadFailed, TEXT("MapAsset package name empty"));
-		return;
+		return false;
 	}
 
-	World->ServerTravel(PackageName, bAbsolute);
+	const FString CurrentPackageName = NormalizeMapPackageName(World->GetOutermost()->GetName());
+	if (IsSameMapForRestart(World, PackageName))
+	{
+		// 현재 맵 재진입은 플레이어 리스폰과 동일한 Restart URL 사용
+		const bool bRestartStarted = World->ServerTravel(TEXT("?Restart"), false);
+		if (!bRestartStarted)
+		{
+			UE_LOG(LogPRSession, Warning, TEXT("[ServerTravelToMap] Restart failed. Current=%s, Target=%s"),
+				*CurrentPackageName,
+				*PackageName);
+			OnSessionFailed.Broadcast(EPRSessionFailReason::MapLoadFailed, TEXT("?Restart"));
+		}
+
+		return bRestartStarted;
+	}
+
+	const FString TravelURL = PackageName;
+	const bool bResolvedAbsolute = bAbsolute;
+
+	// 다른 맵 이동은 소프트 참조 패키지 이름으로 ServerTravel 실행
+	const bool bTravelStarted = World->ServerTravel(TravelURL, bResolvedAbsolute);
+	if (!bTravelStarted)
+	{
+		UE_LOG(LogPRSession, Warning, TEXT("[ServerTravelToMap] ServerTravel failed. URL=%s, Current=%s"),
+			*TravelURL,
+			*CurrentPackageName);
+		OnSessionFailed.Broadcast(EPRSessionFailReason::MapLoadFailed, TravelURL);
+	}
+
+	return bTravelStarted;
 }
 
 // ===== 종료 =====

@@ -16,6 +16,8 @@
 #include "ProjectR/ItemSystem/Components/PRWeaponManagerComponent.h"
 #include "UObject/ConstructorHelpers.h"
 
+DEFINE_LOG_CATEGORY_STATIC(LogPRPathPreviewComponent, Log, All);
+
 UPRProjectileTrajectoryPreviewComponent::UPRProjectileTrajectoryPreviewComponent()
 {
 	PrimaryComponentTick.bCanEverTick = true;
@@ -40,10 +42,7 @@ void UPRProjectileTrajectoryPreviewComponent::BeginPlay()
 		return;
 	}
 	
-	if (APRPlayerCharacter* Player = Cast<APRPlayerCharacter>(Owner))
-	{
-		CachedWeaponManager = Player->GetWeaponManager();
-	}
+	GetWeaponManager();
 
 	// Lazy 생성. 첫 호출 시 owner 액터에 ISMC을 동적 생성/등록.
 	// 런타임 SceneComponent 생성 표준 패턴: NewObject 후 Mobility 설정과 SetupAttachment를 RegisterComponent 이전에 수행
@@ -67,6 +66,15 @@ void UPRProjectileTrajectoryPreviewComponent::BeginPlay()
 
 void UPRProjectileTrajectoryPreviewComponent::SetPreviewEnabled(bool bInEnabled)
 {
+	UE_LOG(LogPRPathPreviewComponent, Log,
+		TEXT("SetPreviewEnabled 호출. Owner=%s, bOldEnabled=%d, bNewEnabled=%d, bIsShowing=%d, WeaponActor=%s, CachedWeaponManager=%s"),
+		*GetNameSafe(GetOwner()),
+		bIsEnabled,
+		bInEnabled,
+		bIsShowing,
+		*GetNameSafe(WeaponActor.Get()),
+		*GetNameSafe(CachedWeaponManager.Get()));
+
 	bIsEnabled = bInEnabled;
 }
 
@@ -75,10 +83,29 @@ void UPRProjectileTrajectoryPreviewComponent::SetPreviewEnabled(bool bInEnabled)
 void UPRProjectileTrajectoryPreviewComponent::SetFireParams(const FPRProjectilePreviewParams& InParams)
 {
 	FireParams = InParams;
+
+	UE_LOG(LogPRPathPreviewComponent, Log,
+		TEXT("SetFireParams 호출. Owner=%s, InitialSpeed=%.2f, GravityScale=%.2f, CollisionRadius=%.2f, MaxSimTime=%.2f, SimFrequency=%.2f, SampleSpacing=%.2f, MaxSamplePoints=%d"),
+		*GetNameSafe(GetOwner()),
+		FireParams.InitialSpeed,
+		FireParams.GravityScale,
+		FireParams.CollisionRadius,
+		FireParams.MaxSimTime,
+		FireParams.SimFrequency,
+		FireParams.SampleSpacing,
+		FireParams.MaxSamplePoints);
 }
 
 void UPRProjectileTrajectoryPreviewComponent::SetWeaponActor(APRWeaponActor* InWeaponActor)
 {
+	UE_LOG(LogPRPathPreviewComponent, Log,
+		TEXT("SetWeaponActor 호출. Owner=%s, OldWeapon=%s, NewWeapon=%s, bIsShowing=%d, bIsEnabled=%d"),
+		*GetNameSafe(GetOwner()),
+		*GetNameSafe(WeaponActor.Get()),
+		*GetNameSafe(InWeaponActor),
+		bIsShowing,
+		bIsEnabled);
+
 	WeaponActor = InWeaponActor;
 
 	// 댕글링 방지: 무효 WeaponActor 주입 시 표시 강제 OFF
@@ -90,10 +117,26 @@ void UPRProjectileTrajectoryPreviewComponent::SetWeaponActor(APRWeaponActor* InW
 
 void UPRProjectileTrajectoryPreviewComponent::Show()
 {
+	GetWeaponManager();
+
 	if (bIsShowing)
 	{
+		UE_LOG(LogPRPathPreviewComponent, Log,
+			TEXT("Show 생략. 이미 표시 중, Owner=%s, bIsEnabled=%d, WeaponActor=%s, CachedWeaponManager=%s"),
+			*GetNameSafe(GetOwner()),
+			bIsEnabled,
+			*GetNameSafe(WeaponActor.Get()),
+			*GetNameSafe(CachedWeaponManager.Get()));
 		return;
 	}
+
+	UE_LOG(LogPRPathPreviewComponent, Log,
+		TEXT("Show 호출. Owner=%s, bIsEnabled=%d, WeaponActor=%s, CachedWeaponManager=%s, TrajectoryISMC=%s"),
+		*GetNameSafe(GetOwner()),
+		bIsEnabled,
+		*GetNameSafe(WeaponActor.Get()),
+		*GetNameSafe(CachedWeaponManager.Get()),
+		*GetNameSafe(TrajectoryISMC));
 
 	bIsShowing = true;
 	SetComponentTickEnabled(true);
@@ -103,8 +146,20 @@ void UPRProjectileTrajectoryPreviewComponent::Hide()
 {
 	if (!bIsShowing)
 	{
+		UE_LOG(LogPRPathPreviewComponent, Log,
+			TEXT("Hide 생략. 이미 숨김 상태, Owner=%s, bIsEnabled=%d, WeaponActor=%s"),
+			*GetNameSafe(GetOwner()),
+			bIsEnabled,
+			*GetNameSafe(WeaponActor.Get()));
 		return;
 	}
+
+	UE_LOG(LogPRPathPreviewComponent, Log,
+		TEXT("Hide 호출. Owner=%s, bIsEnabled=%d, WeaponActor=%s, InstanceCount=%d"),
+		*GetNameSafe(GetOwner()),
+		bIsEnabled,
+		*GetNameSafe(WeaponActor.Get()),
+		IsValid(TrajectoryISMC) ? TrajectoryISMC->GetInstanceCount() : 0);
 
 	bIsShowing = false;
 	SetComponentTickEnabled(false);
@@ -223,19 +278,66 @@ void UPRProjectileTrajectoryPreviewComponent::TickComponent(float DeltaTime, ELe
 {
 	Super::TickComponent(DeltaTime, TickType, ThisTickFunction);
 
-	if (CachedWeaponManager.IsValid())
+	if (UPRWeaponManagerComponent* WeaponManager = GetWeaponManager())
 	{
-		WeaponActor = CachedWeaponManager->GetActiveWeaponActor();	
+		WeaponActor = WeaponManager->GetActiveWeaponActor();	
 	}
 	
 	// WeaponActor 유효성 재확인. 무기 교체 등으로 사라졌을 수 있음
 	if (!WeaponActor.IsValid() || !bIsEnabled)
 	{
+		UE_LOG(LogPRPathPreviewComponent, Verbose,
+			TEXT("Tick 경로 생성 생략. Owner=%s, bIsEnabled=%d, bIsShowing=%d, WeaponActor=%s, CachedWeaponManager=%s"),
+			*GetNameSafe(GetOwner()),
+			bIsEnabled,
+			bIsShowing,
+			*GetNameSafe(WeaponActor.Get()),
+			*GetNameSafe(CachedWeaponManager.Get()));
 		return;
 	}
 
 	RebuildPath();
 	DrawTrajectory(LastResult.SamplePoints);
+
+	UE_LOG(LogPRPathPreviewComponent, Verbose,
+		TEXT("Tick 경로 갱신 완료. Owner=%s, WeaponActor=%s, SamplePoints=%d, EndReason=%d"),
+		*GetNameSafe(GetOwner()),
+		*GetNameSafe(WeaponActor.Get()),
+		LastResult.SamplePoints.Num(),
+		static_cast<int32>(LastResult.EndReason));
+}
+
+/*~ Internal ~*/
+
+UPRWeaponManagerComponent* UPRProjectileTrajectoryPreviewComponent::GetWeaponManager()
+{
+	if (CachedWeaponManager.IsValid())
+	{
+		return CachedWeaponManager.Get();
+	}
+
+	APRPlayerCharacter* Player = Cast<APRPlayerCharacter>(GetOwner());
+	if (!IsValid(Player))
+	{
+		UE_LOG(LogPRPathPreviewComponent, Verbose, TEXT("WeaponManager 캐시 실패. Owner가 PlayerCharacter 아님, Owner=%s"),
+			*GetNameSafe(GetOwner()));
+		return nullptr;
+	}
+
+	CachedWeaponManager = Player->GetWeaponManager();
+	if (CachedWeaponManager.IsValid())
+	{
+		UE_LOG(LogPRPathPreviewComponent, Log, TEXT("WeaponManager 캐시 완료. Owner=%s, WeaponManager=%s"),
+			*GetNameSafe(GetOwner()),
+			*GetNameSafe(CachedWeaponManager.Get()));
+	}
+	else
+	{
+		UE_LOG(LogPRPathPreviewComponent, Verbose, TEXT("WeaponManager 캐시 대기. Owner=%s"),
+			*GetNameSafe(GetOwner()));
+	}
+
+	return CachedWeaponManager.Get();
 }
 
 /*~ Path Build ~*/

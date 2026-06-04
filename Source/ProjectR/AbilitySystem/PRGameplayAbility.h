@@ -80,6 +80,8 @@ public:
 	UFUNCTION(BlueprintCallable)
 	virtual void ApplySourceModCost() const;
 	
+	virtual void OnFailActivateAbility(const UAbilitySystemComponent* InOwnerASC, const FGameplayAbilitySpec* InAbilitySpec) const;
+	
 protected:
 	// 현재 무기의 강화 반영 기본 피해량을 데미지 Spec에 기록한다
 	void AddCurrentWeaponDamageData(const FGameplayEffectSpecHandle& SpecHandle) const;

@@ -253,6 +253,12 @@ void UPREquipmentManagerComponent::ApplySaveData(const FPREquipmentSaveData& InS
 	}
 }
 
+void UPREquipmentManagerComponent::ResetSystem()
+{
+	// 장착 데이터 유지와 외형 재적용 알림
+	OnEquipmentVisualInfosChanged.Broadcast(this);
+}
+
 void UPREquipmentManagerComponent::OnRep_EquipmentInfos()
 {
 	// 클라이언트에서 시각적 장착 정보가 복제되었을 때 캐릭터 파츠 메시 갱신

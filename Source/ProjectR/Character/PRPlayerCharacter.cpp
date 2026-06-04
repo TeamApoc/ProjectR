@@ -15,6 +15,7 @@
 #include "Kismet/KismetMathLibrary.h"
 #include "ProjectR/ProjectR.h"
 #include "ProjectR/AbilitySystem/PRAbilitySystemComponent.h"
+#include "ProjectR/AbilitySystem/Data/PRAbilitySystemRegistry.h"
 #include "ProjectR/Player/PRPlayerState.h"
 #include "ProjectR/System/PRAssetManager.h"
 #include "ProjectR/PRGameplayTags.h"
@@ -31,6 +32,8 @@
 #include "ProjectR/Projectile/PRProjectileTrajectoryPreviewComponent.h"
 #include "ProjectR/System/PREventManagerSubsystem.h"
 #include "ProjectR/ItemSystem/Actors/PRWeaponActor.h"
+
+DEFINE_LOG_CATEGORY_STATIC(LogPRPathPreviewCharacter, Log, All);
 
 // Sets default values
 APRPlayerCharacter::APRPlayerCharacter()
@@ -170,22 +173,61 @@ void APRPlayerCharacter::PossessedBy(AController* NewController)
 	{
 		if (UPRAbilitySystemComponent* ASC = PS->GetPRAbilitySystemComponent())
 		{
+			const UPRAbilitySystemRegistry* Registry = UPRAssetManager::Get().GetAbilitySystemRegistry();
 			ASC->InitAbilityActorInfo(PS, this);
 			ASC->InitializeAttributesFromRegistry(
-				UPRAssetManager::Get().GetAbilitySystemRegistry(),
+				Registry,
 				EPRCharacterRole::Player,
 				PRRowNames::Player::Default);
+			
+			if (IsValid(Registry) && IsValid(Registry->PlayerInitializeGE))
+			{
+				// 플레이어 최초 초기화 생존 수치 적용. 저장 데이터가 있으면 이후 ApplySaveData에서 저장값으로 덮어씀
+				FGameplayEffectContextHandle EffectContextHandle = ASC->MakeEffectContext();
+				EffectContextHandle.AddSourceObject(this);
+				const FGameplayEffectSpecHandle DefaultInitSpecHandle = ASC->MakeOutgoingSpec(Registry->InitializeGE, 1.0f, EffectContextHandle);
+				if (DefaultInitSpecHandle.IsValid())
+				{
+					ASC->ApplyGameplayEffectSpecToSelf(*DefaultInitSpecHandle.Data.Get());
+				}
+				
+				const FGameplayEffectSpecHandle PlayerInitSpecHandle = ASC->MakeOutgoingSpec(Registry->PlayerInitializeGE, 1.0f, EffectContextHandle);
+				if (PlayerInitSpecHandle.IsValid())
+				{
+					ASC->ApplyGameplayEffectSpecToSelf(*PlayerInitSpecHandle.Data.Get());
+				}
+			}
+			
 			PS->GrantCharacterAbilitySet(AbilitySet, this);
 			
 			// 이 시점에서 플레이어의 ASC 유효하므로 BindTagChangeEvent 호출
 			BindTagChangeEvent();
 			BindMovementSpeedAttributeChange();
 		}
-		
+
 		if (PS->HasPendingSaveDataApply())
 		{
 			// 저장 데이터 1회 복원
 			PS->ApplySaveData(PS->GetCurrentSaveData());
+		}
+
+		if (PS->ConsumePendingRespawnRecovery())
+		{
+			if (UPRAbilitySystemComponent* ASC = PS->GetPRAbilitySystemComponent())
+			{
+				const UPRAbilitySystemRegistry* Registry = UPRAssetManager::Get().GetAbilitySystemRegistry();
+				if (IsValid(Registry) && IsValid(Registry->PlayerInitializeGE))
+				{
+					// 리스폰 복원 이후 생존 수치 재적용. 일반 저장 복원과 맵 이동은 이 경로를 사용하지 않음
+					FGameplayEffectContextHandle EffectContextHandle = ASC->MakeEffectContext();
+					EffectContextHandle.AddSourceObject(this);
+					const FGameplayEffectSpecHandle SpecHandle = ASC->MakeOutgoingSpec(Registry->PlayerInitializeGE, 1.0f, EffectContextHandle);
+					if (SpecHandle.IsValid())
+					{
+						ASC->ApplyGameplayEffectSpecToSelf(*SpecHandle.Data.Get());
+					}
+				}
+			}
 		}
 
 		if (UPRWeaponManagerComponent* WeaponManager = GetWeaponManager())
@@ -376,6 +418,13 @@ void APRPlayerCharacter::HandleGameplayTagUpdated(const FGameplayTag& ChangedTag
 	
 	if (ChangedTag.MatchesTagExact(PRGameplayTags::State_Aiming))
 	{
+		UE_LOG(LogPRPathPreviewCharacter, Log,
+			TEXT("Aiming 태그 변경. Player=%s, TagExists=%d, bLocallyControlled=%d, Preview=%s"),
+			*GetNameSafe(this),
+			bTagExists,
+			IsLocallyControlled(),
+			*GetNameSafe(ProjectileTrajectoryPreviewComponent));
+
 		bIsAiming = bTagExists;
 		UpdateMaxWalkSpeed();
 
@@ -394,13 +443,29 @@ void APRPlayerCharacter::HandleGameplayTagUpdated(const FGameplayTag& ChangedTag
 			{
 				if (bTagExists)
 				{
+					UE_LOG(LogPRPathPreviewCharacter, Log, TEXT("Preview Show 호출. Player=%s, Preview=%s"),
+						*GetNameSafe(this),
+						*GetNameSafe(ProjectileTrajectoryPreviewComponent));
 					ProjectileTrajectoryPreviewComponent->Show();
 				}
 				else
 				{
+					UE_LOG(LogPRPathPreviewCharacter, Log, TEXT("Preview Hide 호출. Player=%s, Preview=%s"),
+						*GetNameSafe(this),
+						*GetNameSafe(ProjectileTrajectoryPreviewComponent));
 					ProjectileTrajectoryPreviewComponent->Hide();
 				}
 			}	
+			else
+			{
+				UE_LOG(LogPRPathPreviewCharacter, Warning, TEXT("Aiming 태그 처리 중단. PreviewComponent 없음, Player=%s"),
+					*GetNameSafe(this));
+			}
+		}
+		else
+		{
+			UE_LOG(LogPRPathPreviewCharacter, Log, TEXT("Preview Show/Hide 생략. 로컬 컨트롤 아님, Player=%s"),
+				*GetNameSafe(this));
 		}
 	}
 	if (ChangedTag.MatchesTagExact(PRGameplayTags::State_Sprinting))

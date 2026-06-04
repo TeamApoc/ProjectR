@@ -41,6 +41,9 @@ public:
 	// 재화 저장 데이터 적용
 	void ApplySaveData(const FPRCurrencySaveData& InSaveData);
 
+	// 리스폰 전 재화 시스템 런타임 상태 정리
+	void ResetSystem();
+
 protected:
 	UFUNCTION()
 	void OnRep_Scrap();

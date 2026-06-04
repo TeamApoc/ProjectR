@@ -7,6 +7,7 @@
 #include "Components/BoxComponent.h"
 #include "Components/SceneComponent.h"
 #include "Components/StaticMeshComponent.h"
+#include "Engine/World.h"
 #include "GameplayEffect.h"
 #include "GameFramework/Pawn.h"
 #include "GameFramework/ProjectileMovementComponent.h"
@@ -19,6 +20,7 @@
 #include "ProjectR/Combat/PRCombatStatics.h"
 #include "ProjectR/ProjectR.h"
 #include "ProjectR/Player/PRPlayerController.h"
+#include "ProjectR/System/PRRespawnSubsystem.h"
 #include "ProjectR/UI/FloatingText/PRFloatingTextManager.h"
 #include "ProjectR/UI/FloatingText/PRFloatingTextTypes.h"
 
@@ -96,6 +98,18 @@ void APRGroundBoxProjectileBase::BeginPlay()
 {
 	Super::BeginPlay();
 
+	if (HasAuthority())
+	{
+		if (UWorld* World = GetWorld())
+		{
+			if (UPRRespawnSubsystem* RespawnSubsystem = World->GetSubsystem<UPRRespawnSubsystem>())
+			{
+				// 일회성 지면 투사체 등록
+				RespawnSubsystem->RegisterDisposableActor(this);
+			}
+		}
+	}
+
 	// BP 기본 체력 초기화
 	CurrentHealth = FMath::Max(MaxHealth, 0.0f);
 
@@ -132,6 +146,18 @@ void APRGroundBoxProjectileBase::Tick(float DeltaSeconds)
 
 void APRGroundBoxProjectileBase::EndPlay(const EEndPlayReason::Type EndPlayReason)
 {
+	if (HasAuthority())
+	{
+		if (UWorld* World = GetWorld())
+		{
+			if (UPRRespawnSubsystem* RespawnSubsystem = World->GetSubsystem<UPRRespawnSubsystem>())
+			{
+				// 일회성 지면 투사체 등록 해제
+				RespawnSubsystem->UnregisterDisposableActor(this);
+			}
+		}
+	}
+
 	if (UWorld* World = GetWorld())
 	{
 		World->GetTimerManager().ClearTimer(SafetyLifeTimeTimerHandle);
@@ -350,7 +376,8 @@ void APRGroundBoxProjectileBase::HandleSafetyLifeTimeExpired()
 
 /*~ 오버랩 처리 ~*/
 
-void APRGroundBoxProjectileBase::OnDamageDetectionBoxBeginOverlap(UPrimitiveComponent* OverlappedComponent,
+void APRGroundBoxProjectileBase::
+OnDamageDetectionBoxBeginOverlap(UPrimitiveComponent* OverlappedComponent,
 	AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep,
 	const FHitResult& SweepResult)
 {

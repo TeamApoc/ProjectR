@@ -7,6 +7,7 @@
 #include "AbilitySystemBlueprintLibrary.h"
 #include "DrawDebugHelpers.h"
 #include "GameplayEffect.h"
+#include "Kismet/GameplayStatics.h"
 #include "ProjectR/Combat/PRCombatGameplayTags.h"
 #include "ProjectR/AbilitySystem/Data/PRAbilitySystemRegistry.h"
 #include "ProjectR/AbilitySystem/Tasks/PRAT_SpawnPredictedProjectile.h"
@@ -138,6 +139,32 @@ void UPRGA_Fire::ApplyCooldown(const FGameplayAbilitySpecHandle Handle, const FG
 	}
 }
 
+void UPRGA_Fire::OnFailActivateAbility(const UAbilitySystemComponent* InOwnerASC,
+                                       const FGameplayAbilitySpec* InAbilitySpec) const
+{
+	Super::OnFailActivateAbility(InOwnerASC, InAbilitySpec);
+
+	if (!IsValid(InOwnerASC) || InAbilitySpec == nullptr)
+	{
+		return;
+	}
+
+	const FGameplayAbilityActorInfo* ActorInfo = InOwnerASC->AbilityActorInfo.Get();
+	if (ActorInfo == nullptr || CheckCost(InAbilitySpec->Handle, ActorInfo))
+	{
+		return;
+	}
+
+	OnOutOfAmmo(InOwnerASC);
+}
+
+void UPRGA_Fire::OnOutOfAmmo(const UObject* WorldContext) const
+{
+	FPRFXPayloadBase Payload;
+	Payload.bHasLifeTime = false;
+	const FInstancedStruct PayloadStruct = FInstancedStruct::Make(Payload);
+	UPRGameplayStatics::PlayLocalFX(WorldContext,PRFXTags::FX_Weapon_OutOfAmmo,PayloadStruct);
+}
 
 FVector UPRGA_Fire::GetMuzzleLocation()
 {
@@ -273,6 +300,7 @@ void UPRGA_Fire::FireHitScan()
 	{
 		if (!CommitAbilityCost(CurrentSpecHandle, CurrentActorInfo, CurrentActivationInfo))
 		{
+			OnOutOfAmmo(AvatarActor);
 			UE_LOG(LogFire, Verbose, TEXT("Client predicted cost failed (탄약 부족). 사격 차단."));
 			EndAbility(CurrentSpecHandle, CurrentActorInfo, CurrentActivationInfo, /*bReplicateEndAbility=*/true, /*bWasCancelled=*/true);
 			return;
@@ -463,6 +491,11 @@ void UPRGA_Fire::ServerConfirmShot(const FPRFireShotPayload& Payload)
 	// CheckCost 실패 시 탄약 부족으로 간주해 데미지를 적용하지 않고 어빌리티 종료
 	if (!CommitAbilityCost(CurrentSpecHandle, CurrentActorInfo, CurrentActivationInfo))
 	{
+		if (IsLocallyControlled())
+		{
+			OnOutOfAmmo(GetAvatarActorFromActorInfo());
+		}
+		
 		UE_LOG(LogFire, Warning, TEXT("Cost commit failed (탄약 부족). ShotID: %u"), Payload.ShotID);
 		EndAbility(CurrentSpecHandle, CurrentActorInfo, CurrentActivationInfo, /*bReplicateEndAbility=*/true, /*bWasCancelled=*/true);
 		return;

@@ -9,6 +9,7 @@
 #include "AbilitySystemInterface.h"
 #include "Components/SphereComponent.h"
 #include "DrawDebugHelpers.h"
+#include "Engine/World.h"
 #include "GameFramework/Controller.h"
 #include "GameFramework/Pawn.h"
 #include "PRProjectileMovementComponent.h"
@@ -19,6 +20,7 @@
 #include "ProjectR/Combat/PRCombatInterface.h"
 #include "ProjectR/Combat/PRCombatStatics.h"
 #include "ProjectR/Combat/PRDestructableInterface.h"
+#include "ProjectR/System/PRRespawnSubsystem.h"
 
 APRProjectileBase::APRProjectileBase()
 {
@@ -165,6 +167,8 @@ void APRProjectileBase::OnRep_RepMovement()
 	case EPRRepMovementEvent::Detonation:
 		HandleRepCorrection();
 		break;
+	default:
+		break;
 	}
 }
 
@@ -310,6 +314,18 @@ void APRProjectileBase::BeginPlay()
 		return;
 	}
 
+	if (HasProjectileAuthority())
+	{
+		if (UWorld* World = GetWorld())
+		{
+			if (UPRRespawnSubsystem* RespawnSubsystem = World->GetSubsystem<UPRRespawnSubsystem>())
+			{
+				// 일회성 투사체 등록
+				RespawnSubsystem->RegisterDisposableActor(this);
+			}
+		}
+	}
+
 #if WITH_EDITOR
 	DrawDebugs(0);
 #endif
@@ -345,8 +361,20 @@ void APRProjectileBase::Tick(float DeltaSeconds)
 
 void APRProjectileBase::EndPlay(const EEndPlayReason::Type EndPlayReason)
 {
+	if (HasProjectileAuthority())
+	{
+		if (UWorld* World = GetWorld())
+		{
+			if (UPRRespawnSubsystem* RespawnSubsystem = World->GetSubsystem<UPRRespawnSubsystem>())
+			{
+				// 일회성 투사체 등록 해제
+				RespawnSubsystem->UnregisterDisposableActor(this);
+			}
+		}
+	}
+
 	Super::EndPlay(EndPlayReason);
-	
+
 	if (ProjectileRole == EPRProjectileRole::Predicted)
 	{
 		UPRProjectileManagerComponent* Manager = UPRProjectileManagerComponent::FindForActor(GetWorld()->GetFirstPlayerController());
@@ -505,7 +533,7 @@ void APRProjectileBase::OnSphereHit(UPrimitiveComponent* HitComponent, AActor* O
 			// 예측 투사체가 먼저 Hit에 성공한 경우
 			if (LinkedCounterpart.IsValid())
 			{
-				LinkedCounterpart->SetActorHiddenInGame(false);
+				//LinkedCounterpart->SetActorHiddenInGame(false);
 				Destroy();
 			}
 		}
@@ -526,7 +554,6 @@ void APRProjectileBase::OnSphereHit(UPrimitiveComponent* HitComponent, AActor* O
 			}
 		}
 		
-		// Replicate된 투사체인 경우
 		if (HasAuthority())
 		{
 			if (!HitActors.Contains(OtherActor))
@@ -540,6 +567,7 @@ void APRProjectileBase::OnSphereHit(UPrimitiveComponent* HitComponent, AActor* O
 				DestroyProjectile();	
 			}
 		}
+		// Replicate된 투사체인 경우
 		else
 		{
 			SetActorHiddenInGame(true);

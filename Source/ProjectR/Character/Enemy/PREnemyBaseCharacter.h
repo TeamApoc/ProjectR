@@ -8,6 +8,7 @@
 #include "ProjectR/AbilitySystem/Data/PRStatRows.h"
 #include "ProjectR/Character/PRCharacterBase.h"
 #include "ProjectR/Character/Enemy/PREnemyInterface.h"
+#include "ProjectR/System/PRTickOptimizable.h"
 #include "ProjectR/UI/WorldMarker/PRPingMarkerTargetInterface.h"
 #include "PREnemyBaseCharacter.generated.h"
 
@@ -31,7 +32,7 @@ struct FPREnemyMovePresentationConfig;
 // 모든 일반 몬스터가 공유하는 베이스 캐릭터다.
 // ASC/AttributeSet/Threat/BT/Perception을 소유하고, 서버 Possess 시 AbilitySet과 AI를 초기화한다.
 UCLASS(Abstract)
-class PROJECTR_API APREnemyBaseCharacter : public APRCharacterBase, public IPREnemyInterface, public IPRPingMarkerTargetInterface
+class PROJECTR_API APREnemyBaseCharacter : public APRCharacterBase, public IPREnemyInterface, public IPRPingMarkerTargetInterface, public IPRTickOptimizable
 {
 	GENERATED_BODY()
 
@@ -39,6 +40,7 @@ public:
 	APREnemyBaseCharacter();
 
 	virtual void BeginPlay() override;
+	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
 	virtual void PossessedBy(AController* NewController) override;
 	virtual UPRAbilitySystemComponent* GetPRAbilitySystemComponent() const override;
@@ -53,6 +55,28 @@ public:
 	virtual FPRWorldMarkerVisualData GetPingMarkerVisualData_Implementation() const override;
 	virtual FVector GetPingMarkerWorldLocation_Implementation() const override;
 	virtual bool ShouldPingMarkerVisible_Implementation() const override;
+
+	/*~ IPRTickOptimizable ~*/
+	// 월드 Tick 최적화 평가에 사용할 설정값 반환
+	virtual FPRTickOptimizationConfig GetTickConfig() const override;
+
+	// 월드 Tick 최적화 거리 평가에 사용할 기준 위치 반환
+	virtual FVector GetTickLocation() const override;
+
+	// 사망처럼 다른 시스템이 상태를 소유한 경우 거리 평가 제외 여부 반환
+	virtual bool CanOptimizeTick() const override;
+
+	// 현재 AI Tick 비용 활성 상태 반환
+	virtual bool IsTickActive() const override;
+
+	// 월드 Tick 최적화 시스템이 결정한 AI Tick 비용 상태 적용
+	virtual void SetTickActive(bool bActive) override;
+
+	// 현재 시각 최적화 활성 상태 반환
+	virtual bool IsVisibilityActive() const override;
+
+	// 월드 Tick 최적화 시스템이 결정한 시각 비용 상태 적용
+	virtual void SetVisibilityActive(bool bActive) override;
 public:
 	virtual UPRAbilitySystemComponent* GetEnemyAbilitySystemComponent() const override;
 	virtual UPREnemyThreatComponent* GetEnemyThreatComponent() const override;
@@ -131,6 +155,16 @@ protected:
 
 	// 월드 HP 바 컴포넌트를 현재 ASC에 연결한다.
 	void InitializeEnemyWorldHealthBar();
+
+	// 복제된 Visibility 활성 상태의 클라이언트 시각 비용 반영
+	UFUNCTION()
+	void OnRep_VisibilityActive();
+
+	// 월드 Tick 최적화 활성 상태에 따른 AIController와 관련 컴포넌트 제어
+	void ApplyTickOptimizationState(bool bActive);
+
+	// 월드 Tick 최적화 Visibility 상태에 따른 시각 컴포넌트 제어
+	void ApplyVisibilityOptimizationState(bool bActive);
 
 	UFUNCTION(NetMulticast, Reliable)
 	void Multicast_RequestDeathDissolveVisual(
@@ -216,6 +250,38 @@ protected:
 	// 시야/청각 감지 설정 데이터다.
 	UPROPERTY(EditDefaultsOnly, Category = "ProjectR|AI")
 	TObjectPtr<UPRPerceptionConfig> PerceptionConfig;
+
+	// 월드 Tick 최적화 시스템 등록 여부. 보스나 특수 적의 비활성화 용도
+	UPROPERTY(EditDefaultsOnly, Category = "ProjectR|TickOptimization")
+	bool bUseTickOptimization = true;
+
+	// 리스폰 시스템 자동 등록 여부
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|Respawn")
+	bool bIsRespawnable = true;
+
+	// 비활성 상태에서 플레이어 접근 시 AI 비용을 다시 활성화하는 반경
+	UPROPERTY(EditDefaultsOnly, Category = "ProjectR|TickOptimization", meta = (ClampMin = "0.0"))
+	float TickActivationRadius = 3000.0f;
+
+	// 활성 상태에서 모든 플레이어가 멀어졌을 때 AI 비용을 비활성화하는 반경
+	UPROPERTY(EditDefaultsOnly, Category = "ProjectR|TickOptimization", meta = (ClampMin = "0.0"))
+	float TickDeactivationRadius = 3500.0f;
+
+	// 비활성 상태에서 플레이어 접근 시 시각 비용을 다시 활성화하는 반경
+	UPROPERTY(EditDefaultsOnly, Category = "ProjectR|TickOptimization", meta = (ClampMin = "0.0"))
+	float VisibilityActivationRadius = 4500.0f;
+
+	// 활성 상태에서 모든 플레이어가 멀어졌을 때 시각 비용을 비활성화하는 반경
+	UPROPERTY(EditDefaultsOnly, Category = "ProjectR|TickOptimization", meta = (ClampMin = "0.0"))
+	float VisibilityDeactivationRadius = 5000.0f;
+
+	// 첫 거리 평가 전까지 AI 비용을 활성 상태로 유지할지 여부
+	UPROPERTY(EditDefaultsOnly, Category = "ProjectR|TickOptimization")
+	bool bStartTickActive = true;
+
+	// 첫 거리 평가 전까지 시각 비용을 활성 상태로 유지할지 여부
+	UPROPERTY(EditDefaultsOnly, Category = "ProjectR|TickOptimization")
+	bool bStartVisibilityActive = true;
 	
 	// ====== States ======
 	// AI 복귀 기준 위치다. Possess/BeginPlay 중 먼저 도달한 시점의 현재 위치로 저장한다.
@@ -250,6 +316,13 @@ protected:
 	// 부위 매핑 조회용으로 보유한 StatRow 사본. InitializeEnemyAbilitySystem에서 채운다.
 	FPREnemyStatRow CachedStatRow;
 	bool bHasCachedStatRow = false;
+
+	// 월드 Tick 최적화 시스템이 마지막으로 적용한 AI 비용 활성 상태
+	bool bTickActive = true;
+
+	// 월드 Tick 최적화 시스템이 마지막으로 적용한 시각 비용 활성 상태
+	UPROPERTY(ReplicatedUsing=OnRep_VisibilityActive)
+	bool bVisibilityActive = true;
 
 	FTimerHandle DeathDissolveStartTimerHandle;
 	FTimerHandle DeathDissolveTickTimerHandle;

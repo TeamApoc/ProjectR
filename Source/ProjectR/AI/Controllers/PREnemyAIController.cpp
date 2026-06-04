@@ -67,6 +67,22 @@ namespace
 		BlackboardComponent->SetValueAsVector(LastKnownTargetLocationKey, LastKnownTargetLocation);
 		BlackboardComponent->SetValueAsBool(HasLOSKey, bHasLOS);
 	}
+
+	void WriteCurrentTargetLocationToBlackboard(
+		UBlackboardComponent* BlackboardComponent,
+		const FName TargetLocationKey,
+		const FName LastKnownTargetLocationKey,
+		const FVector& TargetLocation,
+		const FVector& LastKnownTargetLocation)
+	{
+		if (!IsValid(BlackboardComponent))
+		{
+			return;
+		}
+
+		BlackboardComponent->SetValueAsVector(TargetLocationKey, TargetLocation);
+		BlackboardComponent->SetValueAsVector(LastKnownTargetLocationKey, LastKnownTargetLocation);
+	}
 }
 
 APREnemyAIController::APREnemyAIController()
@@ -183,21 +199,41 @@ void APREnemyAIController::HandleTargetPerceptionUpdated(AActor* Actor, FAIStimu
 
 	if (Stimulus.WasSuccessfullySensed())
 	{
-		const bool bHasLOS = IsSightStimulus(SightConfig, Stimulus);
+		const bool bIsSightStimulus = IsSightStimulus(SightConfig, Stimulus);
+		bool bHasLOS = bIsSightStimulus;
+		if (!bIsSightStimulus)
+		{
+			FPREnemyTargetCandidate ExistingCandidate;
+			bHasLOS = CachedThreatComponent->GetTargetCandidate(Actor, ExistingCandidate)
+				&& ExistingCandidate.bHasLOS;
+		}
+
 		CachedThreatComponent->UpdatePerceivedTarget(Actor, StimulusLocation, bHasLOS);
 
 		// Perception은 여러 플레이어의 이벤트를 받을 수 있으므로,
 		// Blackboard 추적값은 현재 공격 대상 기준일 때만 갱신한다.
 		if (IsCurrentThreatTarget(CachedThreatComponent, Actor))
 		{
-			WriteCurrentTargetTrackingToBlackboard(
-				CachedBlackboardComponent,
-				TargetLocationKey,
-				LastKnownTargetLocationKey,
-				HasLOSKey,
-				StimulusLocation,
-				StimulusLocation,
-				bHasLOS);
+			if (bIsSightStimulus)
+			{
+				WriteCurrentTargetTrackingToBlackboard(
+					CachedBlackboardComponent,
+					TargetLocationKey,
+					LastKnownTargetLocationKey,
+					HasLOSKey,
+					StimulusLocation,
+					StimulusLocation,
+					true);
+			}
+			else
+			{
+				WriteCurrentTargetLocationToBlackboard(
+					CachedBlackboardComponent,
+					TargetLocationKey,
+					LastKnownTargetLocationKey,
+					StimulusLocation,
+					StimulusLocation);
+			}
 		}
 
 		bPreserveAlertOnNextTargetClear = false;

@@ -11,6 +11,7 @@
 #include "ProjectR/Game/PRGameStateBase.h"
 #include "ProjectR/Player/PRPlayerController.h"
 #include "ProjectR/PRGameplayTags.h"
+#include "ProjectR/Player/PRPlayerState.h"
 #include "ProjectR/System/PRRespawnSubsystem.h"
 #include "ProjectR/Utils/PRGameplayStatics.h"
 #include "ProjectR/World/PRWorldDataAsset.h"
@@ -19,17 +20,6 @@
 
 UPRInteraction_Waypoint::UPRInteraction_Waypoint()
 {
-	// Waypoint 파티 동기화 기본 설정
-	static ConstructorHelpers::FObjectFinder<UBlueprint> WaypointGameplayEffectBlueprint(
-		TEXT("/Script/Engine.Blueprint'/Game/0_BP/Player/GE/GE_PlayerReset.GE_PlayerReset'"));
-	if (WaypointGameplayEffectBlueprint.Succeeded()
-		&& IsValid(WaypointGameplayEffectBlueprint.Object)
-		&& IsValid(WaypointGameplayEffectBlueprint.Object->GeneratedClass)
-		&& WaypointGameplayEffectBlueprint.Object->GeneratedClass->IsChildOf(UGameplayEffect::StaticClass()))
-	{
-		// 기본 Waypoint 회복 효과 클래스
-		WaypointGameplayEffect = WaypointGameplayEffectBlueprint.Object->GeneratedClass;
-	}
 }
 
 void UPRInteraction_Waypoint::RequestWaypointTravel(APRPlayerController* RequestingController, FSoftObjectPath WorldDataAssetPath, FGameplayTag WaypointId)
@@ -274,6 +264,9 @@ void UPRInteraction_Waypoint::OnWaypointActivate()
 
 	bWaitingActivateFadeOut = false;
 	
+	// 기본 아이템 충전
+	GiveStartUpItems();
+	
 	// GE 적용
 	ApplyWaypointGameplayEffectToAllPlayers();
 	
@@ -302,6 +295,17 @@ bool UPRInteraction_Waypoint::OpenWaypointTravelUI()
 	// 호스트 로컬 클라이언트 UI 열기
 	HostController->ClientOpenWaypointTravelUI();
 	return true;
+}
+
+void UPRInteraction_Waypoint::GiveStartUpItems() const
+{
+	for (TObjectPtr<APlayerState> Player : GetPlayerArray())
+	{
+		if (APRPlayerState* PS = Cast<APRPlayerState>(Player.Get()))
+		{
+			PS->GiveStartUpItems();
+		}
+	}
 }
 
 void UPRInteraction_Waypoint::ApplyWaypointGameplayEffectToAllPlayers() const

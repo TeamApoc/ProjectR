@@ -54,7 +54,7 @@ protected:
 
 	// 이동 목표 갱신 주기
 	UPROPERTY(EditAnywhere, Category = "ProjectR|Movement", meta = (ClampMin = "0.05"))
-	float GoalUpdateInterval = 0.35f;
+	float GoalUpdateInterval = 1.f;
 
 	// MoveTo 도착 허용 거리
 	UPROPERTY(EditAnywhere, Category = "ProjectR|Movement", meta = (ClampMin = "0.0"))

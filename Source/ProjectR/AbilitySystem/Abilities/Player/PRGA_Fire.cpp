@@ -160,12 +160,34 @@ void UPRGA_Fire::OnFailActivateAbility(const UAbilitySystemComponent* InOwnerASC
 	OnOutOfAmmo(InOwnerASC);
 }
 
-void UPRGA_Fire::OnOutOfAmmo(const UObject* WorldContext) const
+void UPRGA_Fire::OnOutOfAmmo(const UAbilitySystemComponent* InOwnerASC) const
 {
+	if (!IsValid(InOwnerASC))
+	{
+		return;
+	}
+	
 	FPRFXPayloadBase Payload;
 	Payload.bHasLifeTime = false;
 	const FInstancedStruct PayloadStruct = FInstancedStruct::Make(Payload);
-	UPRGameplayStatics::PlayLocalFX(WorldContext,PRFXTags::FX_Weapon_OutOfAmmo,PayloadStruct);
+	UPRGameplayStatics::PlayLocalFX(InOwnerASC,PRFXTags::FX_Weapon_OutOfAmmo,PayloadStruct);
+
+	AActor* AvatarActor = InOwnerASC->GetAvatarActor();
+	if (!IsValid(AvatarActor))
+	{
+		return;
+	}
+
+	FGameplayEventData ReloadEventData;
+	ReloadEventData.EventTag = PRGameplayTags::Event_Ability_Reload;
+	ReloadEventData.Instigator = AvatarActor;
+	ReloadEventData.Target = AvatarActor;
+
+	// 탄약 부족으로 발사가 실패했을 때 재장전 어빌리티가 입력 없이도 활성화되도록 Avatar에 이벤트 전달
+	UAbilitySystemBlueprintLibrary::SendGameplayEventToActor(
+		AvatarActor,
+		PRGameplayTags::Event_Ability_Reload,
+		ReloadEventData);
 }
 
 FVector UPRGA_Fire::GetMuzzleLocation()
@@ -302,7 +324,7 @@ void UPRGA_Fire::FireHitScan()
 	{
 		if (!CommitAbilityCost(CurrentSpecHandle, CurrentActorInfo, CurrentActivationInfo))
 		{
-			OnOutOfAmmo(AvatarActor);
+			OnOutOfAmmo(GetAbilitySystemComponentFromActorInfo());
 			UE_LOG(LogFire, Verbose, TEXT("Client predicted cost failed (탄약 부족). 사격 차단."));
 			EndAbility(CurrentSpecHandle, CurrentActorInfo, CurrentActivationInfo, /*bReplicateEndAbility=*/true, /*bWasCancelled=*/true);
 			return;
@@ -498,7 +520,7 @@ void UPRGA_Fire::ServerConfirmShot(const FPRFireShotPayload& Payload)
 	{
 		if (IsLocallyControlled())
 		{
-			OnOutOfAmmo(GetAvatarActorFromActorInfo());
+			OnOutOfAmmo(GetAbilitySystemComponentFromActorInfo());
 		}
 		
 		UE_LOG(LogFire, Warning, TEXT("Cost commit failed (탄약 부족). ShotID: %u"), Payload.ShotID);

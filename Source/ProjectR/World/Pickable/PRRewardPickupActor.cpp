@@ -80,6 +80,12 @@ void APRRewardPickupActor::BeginPlay()
 	}
 
 	ApplyDropSettledState();
+	RefreshVisual();
+	
+	if (IsValid(Reward.ItemData))
+	{
+		bDropSettled = true;
+	}
 }
 
 void APRRewardPickupActor::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const

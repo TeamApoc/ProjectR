@@ -32,6 +32,7 @@
 #include "ProjectR/Projectile/PRProjectileTrajectoryPreviewComponent.h"
 #include "ProjectR/System/PREventManagerSubsystem.h"
 #include "ProjectR/ItemSystem/Actors/PRWeaponActor.h"
+#include "TimerManager.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogPRPathPreviewCharacter, Log, All);
 
@@ -56,6 +57,10 @@ APRPlayerCharacter::APRPlayerCharacter()
 	Mesh_Head->SetupAttachment(LeaderMesh);
 	Mesh_Head->SetLeaderPoseComponent(LeaderMesh);
 	Mesh_Head->bUseAttachParentBound = true;
+	Mesh_PlayerFace = CreateDefaultSubobject<USkeletalMeshComponent>(TEXT("Mesh_PlayerFace"));
+	Mesh_PlayerFace->SetupAttachment(LeaderMesh);
+	Mesh_PlayerFace->SetLeaderPoseComponent(LeaderMesh);
+	Mesh_PlayerFace->bUseAttachParentBound = true;
 	Mesh_Body = CreateDefaultSubobject<USkeletalMeshComponent>(TEXT("Mesh_Body"));
 	Mesh_Body->SetupAttachment(LeaderMesh);
 	Mesh_Body->SetLeaderPoseComponent(LeaderMesh);
@@ -306,6 +311,18 @@ bool APRPlayerCharacter::IsDown() const
 	return false;
 }
 
+void APRPlayerCharacter::ClientStartExternalForcedMove_Implementation(
+	FVector_NetQuantize Destination,
+	FRotator Rotation,
+	float Duration,
+	float TickInterval,
+	float EaseExponent,
+	bool bSweep,
+	bool bStopMovement)
+{
+	StartExternalForcedMoveLocal(Destination, Rotation, Duration, TickInterval, EaseExponent, bSweep, bStopMovement);
+}
+
 float APRPlayerCharacter::GetMovementSpeedMultiplier() const
 {
 	if (const UPRAbilitySystemComponent* ASC = GetPRAbilitySystemComponent())
@@ -348,6 +365,7 @@ void APRPlayerCharacter::BeginPlay()
 
 void APRPlayerCharacter::EndPlay(const EEndPlayReason::Type EndPlayReason)
 {
+	CompleteExternalForcedMove(true);
 	UnbindEquipmentManager();
 	UnbindMovementSpeedAttributeChange();
 
@@ -523,7 +541,7 @@ void APRPlayerCharacter::HandleGameplayTagUpdated(const FGameplayTag& ChangedTag
 void APRPlayerCharacter::Crouch(bool bClientSimulation)
 {
 	Super::Crouch(bClientSimulation);
-	
+
 	if (FlashlightComponent)
 	{
 		FlashlightComponent->SetRelativeLocation(FlashlightCrouchingLocation);
@@ -533,7 +551,7 @@ void APRPlayerCharacter::Crouch(bool bClientSimulation)
 void APRPlayerCharacter::UnCrouch(bool bClientSimulation)
 {
 	Super::UnCrouch(bClientSimulation);
-	
+
 	if (FlashlightComponent)
 	{
 		FlashlightComponent->SetRelativeLocation(FlashlightStandingLocation);
@@ -647,6 +665,147 @@ bool APRPlayerCharacter::IsMoveInputLockedByState() const
 {
 	const UPRAbilitySystemComponent* ASC = GetPRAbilitySystemComponent();
 	return IsValid(ASC) && ASC->HasMatchingGameplayTag(PRGameplayTags::State_PlayerHitReactLocked);
+}
+
+void APRPlayerCharacter::StartExternalForcedMoveLocal(
+	const FVector& Destination,
+	const FRotator& Rotation,
+	float Duration,
+	float TickInterval,
+	float EaseExponent,
+	bool bSweep,
+	bool bStopMovement)
+{
+	UWorld* World = GetWorld();
+	if (!IsValid(World))
+	{
+		return;
+	}
+
+	World->GetTimerManager().ClearTimer(ExternalForcedMoveTimerHandle);
+
+	ExternalForcedMoveStartLocation = GetActorLocation();
+	ExternalForcedMoveEndLocation = Destination;
+	ExternalForcedMoveStartRotation = GetActorRotation();
+	ExternalForcedMoveEndRotation = Rotation;
+	ExternalForcedMoveDuration = FMath::Max(Duration, 0.0f);
+	ExternalForcedMoveElapsedSeconds = 0.0f;
+	ExternalForcedMoveLastUpdateTime = World->GetTimeSeconds();
+	ExternalForcedMoveTickInterval = FMath::Max(TickInterval, 0.005f);
+	ExternalForcedMoveEaseExponent = FMath::Max(EaseExponent, 0.1f);
+	bExternalForcedMoveSweep = bSweep;
+	bExternalForcedMoveStopMovement = bStopMovement;
+	bExternalForcedMoveActive = true;
+
+	if (bExternalForcedMoveStopMovement)
+	{
+		if (UCharacterMovementComponent* MoveComp = GetCharacterMovement())
+		{
+			MoveComp->StopMovementImmediately();
+		}
+	}
+
+	if (ExternalForcedMoveDuration <= UE_SMALL_NUMBER)
+	{
+		CompleteExternalForcedMove(false);
+		return;
+	}
+
+	World->GetTimerManager().SetTimer(
+		ExternalForcedMoveTimerHandle,
+		this,
+		&APRPlayerCharacter::TickExternalForcedMove,
+		ExternalForcedMoveTickInterval,
+		true);
+	TickExternalForcedMove();
+}
+
+void APRPlayerCharacter::TickExternalForcedMove()
+{
+	UWorld* World = GetWorld();
+	if (!bExternalForcedMoveActive || !IsValid(World))
+	{
+		CompleteExternalForcedMove(true);
+		return;
+	}
+
+	const float CurrentTime = World->GetTimeSeconds();
+	const float DeltaTime = ExternalForcedMoveLastUpdateTime > 0.0f
+		? CurrentTime - ExternalForcedMoveLastUpdateTime
+		: ExternalForcedMoveTickInterval;
+	ExternalForcedMoveLastUpdateTime = CurrentTime;
+	ExternalForcedMoveElapsedSeconds += FMath::Max(DeltaTime, 0.0f);
+
+	const float Alpha = ExternalForcedMoveDuration > 0.0f
+		? FMath::Clamp(ExternalForcedMoveElapsedSeconds / ExternalForcedMoveDuration, 0.0f, 1.0f)
+		: 1.0f;
+	const float EasedAlpha = FMath::InterpEaseInOut(
+		0.0f,
+		1.0f,
+		Alpha,
+		ExternalForcedMoveEaseExponent);
+	const FVector NewLocation = FMath::Lerp(ExternalForcedMoveStartLocation, ExternalForcedMoveEndLocation, EasedAlpha);
+	const FQuat NewRotation = FQuat::Slerp(
+		ExternalForcedMoveStartRotation.Quaternion(),
+		ExternalForcedMoveEndRotation.Quaternion(),
+		EasedAlpha);
+
+	FHitResult SweepHit;
+	SetActorLocationAndRotation(
+		NewLocation,
+		NewRotation.Rotator(),
+		bExternalForcedMoveSweep,
+		bExternalForcedMoveSweep ? &SweepHit : nullptr,
+		ETeleportType::TeleportPhysics);
+
+	if (bExternalForcedMoveStopMovement)
+	{
+		if (UCharacterMovementComponent* MoveComp = GetCharacterMovement())
+		{
+			MoveComp->StopMovementImmediately();
+		}
+	}
+
+	if (Alpha >= 1.0f)
+	{
+		CompleteExternalForcedMove(false);
+	}
+}
+
+void APRPlayerCharacter::CompleteExternalForcedMove(bool bWasCancelled)
+{
+	if (!bExternalForcedMoveActive)
+	{
+		return;
+	}
+
+	if (UWorld* World = GetWorld())
+	{
+		World->GetTimerManager().ClearTimer(ExternalForcedMoveTimerHandle);
+	}
+
+	if (!bWasCancelled)
+	{
+		FHitResult SweepHit;
+		SetActorLocationAndRotation(
+			ExternalForcedMoveEndLocation,
+			ExternalForcedMoveEndRotation,
+			bExternalForcedMoveSweep,
+			bExternalForcedMoveSweep ? &SweepHit : nullptr,
+			ETeleportType::TeleportPhysics);
+	}
+
+	if (bExternalForcedMoveStopMovement)
+	{
+		if (UCharacterMovementComponent* MoveComp = GetCharacterMovement())
+		{
+			MoveComp->StopMovementImmediately();
+		}
+	}
+
+	bExternalForcedMoveActive = false;
+	ExternalForcedMoveElapsedSeconds = 0.0f;
+	ExternalForcedMoveLastUpdateTime = 0.0f;
 }
 
 void APRPlayerCharacter::BindMovementSpeedAttributeChange()
@@ -777,6 +936,12 @@ void APRPlayerCharacter::CacheDefaultEquipmentMeshes()
 
 void APRPlayerCharacter::ApplyEquipmentVisual(EPREquipmentSlotType SlotType, const UPREquipmentDataAsset* EquipmentData)
 {
+	if (SlotType == EPREquipmentSlotType::Head)
+	{
+		// 머리 장비 데이터 기준 얼굴 메시 표시 상태 갱신
+		UpdatePlayerFaceVisibility(EquipmentData);
+	}
+
 	USkeletalMeshComponent* PartMeshComponent = GetEquipmentMeshComponent(SlotType);
 	if (!IsValid(PartMeshComponent))
 	{
@@ -799,6 +964,18 @@ void APRPlayerCharacter::ApplyEquipmentVisual(EPREquipmentSlotType SlotType, con
 	}
 
 	PartMeshComponent->SetSkeletalMesh(MeshToApply);
+}
+
+void APRPlayerCharacter::UpdatePlayerFaceVisibility(const UPREquipmentDataAsset* HeadEquipmentData)
+{
+	if (!IsValid(Mesh_PlayerFace))
+	{
+		return;
+	}
+
+	// 얼굴 전체를 덮는 머리 장비만 PlayerFace 파츠 숨김
+	const bool bShouldShowPlayerFace = !IsValid(HeadEquipmentData) || !HeadEquipmentData->ShouldHidePlayerFace();
+	Mesh_PlayerFace->SetVisibility(bShouldShowPlayerFace, true);
 }
 
 USkeletalMeshComponent* APRPlayerCharacter::GetEquipmentMeshComponent(EPREquipmentSlotType SlotType) const

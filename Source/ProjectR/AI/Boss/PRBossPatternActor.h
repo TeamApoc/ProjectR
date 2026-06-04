@@ -41,6 +41,9 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "ProjectR|AI|Boss")
 	virtual void CancelPatternActor();
 
+	// Phase 전환 정리 중 이 Actor를 취소할지 결정한다.
+	virtual bool ShouldCancelOnBossPhaseTransition() const { return true; }
+
 protected:
 	virtual void BeginPlay() override;
 	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;

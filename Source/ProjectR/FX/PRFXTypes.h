@@ -120,7 +120,7 @@ struct PROJECTR_API FPRFXRegistryEntry
 
 	// 태그가 실행할 Cue 클래스
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|FX")
-	TSoftClassPtr<UPRFXCue> CueClass;
+	TArray<TSoftClassPtr<UPRFXCue>> CueClasses;
 
 	// 로컬 예측 재생 허용 여부
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|FX")
@@ -309,6 +309,26 @@ struct PROJECTR_API FPRFXTrailPayload : public FPRFXPayloadBase
 	// 대표 Trail 종료 위치 반환
 	FVector GetPrimaryTrailEnd() const;
 
+	bool NetSerialize(FArchive& Ar, UPackageMap* Map, bool& bOutSuccess);
+};
+
+USTRUCT(BlueprintType)
+struct PROJECTR_API FPRFXFirePayload : public FPRFXPayloadBase
+{
+	GENERATED_BODY()
+
+	// 발사를 발생시킨 Actor
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "ProjectR|FX")
+	TObjectPtr<AActor> SourceActor;
+
+	// 발사 시점의 무기 데이터
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "ProjectR|FX")
+	TObjectPtr<UPRWeaponDataAsset> WeaponData;
+	
+	// 방향 계산과 Niagara 파라미터 전달에 사용할 방향
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "ProjectR|FX")
+	FVector Direction = FVector::ForwardVector;
+	
 	bool NetSerialize(FArchive& Ar, UPackageMap* Map, bool& bOutSuccess);
 };
 

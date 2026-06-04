@@ -3,14 +3,18 @@
 #include "PRBossPortalActor.h"
 
 #include "AbilitySystemComponent.h"
+#include "Components/SphereComponent.h"
 #include "Engine/World.h"
+#include "EngineUtils.h"
 #include "GameplayEffect.h"
 #include "Net/UnrealNetwork.h"
 #include "TimerManager.h"
 #include "ProjectR/AbilitySystem/Data/PRAbilitySystemRegistry.h"
 #include "ProjectR/AbilitySystem/PRAbilitySystemComponent.h"
+#include "ProjectR/Character/Enemy/PREnemyBaseCharacter.h"
 #include "ProjectR/Character/Enemy/PRBossBaseCharacter.h"
 #include "ProjectR/Combat/PRCombatGameplayTags.h"
+#include "ProjectR/ProjectR.h"
 #include "ProjectR/Projectile/PRBossProjectileActor.h"
 #include "ProjectR/Projectile/PRProjectileBase.h"
 #include "ProjectR/System/PRAssetManager.h"
@@ -20,6 +24,16 @@ DEFINE_LOG_CATEGORY_STATIC(LogPRBossPortal, Log, All);
 APRBossPortalActor::APRBossPortalActor()
 {
 	PatternLifeSpan = 0.0f;
+
+	PortalDamageCollision = CreateDefaultSubobject<USphereComponent>(TEXT("PortalDamageCollision"));
+	PortalDamageCollision->SetupAttachment(SceneRoot);
+	PortalDamageCollision->SetSphereRadius(120.0f);
+	PortalDamageCollision->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
+	PortalDamageCollision->SetCollisionObjectType(ECC_WorldDynamic);
+	PortalDamageCollision->SetCollisionResponseToAllChannels(ECR_Ignore);
+	PortalDamageCollision->SetCollisionResponseToChannel(PRCollisionChannels::ECC_Combat, ECR_Block);
+	PortalDamageCollision->SetCollisionResponseToChannel(PRCollisionChannels::ECC_Projectile, ECR_Block);
+	PortalDamageCollision->SetGenerateOverlapEvents(false);
 }
 
 void APRBossPortalActor::InitializeBossPatternActor(APRBossBaseCharacter* InOwnerBoss, AActor* InPatternTarget)
@@ -35,6 +49,7 @@ void APRBossPortalActor::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& O
 	DOREPLIFETIME(APRBossPortalActor, PortalState);
 	DOREPLIFETIME(APRBossPortalActor, LockedTarget);
 	DOREPLIFETIME(APRBossPortalActor, bPortalActive);
+	DOREPLIFETIME(APRBossPortalActor, CurrentPortalHealth);
 }
 
 void APRBossPortalActor::RequestPatternActorExpire()
@@ -45,6 +60,11 @@ void APRBossPortalActor::RequestPatternActorExpire()
 void APRBossPortalActor::CancelPatternActor()
 {
 	ForceExpirePortal();
+}
+
+bool APRBossPortalActor::ApplyDirectDamageFromSpec(const FGameplayEffectSpec& DamageSpec, const FHitResult& HitResult)
+{
+	return ApplyPortalDamage(ResolvePortalDamageAmountFromSpec(DamageSpec), HitResult);
 }
 
 void APRBossPortalActor::SetAndLockPortalTarget(AActor* InTarget)
@@ -292,8 +312,9 @@ void APRBossPortalActor::FirePortalProjectile()
 			*GetNameSafe(ProjectileClass.Get()));
 	}
 
+	const FVector LaunchDirection = CalculateProjectileLaunchDirection();
 	FTransform ProjectileSpawnTransform;
-	if (!BuildProjectileSpawnTransform(ProjectileSpawnTransform))
+	if (!BuildProjectileSpawnTransformFromDirection(LaunchDirection, ProjectileSpawnTransform))
 	{
 		UE_LOG(LogPRBossPortal, Warning,
 			TEXT("Portal fire failed because spawn transform could not be built. Portal=%s"),
@@ -345,11 +366,9 @@ void APRBossPortalActor::FirePortalProjectile()
 		return;
 	}
 
-	SpawnedProjectile->SetProjectileInitialVelocity(CalculateProjectileAimDirection(), ProjectileSpeedOverride);
-	if (bUseTrackingProjectile && IsValid(LockedTarget))
-	{
-		SpawnedProjectile->ConfigureProjectileHoming(LockedTarget->GetRootComponent(), ProjectileHomingAcceleration);
-	}
+	SpawnedProjectile->SetProjectileInitialVelocity(LaunchDirection, ProjectileSpeedOverride);
+	ConfigureSpawnedPortalProjectile(SpawnedProjectile);
+	ConfigurePortalProjectileHomingSchedule(SpawnedProjectile);
 
 	const FGameplayEffectSpecHandle EffectSpecHandle = ProjectileEffectSpecHandle.IsValid()
 		? ProjectileEffectSpecHandle
@@ -391,20 +410,17 @@ void APRBossPortalActor::ClearPortalFireTimer()
 
 bool APRBossPortalActor::BuildProjectileSpawnTransform(FTransform& OutTransform) const
 {
-	const FVector SpawnLocation = GetActorTransform().TransformPositionNoScale(ProjectileSpawnLocalOffset);
-	const FVector AimDirection = CalculateProjectileAimDirection();
-	if (AimDirection.IsNearlyZero())
-	{
-		return false;
-	}
-
-	OutTransform = FTransform((AimDirection.Rotation() + ProjectileRotationOffset), SpawnLocation);
-	return true;
+	return BuildProjectileSpawnTransformFromDirection(CalculateProjectileAimDirection(), OutTransform);
 }
 
 FVector APRBossPortalActor::CalculateProjectileAimDirection() const
 {
 	const FVector SpawnLocation = GetActorTransform().TransformPositionNoScale(ProjectileSpawnLocalOffset);
+	if (bUseFixedProjectileDirection)
+	{
+		return GetActorTransform().TransformVectorNoScale(FixedProjectileDirectionLocal).GetSafeNormal();
+	}
+
 	const AActor* TargetActor = IsValid(LockedTarget) ? LockedTarget.Get() : PatternTarget.Get();
 	if (!IsValid(TargetActor))
 	{
@@ -424,10 +440,62 @@ FVector APRBossPortalActor::CalculateProjectileAimDirection() const
 	return (AimLocation - SpawnLocation).GetSafeNormal();
 }
 
+FVector APRBossPortalActor::CalculateProjectileLaunchDirection() const
+{
+	if (bUseFixedProjectileDirection || !bUseTrackingProjectile || !bUseTrackingConeLaunch)
+	{
+		return CalculateProjectileAimDirection();
+	}
+
+	FVector ConeForward = GetActorForwardVector();
+	if (ConeForward.IsNearlyZero())
+	{
+		ConeForward = CalculateProjectileAimDirection();
+	}
+
+	if (ConeForward.IsNearlyZero())
+	{
+		return FVector::ForwardVector;
+	}
+
+	const float MinAngleDegrees = FMath::Clamp(TrackingLaunchConeMinAngleDegrees, 0.0f, 90.0f);
+	const float MaxAngleDegrees = FMath::Clamp(TrackingLaunchConeMaxAngleDegrees, MinAngleDegrees, 90.0f);
+	const float LaunchAngleRadians = FMath::DegreesToRadians(FMath::RandRange(MinAngleDegrees, MaxAngleDegrees));
+	const float LaunchAzimuthRadians = FMath::RandRange(0.0f, UE_TWO_PI);
+
+	const FVector Forward = ConeForward.GetSafeNormal();
+	FVector Right = FVector::CrossProduct(FVector::UpVector, Forward).GetSafeNormal();
+	if (Right.IsNearlyZero())
+	{
+		Right = FVector::RightVector;
+	}
+	const FVector Up = FVector::CrossProduct(Forward, Right).GetSafeNormal();
+
+	return ((Forward * FMath::Cos(LaunchAngleRadians))
+		+ (Right * FMath::Cos(LaunchAzimuthRadians) * FMath::Sin(LaunchAngleRadians))
+		+ (Up * FMath::Sin(LaunchAzimuthRadians) * FMath::Sin(LaunchAngleRadians))).GetSafeNormal();
+}
+
+bool APRBossPortalActor::BuildProjectileSpawnTransformFromDirection(
+	const FVector& LaunchDirection,
+	FTransform& OutTransform) const
+{
+	if (LaunchDirection.IsNearlyZero())
+	{
+		return false;
+	}
+
+	const FVector SpawnLocation = GetActorTransform().TransformPositionNoScale(ProjectileSpawnLocalOffset);
+	OutTransform = FTransform((LaunchDirection.Rotation() + ProjectileRotationOffset), SpawnLocation);
+	return true;
+}
+
 bool APRBossPortalActor::CanFirePortalProjectile() const
 {
 	if (!HasAuthority()
 		|| !bPortalActive
+		|| bPortalHealthDepleted
+		|| CurrentPortalHealth <= 0.0f
 		|| !IsValid(ProjectileClass)
 		|| !IsValid(LockedTarget)
 		|| MaxProjectilesToFire <= 0
@@ -446,9 +514,53 @@ bool APRBossPortalActor::CanFirePortalProjectile() const
 		|| (PortalState == EPRBossPortalState::Paused && bCanFireWhilePaused);
 }
 
+float APRBossPortalActor::GetPortalHealthRatio() const
+{
+	return MaxPortalHealth > 0.0f ? CurrentPortalHealth / MaxPortalHealth : 0.0f;
+}
+
+bool APRBossPortalActor::ApplyPortalDamage(float DamageAmount, const FHitResult& HitResult)
+{
+	if (!HasAuthority()
+		|| !bCanTakePlayerWeaponDamage
+		|| bPortalHealthDepleted
+		|| PortalState == EPRBossPortalState::Expired
+		|| PortalState == EPRBossPortalState::Expiring)
+	{
+		return false;
+	}
+
+	const float ResolvedDamageAmount = FMath::Max(DamageAmount, 0.0f);
+	if (ResolvedDamageAmount <= 0.0f)
+	{
+		return false;
+	}
+
+	const float PreviousHealth = CurrentPortalHealth;
+	CurrentPortalHealth = FMath::Clamp(CurrentPortalHealth - ResolvedDamageAmount, 0.0f, MaxPortalHealth);
+
+	const FVector HitLocation = HitResult.bBlockingHit ? FVector(HitResult.ImpactPoint) : GetActorLocation();
+	MulticastPortalDamaged(CurrentPortalHealth, PreviousHealth, ResolvedDamageAmount, HitLocation);
+	ForceNetUpdate();
+
+	if (CurrentPortalHealth <= 0.0f)
+	{
+		HandlePortalHealthDepleted(HitResult);
+	}
+
+	return true;
+}
+
 void APRBossPortalActor::BeginPlay()
 {
 	Super::BeginPlay();
+
+	if (HasAuthority())
+	{
+		MaxPortalHealth = FMath::Max(MaxPortalHealth, 1.0f);
+		CurrentPortalHealth = MaxPortalHealth;
+		bPortalHealthDepleted = false;
+	}
 
 	if (HasAuthority() && bAutoStartPortal)
 	{
@@ -460,6 +572,11 @@ void APRBossPortalActor::EndPlay(const EEndPlayReason::Type EndPlayReason)
 {
 	ClearPortalLifecycleTimers();
 	Super::EndPlay(EndPlayReason);
+}
+
+void APRBossPortalActor::OnRep_CurrentPortalHealth(float PreviousHealth)
+{
+	(void)PreviousHealth;
 }
 
 void APRBossPortalActor::MulticastPortalTelegraphStarted_Implementation()
@@ -500,6 +617,20 @@ void APRBossPortalActor::MulticastPortalUnpaused_Implementation()
 void APRBossPortalActor::MulticastPortalFireSequenceCompleted_Implementation()
 {
 	BP_OnPortalFireSequenceCompleted();
+}
+
+void APRBossPortalActor::MulticastPortalDamaged_Implementation(
+	float NewHealth,
+	float PreviousHealth,
+	float DamageAmount,
+	FVector_NetQuantize HitLocation)
+{
+	BP_OnPortalHealthChanged(NewHealth, PreviousHealth, MaxPortalHealth, DamageAmount, HitLocation);
+}
+
+void APRBossPortalActor::MulticastPortalDestroyedByDamage_Implementation(FVector_NetQuantize HitLocation)
+{
+	BP_OnPortalDestroyedByDamage(HitLocation);
 }
 
 void APRBossPortalActor::ScheduleNextPortalFire()
@@ -564,6 +695,55 @@ void APRBossPortalActor::ClearPortalLifecycleTimers()
 	}
 }
 
+void APRBossPortalActor::ConfigureSpawnedPortalProjectile(APRProjectileBase* SpawnedProjectile)
+{
+	if (!IsValid(SpawnedProjectile))
+	{
+		return;
+	}
+
+	if (UWorld* World = GetWorld())
+	{
+		for (TActorIterator<APRBossPortalActor> PortalIt(World); PortalIt; ++PortalIt)
+		{
+			SpawnedProjectile->AddProjectileIgnoredActor(*PortalIt);
+		}
+	}
+
+	if (bIgnoreEnemyActorsForProjectile)
+	{
+		if (UWorld* World = GetWorld())
+		{
+			for (TActorIterator<APREnemyBaseCharacter> EnemyIt(World); EnemyIt; ++EnemyIt)
+			{
+				SpawnedProjectile->AddProjectileIgnoredActor(*EnemyIt);
+			}
+		}
+	}
+
+}
+
+void APRBossPortalActor::ConfigurePortalProjectileHomingSchedule(APRProjectileBase* SpawnedProjectile)
+{
+	if (!bUseTrackingProjectile || !IsValid(SpawnedProjectile) || !IsValid(LockedTarget))
+	{
+		return;
+	}
+
+	AActor* HomingTargetActor = LockedTarget.Get();
+	if (!IsValid(HomingTargetActor) || !IsValid(HomingTargetActor->GetRootComponent()))
+	{
+		return;
+	}
+
+	const float ResolvedHomingAcceleration = FMath::Max(ProjectileHomingAcceleration, 0.0f);
+	SpawnedProjectile->ConfigureProjectileHomingSchedule(
+		HomingTargetActor,
+		ResolvedHomingAcceleration,
+		ProjectileHomingStartDelay,
+		ProjectileHomingDuration);
+}
+
 FGameplayEffectSpecHandle APRBossPortalActor::BuildProjectileEffectSpec() const
 {
 	if (!IsValid(OwnerBoss))
@@ -622,4 +802,42 @@ FGameplayEffectSpecHandle APRBossPortalActor::BuildProjectileEffectSpec() const
 	}
 
 	return SpecHandle;
+}
+
+float APRBossPortalActor::ResolvePortalDamageAmountFromSpec(const FGameplayEffectSpec& DamageSpec) const
+{
+	float DamageAmount = DamageSpec.GetSetByCallerMagnitude(
+		PRCombatGameplayTags::SetByCaller_CurrentWeapon_BaseDamage,
+		false,
+		0.0f);
+
+	if (DamageAmount <= 0.0f)
+	{
+		DamageAmount = DamageSpec.GetSetByCallerMagnitude(
+			PRCombatGameplayTags::SetByCaller_Damage,
+			false,
+			0.0f);
+	}
+
+	return FMath::Max(DamageAmount * PlayerWeaponDamageToPortalMultiplier, 0.0f);
+}
+
+void APRBossPortalActor::HandlePortalHealthDepleted(const FHitResult& HitResult)
+{
+	if (bPortalHealthDepleted)
+	{
+		return;
+	}
+
+	bPortalHealthDepleted = true;
+	ClearPortalLifecycleTimers();
+	bPortalActive = false;
+
+	const FVector HitLocation = HitResult.bBlockingHit ? FVector(HitResult.ImpactPoint) : GetActorLocation();
+	MulticastPortalDestroyedByDamage(HitLocation);
+
+	const bool bPreviousDestroyWhenExpired = bDestroyWhenExpired;
+	bDestroyWhenExpired = true;
+	ForceExpirePortal();
+	bDestroyWhenExpired = bPreviousDestroyWhenExpired;
 }

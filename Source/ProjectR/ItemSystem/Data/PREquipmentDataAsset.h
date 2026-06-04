@@ -24,6 +24,9 @@ public:
 	// 장비 외형 메시 반환
 	TSoftObjectPtr<USkeletalMesh> GetEquipmentMesh() const { return EquipmentMesh; }
 
+	// 플레이어 얼굴 숨김 여부 반환
+	bool ShouldHidePlayerFace() const { return SlotType == EPREquipmentSlotType::Head && bHidePlayerFace; }
+
 protected:
 	// 이 장비가 장착되는 슬롯 종류
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Item|Equipment")
@@ -32,4 +35,8 @@ protected:
 	// 장착 시 캐릭터에 부착될 메시 (추후 ChildMesh로 사용)
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Item|Equipment")
 	TSoftObjectPtr<USkeletalMesh> EquipmentMesh;
+
+	// 머리 장비 장착 시 플레이어 얼굴 메시 숨김 여부
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Item|Equipment", meta = (EditCondition = "SlotType == EPREquipmentSlotType::Head", EditConditionHides))
+	bool bHidePlayerFace = false;
 };

@@ -118,75 +118,102 @@ bool UPRFXSubsystem::FindRegistryEntry(FGameplayTag FXTag, FPRFXRegistryEntry& O
 	return Registry->FindEntry(FXTag, OutEntry);
 }
 
-UPRFXCue* UPRFXSubsystem::ResolveCue(FGameplayTag FXTag)
+bool UPRFXSubsystem::ResolveCues(FGameplayTag FXTag, TArray<UPRFXCue*>& OutCues)
 {
+	OutCues.Reset();
+
 	FPRFXRegistryEntry Entry;
 	if (!FindRegistryEntry(FXTag, Entry))
 	{
-		return nullptr;
+		return false;
 	}
 
-	UClass* CueClass = Entry.CueClass.LoadSynchronous();
-	if (!IsValid(CueClass))
+	if (Entry.CueClasses.IsEmpty())
 	{
-		UE_LOG(LogPRFX, Warning, TEXT("FX CueClass 로드 실패. FXTag=%s"), *FXTag.ToString());
-		return nullptr;
+		UE_LOG(LogPRFX, Warning, TEXT("FX CueClass 목록이 비어 있음. FXTag=%s"), *FXTag.ToString());
+		return false;
 	}
 
-	// 에디터 설정에 추상 Cue 클래스가 등록된 경우 실행 차단
-	if (CueClass->HasAnyClassFlags(CLASS_Abstract))
+	for (const TSoftClassPtr<UPRFXCue>& CueClassRef : Entry.CueClasses)
 	{
-		UE_LOG(LogPRFX, Warning, TEXT("추상 FX CueClass 실행 요청. FXTag=%s, CueClass=%s"), *FXTag.ToString(), *GetNameSafe(CueClass));
-		return nullptr;
-	}
-
-	// Cue 클래스 기본 객체에서 Instancing 정책을 읽어 실행 객체 선택
-	UPRFXCue* DefaultCue = Cast<UPRFXCue>(CueClass->GetDefaultObject());
-	if (!IsValid(DefaultCue))
-	{
-		UE_LOG(LogPRFX, Warning, TEXT("FX CueClass 기본 객체가 유효하지 않음. FXTag=%s"), *FXTag.ToString());
-		return nullptr;
-	}
-
-	switch (DefaultCue->GetInstancingPolicy())
-	{
-	case EPRFXCueInstancingPolicy::NonInstanced:
-		// 내부 상태가 없는 Cue를 클래스 기본 객체로 실행
-		return DefaultCue;
-
-	case EPRFXCueInstancingPolicy::InstancedPerExecution:
-	{
-		// Timer나 Latent Action을 사용할 수 있는 요청별 Cue 인스턴스 생성
-		UPRFXCue* ExecutionCue = NewObject<UPRFXCue>(this, CueClass);
-		if (IsValid(ExecutionCue))
+		UClass* CueClass = CueClassRef.LoadSynchronous();
+		if (!IsValid(CueClass))
 		{
-			ExecutionCueInstances.Add(ExecutionCue);
+			UE_LOG(LogPRFX, Warning, TEXT("FX CueClass 로드 실패. FXTag=%s, CueClass=%s"), *FXTag.ToString(), *CueClassRef.ToSoftObjectPath().ToString());
+			continue;
 		}
-		return ExecutionCue;
-	}
 
-	case EPRFXCueInstancingPolicy::InstancedPerPlayer:
-	{
-		// 로컬 플레이어별 상태를 공유하는 Cue 클래스별 인스턴스 재사용
-		for (UPRFXCue* ExistingCue : PerPlayerCueInstances)
+		// 에디터 설정에 추상 Cue 클래스가 등록된 경우 해당 요소 실행 차단
+		if (CueClass->HasAnyClassFlags(CLASS_Abstract))
 		{
-			if (IsValid(ExistingCue) && ExistingCue->GetClass() == CueClass)
+			UE_LOG(LogPRFX, Warning, TEXT("추상 FX CueClass 실행 요청. FXTag=%s, CueClass=%s"), *FXTag.ToString(), *GetNameSafe(CueClass));
+			continue;
+		}
+
+		// Cue 클래스 기본 객체에서 Instancing 정책을 읽어 실행 객체 선택
+		UPRFXCue* DefaultCue = Cast<UPRFXCue>(CueClass->GetDefaultObject());
+		if (!IsValid(DefaultCue))
+		{
+			UE_LOG(LogPRFX, Warning, TEXT("FX CueClass 기본 객체가 유효하지 않음. FXTag=%s, CueClass=%s"), *FXTag.ToString(), *GetNameSafe(CueClass));
+			continue;
+		}
+
+		switch (DefaultCue->GetInstancingPolicy())
+		{
+		case EPRFXCueInstancingPolicy::NonInstanced:
+			// 내부 상태가 없는 Cue를 클래스 기본 객체로 실행
+			OutCues.Add(DefaultCue);
+			break;
+
+		case EPRFXCueInstancingPolicy::InstancedPerExecution:
+		{
+			// Timer나 Latent Action을 사용할 수 있는 요청별 Cue 인스턴스 생성
+			UPRFXCue* ExecutionCue = NewObject<UPRFXCue>(this, CueClass);
+			if (IsValid(ExecutionCue))
 			{
-				return ExistingCue;
+				ExecutionCueInstances.Add(ExecutionCue);
+				OutCues.Add(ExecutionCue);
 			}
+			break;
 		}
 
-		UPRFXCue* PlayerCue = NewObject<UPRFXCue>(this, CueClass);
-		if (IsValid(PlayerCue))
+		case EPRFXCueInstancingPolicy::InstancedPerPlayer:
 		{
-			PerPlayerCueInstances.Add(PlayerCue);
+			UPRFXCue* PlayerCue = nullptr;
+
+			// 로컬 플레이어별 상태를 공유하는 Cue 클래스별 인스턴스 재사용
+			for (UPRFXCue* ExistingCue : PerPlayerCueInstances)
+			{
+				if (IsValid(ExistingCue) && ExistingCue->GetClass() == CueClass)
+				{
+					PlayerCue = ExistingCue;
+					break;
+				}
+			}
+
+			if (!IsValid(PlayerCue))
+			{
+				PlayerCue = NewObject<UPRFXCue>(this, CueClass);
+				if (IsValid(PlayerCue))
+				{
+					PerPlayerCueInstances.Add(PlayerCue);
+				}
+			}
+
+			if (IsValid(PlayerCue))
+			{
+				OutCues.Add(PlayerCue);
+			}
+			break;
 		}
-		return PlayerCue;
+
+		default:
+			OutCues.Add(DefaultCue);
+			break;
+		}
 	}
 
-	default:
-		return DefaultCue;
-	}
+	return !OutCues.IsEmpty();
 }
 
 UPRFXRegistryDataAsset* UPRFXSubsystem::GetRegistry() const
@@ -215,15 +242,21 @@ void UPRFXSubsystem::ExecuteCue(const FPRFXRequest& Request, EPRFXPlaybackMode P
 		return;
 	}
 
-	UPRFXCue* Cue = ResolveCue(Request.FXTag);
-	if (!IsValid(Cue))
+	TArray<UPRFXCue*> Cues;
+	if (!ResolveCues(Request.FXTag, Cues))
 	{
 		return;
 	}
 
 	// Request의 FXTag와 예측 키에 현재 재생 모드를 더해 CueContext 구성
 	const FPRFXCueContext Context = BuildCueContext(Request, PlaybackMode);
-	Cue->NativeExecuteFX(Context, Request.Payload);
+	for (UPRFXCue* Cue : Cues)
+	{
+		if (IsValid(Cue))
+		{
+			Cue->NativeExecuteFX(Context, Request.Payload);
+		}
+	}
 }
 
 FPRFXCueContext UPRFXSubsystem::BuildCueContext(const FPRFXRequest& Request, EPRFXPlaybackMode PlaybackMode) const

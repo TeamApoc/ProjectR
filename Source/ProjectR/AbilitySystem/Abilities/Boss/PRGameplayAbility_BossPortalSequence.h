@@ -18,7 +18,8 @@ enum class EPRBossPortalPatternType : uint8
 	Missile		UMETA(DisplayName = "Missile"),
 	Barrage		UMETA(DisplayName = "Barrage"),
 	Attached	UMETA(DisplayName = "Attached"),
-	Torrent		UMETA(DisplayName = "Torrent")
+	Torrent		UMETA(DisplayName = "Torrent"),
+	Pair		UMETA(DisplayName = "Pair")
 };
 
 // 포털 Helper Actor를 어느 타이밍에 생성할지 정의한다.
@@ -54,7 +55,7 @@ protected:
 	bool SpawnConfiguredPortals();
 
 	// 생성된 포털들의 텔레그래프 시작을 설정값에 맞춰 예약한다.
-	void StartSpawnedPortals();
+	virtual void StartSpawnedPortals();
 
 	// 포털 시퀀스 유지 시간이 끝났을 때 Ability를 정상 종료한다.
 	void FinishPortalSequence();

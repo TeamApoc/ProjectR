@@ -291,6 +291,14 @@ void UPREnemyThreatComponent::BeginAttackCommit(AActor* InTarget, FVector InTarg
 		return;
 	}
 
+	if (AttackCommitState.bIsAttackCommitted && IsValidThreatTarget(AttackCommitState.ActiveAttackTarget))
+	{
+		AttackCommitState.AttackCommitDepth = FMath::Max(AttackCommitState.AttackCommitDepth + 1, 1);
+		LogTargetDebugState(TEXT("BeginAttackCommit-Nested"));
+		DrawTargetDebugState(TEXT("BeginAttackCommit-Nested"));
+		return;
+	}
+
 	AActor* CommitTarget = IsValid(InTarget) ? InTarget : CurrentTarget.Get();
 	if (!IsValidThreatTarget(CommitTarget))
 	{
@@ -300,6 +308,7 @@ void UPREnemyThreatComponent::BeginAttackCommit(AActor* InTarget, FVector InTarg
 	AttackCommitState.ActiveAttackTarget = CommitTarget;
 	AttackCommitState.ActiveAttackTargetLocation = InTargetLocation;
 	AttackCommitState.bIsAttackCommitted = true;
+	AttackCommitState.AttackCommitDepth = 1;
 	ClearPendingTarget();
 	LogTargetDebugState(TEXT("BeginAttackCommit"));
 	DrawTargetDebugState(TEXT("BeginAttackCommit"));
@@ -317,12 +326,21 @@ void UPREnemyThreatComponent::EndAttackCommit()
 		return;
 	}
 
+	if (AttackCommitState.bIsAttackCommitted && AttackCommitState.AttackCommitDepth > 1)
+	{
+		--AttackCommitState.AttackCommitDepth;
+		LogTargetDebugState(TEXT("EndAttackCommit-Nested"));
+		DrawTargetDebugState(TEXT("EndAttackCommit-Nested"));
+		return;
+	}
+
 	AActor* PendingTarget = AttackCommitState.PendingTargetCandidate;
 	const float PendingScore = AttackCommitState.PendingTargetScore;
 
 	AttackCommitState.ActiveAttackTarget = nullptr;
 	AttackCommitState.ActiveAttackTargetLocation = FVector::ZeroVector;
 	AttackCommitState.bIsAttackCommitted = false;
+	AttackCommitState.AttackCommitDepth = 0;
 	ClearPendingTarget();
 
 	if (IsValidThreatTarget(PendingTarget))
@@ -348,6 +366,7 @@ void UPREnemyThreatComponent::ForceClearAttackCommit()
 	AttackCommitState.ActiveAttackTarget = nullptr;
 	AttackCommitState.ActiveAttackTargetLocation = FVector::ZeroVector;
 	AttackCommitState.bIsAttackCommitted = false;
+	AttackCommitState.AttackCommitDepth = 0;
 	ClearPendingTarget();
 	LogTargetDebugState(TEXT("ForceClearAttackCommit"));
 	DrawTargetDebugState(TEXT("ForceClearAttackCommit"));
@@ -629,6 +648,7 @@ void UPREnemyThreatComponent::CleanupInvalidEntries()
 		AttackCommitState.ActiveAttackTarget = nullptr;
 		AttackCommitState.ActiveAttackTargetLocation = FVector::ZeroVector;
 		AttackCommitState.bIsAttackCommitted = false;
+		AttackCommitState.AttackCommitDepth = 0;
 	}
 
 	if (IsValid(AttackCommitState.PendingTargetCandidate) && !IsValidThreatTarget(AttackCommitState.PendingTargetCandidate))
@@ -862,7 +882,7 @@ void UPREnemyThreatComponent::LogTargetDebugState(const TCHAR* Reason) const
 	const float CurrentTime = World != nullptr ? World->GetTimeSeconds() : 0.0f;
 	const TCHAR* DebugReason = Reason != nullptr ? Reason : TEXT("Unknown");
 
-	UE_LOG(LogPREnemyAI, Log, TEXT("[Targeting][%s] Owner=%s Current=%s AttackTarget=%s Active=%s Pending=%s PendingScore=%.2f Committed=%s Candidates=%d"),
+	UE_LOG(LogPREnemyAI, Log, TEXT("[Targeting][%s] Owner=%s Current=%s AttackTarget=%s Active=%s Pending=%s PendingScore=%.2f Committed=%s Depth=%d Candidates=%d"),
 		DebugReason,
 		*GetNameSafe(OwnerActor),
 		*GetNameSafe(CurrentTarget.Get()),
@@ -871,6 +891,7 @@ void UPREnemyThreatComponent::LogTargetDebugState(const TCHAR* Reason) const
 		*GetNameSafe(AttackCommitState.PendingTargetCandidate.Get()),
 		AttackCommitState.PendingTargetScore,
 		BoolToText(AttackCommitState.bIsAttackCommitted),
+		AttackCommitState.AttackCommitDepth,
 		TargetCandidates.Num());
 
 	for (int32 Index = 0; Index < TargetCandidates.Num(); ++Index)

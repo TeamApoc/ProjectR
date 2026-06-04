@@ -219,6 +219,10 @@ struct PROJECTR_API FPREnemyAttackCommitState
 	UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Category = "ProjectR|AI")
 	bool bIsAttackCommitted = false;
 
+	// 같은 타겟 고정 구간이 중첩될 때 가장 바깥 구간이 끝날 때까지 고정을 유지하기 위한 깊이다.
+	UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Category = "ProjectR|AI")
+	int32 AttackCommitDepth = 0;
+
 	// 공격 중 타겟 전환이 보류된 후보다.
 	UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Category = "ProjectR|AI")
 	TObjectPtr<AActor> PendingTargetCandidate = nullptr;

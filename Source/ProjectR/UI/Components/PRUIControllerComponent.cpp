@@ -37,7 +37,7 @@ namespace
 		switch (MessageType)
 		{
 		case EPRHUDMessageType::WaitingForOtherPlayers:
-			return NSLOCTEXT("ProjectR", "HUDMessage_WaitingForOtherPlayers", "다른 플레이어 기다리는 중");
+			return NSLOCTEXT("ProjectR", "HUDMessage_WaitingForOtherPlayers", "다른 플레이어를 기다리는 중");
 		case EPRHUDMessageType::OtherPlayersWaiting:
 			return NSLOCTEXT("ProjectR", "HUDMessage_OtherPlayersWaiting", "다른 플레이어들이 기다리는 중");
 		default:

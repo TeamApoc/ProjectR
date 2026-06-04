@@ -32,12 +32,20 @@ APRGroundBoxProjectileBase::APRGroundBoxProjectileBase()
 	bReplicates = true;
 	SetReplicatingMovement(false);
 
-	Root = CreateDefaultSubobject<USceneComponent>(TEXT("Root"));
-	SetRootComponent(Root);
+	BreakableDetectionBox = CreateDefaultSubobject<UBoxComponent>(TEXT("BreakableDetectionBox"));
+	Root = BreakableDetectionBox;
+	SetRootComponent(BreakableDetectionBox);
+	BreakableDetectionBox->SetCollisionObjectType(ECollisionChannel::ECC_WorldDynamic);
+	BreakableDetectionBox->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+	BreakableDetectionBox->SetCollisionResponseToAllChannels(ECR_Ignore);
+	BreakableDetectionBox->SetCollisionResponseToChannel(ECC_WorldStatic, ECR_Block);
+	BreakableDetectionBox->SetGenerateOverlapEvents(false);
+	BreakableDetectionBox->SetNotifyRigidBodyCollision(true);
+	BreakableDetectionBox->SetBoxExtent(FVector(40.f, 60.f, 40.f));
 	
 	TraceStartPoint = CreateDefaultSubobject<USceneComponent>(TEXT("TraceStartPoint"));
 	TraceStartPoint->SetupAttachment(Root);
-	TraceStartPoint->SetRelativeLocation(FVector(0.0f, 0.0f, 220.0f));
+	TraceStartPoint->SetRelativeLocation(FVector(40.0f, 0.0f, 40.0f));
 	
 	DamageDetectionBox = CreateDefaultSubobject<UBoxComponent>(TEXT("DamageDetectionBox"));
 	DamageDetectionBox->SetupAttachment(Root);
@@ -45,15 +53,7 @@ APRGroundBoxProjectileBase::APRGroundBoxProjectileBase()
 	DamageDetectionBox->SetCollisionResponseToAllChannels(ECR_Ignore);
 	DamageDetectionBox->SetCollisionResponseToChannel(ECC_Pawn, ECR_Overlap);
 	DamageDetectionBox->SetGenerateOverlapEvents(true);
-
-	BreakableDetectionBox = CreateDefaultSubobject<UBoxComponent>(TEXT("BreakableDetectionBox"));
-	BreakableDetectionBox->SetupAttachment(Root);
-	BreakableDetectionBox->SetCollisionObjectType(ECollisionChannel::ECC_WorldDynamic);
-	BreakableDetectionBox->SetCollisionEnabled(ECollisionEnabled::NoCollision);
-	BreakableDetectionBox->SetCollisionResponseToAllChannels(ECR_Ignore);
-	BreakableDetectionBox->SetCollisionResponseToChannel(ECC_WorldStatic, ECR_Overlap);
-	BreakableDetectionBox->SetCollisionResponseToChannel(ECC_WorldDynamic, ECR_Overlap);
-	BreakableDetectionBox->SetGenerateOverlapEvents(true);
+	DamageDetectionBox->SetRelativeLocation(FVector(0.0f, 0.0f, -60.0f));
 
 	WallMeshComponent = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("WallMeshComponent"));
 	WallMeshComponent->SetupAttachment(Root);
@@ -67,13 +67,14 @@ APRGroundBoxProjectileBase::APRGroundBoxProjectileBase()
 	WallMeshComponent->SetCollisionResponseToChannel(ECC_Visibility, ECR_Ignore);
 	// AI 시야 무시
 	WallMeshComponent->SetCollisionResponseToChannel(PRCollisionChannels::ECC_AISight, ECR_Ignore);
+	WallMeshComponent->SetRelativeLocation(FVector(40.0f, 0.0f, -160.0f));
 	
 
 	AmbientVFXComponent = CreateDefaultSubobject<UNiagaraComponent>(TEXT("AmbientVFXComponent"));
 	AmbientVFXComponent->SetupAttachment(Root);
 
 	MovementComponent = CreateDefaultSubobject<UProjectileMovementComponent>(TEXT("MovementComponent"));
-	MovementComponent->UpdatedComponent = Root;
+	MovementComponent->UpdatedComponent = BreakableDetectionBox;
 	MovementComponent->InitialSpeed = 0.0f;
 	MovementComponent->MaxSpeed = 0.0f;
 	MovementComponent->ProjectileGravityScale = 0.0f;
@@ -105,7 +106,12 @@ void APRGroundBoxProjectileBase::BeginPlay()
 
 	if (IsValid(BreakableDetectionBox))
 	{
-		BreakableDetectionBox->OnComponentBeginOverlap.AddDynamic(this, &ThisClass::OnBreakableDetectionBoxBeginOverlap);
+		BreakableDetectionBox->OnComponentHit.AddDynamic(this, &ThisClass::OnBreakableDetectionBoxHit);
+	}
+	
+	if (IsValid(WallMeshComponent))
+	{
+			CorrectionZLocation = WallMeshComponent->GetRelativeLocation().Z;
 	}
 }
 
@@ -369,9 +375,8 @@ void APRGroundBoxProjectileBase::OnDamageDetectionBoxBeginOverlap(UPrimitiveComp
 	ApplyDamageToTarget(OtherActor, TargetAbilitySystemComponent, SweepResult);
 }
 
-void APRGroundBoxProjectileBase::OnBreakableDetectionBoxBeginOverlap(UPrimitiveComponent* OverlappedComponent,
-	AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep,
-	const FHitResult& SweepResult)
+void APRGroundBoxProjectileBase::OnBreakableDetectionBoxHit(UPrimitiveComponent* HitComponent,
+	AActor* OtherActor, UPrimitiveComponent* OtherComp, FVector NormalImpulse, const FHitResult& Hit)
 {
 	// 공통 필터
 	if (!IsValid(OtherActor) || OtherActor == this || OtherActor == GetInstigator() || bDestroyRequested)
@@ -385,20 +390,14 @@ void APRGroundBoxProjectileBase::OnBreakableDetectionBoxBeginOverlap(UPrimitiveC
 		return;
 	}
 
-	// 발사 중 충돌만 처리
+	// 발사 상태 검사
 	if (!bLaunched)
 	{
 		return;
 	}
 
-	// 초기 겹침 제외
-	if (!bFromSweep)
-	{
-		return;
-	}
-
-	// 벽성 환경 충돌만 처리
-	if (!IsBlockingWallHit(SweepResult))
+	// 벽 충돌 검사
+	if (!IsBlockingWallHit(Hit))
 	{
 		return;
 	}
@@ -605,7 +604,7 @@ void APRGroundBoxProjectileBase::SnapToGround(float DeltaSeconds, bool bInstant)
 	if (!bInstant && GroundSnapInterpSpeed > 0.0f)
 	{
 		// 지면 높이 보간 추적
-		NewZ = FMath::FInterpTo(CurrentLocation.Z, TargetZ, DeltaSeconds, GroundSnapInterpSpeed);
+		NewZ = FMath::FInterpTo(CurrentLocation.Z, TargetZ - CorrectionZLocation, DeltaSeconds, GroundSnapInterpSpeed);
 		if (FMath::Abs(NewZ - TargetZ) <= GroundSnapTolerance)
 		{
 			// 미세 떨림 방지

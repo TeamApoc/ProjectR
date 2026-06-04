@@ -112,10 +112,10 @@ protected:
 	void OnDamageDetectionBoxBeginOverlap(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor,
 		UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepResult);
 
-	// 환경 박스 오버랩 처리
+	// 환경 박스 히트 처리
 	UFUNCTION()
-	void OnBreakableDetectionBoxBeginOverlap(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor,
-		UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepResult);
+	void OnBreakableDetectionBoxHit(UPrimitiveComponent* HitComponent, AActor* OtherActor,
+		UPrimitiveComponent* OtherComp, FVector NormalImpulse, const FHitResult& Hit);
 
 	// 피해 대상 필터
 	bool CanApplyDamageToTarget(AActor* TargetActor, UAbilitySystemComponent* TargetAbilitySystemComponent) const;
@@ -319,6 +319,9 @@ private:
 
 	// 런치 복제 보간 시작 시간
 	float LaunchRepInterpStartTime = 0.0f;
+	
+	// 스냅 보정 Z 위치
+	float CorrectionZLocation = -160.0f;
 
 	// 소스 팀 캐시
 	EPRTeam SourceTeam = EPRTeam::Neutral;

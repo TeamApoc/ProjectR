@@ -748,10 +748,11 @@ void APRProjectileBase::ApplyEffectToTarget(AActor* TargetActor)
 		return;
 	}
 
-	if (IPRDirectDamageReceiverInterface* DirectDamageReceiver = Cast<IPRDirectDamageReceiverInterface>(TargetActor))
-	{
-		DirectDamageReceiver->ApplyDirectDamageFromSpec(*EffectSpec, FHitResult());
-	}
+	// 2026.06.04 이건주_ 주석처리
+	// if (IPRDirectDamageReceiverInterface* DirectDamageReceiver = Cast<IPRDirectDamageReceiverInterface>(TargetActor))
+	// {
+	// 	DirectDamageReceiver->ApplyDirectDamageFromSpec(*EffectSpec, FHitResult());
+	// }
 }
 
 void APRProjectileBase::ApplyEffectToTargetWithHit(AActor* TargetActor, const FHitResult& InHitResult)

@@ -38,7 +38,7 @@ public:
 
 	/*~ UPRGameplayAbility Interface ~*/
 	virtual void OnFailActivateAbility(const UAbilitySystemComponent* InOwnerASC, const FGameplayAbilitySpec* InAbilitySpec) const override;
-	void OnOutOfAmmo(const UObject* WorldContext) const;
+	void OnOutOfAmmo(const UAbilitySystemComponent* InOwnerASC) const;
 
 public:
 	// 총구 위치 

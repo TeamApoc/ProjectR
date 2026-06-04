@@ -162,12 +162,15 @@ namespace
 		const FName TargetLocationKey,
 		const FName DistanceToTargetKey,
 		const FName ChargePathClearKey,
-		const ECollisionChannel ChargeTraceChannel)
+		const FName HasLOSKey,
+		const ECollisionChannel ChargeTraceChannel,
+		const ECollisionChannel LOSCheckTraceChannel)
 	{
 		if (!IsValid(CurrentTarget))
 		{
 			BlackboardComponent->SetValueAsFloat(DistanceToTargetKey, 0.0f);
 			BlackboardComponent->SetValueAsBool(ChargePathClearKey, false);
+			BlackboardComponent->SetValueAsBool(HasLOSKey, false);
 			return;
 		}
 
@@ -191,6 +194,23 @@ namespace
 
 		const bool bChargePathClear = !bBlocked || HitResult.GetActor() == CurrentTarget;
 		BlackboardComponent->SetValueAsBool(ChargePathClearKey, bChargePathClear);
+
+		FCollisionQueryParams LOSQueryParams(SCENE_QUERY_STAT(PREnemyLineOfSight), false, ControlledPawn);
+		LOSQueryParams.AddIgnoredActor(ControlledPawn);
+
+		FHitResult LOSHitResult;
+		const bool bLOSBlocked = ControlledPawn->GetWorld()->LineTraceSingleByChannel(
+			LOSHitResult,
+			OwnerLocation,
+			TargetLocation,
+			LOSCheckTraceChannel,
+			LOSQueryParams);
+
+		const AActor* LOSHitActor = LOSHitResult.GetActor();
+		const bool bHasLOS = !bLOSBlocked
+			|| LOSHitActor == CurrentTarget
+			|| (IsValid(LOSHitActor) && LOSHitActor->GetOwner() == CurrentTarget);
+		BlackboardComponent->SetValueAsBool(HasLOSKey, bHasLOS);
 	}
 }
 
@@ -231,6 +251,17 @@ void UBTService_PRUpdateEnemyCombatBlackboard::TickNode(UBehaviorTreeComponent& 
 	const bool bHasValidTarget = IsValid(CurrentTarget);
 	BlackboardComponent->SetValueAsBool(HasValidTargetKey, bHasValidTarget);
 
+	UpdateTargetTrackingData(
+		BlackboardComponent,
+		ControlledPawn,
+		CurrentTarget,
+		TargetLocationKey,
+		DistanceToTargetKey,
+		ChargePathClearKey,
+		HasLOSKey,
+		ChargeTraceChannel,
+		LOSCheckTraceChannel);
+
 	const UPREnemyCombatDataAsset* CombatDataAsset = ResolveEnemyCombatDataAsset(ControlledPawn);
 	UpdateAttackPressureValue(
 		BlackboardComponent,
@@ -241,15 +272,6 @@ void UBTService_PRUpdateEnemyCombatBlackboard::TickNode(UBehaviorTreeComponent& 
 		HasLOSKey,
 		bHasValidTarget,
 		DeltaSeconds);
-
-	UpdateTargetTrackingData(
-		BlackboardComponent,
-		ControlledPawn,
-		CurrentTarget,
-		TargetLocationKey,
-		DistanceToTargetKey,
-		ChargePathClearKey,
-		ChargeTraceChannel);
 }
 
 // ===== 에디터 표시 =====

@@ -36,7 +36,9 @@ APRProjectileBase::APRProjectileBase()
 	SetRootComponent(SphereComponent);
 	SphereComponent->SetSphereRadius(30.f);
 	SphereComponent->SetCollisionProfileName(TEXT("Projectile"));
+	SphereComponent->SetGenerateOverlapEvents(true);
 	SphereComponent->OnComponentHit.AddDynamic(this, &APRProjectileBase::OnSphereHit);
+	SphereComponent->OnComponentBeginOverlap.AddDynamic(this, &APRProjectileBase::OnSphereBeginOverlap);
 
 	ProjectileMovementComponent = CreateDefaultSubobject<UPRProjectileMovementComponent>(TEXT("ProjectileMovementComponent"));
 	ProjectileMovementComponent->UpdatedComponent = SphereComponent;
@@ -932,6 +934,12 @@ void APRProjectileBase::OnSphereHit(UPrimitiveComponent* HitComponent, AActor* O
 		
 		// TODO: 권위 투사체의 첫 복제 전 바로 파괴되어 버린 경우 Remote의 파괴 이펙트 보장 필요
 	}
+}
+
+void APRProjectileBase::OnSphereBeginOverlap(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor,
+	UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepResult)
+{
+	OnSphereHit(OverlappedComponent, OtherActor, OtherComp, FVector::ZeroVector, SweepResult);
 }
 
 void APRProjectileBase::HandleHit_Implementation(UPrimitiveComponent* HitComponent, AActor* OtherActor,

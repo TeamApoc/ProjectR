@@ -37,57 +37,9 @@ namespace
 		return IsValid(Actor) ? Actor->GetActorLocation() : FVector::ZeroVector;
 	}
 
-	bool HasActivePerceptionStimulus(UAIPerceptionComponent* PerceptionComponent, AActor* Actor)
+	bool IsSightStimulus(const UAISenseConfig_Sight* SightConfig, const FAIStimulus& Stimulus)
 	{
-		if (!IsValid(PerceptionComponent) || !IsValid(Actor))
-		{
-			return false;
-		}
-
-		FActorPerceptionBlueprintInfo PerceptionInfo;
-		if (!PerceptionComponent->GetActorsPerception(Actor, PerceptionInfo))
-		{
-			return false;
-		}
-
-		// Actor별 현재 활성 감각 확인
-		for (const FAIStimulus& PerceivedStimulus : PerceptionInfo.LastSensedStimuli)
-		{
-			if (PerceivedStimulus.WasSuccessfullySensed())
-			{
-				return true;
-			}
-		}
-
-		return false;
-	}
-
-	bool HasActiveSightStimulus(
-		UAIPerceptionComponent* PerceptionComponent,
-		const UAISenseConfig_Sight* SightConfig,
-		AActor* Actor)
-	{
-		if (!IsValid(PerceptionComponent) || !IsValid(SightConfig) || !IsValid(Actor))
-		{
-			return false;
-		}
-
-		FActorPerceptionBlueprintInfo PerceptionInfo;
-		if (!PerceptionComponent->GetActorsPerception(Actor, PerceptionInfo))
-		{
-			return false;
-		}
-
-		// Sight 감각만 별도 확인
-		for (const FAIStimulus& PerceivedStimulus : PerceptionInfo.LastSensedStimuli)
-		{
-			if (PerceivedStimulus.Type == SightConfig->GetSenseID() && PerceivedStimulus.WasSuccessfullySensed())
-			{
-				return true;
-			}
-		}
-
-		return false;
+		return IsValid(SightConfig) && Stimulus.Type == SightConfig->GetSenseID();
 	}
 
 	bool IsCurrentThreatTarget(const UPREnemyThreatComponent* ThreatComponent, const AActor* Actor)
@@ -114,6 +66,22 @@ namespace
 		BlackboardComponent->SetValueAsVector(TargetLocationKey, TargetLocation);
 		BlackboardComponent->SetValueAsVector(LastKnownTargetLocationKey, LastKnownTargetLocation);
 		BlackboardComponent->SetValueAsBool(HasLOSKey, bHasLOS);
+	}
+
+	void WriteCurrentTargetLocationToBlackboard(
+		UBlackboardComponent* BlackboardComponent,
+		const FName TargetLocationKey,
+		const FName LastKnownTargetLocationKey,
+		const FVector& TargetLocation,
+		const FVector& LastKnownTargetLocation)
+	{
+		if (!IsValid(BlackboardComponent))
+		{
+			return;
+		}
+
+		BlackboardComponent->SetValueAsVector(TargetLocationKey, TargetLocation);
+		BlackboardComponent->SetValueAsVector(LastKnownTargetLocationKey, LastKnownTargetLocation);
 	}
 }
 
@@ -231,50 +199,47 @@ void APREnemyAIController::HandleTargetPerceptionUpdated(AActor* Actor, FAIStimu
 
 	if (Stimulus.WasSuccessfullySensed())
 	{
-		const bool bHasLOS = HasActiveSightStimulus(EnemyPerceptionComponent, SightConfig, Actor);
+		const bool bIsSightStimulus = IsSightStimulus(SightConfig, Stimulus);
+		bool bHasLOS = bIsSightStimulus;
+		if (!bIsSightStimulus)
+		{
+			FPREnemyTargetCandidate ExistingCandidate;
+			bHasLOS = CachedThreatComponent->GetTargetCandidate(Actor, ExistingCandidate)
+				&& ExistingCandidate.bHasLOS;
+		}
+
 		CachedThreatComponent->UpdatePerceivedTarget(Actor, StimulusLocation, bHasLOS);
 
 		// Perception은 여러 플레이어의 이벤트를 받을 수 있으므로,
 		// Blackboard 추적값은 현재 공격 대상 기준일 때만 갱신한다.
 		if (IsCurrentThreatTarget(CachedThreatComponent, Actor))
 		{
-			WriteCurrentTargetTrackingToBlackboard(
-				CachedBlackboardComponent,
-				TargetLocationKey,
-				LastKnownTargetLocationKey,
-				HasLOSKey,
-				StimulusLocation,
-				StimulusLocation,
-				bHasLOS);
-		}
-
-		bPreserveAlertOnNextTargetClear = false;
-	}
-	else
-	{
-		const bool bHasActivePerception = HasActivePerceptionStimulus(EnemyPerceptionComponent, Actor);
-		const bool bHasLOS = HasActiveSightStimulus(EnemyPerceptionComponent, SightConfig, Actor);
-		if (bHasActivePerception)
-		{
-			const FVector TrackingLocation = bHasLOS ? Actor->GetActorLocation() : StimulusLocation;
-			CachedThreatComponent->UpdatePerceivedTarget(Actor, TrackingLocation, bHasLOS);
-
-			// 감각 일부 상실 중 현재 타겟 추적 유지
-			if (IsCurrentThreatTarget(CachedThreatComponent, Actor))
+			if (bIsSightStimulus)
 			{
 				WriteCurrentTargetTrackingToBlackboard(
 					CachedBlackboardComponent,
 					TargetLocationKey,
 					LastKnownTargetLocationKey,
 					HasLOSKey,
-					TrackingLocation,
-					TrackingLocation,
-					bHasLOS);
+					StimulusLocation,
+					StimulusLocation,
+					true);
 			}
-
-			return;
+			else
+			{
+				WriteCurrentTargetLocationToBlackboard(
+					CachedBlackboardComponent,
+					TargetLocationKey,
+					LastKnownTargetLocationKey,
+					StimulusLocation,
+					StimulusLocation);
+			}
 		}
 
+		bPreserveAlertOnNextTargetClear = false;
+	}
+	else
+	{
 		const bool bWasCurrentTarget = IsCurrentThreatTarget(CachedThreatComponent, Actor);
 
 		switch (TargetLostPolicy)

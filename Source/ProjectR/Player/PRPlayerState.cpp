@@ -58,11 +58,8 @@ void APRPlayerState::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLi
 	DOREPLIFETIME(APRPlayerState, StatUpgradeInfo);
 }
 
-void APRPlayerState::BeginPlay()
+void APRPlayerState::GiveStartUpItems()
 {
-	Super::BeginPlay();
-	
-	// 초기 아이템 지급
 	if (HasAuthority())
 	{
 		for (FPRItemSaveEntry& StartUpItem : StartUpItems)
@@ -75,7 +72,7 @@ void APRPlayerState::BeginPlay()
 			// 이미 존재하던 아이템에 AddItem이 될 수 있음.
 			if (UPRItemInstance* Item = InventoryComponent->FindItemByData(StartUpItem.ItemData))
 			{
-				Item->SetStack(StartUpItem.Amount);
+				Item->SetStack(FMath::Max(StartUpItem.Amount, Item->GetStackCount()));
 			}
 			else
 			{
@@ -85,6 +82,14 @@ void APRPlayerState::BeginPlay()
 		
 		BindAutoRegisterQuickSlotEvent();
 	}
+}
+
+void APRPlayerState::BeginPlay()
+{
+	Super::BeginPlay();
+	
+	// 초기 아이템 지급
+	GiveStartUpItems();
 	QuickSlotComponent->InitializeQuickSlots(InventoryComponent);
 }
 

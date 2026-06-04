@@ -249,6 +249,30 @@ bool UPRGameInstance::SaveLocalCharacterSlot(int32 SlotIndex)
 	return bSaved;
 }
 
+bool UPRGameInstance::DeleteLocalCharacterSaveSlot(int32 SlotIndex)
+{
+	if (!IsValidLocalCharacterSlotIndex(SlotIndex))
+	{
+		return false;
+	}
+
+	const FString SlotName = BuildLocalCharacterSlotName(SlotIndex);
+	if (!UGameplayStatics::DoesSaveGameExist(SlotName, LocalCharacterSaveUserIndex))
+	{
+		return false;
+	}
+
+	const bool bDeleted = UGameplayStatics::DeleteGameInSlot(SlotName, LocalCharacterSaveUserIndex);
+	if (bDeleted && ActiveLocalCharacterSlotIndex == SlotIndex)
+	{
+		// 삭제된 슬롯을 세션 진입용 캐릭터로 계속 사용하지 않도록 활성 슬롯 초기화
+		ActiveLocalCharacterSlotIndex = INDEX_NONE;
+		LocalCharacterSave = FPRCharacterSaveData();
+	}
+
+	return bDeleted;
+}
+
 bool UPRGameInstance::SaveActiveLocalCharacterSlot()
 {
 	if (!HasActiveLocalCharacterSlot())

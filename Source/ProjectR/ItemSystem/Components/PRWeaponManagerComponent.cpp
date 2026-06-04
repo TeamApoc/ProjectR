@@ -347,6 +347,19 @@ const FPRWeaponVisualInfo& UPRWeaponManagerComponent::GetCurrentWeaponVisualInfo
 	return GetVisualInfoBySlotType(CurrentWeaponSlot);
 }
 
+const UPRCrosshairConfig* UPRWeaponManagerComponent::GetActiveCrosshairConfig() const
+{
+	const FPRWeaponVisualInfo& CurrentVisualInfo = GetCurrentWeaponVisualInfo();
+	const UPRWeaponDataAsset* WeaponData = CurrentVisualInfo.WeaponData;
+	if (!IsValid(WeaponData))
+	{
+		return nullptr;
+	}
+
+	// 무기 데이터의 전용 설정 또는 프로젝트 기본 설정 반환
+	return WeaponData->GetCrosshairConfig();
+}
+
 const FPRWeaponVisualInfo& UPRWeaponManagerComponent::GetVisualInfoBySlotType(EPRWeaponSlotType SlotType) const
 {
 	// 주무기 슬롯 요청인 경우

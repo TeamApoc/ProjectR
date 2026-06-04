@@ -7,6 +7,8 @@
 #include "ProjectR/ItemSystem/Data/PRConsumableDataAsset.h"
 #include "ProjectR/ItemSystem/Data/PRItemDataAsset.h"
 #include "ProjectR/ItemSystem/Data/PRMaterialDataAsset.h"
+#include "ProjectR/ItemSystem/Data/PRWeaponDataAsset.h"
+#include "ProjectR/ItemSystem/Data/PRWeaponModDataAsset.h"
 #include "ProjectR/ItemSystem/Items/PRItemInstance_Consumable.h"
 #include "ProjectR/ItemSystem/Items/PRItemInstance_Material.h"
 #include "ProjectR/Player/PRPlayerController.h"
@@ -14,7 +16,6 @@
 #include "ProjectR/Player/Components/PRCurrencyComponent.h"
 #include "ProjectR/Shop/Data/PRShopDataAsset.h"
 #include "ProjectR/System/PRAssetManager.h"
-#include "ProjectR/ItemSystem/Data/PRWeaponModDataAsset.h"
 
 UPRShopComponent::UPRShopComponent()
 {
@@ -526,6 +527,11 @@ bool UPRShopComponent::CanGrantItem(UPRInventoryComponent* InventoryComponent, U
 	}
 
 	if (Cast<UPRWeaponModDataAsset>(ItemData))
+	{
+		return TotalItemQuantity == 1;
+	}
+
+	if (Cast<UPRWeaponDataAsset>(ItemData))
 	{
 		return TotalItemQuantity == 1;
 	}

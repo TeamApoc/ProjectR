@@ -1,6 +1,6 @@
 // Copyright (c) 2026 TeamApoc. All Rights Reserved.
 
-#include "PRProjectileTrajectoryPreviewComponent.h"
+#include "PRFirePreviewComponent.h"
 
 #include "Components/InstancedStaticMeshComponent.h"
 #include "DrawDebugHelpers.h"
@@ -10,15 +10,25 @@
 #include "GameFramework/Actor.h"
 #include "GameFramework/Pawn.h"
 #include "Kismet/GameplayStatics.h"
+#include "ProjectR/PRGameplayTags.h"
 #include "ProjectR/Character/PRPlayerCharacter.h"
-#include "ProjectR/Utils/PRGameplayStatics.h"
 #include "ProjectR/ItemSystem/Actors/PRWeaponActor.h"
 #include "ProjectR/ItemSystem/Components/PRWeaponManagerComponent.h"
+#include "ProjectR/ItemSystem/Data/PRWeaponDataAsset.h"
+#include "ProjectR/System/PREventManagerSubsystem.h"
+#include "ProjectR/UI/Crosshair/PRCrosshairTypes.h"
+#include "ProjectR/Utils/PRGameplayStatics.h"
 #include "UObject/ConstructorHelpers.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogPRPathPreviewComponent, Log, All);
 
-UPRProjectileTrajectoryPreviewComponent::UPRProjectileTrajectoryPreviewComponent()
+namespace PRFirePreviewPrivate
+{
+	// 무기 데이터 조회 실패 시 기존 사격 거리 보존값
+	constexpr float DefaultMaxFireDistance = 20000.f;
+}
+
+UPRFirePreviewComponent::UPRFirePreviewComponent()
 {
 	PrimaryComponentTick.bCanEverTick = true;
 	PrimaryComponentTick.bStartWithTickEnabled = false;
@@ -32,7 +42,7 @@ UPRProjectileTrajectoryPreviewComponent::UPRProjectileTrajectoryPreviewComponent
 	}
 }
 
-void UPRProjectileTrajectoryPreviewComponent::BeginPlay()
+void UPRFirePreviewComponent::BeginPlay()
 {
 	Super::BeginPlay();
 
@@ -64,23 +74,29 @@ void UPRProjectileTrajectoryPreviewComponent::BeginPlay()
 	}
 }
 
-void UPRProjectileTrajectoryPreviewComponent::SetPreviewEnabled(bool bInEnabled)
+void UPRFirePreviewComponent::SetTrajectoryPreviewEnabled(bool bInEnabled)
 {
-	UE_LOG(LogPRPathPreviewComponent, Log,
-		TEXT("SetPreviewEnabled 호출. Owner=%s, bOldEnabled=%d, bNewEnabled=%d, bIsShowing=%d, WeaponActor=%s, CachedWeaponManager=%s"),
-		*GetNameSafe(GetOwner()),
-		bIsEnabled,
-		bInEnabled,
-		bIsShowing,
-		*GetNameSafe(WeaponActor.Get()),
-		*GetNameSafe(CachedWeaponManager.Get()));
+	const bool bWasTrajectoryEnabled = bIsTrajectoryEnabled;
+	bIsTrajectoryEnabled = bInEnabled;
 
-	bIsEnabled = bInEnabled;
+	if (bWasTrajectoryEnabled == bIsTrajectoryEnabled)
+	{
+		return;
+	}
+
+	if (bIsTrajectoryEnabled)
+	{
+		ClearHitScanPreview();
+	}
+	else
+	{
+		ClearTrajectory();
+	}
 }
 
 /*~ Public API ~*/
 
-void UPRProjectileTrajectoryPreviewComponent::SetFireParams(const FPRProjectilePreviewParams& InParams)
+void UPRFirePreviewComponent::SetFireParams(const FPRProjectilePreviewParams& InParams)
 {
 	FireParams = InParams;
 
@@ -96,7 +112,7 @@ void UPRProjectileTrajectoryPreviewComponent::SetFireParams(const FPRProjectileP
 		FireParams.MaxSamplePoints);
 }
 
-void UPRProjectileTrajectoryPreviewComponent::SetWeaponActor(APRWeaponActor* InWeaponActor)
+void UPRFirePreviewComponent::SetWeaponActor(APRWeaponActor* InWeaponActor)
 {
 	UE_LOG(LogPRPathPreviewComponent, Log,
 		TEXT("SetWeaponActor 호출. Owner=%s, OldWeapon=%s, NewWeapon=%s, bIsShowing=%d, bIsEnabled=%d"),
@@ -104,7 +120,7 @@ void UPRProjectileTrajectoryPreviewComponent::SetWeaponActor(APRWeaponActor* InW
 		*GetNameSafe(WeaponActor.Get()),
 		*GetNameSafe(InWeaponActor),
 		bIsShowing,
-		bIsEnabled);
+		bIsTrajectoryEnabled);
 
 	WeaponActor = InWeaponActor;
 
@@ -115,60 +131,35 @@ void UPRProjectileTrajectoryPreviewComponent::SetWeaponActor(APRWeaponActor* InW
 	}
 }
 
-void UPRProjectileTrajectoryPreviewComponent::Show()
+void UPRFirePreviewComponent::Show()
 {
 	GetWeaponManager();
 
 	if (bIsShowing)
 	{
-		UE_LOG(LogPRPathPreviewComponent, Log,
-			TEXT("Show 생략. 이미 표시 중, Owner=%s, bIsEnabled=%d, WeaponActor=%s, CachedWeaponManager=%s"),
-			*GetNameSafe(GetOwner()),
-			bIsEnabled,
-			*GetNameSafe(WeaponActor.Get()),
-			*GetNameSafe(CachedWeaponManager.Get()));
 		return;
 	}
-
-	UE_LOG(LogPRPathPreviewComponent, Log,
-		TEXT("Show 호출. Owner=%s, bIsEnabled=%d, WeaponActor=%s, CachedWeaponManager=%s, TrajectoryISMC=%s"),
-		*GetNameSafe(GetOwner()),
-		bIsEnabled,
-		*GetNameSafe(WeaponActor.Get()),
-		*GetNameSafe(CachedWeaponManager.Get()),
-		*GetNameSafe(TrajectoryISMC));
 
 	bIsShowing = true;
 	SetComponentTickEnabled(true);
 }
 
-void UPRProjectileTrajectoryPreviewComponent::Hide()
+void UPRFirePreviewComponent::Hide()
 {
 	if (!bIsShowing)
 	{
-		UE_LOG(LogPRPathPreviewComponent, Log,
-			TEXT("Hide 생략. 이미 숨김 상태, Owner=%s, bIsEnabled=%d, WeaponActor=%s"),
-			*GetNameSafe(GetOwner()),
-			bIsEnabled,
-			*GetNameSafe(WeaponActor.Get()));
 		return;
 	}
-
-	UE_LOG(LogPRPathPreviewComponent, Log,
-		TEXT("Hide 호출. Owner=%s, bIsEnabled=%d, WeaponActor=%s, InstanceCount=%d"),
-		*GetNameSafe(GetOwner()),
-		bIsEnabled,
-		*GetNameSafe(WeaponActor.Get()),
-		IsValid(TrajectoryISMC) ? TrajectoryISMC->GetInstanceCount() : 0);
 
 	bIsShowing = false;
 	SetComponentTickEnabled(false);
 	ClearTrajectory();
+	ClearHitScanPreview();
 }
 
 /*~ Draw ~*/
 
-void UPRProjectileTrajectoryPreviewComponent::DrawTrajectory(const TArray<FVector>& SamplePoints)
+void UPRFirePreviewComponent::DrawTrajectory(const TArray<FVector>& SamplePoints)
 {
 #if ENABLE_DRAW_DEBUG
 	if (bDrawDebug)
@@ -196,12 +187,130 @@ void UPRProjectileTrajectoryPreviewComponent::DrawTrajectory(const TArray<FVecto
 	DrawTrajectoryISMC(SamplePoints);
 }
 
-void UPRProjectileTrajectoryPreviewComponent::ClearTrajectory()
+void UPRFirePreviewComponent::ClearTrajectory()
 {
 	ClearTrajectoryISMC();
 }
 
-void UPRProjectileTrajectoryPreviewComponent::DrawTrajectoryISMC(const TArray<FVector>& SamplePoints)
+/*~ 히트스캔 미리보기 ~*/
+
+void UPRFirePreviewComponent::UpdateHitScanPreview()
+{
+	APRWeaponActor* Weapon = WeaponActor.Get();
+	UWorld* World = GetWorld();
+	AActor* OwnerActor = GetOwner();
+	const APawn* OwnerPawn = Cast<APawn>(OwnerActor);
+	if (!IsValid(Weapon) || !IsValid(World) || !IsValid(OwnerPawn))
+	{
+		ClearHitScanPreview();
+		return;
+	}
+
+	const float TraceDistance = FMath::Max(0.f, GetHitScanPreviewDistance());
+	if (TraceDistance <= KINDA_SMALL_NUMBER)
+	{
+		ClearHitScanPreview();
+		return;
+	}
+
+	TArray<AActor*> IgnoredActors;
+	IgnoredActors.Add(OwnerActor);
+	IgnoredActors.Add(Weapon);
+
+	// 카메라 조준점 산출 및 Combat 채널 기준 목표 지점 확보
+	const FVector AimPoint = UPRGameplayStatics::ResolveCameraAimPoint(
+		OwnerPawn, TraceDistance, PRCollisionChannels::ECC_Combat, IgnoredActors);
+
+	const FVector MuzzleLocation = Weapon->GetMuzzleTransform().GetLocation();
+	FVector TraceDirection = AimPoint - MuzzleLocation;
+	if (!TraceDirection.Normalize(KINDA_SMALL_NUMBER))
+	{
+		FVector ViewLocation;
+		FRotator ViewRotation;
+		if (!UPRGameplayStatics::GetPawnViewpoint(OwnerPawn, ViewLocation, ViewRotation))
+		{
+			ClearHitScanPreview();
+			return;
+		}
+
+		TraceDirection = ViewRotation.Vector();
+	}
+
+	// 경계 오차 보정 및 조준점 바로 앞 종료로 인한 근접 표면 누락 방지
+	constexpr float TraceEndPadding = 30.f;
+	const FVector TraceEndLocation = AimPoint + TraceDirection * TraceEndPadding;
+
+	FCollisionQueryParams Params(SCENE_QUERY_STAT(PRFirePreviewHitScanTrace), false);
+	Params.AddIgnoredActors(IgnoredActors);
+
+	FHitResult Hit;
+	World->LineTraceSingleByChannel(
+		Hit,
+		MuzzleLocation,
+		TraceEndLocation,
+		PRCollisionChannels::ECC_Combat,
+		Params);
+
+	const bool bHit = Hit.bBlockingHit && IsValid(Hit.GetActor());
+	BroadcastPreviewHit(bHit);
+}
+
+float UPRFirePreviewComponent::GetHitScanPreviewDistance()
+{
+	const UPRWeaponManagerComponent* WeaponManager = GetWeaponManager();
+	const UPRWeaponDataAsset* WeaponData = IsValid(WeaponManager)
+		? WeaponManager->GetCurrentWeaponVisualInfo().WeaponData
+		: nullptr;
+	if (IsValid(WeaponData))
+	{
+		return FMath::Max(0.f, WeaponData->MaxFireDistance);
+	}
+
+	// PlayerState 무기 데이터 복제 지연 시 기존 기본 거리 유지
+	return PRFirePreviewPrivate::DefaultMaxFireDistance;
+}
+
+void UPRFirePreviewComponent::ClearHitScanPreview()
+{
+	if (bHasPreviewHitState && bLastPreviewHit)
+	{
+		BroadcastPreviewHit(false, true);
+	}
+
+	bHasPreviewHitState = false;
+	bLastPreviewHit = false;
+}
+
+void UPRFirePreviewComponent::BroadcastPreviewHit(bool bHit, bool bForceBroadcast)
+{
+	if (!bForceBroadcast && bHasPreviewHitState && bLastPreviewHit == bHit)
+	{
+		return;
+	}
+
+	bHasPreviewHitState = true;
+	bLastPreviewHit = bHit;
+
+	UWorld* World = GetWorld();
+	if (!IsValid(World))
+	{
+		return;
+	}
+
+	UPREventManagerSubsystem* EventMgr = World->GetSubsystem<UPREventManagerSubsystem>();
+	if (!IsValid(EventMgr))
+	{
+		return;
+	}
+
+	FPRPreviewHitEventPayload Payload;
+	Payload.bHit = bHit;
+
+	// UI 직접 참조 회피. UPRCrosshairWidget 구독 후 IPRCrosshairInterface::OnPreviewHit 호출
+	EventMgr->BroadcastTyped(PRGameplayTags::Event_Player_PreviewHit, Payload);
+}
+
+void UPRFirePreviewComponent::DrawTrajectoryISMC(const TArray<FVector>& SamplePoints)
 {
 	if (!IsValid(PreviewMesh))
 	{
@@ -253,7 +362,7 @@ void UPRProjectileTrajectoryPreviewComponent::DrawTrajectoryISMC(const TArray<FV
 	TrajectoryISMC->MarkRenderStateDirty();
 }
 
-void UPRProjectileTrajectoryPreviewComponent::ClearTrajectoryISMC()
+void UPRFirePreviewComponent::ClearTrajectoryISMC()
 {
 	if (IsValid(TrajectoryISMC))
 	{
@@ -261,8 +370,10 @@ void UPRProjectileTrajectoryPreviewComponent::ClearTrajectoryISMC()
 	}
 }
 
-void UPRProjectileTrajectoryPreviewComponent::OnUnregister()
+void UPRFirePreviewComponent::OnUnregister()
 {
+	ClearHitScanPreview();
+
 	if (IsValid(TrajectoryISMC))
 	{
 		TrajectoryISMC->DestroyComponent();
@@ -273,7 +384,7 @@ void UPRProjectileTrajectoryPreviewComponent::OnUnregister()
 
 /*~ Tick ~*/
 
-void UPRProjectileTrajectoryPreviewComponent::TickComponent(float DeltaTime, ELevelTick TickType,
+void UPRFirePreviewComponent::TickComponent(float DeltaTime, ELevelTick TickType,
                                                             FActorComponentTickFunction* ThisTickFunction)
 {
 	Super::TickComponent(DeltaTime, TickType, ThisTickFunction);
@@ -284,32 +395,41 @@ void UPRProjectileTrajectoryPreviewComponent::TickComponent(float DeltaTime, ELe
 	}
 	
 	// WeaponActor 유효성 재확인. 무기 교체 등으로 사라졌을 수 있음
-	if (!WeaponActor.IsValid() || !bIsEnabled)
+	if (!WeaponActor.IsValid())
 	{
 		UE_LOG(LogPRPathPreviewComponent, Verbose,
 			TEXT("Tick 경로 생성 생략. Owner=%s, bIsEnabled=%d, bIsShowing=%d, WeaponActor=%s, CachedWeaponManager=%s"),
 			*GetNameSafe(GetOwner()),
-			bIsEnabled,
+			bIsTrajectoryEnabled,
 			bIsShowing,
 			*GetNameSafe(WeaponActor.Get()),
 			*GetNameSafe(CachedWeaponManager.Get()));
+
+		if (bIsTrajectoryEnabled)
+		{
+			ClearTrajectory();
+		}
+		else
+		{
+			ClearHitScanPreview();
+		}
 		return;
 	}
 
-	RebuildPath();
-	DrawTrajectory(LastResult.SamplePoints);
-
-	UE_LOG(LogPRPathPreviewComponent, Verbose,
-		TEXT("Tick 경로 갱신 완료. Owner=%s, WeaponActor=%s, SamplePoints=%d, EndReason=%d"),
-		*GetNameSafe(GetOwner()),
-		*GetNameSafe(WeaponActor.Get()),
-		LastResult.SamplePoints.Num(),
-		static_cast<int32>(LastResult.EndReason));
+	if (bIsTrajectoryEnabled)
+	{
+		RebuildPath();
+		DrawTrajectory(LastResult.SamplePoints);
+	}
+	else
+	{
+		UpdateHitScanPreview();
+	}
 }
 
 /*~ Internal ~*/
 
-UPRWeaponManagerComponent* UPRProjectileTrajectoryPreviewComponent::GetWeaponManager()
+UPRWeaponManagerComponent* UPRFirePreviewComponent::GetWeaponManager()
 {
 	if (CachedWeaponManager.IsValid())
 	{
@@ -342,7 +462,7 @@ UPRWeaponManagerComponent* UPRProjectileTrajectoryPreviewComponent::GetWeaponMan
 
 /*~ Path Build ~*/
 
-void UPRProjectileTrajectoryPreviewComponent::RebuildPath()
+void UPRFirePreviewComponent::RebuildPath()
 {
 	LastResult.SamplePoints.Reset();
 	LastResult.EndReason = EPRPreviewEndReason::None;

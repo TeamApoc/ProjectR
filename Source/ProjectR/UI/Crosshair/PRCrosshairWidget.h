@@ -12,10 +12,10 @@ struct FInstancedStruct;
 struct FGameplayTag;
 
 /**
- * 크로스헤어 위젯 베이스.
- * EventManager의 Event.Player.HitShot, Event.Player.Recoil 에 바인딩하여
- * 인터페이스(IPRCrosshairInterface)의 OnHit / OnRecoil 을 호출한다.
- * 인터페이스 함수의 실제 시각 처리는 BP에서 구현한다.
+ * 크로스헤어 위젯 베이스
+ * EventManager의 Event.Player.HitShot, Event.Player.Recoil, Event.Player.PreviewHit 바인딩
+ * 인터페이스(IPRCrosshairInterface)의 OnHit / OnRecoil / OnPreviewHit 호출
+ * 인터페이스 함수의 실제 시각 처리 위치 BP
  */
 UCLASS(Abstract, BlueprintType)
 class PROJECTR_API UPRCrosshairWidget : public UPRWidgetBase, public IPRCrosshairInterface
@@ -40,6 +40,9 @@ private:
 	// EventManager 콜백: 크로스헤어 Config 교체
 	void HandleChangeCrosshair(FGameplayTag EventTag, const FInstancedStruct& Payload);
 
+	// EventManager 콜백: 히트스캔 미리보기 적중 상태
+	void HandlePreviewHit(FGameplayTag EventTag, const FInstancedStruct& Payload);
+
 	// 등록된 EventManager 핸들 정리
 	void UnbindFromEventManager();
 
@@ -47,4 +50,5 @@ private:
 	FDelegateHandle HitShotHandle;
 	FDelegateHandle RecoilHandle;
 	FDelegateHandle ChangeCrosshairHandle;
+	FDelegateHandle PreviewHitHandle;
 };

@@ -31,6 +31,12 @@
 
 DEFINE_LOG_CATEGORY(LogFire);
 
+namespace PRFireAbilityPrivate
+{
+	// 무기 데이터 조회 실패 시 기존 사격 거리 보존값
+	constexpr float DefaultMaxFireDistance = 20000.f;
+}
+
 UPRGA_Fire::UPRGA_Fire()
 {
 	ReplicationPolicy = EGameplayAbilityReplicationPolicy::ReplicateYes;
@@ -231,7 +237,7 @@ FPRFireViewpoint UPRGA_Fire::GetFireViewpoint() const
 	return View;
 }
 
-FVector UPRGA_Fire::ResolveAimPoint(const FPRFireViewpoint& View, float InMaxTraceDistance) const
+FVector UPRGA_Fire::ResolveAimPoint(const FPRFireViewpoint& View, float InTraceDistance) const
 {
 	APawn* OwnerPawn = Cast<APawn>(GetAvatarActorFromActorInfo());
 	TArray<AActor*> IgnoredActors;
@@ -239,7 +245,7 @@ FVector UPRGA_Fire::ResolveAimPoint(const FPRFireViewpoint& View, float InMaxTra
 	{
 		IgnoredActors.Add(AvatarActor);
 	}
-	const FVector AimPoint = UPRGameplayStatics::ResolveCameraAimPoint(OwnerPawn, InMaxTraceDistance, CameraTraceChannel.GetValue(), IgnoredActors);
+	const FVector AimPoint = UPRGameplayStatics::ResolveCameraAimPoint(OwnerPawn, InTraceDistance, CameraTraceChannel.GetValue(), IgnoredActors);
 
 	// 디버그: 카메라 트레이스는 시안색 (참고용)
 	if (bDrawCameraTrace)
@@ -287,6 +293,17 @@ FHitResult UPRGA_Fire::PerformMuzzleTrace(const FVector& MuzzleLoc, const FVecto
 	}
 
 	return Hit;
+}
+
+float UPRGA_Fire::GetMaxFireDistance() const
+{
+	if (const UPRWeaponDataAsset* WeaponData = GetActiveWeaponData(GetCurrentActorInfo()))
+	{
+		return FMath::Max(0.f, WeaponData->MaxFireDistance);
+	}
+
+	// PlayerState 무기 데이터 복제 지연 시 기존 기본 거리 유지
+	return PRFireAbilityPrivate::DefaultMaxFireDistance;
 }
 
 void UPRGA_Fire::SendRecoilEvent()
@@ -352,7 +369,7 @@ void UPRGA_Fire::FireHitScan()
 	Payload.ShotOrigin = FVector_NetQuantize(MuzzleLoc);
 
 	// 1차: 카메라 트레이스로 조준 끝점 산출
-	const FVector AimPoint = ResolveAimPoint(View, MaxTraceDistance);
+	const FVector AimPoint = ResolveAimPoint(View, GetMaxFireDistance());
 
 	// 2차: 총구에서 조준점으로 실제 발사 트레이스
 	const FHitResult Hit = PerformMuzzleTrace(MuzzleLoc, AimPoint);
@@ -422,7 +439,12 @@ FTransform UPRGA_Fire::GetProjectileLaunchTransform()
 	{
 		IgnoredActors.Add(AvatarActor);
 	}
-	return UPRGameplayStatics::ResolveProjectileLaunchTransform(OwnerPawn, GetMuzzleLocation(), MaxTraceDistance, FireTraceChannel.GetValue(), IgnoredActors);
+	return UPRGameplayStatics::ResolveProjectileLaunchTransform(
+		OwnerPawn,
+		GetMuzzleLocation(),
+		GetMaxFireDistance(),
+		FireTraceChannel.GetValue(),
+		IgnoredActors);
 }
 
 void UPRGA_Fire::FireProjectile(TSubclassOf<APRProjectileBase> ProjectileClass, FVector SpawnLocation, FRotator SpawnRotation)

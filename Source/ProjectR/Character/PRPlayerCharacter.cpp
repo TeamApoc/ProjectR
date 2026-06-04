@@ -29,7 +29,7 @@
 #include "ProjectR/Player/Components/PRActionInputRouterComponent.h"
 #include "ProjectR/Player/Components/PRFlashlightComponent.h"
 #include "ProjectR/Player/Components/PRSpringArmComponent.h"
-#include "ProjectR/Projectile/PRProjectileTrajectoryPreviewComponent.h"
+#include "ProjectR/Projectile/PRFirePreviewComponent.h"
 #include "ProjectR/System/PREventManagerSubsystem.h"
 #include "ProjectR/ItemSystem/Actors/PRWeaponActor.h"
 #include "TimerManager.h"
@@ -103,7 +103,7 @@ APRPlayerCharacter::APRPlayerCharacter()
 	FollowCamera->SetFieldOfView(80.0f); // 기본 FOV 80도 설정
 
 	ActionInputRouterComponent = CreateDefaultSubobject<UPRActionInputRouterComponent>(TEXT("ActionInputRouterComponent"));
-	ProjectileTrajectoryPreviewComponent = CreateDefaultSubobject<UPRProjectileTrajectoryPreviewComponent>(TEXT("ProjectileTrajectoryPreviewComponent"));
+	FirePreviewComponent = CreateDefaultSubobject<UPRFirePreviewComponent>(TEXT("ProjectileTrajectoryPreviewComponent"));
 
 	// 캡슐 기준 플래시라이트 부착
 	FlashlightComponent = CreateDefaultSubobject<UPRFlashlightComponent>(TEXT("FlashlightComponent"));
@@ -441,7 +441,7 @@ void APRPlayerCharacter::HandleGameplayTagUpdated(const FGameplayTag& ChangedTag
 			*GetNameSafe(this),
 			bTagExists,
 			IsLocallyControlled(),
-			*GetNameSafe(ProjectileTrajectoryPreviewComponent));
+			*GetNameSafe(FirePreviewComponent));
 
 		bIsAiming = bTagExists;
 		UpdateMaxWalkSpeed();
@@ -457,21 +457,21 @@ void APRPlayerCharacter::HandleGameplayTagUpdated(const FGameplayTag& ChangedTag
 		// 조준 ON/OFF에 맞춰 투사체 예측 경로 표시 토글
 		if (IsLocallyControlled())
 		{
-			if (IsValid(ProjectileTrajectoryPreviewComponent))
+			if (IsValid(FirePreviewComponent))
 			{
 				if (bTagExists)
 				{
 					UE_LOG(LogPRPathPreviewCharacter, Log, TEXT("Preview Show 호출. Player=%s, Preview=%s"),
 						*GetNameSafe(this),
-						*GetNameSafe(ProjectileTrajectoryPreviewComponent));
-					ProjectileTrajectoryPreviewComponent->Show();
+						*GetNameSafe(FirePreviewComponent));
+					FirePreviewComponent->Show();
 				}
 				else
 				{
 					UE_LOG(LogPRPathPreviewCharacter, Log, TEXT("Preview Hide 호출. Player=%s, Preview=%s"),
 						*GetNameSafe(this),
-						*GetNameSafe(ProjectileTrajectoryPreviewComponent));
-					ProjectileTrajectoryPreviewComponent->Hide();
+						*GetNameSafe(FirePreviewComponent));
+					FirePreviewComponent->Hide();
 				}
 			}	
 			else

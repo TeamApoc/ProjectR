@@ -47,6 +47,19 @@ struct PROJECTR_API FPRRecoilEventPayload : public FPREventPayload
 class UPRCrosshairConfig;
 
 /**
+ * 히트스캔 미리보기 적중 이벤트 페이로드. Event.Player.PreviewHit 발송용
+ */
+USTRUCT(BlueprintType)
+struct PROJECTR_API FPRPreviewHitEventPayload : public FPREventPayload
+{
+	GENERATED_BODY()
+
+	// 현재 조준선의 Combat 채널 적중 여부
+	UPROPERTY(BlueprintReadWrite)
+	bool bHit = false;
+};
+
+/**
  * 크로스헤어 Config 교체 이벤트 페이로드. Event.Player.ChangeCrosshair 발송 시 사용.
  */
 USTRUCT(BlueprintType)

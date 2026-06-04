@@ -123,6 +123,10 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Item|Weapon|Fire", meta = (ClampMin = "0.01"))
 	float FireInterval = 0.1f;
 
+	// 사격 판정과 조준 미리보기에 사용할 최대 거리(cm)
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Item|Weapon|Fire", meta = (ClampMin = "0.0"))
+	float MaxFireDistance = 20000.f;
+
 	// 무기 장착 중 HUD에 준비할 스코프 위젯 클래스
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Item|Weapon|UI")
 	TSubclassOf<UUserWidget> ScopeWidgetClass;

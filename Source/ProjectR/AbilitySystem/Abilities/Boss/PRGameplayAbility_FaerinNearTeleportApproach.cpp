@@ -3,6 +3,7 @@
 #include "PRGameplayAbility_FaerinNearTeleportApproach.h"
 
 #include "AIController.h"
+#include "Components/CapsuleComponent.h"
 #include "Engine/World.h"
 #include "EnvironmentQuery/EnvQuery.h"
 #include "GameFramework/Character.h"
@@ -21,6 +22,7 @@ namespace
 {
 	const FName NearTeleportGridSizeParamName(TEXT("NearTeleport_GridSize"));
 	const FName NearTeleportSelfMaxDistanceParamName(TEXT("NearTeleport_SelfMaxDistance"));
+	constexpr float NearTeleportGroundClearance = 2.0f;
 
 	void UpsertFloatParam(TArray<FPREnemyEQSFloatParam>& InOutFloatParams, const FName ParamName, const float Value)
 	{
@@ -300,7 +302,7 @@ bool UPRGameplayAbility_FaerinNearTeleportApproach::ResolveReappearTransform(
 	FVector& OutLocation,
 	FRotator& OutRotation) const
 {
-	const AActor* AvatarActor = GetAvatarActorFromActorInfo();
+	AActor* AvatarActor = GetAvatarActorFromActorInfo();
 	const AActor* TargetActor = ActiveRequest.TargetActor.Get();
 	if (!IsValid(AvatarActor))
 	{
@@ -309,6 +311,7 @@ bool UPRGameplayAbility_FaerinNearTeleportApproach::ResolveReappearTransform(
 
 	const bool bUseTargetBackPlacement = ActiveRequest.PlacementMode == EPRFaerinNearTeleportPlacementMode::TargetBack;
 	bool bUsedHomeFallback = false;
+	bool bTreatLocationAsFloorPoint = true;
 	if (bUseTargetBackPlacement)
 	{
 		if (!ResolveTargetBackReappearLocation(OutLocation))
@@ -331,6 +334,7 @@ bool UPRGameplayAbility_FaerinNearTeleportApproach::ResolveReappearTransform(
 		else
 		{
 			bUsedHomeFallback = true;
+			bTreatLocationAsFloorPoint = false;
 			UE_LOG(LogPRFaerinNearTeleport, Warning, TEXT("[NearTeleport] EQS/NavMesh fallback 실패로 HomeLocation을 재등장 위치로 사용한다. Boss=%s Home=%s"),
 				*GetNameSafe(AvatarActor),
 				*OutLocation.ToCompactString());
@@ -359,18 +363,74 @@ bool UPRGameplayAbility_FaerinNearTeleportApproach::ResolveReappearTransform(
 		return false;
 	}
 
-	if (IsValid(TargetActor))
+	const auto ResolveFacingRotation = [AvatarActor, TargetActor](const FVector& SourceLocation)
 	{
-		FVector FacingDirection = TargetActor->GetActorLocation() - OutLocation;
-		FacingDirection.Z = 0.0f;
-		if (FacingDirection.Normalize())
+		if (IsValid(TargetActor))
 		{
-			OutRotation = FacingDirection.Rotation();
-			return true;
+			FVector FacingDirection = TargetActor->GetActorLocation() - SourceLocation;
+			FacingDirection.Z = 0.0f;
+			if (FacingDirection.Normalize())
+			{
+				return FacingDirection.Rotation();
+			}
+		}
+
+		return AvatarActor->GetActorRotation();
+	};
+
+	OutRotation = ResolveFacingRotation(OutLocation);
+	if (!FinalizeReappearTeleportSpot(*AvatarActor, bTreatLocationAsFloorPoint, OutLocation, OutRotation))
+	{
+		return false;
+	}
+
+	if (!bUseTargetBackPlacement
+		&& !bUsedHomeFallback
+		&& FVector::Dist2D(DisappearLocation, OutLocation) > MaxDistanceFromSelf)
+	{
+		return false;
+	}
+
+	OutRotation = ResolveFacingRotation(OutLocation);
+	return true;
+}
+
+bool UPRGameplayAbility_FaerinNearTeleportApproach::FinalizeReappearTeleportSpot(
+	AActor& AvatarActor,
+	const bool bTreatLocationAsFloorPoint,
+	FVector& InOutLocation,
+	FRotator& InOutRotation) const
+{
+	UWorld* World = GetWorld();
+	if (!IsValid(World))
+	{
+		return false;
+	}
+
+	FVector AdjustedLocation = InOutLocation;
+	if (bTreatLocationAsFloorPoint)
+	{
+		if (const ACharacter* Character = Cast<ACharacter>(&AvatarActor))
+		{
+			const UCapsuleComponent* CapsuleComponent = Character->GetCapsuleComponent();
+			if (IsValid(CapsuleComponent))
+			{
+				AdjustedLocation.Z += CapsuleComponent->GetScaledCapsuleHalfHeight() + NearTeleportGroundClearance;
+			}
 		}
 	}
 
-	OutRotation = AvatarActor->GetActorRotation();
+	if (!World->FindTeleportSpot(&AvatarActor, AdjustedLocation, InOutRotation))
+	{
+		return false;
+	}
+
+	if (AdjustedLocation.ContainsNaN())
+	{
+		return false;
+	}
+
+	InOutLocation = AdjustedLocation;
 	return true;
 }
 

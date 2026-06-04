@@ -49,6 +49,12 @@ private:
 	// 시작 버튼 이벤트 바인딩 해제
 	void UnbindStartButtonEvents();
 
+	// 세이브 삭제 버튼 이벤트 바인딩
+	void BindDeleteSaveSlotButtonEvents();
+
+	// 세이브 삭제 버튼 이벤트 바인딩 해제
+	void UnbindDeleteSaveSlotButtonEvents();
+
 	// 세션 상태 이벤트 바인딩
 	void BindSessionEvents();
 
@@ -63,6 +69,9 @@ private:
 
 	// 시작 버튼 활성 상태 갱신
 	void RefreshStartButtonEnabled(bool bEnabled);
+
+	// 세이브 삭제 버튼 활성 상태 갱신
+	void RefreshDeleteSaveSlotButtonEnabled();
 
 	// 세션 상태 표시 텍스트 갱신
 	void RefreshSessionStatusText(const FText& StatusText);
@@ -97,9 +106,16 @@ private:
 	// 현재 GameInstance를 ProjectR 타입으로 반환함
 	UPRGameInstance* GetProjectRGameInstance() const;
 
+	// 로컬 캐릭터 세이브가 하나 이상 존재하는지 확인함
+	bool HasAnyLocalCharacterSave() const;
+
 	// 시작 버튼 클릭 처리
 	UFUNCTION()
 	void HandleStartButtonClicked();
+
+	// 선택된 세이브 슬롯 삭제 처리
+	UFUNCTION()
+	void HandleDeleteSaveSlotButtonClicked();
 
 	// 세션 상태 변경 처리
 	UFUNCTION()
@@ -165,6 +181,10 @@ protected:
 	// UMG에서 바인딩할 세션 시작 버튼
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidget), Category = "ProjectR|StartMenu")
 	TObjectPtr<UButton> StartButton;
+
+	// UMG에서 바인딩할 선택 세이브 삭제 버튼
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "ProjectR|StartMenu")
+	TObjectPtr<UButton> DeleteSaveSlotButton;
 
 	// UMG에서 바인딩할 세션 상태 텍스트
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "ProjectR|StartMenu")

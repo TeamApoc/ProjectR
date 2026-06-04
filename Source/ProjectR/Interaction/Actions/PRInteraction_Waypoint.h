@@ -69,6 +69,9 @@ private:
 	// 호스트 Travel UI 열기
 	bool OpenWaypointTravelUI();
 
+	// 기본 아이템 충전	
+	void GiveStartUpItems() const; 
+	
 	// FadeOut 완료 후 모든 플레이어 Waypoint 효과 적용
 	void ApplyWaypointGameplayEffectToAllPlayers() const;
 

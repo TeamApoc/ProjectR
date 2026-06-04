@@ -161,6 +161,7 @@ namespace PRGameplayTags
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Event_Ability_Waypoint_End); // 크리스탈 상호작용 취소
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Event_Ability_GroggyEntered); // 그로기 진입 이벤트.
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Event_Ability_PhaseTransition); // 페이즈 전환 이벤트.
+	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Event_Ability_Reload); // 재장전 시작 이벤트
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Event_Ability_PlayerHitReact_Weak); // 플레이어 약한 경직 이벤트
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Event_Ability_PlayerHitReact_Strong); // 플레이어 강한 경직 이벤트
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Event_Ability_PlayerHitReact_Down); // 플레이어 다운 이벤트

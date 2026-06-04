@@ -82,6 +82,10 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "ProjectR|Save")
 	bool SaveLocalCharacterSlot(int32 SlotIndex);
 
+	// 1~4번 로컬 캐릭터 슬롯 파일 삭제
+	UFUNCTION(BlueprintCallable, Category = "ProjectR|Save")
+	bool DeleteLocalCharacterSaveSlot(int32 SlotIndex);
+
 	// 현재 활성 로컬 캐릭터 슬롯 저장
 	UFUNCTION(BlueprintCallable, Category = "ProjectR|Save")
 	bool SaveActiveLocalCharacterSlot();

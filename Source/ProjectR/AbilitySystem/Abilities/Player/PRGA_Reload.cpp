@@ -19,6 +19,11 @@ UPRGA_Reload::UPRGA_Reload()
 	SetAssetTags(DefaultAbilityTags);
 	InputTag = PRGameplayTags::Input_Ability_Reload;
 
+	FAbilityTriggerData TriggerData;
+	TriggerData.TriggerSource = EGameplayAbilityTriggerSource::GameplayEvent;
+	TriggerData.TriggerTag = PRGameplayTags::Event_Ability_Reload;
+	AbilityTriggers.Add(TriggerData);
+
 	ReplicationPolicy = EGameplayAbilityReplicationPolicy::ReplicateYes;
 	InstancingPolicy = EGameplayAbilityInstancingPolicy::InstancedPerActor;
 	NetExecutionPolicy = EGameplayAbilityNetExecutionPolicy::LocalPredicted;

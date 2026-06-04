@@ -627,17 +627,17 @@ void APRGroundBoxProjectileBase::SnapToGround(float DeltaSeconds, bool bInstant)
 	}
 
 	const float TargetZ = GroundHit.ImpactPoint.Z;
-	float NewZ = TargetZ;
-	if (!bInstant && GroundSnapInterpSpeed > 0.0f)
-	{
-		// 지면 높이 보간 추적
-		NewZ = FMath::FInterpTo(CurrentLocation.Z, TargetZ - CorrectionZLocation, DeltaSeconds, GroundSnapInterpSpeed);
-		if (FMath::Abs(NewZ - TargetZ) <= GroundSnapTolerance)
-		{
-			// 미세 떨림 방지
-			NewZ = TargetZ;
-		}
-	}
+	float NewZ = TargetZ - CorrectionZLocation;
+	// if (!bInstant && GroundSnapInterpSpeed > 0.0f)
+	// {
+	// 	// 지면 높이 보간 추적
+	// 	NewZ = FMath::FInterpTo(CurrentLocation.Z, TargetZ - CorrectionZLocation, DeltaSeconds, GroundSnapInterpSpeed);
+	// 	if (FMath::Abs(NewZ - TargetZ) <= GroundSnapTolerance)
+	// 	{
+	// 		// 미세 떨림 방지
+	// 		NewZ = TargetZ;
+	// 	}
+	// }
 
 	// 수평 이동은 유지하고 높이만 지면에 보정
 	const FVector SnappedLocation(CurrentLocation.X, CurrentLocation.Y, NewZ);

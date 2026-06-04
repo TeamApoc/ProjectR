@@ -915,9 +915,9 @@ void UPRWeaponManagerComponent::ApplyCurrentWeaponGE(UObject* SourceObject)
 
 	const UPRItemInstance_Weapon* CurrentWeapon = GetWeaponInstanceBySlotType(CurrentWeaponSlot);
 	SpecHandle.Data->SetSetByCallerMagnitude(PRCombatGameplayTags::SetByCaller_CurrentWeapon_BaseDamage, UPRWeaponStatStatics::CalculateWeaponItemBaseDamage(CurrentWeapon));
-	SpecHandle.Data->SetSetByCallerMagnitude(PRCombatGameplayTags::SetByCaller_CurrentWeapon_ArmorPenetration, FMath::Max(CurrentWeaponData->ArmorPenetration, 0.0f));
-	SpecHandle.Data->SetSetByCallerMagnitude(PRCombatGameplayTags::SetByCaller_CurrentWeapon_WeakpointMultiplier, FMath::Max(CurrentWeaponData->WeakpointMultiplier, 0.0f));
-	SpecHandle.Data->SetSetByCallerMagnitude(PRCombatGameplayTags::SetByCaller_CurrentWeapon_GroggyDamageMultiplier, FMath::Max(CurrentWeaponData->GroggyDamageMultiplier, 0.0f));
+	SpecHandle.Data->SetSetByCallerMagnitude(PRCombatGameplayTags::SetByCaller_CurrentWeapon_ArmorPenetration, FMath::Max(CurrentWeaponData->AdditiveArmorPenetration, 0.0f));
+	SpecHandle.Data->SetSetByCallerMagnitude(PRCombatGameplayTags::SetByCaller_CurrentWeapon_WeakpointMultiplier, FMath::Max(CurrentWeaponData->AdditiveWeakpointMultiplier, 0.0f));
+	SpecHandle.Data->SetSetByCallerMagnitude(PRCombatGameplayTags::SetByCaller_CurrentWeapon_GroggyDamageMultiplier, FMath::Max(CurrentWeaponData->AdditiveGroggyDamageMultiplier, 0.0f));
 
 	CurrentWeaponEffectHandle = CachedASC->ApplyGameplayEffectSpecToSelf(*SpecHandle.Data);
 }

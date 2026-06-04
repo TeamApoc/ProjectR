@@ -93,13 +93,13 @@ protected:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|ItemSpawner")
 	TArray<TObjectPtr<UPRAmmoDataAsset>> SpawnableAmmoItems;
 
-	// 탄약 보상 최소 수량
+	// 탄약 보상 최소 백분율 (MaxMagazineAmmo 기준. 90 = 탄창의 90%)
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|ItemSpawner", meta = (ClampMin = "1"))
-	int32 MinQuantity = 10;
+	int32 MinQuantity = 90;
 
-	// 탄약 보상 최대 수량
+	// 탄약 보상 최대 백분율 (MaxMagazineAmmo 기준. 90 = 탄창의 90%)
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|ItemSpawner", meta = (ClampMin = "1"))
-	int32 MaxQuantity = 30;
+	int32 MaxQuantity = 90;
 
 	// 픽업 Claim 시 보상 분배 규칙
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|ItemSpawner")

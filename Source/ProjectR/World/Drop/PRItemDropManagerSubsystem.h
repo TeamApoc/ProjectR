@@ -11,6 +11,16 @@ class APRPlayerState;
 class APRRewardPickupActor;
 class UPRItemDataAsset;
 
+// 탄약 지급 결과. 백분율 해석 후 실제 계산된 목표량과 지급량을 담는다
+struct FPRAmmoGrantResult
+{
+	// MaxMagazineAmmo 기반으로 환산된 실제 획득 목표량
+	int32 DesiredQuantity = 0;
+
+	// 예비탄 한도 클램프 후 실제 지급된 수량
+	int32 GrantedQuantity = 0;
+};
+
 // 아이템과 재화 드롭의 확정, 지급, 픽업 Claim을 서버 권위로 처리한다
 UCLASS()
 class PROJECTR_API UPRItemDropManagerSubsystem : public UWorldSubsystem
@@ -56,7 +66,7 @@ protected:
 	bool GrantAmmoRewardToPlayer(APRPlayerState* PlayerState, const FPRResolvedDropReward& Reward) const;
 
 	// 플레이어 ASC의 예비탄에 실제로 적립된 탄약 수량을 반환한다
-	int32 GrantAmmoRewardAmountToPlayer(APRPlayerState* PlayerState, const FPRResolvedDropReward& Reward) const;
+	FPRAmmoGrantResult GrantAmmoRewardAmountToPlayer(APRPlayerState* PlayerState, const FPRResolvedDropReward& Reward) const;
 
 	// 지급에 성공한 드롭 보상 알림을 대상 클라이언트로 전달
 	void NotifyPickupRewardGranted(APRPlayerState* PlayerState, const FPRResolvedDropReward& Reward) const;

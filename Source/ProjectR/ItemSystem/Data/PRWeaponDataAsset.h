@@ -67,13 +67,13 @@ public:
 	float BaseDamage = 10.f;
 	
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Item|Weapon|Stat", meta = (ClampMin = "0.0"))
-	float ArmorPenetration = 10.f;
+	float AdditiveArmorPenetration = 10.f;
 	
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Item|Weapon|Stat", meta = (ClampMin = "0.0"))
-	float GroggyDamageMultiplier = 0.f;
+	float AdditiveGroggyDamageMultiplier = 0.f;
 	
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Item|Weapon|Stat", meta = (ClampMin = "0.0"))
-	float WeakpointMultiplier = 0.2f;
+	float AdditiveWeakpointMultiplier = 0.2f;
 	
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Item|Weapon|Ammo", meta = (ClampMin = "0.0"))
 	float MaxMagazineAmmo = 30.f;

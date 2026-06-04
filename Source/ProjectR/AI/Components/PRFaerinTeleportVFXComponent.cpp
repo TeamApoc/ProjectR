@@ -6,6 +6,7 @@
 #include "AbilitySystemComponent.h"
 #include "Animation/AnimInstance.h"
 #include "Animation/AnimMontage.h"
+#include "Components/MeshComponent.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "DrawDebugHelpers.h"
 #include "Engine/OverlapResult.h"
@@ -1138,31 +1139,40 @@ void UPRFaerinTeleportVFXComponent::PrepareDissolveMaterialsLocal()
 		return;
 	}
 
-	APREnemyBaseCharacter* OwnerEnemy = GetOwnerEnemy();
-	USkeletalMeshComponent* MeshComponent = IsValid(OwnerEnemy) ? OwnerEnemy->GetMesh() : nullptr;
-	if (!IsValid(MeshComponent))
+	AActor* OwnerActor = GetOwner();
+	if (!IsValid(OwnerActor))
 	{
 		return;
 	}
 
-	const int32 MaterialCount = MeshComponent->GetNumMaterials();
-	for (int32 MaterialIndex = 0; MaterialIndex < MaterialCount; ++MaterialIndex)
+	TArray<UMeshComponent*> MeshComponents;
+	OwnerActor->GetComponents<UMeshComponent>(MeshComponents);
+	for (UMeshComponent* MeshComponent : MeshComponents)
 	{
-		UMaterialInterface* CurrentMaterial = MeshComponent->GetMaterial(MaterialIndex);
-		if (!IsValid(CurrentMaterial))
+		if (!IsValid(MeshComponent))
 		{
 			continue;
 		}
 
-		UMaterialInstanceDynamic* DynamicMaterial = Cast<UMaterialInstanceDynamic>(CurrentMaterial);
-		if (!IsValid(DynamicMaterial))
+		const int32 MaterialCount = MeshComponent->GetNumMaterials();
+		for (int32 MaterialIndex = 0; MaterialIndex < MaterialCount; ++MaterialIndex)
 		{
-			DynamicMaterial = MeshComponent->CreateDynamicMaterialInstance(MaterialIndex, CurrentMaterial);
-		}
+			UMaterialInterface* CurrentMaterial = MeshComponent->GetMaterial(MaterialIndex);
+			if (!IsValid(CurrentMaterial))
+			{
+				continue;
+			}
 
-		if (IsValid(DynamicMaterial))
-		{
-			LocalDissolveDynamicMaterials.Add(DynamicMaterial);
+			UMaterialInstanceDynamic* DynamicMaterial = Cast<UMaterialInstanceDynamic>(CurrentMaterial);
+			if (!IsValid(DynamicMaterial))
+			{
+				DynamicMaterial = MeshComponent->CreateDynamicMaterialInstance(MaterialIndex, CurrentMaterial);
+			}
+
+			if (IsValid(DynamicMaterial))
+			{
+				LocalDissolveDynamicMaterials.AddUnique(DynamicMaterial);
+			}
 		}
 	}
 }

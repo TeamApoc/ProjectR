@@ -23,7 +23,7 @@ void UPRBossHealthBarWidget::NativeConstruct()
 {
 	Super::NativeConstruct();
 	ApplyDisplayedPercentsToFill();
-	SetBossHealthVisible(false);
+	SetBossHealthVisible(CachedBoss.IsValid());
 }
 
 void UPRBossHealthBarWidget::NativeDestruct()

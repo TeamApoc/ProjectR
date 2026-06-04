@@ -8,12 +8,11 @@
 #include "ProjectR/ItemSystem/Data/PRConsumableDataAsset.h"
 #include "ProjectR/ItemSystem/Data/PRItemDataAsset.h"
 #include "ProjectR/ItemSystem/Data/PRMaterialDataAsset.h"
-#include "ProjectR/ItemSystem/Items/PRItemInstance_Consumable.h"
+#include "ProjectR/ItemSystem/Items/PRItemInstance.h"
 #include "ProjectR/ItemSystem/Items/PRItemInstance_Material.h"
 #include "ProjectR/Player/PRPlayerController.h"
 #include "ProjectR/Player/PRPlayerState.h"
 #include "ProjectR/Shop/Components/PRShopComponent.h"
-#include "ProjectR/Shop/Data/PRShopDataAsset.h"
 #include "ProjectR/System/PRAssetManager.h"
 #include "ProjectR/UI/Components/PRUIControllerComponent.h"
 #include "ProjectR/UI/Inventory/PRCurrencyDisplayWidget.h"
@@ -247,8 +246,7 @@ void UPRShopWidget::RefreshHeader()
 {
 	if (IsValid(ShopNameText))
 	{
-		UPRShopDataAsset* ShopData = IsValid(ShopComponent) ? ShopComponent->GetShopData() : nullptr;
-		ShopNameText->SetText(IsValid(ShopData) ? ShopData->DisplayName : FText::GetEmpty());
+		ShopNameText->SetText(IsValid(ShopComponent) ? ShopComponent->GetShopDisplayName() : FText::GetEmpty());
 	}
 
 	if (IsValid(OwnedScrapText))
@@ -320,13 +318,12 @@ void UPRShopWidget::SyncSelectedItemFromList(const TArray<FPRShopItemSlotViewDat
 TArray<FPRShopItemSlotViewData> UPRShopWidget::BuildBuyListItems() const
 {
 	TArray<FPRShopItemSlotViewData> ListItems;
-	UPRShopDataAsset* ShopData = IsValid(ShopComponent) ? ShopComponent->GetShopData() : nullptr;
-	if (!IsValid(ShopData))
+	if (!IsValid(ShopComponent))
 	{
 		return ListItems;
 	}
 
-	for (const FPRShopEntry& Entry : ShopData->Entries)
+	for (const FPRShopEntry& Entry : ShopComponent->GetShopEntries())
 	{
 		if (!Entry.bCanShopSellToPlayer)
 		{
@@ -346,13 +343,12 @@ TArray<FPRShopItemSlotViewData> UPRShopWidget::BuildBuyListItems() const
 TArray<FPRShopItemSlotViewData> UPRShopWidget::BuildSellListItems() const
 {
 	TArray<FPRShopItemSlotViewData> ListItems;
-	UPRShopDataAsset* ShopData = IsValid(ShopComponent) ? ShopComponent->GetShopData() : nullptr;
-	if (!IsValid(ShopData) || !IsValid(InventoryComponent))
+	if (!IsValid(ShopComponent) || !IsValid(InventoryComponent))
 	{
 		return ListItems;
 	}
 
-	for (const FPRShopEntry& Entry : ShopData->Entries)
+	for (const FPRShopEntry& Entry : ShopComponent->GetShopEntries())
 	{
 		if (!Entry.bCanPlayerSellToShop)
 		{
@@ -479,19 +475,8 @@ int32 UPRShopWidget::GetOwnedStackCount(const UPRItemDataAsset* ItemData) const
 		return 0;
 	}
 
-	if (const UPRConsumableDataAsset* ConsumableData = Cast<UPRConsumableDataAsset>(ItemData))
-	{
-		const UPRItemInstance_Consumable* ConsumableItem = InventoryComponent->FindItemByData<UPRItemInstance_Consumable>(ConsumableData);
-		return IsValid(ConsumableItem) ? ConsumableItem->GetStackCount() : 0;
-	}
-
-	if (const UPRMaterialDataAsset* MaterialData = Cast<UPRMaterialDataAsset>(ItemData))
-	{
-		const UPRItemInstance_Material* MaterialItem = InventoryComponent->FindItemByData<UPRItemInstance_Material>(MaterialData);
-		return IsValid(MaterialItem) ? MaterialItem->GetStackCount() : 0;
-	}
-
-	return 0;
+	const UPRItemInstance* Item = InventoryComponent->FindItemByData(ItemData);
+	return IsValid(Item) ? Item->GetStackCount() : 0;
 }
 
 bool UPRShopWidget::HasEnoughSelectedMaterialCosts() const
@@ -621,6 +606,7 @@ void UPRShopWidget::HandleShopBuyResult(const FPRShopBuyResult& Result)
 
 	RefreshItemList();
 	RefreshHeader();
+	RefreshSelectedItemDetails();
 	RefreshTransactionButtons();
 }
 
@@ -633,5 +619,6 @@ void UPRShopWidget::HandleShopSellResult(const FPRShopSellResult& Result)
 
 	RefreshItemList();
 	RefreshHeader();
+	RefreshSelectedItemDetails();
 	RefreshTransactionButtons();
 }

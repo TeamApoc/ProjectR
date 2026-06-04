@@ -510,27 +510,10 @@ bool UPRShopComponent::CanGrantItem(UPRInventoryComponent* InventoryComponent, U
 	{
 		return false;
 	}
-
-	if (UPRConsumableDataAsset* ConsumableData = Cast<UPRConsumableDataAsset>(ItemData))
-	{
-		const UPRItemInstance_Consumable* ConsumableItem = InventoryComponent->FindItemByData<UPRItemInstance_Consumable>(ConsumableData);
-		const int32 CurrentStackCount = IsValid(ConsumableItem) ? ConsumableItem->GetStackCount() : 0;
-		return CurrentStackCount + TotalItemQuantity <= ConsumableData->MaxStackCount;
-	}
-
-	if (UPRMaterialDataAsset* MaterialData = Cast<UPRMaterialDataAsset>(ItemData))
-	{
-		const UPRItemInstance_Material* MaterialItem = InventoryComponent->FindItemByData<UPRItemInstance_Material>(MaterialData);
-		const int32 CurrentStackCount = IsValid(MaterialItem) ? MaterialItem->GetStackCount() : 0;
-		return CurrentStackCount + TotalItemQuantity <= MaterialData->MaxStackCount;
-	}
-
-	if (Cast<UPRWeaponModDataAsset>(ItemData))
-	{
-		return TotalItemQuantity == 1;
-	}
-
-	return false;
+	
+	const UPRItemInstance* Item = InventoryComponent->FindItemByData(ItemData);
+	const int32 CurrentStackCount = IsValid(Item) ? Item->GetStackCount() : 0;
+	return CurrentStackCount + TotalItemQuantity <= ItemData->MaxStackCount;
 }
 
 bool UPRShopComponent::ResolveBuyMaterialCosts(const FPRShopEntry& Entry, int32 TransactionQuantity, TMap<UPRMaterialDataAsset*, int32>& OutMaterialCosts) const

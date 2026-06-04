@@ -115,31 +115,31 @@ struct FPRResolvedDropReward
 	GENERATED_BODY()
 
 	// 확정된 보상의 종류
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly)
+	UPROPERTY(EditAnywhere, BlueprintReadOnly)
 	EPRRewardType RewardType = EPRRewardType::None;
 
 	// 확정된 보상의 분배 규칙
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly)
+	UPROPERTY(EditAnywhere, BlueprintReadOnly)
 	EPRRewardDistributionRule DistributionRule = EPRRewardDistributionRule::Personal;
 
 	// 확정된 아이템 또는 탄약 데이터
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly)
+	UPROPERTY(EditAnywhere, BlueprintReadOnly)
 	TObjectPtr<UPRItemDataAsset> ItemData = nullptr;
 
 	// 확정된 아이템 또는 탄약 Primary Asset Id
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly)
+	UPROPERTY(EditAnywhere, BlueprintReadOnly)
 	FPrimaryAssetId ItemAssetId;
 
 	// 확정된 아이템 또는 탄약 수량
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly)
+	UPROPERTY(EditAnywhere, BlueprintReadOnly)
 	int32 Quantity = 0;
 
 	// 확정된 고철 수량
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly)
+	UPROPERTY(EditAnywhere, BlueprintReadOnly)
 	int32 ScrapAmount = 0;
 
 	// 월드 픽업 생성 여부 (true 면 플레이어가 e키를 통한 획득, false면 인벤토리에 직접 추가)
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly)
+	UPROPERTY(EditAnywhere, BlueprintReadOnly)
 	bool bSpawnPickup = true;
 };
 

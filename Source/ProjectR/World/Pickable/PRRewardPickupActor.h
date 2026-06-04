@@ -158,7 +158,7 @@ protected:
 	float DropVerticalSpeed = 80.0f;
 
 	// Manager가 확정한 보상 페이로드
-	UPROPERTY(ReplicatedUsing = OnRep_Reward, VisibleInstanceOnly, BlueprintReadOnly, Category = "Reward")
+	UPROPERTY(ReplicatedUsing = OnRep_Reward, EditAnywhere, BlueprintReadOnly, Category = "Reward")
 	FPRResolvedDropReward Reward;
 
 	// 중복 Claim 방어 상태

@@ -119,6 +119,24 @@ void UPRFaerinCharacterEventRouterComponent::RouteFaerinCharacterEvent(FName Eve
 
 	UPRFaerinWeaponVisualComponent* ResolvedWeaponVisualComponent = ResolveWeaponVisualComponent();
 
+	if (bLogRoutedEvents)
+	{
+		UE_LOG(LogPRFaerinEventRouter, Verbose,
+			TEXT("Faerin character event routed. Owner=%s, Event=%s, WeaponVisual=%s"),
+			*GetNameSafe(GetOwner()),
+			*EventName.ToString(),
+			*GetNameSafe(ResolvedWeaponVisualComponent));
+	}
+
+	if ((EventName == ShowSwordEventName || EventName == ShowShardsEventName)
+		&& !IsValid(ResolvedWeaponVisualComponent))
+	{
+		UE_LOG(LogPRFaerinEventRouter, Warning,
+			TEXT("Faerin weapon visual event ignored because weapon visual component is missing. Owner=%s, Event=%s"),
+			*GetNameSafe(GetOwner()),
+			*EventName.ToString());
+	}
+
 	if (EventName == ShowSwordEventName && IsValid(ResolvedWeaponVisualComponent))
 	{
 		ResolvedWeaponVisualComponent->ShowSword();

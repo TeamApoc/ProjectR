@@ -47,8 +47,10 @@ public:
 	/*~ IAbilitySystemInterface ~*/
 	virtual UAbilitySystemComponent* GetAbilitySystemComponent() const override;
 
-	
 public:
+	// 초기 아이템 지급
+	void GiveStartUpItems();
+	
 	// 프로젝트 ASC 타입으로 반환
 	UPRAbilitySystemComponent* GetPRAbilitySystemComponent() const { return AbilitySystemComponent; }
 

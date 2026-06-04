@@ -30,6 +30,7 @@ void UPRStartMenuWidget::NativeConstruct()
 	CacheWidgetLists();
 	BindSaveSlotButtonEvents();
 	BindStartButtonEvents();
+	BindDeleteSaveSlotButtonEvents();
 	// 세션 델리게이트 초기 상태 반영 전 입력 기본값 선적용
 	ConfigureSessionInputDefaults();
 	BindSessionEvents();
@@ -40,6 +41,7 @@ void UPRStartMenuWidget::NativeConstruct()
 void UPRStartMenuWidget::NativeDestruct()
 {
 	UnbindSessionEvents();
+	UnbindDeleteSaveSlotButtonEvents();
 	UnbindStartButtonEvents();
 	UnbindSaveSlotButtonEvents();
 
@@ -156,6 +158,24 @@ void UPRStartMenuWidget::UnbindStartButtonEvents()
 	}
 }
 
+void UPRStartMenuWidget::BindDeleteSaveSlotButtonEvents()
+{
+	UnbindDeleteSaveSlotButtonEvents();
+
+	if (IsValid(DeleteSaveSlotButton))
+	{
+		DeleteSaveSlotButton->OnClicked.AddDynamic(this, &ThisClass::HandleDeleteSaveSlotButtonClicked);
+	}
+}
+
+void UPRStartMenuWidget::UnbindDeleteSaveSlotButtonEvents()
+{
+	if (IsValid(DeleteSaveSlotButton))
+	{
+		DeleteSaveSlotButton->OnClicked.RemoveDynamic(this, &ThisClass::HandleDeleteSaveSlotButtonClicked);
+	}
+}
+
 void UPRStartMenuWidget::BindSessionEvents()
 {
 	UnbindSessionEvents();
@@ -208,6 +228,7 @@ void UPRStartMenuWidget::ConfigureSessionInputDefaults()
 	}
 
 	RefreshStartButtonEnabled(true);
+	RefreshDeleteSaveSlotButtonEnabled();
 	RefreshSessionStatusText(FText::GetEmpty());
 }
 
@@ -229,6 +250,8 @@ void UPRStartMenuWidget::RefreshSaveSlotButtons()
 			SaveSlotTexts[SlotArrayIndex]->SetText(BuildSaveSlotDisplayText(ViewData));
 		}
 	}
+
+	RefreshDeleteSaveSlotButtonEnabled();
 }
 
 void UPRStartMenuWidget::RefreshStartButtonEnabled(bool bEnabled)
@@ -236,6 +259,14 @@ void UPRStartMenuWidget::RefreshStartButtonEnabled(bool bEnabled)
 	if (IsValid(StartButton))
 	{
 		StartButton->SetIsEnabled(bEnabled);
+	}
+}
+
+void UPRStartMenuWidget::RefreshDeleteSaveSlotButtonEnabled()
+{
+	if (IsValid(DeleteSaveSlotButton))
+	{
+		DeleteSaveSlotButton->SetIsEnabled(SelectedSaveSlotIndex != INDEX_NONE);
 	}
 }
 
@@ -294,6 +325,10 @@ void UPRStartMenuWidget::SelectFirstAvailableSaveSlot()
 			}
 		}
 	}
+
+	SelectedSaveSlotIndex = INDEX_NONE;
+	RefreshSaveSlotButtons();
+	RefreshSelectedSavePreview(FPRCharacterSaveData());
 }
 
 void UPRStartMenuWidget::SelectSaveSlot(int32 SlotIndex)
@@ -434,6 +469,25 @@ UPRGameInstance* UPRStartMenuWidget::GetProjectRGameInstance() const
 	return Cast<UPRGameInstance>(GetGameInstance());
 }
 
+bool UPRStartMenuWidget::HasAnyLocalCharacterSave() const
+{
+	const UPRGameInstance* GameInstance = GetProjectRGameInstance();
+	if (!IsValid(GameInstance))
+	{
+		return false;
+	}
+
+	for (int32 SlotIndex = 1; SlotIndex <= 4; ++SlotIndex)
+	{
+		if (GameInstance->DoesLocalCharacterSaveExist(SlotIndex))
+		{
+			return true;
+		}
+	}
+
+	return false;
+}
+
 void UPRStartMenuWidget::HandleStartButtonClicked()
 {
 	UPRGameInstance* GameInstance = GetProjectRGameInstance();
@@ -480,6 +534,34 @@ void UPRStartMenuWidget::HandleStartButtonClicked()
 
 	RefreshSessionStatusText(FText::FromString(TEXT("세션 참가 중")));
 	GameInstance->JoinSession(JoinParams);
+}
+
+void UPRStartMenuWidget::HandleDeleteSaveSlotButtonClicked()
+{
+	UPRGameInstance* GameInstance = GetProjectRGameInstance();
+	if (!IsValid(GameInstance) || SelectedSaveSlotIndex == INDEX_NONE)
+	{
+		RefreshSessionStatusText(FText::FromString(TEXT("삭제할 세이브 없음")));
+		return;
+	}
+
+	const int32 SlotIndexToDelete = SelectedSaveSlotIndex;
+	if (!GameInstance->DeleteLocalCharacterSaveSlot(SlotIndexToDelete))
+	{
+		RefreshSessionStatusText(FText::FromString(TEXT("세이브 삭제 실패")));
+		return;
+	}
+
+	SelectedSaveSlotIndex = INDEX_NONE;
+	if (!HasAnyLocalCharacterSave())
+	{
+		// 마지막 저장 파일 삭제 이후 메뉴 시작 흐름 유지를 위한 기본 슬롯 보장
+		GameInstance->EnsureInitialLocalCharacterSave();
+	}
+
+	RefreshSaveSlotButtons();
+	SelectFirstAvailableSaveSlot();
+	RefreshSessionStatusText(FText::FromString(TEXT("세이브 삭제 완료")));
 }
 
 void UPRStartMenuWidget::HandleSessionStateChanged(EPRSessionState NewState)

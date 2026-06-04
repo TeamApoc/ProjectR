@@ -58,6 +58,9 @@ protected:
 	// 현재 보스 위치 기준 EQS 결과로 재등장 위치와 회전을 계산한다.
 	bool ResolveReappearTransform(FVector& OutLocation, FRotator& OutRotation) const;
 
+	// NavMesh/EQS 후보를 실제 보스 캡슐이 들어갈 수 있는 최종 텔레포트 위치로 확정한다.
+	bool FinalizeReappearTeleportSpot(AActor& AvatarActor, bool bTreatLocationAsFloorPoint, FVector& InOutLocation, FRotator& InOutRotation) const;
+
 	// TargetBack 방식으로 타겟의 등 뒤 재등장 위치를 계산한다.
 	bool ResolveTargetBackReappearLocation(FVector& OutLocation) const;
 

@@ -759,16 +759,17 @@ void APRProjectileBase::ApplyEffectToTargetWithHit(AActor* TargetActor, const FH
 		return;
 	}
 	
-	IAbilitySystemInterface* ASI = Cast<IAbilitySystemInterface>(TargetActor);
-	if (ASI)
+	IAbilitySystemInterface* InitialASI = Cast<IAbilitySystemInterface>(TargetActor);
+	if (InitialASI)
 	{
-		UAbilitySystemComponent* TargetASC = ASI->GetAbilitySystemComponent();
+		UAbilitySystemComponent* TargetASC = InitialASI->GetAbilitySystemComponent();
 		FGameplayEffectSpec* EffectSpec = EffectSpecHandle.Data.Get();
 		if (TargetASC && EffectSpec)
 		{
 			EffectSpec->GetContext().AddHitResult(InHitResult,true);
 			TargetASC->ApplyGameplayEffectSpecToSelf(*EffectSpec);	
 		}
+		return;
 	}
 	
 	// 2026.05.31 이건주_ ASC 미보유 대상 대미지 적용 브릿지
@@ -777,6 +778,11 @@ void APRProjectileBase::ApplyEffectToTargetWithHit(AActor* TargetActor, const FH
 	{
 		// Instigator, DamageAmount만 전달
 		FGameplayEffectSpec* EffectSpec = EffectSpecHandle.Data.Get();
+		if (EffectSpec == nullptr)
+		{
+			return;
+		}
+
 		const FGameplayEffectContextHandle& EffectContext = EffectSpec->GetEffectContext();
 	
 		const float BaseDamage = EffectSpec->GetSetByCallerMagnitude(
@@ -788,8 +794,11 @@ void APRProjectileBase::ApplyEffectToTargetWithHit(AActor* TargetActor, const FH
 		FPRDestructableDamageReceiveContext DestructableDamageContext;
 		DestructableDamageContext.Instigator = EffectContext.GetInstigator();
 		DestructableDamageContext.DamageAmount = BaseDamage;
+		DestructableDamageContext.HitResult = InHitResult;
 
 		DestructableTarget->ReceiveDamageContext(DestructableDamageContext);
+		return;
+	}
 
 	FGameplayEffectSpec* EffectSpec = EffectSpecHandle.Data.Get();
 	if (EffectSpec == nullptr)

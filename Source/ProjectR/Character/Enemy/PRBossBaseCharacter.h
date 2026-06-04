@@ -79,6 +79,10 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "ProjectR|AI|Boss")
 	void CancelAllBossPatternActors();
 
+	// Phase 전환 중에도 유지해야 하는 지속형 패턴 Actor를 제외하고 취소한다.
+	UFUNCTION(BlueprintCallable, Category = "ProjectR|AI|Boss")
+	void CancelBossPatternActorsForPhaseTransition();
+
 	// 보스 HUD에 표시할 이름을 반환한다.
 	UFUNCTION(BlueprintPure, Category = "ProjectR|AI|Boss")
 	FText GetBossDisplayName() const;
@@ -103,8 +107,12 @@ protected:
 	UPROPERTY(ReplicatedUsing = OnRep_CurrentPhase, VisibleInstanceOnly, Category = "ProjectR|AI|Boss")
 	EPRBossPhase CurrentPhase = EPRBossPhase::Phase1;
 
+	// 페이즈 전환 시 PhaseAbilitySets를 grant/remove할지 여부다. 끄면 패턴 페이즈 제어는 PatternData가 전담한다.
+	UPROPERTY(EditDefaultsOnly, Category = "ProjectR|AI|Boss|Ability")
+	bool bUsePhaseAbilitySets = true;
+
 	// 페이즈마다 추가로 부여할 AbilitySet이다.
-	UPROPERTY(EditDefaultsOnly, Category = "ProjectR|AI|Boss")
+	UPROPERTY(EditDefaultsOnly, Category = "ProjectR|AI|Boss|Ability", meta = (EditCondition = "bUsePhaseAbilitySets"))
 	TMap<EPRBossPhase, TObjectPtr<UPRAbilitySet>> PhaseAbilitySets;
 
 	// 체력 비율이 이 값 이하가 되면 해당 페이즈 전환 후보가 된다.

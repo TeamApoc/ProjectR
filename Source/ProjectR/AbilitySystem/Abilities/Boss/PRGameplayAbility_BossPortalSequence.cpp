@@ -25,13 +25,24 @@ void UPRGameplayAbility_BossPortalSequence::ActivateAbility(const FGameplayAbili
 		return;
 	}
 
+	BeginBossPatternAttackCommit();
+
 	SpawnedPatternActors.Reset();
 	SpawnedPortalRefs.Reset();
 	bPortalActorsSpawned = false;
 
 	if (SpawnTimingMode == EPRBossPortalSpawnTimingMode::ImmediateOnActivate)
 	{
-		SpawnConfiguredPortals();
+		if (!SpawnConfiguredPortals())
+		{
+			UE_LOG(LogPRBossPortalSequence, Warning,
+				TEXT("BossPortalSequence failed to spawn portals on activate. Ability=%s, ConfigCount=%d"),
+				*GetNameSafe(this),
+				PatternActorSpawnConfigs.Num());
+			EndAbility(Handle, ActorInfo, ActivationInfo, true, true);
+			return;
+		}
+
 		StartPortalSequenceFinishTimer();
 		return;
 	}
@@ -95,6 +106,7 @@ void UPRGameplayAbility_BossPortalSequence::EndAbility(const FGameplayAbilitySpe
 		ExpireSpawnedPortals();
 	}
 
+	EndBossPatternAttackCommit();
 	Super::EndAbility(Handle, ActorInfo, ActivationInfo, bReplicateEndAbility, bWasCancelled);
 }
 
@@ -104,6 +116,8 @@ bool UPRGameplayAbility_BossPortalSequence::SpawnConfiguredPortals()
 	{
 		return false;
 	}
+
+	ResetSharedEnvQueryResultCache();
 
 	AActor* PatternTarget = GetBossPatternTarget();
 	for (const FPRBossPatternActorSpawnConfig& SpawnConfig : PatternActorSpawnConfigs)
@@ -143,7 +157,7 @@ bool UPRGameplayAbility_BossPortalSequence::SpawnConfiguredPortals()
 	bPortalActorsSpawned = true;
 	StartSpawnedPortals();
 	BP_OnPatternActorsSpawned(SpawnedActorsForEvent);
-	return SpawnedActorsForEvent.Num() > 0;
+	return SpawnedPortalRefs.Num() > 0;
 }
 
 void UPRGameplayAbility_BossPortalSequence::StartSpawnedPortals()
@@ -259,7 +273,16 @@ void UPRGameplayAbility_BossPortalSequence::HandleFaerinCharacterEvent(FName Eve
 		return;
 	}
 
-	SpawnConfiguredPortals();
+	if (!SpawnConfiguredPortals())
+	{
+		UE_LOG(LogPRBossPortalSequence, Warning,
+			TEXT("BossPortalSequence received spawn event but failed to spawn portals. Ability=%s, Event=%s, ConfigCount=%d"),
+			*GetNameSafe(this),
+			*EventName.ToString(),
+			PatternActorSpawnConfigs.Num());
+		EndAbility(CurrentSpecHandle, CurrentActorInfo, CurrentActivationInfo, true, true);
+		return;
+	}
 
 	if (bEndAbilityAfterEventSpawn)
 	{

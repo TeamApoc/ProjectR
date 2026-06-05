@@ -24,15 +24,15 @@ namespace
 		switch (BossPhase)
 		{
 		case EPRBossPhase::Phase1:
-			return EPRBGMState::BossPhaseA;
+			return EPRBGMState::BossPhase1;
 		case EPRBossPhase::Phase2:
-			return EPRBGMState::BossPhaseB;
+			return EPRBGMState::BossPhase2;
 		case EPRBossPhase::Phase3:
-			return EPRBGMState::BossPhaseC;
+			return EPRBGMState::BossPhase3;
 		case EPRBossPhase::Phase4:
-			return EPRBGMState::BossPhaseD;
+			return EPRBGMState::BossPhase4;
 		default:
-			return EPRBGMState::BossPhaseA;
+			return EPRBGMState::BossPhase1;
 		}
 	}
 }
@@ -548,8 +548,8 @@ void UPRBGMSubsystem::HandleBossPhaseChangedEvent(FGameplayTag EventTag, const F
 
 bool UPRBGMSubsystem::IsBossPhaseState(EPRBGMState State) const
 {
-	return State == EPRBGMState::BossPhaseA
-		|| State == EPRBGMState::BossPhaseB
-		|| State == EPRBGMState::BossPhaseC
-		|| State == EPRBGMState::BossPhaseD;
+	return State == EPRBGMState::BossPhase1
+		|| State == EPRBGMState::BossPhase2
+		|| State == EPRBGMState::BossPhase3
+		|| State == EPRBGMState::BossPhase4;
 }

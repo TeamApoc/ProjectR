@@ -34,17 +34,17 @@ bool UPRBGMRegistryDataAsset::TryGetTrackForState(const FPRLevelBGMEntry& Entry,
 	case EPRBGMState::Combat:
 		OutTrack = Entry.CombatTrack;
 		return true;
-	case EPRBGMState::BossPhaseA:
-		OutTrack = Entry.BossPhaseATrack;
+	case EPRBGMState::BossPhase1:
+		OutTrack = Entry.BossPhase1Track;
 		return true;
-	case EPRBGMState::BossPhaseB:
-		OutTrack = Entry.BossPhaseBTrack;
+	case EPRBGMState::BossPhase2:
+		OutTrack = Entry.BossPhase2Track;
 		return true;
-	case EPRBGMState::BossPhaseC:
-		OutTrack = Entry.BossPhaseCTrack;
+	case EPRBGMState::BossPhase3:
+		OutTrack = Entry.BossPhase3Track;
 		return true;
-	case EPRBGMState::BossPhaseD:
-		OutTrack = Entry.BossPhaseDTrack;
+	case EPRBGMState::BossPhase4:
+		OutTrack = Entry.BossPhase4Track;
 		return true;
 	case EPRBGMState::Victory:
 		OutTrack = Entry.VictoryTrack;

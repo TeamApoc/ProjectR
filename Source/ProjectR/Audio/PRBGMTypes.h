@@ -14,10 +14,10 @@ enum class EPRBGMState : uint8
 	Hub,
 	Exploration,
 	Combat,
-	BossPhaseA,
-	BossPhaseB,
-	BossPhaseC,
-	BossPhaseD,
+	BossPhase1 UMETA(DisplayName = "Boss Phase 1"),
+	BossPhase2 UMETA(DisplayName = "Boss Phase 2"),
+	BossPhase3 UMETA(DisplayName = "Boss Phase 3"),
+	BossPhase4 UMETA(DisplayName = "Boss Phase 4"),
 	Victory
 };
 
@@ -74,19 +74,19 @@ struct PROJECTR_API FPRLevelBGMEntry
 
 	// 보스 1페이즈 BGM
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|Audio|BGM")
-	FPRBGMTrack BossPhaseATrack;
+	FPRBGMTrack BossPhase1Track;
 
 	// 보스 2페이즈 BGM
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|Audio|BGM")
-	FPRBGMTrack BossPhaseBTrack;
+	FPRBGMTrack BossPhase2Track;
 
 	// 보스 3페이즈 BGM
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|Audio|BGM")
-	FPRBGMTrack BossPhaseCTrack;
+	FPRBGMTrack BossPhase3Track;
 
 	// 보스 4페이즈 BGM
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|Audio|BGM")
-	FPRBGMTrack BossPhaseDTrack;
+	FPRBGMTrack BossPhase4Track;
 
 	// 승리 연출 BGM
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|Audio|BGM")

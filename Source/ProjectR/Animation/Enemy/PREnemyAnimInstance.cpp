@@ -5,9 +5,7 @@
 #include "GameFramework/CharacterMovementComponent.h"
 #include "KismetAnimationLibrary.h"
 #include "Kismet/KismetMathLibrary.h"
-#include "ProjectR/AbilitySystem/PRAbilitySystemComponent.h"
 #include "ProjectR/Character/Enemy/PREnemyBaseCharacter.h"
-#include "ProjectR/PRGameplayTags.h"
 
 // ===== UAnimInstance Interface =====
 
@@ -34,7 +32,6 @@ void UPREnemyAnimInstance::NativeUpdateAnimation(float DeltaSeconds)
 	UpdateMovementData();
 	UpdateCombatPresentationData();
 	UpdateAimData();
-	UpdateStateFlags();
 }
 
 // ===== 내부 갱신 =====
@@ -116,22 +113,4 @@ void UPREnemyAnimInstance::UpdateAimData()
 
 	AimYaw = FMath::Clamp(FRotator::NormalizeAxis(AimDeltaRotation.Yaw), -MaxAimYaw, MaxAimYaw);
 	AimPitch = FMath::Clamp(FRotator::NormalizeAxis(AimDeltaRotation.Pitch), -MaxAimPitch, MaxAimPitch);
-}
-
-void UPREnemyAnimInstance::UpdateStateFlags()
-{
-	bIsDead = false;
-	bIsGroggy = false;
-
-	if (!IsValid(EnemyCharacter))
-	{
-		return;
-	}
-
-	if (UPRAbilitySystemComponent* ASC = EnemyCharacter->GetPRAbilitySystemComponent())
-	{
-		// 애니메이션 중단 여부는 ASC 상태 태그를 기준으로 판단한다.
-		bIsDead = ASC->HasMatchingGameplayTag(PRGameplayTags::State_Dead);
-		bIsGroggy = ASC->HasMatchingGameplayTag(PRGameplayTags::State_Groggy);
-	}
 }

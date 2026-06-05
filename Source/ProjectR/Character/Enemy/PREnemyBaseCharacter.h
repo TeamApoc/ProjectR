@@ -113,6 +113,10 @@ public:
 	// 드롭 테이블 조회에 사용할 몬스터 식별자를 반환한다
 	FName GetMonsterId() const { return CharacterID; }
 
+	// 일반 그로기 상태 진입을 허용하는 몬스터인지 반환한다.
+	UFUNCTION(BlueprintPure, Category = "ProjectR|AI|Groggy")
+	bool CanEnterGroggyState() const { return bCanEnterGroggyState; }
+
 	// 서버 사망 Ability에서 모든 클라이언트에 사망 Dissolve 시각 연출을 요청한다.
 	void RequestDeathDissolveVisual(
 		UAnimMontage* InDeathMontage,
@@ -258,6 +262,10 @@ protected:
 	// 리스폰 시스템 자동 등록 여부
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|Respawn")
 	bool bIsRespawnable = true;
+
+	// 일반 그로기 태그와 Groggy Ability 진입을 허용할지 결정한다. 그로기가 없는 보스는 false로 둔다.
+	UPROPERTY(EditDefaultsOnly, Category = "ProjectR|AI|Groggy")
+	bool bCanEnterGroggyState = true;
 
 	// 비활성 상태에서 플레이어 접근 시 AI 비용을 다시 활성화하는 반경
 	UPROPERTY(EditDefaultsOnly, Category = "ProjectR|TickOptimization", meta = (ClampMin = "0.0"))

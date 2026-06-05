@@ -39,27 +39,35 @@ class PROJECTR_API UPRRespawnSubsystem : public UWorldSubsystem
 
 public:
 	// 현재 액터를 월드 오브젝트 리스폰 대상 목록에 등록
+	UFUNCTION(BlueprintCallable)
 	void RegisterRespawnableActor(AActor* InActor);
 
 	// 월드 오브젝트 리스폰 시 파괴할 일회성 액터 등록
+	UFUNCTION(BlueprintCallable)
 	void RegisterDisposableActor(AActor* InActor);
 
 	// 일회성 액터 파괴 대상 목록에서 제거
+	UFUNCTION(BlueprintCallable)
 	void UnregisterDisposableActor(AActor* InActor);
 
 	// 등록된 월드 오브젝트 리스폰 목록 초기화
+	UFUNCTION(BlueprintCallable)
 	void ClearRegisteredActors();
 
 	// 등록된 월드 오브젝트를 등록 정보 기준으로 재생성
+	UFUNCTION(BlueprintCallable)
 	bool RespawnWorldObjects();
 
 	// 플레이어 상태와 Pawn을 지정 SpawnPoint 기준으로 복구
+	UFUNCTION(BlueprintCallable)
 	bool RespawnPlayers(FGameplayTag SpawnPointId);
 
 	// 월드 오브젝트와 플레이어를 순서대로 복구
+	UFUNCTION(BlueprintCallable)
 	bool RespawnWorldAndPlayers(FGameplayTag SpawnPointId);
 
 	// 현재 월드에서 SpawnPoint 태그와 일치하는 SpawnPoint 검색
+	UFUNCTION(BlueprintCallable)
 	APRSpawnPoint* FindSpawnPointById(FGameplayTag SpawnPointId) const;
 
 	// GameState PlayerArray 기준 플레이어 인덱스 산출

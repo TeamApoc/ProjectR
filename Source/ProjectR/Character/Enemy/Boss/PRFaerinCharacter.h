@@ -26,7 +26,12 @@ public:
 
 	/*~ AActor Interface ~*/
 	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
-
+	
+	/*~ APRBossBaseCharacter Interface ~*/
+	// 보스와 플레이어의 실제 교전 확인 후 HUD 조우 시작 요청
+	virtual void RequestBossEncounterBegin() override;
+	
+	/*~ APRFaerinCharacter Interface ~*/ 
 	// God Fall 맵 배치 Rig 전환과 지속 검 hazard를 담당하는 component를 반환한다.
 	UFUNCTION(BlueprintPure, Category = "ProjectR|AI|Boss|Faerin|GodFall")
 	UPRFaerinGodFallComponent* GetGodFallComponent() const { return GodFallComponent; }

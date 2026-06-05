@@ -261,4 +261,6 @@ private:
 
 	UPROPERTY(Transient)
 	TArray<TObjectPtr<UNiagaraComponent>> ActiveBodyNiagaraComponents;
+	
+	FTimerHandle SwordInitHandle;
 };

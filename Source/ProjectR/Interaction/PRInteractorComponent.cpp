@@ -461,7 +461,13 @@ void UPRInteractorComponent::Internal_SetActiveInteraction(UPRInteractionAction*
 	ActiveInteractionInfo.ActiveInteractable = Interactable;
 	ActiveInteractionInfo.ActiveActionIndex = static_cast<int8>(FoundIndex);
 	ActiveInteractionInfo.bSustained = true;
-	
+
+	// 서버 권위 유지형 상호작용 시작 알림
+	if (OnInteractionStart.IsBound())
+	{
+		OnInteractionStart.Broadcast();
+	}
+
 	// 거리 유지가 필요한 경우에만 Tick 활성화
 	if (ActiveInteractionInfo.RequiresRange())
 	{

@@ -63,6 +63,12 @@ void APRBossBaseCharacter::OnPostDamageApplied(const FPRDamageAppliedContext& Co
 	}
 }
 
+// 조우 상태를 별도로 관리하지 않는 보스의 기본 요청 처리
+void APRBossBaseCharacter::RequestBossEncounterBegin()
+{
+	// 조우 이벤트를 직접 관리하지 않는 보스의 기본 동작 없음
+}
+
 void APRBossBaseCharacter::OnHealthRatioChanged(float NewRatio)
 {
 	if (!HasAuthority())

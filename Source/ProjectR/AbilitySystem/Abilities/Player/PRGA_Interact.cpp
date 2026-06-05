@@ -3,7 +3,9 @@
 
 #include "PRGA_Interact.h"
 #include "Abilities/Tasks/AbilityTask_WaitInputRelease.h"
+#include "ProjectR/AbilitySystem/Tasks/PRAbilityTask_FaceTarget.h"
 #include "ProjectR/PRGameplayTags.h"
+#include "ProjectR/Interaction/PRInteractableComponent.h"
 #include "ProjectR/Interaction/PRInteractorComponent.h"
 
 UPRGA_Interact::UPRGA_Interact()
@@ -26,9 +28,17 @@ void UPRGA_Interact::ActivateAbility(const FGameplayAbilitySpecHandle Handle,
 {
 	Super::ActivateAbility(Handle, ActorInfo, ActivationInfo, TriggerEventData);
 	
-	// Remote Server: 아무것도 안함 (Cancel이나 클라측의 EndAbility를 대기)
 	if (!ActorInfo->IsLocallyControlledPlayer())
 	{
+		// 서버 인스턴스의 유지형 상호작용 시작 대기
+		if (UPRInteractorComponent* Interactor = GetInteractorComponent(ActorInfo->PlayerController.Get()))
+		{
+			BindToSustainedStart(Interactor);
+			if (Interactor->IsSustained())
+			{
+				BindToSustained(Interactor);
+			}
+		}
 		return;
 	}
 	// 로컬: 상호작용 시도
@@ -60,9 +70,10 @@ void UPRGA_Interact::ActivateAbility(const FGameplayAbilitySpecHandle Handle,
 void UPRGA_Interact::EndAbility(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo,
 	const FGameplayAbilityActivationInfo ActivationInfo, bool bReplicateEndAbility, bool bWasCancelled)
 {
-	if (ActorInfo->IsLocallyControlledPlayer())
+	UPRInteractorComponent* Interactor = GetInteractorComponent(ActorInfo->PlayerController.Get());
+	if (IsValid(Interactor))
 	{
-		if (UPRInteractorComponent* Interactor = GetInteractorComponent(ActorInfo->PlayerController.Get()))
+		if (ActorInfo->IsLocallyControlledPlayer())
 		{
 			if (Interactor->IsHolding())
 			{
@@ -72,12 +83,15 @@ void UPRGA_Interact::EndAbility(const FGameplayAbilitySpecHandle Handle, const F
 			{
 				Interactor->RequestEndInteract(bWasCancelled);
 			}
-			Interactor->OnInteractionEnd.RemoveAll(this);
 		}
+		Interactor->OnInteractionStart.RemoveAll(this);
+		Interactor->OnInteractionEnd.RemoveAll(this);
+		Interactor->OnHoldEnd.RemoveAll(this);
 	}
-	
+
+	StopFaceTargetTask();
 	WaitHoldReleaseTask = nullptr;
-	
+
 	Super::EndAbility(Handle, ActorInfo, ActivationInfo, bReplicateEndAbility, bWasCancelled);
 }
 
@@ -85,7 +99,7 @@ void UPRGA_Interact::InputPressed(const FGameplayAbilitySpecHandle Handle,
    const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilityActivationInfo ActivationInfo)
 {
 	Super::InputPressed(Handle, ActorInfo, ActivationInfo);
-	
+
 	if (CanActivateAbility(Handle,ActorInfo,nullptr,nullptr,nullptr))
 	{
 		EndAbility(Handle,ActorInfo,ActivationInfo,true,false);
@@ -94,16 +108,17 @@ void UPRGA_Interact::InputPressed(const FGameplayAbilitySpecHandle Handle,
 
 UPRInteractorComponent* UPRGA_Interact::GetInteractorComponent(AController* InController)
 {
-	if (!IsValid(InController))
-	{
-		return nullptr;
-	}
-	
+	// 캐시된 상호작용 컴포넌트 우선 반환
 	if (CachedInteractorComponent.IsValid())
 	{
 		return CachedInteractorComponent.Get();
 	}
-	
+
+	if (!IsValid(InController))
+	{
+		return nullptr;
+	}
+
 	CachedInteractorComponent = InController->FindComponentByClass<UPRInteractorComponent>();
 	return CachedInteractorComponent.Get();
 }
@@ -114,11 +129,30 @@ void UPRGA_Interact::BindToSustained(UPRInteractorComponent* Interactor)
 	{
 		return;
 	}
-	
+
+	StartFaceTargetTask(Interactor);
 	Interactor->OnInteractionEnd.RemoveAll(this);
 	Interactor->OnInteractionEnd.AddWeakLambda(this, [this]()
 	{
 		K2_EndAbility();
+	});
+}
+
+// 서버 권위 유지형 상호작용 시작 대기 바인딩
+void UPRGA_Interact::BindToSustainedStart(UPRInteractorComponent* Interactor)
+{
+	if (!IsValid(Interactor))
+	{
+		return;
+	}
+
+	Interactor->OnInteractionStart.RemoveAll(this);
+	Interactor->OnInteractionStart.AddWeakLambda(this, [this]()
+	{
+		if (CachedInteractorComponent.IsValid())
+		{
+			BindToSustained(CachedInteractorComponent.Get());
+		}
 	});
 }
 
@@ -156,6 +190,55 @@ void UPRGA_Interact::WaitHoldRelease(UPRInteractorComponent* Interactor)
 	WaitHoldReleaseTask = UAbilityTask_WaitInputRelease::WaitInputRelease(this, false);
 	WaitHoldReleaseTask->OnRelease.AddDynamic(this, &ThisClass::OnInputReleased);
 	WaitHoldReleaseTask->ReadyForActivation();
+}
+
+// 유지형 상호작용 대상 방향 회전 및 접근 Task 시작
+void UPRGA_Interact::StartFaceTargetTask(UPRInteractorComponent* Interactor)
+{
+	StopFaceTargetTask();
+
+	if (!IsValid(Interactor))
+	{
+		return;
+	}
+
+	UPRInteractableComponent* ActiveInteractableComponent = Interactor->GetActiveInteractableComponent();
+	if (!IsValid(ActiveInteractableComponent))
+	{
+		// 클라이언트 선반영 단계에서 활성 상호작용 정보 복제 전 사용할 포커스 대상
+		ActiveInteractableComponent = Interactor->GetFocusedComponent();
+	}
+
+	AActor* TargetActor = IsValid(ActiveInteractableComponent) ? ActiveInteractableComponent->GetOwner() : nullptr;
+	if (!IsValid(TargetActor))
+	{
+		return;
+	}
+
+	ActiveFaceTargetTask = UPRAbilityTask_FaceTarget::FaceTarget(this,
+		TargetActor,
+		FaceTargetBlendTime,
+		FaceTargetTaskDuration,
+		FaceTargetAcceptanceDistance,
+		FaceTargetMovementScale,
+		FaceTargetObstacleBackoffDistance,
+		FaceTargetApproachFanAngle,
+		FaceTargetTraceCount);
+	if (IsValid(ActiveFaceTargetTask))
+	{
+		ActiveFaceTargetTask->ReadyForActivation();
+	}
+}
+
+// 유지형 상호작용 대상 방향 회전 및 접근 Task 종료
+void UPRGA_Interact::StopFaceTargetTask()
+{
+	if (IsValid(ActiveFaceTargetTask))
+	{
+		ActiveFaceTargetTask->EndTask();
+	}
+
+	ActiveFaceTargetTask = nullptr;
 }
 
 void UPRGA_Interact::OnInputReleased(float TimeHeld)

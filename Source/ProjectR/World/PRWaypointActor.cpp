@@ -2,12 +2,16 @@
 
 #include "PRWaypointActor.h"
 
+#include "Components/SceneComponent.h"
 #include "ProjectR/Interaction/PRInteractableComponent.h"
 #include "ProjectR/System/PRDeveloperSettings.h"
 
 APRWaypointActor::APRWaypointActor()
 {
 	PrimaryActorTick.bCanEverTick = false;
+	SceneRoot = CreateDefaultSubobject<USceneComponent>(TEXT("SceneRoot"));
+	SetRootComponent(SceneRoot);
+
 	InteractableComponent = CreateDefaultSubobject<UPRInteractableComponent>(TEXT("InteractableComponent"));
 	bReplicates = true;
 }

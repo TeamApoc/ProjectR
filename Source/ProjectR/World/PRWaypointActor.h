@@ -8,6 +8,7 @@
 #include "ProjectR/UI/WorldMarker/PRPingMarkerTargetInterface.h"
 #include "PRWaypointActor.generated.h"
 
+class USceneComponent;
 class UPRInteractableComponent;
 
 UCLASS()
@@ -26,6 +27,10 @@ public:
 	virtual FVector GetPingMarkerWorldLocation_Implementation() const override;
 
 protected:
+	// 액터 Transform 기준점으로 사용할 루트 컴포넌트
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "ProjectR|Waypoint")
+	TObjectPtr<USceneComponent> SceneRoot;
+
 	// 상호작용 액션을 제공하기 위한 컴포넌트
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Interaction")
 	TObjectPtr<UPRInteractableComponent> InteractableComponent;

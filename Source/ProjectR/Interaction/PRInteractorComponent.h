@@ -66,6 +66,7 @@ public:
 };
 
 DECLARE_MULTICAST_DELEGATE(FOnInteractionEndSignature);
+DECLARE_MULTICAST_DELEGATE(FOnInteractionStartSignature);
 
 /**
  * 상호작용 주체(플레이어)에 부착하는 컴포넌트.
@@ -121,7 +122,10 @@ public:
 
 	// 현재 활성 액션 반환
 	UPRInteractionAction* GetActiveAction() const { return ActiveInteractionInfo.GetActiveAction(); }
-	
+
+	// 현재 활성 유지형 상호작용 대상 반환
+	UPRInteractableComponent* GetActiveInteractableComponent() const { return ActiveInteractionInfo.ActiveInteractable; }
+
 	// 현재 Hold타입 Action이 설정되었는지
 	bool IsHolding() const;
 	
@@ -192,7 +196,13 @@ public:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Interaction", meta = (ClampMin = "0.0"))
 	float MaxInteractionDistance = 300.f;
 	
+	// 유지형 상호작용 종료 알림
 	FOnInteractionEndSignature OnInteractionEnd;
+
+	// 유지형 상호작용 시작 알림
+	FOnInteractionStartSignature OnInteractionStart;
+
+	// Hold 상호작용 종료 알림
 	FOnInteractionEndSignature OnHoldEnd;
 	
 private:

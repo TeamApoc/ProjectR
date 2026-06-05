@@ -30,6 +30,28 @@ struct PROJECTR_API FPRBossEncounterEventPayload : public FPREventPayload
 	TObjectPtr<APRBossBaseCharacter> Boss = nullptr;
 };
 
+/**
+ * 보스 페이즈 변경 이벤트 페이로드.
+ * Event.Boss.PhaseChanged 발송 시 동반
+ */
+USTRUCT(BlueprintType)
+struct PROJECTR_API FPRBossPhaseChangedEventPayload : public FPREventPayload
+{
+	GENERATED_BODY()
+
+	// 페이즈가 변경된 보스 인스턴스
+	UPROPERTY(BlueprintReadWrite)
+	TObjectPtr<APRBossBaseCharacter> Boss = nullptr;
+
+	// 변경 전 페이즈
+	UPROPERTY(BlueprintReadWrite)
+	EPRBossPhase OldPhase = EPRBossPhase::Phase1;
+
+	// 변경 후 페이즈
+	UPROPERTY(BlueprintReadWrite)
+	EPRBossPhase NewPhase = EPRBossPhase::Phase1;
+};
+
 // 보스 몬스터 공통 베이스다.
 // 일반 적 베이스 위에 페이즈 상태, 페이즈별 AbilitySet, 체력 비율 기반 전환을 얹는다.
 UCLASS(Abstract)
@@ -70,6 +92,13 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "ProjectR|AI|Boss")
 	void CommitPhaseTransition(EPRBossPhase NewPhase);
 
+	// 실제 페이즈 확정 없이 BGM 전환에 사용할 목표 페이즈를 예고
+	void BroadcastBossBGMPhasePreview(EPRBossPhase PreviewPhase);
+
+	// 각 머신의 EventManager로 BGM 페이즈 예고 이벤트를 발행
+	UFUNCTION(NetMulticast, Reliable)
+	void Multicast_BroadcastBossBGMPhasePreview(EPRBossPhase PreviewPhase);
+
 	// 보스가 생성한 지속형 패턴 Actor를 활성 목록에 등록한다.
 	UFUNCTION(BlueprintCallable, Category = "ProjectR|AI|Boss")
 	void RegisterBossPatternActor(APRBossPatternActor* Actor);
@@ -101,6 +130,12 @@ public:
 protected:
 	/*~ APRCharacterBase Interface ~*/
 	virtual void HandleGameplayTagUpdated(const FGameplayTag& ChangedTag, bool TagExists) override;
+
+	// EventManager로 보스 페이즈 변경을 발행
+	void BroadcastBossPhaseChangedEvent(EPRBossPhase OldPhase, EPRBossPhase NewPhase);
+
+	// EventManager로 보스 BGM 페이즈 예고를 발행
+	void BroadcastBossBGMPhasePreviewEvent(EPRBossPhase PreviewPhase);
 
 	UFUNCTION()
 	void OnRep_CurrentPhase(EPRBossPhase OldPhase);

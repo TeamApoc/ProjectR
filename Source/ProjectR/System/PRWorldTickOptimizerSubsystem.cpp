@@ -6,11 +6,21 @@
 #include "Engine/World.h"
 #include "GameFramework/PlayerController.h"
 #include "GameFramework/Pawn.h"
+#include "HAL/IConsoleManager.h"
 #include "ProjectR/Combat/PRCombatStatics.h"
 #include "ProjectR/PRGameplayTags.h"
 #include "TimerManager.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogPRWorldTickOptimizer, Log, All);
+
+namespace
+{
+	static TAutoConsoleVariable<int32> CVarPRWorldTickOptimizerEnabled(
+		TEXT("pr.WorldTickOptimizer.Enabled"),
+		1,
+		TEXT("월드 Tick 최적화 활성 여부.\n0: 비활성\n1: 활성"),
+		ECVF_Default);
+}
 
 /*~ UWorldSubsystem Interface ~*/
 
@@ -68,8 +78,20 @@ void UPRWorldTickOptimizerSubsystem::ForceEvaluate()
 	}
 
 	FlushPendingChanges();
+	if (!IsOptimizationEnabled())
+	{
+		RestoreAllTargetsActive();
+		CachedSources.Reset();
+		return;
+	}
+
 	BuildSources();
 	EvaluateTargets();
+}
+
+bool UPRWorldTickOptimizerSubsystem::IsOptimizationEnabled()
+{
+	return CVarPRWorldTickOptimizerEnabled.GetValueOnAnyThread() > 0;
 }
 
 /*~ 타이머 관리 ~*/
@@ -270,6 +292,33 @@ void UPRWorldTickOptimizerSubsystem::EvaluateTargets()
 		EvaluateTarget(ActiveEntries[NextEvaluationIndex]);
 		NextEvaluationIndex = (NextEvaluationIndex + 1) % ActiveEntries.Num();
 	}
+}
+
+void UPRWorldTickOptimizerSubsystem::RestoreAllTargetsActive()
+{
+	for (FPRTickOptimizationEntry& Entry : ActiveEntries)
+	{
+		AActor* TargetActor = Entry.TargetActor.Get();
+		IPRTickOptimizable* TargetInterface = Entry.TargetInterface.GetInterface();
+		if (!IsValid(TargetActor) || TargetInterface == nullptr)
+		{
+			continue;
+		}
+
+		if (!Entry.bIsTickActive)
+		{
+			Entry.bIsTickActive = true;
+			TargetInterface->SetTickActive(true);
+		}
+
+		if (!Entry.bIsVisibilityActive)
+		{
+			Entry.bIsVisibilityActive = true;
+			TargetInterface->SetVisibilityActive(true);
+		}
+	}
+
+	NextEvaluationIndex = 0;
 }
 
 void UPRWorldTickOptimizerSubsystem::EvaluateTarget(FPRTickOptimizationEntry& Entry)

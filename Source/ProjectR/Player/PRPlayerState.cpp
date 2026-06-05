@@ -62,6 +62,9 @@ void APRPlayerState::GiveStartUpItems()
 {
 	if (HasAuthority())
 	{
+		// 기본 지급 아이템 추가 이벤트 수신 준비
+		BindAutoRegisterQuickSlotEvent();
+
 		for (FPRItemSaveEntry& StartUpItem : StartUpItems)
 		{
 			if (!IsValid(StartUpItem.ItemData) || StartUpItem.Amount <= 0)
@@ -79,8 +82,12 @@ void APRPlayerState::GiveStartUpItems()
 				InventoryComponent->AddItem(StartUpItem.ItemData, StartUpItem.Amount);
 			}
 		}
-		
-		BindAutoRegisterQuickSlotEvent();
+
+		if (IsValid(QuickSlotComponent))
+		{
+			// 기본 지급 이후 소비 아이템 캐시 갱신
+			QuickSlotComponent->ResetSystem();
+		}
 	}
 }
 
@@ -99,9 +106,14 @@ void APRPlayerState::CopyProperties(APlayerState* PlayerState)
 	
 	if (APRPlayerState* NewPS = Cast<APRPlayerState>(PlayerState))
 	{
-		// TODO: ASC 상태 보존, 인벤토리 등 상태 컴포넌트 값 보존
 		FPRCharacterSaveData SaveData = MakeSaveData();
-		NewPS->InitializePrimaryInfoFromSaveData(SaveData);
+		// SeamlessTravel 이후 새 Pawn 준비 시 전체 런타임 상태 복원 예약
+		NewPS->QueueSaveDataApply(SaveData, false);
+		if (bCharacterPayloadAccepted)
+		{
+			// 이동 전 수락된 세션 payload 상태 보존
+			NewPS->MarkCharacterPayloadAccepted();
+		}
 	}
 }
 
@@ -166,8 +178,48 @@ void APRPlayerState::InitializePrimaryInfoFromSaveData(const FPRCharacterSaveDat
 		GrowthComponent->ApplyGrowthSaveData(InSaveData.Experience, InSaveData.Level, InSaveData.Stats);
 	}
 	bPendingSaveDataApply = true;
+	bPendingStartUpItemsMerge = false;
+
+	ForceNetUpdate();
 }
+
+void APRPlayerState::QueueSaveDataApply(const FPRCharacterSaveData& InSaveData, bool bMergeStartUpItems)
+{
+	if (!HasAuthority())
+	{
+		return;
+	}
+
+	InitializePrimaryInfoFromSaveData(InSaveData);
+	bPendingStartUpItemsMerge = bMergeStartUpItems;
+}
+
+void APRPlayerState::MarkCharacterPayloadAccepted()
+{
+	if (!HasAuthority())
+	{
+		return;
+	}
+
+	bCharacterPayloadAccepted = true;
+}
+
+void APRPlayerState::ApplyPendingSaveData()
+{
+	if (!HasAuthority() || !bPendingSaveDataApply)
+	{
+		return;
+	}
+
+	ApplySaveDataInternal(CurrentSaveData, bPendingStartUpItemsMerge);
+}
+
 void APRPlayerState::ApplySaveData(const FPRCharacterSaveData& InSaveData)
+{
+	ApplySaveDataInternal(InSaveData, false);
+}
+
+void APRPlayerState::ApplySaveDataInternal(const FPRCharacterSaveData& InSaveData, bool bMergeStartUpItems)
 {
 	if (!HasAuthority())
 	{
@@ -212,7 +264,17 @@ void APRPlayerState::ApplySaveData(const FPRCharacterSaveData& InSaveData)
 	{
 		GrowthComponent->ApplyGrowthSaveData(InSaveData.Experience, InSaveData.Level, InSaveData.Stats);
 	}
+
+	if (bMergeStartUpItems)
+	{
+		// 신규 또는 빈 세이브의 기본 지급 아이템 보강
+		GiveStartUpItems();
+	}
+
 	bPendingSaveDataApply = false;
+	bPendingStartUpItemsMerge = false;
+
+	ForceNetUpdate();
 }
 
 FPRCharacterSaveData APRPlayerState::MakeSaveData() const

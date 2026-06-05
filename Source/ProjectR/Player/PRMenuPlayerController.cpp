@@ -17,6 +17,8 @@ void APRMenuPlayerController::ApplyMenuInputMode(UWidget* FocusWidget)
 	{
 		InputMode.SetWidgetToFocus(FocusWidget->TakeWidget());
 	}
+	// 메뉴 입력 중 게임 뷰포트 밖 마우스 이동 방지
+	InputMode.SetLockMouseToViewportBehavior(EMouseLockMode::LockAlways);
 
 	SetInputMode(InputMode);
 	SetShowMouseCursor(true);

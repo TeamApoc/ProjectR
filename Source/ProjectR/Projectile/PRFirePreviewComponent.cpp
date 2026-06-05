@@ -1,7 +1,7 @@
 // Copyright (c) 2026 TeamApoc. All Rights Reserved.
 
 #include "PRFirePreviewComponent.h"
-
+#include "ProjectR/Combat/PRCombatInterface.h"
 #include "Components/InstancedStaticMeshComponent.h"
 #include "DrawDebugHelpers.h"
 #include "Engine/Engine.h"
@@ -12,6 +12,7 @@
 #include "Kismet/GameplayStatics.h"
 #include "ProjectR/PRGameplayTags.h"
 #include "ProjectR/Character/PRPlayerCharacter.h"
+#include "ProjectR/Character/Enemy/PREnemyBaseCharacter.h"
 #include "ProjectR/ItemSystem/Actors/PRWeaponActor.h"
 #include "ProjectR/ItemSystem/Components/PRWeaponManagerComponent.h"
 #include "ProjectR/ItemSystem/Data/PRWeaponDataAsset.h"
@@ -219,7 +220,7 @@ void UPRFirePreviewComponent::UpdateHitScanPreview()
 
 	// 카메라 조준점 산출 및 Combat 채널 기준 목표 지점 확보
 	const FVector AimPoint = UPRGameplayStatics::ResolveCameraAimPoint(
-		OwnerPawn, TraceDistance, PRCollisionChannels::ECC_Combat, IgnoredActors);
+		OwnerPawn, TraceDistance, ECC_Visibility, IgnoredActors);
 
 	const FVector MuzzleLocation = Weapon->GetMuzzleTransform().GetLocation();
 	FVector TraceDirection = AimPoint - MuzzleLocation;
@@ -251,6 +252,7 @@ void UPRFirePreviewComponent::UpdateHitScanPreview()
 		PRCollisionChannels::ECC_Combat,
 		Params);
 
+	
 	const bool bHit = Hit.bBlockingHit && IsValid(Hit.GetActor());
 	BroadcastPreviewHit(bHit);
 }

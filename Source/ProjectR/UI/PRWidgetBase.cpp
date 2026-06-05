@@ -2,9 +2,15 @@
 
 #include "PRWidgetBase.h"
 
+#include "Blueprint/WidgetTree.h"
+#include "Components/Button.h"
 #include "Engine/LocalPlayer.h"
+#include "Kismet/GameplayStatics.h"
 #include "ProjectR/System/PREventManagerSubsystem.h"
+#include "ProjectR/System/PRDeveloperSettings.h"
 #include "ProjectR/UI/PRUIManagerSubsystem.h"
+#include "ProjectR/UI/PRUISoundDataAsset.h"
+#include "Sound/SoundBase.h"
 
 UPRWidgetBase::UPRWidgetBase(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
@@ -73,6 +79,20 @@ EPRUIInputAction UPRWidgetBase::GetUIInputAction(const FKey& Key) const
 	return EPRUIInputAction::None;
 }
 
+void UPRWidgetBase::NativeConstruct()
+{
+	Super::NativeConstruct();
+
+	BindDefaultButtonSoundEvents();
+}
+
+void UPRWidgetBase::NativeDestruct()
+{
+	UnbindDefaultButtonSoundEvents();
+
+	Super::NativeDestruct();
+}
+
 FReply UPRWidgetBase::NativeOnKeyDown(const FGeometry& InGeometry, const FKeyEvent& InKeyEvent)
 {
 	if (InputMode != EPBUIInputMode::UIOnly)
@@ -95,4 +115,148 @@ FReply UPRWidgetBase::NativeOnKeyDown(const FGeometry& InGeometry, const FKeyEve
 	}
 
 	return Super::NativeOnKeyDown(InGeometry, InKeyEvent);
+}
+
+void UPRWidgetBase::BindDefaultButtonSoundEvents()
+{
+	UnbindDefaultButtonSoundEvents();
+
+	if (!IsValid(WidgetTree))
+	{
+		return;
+	}
+
+	WidgetTree->ForEachWidget([this](UWidget* Widget)
+	{
+		UButton* Button = Cast<UButton>(Widget);
+		if (!IsValid(Button))
+		{
+			return;
+		}
+
+		// 버튼 Style 사운드는 UMG 자체 재생 대상이므로 PRUISoundData 쿨타임 제외
+		const bool bHasHoveredStyleSound = HasButtonHoveredStyleSound(Button);
+		const bool bHasClickedStyleSound = HasButtonClickedStyleSound(Button);
+		bool bBoundDefaultSound = false;
+
+		if (!bHasHoveredStyleSound)
+		{
+			Button->OnHovered.AddDynamic(this, &ThisClass::HandleDefaultButtonHovered);
+			bBoundDefaultSound = true;
+		}
+
+		if (!bHasClickedStyleSound)
+		{
+			Button->OnClicked.AddDynamic(this, &ThisClass::HandleDefaultButtonClicked);
+			bBoundDefaultSound = true;
+		}
+
+		if (bBoundDefaultSound)
+		{
+			DefaultSoundBoundButtons.Add(Button);
+		}
+	});
+}
+
+void UPRWidgetBase::UnbindDefaultButtonSoundEvents()
+{
+	for (UButton* Button : DefaultSoundBoundButtons)
+	{
+		if (!IsValid(Button))
+		{
+			continue;
+		}
+
+		Button->OnHovered.RemoveDynamic(this, &ThisClass::HandleDefaultButtonHovered);
+		Button->OnClicked.RemoveDynamic(this, &ThisClass::HandleDefaultButtonClicked);
+	}
+
+	DefaultSoundBoundButtons.Reset();
+}
+
+const UPRUISoundDataAsset* UPRWidgetBase::GetDefaultUISoundData() const
+{
+	const UPRDeveloperSettings* DeveloperSettings = GetDefault<UPRDeveloperSettings>();
+	if (!IsValid(DeveloperSettings))
+	{
+		return nullptr;
+	}
+
+	return DeveloperSettings->GetDefaultUISoundDataSync();
+}
+
+bool UPRWidgetBase::CanPlayUISound(float LastPlayTime, float Cooldown) const
+{
+	if (Cooldown <= 0.0f)
+	{
+		return true;
+	}
+
+	const UWorld* World = GetWorld();
+	if (!IsValid(World))
+	{
+		return false;
+	}
+
+	return World->GetRealTimeSeconds() - LastPlayTime >= Cooldown;
+}
+
+bool UPRWidgetBase::HasButtonHoveredStyleSound(const UButton* Button) const
+{
+	if (!IsValid(Button))
+	{
+		return false;
+	}
+
+	return IsValid(Cast<USoundBase>(Button->GetStyle().HoveredSlateSound.GetResourceObject()));
+}
+
+bool UPRWidgetBase::HasButtonClickedStyleSound(const UButton* Button) const
+{
+	if (!IsValid(Button))
+	{
+		return false;
+	}
+
+	return IsValid(Cast<USoundBase>(Button->GetStyle().ClickedSlateSound.GetResourceObject()));
+}
+
+void UPRWidgetBase::PlayUISound(USoundBase* Sound)
+{
+	if (!IsValid(Sound))
+	{
+		return;
+	}
+
+	UGameplayStatics::PlaySound2D(this, Sound, 1.0f, 1.0f, 0.0f, nullptr, nullptr, true);
+}
+
+void UPRWidgetBase::HandleDefaultButtonHovered()
+{
+	const UPRUISoundDataAsset* UISoundData = GetDefaultUISoundData();
+	if (!IsValid(UISoundData) || !CanPlayUISound(LastHoveredSoundPlayTime, UISoundData->PlaybackCooldown))
+	{
+		return;
+	}
+
+	PlayUISound(UISoundData->HoveredSound);
+	if (const UWorld* World = GetWorld())
+	{
+		LastHoveredSoundPlayTime = World->GetRealTimeSeconds();
+	}
+}
+
+void UPRWidgetBase::HandleDefaultButtonClicked()
+{
+	const UPRUISoundDataAsset* UISoundData = GetDefaultUISoundData();
+	if (!IsValid(UISoundData) || !CanPlayUISound(LastClickedSoundPlayTime, UISoundData->PlaybackCooldown))
+	{
+		return;
+	}
+
+	PlayUISound(UISoundData->ClickedSound);
+	if (const UWorld* World = GetWorld())
+	{
+		LastClickedSoundPlayTime = World->GetRealTimeSeconds();
+	}
 }

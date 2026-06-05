@@ -26,6 +26,7 @@ public class ProjectR : ModuleRules
 			"StructUtils",
 			"Niagara",
 			"PhysicsCore",
+			"SlateCore",
 		});
 
 		PrivateDependencyModuleNames.AddRange(new string[] { "AnimGraphRuntime" });

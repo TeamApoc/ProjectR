@@ -9,6 +9,9 @@
 
 class UPREventManagerSubsystem;
 class UPBViewModelBase;
+class UButton;
+class UPRUISoundDataAsset;
+class USoundBase;
 
 /**
  * 위젯이 요구하는 입력 모드
@@ -91,7 +94,39 @@ public:
 
 protected:
 	/*~ UUserWidget Interface ~*/
+	virtual void NativeConstruct() override;
+	virtual void NativeDestruct() override;
 	virtual FReply NativeOnKeyDown(const FGeometry& InGeometry, const FKeyEvent& InKeyEvent) override;
+
+private:
+	// 자식 버튼에 기본 UI 사운드 이벤트를 바인딩
+	void BindDefaultButtonSoundEvents();
+
+	// 자식 버튼의 기본 UI 사운드 이벤트 바인딩을 해제
+	void UnbindDefaultButtonSoundEvents();
+
+	// 기본 UI 사운드 데이터 에셋을 조회
+	const UPRUISoundDataAsset* GetDefaultUISoundData() const;
+
+	// UI 사운드 쿨타임을 확인
+	bool CanPlayUISound(float LastPlayTime, float Cooldown) const;
+
+	// 버튼 Style Hovered 사운드 존재 여부
+	bool HasButtonHoveredStyleSound(const UButton* Button) const;
+
+	// 버튼 Style Clicked 사운드 존재 여부
+	bool HasButtonClickedStyleSound(const UButton* Button) const;
+
+	// 2D UI 사운드를 재생
+	void PlayUISound(USoundBase* Sound);
+
+	// 기본 버튼 Hovered 사운드를 재생
+	UFUNCTION()
+	void HandleDefaultButtonHovered();
+
+	// 기본 버튼 Clicked 사운드를 재생
+	UFUNCTION()
+	void HandleDefaultButtonClicked();
 
 public:
 	// 이 위젯이 속한 레이어. UIManager가 ZOrder/스택 정렬에 사용
@@ -105,6 +140,17 @@ public:
 	// 이 위젯이 활성화될 때 마우스 커서 표시 여부
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "UI")
 	bool bShowMouseCursor = false;
+
+private:
+	// 기본 UI 사운드가 자동 바인딩된 버튼 목록
+	UPROPERTY(Transient)
+	TArray<TObjectPtr<UButton>> DefaultSoundBoundButtons;
+
+	// 마지막 Hovered 사운드 재생 시각
+	float LastHoveredSoundPlayTime = -FLT_MAX;
+
+	// 마지막 Clicked 사운드 재생 시각
+	float LastClickedSoundPlayTime = -FLT_MAX;
 };
 
 /** TODO [고도화]:

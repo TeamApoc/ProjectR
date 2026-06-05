@@ -135,6 +135,12 @@ public:
 	// 저장 데이터 적용 대기 여부
 	bool HasPendingSaveDataApply() const { return bPendingSaveDataApply; }
 
+	// 서버가 캐릭터 페이로드를 이미 수락했는지 여부
+	bool HasAcceptedCharacterPayload() const { return bCharacterPayloadAccepted; }
+
+	// 서버 캐릭터 페이로드 수락 상태 기록
+	void MarkCharacterPayloadAccepted();
+
 	// 다음 PossessedBy 이후 리스폰 생존 수치 복구 필요 여부 소비
 	bool ConsumePendingRespawnRecovery();
 
@@ -143,7 +149,13 @@ public:
 	
 	// 기본 정보 적용 (맵 전환시 유지하기 위해)
 	void InitializePrimaryInfoFromSaveData(const FPRCharacterSaveData& InSaveData);
-	
+
+	// 새 Pawn 준비 이후 저장 데이터 적용 예약
+	void QueueSaveDataApply(const FPRCharacterSaveData& InSaveData, bool bMergeStartUpItems);
+
+	// 예약된 저장 데이터 적용
+	void ApplyPendingSaveData();
+
 	void ApplySaveData(const FPRCharacterSaveData& InSaveData);
 	FPRCharacterSaveData MakeSaveData() const;
 
@@ -157,6 +169,9 @@ public:
 
 protected:
 	void BindAutoRegisterQuickSlotEvent();
+
+	// 저장 데이터와 선택적 기본 지급 아이템 적용
+	void ApplySaveDataInternal(const FPRCharacterSaveData& InSaveData, bool bMergeStartUpItems);
 	
 	UFUNCTION()
 	void OnInventoryChanged(UPRInventoryComponent* InInventory, const FPRInventoryChangeEventData& EventData);
@@ -256,6 +271,12 @@ private:
 	
 	// PossessedBy 이후 적용할 저장 데이터 존재 여부
 	bool bPendingSaveDataApply = false;
+
+	// 예약 저장 데이터 적용 후 기본 지급 아이템 병합 여부
+	bool bPendingStartUpItemsMerge = false;
+
+	// 클라이언트 로컬 세이브 재제출로 서버 최신 상태를 덮지 않기 위한 수락 여부
+	bool bCharacterPayloadAccepted = false;
 
 	// 리스폰 복원 SaveData 적용 이후 생존 수치 초기화 GE 재적용 여부
 	bool bPendingRespawnRecovery = false;

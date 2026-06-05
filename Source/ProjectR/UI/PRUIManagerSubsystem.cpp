@@ -97,6 +97,8 @@ void UPRUIManagerSubsystem::ResetSystem()
 	{
 		FInputModeGameAndUI InputMode;
 		InputMode.SetHideCursorDuringCapture(false);
+		// UI 입력 중 게임 뷰포트 밖 마우스 이동 방지
+		InputMode.SetLockMouseToViewportBehavior(EMouseLockMode::LockAlways);
 		PC->SetInputMode(InputMode);
 	}
 }
@@ -231,6 +233,8 @@ void UPRUIManagerSubsystem::UpdateInputMode()
 			{
 				InputMode.SetWidgetToFocus(Top->TakeWidget());
 			}
+			// UI 전용 입력 중 게임 뷰포트 밖 마우스 이동 방지
+			InputMode.SetLockMouseToViewportBehavior(EMouseLockMode::LockAlways);
 			PC->FlushPressedKeys();
 			PC->SetInputMode(InputMode);
 		}
@@ -240,6 +244,8 @@ void UPRUIManagerSubsystem::UpdateInputMode()
 		{
 			FInputModeGameAndUI InputMode;
 			InputMode.SetHideCursorDuringCapture(false);
+			// 게임 및 UI 입력 중 게임 뷰포트 밖 마우스 이동 방지
+			InputMode.SetLockMouseToViewportBehavior(EMouseLockMode::LockAlways);
 			PC->SetInputMode(InputMode);
 		}
 		break;

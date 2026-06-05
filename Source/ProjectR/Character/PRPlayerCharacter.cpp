@@ -213,7 +213,7 @@ void APRPlayerCharacter::PossessedBy(AController* NewController)
 		if (PS->HasPendingSaveDataApply())
 		{
 			// 저장 데이터 1회 복원
-			PS->ApplySaveData(PS->GetCurrentSaveData());
+			PS->ApplyPendingSaveData();
 		}
 
 		if (PS->ConsumePendingRespawnRecovery())

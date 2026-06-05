@@ -52,7 +52,7 @@ namespace
 				continue;
 			}
 
-			const FColor DebugColor = Entry.bIsTickActive ? FColor::Green : FColor::Red;
+			const FColor DebugColor = Entry.IsTickActive() ? FColor::Green : FColor::Red;
 			DrawDebugBox(
 				World,
 				TargetActor->GetActorLocation(),
@@ -111,6 +111,54 @@ void UPRWorldTickOptimizerSubsystem::UnregisterTarget(AActor* TargetActor)
 	const TWeakObjectPtr<AActor> TargetKey(TargetActor);
 	PendingRegisterTargets.Remove(TargetKey);
 	PendingUnregisterTargets.Add(TargetKey);
+}
+
+// 대상 액터의 강제 활성 고정
+void UPRWorldTickOptimizerSubsystem::ForceActivateTarget(AActor* TargetActor)
+{
+	const UWorld* World = GetWorld();
+	if (!IsValid(World) || World->GetNetMode() == NM_Client || !IsValid(TargetActor))
+	{
+		return;
+	}
+
+	FlushPendingChanges();
+
+	FPRTickOptimizationEntry* Entry = FindEntry(TargetActor);
+	if (Entry == nullptr)
+	{
+		FPRTickOptimizationEntry NewEntry;
+		if (!BuildEntry(TargetActor, NewEntry))
+		{
+			return;
+		}
+
+		ActiveEntries.Add(MoveTemp(NewEntry));
+		Entry = &ActiveEntries.Last();
+	}
+
+	Entry->bForceActive = true;
+	ApplyEntryActiveState(*Entry, true, true);
+}
+
+// 대상 액터의 강제 활성 고정 해제
+void UPRWorldTickOptimizerSubsystem::ClearForceActivateTarget(AActor* TargetActor)
+{
+	const UWorld* World = GetWorld();
+	if (!IsValid(World) || World->GetNetMode() == NM_Client || !IsValid(TargetActor))
+	{
+		return;
+	}
+
+	FlushPendingChanges();
+
+	FPRTickOptimizationEntry* Entry = FindEntry(TargetActor);
+	if (Entry == nullptr)
+	{
+		return;
+	}
+
+	Entry->bForceActive = false;
 }
 
 void UPRWorldTickOptimizerSubsystem::ForceEvaluate()
@@ -367,6 +415,29 @@ void UPRWorldTickOptimizerSubsystem::RestoreAllTargetsActive()
 	NextEvaluationIndex = 0;
 }
 
+// 대상 항목의 Tick과 Visibility 활성 상태 적용
+void UPRWorldTickOptimizerSubsystem::ApplyEntryActiveState(FPRTickOptimizationEntry& Entry, bool bTickActive, bool bVisibilityActive)
+{
+	AActor* TargetActor = Entry.TargetActor.Get();
+	IPRTickOptimizable* TargetInterface = Entry.TargetInterface.GetInterface();
+	if (!IsValid(TargetActor) || TargetInterface == nullptr)
+	{
+		return;
+	}
+
+	if (Entry.bIsTickActive != bTickActive)
+	{
+		Entry.bIsTickActive = bTickActive;
+		TargetInterface->SetTickActive(bTickActive);
+	}
+
+	if (Entry.bIsVisibilityActive != bVisibilityActive)
+	{
+		Entry.bIsVisibilityActive = bVisibilityActive;
+		TargetInterface->SetVisibilityActive(bVisibilityActive);
+	}
+}
+
 void UPRWorldTickOptimizerSubsystem::EvaluateTarget(FPRTickOptimizationEntry& Entry)
 {
 	AActor* TargetActor = Entry.TargetActor.Get();
@@ -381,26 +452,38 @@ void UPRWorldTickOptimizerSubsystem::EvaluateTarget(FPRTickOptimizationEntry& En
 		return;
 	}
 
+	if (Entry.bForceActive)
+	{
+		// 강제 활성 대상의 거리 기반 비활성화 차단
+		ApplyEntryActiveState(Entry, true, true);
+		return;
+	}
+
 	const FVector TargetLocation = TargetInterface->GetTickLocation();
 	const bool bShouldTickBeActive = Entry.bIsTickActive
 		? HasSourceInsideRadius(TargetLocation, Entry.Config.TickDeactivationRadius)
 		: HasSourceInsideRadius(TargetLocation, Entry.Config.TickActivationRadius);
 
-	if (Entry.bIsTickActive != bShouldTickBeActive)
-	{
-		Entry.bIsTickActive = bShouldTickBeActive;
-		TargetInterface->SetTickActive(bShouldTickBeActive);
-	}
-
 	const bool bShouldVisibilityBeActive = Entry.bIsVisibilityActive
 		? HasSourceInsideRadius(TargetLocation, Entry.Config.VisibilityDeactivationRadius)
 		: HasSourceInsideRadius(TargetLocation, Entry.Config.VisibilityActivationRadius);
 
-	if (Entry.bIsVisibilityActive != bShouldVisibilityBeActive)
+	ApplyEntryActiveState(Entry, bShouldTickBeActive, bShouldVisibilityBeActive);
+}
+
+// 활성 목록의 대상 항목 검색
+FPRTickOptimizationEntry* UPRWorldTickOptimizerSubsystem::FindEntry(AActor* TargetActor)
+{
+	if (!IsValid(TargetActor))
 	{
-		Entry.bIsVisibilityActive = bShouldVisibilityBeActive;
-		TargetInterface->SetVisibilityActive(bShouldVisibilityBeActive);
+		return nullptr;
 	}
+
+	return ActiveEntries.FindByPredicate(
+		[TargetActor](const FPRTickOptimizationEntry& Entry)
+		{
+			return Entry.TargetActor.Get() == TargetActor;
+		});
 }
 
 bool UPRWorldTickOptimizerSubsystem::HasSourceInsideRadius(const FVector& TargetLocation, float Radius) const

@@ -15,6 +15,9 @@ struct FPRTickOptimizationEntry
 {
 	GENERATED_BODY()
 
+	// 강제 활성 상태까지 반영한 Tick 활성 상태 반환
+	bool IsTickActive() const { return bForceActive || bIsTickActive; }
+
 	// 활성 목록의 실제 대상 액터
 	TWeakObjectPtr<AActor> TargetActor;
 
@@ -26,6 +29,9 @@ struct FPRTickOptimizationEntry
 
 	// Subsystem이 마지막으로 적용한 Visibility 활성 상태
 	bool bIsVisibilityActive = true;
+
+	// 거리 평가 결과와 무관하게 대상 상태를 활성으로 유지할지 여부
+	bool bForceActive = false;
 
 	// 등록 시점에 읽은 거리 평가 설정값
 	FPRTickOptimizationConfig Config;
@@ -63,6 +69,14 @@ public:
 	// Tick 최적화 대상 해제를 다음 평가 주기까지 예약
 	void UnregisterTarget(AActor* TargetActor);
 
+	// 대상 액터를 거리 평가와 무관하게 활성 상태로 고정
+	UFUNCTION(BlueprintCallable)
+	void ForceActivateTarget(AActor* TargetActor);
+
+	// 대상 액터의 강제 활성 고정 해제
+	UFUNCTION(BlueprintCallable)
+	void ClearForceActivateTarget(AActor* TargetActor);
+
 	// 현재 등록된 평가 대상 수 반환
 	int32 GetRegisteredTargetCount() const { return ActiveEntries.Num(); }
 
@@ -91,11 +105,17 @@ protected:
 	// CVar 비활성화 시 최적화로 꺼진 대상 상태 복구
 	void RestoreAllTargetsActive();
 
+	// 대상 항목의 Tick과 Visibility 활성 상태 적용
+	void ApplyEntryActiveState(FPRTickOptimizationEntry& Entry, bool bTickActive, bool bVisibilityActive);
+
 	// 단일 대상의 거리 조건 평가와 필요 전이 적용
 	void EvaluateTarget(FPRTickOptimizationEntry& Entry);
 
 	// 대상 액터와 인터페이스와 설정값 검증 후 평가 항목 생성
 	bool BuildEntry(AActor* TargetActor, FPRTickOptimizationEntry& OutEntry) const;
+
+	// 활성 목록에서 대상 액터 항목 검색
+	FPRTickOptimizationEntry* FindEntry(AActor* TargetActor);
 
 	// 무효 대상과 해제 예약 대상의 활성 목록 제거
 	void CompactEntries();

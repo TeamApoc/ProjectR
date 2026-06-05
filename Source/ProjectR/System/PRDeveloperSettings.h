@@ -17,6 +17,7 @@ class UUserWidget;
 class UDataTable;
 class APRRewardPickupActor;
 class UPRCrosshairConfig;
+class UPRUISoundDataAsset;
 
 // 플로팅 텍스트 타입별 위젯 클래스 및 색상 설정
 USTRUCT(BlueprintType)
@@ -74,6 +75,9 @@ public:
 	// 기본 CrosshairConfig를 동기 로드 후 반환
 	const UPRCrosshairConfig* GetDefaultCrosshairConfigSync() const;
 
+	// 기본 UI 사운드 데이터 에셋을 동기 로드 후 반환
+	const UPRUISoundDataAsset* GetDefaultUISoundDataSync() const;
+
 	// FloatingTextType에 따른 스타일(위젯 클래스 + 색상)을 동기 로드 후 반환
 	FPRFloatingTextStyle GetFloatingTextStyleSync(EPRFloatingTextType TextType) const;
 
@@ -116,6 +120,10 @@ public:
 	// 무기 데이터에 크로스헤어 설정이 없을 때 사용할 기본 설정
 	UPROPERTY(EditAnywhere, Config, Category = "UI")
 	TSoftObjectPtr<UPRCrosshairConfig> DefaultCrosshairConfig;
+
+	// 모든 PR 위젯 버튼에 자동 적용할 기본 UI 사운드 설정
+	UPROPERTY(EditAnywhere, Config, Category = "UI|Sound", meta = (AllowedClasses = "/Script/ProjectR.PRUISoundDataAsset"))
+	TSoftObjectPtr<UPRUISoundDataAsset> DefaultUISoundData;
 
 	// EPRFloatingTextType : 스타일(위젯 + 색상) 매핑
 	UPROPERTY(EditAnywhere, Config, Category = "UI")

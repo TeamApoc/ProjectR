@@ -57,6 +57,7 @@ public:
 
 public:
 	// Tick 최적화 대상 등록을 다음 평가 주기까지 예약
+	UFUNCTION(BlueprintCallable)
 	void RegisterTarget(AActor* TargetActor);
 
 	// Tick 최적화 대상 해제를 다음 평가 주기까지 예약

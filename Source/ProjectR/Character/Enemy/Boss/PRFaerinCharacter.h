@@ -38,6 +38,9 @@ public:
 	UFUNCTION(BlueprintPure, Category = "ProjectR|AI|Boss|Faerin")
 	bool IsBossEncounterActive() const { return bBossEncounterActive; }
 
+	// 보스와 플레이어의 실제 교전 확인 후 HUD 조우 시작 요청
+	virtual void RequestBossEncounterBegin() override;
+
 	// 근거리 텔레포트 순간 보스 몸 위치의 Niagara를 모든 클라이언트에 재생한다.
 	UFUNCTION(NetMulticast, Reliable)
 	void Multicast_SpawnNearTeleportBodyNiagara(UNiagaraSystem* NiagaraSystem, FName AttachSocketName);

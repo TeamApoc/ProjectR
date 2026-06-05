@@ -34,11 +34,6 @@ APRFaerinCharacter::APRFaerinCharacter()
 void APRFaerinCharacter::BeginPlay()
 {
 	Super::BeginPlay();
-
-	if (HasAuthority())
-	{
-		SetBossEncounterActive(true);
-	}
 }
 
 void APRFaerinCharacter::EndPlay(const EEndPlayReason::Type EndPlayReason)
@@ -61,6 +56,14 @@ void APRFaerinCharacter::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& O
 	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
 
 	DOREPLIFETIME(APRFaerinCharacter, bBossEncounterActive);
+}
+
+// ===== 공개 함수 =====
+
+// 플레이어 전투 교전 상태 진입에 따른 보스 HUD 조우 시작 요청
+void APRFaerinCharacter::RequestBossEncounterBegin()
+{
+	SetBossEncounterActive(true);
 }
 
 void APRFaerinCharacter::Multicast_SpawnNearTeleportBodyNiagara_Implementation(

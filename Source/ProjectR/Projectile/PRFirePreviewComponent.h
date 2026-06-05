@@ -5,7 +5,7 @@
 #include "CoreMinimal.h"
 #include "Components/ActorComponent.h"
 #include "PRProjectileTypes.h"
-#include "PRProjectileTrajectoryPreviewComponent.generated.h"
+#include "PRFirePreviewComponent.generated.h"
 
 class UPRWeaponManagerComponent;
 class APRWeaponActor;
@@ -18,17 +18,19 @@ class UStaticMesh;
  * 시각화는 로컬 클라이언트 전용으로 복제되지 않음.
  */
 UCLASS(ClassGroup=(Custom), meta=(BlueprintSpawnableComponent))
-class PROJECTR_API UPRProjectileTrajectoryPreviewComponent : public UActorComponent
+class PROJECTR_API UPRFirePreviewComponent : public UActorComponent
 {
     GENERATED_BODY()
 
 public:
-    UPRProjectileTrajectoryPreviewComponent();
+    UPRFirePreviewComponent();
     
+    /*~ UActorComponent Interface ~*/
     virtual void BeginPlay() override;
 
+    /*~ UPRFirePreviewComponent Interface ~*/
     UFUNCTION(BlueprintCallable, Category = "ProjectR|Projectile|Preview")
-    void SetPreviewEnabled(bool bInEnabled);
+    void SetTrajectoryPreviewEnabled(bool bInEnabled);
     
     // 발사 파라미터 일괄 갱신. 런타임 호출 가능
     UFUNCTION(BlueprintCallable, Category = "ProjectR|Projectile|Preview")
@@ -54,9 +56,15 @@ public:
     const FPRProjectilePreviewResult& GetLastResult() const { return LastResult; }
 
     void BindObject(UObject* InObject) {BoundObject = InObject;}
+
     UObject* GetBoundObject() const { return BoundObject; }
+
 protected:
-    /*~ Draw Interface ~*/
+    /*~ UActorComponent Interface ~*/
+    virtual void TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction) override;
+    virtual void OnUnregister() override;
+
+    /*~ UPRFirePreviewComponent Interface ~*/
 
     // 매 틱 산출된 샘플 포인트 배열로 궤적을 출력. 베이스 구현은 DrawDebugSphere로 각 포인트 표시 후 끝에서 DrawTrajectoryISMC 호출.
     // 정식 백엔드(ISMC)는 PreviewMesh 지정 시 활성, 미지정 시 자동 스킵
@@ -72,13 +80,21 @@ protected:
     // ISMC 인스턴스 일괄 제거
     virtual void ClearTrajectoryISMC();
 
-    /*~ UActorComponent Interface ~*/
-    virtual void TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction) override;
-    virtual void OnUnregister() override;
-
 private:
     // PredictProjectilePath 1회 호출 + 결과를 SampleSpacing 기준으로 다운샘플링하여 LastResult 갱신
     void RebuildPath();
+
+    // 카메라 조준점 기반 히트스캔 미리보기 갱신
+    void UpdateHitScanPreview();
+
+    // 현재 활성 무기 데이터 기준 히트스캔 미리보기 거리 반환
+    float GetHitScanPreviewDistance();
+
+    // 크로스헤어 히트스캔 미리보기 상태 초기화
+    void ClearHitScanPreview();
+
+    // EventManager 기반 크로스헤어 미리보기 적중 상태 전파
+    void BroadcastPreviewHit(bool bHit, bool bForceBroadcast = false);
 
     // PlayerState 복제 지연 이후 무기 매니저 재조회 캐시
     UPRWeaponManagerComponent* GetWeaponManager();
@@ -109,7 +125,7 @@ protected:
 
     // ISMC 인스턴스의 균일 스케일 배율. 메시 원본 스케일 기준
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|Projectile|Preview|ISMC", meta = (ClampMin = "0.01"))
-    float PreviewMeshScale = 1.f;
+    float PreviewMeshScale = 0.6f;
 
 private:
     // 궤적 기점 무기 액터 약참조. 매 틱 GetMuzzleTransform()으로 시작 위치/방향 조회
@@ -121,13 +137,19 @@ private:
     TObjectPtr<UInstancedStaticMeshComponent> TrajectoryISMC;
 
     // 활성화 여부
-    bool bIsEnabled = false;
+    bool bIsTrajectoryEnabled = false;
     
     // 표시 ON/OFF 상태
     bool bIsShowing = false;
 
     // 직전 틱 산출 결과 캐시
     FPRProjectilePreviewResult LastResult;
+
+    // 크로스헤어에 마지막으로 전파한 히트스캔 미리보기 상태 존재 여부
+    bool bHasPreviewHitState = false;
+
+    // 크로스헤어에 마지막으로 전파한 히트스캔 미리보기 적중 여부
+    bool bLastPreviewHit = false;
     
     TWeakObjectPtr<UPRWeaponManagerComponent> CachedWeaponManager;
     

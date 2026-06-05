@@ -88,7 +88,15 @@ float APRPickableAmmo::GrantAmmoAndGetRemaining(UAbilitySystemComponent* TargetA
 		return AmmoAmount;
 	}
 
-	// SetByCaller로 탄약량을 GE Spec에 전달
+	// AmmoAmount를 MaxMagazineAmmo 대비 백분율로 해석하여 실제 적립량 계산
+	const float MaxMagazineAmmo = WeaponSet->GetMaxMagazineAmmoByType(AmmoType);
+	const float DesiredAmount = FMath::FloorToFloat(MaxMagazineAmmo * AmmoAmount / 100.0f);
+	if (DesiredAmount <= 0.f)
+	{
+		return AmmoAmount;
+	}
+
+	// SetByCaller로 실제 적립량을 GE Spec에 전달
 	FGameplayEffectContextHandle Context = TargetASC->MakeEffectContext();
 	Context.AddSourceObject(this);
 
@@ -101,13 +109,25 @@ float APRPickableAmmo::GrantAmmoAndGetRemaining(UAbilitySystemComponent* TargetA
 	// 적용 전후 예비탄 비교로 MaxReserveAmmo 클램프에 잘린 잔여량 산출
 	const float BeforeReserve = WeaponSet->GetReserveAmmoByType(AmmoType);
 
-	SpecHandle.Data->SetSetByCallerMagnitude(PRCombatGameplayTags::SetByCaller_AmmoMagnitude, AmmoAmount);
+	SpecHandle.Data->SetSetByCallerMagnitude(PRCombatGameplayTags::SetByCaller_AmmoMagnitude, DesiredAmount);
 	TargetASC->ApplyGameplayEffectSpecToSelf(*SpecHandle.Data);
 
 	const float AfterReserve = WeaponSet->GetReserveAmmoByType(AmmoType);
 	const float Granted = FMath::Max(AfterReserve - BeforeReserve, 0.f);
+	const float RemainingRaw = FMath::Max(DesiredAmount - Granted, 0.f);
 
-	return FMath::Max(AmmoAmount - Granted, 0.f);
+	// 잔여 raw를 백분율로 환산하여 반환
+	if (RemainingRaw <= 0.f)
+	{
+		return 0.f;
+	}
+
+	if (MaxMagazineAmmo <= KINDA_SMALL_NUMBER)
+	{
+		return AmmoAmount;
+	}
+
+	return FMath::CeilToFloat(RemainingRaw * 100.0f / MaxMagazineAmmo);
 }
 
 void APRPickableAmmo::GetLifetimeReplicatedProps(TArray<class FLifetimeProperty>& OutLifetimeProps) const

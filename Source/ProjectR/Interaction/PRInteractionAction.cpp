@@ -5,6 +5,7 @@
 #include "PRInteractableComponent.h"
 #include "GameFramework/Controller.h"
 #include "GameFramework/Pawn.h"
+#include "GameFramework/PlayerController.h"
 #include "ProjectR/PRGameplayTags.h"
 #include "ProjectR/System/PREventManagerSubsystem.h"
 
@@ -135,6 +136,55 @@ bool UPRInteractionAction::IsActive(AActor* Interactor) const
 		return ActiveInteractors.Contains(Interactor);
 	}
 	return false;
+}
+
+bool UPRInteractionAction::ShouldShowHint(AActor* Viewer) const
+{
+	if (!bShowHint)
+	{
+		return false;
+	}
+
+	if (!bOnlyShowHintNearScreenCenter)
+	{
+		return true;
+	}
+
+	const AActor* OwnerActor = GetOwner();
+	APlayerController* PlayerController = Cast<APlayerController>(GetController(Viewer));
+	if (!IsValid(OwnerActor) || !IsValid(PlayerController))
+	{
+		return false;
+	}
+
+	int32 ViewportSizeX = 0;
+	int32 ViewportSizeY = 0;
+	PlayerController->GetViewportSize(ViewportSizeX, ViewportSizeY);
+	if (ViewportSizeX <= 0 || ViewportSizeY <= 0)
+	{
+		return false;
+	}
+
+	FVector2D ScreenPosition;
+	if (!PlayerController->ProjectWorldLocationToScreen(OwnerActor->GetActorLocation(), ScreenPosition))
+	{
+		return false;
+	}
+
+	const bool bInsideScreen =
+		ScreenPosition.X >= 0.f
+		&& ScreenPosition.X <= static_cast<float>(ViewportSizeX)
+		&& ScreenPosition.Y >= 0.f
+		&& ScreenPosition.Y <= static_cast<float>(ViewportSizeY);
+	if (!bInsideScreen)
+	{
+		return false;
+	}
+
+	// 화면 중앙 허용 반경 및 짧은 변 기준 비율
+	const FVector2D ScreenCenter(static_cast<float>(ViewportSizeX) * 0.5f, static_cast<float>(ViewportSizeY) * 0.5f);
+	const float MaxScreenDistance = FMath::Min(ViewportSizeX, ViewportSizeY) * FMath::Clamp(HintScreenCenterRadiusRatio, 0.f, 1.f);
+	return FVector2D::Distance(ScreenPosition, ScreenCenter) <= MaxScreenDistance;
 }
 
 bool UPRInteractionAction::IsLocalPlayer(AActor* Interactor) const

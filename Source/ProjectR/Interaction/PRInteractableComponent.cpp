@@ -127,7 +127,7 @@ void UPRInteractableComponent::BroadcastInteractableEvent(AActor* Viewer, bool b
 
 	FPRInteractableEventPayload Payload;
 	// 거리 내에 있고, 선택된 Action 이 힌트 표시를 허용해야 프롬프트 표시
-	Payload.bShowPrompt = bIsFocused && bIsInRange && IsValid(BestAction) && BestAction->bShowHint;
+	Payload.bShowPrompt = bIsFocused && bIsInRange && IsValid(BestAction) && BestAction->ShouldShowHint(Viewer);
 	Payload.bCanInteract = IsValid(Viewer) && HasAvailableAction(Viewer);
 	if (IsValid(BestAction))
 	{

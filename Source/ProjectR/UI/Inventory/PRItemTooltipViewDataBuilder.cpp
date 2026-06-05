@@ -116,7 +116,7 @@ FPRItemTooltipViewData UPRItemTooltipViewDataBuilder::BuildTooltipViewData(const
 		AddDetailLine(
 			ViewData,
 			FText::FromString(TEXT("약점 배율")),
-			FText::Format(FText::FromString(TEXT("{0}%")), UPRUserInterfaceStatics::ConvertFloatToText(WeaponData->WeakpointMultiplier * 100.0f)));
+			FText::Format(FText::FromString(TEXT("{0}%")), UPRUserInterfaceStatics::ConvertFloatToText(WeaponData->AdditiveWeakpointMultiplier * 100.0f)));
 		return ViewData;
 	}
 

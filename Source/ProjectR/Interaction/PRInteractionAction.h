@@ -147,6 +147,10 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Interaction")
 	bool ShouldSustained() const { return InteractionType == EPRInteractionType::Sustained; }
 
+	/** 힌트 프롬프트 표시 가능 여부 반환 */
+	UFUNCTION(BlueprintCallable, Category = "Interaction")
+	bool ShouldShowHint(AActor* Viewer) const;
+
 protected:
 	UFUNCTION(BlueprintPure, Category = "Interaction")
 	bool IsLocalPlayer(AActor* Interactor) const;
@@ -161,6 +165,16 @@ public:
 	// 포커스 시 힌트 프롬프트 표시 여부
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Interaction")
 	bool bShowHint = true;
+
+	// 힌트 프롬프트를 화면 중앙 반경 안에서만 표시할지 여부
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Interaction",
+	          meta = (EditCondition = "bShowHint"))
+	bool bOnlyShowHintNearScreenCenter = false;
+
+	// 화면 짧은 변 기준 중앙 허용 반경 비율
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Interaction",
+	          meta = (EditCondition = "bShowHint && bOnlyShowHintNearScreenCenter", ClampMin = "0.0", ClampMax = "1.0"))
+	float HintScreenCenterRadiusRatio = 0.3f;
 	
 	// 이 행동의 기본 우선순위. 하위 클래스에서 재정의 가능
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Interaction")

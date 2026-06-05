@@ -5,6 +5,7 @@
 #include "ProjectR/AbilitySystem/PRAbilitySystemComponent.h"
 #include "ProjectR/AI/Boss/PRBossPatternActor.h"
 #include "ProjectR/PRGameplayTags.h"
+#include "ProjectR/System/PREventManagerSubsystem.h"
 
 APRBossBaseCharacter::APRBossBaseCharacter()
 {
@@ -173,6 +174,7 @@ void APRBossBaseCharacter::CommitPhaseTransition(EPRBossPhase NewPhase)
 	AbilitySystemComponent->RemoveLooseGameplayTag(PRGameplayTags::State_PhaseTransitioning);
 	AbilitySystemComponent->RemoveReplicatedLooseGameplayTag(PRGameplayTags::State_PhaseTransitioning);
 
+	BroadcastBossPhaseChangedEvent(OldPhase, NewPhase);
 	OnPhaseChanged.Broadcast(OldPhase, NewPhase);
 }
 
@@ -296,8 +298,35 @@ void APRBossBaseCharacter::HandleGameplayTagUpdated(const FGameplayTag& ChangedT
 	}
 }
 
+void APRBossBaseCharacter::BroadcastBossPhaseChangedEvent(EPRBossPhase OldPhase, EPRBossPhase NewPhase)
+{
+	if (OldPhase == NewPhase)
+	{
+		return;
+	}
+
+	UWorld* World = GetWorld();
+	if (!IsValid(World))
+	{
+		return;
+	}
+
+	UPREventManagerSubsystem* EventMgr = World->GetSubsystem<UPREventManagerSubsystem>();
+	if (!IsValid(EventMgr))
+	{
+		return;
+	}
+
+	FPRBossPhaseChangedEventPayload Payload;
+	Payload.Boss = this;
+	Payload.OldPhase = OldPhase;
+	Payload.NewPhase = NewPhase;
+	EventMgr->BroadcastTyped(PRGameplayTags::Event_Boss_PhaseChanged, Payload);
+}
+
 void APRBossBaseCharacter::OnRep_CurrentPhase(EPRBossPhase OldPhase)
 {
 	// 클라이언트는 복제된 페이즈 변화로 연출/UI를 동기화한다.
+	BroadcastBossPhaseChangedEvent(OldPhase, CurrentPhase);
 	OnPhaseChanged.Broadcast(OldPhase, CurrentPhase);
 }

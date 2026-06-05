@@ -30,6 +30,28 @@ struct PROJECTR_API FPRBossEncounterEventPayload : public FPREventPayload
 	TObjectPtr<APRBossBaseCharacter> Boss = nullptr;
 };
 
+/**
+ * 보스 페이즈 변경 이벤트 페이로드.
+ * Event.Boss.PhaseChanged 발송 시 동반
+ */
+USTRUCT(BlueprintType)
+struct PROJECTR_API FPRBossPhaseChangedEventPayload : public FPREventPayload
+{
+	GENERATED_BODY()
+
+	// 페이즈가 변경된 보스 인스턴스
+	UPROPERTY(BlueprintReadWrite)
+	TObjectPtr<APRBossBaseCharacter> Boss = nullptr;
+
+	// 변경 전 페이즈
+	UPROPERTY(BlueprintReadWrite)
+	EPRBossPhase OldPhase = EPRBossPhase::Phase1;
+
+	// 변경 후 페이즈
+	UPROPERTY(BlueprintReadWrite)
+	EPRBossPhase NewPhase = EPRBossPhase::Phase1;
+};
+
 // 보스 몬스터 공통 베이스다.
 // 일반 적 베이스 위에 페이즈 상태, 페이즈별 AbilitySet, 체력 비율 기반 전환을 얹는다.
 UCLASS(Abstract)
@@ -98,6 +120,9 @@ public:
 protected:
 	/*~ APRCharacterBase Interface ~*/
 	virtual void HandleGameplayTagUpdated(const FGameplayTag& ChangedTag, bool TagExists) override;
+
+	// EventManager로 보스 페이즈 변경을 발행
+	void BroadcastBossPhaseChangedEvent(EPRBossPhase OldPhase, EPRBossPhase NewPhase);
 
 	UFUNCTION()
 	void OnRep_CurrentPhase(EPRBossPhase OldPhase);

@@ -89,6 +89,13 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "ProjectR|AI|Boss")
 	void CommitPhaseTransition(EPRBossPhase NewPhase);
 
+	// 실제 페이즈 확정 없이 BGM 전환에 사용할 목표 페이즈를 예고
+	void BroadcastBossBGMPhasePreview(EPRBossPhase PreviewPhase);
+
+	// 각 머신의 EventManager로 BGM 페이즈 예고 이벤트를 발행
+	UFUNCTION(NetMulticast, Reliable)
+	void Multicast_BroadcastBossBGMPhasePreview(EPRBossPhase PreviewPhase);
+
 	// 보스가 생성한 지속형 패턴 Actor를 활성 목록에 등록한다.
 	UFUNCTION(BlueprintCallable, Category = "ProjectR|AI|Boss")
 	void RegisterBossPatternActor(APRBossPatternActor* Actor);
@@ -123,6 +130,9 @@ protected:
 
 	// EventManager로 보스 페이즈 변경을 발행
 	void BroadcastBossPhaseChangedEvent(EPRBossPhase OldPhase, EPRBossPhase NewPhase);
+
+	// EventManager로 보스 BGM 페이즈 예고를 발행
+	void BroadcastBossBGMPhasePreviewEvent(EPRBossPhase PreviewPhase);
 
 	UFUNCTION()
 	void OnRep_CurrentPhase(EPRBossPhase OldPhase);

@@ -59,6 +59,9 @@ protected:
 	// PhaseTransition 실패 또는 취소 시 기존 phase로 되돌리고 transition 상태를 정리한다.
 	void RollbackPhaseTransition();
 
+	// 실제 phase 확정 전 BGM에 사용할 목표 phase를 예고한다.
+	void BroadcastBGMPhasePreview(EPRBossPhase PreviewPhase);
+
 	// PhaseTransition 이벤트 payload에서 목표 phase를 해석한다.
 	EPRBossPhase ResolveBossPhaseFromEvent(const FGameplayEventData* TriggerEventData) const;
 
@@ -89,4 +92,5 @@ private:
 	bool bBodyMontageSequenceFinished = false;
 	bool bPausedBrainLogicForGodFall = false;
 	bool bSuppressBodyMontageCallbacks = false;
+	bool bBGMPhasePreviewed = false;
 };

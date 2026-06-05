@@ -476,6 +476,13 @@ void UPRBGMSubsystem::BindBossBGMEvents()
 			PRGameplayTags::Event_Boss_PhaseChanged,
 			FPREventMulticast::FDelegate::CreateUObject(this, &ThisClass::HandleBossPhaseChangedEvent));
 	}
+
+	if (!BossBGMPhasePreviewDelegateHandle.IsValid())
+	{
+		BossBGMPhasePreviewDelegateHandle = EventMgr->Listen(
+			PRGameplayTags::Event_Boss_BGMPhasePreview,
+			FPREventMulticast::FDelegate::CreateUObject(this, &ThisClass::HandleBossPhaseChangedEvent));
+	}
 }
 
 void UPRBGMSubsystem::UnbindBossBGMEvents()
@@ -486,6 +493,7 @@ void UPRBGMSubsystem::UnbindBossBGMEvents()
 		BossEncounterBeginDelegateHandle.Reset();
 		BossEncounterEndDelegateHandle.Reset();
 		BossPhaseChangedDelegateHandle.Reset();
+		BossBGMPhasePreviewDelegateHandle.Reset();
 		return;
 	}
 
@@ -495,12 +503,14 @@ void UPRBGMSubsystem::UnbindBossBGMEvents()
 		BossEncounterBeginDelegateHandle.Reset();
 		BossEncounterEndDelegateHandle.Reset();
 		BossPhaseChangedDelegateHandle.Reset();
+		BossBGMPhasePreviewDelegateHandle.Reset();
 		return;
 	}
 
 	EventMgr->Unlisten(PRGameplayTags::Event_Boss_Encounter_Begin, BossEncounterBeginDelegateHandle);
 	EventMgr->Unlisten(PRGameplayTags::Event_Boss_Encounter_End, BossEncounterEndDelegateHandle);
 	EventMgr->Unlisten(PRGameplayTags::Event_Boss_PhaseChanged, BossPhaseChangedDelegateHandle);
+	EventMgr->Unlisten(PRGameplayTags::Event_Boss_BGMPhasePreview, BossBGMPhasePreviewDelegateHandle);
 }
 
 void UPRBGMSubsystem::HandleBossEncounterBeginEvent(FGameplayTag EventTag, const FInstancedStruct& Payload)

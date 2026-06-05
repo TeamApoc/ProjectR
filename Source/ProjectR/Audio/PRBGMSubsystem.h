@@ -126,6 +126,8 @@ private:
 
 	FDelegateHandle BossPhaseChangedDelegateHandle;
 
+	FDelegateHandle BossBGMPhasePreviewDelegateHandle;
+
 	FTimerHandle CombatBGMReleaseTimerHandle;
 
 	FTimerHandle LocalPlayerBindRetryTimerHandle;

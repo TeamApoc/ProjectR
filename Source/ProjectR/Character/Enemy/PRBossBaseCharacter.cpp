@@ -178,6 +178,21 @@ void APRBossBaseCharacter::CommitPhaseTransition(EPRBossPhase NewPhase)
 	OnPhaseChanged.Broadcast(OldPhase, NewPhase);
 }
 
+void APRBossBaseCharacter::BroadcastBossBGMPhasePreview(EPRBossPhase PreviewPhase)
+{
+	if (!HasAuthority())
+	{
+		return;
+	}
+
+	Multicast_BroadcastBossBGMPhasePreview(PreviewPhase);
+}
+
+void APRBossBaseCharacter::Multicast_BroadcastBossBGMPhasePreview_Implementation(EPRBossPhase PreviewPhase)
+{
+	BroadcastBossBGMPhasePreviewEvent(PreviewPhase);
+}
+
 void APRBossBaseCharacter::RegisterBossPatternActor(APRBossPatternActor* Actor)
 {
 	if (!HasAuthority() || !IsValid(Actor))
@@ -322,6 +337,27 @@ void APRBossBaseCharacter::BroadcastBossPhaseChangedEvent(EPRBossPhase OldPhase,
 	Payload.OldPhase = OldPhase;
 	Payload.NewPhase = NewPhase;
 	EventMgr->BroadcastTyped(PRGameplayTags::Event_Boss_PhaseChanged, Payload);
+}
+
+void APRBossBaseCharacter::BroadcastBossBGMPhasePreviewEvent(EPRBossPhase PreviewPhase)
+{
+	UWorld* World = GetWorld();
+	if (!IsValid(World))
+	{
+		return;
+	}
+
+	UPREventManagerSubsystem* EventMgr = World->GetSubsystem<UPREventManagerSubsystem>();
+	if (!IsValid(EventMgr))
+	{
+		return;
+	}
+
+	FPRBossPhaseChangedEventPayload Payload;
+	Payload.Boss = this;
+	Payload.OldPhase = CurrentPhase;
+	Payload.NewPhase = PreviewPhase;
+	EventMgr->BroadcastTyped(PRGameplayTags::Event_Boss_BGMPhasePreview, Payload);
 }
 
 void APRBossBaseCharacter::OnRep_CurrentPhase(EPRBossPhase OldPhase)

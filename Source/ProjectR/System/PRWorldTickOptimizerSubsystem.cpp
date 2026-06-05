@@ -3,6 +3,7 @@
 #include "PRWorldTickOptimizerSubsystem.h"
 
 #include "AbilitySystemComponent.h"
+#include "DrawDebugHelpers.h"
 #include "Engine/World.h"
 #include "GameFramework/PlayerController.h"
 #include "GameFramework/Pawn.h"
@@ -20,6 +21,49 @@ namespace
 		1,
 		TEXT("월드 Tick 최적화 활성 여부.\n0: 비활성\n1: 활성"),
 		ECVF_Default);
+
+	static TAutoConsoleVariable<int32> CVarPRWorldTickOptimizerShowActors(
+		TEXT("pr.WorldTickOptimizer.ShowActors"),
+		0,
+		TEXT("월드 Tick 최적화 대상 액터 상태 박스 표시 여부.\n0: 비활성\n1: 활성"),
+		ECVF_Default);
+
+	// 액터 상태 디버그 박스 표시 여부 확인
+	bool IsActorDebugDrawEnabled()
+	{
+		return CVarPRWorldTickOptimizerShowActors.GetValueOnGameThread() > 0;
+	}
+
+	// 최적화 대상 액터의 Tick 활성 상태 시각화
+	void DrawActorStateBoxes(const UWorld* World, const TArray<FPRTickOptimizationEntry>& ActiveEntries, float DrawDuration)
+	{
+		if (!IsValid(World) || !IsActorDebugDrawEnabled())
+		{
+			return;
+		}
+
+		const FVector DebugBoxExtent(50.0f, 50.0f, 50.0f);
+		const float ClampedDrawDuration = FMath::Max(DrawDuration, 0.0f);
+		for (const FPRTickOptimizationEntry& Entry : ActiveEntries)
+		{
+			const AActor* TargetActor = Entry.TargetActor.Get();
+			if (!IsValid(TargetActor))
+			{
+				continue;
+			}
+
+			const FColor DebugColor = Entry.bIsTickActive ? FColor::Green : FColor::Red;
+			DrawDebugBox(
+				World,
+				TargetActor->GetActorLocation(),
+				DebugBoxExtent,
+				DebugColor,
+				false,
+				ClampedDrawDuration,
+				SDPG_Foreground,
+				2.0f);
+		}
+	}
 }
 
 /*~ UWorldSubsystem Interface ~*/
@@ -81,12 +125,14 @@ void UPRWorldTickOptimizerSubsystem::ForceEvaluate()
 	if (!IsOptimizationEnabled())
 	{
 		RestoreAllTargetsActive();
+		DrawActorStateBoxes(World, ActiveEntries, EvaluationInterval);
 		CachedSources.Reset();
 		return;
 	}
 
 	BuildSources();
 	EvaluateTargets();
+	DrawActorStateBoxes(World, ActiveEntries, EvaluationInterval);
 }
 
 bool UPRWorldTickOptimizerSubsystem::IsOptimizationEnabled()

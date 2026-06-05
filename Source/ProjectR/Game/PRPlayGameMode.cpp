@@ -160,6 +160,18 @@ bool APRPlayGameMode::AcceptGuestCharacter(APRPlayerController* From, const FPRC
 		return false;
 	}
 
+	APRPlayerState* PS = From->GetPlayerState<APRPlayerState>();
+	if (!IsValid(PS))
+	{
+		return false;
+	}
+
+	if (PS->HasAcceptedCharacterPayload())
+	{
+		// ReceivedPlayer 재호출로 전달된 클라이언트 로컬 세이브 재적용 방지
+		return true;
+	}
+
 	FString Reason;
 	if (!ValidateCharacterPayload(Payload, Reason))
 	{
@@ -167,18 +179,15 @@ bool APRPlayGameMode::AcceptGuestCharacter(APRPlayerController* From, const FPRC
 	}
 
 	// PlayerState에 주입. 이후 복제로 모든 클라에 전파
-	if (APRPlayerState* PS = From->GetPlayerState<APRPlayerState>())
+	PS->MarkCharacterPayloadAccepted();
+	PS->QueueSaveDataApply(Payload, true);
+	if (IsValid(PS->GetPawn()))
 	{
-		PS->InitializePrimaryInfoFromSaveData(Payload);
-		if (IsValid(PS->GetPawn()))
-		{
-			// 게스트 페이로드 즉시 복원
-			PS->ApplySaveData(Payload);
-		}
-		return true;
+		// 게스트 페이로드와 기본 지급 아이템 즉시 복원
+		PS->ApplyPendingSaveData();
 	}
 
-	return false;
+	return true;
 }
 
 void APRPlayGameMode::GrantRewardTo(APRPlayerController* Target, const FPRRewardGrant& Grant)

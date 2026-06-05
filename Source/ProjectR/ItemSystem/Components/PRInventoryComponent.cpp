@@ -705,6 +705,12 @@ int32 UPRInventoryComponent::GetItemIndexByType(const UPRItemInstance* ItemInsta
 
 void UPRInventoryComponent::OnInventoryChanged(const FPRInventoryChangeEventData& EventData)
 {
+	if (IsValid(GetOwner()) && GetOwner()->HasAuthority())
+	{
+		// ItemInstance 내부 값 변경 복제 갱신
+		GetOwner()->ForceNetUpdate();
+	}
+
 	OnInventoryChangedDelegate.Broadcast(this, EventData);
 }
 

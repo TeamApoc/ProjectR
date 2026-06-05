@@ -68,6 +68,9 @@ public:
 	// 디버그와 테스트를 위한 예약 반영과 거리 평가 즉시 실행
 	void ForceEvaluate();
 
+	// WorldTickOptimizer CVar 활성 여부 반환
+	static bool IsOptimizationEnabled();
+
 protected:
 	// 서버 월드 전용 평가 타이머 시작
 	void StartEvaluationTimer();
@@ -83,6 +86,9 @@ protected:
 
 	// 등록된 대상의 활성 상태 평가
 	void EvaluateTargets();
+
+	// CVar 비활성화 시 최적화로 꺼진 대상 상태 복구
+	void RestoreAllTargetsActive();
 
 	// 단일 대상의 거리 조건 평가와 필요 전이 적용
 	void EvaluateTarget(FPRTickOptimizationEntry& Entry);

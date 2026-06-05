@@ -129,12 +129,14 @@ void APREnemyBaseCharacter::BeginPlay()
 			}
 		}
 
-		if (!bStartTickActive)
+		// CVar 비활성화 상태에서 초기 최적화 적용 방지
+		const bool bCanApplyInitialTickOptimization = UPRWorldTickOptimizerSubsystem::IsOptimizationEnabled();
+		if (bCanApplyInitialTickOptimization && !bStartTickActive)
 		{
 			SetTickActive(false);
 		}
 
-		if (!bStartVisibilityActive)
+		if (bCanApplyInitialTickOptimization && !bStartVisibilityActive)
 		{
 			SetVisibilityActive(false);
 		}

@@ -53,6 +53,9 @@ public:
 	/*~ IPRCombatInterface ~*/
 	virtual void OnPostDamageApplied(const FPRDamageAppliedContext& Context) override;
 
+	// 플레이어 전투 교전 상태 진입에 따른 보스 HUD 조우 시작 요청
+	virtual void RequestBossEncounterBegin();
+
 	EPRBossPhase GetCurrentPhase() const { return CurrentPhase; }
 
 	// 체력 비율이 바뀔 때 호출해 다음 페이즈 조건을 검사한다.

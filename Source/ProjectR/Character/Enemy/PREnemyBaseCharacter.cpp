@@ -723,6 +723,18 @@ void APREnemyBaseCharacter::OnPostDamageApplied(const FPRDamageAppliedContext& C
 	{
 		return;
 	}
+
+	if (Context.FinalDamage > 0.0f && bUseTickOptimization)
+	{
+		if (UWorld* World = GetWorld())
+		{
+			if (UPRWorldTickOptimizerSubsystem* TickOptimizer = World->GetSubsystem<UPRWorldTickOptimizerSubsystem>())
+			{
+				// 실제 피해를 받은 적의 전투 반응 유지를 위한 강제 활성화
+				TickOptimizer->ForceActivateTarget(this);
+			}
+		}
+	}
 	
 	GiveModGauge(Context);
 

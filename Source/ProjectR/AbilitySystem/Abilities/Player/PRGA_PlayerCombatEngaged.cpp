@@ -3,6 +3,7 @@
 #include "PRGA_PlayerCombatEngaged.h"
 
 #include "GameplayEffect.h"
+#include "ProjectR/Character/Enemy/PRBossBaseCharacter.h"
 #include "ProjectR/PRGameplayTags.h"
 
 UPRGA_PlayerCombatEngaged::UPRGA_PlayerCombatEngaged()
@@ -37,6 +38,16 @@ void UPRGA_PlayerCombatEngaged::ActivateAbility(const FGameplayAbilitySpecHandle
 	}
 
 	ApplyCombatingStateEffect();
+	if (TriggerEventData != nullptr)
+	{
+		// 전투 교전 이벤트를 보고한 보스의 HUD 조우 시작 요청
+		const AActor* EventInstigator = TriggerEventData->Instigator.Get();
+		if (APRBossBaseCharacter* Boss = Cast<APRBossBaseCharacter>(const_cast<AActor*>(EventInstigator)))
+		{
+			Boss->RequestBossEncounterBegin();
+		}
+	}
+
 	EndAbility(Handle, ActorInfo, ActivationInfo, true, false);
 }
 

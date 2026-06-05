@@ -40,7 +40,39 @@ void UPRFaerinGodFallComponent::BeginPlay()
 	SetComponentTickEnabled(false);
 	if (bHideRigActorUntilEntry && IsValid(PlacedSwordRigActor))
 	{
-		SetPlacedRigHidden(true);
+		SetPlacedRigHidden(false);
+	}
+
+	if (!IsValid(PlacedSwordRigActor))
+	{
+		if (UWorld* World = GetWorld(); IsValid(World))
+		{
+			World->GetTimerManager().SetTimer(SwordInitHandle, FTimerDelegate::CreateLambda([this]()
+			{
+				UWorld* TimerWorld = GetWorld();
+				if (!IsValid(TimerWorld))
+				{
+					return;
+				}
+
+				// 맵 배치 sword rig actor의 지연 등록을 고려한 태그 기반 보완 탐색
+				static const FName SwordRigTag(TEXT("SwordRig"));
+				for (TActorIterator<AActor> ActorIterator(TimerWorld); ActorIterator; ++ActorIterator)
+				{
+					AActor* CandidateActor = *ActorIterator;
+					if (!IsValid(CandidateActor) || !CandidateActor->ActorHasTag(SwordRigTag))
+					{
+						continue;
+					}
+
+					PlacedSwordRigActor = CandidateActor;
+					PlacedSwordRigMeshComponent = nullptr;
+					break;
+				}
+
+				SetPlacedRigHidden(false);
+			}), 0.1f, false);
+		}
 	}
 }
 

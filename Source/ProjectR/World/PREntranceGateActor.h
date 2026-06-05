@@ -7,6 +7,7 @@
 #include "PREntranceGateActor.generated.h"
 
 class UBoxComponent;
+class USceneComponent;
 
 UCLASS()
 class PROJECTR_API APREntranceGateActor : public APRInteractableActor
@@ -18,6 +19,10 @@ public:
 	APREntranceGateActor();
 
 protected:
+	// 액터 Transform 기준점으로 사용할 루트 컴포넌트
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "ProjectR|EntranceGate")
+	TObjectPtr<USceneComponent> SceneRoot;
+
 	// 플레이어 상호작용 감지용 콜리전
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "ProjectR|EntranceGate")
 	TObjectPtr<UBoxComponent> InteractionCollision;

@@ -17,6 +17,7 @@ class UTextBlock;
 class UPRCharacterPreviewWidget;
 class UPRGameInstance;
 class UPREquipmentDataAsset;
+class UPRPlayerStatsPanelWidget;
 class UPRWeaponDataAsset;
 
 // 시작 메뉴에서 세이브 슬롯과 선택된 캐릭터 장착 상태를 표시하는 위젯
@@ -199,44 +200,48 @@ protected:
 	int32 HostMaxPlayers = 4;
 
 	// UMG에서 바인딩할 주무기 슬롯 위젯
-	UPROPERTY(BlueprintReadOnly, meta = (BindWidget), Category = "ProjectR|StartMenu")
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "ProjectR|StartMenu")
 	TObjectPtr<UPRItemSlotWidget> PrimaryWeaponSlotWidget;
 
 	// UMG에서 바인딩할 보조무기 슬롯 위젯
-	UPROPERTY(BlueprintReadOnly, meta = (BindWidget), Category = "ProjectR|StartMenu")
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "ProjectR|StartMenu")
 	TObjectPtr<UPRItemSlotWidget> SecondaryWeaponSlotWidget;
 
 	// UMG에서 바인딩할 머리 장비 슬롯 위젯
-	UPROPERTY(BlueprintReadOnly, meta = (BindWidget), Category = "ProjectR|StartMenu")
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "ProjectR|StartMenu")
 	TObjectPtr<UPRItemSlotWidget> HeadEquipmentSlotWidget;
 
 	// UMG에서 바인딩할 몸통 장비 슬롯 위젯
-	UPROPERTY(BlueprintReadOnly, meta = (BindWidget), Category = "ProjectR|StartMenu")
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "ProjectR|StartMenu")
 	TObjectPtr<UPRItemSlotWidget> BodyEquipmentSlotWidget;
 
 	// UMG에서 바인딩할 손 장비 슬롯 위젯
-	UPROPERTY(BlueprintReadOnly, meta = (BindWidget), Category = "ProjectR|StartMenu")
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "ProjectR|StartMenu")
 	TObjectPtr<UPRItemSlotWidget> HandsEquipmentSlotWidget;
 
 	// UMG에서 바인딩할 다리 장비 슬롯 위젯
-	UPROPERTY(BlueprintReadOnly, meta = (BindWidget), Category = "ProjectR|StartMenu")
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "ProjectR|StartMenu")
 	TObjectPtr<UPRItemSlotWidget> LegsEquipmentSlotWidget;
 
 	// UMG에서 바인딩할 목걸이 장비 슬롯 위젯
-	UPROPERTY(BlueprintReadOnly, meta = (BindWidget), Category = "ProjectR|StartMenu")
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "ProjectR|StartMenu")
 	TObjectPtr<UPRItemSlotWidget> AmuletEquipmentSlotWidget;
 
 	// UMG에서 바인딩할 반지 1 장비 슬롯 위젯
-	UPROPERTY(BlueprintReadOnly, meta = (BindWidget), Category = "ProjectR|StartMenu")
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "ProjectR|StartMenu")
 	TObjectPtr<UPRItemSlotWidget> Ring1EquipmentSlotWidget;
 
 	// UMG에서 바인딩할 반지 2 장비 슬롯 위젯
-	UPROPERTY(BlueprintReadOnly, meta = (BindWidget), Category = "ProjectR|StartMenu")
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "ProjectR|StartMenu")
 	TObjectPtr<UPRItemSlotWidget> Ring2EquipmentSlotWidget;
 
 	// UMG에서 바인딩할 캐릭터 프리뷰 위젯
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidget), Category = "ProjectR|StartMenu")
 	TObjectPtr<UPRCharacterPreviewWidget> CharacterPreviewWidget;
+
+	// UMG에서 바인딩할 플레이어 스탯 패널 위젯
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "ProjectR|StartMenu")
+	TObjectPtr<UPRPlayerStatsPanelWidget> PlayerStatsPanelWidget;
 
 private:
 	// 반복 처리용 세이브 슬롯 버튼 캐시

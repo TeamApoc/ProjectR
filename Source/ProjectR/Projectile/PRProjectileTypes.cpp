@@ -18,6 +18,14 @@ void FPRProjectileRepHomingSchedule::Reset()
 	Revision = 0;
 }
 
+bool PRShouldPlayProjectileDestroyEffect(EPRProjectileDestroyReason DestroyReason)
+{
+	// 파괴 연출 대상
+	return DestroyReason == EPRProjectileDestroyReason::Impact
+		|| DestroyReason == EPRProjectileDestroyReason::DamageDepleted
+		|| DestroyReason == EPRProjectileDestroyReason::ReplicatedDetonation;
+}
+
 bool FPRProjectileRepMovement::NetSerialize(FArchive& Ar, UPackageMap* Map, bool& bOutSuccess)
 {
 	uint8 EventByte = static_cast<uint8>(Event);

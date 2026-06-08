@@ -36,9 +36,6 @@ protected:
 	// BaseAimRotation 기준 AimOffset 입력값을 갱신한다.
 	void UpdateAimData();
 
-	// ASC 태그를 읽어 Dead/Groggy 상태 플래그를 갱신한다.
-	void UpdateStateFlags();
-
 public:
 	// 이 AnimInstance가 붙어 있는 적 캐릭터다.
 	UPROPERTY(BlueprintReadOnly, Category = "ProjectR|Animation")
@@ -80,14 +77,6 @@ public:
 	UPROPERTY(BlueprintReadOnly, Category = "ProjectR|Animation")
 	bool bIsFalling = false;
 
-	// 사망 상태 여부다.
-	UPROPERTY(BlueprintReadOnly, Category = "ProjectR|Animation")
-	bool bIsDead = false;
-
-	// 그로기 상태 여부다.
-	UPROPERTY(BlueprintReadOnly, Category = "ProjectR|Animation")
-	bool bIsGroggy = false;
-
 	// EQS 전투 이동 중 타겟 Focus를 유지해야 하는지 여부다.
 	UPROPERTY(BlueprintReadOnly, Category = "ProjectR|Animation")
 	bool bMaintainCombatMoveFocus = false;
@@ -103,6 +92,10 @@ public:
 	// 현재 전투 strafe 표현 상태로 볼 수 있는지 여부다.
 	UPROPERTY(BlueprintReadOnly, Category = "ProjectR|Animation")
 	bool bIsCombatStrafe = false;
+
+	// Perch/Gargoyle 대기 전용 Idle 포즈를 우선 재생해야 하는지 여부다.
+	UPROPERTY(BlueprintReadOnly, Category = "ProjectR|Animation")
+	bool bUsePerchIdlePose = false;
 
 	// AimOffset용 Yaw 입력값이다.
 	UPROPERTY(BlueprintReadOnly, Category = "ProjectR|Animation")

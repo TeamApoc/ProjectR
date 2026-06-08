@@ -18,6 +18,8 @@ UPRGameplayAbility_FaeRoyalArcherDeath::UPRGameplayAbility_FaeRoyalArcherDeath()
 	bDestroyActorOnDeath = true;
 	DeathDestroyDelay = 2.4f;
 	bUseDissolveOnDeath = true;
+	DissolveTimingMode = EPRDeathDissolveTimingMode::AfterMontageStart;
+	DissolveDelayAfterMontageStart = 0.8f;
 	DissolveDelayAfterMontage = 0.05f;
 	DissolveDuration = 1.0f;
 	DissolveStartValue = 1.0f;

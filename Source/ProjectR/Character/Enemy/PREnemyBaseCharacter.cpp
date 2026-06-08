@@ -250,6 +250,7 @@ void APREnemyBaseCharacter::ClearCombatMovePresentationContext()
 void APREnemyBaseCharacter::RequestDeathDissolveVisual(
 	UAnimMontage* InDeathMontage,
 	float InMontagePlayRate,
+	bool bInDissolveDelayAfterMontageEnd,
 	float InDissolveDelay,
 	float InDissolveDuration,
 	float InDissolveStartValue,
@@ -269,6 +270,7 @@ void APREnemyBaseCharacter::RequestDeathDissolveVisual(
 	Multicast_RequestDeathDissolveVisual(
 		InDeathMontage,
 		InMontagePlayRate,
+		bInDissolveDelayAfterMontageEnd,
 		InDissolveDelay,
 		InDissolveDuration,
 		InDissolveStartValue,
@@ -284,6 +286,7 @@ void APREnemyBaseCharacter::RequestDeathDissolveVisual(
 void APREnemyBaseCharacter::Multicast_RequestDeathDissolveVisual_Implementation(
 	UAnimMontage* InDeathMontage,
 	float InMontagePlayRate,
+	bool bInDissolveDelayAfterMontageEnd,
 	float InDissolveDelay,
 	float InDissolveDuration,
 	float InDissolveStartValue,
@@ -314,6 +317,7 @@ void APREnemyBaseCharacter::Multicast_RequestDeathDissolveVisual_Implementation(
 	PendingDeathDissolveMontage = InDeathMontage;
 	PendingDeathDissolveMontagePlayRate = FMath::Max(InMontagePlayRate, UE_SMALL_NUMBER);
 	PendingDeathDissolveDelay = FMath::Max(InDissolveDelay, 0.0f);
+	bPendingDeathDissolveDelayAfterMontageEnd = bInDissolveDelayAfterMontageEnd;
 	PendingDeathDissolveDuration = FMath::Max(InDissolveDuration, 0.0f);
 	PendingDeathDissolveStartValue = InDissolveStartValue;
 	PendingDeathDissolveEndValue = InDissolveEndValue;
@@ -328,26 +332,26 @@ void APREnemyBaseCharacter::Multicast_RequestDeathDissolveVisual_Implementation(
 	PendingDeathDissolveTextureUV = InDissolveTextureUV;
 	PendingDeathDissolveTickInterval = FMath::Max(InDissolveTickInterval, 0.001f);
 
-	if (!IsValid(PendingDeathDissolveMontage))
-	{
-		BeginDeathDissolveVisual();
-		return;
-	}
-
 	// Death는 곧바로 Dead 태그, AI 정지, Dissolve 예약이 이어지므로 클라이언트 시각 몽타주를 한 번 더 보장한다.
-	if (!HasAuthority())
+	if (IsValid(PendingDeathDissolveMontage) && !HasAuthority())
 	{
 		PlayDeathDissolveMontageIfNeeded();
 	}
 
-	const float MontageDelay = (PendingDeathDissolveMontage->GetPlayLength() / PendingDeathDissolveMontagePlayRate) + 0.1f;
+	const float MontageDelay = bPendingDeathDissolveDelayAfterMontageEnd && IsValid(PendingDeathDissolveMontage)
+		? (PendingDeathDissolveMontage->GetPlayLength() / PendingDeathDissolveMontagePlayRate) + 0.1f
+		: 0.0f;
+	const float InitialDelay = bPendingDeathDissolveDelayAfterMontageEnd
+		? MontageDelay
+		: PendingDeathDissolveDelay;
+
 	if (UWorld* World = GetWorld())
 	{
 		World->GetTimerManager().SetTimer(
 			DeathDissolveStartTimerHandle,
 			this,
 			&APREnemyBaseCharacter::BeginDeathDissolveVisual,
-			FMath::Max(MontageDelay, 0.0f),
+			FMath::Max(InitialDelay, 0.0f),
 			false);
 	}
 	else
@@ -399,7 +403,7 @@ void APREnemyBaseCharacter::BeginDeathDissolveVisual()
 
 	FreezeDeathDissolvePose();
 
-	if (PendingDeathDissolveDelay <= 0.0f)
+	if (!bPendingDeathDissolveDelayAfterMontageEnd || PendingDeathDissolveDelay <= 0.0f)
 	{
 		StartDeathDissolveVisual();
 		return;

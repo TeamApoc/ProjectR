@@ -126,6 +126,7 @@ public:
 	void RequestDeathDissolveVisual(
 		UAnimMontage* InDeathMontage,
 		float InMontagePlayRate,
+		bool bInDissolveDelayAfterMontageEnd,
 		float InDissolveDelay,
 		float InDissolveDuration,
 		float InDissolveStartValue,
@@ -179,6 +180,7 @@ protected:
 	void Multicast_RequestDeathDissolveVisual(
 		UAnimMontage* InDeathMontage,
 		float InMontagePlayRate,
+		bool bInDissolveDelayAfterMontageEnd,
 		float InDissolveDelay,
 		float InDissolveDuration,
 		float InDissolveStartValue,
@@ -360,6 +362,7 @@ protected:
 	FVector2D PendingDeathDissolveTextureUV = FVector2D(1.0f, 1.0f);
 	float PendingDeathDissolveMontagePlayRate = 1.0f;
 	float PendingDeathDissolveDelay = 0.0f;
+	bool bPendingDeathDissolveDelayAfterMontageEnd = true;
 	float PendingDeathDissolveDuration = 1.0f;
 	float PendingDeathDissolveStartValue = 0.0f;
 	float PendingDeathDissolveEndValue = 1.0f;

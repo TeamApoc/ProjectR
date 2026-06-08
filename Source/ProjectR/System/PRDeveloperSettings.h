@@ -10,6 +10,7 @@
 enum class EPRCrosshairType : uint8;
 enum class EPRFloatingTextType : uint8;
 class UPRAbilitySystemRegistry;
+class UPRImpactRegistry;
 class UPRFXRegistryDataAsset;
 class UPRFloatingTextWidget;
 class UGameplayEffect;
@@ -17,6 +18,7 @@ class UUserWidget;
 class UDataTable;
 class APRRewardPickupActor;
 class UPRCrosshairConfig;
+class UPRBGMRegistryDataAsset;
 class UPRUISoundDataAsset;
 
 // 플로팅 텍스트 타입별 위젯 클래스 및 색상 설정
@@ -78,6 +80,9 @@ public:
 	// 기본 UI 사운드 데이터 에셋을 동기 로드 후 반환
 	const UPRUISoundDataAsset* GetDefaultUISoundDataSync() const;
 
+	// 기본 BGM Registry 데이터 에셋을 동기 로드 후 반환
+	const UPRBGMRegistryDataAsset* GetDefaultBGMRegistrySync() const;
+
 	// FloatingTextType에 따른 스타일(위젯 클래스 + 색상)을 동기 로드 후 반환
 	FPRFloatingTextStyle GetFloatingTextStyleSync(EPRFloatingTextType TextType) const;
 
@@ -92,6 +97,10 @@ public:
 	// FX 태그와 Cue 클래스를 연결하는 Registry 소프트 레퍼런스
 	UPROPERTY(EditAnywhere, Config, Category = "Registries", meta = (AllowedClasses = "/Script/ProjectR.PRFXRegistryDataAsset"))
 	TSoftObjectPtr<UPRFXRegistryDataAsset> FXRegistry;
+
+	// 총기 Impact 태그별 Niagara와 Decal 재생 데이터 및 Physical Surface fallback 매핑을 보관하는 Registry 소프트 레퍼런스
+	UPROPERTY(EditAnywhere, Config, Category = "Registries", meta = (AllowedClasses = "/Script/ProjectR.PRImpactRegistry"))
+	TSoftObjectPtr<UPRImpactRegistry> ImpactRegistry;
 
 	// 몬스터별 드롭 보상 테이블
 	UPROPERTY(EditAnywhere, Config, Category = "Registries", meta = (RequiredAssetDataTags = "RowStructure=/Script/ProjectR.PRMonsterDropTableRow"))
@@ -112,7 +121,7 @@ public:
 	// 드롭 보상 픽업에 사용할 액터 클래스
 	UPROPERTY(EditAnywhere, Config, Category = "Registries", meta = (AllowedClasses = "/Script/ProjectR.PRRewardPickupActor"))
 	TSoftClassPtr<APRRewardPickupActor> RewardPickupActorClass;
-	
+
 	// EPRCrosshairType : CrosshairWidgetClass 매핑
 	UPROPERTY(EditAnywhere, Config, Category = "UI")
 	TMap<EPRCrosshairType, TSoftClassPtr<UUserWidget>> CrosshairWidgets;
@@ -124,6 +133,10 @@ public:
 	// 모든 PR 위젯 버튼에 자동 적용할 기본 UI 사운드 설정
 	UPROPERTY(EditAnywhere, Config, Category = "UI|Sound", meta = (AllowedClasses = "/Script/ProjectR.PRUISoundDataAsset"))
 	TSoftObjectPtr<UPRUISoundDataAsset> DefaultUISoundData;
+
+	// 레벨별 BGM Entry를 보관하는 기본 Registry 설정
+	UPROPERTY(EditAnywhere, Config, Category = "Audio|BGM", meta = (AllowedClasses = "/Script/ProjectR.PRBGMRegistryDataAsset"))
+	TSoftObjectPtr<UPRBGMRegistryDataAsset> DefaultBGMRegistry;
 
 	// EPRFloatingTextType : 스타일(위젯 + 색상) 매핑
 	UPROPERTY(EditAnywhere, Config, Category = "UI")

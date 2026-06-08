@@ -11,6 +11,7 @@
 #include "ProjectR/ItemSystem/Types/PREquipmentTypes.h"
 #include "PRPlayerCharacter.generated.h"
 
+class APRPlayerState;
 class UPRCameraModifier;
 class UPREquipmentDataAsset;
 class UPREquipmentManagerComponent;
@@ -118,6 +119,9 @@ public:
 	// 지정 장비 슬롯에 대응하는 기본 메시 조회
 	USkeletalMesh* GetDefaultEquipmentMesh(EPREquipmentSlotType SlotType) const;
 
+	// 지정 컨트롤러의 PlayerState를 사용한 캐릭터 런타임 링크 초기화
+	void InitCharacter(AController* SourceController);
+
 	// 소비 아이템 PickupMesh 표시 요청
 	void RequestConsumablePickupMeshBegin(UPRConsumableDataAsset* ConsumableData, FName AttachSocketName);
 
@@ -144,6 +148,12 @@ protected:
 private:
 	/** 상태 태그 기준으로 이동 입력이 차단되는지 반환한다 */
 	bool IsMoveInputLockedByState() const;
+
+	// 현재 캐릭터 로직이 사용할 PlayerState 조회
+	APRPlayerState* ResolvePlayerState() const;
+
+	// PlayerState 기반 ASC와 무기, 장비 외형 링크 초기화
+	void InitializeCharacterRuntime(APRPlayerState* SourcePlayerState, bool bInitializeAttributes);
 
 	/** 외부 강제 이동을 현재 머신에서 시작한다. */
 	void StartExternalForcedMoveLocal(const FVector& Destination, const FRotator& Rotation, float Duration, float TickInterval, float EaseExponent, bool bSweep, bool bStopMovement);
@@ -329,6 +339,18 @@ private:
 	bool bIsDodging = false;
 	
 	bool bBlockMove = false;
+
+	// 기본 머리 메시 캐시 완료 여부
+	bool bDefaultHeadMeshCached = false;
+
+	// 기본 몸통 메시 캐시 완료 여부
+	bool bDefaultBodyMeshCached = false;
+
+	// 기본 손 메시 캐시 완료 여부
+	bool bDefaultHandsMeshCached = false;
+
+	// 기본 다리 메시 캐시 완료 여부
+	bool bDefaultLegsMeshCached = false;
 	
 	UPROPERTY()
 	TObjectPtr<UPRCameraModifier> CrouchCameraModifier; 
@@ -346,6 +368,11 @@ private:
 	bool bExternalForcedMoveSweep = false;
 	bool bExternalForcedMoveStopMovement = true;
 	bool bExternalForcedMoveActive = false;
+
+	// 비소유 프리뷰 캐릭터가 참조할 PlayerState
+	UPROPERTY(Transient)
+	TObjectPtr<APRPlayerState> CachedPlayerState;
+
 	// 현재 외형 변경 이벤트를 받고 있는 장비 매니저
 	UPROPERTY(Transient)
 	TObjectPtr<UPREquipmentManagerComponent> BoundEquipmentManager;

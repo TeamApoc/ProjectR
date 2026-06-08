@@ -6,9 +6,12 @@
 #include "Components/EditableTextBox.h"
 #include "Components/TextBlock.h"
 #include "ProjectR/Game/PRGameInstance.h"
+#include "ProjectR/Game/PRMenuGameMode.h"
 #include "ProjectR/Game/PRSessionSubsystem.h"
 #include "ProjectR/ItemSystem/Data/PREquipmentDataAsset.h"
 #include "ProjectR/ItemSystem/Data/PRWeaponDataAsset.h"
+#include "ProjectR/Player/PRPlayerState.h"
+#include "ProjectR/UI/Growth/PRPlayerStatsPanelWidget.h"
 #include "ProjectR/UI/Inventory/PRInventoryItemSlotViewDataBuilder.h"
 #include "ProjectR/UI/Inventory/PRItemSlotWidget.h"
 #include "ProjectR/UI/Preview/PRCharacterPreviewWidget.h"
@@ -280,6 +283,10 @@ void UPRStartMenuWidget::RefreshSessionStatusText(const FText& StatusText)
 
 void UPRStartMenuWidget::RefreshSelectedSavePreview(const FPRCharacterSaveData& SaveData)
 {
+	APRMenuGameMode* MenuGameMode = GetWorld() ? GetWorld()->GetAuthGameMode<APRMenuGameMode>() : nullptr;
+	const bool bPreviewRuntimeReady = IsValid(MenuGameMode) && MenuGameMode->ApplyPreviewSaveData(GetOwningPlayer(), SaveData);
+	APRPlayerState* PreviewPlayerState = bPreviewRuntimeReady ? MenuGameMode->GetPreviewPlayerState(GetOwningPlayer()) : nullptr;
+
 	if (IsValid(PrimaryWeaponSlotWidget))
 	{
 		PrimaryWeaponSlotWidget->SetSlotViewData(BuildSavedWeaponSlotViewData(SaveData, EPRWeaponSlotType::Primary));
@@ -307,7 +314,15 @@ void UPRStartMenuWidget::RefreshSelectedSavePreview(const FPRCharacterSaveData& 
 
 	if (IsValid(CharacterPreviewWidget))
 	{
-		CharacterPreviewWidget->SetPreviewSaveData(SaveData);
+		CharacterPreviewWidget->SetPreviewSources(
+			bPreviewRuntimeReady ? MenuGameMode->GetPreviewCharacter(GetOwningPlayer()) : nullptr,
+			IsValid(PreviewPlayerState) ? PreviewPlayerState->GetWeaponManagerComponent() : nullptr);
+	}
+
+	if (IsValid(PlayerStatsPanelWidget))
+	{
+		// 실제 프리뷰 ASC 기반 성장 스탯 패널 갱신
+		PlayerStatsPanelWidget->SetPlayerStateSource(PreviewPlayerState);
 	}
 }
 

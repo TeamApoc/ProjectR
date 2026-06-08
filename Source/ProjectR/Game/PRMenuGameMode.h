@@ -4,7 +4,13 @@
 
 #include "CoreMinimal.h"
 #include "GameFramework/GameModeBase.h"
+#include "ProjectR/Game/PRGameTypes.h"
 #include "PRMenuGameMode.generated.h"
+
+class AController;
+class APlayerController;
+class APRPlayerCharacter;
+class APRPlayerState;
 
 // 메인 메뉴 전용 GameMode. 세션 없음. 로비 UI와 Host/Join 입력만 담당
 // 인게임 로직은 APRPlayGameMode에서 수행함
@@ -15,4 +21,38 @@ class PROJECTR_API APRMenuGameMode : public AGameModeBase
 
 public:
 	APRMenuGameMode();
+
+	/*~ AGameModeBase Interface ~*/
+	virtual void PostLogin(APlayerController* NewPlayer) override;
+	virtual void Logout(AController* Exiting) override;
+
+public:
+	// 선택 세이브를 메뉴 프리뷰 런타임 소스에 적용
+	bool ApplyPreviewSaveData(APlayerController* RequestingController, const FPRCharacterSaveData& InSaveData);
+
+	// 메뉴 프리뷰 ASC 소유 PlayerState 조회
+	APRPlayerState* GetPreviewPlayerState(APlayerController* RequestingController) const;
+
+	// 메뉴 프리뷰 캐릭터 조회
+	APRPlayerCharacter* GetPreviewCharacter(APlayerController* RequestingController) const;
+
+private:
+	// 메뉴 프리뷰 캐릭터 생성 또는 재사용
+	APRPlayerCharacter* EnsurePreviewCharacter(APlayerController* RequestingController);
+
+	// 메뉴 프리뷰 캐릭터 노출과 충돌 비활성화
+	void ConfigurePreviewCharacter(APRPlayerCharacter* InPreviewCharacter) const;
+
+protected:
+	// 메뉴 프리뷰에 사용할 플레이어 캐릭터 클래스
+	UPROPERTY(EditDefaultsOnly, Category = "ProjectR|Menu|Preview")
+	TSubclassOf<APRPlayerCharacter> PreviewCharacterClass;
+
+private:
+	// 현재 메뉴 프리뷰 소유 컨트롤러
+	TWeakObjectPtr<APlayerController> PreviewController;
+
+	// 현재 메뉴 프리뷰 캐릭터
+	UPROPERTY(Transient)
+	TObjectPtr<APRPlayerCharacter> PreviewCharacter;
 };

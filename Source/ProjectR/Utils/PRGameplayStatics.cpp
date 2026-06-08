@@ -12,6 +12,7 @@
 #include "ProjectR/AbilitySystem/AttributeSets/PRAttributeSet_Weapon.h"
 #include "ProjectR/Character/PRPlayerCharacter.h"
 #include "ProjectR/Combat/PRCombatGameplayTags.h"
+#include "ProjectR/FX/Impact/PRImpactManagerSubsystem.h"
 #include "ProjectR/FX/PRFXNetworkComponent.h"
 #include "ProjectR/FX/PRFXSubsystem.h"
 #include "ProjectR/Player/PRPlayerState.h"
@@ -36,6 +37,13 @@ namespace PRGameplayStaticsPrivate
 	{
 		const UWorld* World = IsValid(WorldContextObject) ? WorldContextObject->GetWorld() : nullptr;
 		return IsValid(World) ? World->GetSubsystem<UPRFXSubsystem>() : nullptr;
+	}
+
+	// WorldContextObject에서 Impact Manager Subsystem을 찾기 위한 공통 조회 함수
+	UPRImpactManagerSubsystem* GetImpactManagerSubsystem(const UObject* WorldContextObject)
+	{
+		const UWorld* World = IsValid(WorldContextObject) ? WorldContextObject->GetWorld() : nullptr;
+		return IsValid(World) ? World->GetSubsystem<UPRImpactManagerSubsystem>() : nullptr;
 	}
 }
 
@@ -298,8 +306,14 @@ bool UPRGameplayStatics::GetPawnViewpoint(const APawn* Pawn, FVector& OutLocatio
 	return true;
 }
 
-FVector UPRGameplayStatics::ResolveCameraAimPoint(const APawn* Pawn, float TraceDistance, ECollisionChannel TraceChannel, const TArray<AActor*>& IgnoredActors)
+FVector UPRGameplayStatics::ResolveCameraAimPoint(const APawn* Pawn, float TraceDistance, ECollisionChannel TraceChannel, const TArray<AActor*>& IgnoredActors, FHitResult* OutHitResult)
 {
+	if (OutHitResult != nullptr)
+	{
+		// 호출자가 이전 프레임 HitResult를 재사용해도 실패 경로에서 충돌 정보가 남지 않도록 초기화
+		*OutHitResult = FHitResult();
+	}
+
 	FVector CamLocation;
 	FRotator CamRotation;
 	if (!GetPawnViewpoint(Pawn, CamLocation, CamRotation))
@@ -321,6 +335,11 @@ FVector UPRGameplayStatics::ResolveCameraAimPoint(const APawn* Pawn, float Trace
 
 	FHitResult AimHit;
 	World->LineTraceSingleByChannel(AimHit, CamLocation, CamEnd, TraceChannel, Params);
+	if (OutHitResult != nullptr)
+	{
+		// 카메라 트레이스가 실제 표면을 맞춘 경우 Impact FX의 위치와 법선 fallback으로 사용
+		*OutHitResult = AimHit;
+	}
 
 	return AimHit.bBlockingHit ? AimHit.ImpactPoint : CamEnd;
 }
@@ -412,4 +431,28 @@ FPRFXPredictionKey UPRGameplayStatics::PlayPredictiveNetworkFX(const UObject* Wo
 	// PlayerController 소유 RPC 컴포넌트를 통해 서버가 Registry 정책에 맞는 클라이언트 전파 수행
 	FXNetworkComponent->ServerPlayFX_Unreliable(Request);
 	return PredictionKey;
+}
+
+void UPRGameplayStatics::PlayImpactFromHit(const UObject* WorldContextObject, const FHitResult& HitResult, bool bUseDecal)
+{
+	UPRImpactManagerSubsystem* ImpactManagerSubsystem = PRGameplayStaticsPrivate::GetImpactManagerSubsystem(WorldContextObject);
+	if (!IsValid(ImpactManagerSubsystem))
+	{
+		return;
+	}
+
+	// 호출자가 Subsystem을 직접 조회하지 않고 HitResult 기반 Impact 재생 흐름으로 진입
+	ImpactManagerSubsystem->PlayImpactFromHit(HitResult, bUseDecal);
+}
+
+void UPRGameplayStatics::PlayImpactAtLocation(const UObject* WorldContextObject, FGameplayTag ImpactTag, FVector ImpactLocation, FVector ImpactNormal, bool bUseDecal)
+{
+	UPRImpactManagerSubsystem* ImpactManagerSubsystem = PRGameplayStaticsPrivate::GetImpactManagerSubsystem(WorldContextObject);
+	if (!IsValid(ImpactManagerSubsystem))
+	{
+		return;
+	}
+
+	// 호출자가 Subsystem을 직접 조회하지 않고 이미 계산된 표면 정보 기반 Impact 재생 흐름으로 진입
+	ImpactManagerSubsystem->PlayImpactAtLocation(ImpactTag, ImpactLocation, ImpactNormal, bUseDecal);
 }

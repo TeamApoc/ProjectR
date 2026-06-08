@@ -8,6 +8,7 @@
 APRCharacterBase::APRCharacterBase()
 {
 	PrimaryActorTick.bCanEverTick = true;
+	DefaultSurfaceTag = FGameplayTag::RequestGameplayTag(TEXT("FX.Impact.Flesh"));
 }
 
 // =====  AActor Interface =====
@@ -79,6 +80,14 @@ bool APRCharacterBase::IsDead() const
 		return ASC->HasMatchingGameplayTag(PRGameplayTags::State_Dead);
 	}
 	return false;
+}
+
+FPRImpactResult APRCharacterBase::ResolveImpactSurface_Implementation(const FPRImpactContext& Context) const
+{
+	FPRImpactResult Result;
+	Result.bHasImpactTag = true;
+	Result.ImpactTag = DefaultSurfaceTag;
+	return Result;
 }
 
 UPRAbilitySystemComponent* APRCharacterBase::GetPRAbilitySystemComponent() const

@@ -4,6 +4,7 @@
 #include "Blueprint/UserWidget.h"
 #include "ProjectR/UI/FloatingText/PRFloatingTextWidget.h"
 #include "ProjectR/UI/Crosshair/PRCrosshairConfig.h"
+#include "ProjectR/Audio/PRBGMRegistryDataAsset.h"
 #include "ProjectR/UI/PRUISoundDataAsset.h"
 
 TSubclassOf<UUserWidget> UPRDeveloperSettings::GetCrosshairWidgetSync(EPRCrosshairType CrosshairType) const
@@ -24,6 +25,11 @@ const UPRCrosshairConfig* UPRDeveloperSettings::GetDefaultCrosshairConfigSync() 
 const UPRUISoundDataAsset* UPRDeveloperSettings::GetDefaultUISoundDataSync() const
 {
 	return DefaultUISoundData.LoadSynchronous();
+}
+
+const UPRBGMRegistryDataAsset* UPRDeveloperSettings::GetDefaultBGMRegistrySync() const
+{
+	return DefaultBGMRegistry.LoadSynchronous();
 }
 
 FPRFloatingTextStyle UPRDeveloperSettings::GetFloatingTextStyleSync(EPRFloatingTextType TextType) const

@@ -192,6 +192,16 @@ bool FPRFXTrailPayload::NetSerialize(FArchive& Ar, UPackageMap* Map, bool& bOutS
 	}
 
 	PRFXTypesPrivate::NetSerializeBool(Ar, bBlockingHit);
+	if (bBlockingHit)
+	{
+		// 충돌 Trail에서만 피격 Actor와 표면 정보를 포함한 HitResult 전송
+		HitResult.NetSerialize(Ar, Map, bLocalSuccess);
+	}
+	else if (Ar.IsLoading())
+	{
+		// 비충돌 Trail 수신 시 이전 구조체 재사용 값 제거
+		HitResult = FHitResult();
+	}
 	Direction.NetSerialize(Ar, Map, bLocalSuccess);
 
 	bOutSuccess = bLocalSuccess;

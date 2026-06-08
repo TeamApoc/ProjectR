@@ -25,6 +25,7 @@ class UPRItemSlotWidget;
 class UPRQuickSlotComponent;
 class UPRCharacterPreviewWidget;
 class UPRCurrencyDisplayWidget;
+class UPRPlayerStatsPanelWidget;
 class UPRWeaponManagerComponent;
 class UPRCurrencyComponent;
 class UTextBlock;
@@ -195,6 +196,9 @@ private:
 	// 캐릭터 프리뷰 위젯에 현재 플레이어 외형과 무기 상태 소스를 전달한다
 	void RefreshCharacterPreviewWidget();
 
+	// 플레이어 스탯 패널 PlayerState 소스 전달
+	void RefreshPlayerStatsPanelWidget();
+
 	// 프리뷰 기준이 되는 플레이어 캐릭터를 조회한다
 	APRPlayerCharacter* GetPreviewSourceCharacter() const;
 
@@ -312,6 +316,10 @@ protected:
 	// UMG에서 바인딩할 캐릭터 프리뷰 위젯
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "ProjectR|Inventory")
 	TObjectPtr<UPRCharacterPreviewWidget> CharacterPreviewWidget;
+
+	// UMG에서 바인딩할 플레이어 스탯 패널 위젯
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "ProjectR|Inventory")
+	TObjectPtr<UPRPlayerStatsPanelWidget> PlayerStatsPanelWidget;
 
 private:
 	// 아이템 보유 인벤토리 컴포넌트

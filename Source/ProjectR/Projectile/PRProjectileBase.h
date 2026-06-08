@@ -13,6 +13,7 @@ struct FGameplayEffectSpecHandle;
 class UPRProjectileMovementComponent;
 class USceneComponent;
 class USphereComponent;
+class USoundBase;
 
 UENUM()
 enum class EPRProjectileRole : uint8
@@ -83,10 +84,13 @@ public:
 	APRProjectileBase* GetLinkedCounterpart() const { return LinkedCounterpart.Get(); }
 
 	UFUNCTION(BlueprintCallable)
-	void DestroyProjectile();
+	void DestroyProjectile(EPRProjectileDestroyReason DestroyReason = EPRProjectileDestroyReason::Impact);
 	
 	UFUNCTION(BlueprintNativeEvent, Category = "ProjectR|Projectile")
 	void OnProjectileDestroyed();
+
+	UFUNCTION(BlueprintNativeEvent, Category = "ProjectR|Projectile")
+	void OnProjectileDestroyEffectStarted(EPRProjectileDestroyReason DestroyReason);
 	
 	UFUNCTION(BlueprintPure)
 	bool HasProjectileAuthority() const;
@@ -203,6 +207,10 @@ protected:
 	
 	UPROPERTY(BlueprintReadOnly)
 	UAbilitySystemComponent* InstigatorASC;
+
+	// 파괴 오디오
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "ProjectR|Projectile|Sound")
+	USoundBase* ExplodeSound;
 	
 private:
 	// 투사체 식별자. Auth 액터에 한해 소유 클라이언트로만 리플리케이트

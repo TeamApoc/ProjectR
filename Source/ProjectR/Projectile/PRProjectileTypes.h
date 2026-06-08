@@ -53,6 +53,25 @@ enum class EPRRepMovementEvent : uint8
 	Launch		 // 프로젝타일 런치 상태
 };
 
+// 투사체 소멸 원인
+UENUM(BlueprintType)
+enum class EPRProjectileDestroyReason : uint8
+{
+	// 충돌 파괴
+	Impact,
+	// 체력 고갈 파괴
+	DamageDepleted,
+	// 수명 만료 정리
+	LifeTimeExpired,
+	// 복제 폭발 정리
+	ReplicatedDetonation,
+	// 명시 요청 정리
+	Manual,
+};
+
+// 파괴 연출 재생 대상
+PROJECTR_API bool PRShouldPlayProjectileDestroyEffect(EPRProjectileDestroyReason DestroyReason);
+
 // 이벤트 드리븐 투사체 이동 동기화 페이로드. 서버가 이벤트 발생 시에만 Push
 USTRUCT()
 struct FPRProjectileRepMovement

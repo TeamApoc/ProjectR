@@ -189,6 +189,7 @@ namespace PRGameplayTags
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Event_Boss_Encounter_End, "Event.Boss.Encounter.End", "보스 조우 종료");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Event_Boss_PhaseChanged, "Event.Boss.PhaseChanged", "보스 페이즈 변경");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Event_Boss_BGMPhasePreview, "Event.Boss.BGMPhasePreview", "보스 BGM 페이즈 예고");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Event_Boss_BGMPatternCue, "Event.Boss.BGMPatternCue", "보스 BGM 특수패턴 Cue");
 
 	// ===== Cue.* =====
 

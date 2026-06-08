@@ -277,8 +277,11 @@ void APRPlayGameMode::ConfirmPartyWipe()
 		APRPlayerController* PlayerController = Cast<APRPlayerController>(PRPlayerState->GetOwner());
 		if (IsValid(PlayerController))
 		{
+			PlayerController->ClientPlayPartyWipeSound(PartyWipeSound);
+
 			// 리스폰 전환 연출
 			PlayerController->ClientNotifyMapTransition(PartyWipeRespawnDelay, EPRMapTransitionType::Respawn);
+			PlayerController->ClientShowPartyWipeWidget(PartyWipeWidgetClass);
 		}
 		
 		// if (PRPlayerState->IsDown())

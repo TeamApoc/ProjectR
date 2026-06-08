@@ -187,6 +187,7 @@ namespace PRGameplayTags
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Event_Boss_Encounter_End); // 보스 조우 종료
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Event_Boss_PhaseChanged); // 보스 페이즈 변경
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Event_Boss_BGMPhasePreview); // 보스 BGM 페이즈 예고
+	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Event_Boss_BGMPatternCue); // 보스 BGM 특수패턴 Cue
 
 	// ===== Cue.* — GameplayCue 식별 =====
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Cue_Critical_Boss_PhaseTransition); // 보스 페이즈 전환 연출 Cue

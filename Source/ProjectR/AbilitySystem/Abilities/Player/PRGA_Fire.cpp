@@ -234,7 +234,7 @@ FPRFireViewpoint UPRGA_Fire::GetFireViewpoint() const
 	return View;
 }
 
-FVector UPRGA_Fire::ResolveAimPoint(const FPRFireViewpoint& View, float InTraceDistance) const
+FVector UPRGA_Fire::ResolveAimPoint(const FPRFireViewpoint& View, float InTraceDistance, FHitResult* OutCameraHitResult) const
 {
 	APawn* OwnerPawn = Cast<APawn>(GetAvatarActorFromActorInfo());
 	TArray<AActor*> IgnoredActors;
@@ -242,7 +242,12 @@ FVector UPRGA_Fire::ResolveAimPoint(const FPRFireViewpoint& View, float InTraceD
 	{
 		IgnoredActors.Add(AvatarActor);
 	}
-	const FVector AimPoint = UPRGameplayStatics::ResolveCameraAimPoint(OwnerPawn, InTraceDistance, CameraTraceChannel.GetValue(), IgnoredActors);
+	const FVector AimPoint = UPRGameplayStatics::ResolveCameraAimPoint(
+		OwnerPawn,
+		InTraceDistance,
+		CameraTraceChannel.GetValue(),
+		IgnoredActors,
+		OutCameraHitResult);
 
 	// 디버그: 카메라 트레이스는 시안색 (참고용)
 	if (bDrawCameraTrace)
@@ -365,19 +370,21 @@ void UPRGA_Fire::FireHitScan()
 	const FVector MuzzleLoc = GetMuzzleLocation();
 	Payload.ShotOrigin = FVector_NetQuantize(MuzzleLoc);
 
-	// 1차: 카메라 트레이스로 조준 끝점 산출
-	const FVector AimPoint = ResolveAimPoint(View, GetMaxFireDistance());
+	// 1차: 카메라 트레이스로 조준 끝점과 벽면 Impact FX fallback 정보 산출
+	FHitResult CameraHit;
+	const FVector AimPoint = ResolveAimPoint(View, GetMaxFireDistance(), &CameraHit);
 
 	// 2차: 총구에서 조준점으로 실제 발사 트레이스
-	const FHitResult Hit = PerformMuzzleTrace(MuzzleLoc, AimPoint);
-	const FVector TrailEndLocation = Hit.bBlockingHit ? Hit.ImpactPoint : AimPoint;
+	const FHitResult MuzzleHit = PerformMuzzleTrace(MuzzleLoc, AimPoint);
+	const FHitResult* TrailHitResult = MuzzleHit.bBlockingHit ? &MuzzleHit : (CameraHit.bBlockingHit ? &CameraHit : &MuzzleHit);
+	const FVector TrailEndLocation = TrailHitResult->bBlockingHit ? TrailHitResult->ImpactPoint : AimPoint;
 	
 	// Tail 재생
-	PlayFireFX_Trail(MuzzleLoc, TrailEndLocation, Hit.bBlockingHit);
+	PlayFireFX_Trail(MuzzleLoc, TrailEndLocation, TrailHitResult);
 
-	if (Hit.GetActor() != nullptr)
+	if (MuzzleHit.GetActor() != nullptr)
 	{
-		Payload.ClientHitResult = MakeShared<FHitResult>(Hit);
+		Payload.ClientHitResult = MakeShared<FHitResult>(MuzzleHit);
 	}
 	else
 	{
@@ -389,7 +396,7 @@ void UPRGA_Fire::FireHitScan()
 	Payload.ClientTimestamp = IsValid(GetWorld()) ? GetWorld()->GetTimeSeconds() : 0.f;
 
 	UE_LOG(LogFire, Verbose, TEXT("[Local] FireOneShot. ShotID=%u, Hit=%s"),
-		Payload.ShotID, Hit.bBlockingHit ? TEXT("true") : TEXT("false"));
+		Payload.ShotID, MuzzleHit.bBlockingHit ? TEXT("true") : TEXT("false"));
 
 	++ConsecutiveShots;
 
@@ -399,7 +406,7 @@ void UPRGA_Fire::FireHitScan()
 	{
 		if (UPREventManagerSubsystem* EventMgr = World->GetSubsystem<UPREventManagerSubsystem>())
 		{
-			if (Hit.bBlockingHit && IsValid(Hit.GetActor()))
+			if (MuzzleHit.bBlockingHit && IsValid(MuzzleHit.GetActor()))
 			{
 				EventMgr->BroadcastEmpty(PRGameplayTags::Event_Player_HitShot);
 			}
@@ -571,7 +578,7 @@ void UPRGA_Fire::ApplyDamageFromShot(const FPRFireShotPayload& Payload)
 	ApplyDamage(HitActor, Payload.ClientHitResult.Get());
 }
 
-void UPRGA_Fire::PlayFireFX_Trail(const FVector& StartLocation, const FVector& EndLocation, bool bBlockingHit)
+void UPRGA_Fire::PlayFireFX_Trail(const FVector& StartLocation, const FVector& EndLocation, const FHitResult* HitResult)
 {
 	if (!TrailCueTag.IsValid())
 	{
@@ -584,7 +591,11 @@ void UPRGA_Fire::PlayFireFX_Trail(const FVector& StartLocation, const FVector& E
 	TrailPayload.WeaponData = GetActiveWeaponData(GetCurrentActorInfo());
 	TrailPayload.StartLocation = StartLocation;
 	TrailPayload.AddTrailEnd(EndLocation);
-	TrailPayload.bBlockingHit = bBlockingHit;
+	TrailPayload.bBlockingHit = HitResult != nullptr && HitResult->bBlockingHit;
+	if (TrailPayload.bBlockingHit)
+	{
+		TrailPayload.HitResult = *HitResult;
+	}
 
 	// Trail Cue가 Niagara 파라미터나 회전 계산에 사용할 발사 방향 산출
 	TrailPayload.Direction = (EndLocation - StartLocation).GetSafeNormal();

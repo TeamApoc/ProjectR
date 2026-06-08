@@ -368,11 +368,11 @@ protected:
 	bool bCanTakePlayerWeaponDamage = true;
 
 	// 포털 최대 체력이다. 플레이어 무기 피해가 이 값을 깎는다.
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Portal|Health", meta = (ClampMin = "1.0"))
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Portal|Health", meta = (ClampMin = "1.0"))
 	float MaxPortalHealth = 120.0f;
 
 	// 플레이어 무기 피해가 포털 체력에 적용될 때 곱하는 배율이다.
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Portal|Health", meta = (ClampMin = "0.0"))
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Portal|Health", meta = (ClampMin = "0.0"))
 	float PlayerWeaponDamageToPortalMultiplier = 1.0f;
 
 	// 현재 포털 내부 생명주기 상태다.

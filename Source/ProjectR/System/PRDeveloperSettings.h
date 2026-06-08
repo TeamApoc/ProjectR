@@ -10,6 +10,7 @@
 enum class EPRCrosshairType : uint8;
 enum class EPRFloatingTextType : uint8;
 class UPRAbilitySystemRegistry;
+class UPRImpactRegistry;
 class UPRFXRegistryDataAsset;
 class UPRFloatingTextWidget;
 class UGameplayEffect;
@@ -97,6 +98,10 @@ public:
 	UPROPERTY(EditAnywhere, Config, Category = "Registries", meta = (AllowedClasses = "/Script/ProjectR.PRFXRegistryDataAsset"))
 	TSoftObjectPtr<UPRFXRegistryDataAsset> FXRegistry;
 
+	// 총기 Impact 태그별 Niagara와 Decal 재생 데이터 및 Physical Surface fallback 매핑을 보관하는 Registry 소프트 레퍼런스
+	UPROPERTY(EditAnywhere, Config, Category = "Registries", meta = (AllowedClasses = "/Script/ProjectR.PRImpactRegistry"))
+	TSoftObjectPtr<UPRImpactRegistry> ImpactRegistry;
+
 	// 몬스터별 드롭 보상 테이블
 	UPROPERTY(EditAnywhere, Config, Category = "Registries", meta = (RequiredAssetDataTags = "RowStructure=/Script/ProjectR.PRMonsterDropTableRow"))
 	TSoftObjectPtr<UDataTable> MonsterDropTable;
@@ -116,7 +121,7 @@ public:
 	// 드롭 보상 픽업에 사용할 액터 클래스
 	UPROPERTY(EditAnywhere, Config, Category = "Registries", meta = (AllowedClasses = "/Script/ProjectR.PRRewardPickupActor"))
 	TSoftClassPtr<APRRewardPickupActor> RewardPickupActorClass;
-	
+
 	// EPRCrosshairType : CrosshairWidgetClass 매핑
 	UPROPERTY(EditAnywhere, Config, Category = "UI")
 	TMap<EPRCrosshairType, TSoftClassPtr<UUserWidget>> CrosshairWidgets;

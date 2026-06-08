@@ -93,6 +93,10 @@ public:
 	UPROPERTY(BlueprintReadOnly, Category = "ProjectR|Animation")
 	bool bIsCombatStrafe = false;
 
+	// Perch/Gargoyle 대기 전용 Idle 포즈를 우선 재생해야 하는지 여부다.
+	UPROPERTY(BlueprintReadOnly, Category = "ProjectR|Animation")
+	bool bUsePerchIdlePose = false;
+
 	// AimOffset용 Yaw 입력값이다.
 	UPROPERTY(BlueprintReadOnly, Category = "ProjectR|Animation")
 	float AimYaw = 0.0f;

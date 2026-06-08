@@ -126,6 +126,9 @@ protected:
 	UFUNCTION(BlueprintNativeEvent, Category = "ProjectR|Projectile")
 	void HandleHit(UPrimitiveComponent* HitComponent, AActor* OtherActor,
 		UPrimitiveComponent* OtherComp, FVector NormalImpulse, const FHitResult& Hit);
+
+	// 투사체가 맞았지만 실제 명중/파괴로 처리하지 않을 대상을 판정한다.
+	virtual bool ShouldIgnoreProjectileHit(AActor* OtherActor, UPrimitiveComponent* OtherComp, const FHitResult& Hit) const;
 	
 	UFUNCTION(BlueprintCallable)
 	void ApplyEffectToTarget(AActor* TargetActor);

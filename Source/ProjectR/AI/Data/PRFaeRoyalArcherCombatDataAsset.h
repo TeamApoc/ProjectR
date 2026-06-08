@@ -57,9 +57,61 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|RoyalArcher|Flight", meta = (ClampMin = "0.05"))
 	float AirMoveTimeout = 3.0f;
 
+	// 타겟을 잃은 뒤 마지막 목격 위치 주변을 수색할 공중 반경이다.
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|RoyalArcher|Search", meta = (ClampMin = "0.0"))
+	float AirSearchRadius = 650.0f;
+
+	// 마지막 목격 위치 기준 수색 목표 고도 보정값이다.
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|RoyalArcher|Search", meta = (ClampMin = "0.0"))
+	float AirSearchHoverHeight = 220.0f;
+
+	// 비전투 Patrol 중 home_location 주변을 배회할 공중 반경이다.
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|RoyalArcher|Patrol", meta = (ClampMin = "0.0"))
+	float AirPatrolRadius = 450.0f;
+
+	// 비전투 Patrol 중 home_location 기준 목표 고도 보정값이다.
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|RoyalArcher|Patrol", meta = (ClampMin = "0.0"))
+	float AirPatrolHoverHeight = 180.0f;
+
 	// Strafe 목표점을 현재 방향에서 회전시킬 기본 각도다.
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|RoyalArcher|Strafe", meta = (ClampMin = "0.0", ClampMax = "180.0"))
 	float AirStrafeArcDegrees = 35.0f;
+
+	// 공중 전투 위치를 선택 EQS로 먼저 고를지 결정한다.
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|RoyalArcher|AirEQS")
+	bool bUseAirCombatPositionQuery = false;
+
+	// 공중 전투 위치 후보 EQS다. 결과 XY를 사용하고 Z는 궁수 전투 고도로 보정한다.
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|RoyalArcher|AirEQS", meta = (EditCondition = "bUseAirCombatPositionQuery"))
+	FPREnemyMoveQueryConfig AirCombatPositionQueryConfig;
+
+	// 공중 전투 후보 생성 시 PreferredAttackDistance에 더할 거리 오프셋 목록이다.
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|RoyalArcher|AirPosition")
+	TArray<float> AirPositionDistanceOffsets;
+
+	// 공중 전투 후보 생성 시 PreferredCombatHoverHeight에 더할 고도 오프셋 목록이다.
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|RoyalArcher|AirPosition")
+	TArray<float> AirPositionHeightOffsets;
+
+	// 현재 위치와 너무 가까운 후보를 낮게 평가하기 위한 기준 거리다.
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|RoyalArcher|AirPosition", meta = (ClampMin = "0.0"))
+	float AirPositionMinSeparationFromCurrent = 260.0f;
+
+	// 선호 사거리와 가까운 후보에 부여할 점수 가중치다.
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|RoyalArcher|AirPosition", meta = (ClampMin = "0.0"))
+	float AirPositionDistanceScoreWeight = 1.0f;
+
+	// 타겟 시야가 확보된 후보에 부여할 점수 가중치다.
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|RoyalArcher|AirPosition", meta = (ClampMin = "0.0"))
+	float AirPositionLOSScoreWeight = 2.5f;
+
+	// 현재 위치에서 충분히 벗어나는 후보에 부여할 점수 가중치다.
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|RoyalArcher|AirPosition", meta = (ClampMin = "0.0"))
+	float AirPositionSeparationScoreWeight = 0.65f;
+
+	// 선호 전투 고도에 가까운 후보에 부여할 점수 가중치다.
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|RoyalArcher|AirPosition", meta = (ClampMin = "0.0"))
+	float AirPositionHeightScoreWeight = 0.35f;
 
 	// 근접 회피 시 타겟 반대 방향으로 빠질 거리다.
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|RoyalArcher|Evade", meta = (ClampMin = "0.0"))

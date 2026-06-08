@@ -16,6 +16,11 @@ UPRGameplayAbility_FaeRoyalArcherShoot::UPRGameplayAbility_FaeRoyalArcherShoot()
 	ProjectileSpawnSocketName = TEXT("Bone_FA_Weapon_Arrow");
 	ProjectileSpawnOffset = FVector(80.0f, 0.0f, 120.0f);
 	ProjectileTargetLead = 6.0f;
+	bIgnoreEnemyActorsForProjectile = true;
+	bUseInitialProjectileHoming = true;
+	InitialProjectileHomingAcceleration = 6500.0f;
+	InitialProjectileHomingStartDelay = 0.0f;
+	InitialProjectileHomingDuration = 0.28f;
 	WindupTime = 0.45f;
 	RecoveryTime = 0.55f;
 }

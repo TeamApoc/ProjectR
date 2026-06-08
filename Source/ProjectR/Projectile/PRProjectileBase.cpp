@@ -882,6 +882,15 @@ void APRProjectileBase::OnSphereHit(UPrimitiveComponent* HitComponent, AActor* O
 	{
 		return;
 	}
+
+	if (ShouldIgnoreProjectileHit(OtherActor, OtherComp, Hit))
+	{
+		if (IsValid(SphereComponent))
+		{
+			SphereComponent->IgnoreActorWhenMoving(OtherActor, true);
+		}
+		return;
+	}
 	
 	if (GetProjectileRole() == EPRProjectileRole::Predicted)
 	{
@@ -947,6 +956,11 @@ void APRProjectileBase::HandleHit_Implementation(UPrimitiveComponent* HitCompone
 	UPrimitiveComponent* OtherComp, FVector NormalImpulse, const FHitResult& Hit)
 {
 	
+}
+
+bool APRProjectileBase::ShouldIgnoreProjectileHit(AActor* /*OtherActor*/, UPrimitiveComponent* /*OtherComp*/, const FHitResult& /*Hit*/) const
+{
+	return false;
 }
 
 void APRProjectileBase::DrawDebugs(float DeltaSeconds)

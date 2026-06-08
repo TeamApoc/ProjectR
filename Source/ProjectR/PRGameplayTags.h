@@ -51,6 +51,7 @@ namespace PRGameplayTags
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Ability_Enemy_RoyalArcher_Pattern); // RoyalArcher 패턴 루트
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Ability_Enemy_RoyalArcher_WakeFromPerch); // RoyalArcher 전투 시작
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Ability_Enemy_RoyalArcher_FlameArrow); // RoyalArcher 주력 사격
+	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Ability_Enemy_RoyalArcher_TripleArrow); // RoyalArcher 3연속 화살 사격
 
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Ability_Enemy_SoldierArmored_Pattern); // Soldier_Armored 패턴 루트
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Ability_Enemy_SoldierArmored_HammerSwing01); // Soldier_Armored 1타

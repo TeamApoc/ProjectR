@@ -85,6 +85,7 @@ void UPREnemyAnimInstance::UpdateCombatPresentationData()
 	bUseCombatAimOffset = false;
 	bUseCombatMovePose = false;
 	bIsCombatStrafe = false;
+	bUsePerchIdlePose = false;
 
 	if (!IsValid(EnemyCharacter))
 	{
@@ -95,6 +96,7 @@ void UPREnemyAnimInstance::UpdateCombatPresentationData()
 	bUseCombatMovePose = EnemyCharacter->ShouldUseCombatMovePose();
 	bUseCombatAimOffset = EnemyCharacter->ShouldUseCombatAimOffset();
 	bIsCombatStrafe = bShouldMove && EnemyCharacter->ShouldUseCombatStrafeState();
+	bUsePerchIdlePose = EnemyCharacter->ShouldUsePerchIdlePose();
 }
 
 void UPREnemyAnimInstance::UpdateAimData()

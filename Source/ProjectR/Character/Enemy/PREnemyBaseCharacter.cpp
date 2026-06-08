@@ -223,6 +223,10 @@ FVector APREnemyBaseCharacter::GetHomeLocation() const
 	return HomeLocation;
 }
 
+void APREnemyBaseCharacter::InitializeEnemyBlackboard(UBlackboardComponent* BlackboardComponent) const
+{
+}
+
 void APREnemyBaseCharacter::ApplyCombatMovePresentationContext(const FPREnemyMovePresentationConfig& PresentationConfig)
 {
 	CacheMovementPresentationDefaults();

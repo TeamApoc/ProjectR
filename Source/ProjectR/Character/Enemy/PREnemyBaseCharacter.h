@@ -27,6 +27,7 @@ class UPRPerceptionConfig;
 class UPRCombatMoveDataAsset;
 class UPREnemyCombatEventRelayComponent;
 class UPREnemyThreatComponent;
+class UBlackboardComponent;
 struct FPREnemyMovePresentationConfig;
 
 // 모든 일반 몬스터가 공유하는 베이스 캐릭터다.
@@ -85,6 +86,7 @@ public:
 	virtual UPRPerceptionConfig* GetPerceptionConfig() const override;
 	virtual UBehaviorTree* GetBehaviorTreeAsset() const override;
 	virtual FVector GetHomeLocation() const override;
+	virtual void InitializeEnemyBlackboard(UBlackboardComponent* BlackboardComponent) const override;
 
 	// EQS 기반 전투 이동 표현 문맥을 갱신한다.
 	virtual void ApplyCombatMovePresentationContext(const FPREnemyMovePresentationConfig& PresentationConfig) override;
@@ -105,6 +107,9 @@ public:
 
 	UFUNCTION(BlueprintPure, Category = "ProjectR|Animation")
 	bool ShouldUseCombatStrafeState() const { return bUseCombatStrafeState; }
+
+	// 특수 배치 포즈를 ABP 상태머신에서 우선 사용할지 반환한다.
+	virtual bool ShouldUsePerchIdlePose() const { return false; }
 
 	const UPRAttributeSet_Common* GetCommonSet() const { return CommonSet; }
 	const UPRAttributeSet_Enemy* GetEnemySet() const { return EnemySet; }

@@ -6,8 +6,10 @@
 #include "BehaviorTree/BlackboardComponent.h"
 #include "BehaviorTree/BlackboardData.h"
 #include "BehaviorTree/BehaviorTreeComponent.h"
+#include "EnvironmentQuery/EnvQuery.h"
 #include "GameFramework/Character.h"
 #include "GameFramework/CharacterMovementComponent.h"
+#include "ProjectR/AI/PREnemyEQSSelectionUtils.h"
 #include "ProjectR/AI/Controllers/PREnemyAIController.h"
 #include "ProjectR/AI/Data/PRFaeRoyalArcherCombatDataAsset.h"
 #include "ProjectR/AbilitySystem/PRAbilitySystemComponent.h"
@@ -87,9 +89,20 @@ EBTNodeResult::Type UBTTask_PRFaeRoyalArcherAirMove::ExecuteTask(UBehaviorTreeCo
 
 	if (bSetTacticalModeOnStart && HasBlackboardKey(BlackboardComponent, TacticalModeKey))
 	{
-		const EPRTacticalMode ResolvedTacticalMode = MoveMode == EPRFaeRoyalArcherAirMoveMode::ReturnHome
-			? EPRTacticalMode::Return
-			: TacticalModeOnStart;
+		EPRTacticalMode ResolvedTacticalMode = TacticalModeOnStart;
+		if (MoveMode == EPRFaeRoyalArcherAirMoveMode::ReturnHome)
+		{
+			ResolvedTacticalMode = EPRTacticalMode::Return;
+		}
+		else if (MoveMode == EPRFaeRoyalArcherAirMoveMode::SearchLastKnown)
+		{
+			ResolvedTacticalMode = EPRTacticalMode::Alert;
+		}
+		else if (MoveMode == EPRFaeRoyalArcherAirMoveMode::PatrolHome)
+		{
+			ResolvedTacticalMode = EPRTacticalMode::Patrol;
+		}
+
 		BlackboardComponent->SetValueAsEnum(TacticalModeKey, static_cast<uint8>(ResolvedTacticalMode));
 	}
 
@@ -148,7 +161,9 @@ void UBTTask_PRFaeRoyalArcherAirMove::TickTask(UBehaviorTreeComponent& OwnerComp
 	{
 		if (MoveMode == EPRFaeRoyalArcherAirMoveMode::CombatStrafe
 			|| MoveMode == EPRFaeRoyalArcherAirMoveMode::LosReposition
-			|| MoveMode == EPRFaeRoyalArcherAirMoveMode::CloseEvade)
+			|| MoveMode == EPRFaeRoyalArcherAirMoveMode::CloseEvade
+			|| MoveMode == EPRFaeRoyalArcherAirMoveMode::SearchLastKnown
+			|| MoveMode == EPRFaeRoyalArcherAirMoveMode::PatrolHome)
 		{
 			NextStrafeDirectionSign *= -1.0f;
 		}
@@ -195,7 +210,7 @@ bool UBTTask_PRFaeRoyalArcherAirMove::ResolveContext(
 		OutCurrentTarget = Cast<AActor>(OutBlackboardComponent->GetValueAsObject(CurrentTargetKey));
 	}
 
-	if (MoveMode != EPRFaeRoyalArcherAirMoveMode::ReturnHome && !IsValid(OutCurrentTarget))
+	if (DoesMoveModeRequireTarget() && !IsValid(OutCurrentTarget))
 	{
 		return false;
 	}
@@ -236,6 +251,40 @@ bool UBTTask_PRFaeRoyalArcherAirMove::BuildAirMoveGoal(
 		return ValidateAirMoveGoal(ControlledPawn, CurrentTarget, CombatDataAsset, OutGoalLocation, false);
 	}
 
+	if (MoveMode == EPRFaeRoyalArcherAirMoveMode::SearchLastKnown)
+	{
+		TArray<float> CandidateAngles;
+		BuildRoyalArcherLosCandidateAngles(CombatDataAsset.AirStrafeArcDegrees, NextStrafeDirectionSign, CandidateAngles);
+		for (const float CandidateAngle : CandidateAngles)
+		{
+			const FVector CandidateGoal = BuildSearchLastKnownGoal(BlackboardComponent, ControlledPawn, CombatDataAsset, CandidateAngle);
+			if (ValidateAirMoveGoal(ControlledPawn, CurrentTarget, CombatDataAsset, CandidateGoal, false))
+			{
+				OutGoalLocation = CandidateGoal;
+				return true;
+			}
+		}
+
+		return false;
+	}
+
+	if (MoveMode == EPRFaeRoyalArcherAirMoveMode::PatrolHome)
+	{
+		TArray<float> CandidateAngles;
+		BuildRoyalArcherLosCandidateAngles(CombatDataAsset.AirStrafeArcDegrees, NextStrafeDirectionSign, CandidateAngles);
+		for (const float CandidateAngle : CandidateAngles)
+		{
+			const FVector CandidateGoal = BuildPatrolHomeGoal(BlackboardComponent, ControlledPawn, CombatDataAsset, CandidateAngle);
+			if (ValidateAirMoveGoal(ControlledPawn, CurrentTarget, CombatDataAsset, CandidateGoal, false))
+			{
+				OutGoalLocation = CandidateGoal;
+				return true;
+			}
+		}
+
+		return false;
+	}
+
 	if (!IsValid(CurrentTarget))
 	{
 		return false;
@@ -249,41 +298,173 @@ bool UBTTask_PRFaeRoyalArcherAirMove::BuildAirMoveGoal(
 
 	if (MoveMode == EPRFaeRoyalArcherAirMoveMode::LosReposition)
 	{
-		TArray<float> CandidateAngles;
-		BuildRoyalArcherLosCandidateAngles(CombatDataAsset.AirStrafeArcDegrees, NextStrafeDirectionSign, CandidateAngles);
-		for (const float CandidateAngle : CandidateAngles)
+		if (TryBuildAirCombatQueryGoal(ControlledPawn, CurrentTarget, CombatDataAsset, true, OutGoalLocation))
 		{
-			const FVector CandidateGoal = BuildTargetRingGoal(ControlledPawn, CurrentTarget, CombatDataAsset, CandidateAngle);
-			if (ValidateAirMoveGoal(ControlledPawn, CurrentTarget, CombatDataAsset, CandidateGoal, true))
+			return true;
+		}
+
+		return TryBuildScoredAirCombatGoal(ControlledPawn, CurrentTarget, CombatDataAsset, true, OutGoalLocation);
+	}
+
+	if (TryBuildAirCombatQueryGoal(ControlledPawn, CurrentTarget, CombatDataAsset, false, OutGoalLocation))
+	{
+		return true;
+	}
+
+	return TryBuildScoredAirCombatGoal(ControlledPawn, CurrentTarget, CombatDataAsset, false, OutGoalLocation);
+}
+
+bool UBTTask_PRFaeRoyalArcherAirMove::TryBuildAirCombatQueryGoal(
+	const APawn* ControlledPawn,
+	const AActor* CurrentTarget,
+	const UPRFaeRoyalArcherCombatDataAsset& CombatDataAsset,
+	bool bRequireLineOfSight,
+	FVector& OutGoalLocation) const
+{
+	if (!IsValid(ControlledPawn)
+		|| !IsValid(CurrentTarget)
+		|| !CombatDataAsset.bUseAirCombatPositionQuery
+		|| !IsValid(CombatDataAsset.AirCombatPositionQueryConfig.QueryTemplate.Get()))
+	{
+		return false;
+	}
+
+	const FPREnemyMoveQueryConfig& QueryConfig = CombatDataAsset.AirCombatPositionQueryConfig;
+	FVector QueryLocation = FVector::ZeroVector;
+	if (!PREnemyEQSSelectionUtils::RunLocationQuery(
+			const_cast<APawn*>(ControlledPawn),
+			QueryConfig.QueryTemplate.Get(),
+			QueryConfig.FloatParams,
+			QueryConfig.QueryRunMode,
+			QueryConfig.CandidateSelectionMode,
+			QueryConfig.TopCandidateCount,
+			QueryConfig.TopScoreCandidateRatio,
+			QueryLocation))
+	{
+		return false;
+	}
+
+	const FVector TargetLocation = CurrentTarget->GetActorLocation();
+	const float MinAttackDistance = FMath::Max(CombatDataAsset.MinAttackDistance, 0.0f);
+	const float MaxAttackDistance = FMath::Max(CombatDataAsset.MaxAttackDistance, MinAttackDistance);
+	FVector GoalLocation = QueryLocation;
+	GoalLocation.Z = TargetLocation.Z + CombatDataAsset.PreferredCombatHoverHeight;
+	GoalLocation = ClampGoalAltitude(GoalLocation, TargetLocation.Z, CombatDataAsset);
+
+	const float GoalDistance2D = FVector::Dist2D(GoalLocation, TargetLocation);
+	if (GoalDistance2D < MinAttackDistance || GoalDistance2D > MaxAttackDistance)
+	{
+		return false;
+	}
+
+	if (!ValidateAirMoveGoal(ControlledPawn, CurrentTarget, CombatDataAsset, GoalLocation, bRequireLineOfSight))
+	{
+		return false;
+	}
+
+	OutGoalLocation = GoalLocation;
+	return true;
+}
+
+bool UBTTask_PRFaeRoyalArcherAirMove::TryBuildScoredAirCombatGoal(
+	const APawn* ControlledPawn,
+	const AActor* CurrentTarget,
+	const UPRFaeRoyalArcherCombatDataAsset& CombatDataAsset,
+	bool bRequireLineOfSight,
+	FVector& OutGoalLocation) const
+{
+	if (!IsValid(ControlledPawn) || !IsValid(CurrentTarget))
+	{
+		return false;
+	}
+
+	TArray<float> CandidateAngles;
+	BuildRoyalArcherLosCandidateAngles(CombatDataAsset.AirStrafeArcDegrees, NextStrafeDirectionSign, CandidateAngles);
+
+	TArray<float> DistanceOffsets = CombatDataAsset.AirPositionDistanceOffsets;
+	if (DistanceOffsets.IsEmpty())
+	{
+		DistanceOffsets.Add(0.0f);
+	}
+
+	TArray<float> HeightOffsets = CombatDataAsset.AirPositionHeightOffsets;
+	if (HeightOffsets.IsEmpty())
+	{
+		HeightOffsets.Add(0.0f);
+	}
+
+	bool bFoundCandidate = false;
+	float BestScore = 0.0f;
+	FVector BestGoalLocation = FVector::ZeroVector;
+
+	for (const float CandidateAngle : CandidateAngles)
+	{
+		for (const float DistanceOffset : DistanceOffsets)
+		{
+			for (const float HeightOffset : HeightOffsets)
 			{
-				OutGoalLocation = CandidateGoal;
-				return true;
+				const FVector CandidateGoal = BuildTargetRingGoal(
+					ControlledPawn,
+					CurrentTarget,
+					CombatDataAsset,
+					CandidateAngle,
+					DistanceOffset,
+					HeightOffset);
+
+				if (!ValidateAirMoveGoal(ControlledPawn, CurrentTarget, CombatDataAsset, CandidateGoal, bRequireLineOfSight))
+				{
+					continue;
+				}
+
+				const bool bHasLineOfSight = bRequireLineOfSight
+					|| HasLineOfSightFromGoal(ControlledPawn, CurrentTarget, CandidateGoal);
+				const float CandidateScore = ScoreAirCombatGoal(
+					ControlledPawn,
+					CurrentTarget,
+					CombatDataAsset,
+					CandidateGoal,
+					bHasLineOfSight);
+
+				if (!bFoundCandidate || CandidateScore > BestScore)
+				{
+					bFoundCandidate = true;
+					BestScore = CandidateScore;
+					BestGoalLocation = CandidateGoal;
+				}
 			}
 		}
 	}
 
-	OutGoalLocation = BuildTargetRingGoal(
-		ControlledPawn,
-		CurrentTarget,
-		CombatDataAsset,
-		CombatDataAsset.AirStrafeArcDegrees * NextStrafeDirectionSign);
-	return ValidateAirMoveGoal(ControlledPawn, CurrentTarget, CombatDataAsset, OutGoalLocation, false);
+	if (!bFoundCandidate)
+	{
+		return false;
+	}
+
+	OutGoalLocation = BestGoalLocation;
+	return true;
 }
 
 FVector UBTTask_PRFaeRoyalArcherAirMove::BuildTargetRingGoal(
 	const APawn* ControlledPawn,
 	const AActor* CurrentTarget,
 	const UPRFaeRoyalArcherCombatDataAsset& CombatDataAsset,
-	float SignedArcDegrees) const
+	float SignedArcDegrees,
+	float DistanceOffset,
+	float HeightOffset) const
 {
 	const FVector PawnLocation = ControlledPawn->GetActorLocation();
 	const FVector TargetLocation = CurrentTarget->GetActorLocation();
 	const FVector AwayFromTarget = GetRoyalArcherSafeDirection2D(PawnLocation - TargetLocation, -CurrentTarget->GetActorForwardVector());
 	const FVector StrafeDirection = AwayFromTarget.RotateAngleAxis(SignedArcDegrees, FVector::UpVector).GetSafeNormal2D();
 
-	const float DesiredDistance = FMath::Max(CombatDataAsset.PreferredAttackDistance, 0.0f);
+	const float MinAttackDistance = FMath::Max(CombatDataAsset.MinAttackDistance, 0.0f);
+	const float MaxAttackDistance = FMath::Max(CombatDataAsset.MaxAttackDistance, MinAttackDistance);
+	const float DesiredDistance = FMath::Clamp(
+		CombatDataAsset.PreferredAttackDistance + DistanceOffset,
+		MinAttackDistance,
+		MaxAttackDistance);
 	FVector GoalLocation = TargetLocation + StrafeDirection * DesiredDistance;
-	GoalLocation.Z = TargetLocation.Z + CombatDataAsset.PreferredCombatHoverHeight;
+	GoalLocation.Z = TargetLocation.Z + CombatDataAsset.PreferredCombatHoverHeight + HeightOffset;
 	return ClampGoalAltitude(GoalLocation, TargetLocation.Z, CombatDataAsset);
 }
 
@@ -304,15 +485,44 @@ FVector UBTTask_PRFaeRoyalArcherAirMove::BuildCloseEvadeGoal(
 	return ClampGoalAltitude(GoalLocation, TargetLocation.Z, CombatDataAsset);
 }
 
+FVector UBTTask_PRFaeRoyalArcherAirMove::BuildSearchLastKnownGoal(
+	const UBlackboardComponent* BlackboardComponent,
+	const APawn* ControlledPawn,
+	const UPRFaeRoyalArcherCombatDataAsset& CombatDataAsset,
+	float SignedArcDegrees) const
+{
+	const FVector PawnLocation = ControlledPawn->GetActorLocation();
+	const FVector AnchorLocation = ReadSearchAnchorLocation(BlackboardComponent, ControlledPawn);
+	const FVector AwayFromAnchor = GetRoyalArcherSafeDirection2D(PawnLocation - AnchorLocation, ControlledPawn->GetActorForwardVector());
+	const FVector SearchDirection = AwayFromAnchor.RotateAngleAxis(SignedArcDegrees, FVector::UpVector).GetSafeNormal2D();
+
+	FVector GoalLocation = AnchorLocation + SearchDirection * FMath::Max(CombatDataAsset.AirSearchRadius, 0.0f);
+	GoalLocation.Z = AnchorLocation.Z + CombatDataAsset.AirSearchHoverHeight;
+	return ClampGoalAltitude(GoalLocation, AnchorLocation.Z, CombatDataAsset);
+}
+
+FVector UBTTask_PRFaeRoyalArcherAirMove::BuildPatrolHomeGoal(
+	const UBlackboardComponent* BlackboardComponent,
+	const APawn* ControlledPawn,
+	const UPRFaeRoyalArcherCombatDataAsset& CombatDataAsset,
+	float SignedArcDegrees) const
+{
+	const FVector PawnLocation = ControlledPawn->GetActorLocation();
+	const FVector HomeLocation = ReadHomeLocation(BlackboardComponent, ControlledPawn);
+	const FVector AwayFromHome = GetRoyalArcherSafeDirection2D(PawnLocation - HomeLocation, ControlledPawn->GetActorForwardVector());
+	const FVector PatrolDirection = AwayFromHome.RotateAngleAxis(SignedArcDegrees, FVector::UpVector).GetSafeNormal2D();
+
+	FVector GoalLocation = HomeLocation + PatrolDirection * FMath::Max(CombatDataAsset.AirPatrolRadius, 0.0f);
+	GoalLocation.Z = HomeLocation.Z + CombatDataAsset.AirPatrolHoverHeight;
+	return ClampGoalAltitude(GoalLocation, HomeLocation.Z, CombatDataAsset);
+}
+
 FVector UBTTask_PRFaeRoyalArcherAirMove::BuildReturnHomeGoal(
 	const UBlackboardComponent* BlackboardComponent,
 	const APawn* ControlledPawn,
-	const UPRFaeRoyalArcherCombatDataAsset& CombatDataAsset) const
+	const UPRFaeRoyalArcherCombatDataAsset& /*CombatDataAsset*/) const
 {
-	const FVector HomeLocation = ReadHomeLocation(BlackboardComponent, ControlledPawn);
-	FVector GoalLocation = HomeLocation;
-	GoalLocation.Z = HomeLocation.Z + CombatDataAsset.HomeHoverHeightOffset;
-	return ClampGoalAltitude(GoalLocation, HomeLocation.Z, CombatDataAsset);
+	return ReadHomeLocation(BlackboardComponent, ControlledPawn);
 }
 
 FVector UBTTask_PRFaeRoyalArcherAirMove::ClampGoalAltitude(
@@ -325,6 +535,34 @@ FVector UBTTask_PRFaeRoyalArcherAirMove::ClampGoalAltitude(
 	const float MaxZ = ReferenceZ + FMath::Max(CombatDataAsset.MaxFlightHeightAboveReference, CombatDataAsset.MinFlightHeightAboveReference);
 	ClampedGoalLocation.Z = FMath::Clamp(ClampedGoalLocation.Z, MinZ, MaxZ);
 	return ClampedGoalLocation;
+}
+
+float UBTTask_PRFaeRoyalArcherAirMove::ScoreAirCombatGoal(
+	const APawn* ControlledPawn,
+	const AActor* CurrentTarget,
+	const UPRFaeRoyalArcherCombatDataAsset& CombatDataAsset,
+	const FVector& GoalLocation,
+	bool bHasLineOfSight) const
+{
+	const FVector PawnLocation = ControlledPawn->GetActorLocation();
+	const FVector TargetLocation = CurrentTarget->GetActorLocation();
+	const float PreferredDistance = FMath::Max(CombatDataAsset.PreferredAttackDistance, 1.0f);
+	const float Distance2D = FVector::Dist2D(GoalLocation, TargetLocation);
+	const float DistanceScore = 1.0f - FMath::Clamp(FMath::Abs(Distance2D - PreferredDistance) / PreferredDistance, 0.0f, 1.0f);
+
+	const float MinSeparation = FMath::Max(CombatDataAsset.AirPositionMinSeparationFromCurrent, 1.0f);
+	const float SeparationScore = FMath::Clamp(FVector::Dist(GoalLocation, PawnLocation) / MinSeparation, 0.0f, 1.0f);
+
+	const float PreferredHeight = TargetLocation.Z + CombatDataAsset.PreferredCombatHoverHeight;
+	const float HeightRange = FMath::Max(
+		CombatDataAsset.MaxFlightHeightAboveReference - CombatDataAsset.MinFlightHeightAboveReference,
+		1.0f);
+	const float HeightScore = 1.0f - FMath::Clamp(FMath::Abs(GoalLocation.Z - PreferredHeight) / HeightRange, 0.0f, 1.0f);
+
+	return DistanceScore * CombatDataAsset.AirPositionDistanceScoreWeight
+		+ SeparationScore * CombatDataAsset.AirPositionSeparationScoreWeight
+		+ HeightScore * CombatDataAsset.AirPositionHeightScoreWeight
+		+ (bHasLineOfSight ? CombatDataAsset.AirPositionLOSScoreWeight : 0.0f);
 }
 
 // ===== 목표 위치 검증 =====
@@ -461,7 +699,10 @@ void UBTTask_PRFaeRoyalArcherAirMove::CleanupAirMove(UBehaviorTreeComponent& Own
 		}
 	}
 
-	if (bClearPresentationOnFinish || MoveMode == EPRFaeRoyalArcherAirMoveMode::ReturnHome || Result != EBTNodeResult::Succeeded)
+	if (bClearPresentationOnFinish
+		|| MoveMode == EPRFaeRoyalArcherAirMoveMode::ReturnHome
+		|| MoveMode == EPRFaeRoyalArcherAirMoveMode::PatrolHome
+		|| Result != EBTNodeResult::Succeeded)
 	{
 		ClearPresentationContext(OwnerComp);
 	}
@@ -480,7 +721,8 @@ void UBTTask_PRFaeRoyalArcherAirMove::ApplyPresentationContext(
 		return;
 	}
 
-	if (MoveMode == EPRFaeRoyalArcherAirMoveMode::ReturnHome)
+	if (MoveMode == EPRFaeRoyalArcherAirMoveMode::ReturnHome
+		|| MoveMode == EPRFaeRoyalArcherAirMoveMode::PatrolHome)
 	{
 		EnemyAIController->ClearCombatMovePresentationContext(true);
 		return;
@@ -507,6 +749,13 @@ bool UBTTask_PRFaeRoyalArcherAirMove::HasBlackboardKey(const UBlackboardComponen
 		&& BlackboardComponent->GetKeyID(KeyName) != FBlackboard::InvalidKey;
 }
 
+bool UBTTask_PRFaeRoyalArcherAirMove::DoesMoveModeRequireTarget() const
+{
+	return MoveMode == EPRFaeRoyalArcherAirMoveMode::CombatStrafe
+		|| MoveMode == EPRFaeRoyalArcherAirMoveMode::LosReposition
+		|| MoveMode == EPRFaeRoyalArcherAirMoveMode::CloseEvade;
+}
+
 FVector UBTTask_PRFaeRoyalArcherAirMove::ReadHomeLocation(const UBlackboardComponent* BlackboardComponent, const APawn* ControlledPawn) const
 {
 	if (HasBlackboardKey(BlackboardComponent, HomeLocationKey) && BlackboardComponent->IsVectorValueSet(HomeLocationKey))
@@ -515,6 +764,21 @@ FVector UBTTask_PRFaeRoyalArcherAirMove::ReadHomeLocation(const UBlackboardCompo
 	}
 
 	return IsValid(ControlledPawn) ? ControlledPawn->GetActorLocation() : FVector::ZeroVector;
+}
+
+FVector UBTTask_PRFaeRoyalArcherAirMove::ReadSearchAnchorLocation(const UBlackboardComponent* BlackboardComponent, const APawn* ControlledPawn) const
+{
+	if (HasBlackboardKey(BlackboardComponent, LastKnownTargetLocationKey) && BlackboardComponent->IsVectorValueSet(LastKnownTargetLocationKey))
+	{
+		return BlackboardComponent->GetValueAsVector(LastKnownTargetLocationKey);
+	}
+
+	if (HasBlackboardKey(BlackboardComponent, TargetLocationKey) && BlackboardComponent->IsVectorValueSet(TargetLocationKey))
+	{
+		return BlackboardComponent->GetValueAsVector(TargetLocationKey);
+	}
+
+	return ReadHomeLocation(BlackboardComponent, ControlledPawn);
 }
 
 bool UBTTask_PRFaeRoyalArcherAirMove::IsDisabledByGameplayState(const APawn* ControlledPawn) const

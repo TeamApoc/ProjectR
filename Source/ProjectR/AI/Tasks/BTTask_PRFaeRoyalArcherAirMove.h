@@ -21,6 +21,8 @@ enum class EPRFaeRoyalArcherAirMoveMode : uint8
 	CombatStrafe	UMETA(DisplayName = "Combat Strafe"),
 	LosReposition	UMETA(DisplayName = "LOS Reposition"),
 	CloseEvade		UMETA(DisplayName = "Close Evade"),
+	SearchLastKnown UMETA(DisplayName = "Search Last Known"),
+	PatrolHome		UMETA(DisplayName = "Patrol Home"),
 	ReturnHome		UMETA(DisplayName = "Return Home")
 };
 
@@ -74,11 +76,18 @@ protected:
 
 private:
 	bool HasBlackboardKey(const UBlackboardComponent* BlackboardComponent, FName KeyName) const;
+	bool DoesMoveModeRequireTarget() const;
 	FVector ReadHomeLocation(const UBlackboardComponent* BlackboardComponent, const APawn* ControlledPawn) const;
-	FVector BuildTargetRingGoal(const APawn* ControlledPawn, const AActor* CurrentTarget, const UPRFaeRoyalArcherCombatDataAsset& CombatDataAsset, float SignedArcDegrees) const;
+	FVector ReadSearchAnchorLocation(const UBlackboardComponent* BlackboardComponent, const APawn* ControlledPawn) const;
+	bool TryBuildAirCombatQueryGoal(const APawn* ControlledPawn, const AActor* CurrentTarget, const UPRFaeRoyalArcherCombatDataAsset& CombatDataAsset, bool bRequireLineOfSight, FVector& OutGoalLocation) const;
+	bool TryBuildScoredAirCombatGoal(const APawn* ControlledPawn, const AActor* CurrentTarget, const UPRFaeRoyalArcherCombatDataAsset& CombatDataAsset, bool bRequireLineOfSight, FVector& OutGoalLocation) const;
+	FVector BuildTargetRingGoal(const APawn* ControlledPawn, const AActor* CurrentTarget, const UPRFaeRoyalArcherCombatDataAsset& CombatDataAsset, float SignedArcDegrees, float DistanceOffset, float HeightOffset) const;
 	FVector BuildCloseEvadeGoal(const APawn* ControlledPawn, const AActor* CurrentTarget, const UPRFaeRoyalArcherCombatDataAsset& CombatDataAsset) const;
+	FVector BuildSearchLastKnownGoal(const UBlackboardComponent* BlackboardComponent, const APawn* ControlledPawn, const UPRFaeRoyalArcherCombatDataAsset& CombatDataAsset, float SignedArcDegrees) const;
+	FVector BuildPatrolHomeGoal(const UBlackboardComponent* BlackboardComponent, const APawn* ControlledPawn, const UPRFaeRoyalArcherCombatDataAsset& CombatDataAsset, float SignedArcDegrees) const;
 	FVector BuildReturnHomeGoal(const UBlackboardComponent* BlackboardComponent, const APawn* ControlledPawn, const UPRFaeRoyalArcherCombatDataAsset& CombatDataAsset) const;
 	FVector ClampGoalAltitude(const FVector& GoalLocation, float ReferenceZ, const UPRFaeRoyalArcherCombatDataAsset& CombatDataAsset) const;
+	float ScoreAirCombatGoal(const APawn* ControlledPawn, const AActor* CurrentTarget, const UPRFaeRoyalArcherCombatDataAsset& CombatDataAsset, const FVector& GoalLocation, bool bHasLineOfSight) const;
 	bool HasLineOfSightFromGoal(const APawn* ControlledPawn, const AActor* CurrentTarget, const FVector& GoalLocation) const;
 	bool IsDisabledByGameplayState(const APawn* ControlledPawn) const;
 	void ApplyPresentationContext(UBehaviorTreeComponent& OwnerComp, AActor* CurrentTarget, const UPRFaeRoyalArcherCombatDataAsset& CombatDataAsset) const;
@@ -89,6 +98,14 @@ protected:
 	// 현재 타겟 Blackboard 키다.
 	UPROPERTY(EditAnywhere, Category = "ProjectR|Blackboard")
 	FName CurrentTargetKey = TEXT("current_target");
+
+	// 마지막으로 목격한 타겟 위치 Blackboard 키다.
+	UPROPERTY(EditAnywhere, Category = "ProjectR|Blackboard")
+	FName LastKnownTargetLocationKey = TEXT("last_known_target_location");
+
+	// 현재 타겟 위치 Blackboard 키다. 마지막 목격 위치가 없을 때 수색 기준점으로만 사용한다.
+	UPROPERTY(EditAnywhere, Category = "ProjectR|Blackboard")
+	FName TargetLocationKey = TEXT("target_location");
 
 	// 복귀 기준 위치 Blackboard 키다.
 	UPROPERTY(EditAnywhere, Category = "ProjectR|Blackboard")

@@ -2,7 +2,10 @@
 
 #include "PRFaeRoyalArcherCharacter.h"
 
+#include "BehaviorTree/BlackboardComponent.h"
+#include "BehaviorTree/BlackboardData.h"
 #include "GameFramework/CharacterMovementComponent.h"
+#include "Net/UnrealNetwork.h"
 #include "ProjectR/AI/Data/PRFaeRoyalArcherCombatDataAsset.h"
 
 APRFaeRoyalArcherCharacter::APRFaeRoyalArcherCharacter()
@@ -23,11 +26,52 @@ void APRFaeRoyalArcherCharacter::BeginPlay()
 	{
 		GetCharacterMovement()->SetMovementMode(MOVE_Flying);
 	}
+
+	InitializePerchIdlePose();
+}
+
+void APRFaeRoyalArcherCharacter::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const
+{
+	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
+
+	DOREPLIFETIME(APRFaeRoyalArcherCharacter, bUsePerchIdlePose);
+}
+
+void APRFaeRoyalArcherCharacter::InitializeEnemyBlackboard(UBlackboardComponent* BlackboardComponent) const
+{
+	Super::InitializeEnemyBlackboard(BlackboardComponent);
+
+	if (!IsValid(BlackboardComponent))
+	{
+		return;
+	}
+
+	if (ShouldWakeFromPerchKey != NAME_None
+		&& BlackboardComponent->GetKeyID(ShouldWakeFromPerchKey) != FBlackboard::InvalidKey)
+	{
+		BlackboardComponent->SetValueAsBool(ShouldWakeFromPerchKey, bWakeFromPerchOnCombatStart);
+	}
+
+	if (HasPlayedWakeFromPerchKey != NAME_None
+		&& BlackboardComponent->GetKeyID(HasPlayedWakeFromPerchKey) != FBlackboard::InvalidKey)
+	{
+		BlackboardComponent->SetValueAsBool(HasPlayedWakeFromPerchKey, false);
+	}
 }
 
 UPRFaeRoyalArcherCombatDataAsset* APRFaeRoyalArcherCharacter::GetRoyalArcherCombatData() const
 {
 	return Cast<UPRFaeRoyalArcherCombatDataAsset>(GetCombatDataAsset());
+}
+
+void APRFaeRoyalArcherCharacter::PrepareWakeFromPerch()
+{
+	bUsePerchIdlePose = false;
+
+	if (bStartInFlyingMode && IsValid(GetCharacterMovement()))
+	{
+		GetCharacterMovement()->SetMovementMode(MOVE_Flying);
+	}
 }
 
 void APRFaeRoyalArcherCharacter::ApplyRoyalArcherMovementDefaults()
@@ -45,4 +89,9 @@ void APRFaeRoyalArcherCharacter::ApplyRoyalArcherMovementDefaults()
 	MovementComponent->bOrientRotationToMovement = false;
 	MovementComponent->bUseControllerDesiredRotation = true;
 	bUseControllerRotationYaw = false;
+}
+
+void APRFaeRoyalArcherCharacter::InitializePerchIdlePose()
+{
+	bUsePerchIdlePose = bWakeFromPerchOnCombatStart && bStartInPerchIdlePose;
 }

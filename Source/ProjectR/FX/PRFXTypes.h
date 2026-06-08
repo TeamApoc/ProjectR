@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Engine/HitResult.h"
 #include "GameplayTagContainer.h"
 #include "StructUtils/InstancedStruct.h"
 #include "PRFXTypes.generated.h"
@@ -298,6 +299,10 @@ struct PROJECTR_API FPRFXTrailPayload : public FPRFXPayloadBase
 	// 충돌 지점에 도달한 Trail인지 여부
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "ProjectR|FX")
 	bool bBlockingHit = false;
+
+	// bBlockingHit이 true일 때만 네트워크로 전송되는 실제 충돌 정보
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "ProjectR|FX")
+	FHitResult HitResult;
 
 	// Trail 방향 계산과 Niagara 파라미터 전달에 사용할 방향
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "ProjectR|FX")

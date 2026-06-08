@@ -46,6 +46,7 @@ void UPRGameplayAbility_FaerinPhaseTransition::ActivateAbility(const FGameplayAb
 	bGodFallEntrySucceeded = false;
 	bBodyMontageSequenceFinished = false;
 	bPausedBrainLogicForGodFall = false;
+	bBGMPhasePreviewed = false;
 	PausedBrainComponent.Reset();
 	bSuppressBodyMontageCallbacks = false;
 	BodyMontageQueue.Reset();
@@ -151,6 +152,8 @@ void UPRGameplayAbility_FaerinPhaseTransition::EndAbility(const FGameplayAbility
 		RollbackPhaseTransition();
 	}
 
+	bBGMPhasePreviewed = false;
+
 	Super::EndAbility(Handle, ActorInfo, ActivationInfo, bReplicateEndAbility, bWasCancelled);
 }
 
@@ -164,6 +167,8 @@ void UPRGameplayAbility_FaerinPhaseTransition::HandleGodFallCastStarted()
 	}
 
 	bGodFallCastStarted = true;
+	BroadcastBGMPhasePreview(PendingTargetPhase);
+
 	if (BodyMontageQueue.IsEmpty())
 	{
 		bBodyMontageSequenceFinished = true;
@@ -281,6 +286,7 @@ void UPRGameplayAbility_FaerinPhaseTransition::TryCommitPhase2GodFallTransition(
 
 	FaerinCharacter->CommitPhaseTransition(PendingTargetPhase);
 	bPhaseTransitionCommitted = true;
+	bBGMPhasePreviewed = false;
 
 	if (IsValid(ActiveGodFallComponent))
 	{
@@ -341,8 +347,31 @@ void UPRGameplayAbility_FaerinPhaseTransition::RollbackPhaseTransition()
 	APRFaerinCharacter* FaerinCharacter = Cast<APRFaerinCharacter>(GetAvatarActorFromActorInfo());
 	if (IsValid(FaerinCharacter) && FaerinCharacter->HasAuthority() && !bPhaseTransitionCommitted)
 	{
+		if (bBGMPhasePreviewed)
+		{
+			FaerinCharacter->BroadcastBossBGMPhasePreview(FaerinCharacter->GetCurrentPhase());
+			bBGMPhasePreviewed = false;
+		}
+
 		FaerinCharacter->CommitPhaseTransition(FaerinCharacter->GetCurrentPhase());
 	}
+}
+
+void UPRGameplayAbility_FaerinPhaseTransition::BroadcastBGMPhasePreview(EPRBossPhase PreviewPhase)
+{
+	if (bBGMPhasePreviewed)
+	{
+		return;
+	}
+
+	APRFaerinCharacter* FaerinCharacter = Cast<APRFaerinCharacter>(GetAvatarActorFromActorInfo());
+	if (!IsValid(FaerinCharacter) || !FaerinCharacter->HasAuthority())
+	{
+		return;
+	}
+
+	FaerinCharacter->BroadcastBossBGMPhasePreview(PreviewPhase);
+	bBGMPhasePreviewed = true;
 }
 
 EPRBossPhase UPRGameplayAbility_FaerinPhaseTransition::ResolveBossPhaseFromEvent(const FGameplayEventData* TriggerEventData) const

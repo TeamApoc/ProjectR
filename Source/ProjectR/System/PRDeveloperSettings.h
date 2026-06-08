@@ -17,6 +17,7 @@ class UUserWidget;
 class UDataTable;
 class APRRewardPickupActor;
 class UPRCrosshairConfig;
+class UPRBGMRegistryDataAsset;
 class UPRUISoundDataAsset;
 
 // 플로팅 텍스트 타입별 위젯 클래스 및 색상 설정
@@ -78,6 +79,9 @@ public:
 	// 기본 UI 사운드 데이터 에셋을 동기 로드 후 반환
 	const UPRUISoundDataAsset* GetDefaultUISoundDataSync() const;
 
+	// 기본 BGM Registry 데이터 에셋을 동기 로드 후 반환
+	const UPRBGMRegistryDataAsset* GetDefaultBGMRegistrySync() const;
+
 	// FloatingTextType에 따른 스타일(위젯 클래스 + 색상)을 동기 로드 후 반환
 	FPRFloatingTextStyle GetFloatingTextStyleSync(EPRFloatingTextType TextType) const;
 
@@ -124,6 +128,10 @@ public:
 	// 모든 PR 위젯 버튼에 자동 적용할 기본 UI 사운드 설정
 	UPROPERTY(EditAnywhere, Config, Category = "UI|Sound", meta = (AllowedClasses = "/Script/ProjectR.PRUISoundDataAsset"))
 	TSoftObjectPtr<UPRUISoundDataAsset> DefaultUISoundData;
+
+	// 레벨별 BGM Entry를 보관하는 기본 Registry 설정
+	UPROPERTY(EditAnywhere, Config, Category = "Audio|BGM", meta = (AllowedClasses = "/Script/ProjectR.PRBGMRegistryDataAsset"))
+	TSoftObjectPtr<UPRBGMRegistryDataAsset> DefaultBGMRegistry;
 
 	// EPRFloatingTextType : 스타일(위젯 + 색상) 매핑
 	UPROPERTY(EditAnywhere, Config, Category = "UI")

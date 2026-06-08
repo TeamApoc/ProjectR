@@ -15,6 +15,7 @@
 #include "GameFramework/PlayerController.h"
 #include "PRProjectileMovementComponent.h"
 #include "PRProjectileManagerComponent.h"
+#include "Kismet/GameplayStatics.h"
 #include "Net/UnrealNetwork.h"
 #include "Net/Core/PushModel/PushModel.h"
 #include "ProjectR/Combat/PRCombatGameplayTags.h"
@@ -531,16 +532,18 @@ void APRProjectileBase::HandleRepCorrection()
 			SetActorEnableCollision(true);
 		}
 		
-		DestroyProjectile();
+		DestroyProjectile(EPRProjectileDestroyReason::ReplicatedDetonation);
 	}
 }
 
 
-void APRProjectileBase::DestroyProjectile()
+void APRProjectileBase::DestroyProjectile(EPRProjectileDestroyReason DestroyReason)
 {
 	ClearProjectileHomingScheduleTimers();
 	StopClientProjectileHomingPresentation();
 	ConfigureProjectileHoming(nullptr, 0.0f);
+
+	OnProjectileDestroyEffectStarted(DestroyReason);
 
 	if (HasAuthority())
 	{
@@ -566,6 +569,14 @@ void APRProjectileBase::DestroyProjectile()
 
 void APRProjectileBase::OnProjectileDestroyed_Implementation()
 {
+}
+
+void APRProjectileBase::OnProjectileDestroyEffectStarted_Implementation(EPRProjectileDestroyReason DestroyReason)
+{
+	if (PRShouldPlayProjectileDestroyEffect(DestroyReason) && IsValid(ExplodeSound))
+	{
+		UGameplayStatics::PlaySoundAtLocation(this, ExplodeSound, GetActorLocation());
+	}
 }
 
 bool APRProjectileBase::HasProjectileAuthority() const
@@ -921,7 +932,7 @@ void APRProjectileBase::OnSphereHit(UPrimitiveComponent* HitComponent, AActor* O
 			
 			if (!ProjectileMovementComponent->ShouldBounce(Hit))
 			{
-				DestroyProjectile();	
+				DestroyProjectile(EPRProjectileDestroyReason::Impact);
 			}
 		}
 		// Replicate된 투사체인 경우

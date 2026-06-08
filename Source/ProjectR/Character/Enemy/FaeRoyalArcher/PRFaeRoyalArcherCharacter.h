@@ -46,6 +46,9 @@ public:
 	// WakeFromPerch 시작 직전에 Perch 전용 Gargoyle Idle 포즈 상태를 해제한다.
 	void PrepareWakeFromPerch();
 
+	// Death/Groggy 등 전투 불능 연출 진입 시 Perch 전용 대기 포즈를 해제한다.
+	void ClearPerchIdlePose();
+
 protected:
 	// CharacterMovement에 Royal Archer의 기본 비행 이동 정책을 적용한다.
 	void ApplyRoyalArcherMovementDefaults();

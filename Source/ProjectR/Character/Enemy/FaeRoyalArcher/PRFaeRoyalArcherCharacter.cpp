@@ -66,12 +66,17 @@ UPRFaeRoyalArcherCombatDataAsset* APRFaeRoyalArcherCharacter::GetRoyalArcherComb
 
 void APRFaeRoyalArcherCharacter::PrepareWakeFromPerch()
 {
-	bUsePerchIdlePose = false;
+	ClearPerchIdlePose();
 
 	if (bStartInFlyingMode && IsValid(GetCharacterMovement()))
 	{
 		GetCharacterMovement()->SetMovementMode(MOVE_Flying);
 	}
+}
+
+void APRFaeRoyalArcherCharacter::ClearPerchIdlePose()
+{
+	bUsePerchIdlePose = false;
 }
 
 void APRFaeRoyalArcherCharacter::ApplyRoyalArcherMovementDefaults()

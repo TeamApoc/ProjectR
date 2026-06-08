@@ -401,7 +401,12 @@ void APREnemyBaseCharacter::BeginDeathDissolveVisual()
 		World->GetTimerManager().ClearTimer(DeathDissolveStartTimerHandle);
 	}
 
-	FreezeDeathDissolvePose();
+	// 몽타주 종료 후 Dissolve 모드에서는 마지막 자세를 고정한 뒤 Dissolve를 시작한다.
+	// 몽타주 시작 후 Dissolve 모드에서는 Dissolve가 몽타주 도중에 겹쳐야 하므로 애니메이션을 멈추면 안 된다.
+	if (bPendingDeathDissolveDelayAfterMontageEnd)
+	{
+		FreezeDeathDissolvePose();
+	}
 
 	if (!bPendingDeathDissolveDelayAfterMontageEnd || PendingDeathDissolveDelay <= 0.0f)
 	{

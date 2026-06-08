@@ -17,7 +17,7 @@
 namespace
 {
 	// 2D 방향이 비어 있을 때 사용할 안전 방향을 계산한다.
-	FVector GetSafeDirection2D(const FVector& Direction, const FVector& FallbackDirection)
+	FVector GetRoyalArcherSafeDirection2D(const FVector& Direction, const FVector& FallbackDirection)
 	{
 		FVector SafeDirection = Direction;
 		SafeDirection.Z = 0.0f;
@@ -37,7 +37,7 @@ namespace
 	}
 
 	// 타겟 기준 후보 각도 목록을 만든다.
-	void BuildLosCandidateAngles(float BaseArcDegrees, float DirectionSign, TArray<float>& OutAngles)
+	void BuildRoyalArcherLosCandidateAngles(float BaseArcDegrees, float DirectionSign, TArray<float>& OutAngles)
 	{
 		OutAngles.Reset();
 		OutAngles.Add(BaseArcDegrees * DirectionSign);
@@ -250,7 +250,7 @@ bool UBTTask_PRFaeRoyalArcherAirMove::BuildAirMoveGoal(
 	if (MoveMode == EPRFaeRoyalArcherAirMoveMode::LosReposition)
 	{
 		TArray<float> CandidateAngles;
-		BuildLosCandidateAngles(CombatDataAsset.AirStrafeArcDegrees, NextStrafeDirectionSign, CandidateAngles);
+		BuildRoyalArcherLosCandidateAngles(CombatDataAsset.AirStrafeArcDegrees, NextStrafeDirectionSign, CandidateAngles);
 		for (const float CandidateAngle : CandidateAngles)
 		{
 			const FVector CandidateGoal = BuildTargetRingGoal(ControlledPawn, CurrentTarget, CombatDataAsset, CandidateAngle);
@@ -278,7 +278,7 @@ FVector UBTTask_PRFaeRoyalArcherAirMove::BuildTargetRingGoal(
 {
 	const FVector PawnLocation = ControlledPawn->GetActorLocation();
 	const FVector TargetLocation = CurrentTarget->GetActorLocation();
-	const FVector AwayFromTarget = GetSafeDirection2D(PawnLocation - TargetLocation, -CurrentTarget->GetActorForwardVector());
+	const FVector AwayFromTarget = GetRoyalArcherSafeDirection2D(PawnLocation - TargetLocation, -CurrentTarget->GetActorForwardVector());
 	const FVector StrafeDirection = AwayFromTarget.RotateAngleAxis(SignedArcDegrees, FVector::UpVector).GetSafeNormal2D();
 
 	const float DesiredDistance = FMath::Max(CombatDataAsset.PreferredAttackDistance, 0.0f);
@@ -294,7 +294,7 @@ FVector UBTTask_PRFaeRoyalArcherAirMove::BuildCloseEvadeGoal(
 {
 	const FVector PawnLocation = ControlledPawn->GetActorLocation();
 	const FVector TargetLocation = CurrentTarget->GetActorLocation();
-	const FVector AwayFromTarget = GetSafeDirection2D(PawnLocation - TargetLocation, -CurrentTarget->GetActorForwardVector());
+	const FVector AwayFromTarget = GetRoyalArcherSafeDirection2D(PawnLocation - TargetLocation, -CurrentTarget->GetActorForwardVector());
 	const FVector SideDirection = FVector::CrossProduct(FVector::UpVector, AwayFromTarget).GetSafeNormal2D() * NextStrafeDirectionSign;
 
 	FVector GoalLocation = PawnLocation

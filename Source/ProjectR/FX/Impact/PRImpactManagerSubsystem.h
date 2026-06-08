@@ -68,11 +68,14 @@ protected:
 	// DeveloperSettings에 지정된 Impact Registry를 동기 로드 후 캐시함
 	UPRImpactRegistry* GetRegistry() const;
 
+	// Impact Context를 유지한 상태로 Registry Definition 조회와 VFX, Decal 재생 처리
+	void PlayImpactWithContext(FGameplayTag ImpactTag, const FPRImpactContext& Context, bool bUseDecal);
+
 	// Impact Definition의 Niagara System을 Component Lease에 설정하고 종료 반환 경로 등록
-	void PlayNiagara(const FPRImpactDefinition& Definition, const FTransform& ImpactTransform);
+	void PlayNiagara(const FPRImpactDefinition& Definition, const FTransform& ImpactTransform, const FPRImpactContext& Context);
 
 	// Impact Definition의 Decal Material과 크기를 Component Lease에 설정하고 고정 수명 반환 등록
-	void PlayDecal(const FPRImpactDefinition& Definition, const FTransform& ImpactTransform);
+	void PlayDecal(const FPRImpactDefinition& Definition, const FTransform& ImpactTransform, const FPRImpactContext& Context);
 
 	// Impact Definition의 Niagara 후보 중 유효한 에셋 하나를 무작위 선택
 	UNiagaraSystem* ChooseNiagaraSystem(const FPRImpactDefinition& Definition) const;

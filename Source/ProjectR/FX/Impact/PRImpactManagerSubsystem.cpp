@@ -80,10 +80,19 @@ void UPRImpactManagerSubsystem::PlayImpactFromHit(const FHitResult& HitResult, b
 
 	const FPRImpactContext Context = BuildImpactContext(HitResult);
 	const FGameplayTag ImpactTag = ResolveImpactTag(HitResult, Context);
-	PlayImpactAtLocation(ImpactTag, Context.ImpactLocation, Context.ImpactNormal, bUseDecal);
+	PlayImpactWithContext(ImpactTag, Context, bUseDecal);
 }
 
 void UPRImpactManagerSubsystem::PlayImpactAtLocation(FGameplayTag ImpactTag, FVector ImpactLocation, FVector ImpactNormal, bool bUseDecal)
+{
+	// 명시 위치 호출은 피격 Actor 문맥이 없으므로 월드 고정 Impact Context만 구성
+	FPRImpactContext Context;
+	Context.ImpactLocation = ImpactLocation;
+	Context.ImpactNormal = ImpactNormal;
+	PlayImpactWithContext(ImpactTag, Context, bUseDecal);
+}
+
+void UPRImpactManagerSubsystem::PlayImpactWithContext(FGameplayTag ImpactTag, const FPRImpactContext& Context, bool bUseDecal)
 {
 	// 호출자가 태그를 직접 넘긴 경우에도 Registry와 DefaultImpactTag 검증을 거쳐 재생
 	UPRImpactRegistry* Registry = GetRegistry();
@@ -109,13 +118,13 @@ void UPRImpactManagerSubsystem::PlayImpactAtLocation(FGameplayTag ImpactTag, FVe
 		return;
 	}
 
-	const FTransform ImpactTransform = BuildImpactTransform(ImpactLocation, ImpactNormal);
-	DrawImpactNormalDebug(ImpactLocation, ImpactNormal);
-	PlayNiagara(Definition, ImpactTransform);
+	const FTransform ImpactTransform = BuildImpactTransform(Context.ImpactLocation, Context.ImpactNormal);
+	DrawImpactNormalDebug(Context.ImpactLocation, Context.ImpactNormal);
+	PlayNiagara(Definition, ImpactTransform, Context);
 	if (bUseDecal)
 	{
 		// 호출자가 Decal 생성을 허용한 Impact만 표면 잔여 흔적 재생
-		PlayDecal(Definition, ImpactTransform);
+		PlayDecal(Definition, ImpactTransform, Context);
 	}
 }
 
@@ -380,7 +389,7 @@ UPRImpactRegistry* UPRImpactManagerSubsystem::GetRegistry() const
 	return CachedRegistry;
 }
 
-void UPRImpactManagerSubsystem::PlayNiagara(const FPRImpactDefinition& Definition, const FTransform& ImpactTransform)
+void UPRImpactManagerSubsystem::PlayNiagara(const FPRImpactDefinition& Definition, const FTransform& ImpactTransform, const FPRImpactContext& Context)
 {
 	UNiagaraSystem* SelectedNiagaraSystem = ChooseNiagaraSystem(Definition);
 
@@ -410,12 +419,23 @@ void UPRImpactManagerSubsystem::PlayNiagara(const FPRImpactDefinition& Definitio
 	ActiveNiagaraLeases.Remove(ComponentKey);
 	ActiveNiagaraTimers.Remove(ComponentKey);
 
+	// 이전 재생의 내부 시스템 상태가 잔류하지 않도록 명시적으로 비활성화하고 종료 콜백 해제
+	NiagaraComponent->DeactivateImmediate();
 	NiagaraComponent->OnSystemFinished.Clear();
 	NiagaraComponent->OnSystemFinished.AddUniqueDynamic(this, &UPRImpactManagerSubsystem::HandleNiagaraSystemFinished);
-	NiagaraComponent->SetAsset(SelectedNiagaraSystem);
+
+	// SetAsset이 내부적으로 시스템을 재초기화할 때 올바른 Transform을 사용하도록 위치와 부착을 먼저 설정
 	NiagaraComponent->SetWorldTransform(ImpactTransform);
+	if (IsValid(Context.AttachComponent))
+	{
+		// Component Outer는 Pool Actor로 유지하고 부착 부모만 피격 Component로 바꿔 피격 대상 이동을 따라가도록 구성
+		NiagaraComponent->AttachToComponent(Context.AttachComponent, FAttachmentTransformRules::KeepWorldTransform, Context.AttachSocketName);
+	}
 	NiagaraComponent->SetHiddenInGame(false, true);
 	NiagaraComponent->SetVisibility(true, true);
+
+	// Transform이 확정된 뒤 에셋을 설정하여 내부 초기화 시 파티클 위치 불일치 방지
+	NiagaraComponent->SetAsset(SelectedNiagaraSystem);
 
 	ActiveNiagaraLeases.Add(ComponentKey, Lease);
 
@@ -433,11 +453,11 @@ void UPRImpactManagerSubsystem::PlayNiagara(const FPRImpactDefinition& Definitio
 		}
 	}
 
-	// 이전 재생 상태를 무시하고 현재 Impact용 단발 Niagara를 처음부터 재생
+	// 에셋과 Transform이 모두 확정된 뒤 단발 재생을 시작하여 초기 파티클이 정확한 위치에서 생성되도록 보장
 	NiagaraComponent->Activate(true);
 }
 
-void UPRImpactManagerSubsystem::PlayDecal(const FPRImpactDefinition& Definition, const FTransform& ImpactTransform)
+void UPRImpactManagerSubsystem::PlayDecal(const FPRImpactDefinition& Definition, const FTransform& ImpactTransform, const FPRImpactContext& Context)
 {
 	UMaterialInterface* SelectedDecalMaterial = ChooseDecalMaterial(Definition);
 
@@ -477,6 +497,11 @@ void UPRImpactManagerSubsystem::PlayDecal(const FPRImpactDefinition& Definition,
 	DecalComponent->DecalSize = ResolvedDecalSize;
 	DecalComponent->FadeScreenSize = Definition.DecalFadeScreenSize;
 	DecalComponent->SetWorldTransform(ImpactTransform);
+	if (IsValid(Context.AttachComponent))
+	{
+		// Component Outer는 Pool Actor로 유지하고 부착 부모만 피격 Component로 바꿔 Decal이 피격 대상 이동을 따라가도록 구성
+		DecalComponent->AttachToComponent(Context.AttachComponent, FAttachmentTransformRules::KeepWorldTransform, Context.AttachSocketName);
+	}
 	DecalComponent->SetHiddenInGame(false, true);
 	DecalComponent->SetVisibility(true, true);
 
@@ -562,6 +587,19 @@ FPRImpactContext UPRImpactManagerSubsystem::BuildImpactContext(const FHitResult&
 	}
 
 	Context.ImpactNormal = Context.ImpactNormal.GetSafeNormal();
+
+	// 실제 피격 Component가 있으면 그 Component에 붙이고, 없으면 Hit Actor RootComponent에 붙여 이동 Actor의 Impact VFX가 함께 움직이도록 구성
+	if (UPrimitiveComponent* HitComponent = HitResult.GetComponent())
+	{
+		Context.AttachComponent = HitComponent;
+		Context.AttachSocketName = HitResult.BoneName;
+	}
+	else if (AActor* HitActor = HitResult.GetActor())
+	{
+		Context.AttachComponent = HitActor->GetRootComponent();
+		Context.AttachSocketName = NAME_None;
+	}
+
 	return Context;
 }
 

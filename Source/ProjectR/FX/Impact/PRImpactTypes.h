@@ -12,6 +12,7 @@ class UDecalComponent;
 class UMaterialInterface;
 class UNiagaraComponent;
 class UNiagaraSystem;
+class USceneComponent;
 
 DECLARE_LOG_CATEGORY_EXTERN(LogPRImpact, Log, All);
 
@@ -78,6 +79,14 @@ struct PROJECTR_API FPRImpactContext
 	// Niagara 방향과 Decal 투영 방향을 표면에 맞추기 위한 월드 법선
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "ProjectR|Impact")
 	FVector ImpactNormal = FVector::UpVector;
+
+	// Impact Niagara가 피격 대상 이동을 따라가야 할 때 부착할 Scene Component. Component 소유권은 이동하지 않고 부착 부모만 사용
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "ProjectR|Impact")
+	TObjectPtr<USceneComponent> AttachComponent = nullptr;
+
+	// AttachComponent가 Socket 또는 Bone을 지원할 때 Niagara 부착 기준으로 사용할 이름
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "ProjectR|Impact")
+	FName AttachSocketName = NAME_None;
 };
 
 // Surface 인터페이스가 현재 피격 표면에 맞는 Impact 태그를 Manager에 알려 주기 위한 결과

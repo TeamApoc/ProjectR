@@ -58,6 +58,9 @@ public:
 	// 현재 활성화된 슬롯 목록 반환
 	TArray<EPREquipmentSlotType> GetActiveSlots() const;
 
+	// 전체 장착 엔트리 초기화
+	void Clear();
+
 private:
 	UPROPERTY()
 	TArray<FPREquippedItemEntry> Entries;

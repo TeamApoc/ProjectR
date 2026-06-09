@@ -24,6 +24,7 @@ protected:
 		UPrimitiveComponent* OtherComp,
 		FVector NormalImpulse,
 		const FHitResult& Hit) override;
-	
-	
+
+	// 일반 적 투사체가 같은 적 계열 Actor를 실제 명중 대상으로 처리하지 않게 한다.
+	virtual bool ShouldIgnoreProjectileHit(AActor* OtherActor, UPrimitiveComponent* OtherComp, const FHitResult& Hit) const override;
 };

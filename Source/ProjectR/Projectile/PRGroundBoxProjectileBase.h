@@ -19,6 +19,7 @@ class UNiagaraComponent;
 class UPrimitiveComponent;
 class UProjectileMovementComponent;
 class USceneComponent;
+class USoundBase;
 class UStaticMeshComponent;
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FPRGroundBoxSpawnedSignature, APRGroundBoxProjectileBase*, GroundBox);
@@ -92,11 +93,11 @@ public:
 
 	// 명시 종료 요청
 	UFUNCTION(BlueprintCallable, BlueprintAuthorityOnly, Category = "ProjectR|GroundBox")
-	void RequestGroundBoxEnd();
+	void RequestGroundBoxEnd(EPRProjectileDestroyReason DestroyReason = EPRProjectileDestroyReason::Manual);
 
-	// 페이드 완료 제거
-	UFUNCTION(BlueprintCallable, BlueprintAuthorityOnly, Category = "ProjectR|GroundBox")
-	void FinishFadeAndDestroy();
+	// 파괴 연출 시작
+	UFUNCTION(BlueprintCallable, Category = "ProjectR|GroundBox")
+	void DestroyEffcectStarted(EPRProjectileDestroyReason DestroyReason);
 
 	// 소유자 사망 처리
 	UFUNCTION(BlueprintCallable, BlueprintAuthorityOnly, Category = "ProjectR|GroundBox")
@@ -139,7 +140,7 @@ protected:
 	bool IsBlockingWallHit(const FHitResult& HitResult) const;
 
 	// 소멸 처리
-	void DestroyGroundBox();
+	void DestroyGroundBox(EPRProjectileDestroyReason DestroyReason);
 
 	// 투사체 이동 복제 수신
 	UFUNCTION()
@@ -178,7 +179,7 @@ protected:
 
 	// 소멸 연출 동기화
 	UFUNCTION(NetMulticast, Reliable)
-	void MulticastHandleDestroyed();
+	void MulticastHandleDestroyed(EPRProjectileDestroyReason DestroyReason);
 
 public:
 	// 생성 연출 구독
@@ -292,6 +293,9 @@ protected:
 	// 런치 복제 보간 최대 시간
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "ProjectR|GroundBox|Replication", meta = (ClampMin = "0.0"))
 	float LaunchRepInterpMaxTime = 0.25f;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "ProjectR|GroundBox|Sound")
+	USoundBase* ExplodeSound;
 
 private:
 	// 소스 액터 약참조

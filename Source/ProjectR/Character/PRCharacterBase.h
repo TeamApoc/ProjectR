@@ -6,6 +6,7 @@
 #include "GameFramework/Character.h"
 #include "AbilitySystemInterface.h"
 #include "ProjectR/Combat/PRCombatInterface.h"
+#include "ProjectR/FX/Impact/PRImpactSurface.h"
 #include "PRCharacterBase.generated.h"
 
 struct FGameplayTag;
@@ -17,7 +18,7 @@ class UPRAbilitySystemComponent;
 // 프로젝트 전체 캐릭터 베이스. IAbilitySystemInterface와 IPRCombatInterface를 구현한다.
 // 플레이어는 PlayerState의 ASC를 위임, 적은 자기 컴포넌트를 반환 (파생 클래스에서 분기)
 UCLASS(Abstract)
-class PROJECTR_API APRCharacterBase : public ACharacter, public IAbilitySystemInterface, public IPRCombatInterface
+class PROJECTR_API APRCharacterBase : public ACharacter, public IAbilitySystemInterface, public IPRCombatInterface, public IPRImpactSurface
 {
 	GENERATED_BODY()
 
@@ -35,6 +36,10 @@ public:
 
 	/*~ IPRCombatInterface ~*/
 	virtual bool IsDead() const override;
+	
+	/*~ IPRImpactSurface ~*/
+	virtual FPRImpactResult ResolveImpactSurface_Implementation(const FPRImpactContext& Context) const override;
+	
 public:
 	// 프로젝트 ASC 타입으로 반환
 	virtual UPRAbilitySystemComponent* GetPRAbilitySystemComponent() const;
@@ -62,4 +67,7 @@ protected:
 	// 무기 미장착 상태에서 적용할 기본 애니메이션 레이어 (맨손 등)
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "PR Config|Animation")
 	TSubclassOf<UAnimInstance> DefaultAnimLayerClass;
+	
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "PR Config|VFX")
+	FGameplayTag DefaultSurfaceTag;
 };

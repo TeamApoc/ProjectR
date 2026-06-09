@@ -12,6 +12,7 @@ class UPRCombatMoveDataAsset;
 class UPRPatternDataAsset;
 class UPRPerceptionConfig;
 class UPREnemyThreatComponent;
+class UBlackboardComponent;
 struct FPREnemyMovePresentationConfig;
 
 // AIController와 BT Task가 구체 Pawn 클래스에 직접 의존하지 않도록 만드는 공용 인터페이스다.
@@ -46,6 +47,9 @@ public:
 
 	// 복귀 행동에서 사용할 스폰/기준 위치다.
 	virtual FVector GetHomeLocation() const = 0;
+
+	// AIController가 BehaviorTree 실행 전에 몬스터별 Blackboard 초기값을 주입할 수 있게 한다.
+	virtual void InitializeEnemyBlackboard(UBlackboardComponent* BlackboardComponent) const {}
 
 	// 전투 이동 표현 문맥을 적용한다.
 	virtual void ApplyCombatMovePresentationContext(const FPREnemyMovePresentationConfig& PresentationConfig) = 0;

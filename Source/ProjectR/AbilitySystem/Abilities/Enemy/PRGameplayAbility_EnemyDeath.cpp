@@ -246,7 +246,10 @@ void UPRGameplayAbility_EnemyDeath::RequestDeathDissolveVisual()
 	EnemyCharacter->RequestDeathDissolveVisual(
 		IsValid(ActiveMontageTask) ? DeathMontage.Get() : nullptr,
 		MontagePlayRate,
-		DissolveDelayAfterMontage,
+		DissolveTimingMode == EPRDeathDissolveTimingMode::AfterMontageEnd,
+		DissolveTimingMode == EPRDeathDissolveTimingMode::AfterMontageEnd
+			? DissolveDelayAfterMontage
+			: DissolveDelayAfterMontageStart,
 		DissolveDuration,
 		DissolveStartValue,
 		DissolveEndValue,
@@ -315,10 +318,13 @@ float UPRGameplayAbility_EnemyDeath::CalculateDeathDestroyDelay() const
 		return DeathDestroyDelay;
 	}
 
-	const float MontageDelay = IsValid(DeathMontage) && IsValid(ActiveMontageTask)
+	const bool bDelayAfterMontageEnd = DissolveTimingMode == EPRDeathDissolveTimingMode::AfterMontageEnd;
+	const float MontageDelay = bDelayAfterMontageEnd && IsValid(DeathMontage) && IsValid(ActiveMontageTask)
 		? (DeathMontage->GetPlayLength() / FMath::Max(MontagePlayRate, UE_SMALL_NUMBER)) + 0.1f
 		: 0.0f;
-	const float StartDelay = FMath::Max(DissolveDelayAfterMontage, 0.0f);
+	const float StartDelay = bDelayAfterMontageEnd
+		? FMath::Max(DissolveDelayAfterMontage, 0.0f)
+		: FMath::Max(DissolveDelayAfterMontageStart, 0.0f);
 	const float VisualDuration = FMath::Max(DissolveDuration, 0.0f);
 
 	return MontageDelay + StartDelay + VisualDuration;

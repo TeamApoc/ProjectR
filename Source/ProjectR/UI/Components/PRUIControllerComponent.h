@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "Components/ActorComponent.h"
 #include "ProjectR/ItemSystem/Types/PRDropTypes.h"
+#include "ProjectR/ItemSystem/Types/PRItemTypes.h"
 #include "ProjectR/ItemSystem/Types/PRWeaponTypes.h"
 #include "ProjectR/UI/HUD/PRHUDMessageTypes.h"
 #include "ProjectR/UI/Inventory/PRInventoryUITypes.h"
@@ -19,6 +20,7 @@ class UPRHUDWidget;
 class UPRInGameMenuWidget;
 class UPRInventoryComponent;
 class UPRInventoryWidget;
+class UPRItemDataAsset;
 class UPRItemTooltipWidget;
 class UPRQuickSlotComponent;
 class UPRShopComponent;
@@ -29,6 +31,7 @@ class UPRWaypointTravelWidget;
 class UPRWeaponManagerComponent;
 class UPRWeaponUpgradeComponent;
 class UPRWeaponUpgradeWidget;
+class USoundBase;
 
 // 플레이어 컨트롤러에 부착되어 로컬 플레이어 UI 표시 흐름을 관리한다
 UCLASS(ClassGroup=(UI), meta=(BlueprintSpawnableComponent))
@@ -184,6 +187,12 @@ private:
 	// 아이템 툴팁 위젯 참조를 정리한다
 	void RemoveItemTooltipWidget();
 
+	// 보상 획득 효과음 선택
+	USoundBase* ResolvePickupRewardSound(const FPRPickupNotificationPayload& Payload) const;
+
+	// 보상 알림 아이템 데이터 조회
+	UPRItemDataAsset* ResolvePickupRewardItemData(const FPRPickupNotificationPayload& Payload) const;
+
 	// 현재 HUD 위젯을 UIManager에서 Pop하고 참조 정리
 	void TearDownHUDWidget();
 
@@ -238,6 +247,14 @@ protected:
 	// HUD 위젯 클래스
 	UPROPERTY(EditDefaultsOnly, Category = "ProjectR|HUD")
 	TSubclassOf<UPRHUDWidget> HUDWidgetClass;
+
+	// 레어도별 보상 획득 효과음
+	UPROPERTY(EditDefaultsOnly, Category = "ProjectR|HUD|Pickup")
+	TMap<EPRItemRarity, TObjectPtr<USoundBase>> PickupRewardSoundsByRarity;
+
+	// 레어도 사운드 미설정 시 사용할 보상 획득 효과음
+	UPROPERTY(EditDefaultsOnly, Category = "ProjectR|HUD|Pickup")
+	TObjectPtr<USoundBase> DefaultPickupRewardSound = nullptr;
 
 	// 아이템 툴팁 위젯 클래스
 	UPROPERTY(EditDefaultsOnly, Category = "ProjectR|Tooltip")

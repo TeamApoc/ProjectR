@@ -6,11 +6,13 @@
 #include "Components/Widget.h"
 #include "Engine/LocalPlayer.h"
 #include "GameFramework/PlayerController.h"
+#include "Kismet/GameplayStatics.h"
 #include "ProjectR/Character/PRPlayerCharacter.h"
 #include "ProjectR/ItemSystem/Components/PREquipmentManagerComponent.h"
 #include "ProjectR/ItemSystem/Components/PRInventoryComponent.h"
 #include "ProjectR/Player/PRPlayerState.h"
 #include "ProjectR/ItemSystem/Components/PRQuickSlotComponent.h"
+#include "ProjectR/ItemSystem/Data/PRItemDataAsset.h"
 #include "ProjectR/UI/HUD/PRHUDWidget.h"
 #include "ProjectR/UI/InGameMenu/PRInGameMenuWidget.h"
 #include "ProjectR/UI/Inventory/PRInventoryWidget.h"
@@ -28,6 +30,8 @@
 #include "ProjectR/ItemSystem/Components/PRWeaponUpgradeComponent.h"
 #include "ProjectR/ItemSystem/Components/PRWeaponManagerComponent.h"
 #include "ProjectR/ItemSystem/Data/PRWeaponDataAsset.h"
+#include "ProjectR/System/PRAssetManager.h"
+#include "Sound/SoundBase.h"
 
 namespace
 {
@@ -423,6 +427,11 @@ void UPRUIControllerComponent::ShowPickupRewardNotification(const FPRPickupNotif
 		return;
 	}
 
+	if (USoundBase* PickupRewardSound = ResolvePickupRewardSound(Payload))
+	{
+		UGameplayStatics::PlaySound2D(this, PickupRewardSound, 1.0f, 1.0f, 0.0f, nullptr, nullptr, true);
+	}
+
 	if (IsValid(HUDWidget))
 	{
 		HUDWidget->ShowPickupRewardNotification(Payload);
@@ -667,6 +676,39 @@ UPRUIManagerSubsystem* UPRUIControllerComponent::GetUIManager() const
 	}
 
 	return LocalPlayer->GetSubsystem<UPRUIManagerSubsystem>();
+}
+
+USoundBase* UPRUIControllerComponent::ResolvePickupRewardSound(const FPRPickupNotificationPayload& Payload) const
+{
+	const UPRItemDataAsset* ItemData = ResolvePickupRewardItemData(Payload);
+	if (IsValid(ItemData))
+	{
+		if (const TObjectPtr<USoundBase>* RaritySound = PickupRewardSoundsByRarity.Find(ItemData->GetRarity()))
+		{
+			if (IsValid(RaritySound->Get()))
+			{
+				return RaritySound->Get();
+			}
+		}
+	}
+
+	USoundBase* DefaultPickupSound = DefaultPickupRewardSound.Get();
+	return IsValid(DefaultPickupSound) ? DefaultPickupSound : nullptr;
+}
+
+UPRItemDataAsset* UPRUIControllerComponent::ResolvePickupRewardItemData(const FPRPickupNotificationPayload& Payload) const
+{
+	if (Payload.RewardType != EPRRewardType::Item && Payload.RewardType != EPRRewardType::Ammo)
+	{
+		return nullptr;
+	}
+
+	if (!Payload.ItemAssetId.IsValid())
+	{
+		return nullptr;
+	}
+
+	return UPRAssetManager::Get().GetItemDataByPrimaryAssetId(Payload.ItemAssetId);
 }
 
 UPRInventoryWidget* UPRUIControllerComponent::GetOrCreateInventoryWidget()

@@ -38,9 +38,21 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "ProjectR|Audio|BGM")
 	void SetBGMState(EPRBGMState NewState);
 
+	// 지정 상태의 BGM 섹션으로 전환
+	UFUNCTION(BlueprintCallable, Category = "ProjectR|Audio|BGM")
+	void PlayBGMStateSection(EPRBGMState NewState, EPRBGMSection Section, bool bForceRestartSameSound);
+
+	// 현재 상태 Track에서 특수패턴 Cue를 찾아 재생
+	UFUNCTION(BlueprintCallable, Category = "ProjectR|Audio|BGM")
+	void PlayPatternCue(FGameplayTag CueTag);
+
 	// 현재 레벨 기본 BGM으로 복귀
 	UFUNCTION(BlueprintCallable, Category = "ProjectR|Audio|BGM")
 	void RestoreDefaultLevelBGM();
+
+	// 현재 BGM 상태를 초기화하고 레벨 기본 BGM 재생
+	UFUNCTION(BlueprintCallable, Category = "ProjectR|Audio|BGM")
+	void ResetToLevelBGM(float FadeOutDuration);
 
 protected:
 	// 현재 월드의 레벨 식별자 계산
@@ -50,10 +62,20 @@ protected:
 	bool TryCacheCurrentLevelEntry();
 
 	// 트랙 사운드 동기 로드
-	USoundBase* LoadTrackSound(const FPRBGMTrack& Track) const;
+	USoundBase* LoadTrackSound(const FPRBGMTrack& Track, EPRBGMSection Section) const;
 
 	// 기존 BGM과 새 BGM 크로스페이드
-	void PlayTrack(EPRBGMState NewState, const FPRBGMTrack& Track);
+	bool PlayTrack(EPRBGMState NewState, const FPRBGMTrack& Track, EPRBGMSection Section, float StartTime, float FadeInDuration, float FadeOutDuration, bool bForceRestartSameSound);
+
+	// 현재 오디오 완료 이벤트 바인딩 갱신
+	void RefreshCurrentAudioFinishedBinding();
+
+	// 현재 오디오 완료 이벤트 바인딩 해제
+	void ClearCurrentAudioFinishedBinding(UAudioComponent* AudioComponent);
+
+	// 현재 오디오 완료 후 후속 BGM 처리
+	UFUNCTION()
+	void HandleCurrentAudioFinished();
 
 	// 페이드아웃 오디오 컴포넌트 정리 예약
 	void FadeOutAndDestroyAudioComponent(UAudioComponent* AudioComponent, float FadeOutDuration);
@@ -97,6 +119,9 @@ protected:
 	// 보스 페이즈 변경 이벤트 처리
 	void HandleBossPhaseChangedEvent(FGameplayTag EventTag, const FInstancedStruct& Payload);
 
+	// 보스 BGM 특수패턴 Cue 이벤트 처리
+	void HandleBossBGMPatternCueEvent(FGameplayTag EventTag, const FInstancedStruct& Payload);
+
 	// 보스 페이즈 BGM 상태 여부
 	bool IsBossPhaseState(EPRBGMState State) const;
 
@@ -108,6 +133,8 @@ private:
 	bool bHasCurrentLevelEntry = false;
 
 	EPRBGMState CurrentState = EPRBGMState::None;
+
+	EPRBGMSection CurrentSection = EPRBGMSection::Loop;
 
 	TWeakObjectPtr<USoundBase> CurrentSound;
 
@@ -127,6 +154,8 @@ private:
 	FDelegateHandle BossPhaseChangedDelegateHandle;
 
 	FDelegateHandle BossBGMPhasePreviewDelegateHandle;
+
+	FDelegateHandle BossBGMPatternCueDelegateHandle;
 
 	FTimerHandle CombatBGMReleaseTimerHandle;
 

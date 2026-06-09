@@ -56,6 +56,7 @@ void APRPlayerState::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLi
 	DOREPLIFETIME(APRPlayerState, CharacterLevel);
 	DOREPLIFETIME(APRPlayerState, Experience);
 	DOREPLIFETIME(APRPlayerState, StatUpgradeInfo);
+	DOREPLIFETIME(APRPlayerState, DownTimerInfo);
 }
 
 void APRPlayerState::GiveStartUpItems()
@@ -451,6 +452,56 @@ void APRPlayerState::SendSurvivalGameplayEvent(const FGameplayTag& EventTag) con
 		Payload);
 }
 
+void APRPlayerState::StartDownTimerInfo(float DurationSeconds, float EndServerWorldTimeSeconds)
+{
+	if (!HasAuthority())
+	{
+		return;
+	}
+
+	const float ClampedDurationSeconds = FMath::Max(DurationSeconds, 0.0f);
+	DownTimerInfo.bIsActive = ClampedDurationSeconds > UE_SMALL_NUMBER;
+	DownTimerInfo.DurationSeconds = ClampedDurationSeconds;
+	DownTimerInfo.EndServerWorldTimeSeconds = DownTimerInfo.bIsActive ? EndServerWorldTimeSeconds : 0.0f;
+
+	ForceNetUpdate();
+}
+
+void APRPlayerState::ClearDownTimerInfo()
+{
+	if (!HasAuthority())
+	{
+		return;
+	}
+
+	DownTimerInfo = FPRPlayerDownTimerInfo();
+	ForceNetUpdate();
+}
+
+float APRPlayerState::GetDownRemainingSeconds(float ServerWorldTimeSeconds) const
+{
+	if (!DownTimerInfo.bIsActive)
+	{
+		return 0.0f;
+	}
+
+	return FMath::Max(DownTimerInfo.EndServerWorldTimeSeconds - ServerWorldTimeSeconds, 0.0f);
+}
+
+float APRPlayerState::GetDownRemainingPercent(float ServerWorldTimeSeconds) const
+{
+	if (!DownTimerInfo.bIsActive || DownTimerInfo.DurationSeconds <= UE_SMALL_NUMBER)
+	{
+		return 0.0f;
+	}
+
+	return FMath::Clamp(GetDownRemainingSeconds(ServerWorldTimeSeconds) / DownTimerInfo.DurationSeconds, 0.0f, 1.0f);
+}
+
+void APRPlayerState::OnRep_DownTimerInfo()
+{
+}
+
 void APRPlayerState::ResetState()
 {
 	// 서버 권위 전용
@@ -458,6 +509,8 @@ void APRPlayerState::ResetState()
 	{
 		return;
 	}
+
+	ClearDownTimerInfo();
 
 	// ASC 런타임 상태 정리
 	AbilitySystemComponent->ResetSystem();

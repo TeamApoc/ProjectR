@@ -5,12 +5,9 @@
 #include "AbilitySystemBlueprintLibrary.h"
 #include "AbilitySystemComponent.h"
 #include "Animation/AnimSequenceBase.h"
-#include "Camera/CameraShakeBase.h"
-#include "Camera/PlayerCameraManager.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "EngineUtils.h"
 #include "Engine/World.h"
-#include "GameFramework/PlayerController.h"
 #include "NiagaraComponent.h"
 #include "GameplayEffect.h"
 #include "NiagaraFunctionLibrary.h"
@@ -85,7 +82,6 @@ void UPRFaerinGodFallComponent::EndPlay(const EEndPlayReason::Type EndPlayReason
 {
 	CleanupGodFallBodyNiagaraLocal();
 	CancelSwordRisePoiseDamage();
-	CancelSwordRiseCameraShakeLocal();
 	CancelGodFallEntry();
 	CancelGodFallHazards();
 	Super::EndPlay(EndPlayReason);
@@ -180,7 +176,6 @@ void UPRFaerinGodFallComponent::CancelGodFallEntry()
 	ClearRigTimers();
 	CancelSwordRisePoiseDamage();
 	MulticastCleanupGodFallBodyNiagara();
-	MulticastCancelSwordRiseCameraShake();
 	bGodFallEntryRunning = false;
 	EntryRuntimeState = EPRFaerinGodFallEntryRuntimeState::Idle;
 	SetComponentTickEnabled(false);
@@ -385,7 +380,7 @@ void UPRFaerinGodFallComponent::StartGodFallCast()
 		BossChargeApexRotation,
 		FMath::Max(GodFallData->BossChargeRiseSeconds, UE_SMALL_NUMBER));
 	MulticastStartGodFallBodyNiagaraCues();
-	// 기존 SwordRiseCameraShake 연출은 제거하고, 같은 역할을 서버 권한 PoiseDamage로 대체한다.
+	// 검 뽑힘 카메라 쉐이크는 완전히 제거하고, 같은 타이밍에 서버 권한 PoiseDamage만 적용한다.
 	ScheduleSwordRisePoiseDamage();
 	EntryRuntimeState = EPRFaerinGodFallEntryRuntimeState::ChargeRising;
 	SetComponentTickEnabled(true);
@@ -1045,8 +1040,7 @@ void UPRFaerinGodFallComponent::BroadcastEntryFinished(const bool bSucceeded)
 	{
 		CancelSwordRisePoiseDamage();
 		MulticastCleanupGodFallBodyNiagara();
-		MulticastCancelSwordRiseCameraShake();
-		EntryRuntimeState = EPRFaerinGodFallEntryRuntimeState::Idle;
+			EntryRuntimeState = EPRFaerinGodFallEntryRuntimeState::Idle;
 		SetComponentTickEnabled(false);
 		EndBossPresentationReplicationOverride();
 	}
@@ -1331,101 +1325,6 @@ void UPRFaerinGodFallComponent::CancelSwordRisePoiseDamage()
 	}
 }
 
-void UPRFaerinGodFallComponent::StartSwordRiseCameraShakeLocal(
-	TSubclassOf<UCameraShakeBase> CameraShakeClass,
-	const float DelaySeconds,
-	const float Scale,
-	const float DurationOverride)
-{
-	CancelSwordRiseCameraShakeLocal();
-
-	if (!IsValid(CameraShakeClass))
-	{
-		return;
-	}
-
-	UWorld* World = GetWorld();
-	if (!IsValid(World))
-	{
-		return;
-	}
-
-	const float ResolvedDelaySeconds = FMath::Max(DelaySeconds, 0.0f);
-	if (ResolvedDelaySeconds <= UE_SMALL_NUMBER)
-	{
-		PlaySwordRiseCameraShakeLocal(CameraShakeClass, Scale, DurationOverride);
-		return;
-	}
-
-	World->GetTimerManager().SetTimer(
-		SwordRiseCameraShakeTimerHandle,
-		FTimerDelegate::CreateWeakLambda(this, [this, CameraShakeClass, Scale, DurationOverride]()
-		{
-			PlaySwordRiseCameraShakeLocal(CameraShakeClass, Scale, DurationOverride);
-		}),
-		ResolvedDelaySeconds,
-		false);
-}
-
-void UPRFaerinGodFallComponent::PlaySwordRiseCameraShakeLocal(
-	TSubclassOf<UCameraShakeBase> CameraShakeClass,
-	const float Scale,
-	const float DurationOverride) const
-{
-	if (!IsValid(CameraShakeClass))
-	{
-		return;
-	}
-
-	UWorld* World = GetWorld();
-	if (!IsValid(World))
-	{
-		return;
-	}
-
-	for (FConstPlayerControllerIterator It = World->GetPlayerControllerIterator(); It; ++It)
-	{
-		APlayerController* PlayerController = It->Get();
-		if (!IsValid(PlayerController) || !PlayerController->IsLocalController() || !IsValid(PlayerController->PlayerCameraManager))
-		{
-			continue;
-		}
-
-		UCameraShakeBase* CameraShake = PlayerController->PlayerCameraManager->StartCameraShake(
-			CameraShakeClass,
-			FMath::Max(Scale, 0.0f));
-		if (!IsValid(CameraShake) || DurationOverride <= UE_SMALL_NUMBER)
-		{
-			continue;
-		}
-
-		TWeakObjectPtr<APlayerCameraManager> WeakCameraManager = PlayerController->PlayerCameraManager;
-		TWeakObjectPtr<UCameraShakeBase> WeakCameraShake = CameraShake;
-		FTimerHandle StopTimerHandle;
-		World->GetTimerManager().SetTimer(
-			StopTimerHandle,
-			FTimerDelegate::CreateLambda([WeakCameraManager, WeakCameraShake]()
-			{
-				APlayerCameraManager* CameraManager = WeakCameraManager.Get();
-				UCameraShakeBase* ActiveCameraShake = WeakCameraShake.Get();
-				if (IsValid(CameraManager) && IsValid(ActiveCameraShake))
-				{
-					CameraManager->StopCameraShake(ActiveCameraShake, true);
-				}
-			}),
-			DurationOverride,
-			false);
-	}
-}
-
-void UPRFaerinGodFallComponent::CancelSwordRiseCameraShakeLocal()
-{
-	if (UWorld* World = GetWorld())
-	{
-		World->GetTimerManager().ClearTimer(SwordRiseCameraShakeTimerHandle);
-	}
-}
-
 void UPRFaerinGodFallComponent::DestroyPlacedRigActor()
 {
 	if (!bDestroyRigActorAfterConversion || !IsValid(PlacedSwordRigActor))
@@ -1636,20 +1535,6 @@ void UPRFaerinGodFallComponent::MulticastStartGodFallBodyNiagaraCues_Implementat
 void UPRFaerinGodFallComponent::MulticastCleanupGodFallBodyNiagara_Implementation()
 {
 	CleanupGodFallBodyNiagaraLocal();
-}
-
-void UPRFaerinGodFallComponent::MulticastStartSwordRiseCameraShake_Implementation(
-	TSubclassOf<UCameraShakeBase> CameraShakeClass,
-	const float DelaySeconds,
-	const float Scale,
-	const float DurationOverride)
-{
-	StartSwordRiseCameraShakeLocal(CameraShakeClass, DelaySeconds, Scale, DurationOverride);
-}
-
-void UPRFaerinGodFallComponent::MulticastCancelSwordRiseCameraShake_Implementation()
-{
-	CancelSwordRiseCameraShakeLocal();
 }
 
 void UPRFaerinGodFallComponent::ClearInvalidStaticSwordRefs()

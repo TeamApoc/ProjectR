@@ -193,7 +193,9 @@ void APRProjectileBase::PushRepMovement(EPRRepMovementEvent Event)
 	RepMovement.Event    = Event;
 	RepMovement.Location = GetActorLocation();
 	RepMovement.Rotation = GetActorRotation();
-	RepMovement.Velocity = ProjectileMovementComponent->Velocity;
+	RepMovement.Velocity = IsValid(ProjectileMovementComponent)
+		? ProjectileMovementComponent->Velocity
+		: FVector::ZeroVector;
 	if (Event == EPRRepMovementEvent::Spawn)
 	{
 		RepMovement.HomingSchedule = PendingHomingSchedule;
@@ -231,6 +233,12 @@ void APRProjectileBase::OnRep_RepMovement()
 	case EPRRepMovementEvent::Bounce:
 	case EPRRepMovementEvent::Detonation:
 		HandleRepCorrection();
+		break;
+	case EPRRepMovementEvent::Stop:
+		HandleRepStop();
+		break;
+	case EPRRepMovementEvent::Fall:
+		HandleRepFall();
 		break;
 	default:
 		break;
@@ -536,6 +544,254 @@ void APRProjectileBase::HandleRepCorrection()
 	}
 }
 
+void APRProjectileBase::HandleRepStop()
+{
+	// Spawn 선처리
+	if (GetLocalRole() == ROLE_SimulatedProxy && !bHasRepSpawnHandled)
+	{
+		HandleRepSpawn();
+	}
+
+	// 서버 최종 위치 보정
+	SetActorLocation(RepMovement.Location);
+	SetActorRotation(RepMovement.Rotation);
+
+	// 예측 투사체 정리
+	if (LinkedCounterpart.IsValid())
+	{
+		LinkedCounterpart->Destroy();
+		LinkedCounterpart.Reset();
+	}
+
+	// 정지 상태 적용
+	StopProjectileMotion();
+	bHasRepSpawnHandled = true;
+
+	// 정지 후 수명 처리
+	ApplyFinalImpactStayLifeSpan();
+}
+
+void APRProjectileBase::HandleRepFall()
+{
+	// Spawn 선처리
+	if (GetLocalRole() == ROLE_SimulatedProxy && !bHasRepSpawnHandled)
+	{
+		HandleRepSpawn();
+	}
+
+	// 서버 낙하 시작 위치 보정
+	SetActorLocation(RepMovement.Location);
+	SetActorRotation(RepMovement.Rotation);
+
+	// 예측 투사체 정리
+	if (LinkedCounterpart.IsValid())
+	{
+		LinkedCounterpart->Destroy();
+		LinkedCounterpart.Reset();
+	}
+
+	// 중력 낙하 시작
+	if (!StartFinalImpactFall())
+	{
+		StopProjectileMotion();
+		ApplyFinalImpactStayLifeSpan();
+	}
+	bHasRepSpawnHandled = true;
+}
+
+void APRProjectileBase::HandleFinalImpact(const FHitResult& Hit)
+{
+	// 기존 파괴 정책
+	if (FinalImpactPolicy == EPRProjectileFinalImpactPolicy::Destroy)
+	{
+		DestroyProjectile(EPRProjectileDestroyReason::Impact);
+		return;
+	}
+
+	// 정지 유지 정책
+	StopAndStayAtImpact(Hit);
+}
+
+void APRProjectileBase::StopAndStayAtImpact(const FHitResult& Hit)
+{
+	if (!HasAuthority())
+	{
+		return;
+	}
+
+	// 최종 충돌 위치 보정
+	FVector StopLocation = GetActorLocation();
+	if (!Hit.Location.IsNearlyZero())
+	{
+		StopLocation = FVector(Hit.Location);
+	}
+	SetActorLocation(StopLocation);
+
+	// 예측 투사체 정리
+	if (LinkedCounterpart.IsValid())
+	{
+		LinkedCounterpart->Destroy();
+		LinkedCounterpart.Reset();
+	}
+
+	// 중력 낙하 시작
+	if (!StartFinalImpactFall())
+	{
+		StopProjectileMotion();
+		ApplyFinalImpactStayLifeSpan();
+		PushRepMovement(EPRRepMovementEvent::Stop);
+		OnProjectileStoppedAtImpact(Hit);
+		return;
+	}
+
+	// 낙하 이벤트 동기화
+	PushRepMovement(EPRRepMovementEvent::Fall);
+}
+
+bool APRProjectileBase::StartFinalImpactFall()
+{
+	if (!IsValid(SphereComponent) || !IsValid(ProjectileMovementComponent))
+	{
+		return false;
+	}
+
+	// 호밍 정리
+	ClearProjectileHomingScheduleTimers();
+	StopClientProjectileHomingPresentation();
+	ConfigureProjectileHoming(nullptr, 0.0f);
+
+	// 낙하 상태 설정
+	bIsFinalImpactFalling = true;
+	bShouldSyncToAuth = false;
+	SetActorHiddenInGame(false);
+	SetActorEnableCollision(true);
+
+	// 낙하 충돌 복구
+	SphereComponent->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);
+	SphereComponent->SetGenerateOverlapEvents(false);
+	SphereComponent->SetNotifyRigidBodyCollision(true);
+
+	// 이동 컴포넌트 정지
+	ProjectileMovementComponent->StopMovementImmediately();
+	ProjectileMovementComponent->Velocity = FVector::ZeroVector;
+	ProjectileMovementComponent->Deactivate();
+	ProjectileMovementComponent->SetUpdatedComponent(nullptr);
+	ProjectileMovementComponent->SetComponentTickEnabled(false);
+
+	// 물리 낙하 시작
+	SphereComponent->SetSimulatePhysics(true);
+	SphereComponent->SetEnableGravity(true);
+	SphereComponent->SetPhysicsLinearVelocity(FVector::ZeroVector);
+	SphereComponent->SetPhysicsAngularVelocityInDegrees(FVector::ZeroVector);
+	SphereComponent->WakeAllRigidBodies();
+
+	return true;
+}
+
+void APRProjectileBase::SettleFinalImpactFall(const FHitResult& Hit)
+{
+	if (!bIsFinalImpactFalling)
+	{
+		return;
+	}
+
+	// 바닥성 충돌 판정
+	const FVector ImpactNormal = !Hit.ImpactNormal.IsNearlyZero()
+		? FVector(Hit.ImpactNormal)
+		: FVector(Hit.Normal);
+	constexpr float GroundNormalZThreshold = 0.35f;
+	if (ImpactNormal.Z < GroundNormalZThreshold)
+	{
+		// 벽면 접촉 이탈
+		if (!ImpactNormal.IsNearlyZero())
+		{
+			SetActorLocation(GetActorLocation() + ImpactNormal.GetSafeNormal() * 2.0f);
+		}
+
+		// 중력 낙하 유지
+		if (!StartFinalImpactFall())
+		{
+			StopProjectileMotion();
+			ApplyFinalImpactStayLifeSpan();
+			if (HasAuthority())
+			{
+				PushRepMovement(EPRRepMovementEvent::Stop);
+				OnProjectileStoppedAtImpact(Hit);
+			}
+		}
+		return;
+	}
+
+	// 최종 정착 위치 보정
+	FVector StopLocation = GetActorLocation();
+	if (!Hit.Location.IsNearlyZero())
+	{
+		StopLocation = FVector(Hit.Location);
+	}
+	SetActorLocation(StopLocation);
+
+	// 정착 상태 적용
+	StopProjectileMotion();
+
+	// 정지 후 수명 처리
+	ApplyFinalImpactStayLifeSpan();
+
+	if (HasAuthority())
+	{
+		// 정착 이벤트 동기화
+		PushRepMovement(EPRRepMovementEvent::Stop);
+
+		// BP 정지 확장 지점
+		OnProjectileStoppedAtImpact(Hit);
+	}
+}
+
+void APRProjectileBase::StopProjectileMotion()
+{
+	// 호밍 정리
+	ClearProjectileHomingScheduleTimers();
+	StopClientProjectileHomingPresentation();
+	ConfigureProjectileHoming(nullptr, 0.0f);
+
+	// 이동 정지
+	if (IsValid(ProjectileMovementComponent))
+	{
+		ProjectileMovementComponent->StopMovementImmediately();
+		ProjectileMovementComponent->Velocity = FVector::ZeroVector;
+		ProjectileMovementComponent->Deactivate();
+		ProjectileMovementComponent->SetComponentTickEnabled(false);
+	}
+
+	// 추가 충돌 방지
+	if (IsValid(SphereComponent))
+	{
+		SphereComponent->SetPhysicsLinearVelocity(FVector::ZeroVector);
+		SphereComponent->SetPhysicsAngularVelocityInDegrees(FVector::ZeroVector);
+		SphereComponent->SetSimulatePhysics(false);
+		SphereComponent->SetEnableGravity(false);
+		SphereComponent->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+		SphereComponent->SetGenerateOverlapEvents(false);
+	}
+
+	// 정지 프레젠테이션 유지
+	bIsFinalImpactFalling = false;
+	bShouldSyncToAuth = false;
+	SetActorHiddenInGame(false);
+}
+
+void APRProjectileBase::ApplyFinalImpactStayLifeSpan()
+{
+	// 정지 후 수명 처리
+	if (FinalImpactStayDuration > 0.0f)
+	{
+		SetLifeSpan(FinalImpactStayDuration);
+	}
+	else
+	{
+		SetLifeSpan(0.0f);
+	}
+}
+
 
 void APRProjectileBase::DestroyProjectile(EPRProjectileDestroyReason DestroyReason)
 {
@@ -579,9 +835,21 @@ void APRProjectileBase::OnProjectileDestroyEffectStarted_Implementation(EPRProje
 	}
 }
 
+void APRProjectileBase::OnProjectileStoppedAtImpact_Implementation(const FHitResult& /*Hit*/)
+{
+	// BP 확장 지점
+}
+
 bool APRProjectileBase::HasProjectileAuthority() const
 {
 	return ProjectileRole == EPRProjectileRole::Auth && HasAuthority();
+}
+
+bool APRProjectileBase::GetShouldBounce() const
+{
+	return IsValid(ProjectileMovementComponent)
+		? ProjectileMovementComponent->GetShouldBounce()
+		: false;
 }
 
 void APRProjectileBase::BeginPlay()
@@ -622,6 +890,14 @@ void APRProjectileBase::BeginPlay()
 		if (RepMovement.Event == EPRRepMovementEvent::Spawn && !RepMovement.Location.IsZero())
 		{
 			HandleRepSpawn();
+		}
+		else if (RepMovement.Event == EPRRepMovementEvent::Stop && !RepMovement.Location.IsZero())
+		{
+			HandleRepStop();
+		}
+		else if (RepMovement.Event == EPRRepMovementEvent::Fall && !RepMovement.Location.IsZero())
+		{
+			HandleRepFall();
 		}
 		else
 		{
@@ -893,6 +1169,12 @@ void APRProjectileBase::OnSphereHit(UPrimitiveComponent* HitComponent, AActor* O
 	{
 		return;
 	}
+
+	if (bIsFinalImpactFalling)
+	{
+		SettleFinalImpactFall(Hit);
+		return;
+	}
 	
 	if (GetProjectileRole() == EPRProjectileRole::Predicted)
 	{
@@ -932,7 +1214,7 @@ void APRProjectileBase::OnSphereHit(UPrimitiveComponent* HitComponent, AActor* O
 			
 			if (!ProjectileMovementComponent->ShouldBounce(Hit))
 			{
-				DestroyProjectile(EPRProjectileDestroyReason::Impact);
+				HandleFinalImpact(Hit);
 			}
 		}
 		// Replicate된 투사체인 경우

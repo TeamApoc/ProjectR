@@ -22,6 +22,15 @@ enum class EPRProjectileRole : uint8
 	Auth,
 };
 
+UENUM(BlueprintType)
+enum class EPRProjectileFinalImpactPolicy : uint8
+{
+	// 최종 충돌 시 파괴
+	Destroy,
+	// 최종 충돌 위치 정지 유지
+	StopAndStay,
+};
+
 /** 
  * TODO: 발사한 Client는 예측을 사용하고, Remote Client는 Spawn 위치를 동기화 받기 때문에 둘 모두 총구 근처에서부터 발사되지만,
  * 서버는 여전히 FastForward로 인해 총구보다 멀리서부터 발사되는 것처럼 보인다.
@@ -91,9 +100,16 @@ public:
 
 	UFUNCTION(BlueprintNativeEvent, Category = "ProjectR|Projectile")
 	void OnProjectileDestroyEffectStarted(EPRProjectileDestroyReason DestroyReason);
+
+	// 최종 충돌 정지 시 서버 권위 BP 확장 지점
+	UFUNCTION(BlueprintAuthorityOnly, BlueprintNativeEvent, Category = "ProjectR|Projectile")
+	void OnProjectileStoppedAtImpact(const FHitResult& Hit);
 	
 	UFUNCTION(BlueprintPure)
 	bool HasProjectileAuthority() const;
+	
+	UFUNCTION(BlueprintPure)
+	bool GetShouldBounce() const;
 	
 protected:
 	/*~ AActor Interface ~*/
@@ -116,6 +132,12 @@ protected:
 
 	// SimulatedProxy: Bounce/Detonation 이벤트 처리. 위치/속도 스냅
 	void HandleRepCorrection();
+
+	// SimulatedProxy: 최종 충돌 정지 이벤트 처리
+	void HandleRepStop();
+
+	// SimulatedProxy: 최종 충돌 낙하 이벤트 처리
+	void HandleRepFall();
 
 	// 콜리전 히트 이벤트. 서버에서만 판정 처리
 	UFUNCTION()
@@ -170,12 +192,31 @@ private:
 
 	// 클라이언트 remote 투사체가 로컬 homing 프레젠테이션을 시작하도록 알린다.
 	UFUNCTION(NetMulticast, Reliable)
-	void MulticastStartProjectileHomingPresentation(AActor* HomingTargetActor,
+	void MulticastStartProjectileHomingPresentation(
+		AActor* HomingTargetActor,
 		float HomingAcceleration,
 		float StartDelay,
 		float Duration,
 		uint8 Revision);
 	
+	// 서버 권위 최종 충돌 정책 처리
+	void HandleFinalImpact(const FHitResult& Hit);
+
+	// 최종 충돌 위치 정지 유지
+	void StopAndStayAtImpact(const FHitResult& Hit);
+
+	// 최종 충돌 후 중력 낙하 시작
+	bool StartFinalImpactFall();
+
+	// 최종 충돌 낙하 후 정착
+	void SettleFinalImpactFall(const FHitResult& Hit);
+
+	// 정지 상태 공통 처리
+	void StopProjectileMotion();
+
+	// 최종 충돌 후 유지 시간 적용
+	void ApplyFinalImpactStayLifeSpan();
+
 	void DrawDebugs(float DeltaSeconds);
 	
 protected:
@@ -190,6 +231,14 @@ protected:
 	// Auth가 뒤에 있을 때 보간 속도 (감속). 작을수록 천천히 늦춰짐
 	UPROPERTY(EditDefaultsOnly, Category = "ProjectR|Projectile|Prediction", meta = (ClampMin = "0.0"))
 	float SyncInterpSpeedSlowDown = 10.f;
+
+	// 최종 충돌 처리 방식
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "ProjectR|Projectile|Impact")
+	EPRProjectileFinalImpactPolicy FinalImpactPolicy = EPRProjectileFinalImpactPolicy::Destroy;
+
+	// 최종 충돌 후 유지 시간, 0이면 무제한 유지
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "ProjectR|Projectile|Impact", meta = (ClampMin = "0.0"))
+	float FinalImpactStayDuration = 20.0f;
 	
 	// ====== Components =====
 	// 루트. ProjectileMovementComponent의 UpdatedComponent
@@ -229,6 +278,7 @@ private:
 	bool bIsRemoteProjectile = false;
 	bool bShouldSyncToAuth = false;
 	bool bHasRepSpawnHandled = false;
+	bool bIsFinalImpactFalling = false;
 
 	FPRProjectileRepHomingSchedule PendingHomingSchedule;
 	FPRProjectileRepHomingSchedule PendingClientHomingPresentationSchedule;

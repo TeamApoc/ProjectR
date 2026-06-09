@@ -31,7 +31,7 @@ public:
 	
 	// 슬롯 초기화 시 사용할 최대 스택
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Item|Mod|Stat", meta = (ClampMin = "0.0"))
-	float MaxModStack = 0.0f;
+	int32 MaxModStack = 0.0f;
 
 	// 활성 슬롯 장착 시 부여할 Mod 어빌리티 목록. 순서대로 GiveAbility
 	UPROPERTY(EditAnywhere, Category = "Item|Mod")

@@ -19,6 +19,7 @@ class UPRHealthBarWidget;
 class UPRHUDMessageWidget;
 class UPRPartyHealthListWidget;
 class UPRStaminaBarWidget;
+class UPRTraitNotiTextWidget;
 class UPRWorldMarkerLayerWidget;
 class UPREventManagerSubsystem;
 class APRBossBaseCharacter;
@@ -149,6 +150,10 @@ protected:
 	// W_HUD에 배치한 안내 메시지 위젯
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "HUD")
 	TObjectPtr<UPRHUDMessageWidget> HUDMessageWidget;
+
+	// UMG 트리에서 동일 이름("TraitNotiTextWidget")의 자식이 있을 때 자동 바인딩
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "HUD")
+	TObjectPtr<UPRTraitNotiTextWidget> TraitNotiTextWidget;
 
 private:
 	TArray<FDelegateHandle> EventHandles;

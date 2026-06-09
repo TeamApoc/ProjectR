@@ -33,6 +33,48 @@ class UPRWeaponUpgradeComponent;
 class UPRWeaponUpgradeWidget;
 class USoundBase;
 
+UENUM(BlueprintType)
+enum class EPRDamageFXIntensity : uint8
+{
+	Weak,
+	Strong,
+	Down
+};
+
+USTRUCT(BlueprintType)
+struct FPRDamageFXSettings
+{
+	GENERATED_BODY()
+
+	// 첫 번째 피격 색상
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "ProjectR|HUD|FX")
+	FLinearColor DamageColor1 = FLinearColor(1.0f, 0.02f, 0.0f, 1.0f);
+
+	// 두 번째 피격 색상
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "ProjectR|HUD|FX")
+	FLinearColor DamageColor2 = FLinearColor(0.45f, 0.0f, 0.0f, 1.0f);
+
+	// 페이드 인 시간
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "ProjectR|HUD|FX", meta = (ClampMin = "0.0"))
+	float FadeInDuration = 0.05f;
+
+	// 페이드 아웃 시간
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "ProjectR|HUD|FX", meta = (ClampMin = "0.0"))
+	float FadeOutDuration = 0.35f;
+
+	// 기존 재생 효과 강제 제거 여부
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "ProjectR|HUD|FX")
+	bool bForceRemove = true;
+
+	// 펄스 반복 여부
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "ProjectR|HUD|FX")
+	bool bPulseLoop = false;
+
+	// 펄스 투명도 범위
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "ProjectR|HUD|FX")
+	FVector2D PulseOpacityMinMax = FVector2D(0.25f, 1.0f);
+};
+
 // 플레이어 컨트롤러에 부착되어 로컬 플레이어 UI 표시 흐름을 관리한다
 UCLASS(ClassGroup=(UI), meta=(BlueprintSpawnableComponent))
 class PROJECTR_API UPRUIControllerComponent : public UActorComponent
@@ -127,6 +169,10 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "ProjectR|UI")
 	void HideWeaponScope();
 
+	// 피격 화면 이펙트 표시 요청
+	UFUNCTION(BlueprintCallable, Category = "ProjectR|UI")
+	void ShowDamageFX(EPRDamageFXIntensity DamageFXIntensity);
+
 	// possession 시점에 의존하는 위젯을 재초기화한다
 	void RefreshForPawn(APawn* InPawn);
 
@@ -205,6 +251,18 @@ private:
 	// 스코프 위젯을 제거한다
 	void RemoveWeaponScopeWidget();
 
+	// 피격 화면 이펙트 위젯 인스턴스 생성 또는 캐시 반환
+	UUserWidget* GetOrCreateDamageFXWidget();
+
+	// 피격 화면 이펙트 위젯의 재생 이벤트 호출
+	void InvokeDamageFXCreate(UUserWidget* InDamageFXWidget, const FPRDamageFXSettings& DamageFXSettings) const;
+
+	// 피격 화면 이펙트 강도별 설정 반환
+	const FPRDamageFXSettings& ResolveDamageFXSettings(EPRDamageFXIntensity DamageFXIntensity) const;
+
+	// 피격 화면 이펙트 위젯 제거
+	void RemoveDamageFXWidget();
+
 	// 무기 장비 변경 델리게이트를 바인딩한다
 	void BindWeaponManager(UPRWeaponManagerComponent* WeaponManagerComponent);
 
@@ -248,6 +306,26 @@ protected:
 	UPROPERTY(EditDefaultsOnly, Category = "ProjectR|HUD")
 	TSubclassOf<UPRHUDWidget> HUDWidgetClass;
 
+	// 레벨업 팝업 표시 효과음
+	UPROPERTY(EditDefaultsOnly, Category = "ProjectR|HUD|Growth")
+	TObjectPtr<USoundBase> LevelUpSound = nullptr;
+
+	// 피격 화면 이펙트 위젯 클래스
+	UPROPERTY(EditDefaultsOnly, Category = "ProjectR|HUD|FX")
+	TSubclassOf<UUserWidget> DamageFXWidgetClass;
+
+	// 약한 피격 화면 이펙트 설정
+	UPROPERTY(EditDefaultsOnly, Category = "ProjectR|HUD|FX")
+	FPRDamageFXSettings WeakDamageFXSettings;
+
+	// 강한 피격 화면 이펙트 설정
+	UPROPERTY(EditDefaultsOnly, Category = "ProjectR|HUD|FX")
+	FPRDamageFXSettings StrongDamageFXSettings;
+
+	// 다운 피격 화면 이펙트 설정
+	UPROPERTY(EditDefaultsOnly, Category = "ProjectR|HUD|FX")
+	FPRDamageFXSettings DownDamageFXSettings;
+
 	// 레어도별 보상 획득 효과음
 	UPROPERTY(EditDefaultsOnly, Category = "ProjectR|HUD|Pickup")
 	TMap<EPRItemRarity, TObjectPtr<USoundBase>> PickupRewardSoundsByRarity;
@@ -272,6 +350,10 @@ private:
 	// 장착 무기 데이터로 생성한 스코프 위젯
 	UPROPERTY(Transient)
 	TObjectPtr<UUserWidget> WeaponScopeWidget;
+
+	// 피격 화면 이펙트 위젯 인스턴스
+	UPROPERTY(Transient)
+	TObjectPtr<UUserWidget> DamageFXWidget;
 
 	// 아이템 툴팁 표시를 담당하는 전역 위젯
 	UPROPERTY(Transient)

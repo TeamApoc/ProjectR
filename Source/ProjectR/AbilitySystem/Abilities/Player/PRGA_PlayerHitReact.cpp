@@ -14,6 +14,8 @@
 #include "ProjectR/PRGameplayTags.h"
 #include "ProjectR/ItemSystem/Components/PRWeaponManagerComponent.h"
 #include "ProjectR/ItemSystem/Data/PRWeaponDataAsset.h"
+#include "ProjectR/Player/PRPlayerController.h"
+#include "ProjectR/UI/Components/PRUIControllerComponent.h"
 #include "TimerManager.h"
 
 namespace
@@ -26,6 +28,20 @@ namespace
 
 	// 너무 가파른 면을 바닥으로 처리하지 않기 위한 최소 법선 Z 값이다.
 	constexpr float DownGroundWalkableNormalZ = 0.5f;
+
+	EPRDamageFXIntensity ResolveDamageFXIntensity(EPRPlayerHitReactType HitReactType)
+	{
+		switch (HitReactType)
+		{
+		case EPRPlayerHitReactType::Strong:
+			return EPRDamageFXIntensity::Strong;
+		case EPRPlayerHitReactType::Down:
+			return EPRDamageFXIntensity::Down;
+		case EPRPlayerHitReactType::Weak:
+		default:
+			return EPRDamageFXIntensity::Weak;
+		}
+	}
 }
 
 // 피격 리액션 Ability의 태그, 트리거, 실행 정책을 초기화한다.
@@ -97,6 +113,22 @@ void UPRGA_PlayerHitReact::ActivateAbility(const FGameplayAbilitySpecHandle Hand
 	ClearDownHitReact();
 	ActiveHitReactType = HitReactType;
 	ActivePlayerCharacter = Cast<APRPlayerCharacter>(GetAvatarActorFromActorInfo());
+	if (IsLocallyControlled())
+	{
+		APRPlayerCharacter* PlayerCharacter = ActivePlayerCharacter.Get();
+		if (IsValid(PlayerCharacter))
+		{
+			APRPlayerController* PlayerController = Cast<APRPlayerController>(PlayerCharacter->GetController());
+			if (IsValid(PlayerController))
+			{
+				UPRUIControllerComponent* UIController = PlayerController->GetUIController();
+				if (IsValid(UIController))
+				{
+					UIController->ShowDamageFX(ResolveDamageFXIntensity(HitReactType));
+				}
+			}
+		}
+	}
 	CancelActionsForHitReact(HitReactType);
 	ApplyRecoverableHealthRecoveryDelay(TriggerEventData);
 

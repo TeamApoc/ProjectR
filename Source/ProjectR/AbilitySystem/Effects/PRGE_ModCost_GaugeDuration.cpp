@@ -4,15 +4,10 @@
 #include "PRGE_ModCost_GaugeDuration.h"
 
 #include "ProjectR/AbilitySystem/Executions/PRModCostExecCalc_GaugeDuration.h"
-#include "ProjectR/Combat/PRCombatGameplayTags.h"
 
 UPRGE_ModCost_GaugeDuration::UPRGE_ModCost_GaugeDuration()
 {
-	DurationPolicy = EGameplayEffectDurationType::HasDuration;
-
-	FSetByCallerFloat DurationSetByCaller;
-	DurationSetByCaller.DataTag = PRCombatGameplayTags::SetByCaller_ModDuration;
-	DurationMagnitude = FGameplayEffectModifierMagnitude(DurationSetByCaller);
+	DurationPolicy = EGameplayEffectDurationType::Infinite;
 
 	Period = FScalableFloat(0.1f);
 	bExecutePeriodicEffectOnApplication = false;

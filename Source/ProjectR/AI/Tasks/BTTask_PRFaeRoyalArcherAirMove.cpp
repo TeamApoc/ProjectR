@@ -6,9 +6,11 @@
 #include "BehaviorTree/BlackboardComponent.h"
 #include "BehaviorTree/BlackboardData.h"
 #include "BehaviorTree/BehaviorTreeComponent.h"
+#include "DrawDebugHelpers.h"
 #include "EnvironmentQuery/EnvQuery.h"
 #include "GameFramework/Character.h"
 #include "GameFramework/CharacterMovementComponent.h"
+#include "HAL/IConsoleManager.h"
 #include "ProjectR/AI/PREnemyEQSSelectionUtils.h"
 #include "ProjectR/AI/Controllers/PREnemyAIController.h"
 #include "ProjectR/AI/Data/PRFaeRoyalArcherCombatDataAsset.h"
@@ -18,6 +20,66 @@
 
 namespace
 {
+	static TAutoConsoleVariable<int32> CVarPRFaeRoyalArcherDebugAirMoveGoalSearch(
+		TEXT("pr.FaeRoyalArcher.DebugAirMoveGoalSearch"),
+		0,
+		TEXT("Fae Royal Archer 공중 이동 목표 후보와 점수를 화면에 표시한다.\n0: 비활성\n1: 활성"),
+		ECVF_Default);
+
+	static TAutoConsoleVariable<float> CVarPRFaeRoyalArcherDebugAirMoveGoalSearchDuration(
+		TEXT("pr.FaeRoyalArcher.DebugAirMoveGoalSearchDuration"),
+		1.0f,
+		TEXT("Fae Royal Archer 공중 이동 목표 후보 화면 디버그 유지 시간이다."),
+		ECVF_Default);
+
+	// 공중 이동 목표 후보 화면 디버그 활성 여부
+	bool IsRoyalArcherAirMoveGoalSearchDebugEnabled()
+	{
+		return CVarPRFaeRoyalArcherDebugAirMoveGoalSearch.GetValueOnGameThread() > 0;
+	}
+
+	// 공중 이동 목표 후보 화면 디버그 유지 시간
+	float GetRoyalArcherAirMoveGoalSearchDebugDuration()
+	{
+		return FMath::Max(CVarPRFaeRoyalArcherDebugAirMoveGoalSearchDuration.GetValueOnGameThread(), 0.0f);
+	}
+
+	// 공중 이동 목표 후보 위치와 점수 표시
+	void DrawRoyalArcherAirMoveGoalCandidateDebug(
+		const APawn* ControlledPawn,
+		const FVector& CandidateGoal,
+		float CandidateScore,
+		bool bBestCandidate)
+	{
+		if (!IsValid(ControlledPawn))
+		{
+			return;
+		}
+
+		UWorld* World = ControlledPawn->GetWorld();
+		if (!IsValid(World))
+		{
+			return;
+		}
+
+		const float DrawDuration = GetRoyalArcherAirMoveGoalSearchDebugDuration();
+		const FColor CandidateColor = bBestCandidate ? FColor::Green : FColor::Yellow;
+		const float SphereRadius = bBestCandidate ? 72.0f : 48.0f;
+		const float SphereThickness = bBestCandidate ? 3.0f : 1.5f;
+		const FVector ScoreTextLocation = CandidateGoal + FVector(0.0f, 0.0f, SphereRadius + 24.0f);
+
+		DrawDebugSphere(World, CandidateGoal, SphereRadius, 16, CandidateColor, false, DrawDuration, 0, SphereThickness);
+		DrawDebugString(
+			World,
+			ScoreTextLocation,
+			FString::Printf(TEXT("Score %.2f"), CandidateScore),
+			nullptr,
+			CandidateColor,
+			DrawDuration,
+			true,
+			bBestCandidate ? 1.1f : 0.9f);
+	}
+
 	// 2D 방향이 비어 있을 때 사용할 안전 방향을 계산한다.
 	FVector GetRoyalArcherSafeDirection2D(const FVector& Direction, const FVector& FallbackDirection)
 	{
@@ -396,6 +458,7 @@ bool UBTTask_PRFaeRoyalArcherAirMove::TryBuildScoredAirCombatGoal(
 	bool bFoundCandidate = false;
 	float BestScore = 0.0f;
 	FVector BestGoalLocation = FVector::ZeroVector;
+	const bool bDrawGoalSearchDebug = IsRoyalArcherAirMoveGoalSearchDebugEnabled();
 
 	for (const float CandidateAngle : CandidateAngles)
 	{
@@ -425,6 +488,11 @@ bool UBTTask_PRFaeRoyalArcherAirMove::TryBuildScoredAirCombatGoal(
 					CandidateGoal,
 					bHasLineOfSight);
 
+				if (bDrawGoalSearchDebug)
+				{
+					DrawRoyalArcherAirMoveGoalCandidateDebug(ControlledPawn, CandidateGoal, CandidateScore, false);
+				}
+
 				if (!bFoundCandidate || CandidateScore > BestScore)
 				{
 					bFoundCandidate = true;
@@ -438,6 +506,11 @@ bool UBTTask_PRFaeRoyalArcherAirMove::TryBuildScoredAirCombatGoal(
 	if (!bFoundCandidate)
 	{
 		return false;
+	}
+
+	if (bDrawGoalSearchDebug)
+	{
+		DrawRoyalArcherAirMoveGoalCandidateDebug(ControlledPawn, BestGoalLocation, BestScore, true);
 	}
 
 	OutGoalLocation = BestGoalLocation;

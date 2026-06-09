@@ -12,13 +12,18 @@
 #include "Engine/World.h"
 #include "GameFramework/PlayerController.h"
 #include "NiagaraComponent.h"
+#include "GameplayEffect.h"
 #include "NiagaraFunctionLibrary.h"
 #include "TimerManager.h"
+#include "ProjectR/AbilitySystem/Data/PRAbilitySystemRegistry.h"
+#include "ProjectR/AbilitySystem/PRAbilitySystemComponent.h"
 #include "ProjectR/AI/Boss/PRFaerinGodFallStaticSwordActor.h"
 #include "ProjectR/AI/Data/PRFaerinGodFallDataAsset.h"
 #include "ProjectR/Character/Enemy/PRBossBaseCharacter.h"
 #include "ProjectR/Character/PRPlayerCharacter.h"
+#include "ProjectR/Combat/PRCombatGameplayTags.h"
 #include "ProjectR/PRGameplayTags.h"
+#include "ProjectR/System/PRAssetManager.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogPRFaerinGodFall, Log, All);
 
@@ -79,6 +84,7 @@ void UPRFaerinGodFallComponent::BeginPlay()
 void UPRFaerinGodFallComponent::EndPlay(const EEndPlayReason::Type EndPlayReason)
 {
 	CleanupGodFallBodyNiagaraLocal();
+	CancelSwordRisePoiseDamage();
 	CancelSwordRiseCameraShakeLocal();
 	CancelGodFallEntry();
 	CancelGodFallHazards();
@@ -172,6 +178,7 @@ void UPRFaerinGodFallComponent::CancelGodFallEntry()
 	}
 
 	ClearRigTimers();
+	CancelSwordRisePoiseDamage();
 	MulticastCleanupGodFallBodyNiagara();
 	MulticastCancelSwordRiseCameraShake();
 	bGodFallEntryRunning = false;
@@ -378,14 +385,8 @@ void UPRFaerinGodFallComponent::StartGodFallCast()
 		BossChargeApexRotation,
 		FMath::Max(GodFallData->BossChargeRiseSeconds, UE_SMALL_NUMBER));
 	MulticastStartGodFallBodyNiagaraCues();
-	if (IsValid(GodFallData->SwordRiseCameraShakeClass))
-	{
-		MulticastStartSwordRiseCameraShake(
-			GodFallData->SwordRiseCameraShakeClass,
-			GodFallData->SwordRiseCameraShakeDelaySeconds,
-			GodFallData->SwordRiseCameraShakeScale,
-			GodFallData->SwordRiseCameraShakeDurationOverride);
-	}
+	// 기존 SwordRiseCameraShake 연출은 제거하고, 같은 역할을 서버 권한 PoiseDamage로 대체한다.
+	ScheduleSwordRisePoiseDamage();
 	EntryRuntimeState = EPRFaerinGodFallEntryRuntimeState::ChargeRising;
 	SetComponentTickEnabled(true);
 
@@ -1042,6 +1043,7 @@ void UPRFaerinGodFallComponent::BroadcastEntryFinished(const bool bSucceeded)
 	bGodFallEntryRunning = false;
 	if (!bSucceeded)
 	{
+		CancelSwordRisePoiseDamage();
 		MulticastCleanupGodFallBodyNiagara();
 		MulticastCancelSwordRiseCameraShake();
 		EntryRuntimeState = EPRFaerinGodFallEntryRuntimeState::Idle;
@@ -1058,6 +1060,7 @@ void UPRFaerinGodFallComponent::ClearRigTimers()
 		World->GetTimerManager().ClearTimer(RigChargeTimerHandle);
 		World->GetTimerManager().ClearTimer(RigTiltPullTimerHandle);
 		World->GetTimerManager().ClearTimer(BossDropTimerHandle);
+		World->GetTimerManager().ClearTimer(SwordRisePoiseDamageTimerHandle);
 	}
 }
 
@@ -1194,6 +1197,138 @@ void UPRFaerinGodFallComponent::CleanupGodFallBodyNiagaraLocal()
 		}
 	}
 	ActiveBodyNiagaraComponents.Reset();
+}
+
+void UPRFaerinGodFallComponent::ScheduleSwordRisePoiseDamage()
+{
+	CancelSwordRisePoiseDamage();
+
+	APRBossBaseCharacter* OwnerBoss = GetOwnerBoss();
+	if (!IsValid(OwnerBoss) || !OwnerBoss->HasAuthority() || !IsValid(GodFallData))
+	{
+		return;
+	}
+
+	if (!GodFallData->bApplySwordRisePoiseDamage || GodFallData->SwordRisePoiseDamage <= 0.0f)
+	{
+		return;
+	}
+
+	const float DelaySeconds = FMath::Max(GodFallData->SwordRisePoiseDamageDelaySeconds, 0.0f);
+	if (DelaySeconds <= UE_SMALL_NUMBER)
+	{
+		ApplySwordRisePoiseDamage();
+		return;
+	}
+
+	UWorld* World = GetWorld();
+	if (!IsValid(World))
+	{
+		return;
+	}
+
+	World->GetTimerManager().SetTimer(
+		SwordRisePoiseDamageTimerHandle,
+		this,
+		&UPRFaerinGodFallComponent::ApplySwordRisePoiseDamage,
+		DelaySeconds,
+		false);
+}
+
+void UPRFaerinGodFallComponent::ApplySwordRisePoiseDamage()
+{
+	APRBossBaseCharacter* OwnerBoss = GetOwnerBoss();
+	if (!IsValid(OwnerBoss) || !OwnerBoss->HasAuthority() || !IsValid(GodFallData))
+	{
+		return;
+	}
+
+	if (!GodFallData->bApplySwordRisePoiseDamage || GodFallData->SwordRisePoiseDamage <= 0.0f)
+	{
+		return;
+	}
+
+	UAbilitySystemComponent* SourceASC = OwnerBoss->GetEnemyAbilitySystemComponent();
+	if (!IsValid(SourceASC))
+	{
+		UE_LOG(LogPRFaerinGodFall, Warning,
+			TEXT("God Fall sword rise poise damage skipped because SourceASC is invalid. Owner=%s"),
+			*GetNameSafe(OwnerBoss));
+		return;
+	}
+
+	TSubclassOf<UGameplayEffect> DamageEffectClass = GodFallData->SwordRisePoiseDamageEffectClass;
+	if (!IsValid(DamageEffectClass))
+	{
+		DamageEffectClass = GodFallData->ImpactDamageEffectClass;
+	}
+	if (!IsValid(DamageEffectClass))
+	{
+		const UPRAbilitySystemRegistry* Registry = UPRAssetManager::Get().GetAbilitySystemRegistry();
+		if (IsValid(Registry))
+		{
+			DamageEffectClass = Registry->DamageGE_FromEnemy;
+		}
+	}
+
+	if (!IsValid(DamageEffectClass))
+	{
+		UE_LOG(LogPRFaerinGodFall, Warning,
+			TEXT("God Fall sword rise poise damage skipped because DamageEffectClass is invalid. Owner=%s"),
+			*GetNameSafe(OwnerBoss));
+		return;
+	}
+
+	RefreshGodFallTargets();
+
+	TSet<TWeakObjectPtr<AActor>> DamagedActors;
+	for (const TWeakObjectPtr<AActor>& TargetPtr : ActivePatternTargets)
+	{
+		AActor* TargetActor = TargetPtr.Get();
+		if (!IsValidGodFallTarget(TargetActor) || DamagedActors.Contains(TargetActor))
+		{
+			continue;
+		}
+
+		UAbilitySystemComponent* TargetASC = UAbilitySystemBlueprintLibrary::GetAbilitySystemComponent(TargetActor);
+		if (!IsValid(TargetASC))
+		{
+			continue;
+		}
+
+		FGameplayEffectContextHandle EffectContext = SourceASC->MakeEffectContext();
+		EffectContext.AddSourceObject(GetOwner());
+
+		FGameplayEffectSpecHandle SpecHandle = SourceASC->MakeOutgoingSpec(
+			DamageEffectClass,
+			1.0f,
+			EffectContext);
+
+		if (!SpecHandle.IsValid())
+		{
+			continue;
+		}
+
+		// 검 뽑힘은 HP 피해가 아니라 플레이어 강인도/그로기 피해만 적용한다.
+		SpecHandle.Data->SetSetByCallerMagnitude(
+			PRCombatGameplayTags::SetByCaller_AttackMultiplier,
+			0.0f);
+
+		SpecHandle.Data->SetSetByCallerMagnitude(
+			PRCombatGameplayTags::SetByCaller_PoiseDamage,
+			FMath::Max(GodFallData->SwordRisePoiseDamage, 0.0f));
+
+		SourceASC->ApplyGameplayEffectSpecToTarget(*SpecHandle.Data.Get(), TargetASC);
+		DamagedActors.Add(TargetActor);
+	}
+}
+
+void UPRFaerinGodFallComponent::CancelSwordRisePoiseDamage()
+{
+	if (UWorld* World = GetWorld())
+	{
+		World->GetTimerManager().ClearTimer(SwordRisePoiseDamageTimerHandle);
+	}
 }
 
 void UPRFaerinGodFallComponent::StartSwordRiseCameraShakeLocal(

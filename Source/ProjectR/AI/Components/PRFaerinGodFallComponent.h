@@ -119,6 +119,9 @@ private:
 	void StartGodFallBodyNiagaraCuesLocal();
 	void SpawnGodFallBodyNiagaraCueLocal(int32 CueIndex);
 	void CleanupGodFallBodyNiagaraLocal();
+	void ScheduleSwordRisePoiseDamage();
+	void ApplySwordRisePoiseDamage();
+	void CancelSwordRisePoiseDamage();
 	void StartSwordRiseCameraShakeLocal(TSubclassOf<UCameraShakeBase> CameraShakeClass,
 		float DelaySeconds,
 		float Scale,
@@ -233,6 +236,7 @@ private:
 	FTimerHandle RigChargeTimerHandle;
 	FTimerHandle RigTiltPullTimerHandle;
 	FTimerHandle BossDropTimerHandle;
+	FTimerHandle SwordRisePoiseDamageTimerHandle;
 	FTimerHandle SwordRiseCameraShakeTimerHandle;
 	TArray<FTimerHandle> BodyNiagaraCueTimerHandles;
 	TArray<FTimerHandle> BodyNiagaraCleanupTimerHandles;

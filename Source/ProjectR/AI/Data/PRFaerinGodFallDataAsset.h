@@ -268,6 +268,23 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Faerin|GodFall|CameraShake", meta = (ClampMin = "0.0"))
 	float SwordRiseCameraShakeDurationOverride = 0.0f;
 
+	// God Fall 검 뽑힘 시점에 플레이어에게 강인도/그로기 피해를 적용할지 여부다.
+	// 기존 SwordRiseCameraShake 연출을 대체하는 서버 권한 gameplay 효과다.
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Faerin|GodFall|Poise", meta = (InlineEditConditionToggle))
+	bool bApplySwordRisePoiseDamage = true;
+
+	// God Fall 검 뽑힘 시 플레이어에게 적용할 강인도/그로기 피해량이다.
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Faerin|GodFall|Poise", meta = (ClampMin = "0.0", EditCondition = "bApplySwordRisePoiseDamage"))
+	float SwordRisePoiseDamage = 101.0f;
+
+	// God Fall 시전 시작 후 SwordRisePoiseDamage를 적용할 지연 시간이다. 기존 CameraShake delay를 대체한다.
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Faerin|GodFall|Poise", meta = (ClampMin = "0.0", EditCondition = "bApplySwordRisePoiseDamage"))
+	float SwordRisePoiseDamageDelaySeconds = 0.0f;
+
+	// 검 뽑힘 Poise 피해에 사용할 GameplayEffect다. 비워 두면 ImpactDamageEffectClass, Registry Enemy Damage GE 순으로 fallback한다.
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Faerin|GodFall|Poise", meta = (EditCondition = "bApplySwordRisePoiseDamage"))
+	TSubclassOf<UGameplayEffect> SwordRisePoiseDamageEffectClass;
+
 	// God Fall 본체 시전 중 보스 몸에 붙여 재생할 Niagara cue 목록이다.
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Faerin|GodFall|VFX|Body")
 	TArray<FPRFaerinGodFallBodyNiagaraCue> BodyNiagaraCues;

@@ -9,6 +9,7 @@
 #include "Components/AudioComponent.h"
 #include "Engine/World.h"
 #include "GameFramework/CharacterMovementComponent.h"
+#include "GameFramework/GameStateBase.h"
 #include "Kismet/GameplayStatics.h"
 #include "ProjectR/Character/PRPlayerCharacter.h"
 #include "ProjectR/Game/PRPlayGameMode.h"
@@ -94,6 +95,7 @@ void UPRGA_PlayerDown::EndAbility(const FGameplayAbilitySpecHandle Handle,
 	bool bWasCancelled)
 {
 	StopDownTimer();
+	ClearDownTimerInfo();
 	StopDownAudio();
 	SetDownEnterMovementBlocked(false);
 
@@ -133,11 +135,14 @@ void UPRGA_PlayerDown::StartDownTimer()
 		return;
 	}
 
+	const float ClampedDownTimeout = FMath::Max(DownTimeout, 0.0f);
+	StartDownTimerInfo(ClampedDownTimeout);
+
 	World->GetTimerManager().SetTimer(
 		DownTimerHandle,
 		this,
 		&UPRGA_PlayerDown::HandleDownTimeout,
-		FMath::Max(DownTimeout, 0.0f),
+		ClampedDownTimeout,
 		false);
 }
 
@@ -148,6 +153,55 @@ void UPRGA_PlayerDown::StopDownTimer()
 	{
 		World->GetTimerManager().ClearTimer(DownTimerHandle);
 	}
+}
+
+void UPRGA_PlayerDown::StartDownTimerInfo(float DurationSeconds)
+{
+	AActor* AvatarActor = GetAvatarActorFromActorInfo();
+	if (!IsValid(AvatarActor) || !AvatarActor->HasAuthority())
+	{
+		return;
+	}
+
+	const APRPlayerCharacter* PlayerCharacter = Cast<APRPlayerCharacter>(AvatarActor);
+	APRPlayerState* PlayerState = IsValid(PlayerCharacter) ? PlayerCharacter->GetPlayerState<APRPlayerState>() : nullptr;
+	if (!IsValid(PlayerState))
+	{
+		return;
+	}
+
+	const float ClampedDurationSeconds = FMath::Max(DurationSeconds, 0.0f);
+	PlayerState->StartDownTimerInfo(
+		ClampedDurationSeconds,
+		ResolveServerWorldTimeSeconds() + ClampedDurationSeconds);
+}
+
+void UPRGA_PlayerDown::ClearDownTimerInfo() const
+{
+	const AActor* AvatarActor = GetAvatarActorFromActorInfo();
+	if (!IsValid(AvatarActor) || !AvatarActor->HasAuthority())
+	{
+		return;
+	}
+
+	const APRPlayerCharacter* PlayerCharacter = Cast<APRPlayerCharacter>(AvatarActor);
+	APRPlayerState* PlayerState = IsValid(PlayerCharacter) ? PlayerCharacter->GetPlayerState<APRPlayerState>() : nullptr;
+	if (IsValid(PlayerState))
+	{
+		PlayerState->ClearDownTimerInfo();
+	}
+}
+
+float UPRGA_PlayerDown::ResolveServerWorldTimeSeconds() const
+{
+	const UWorld* World = GetWorld();
+	if (!IsValid(World))
+	{
+		return 0.0f;
+	}
+
+	const AGameStateBase* GameState = World->GetGameState();
+	return IsValid(GameState) ? GameState->GetServerWorldTimeSeconds() : World->GetTimeSeconds();
 }
 
 void UPRGA_PlayerDown::HandleDownTimeout()

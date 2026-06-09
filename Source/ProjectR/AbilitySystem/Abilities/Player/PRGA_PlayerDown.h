@@ -47,6 +47,15 @@ protected:
 	// 다운 상태 제한 시간 타이머를 정리한다.
 	void StopDownTimer();
 
+	// 다운 HUD 공유 타이머 시작
+	void StartDownTimerInfo(float DurationSeconds);
+
+	// 다운 HUD 공유 타이머 정리
+	void ClearDownTimerInfo() const;
+
+	// 서버 월드 시간 반환
+	float ResolveServerWorldTimeSeconds() const;
+
 	// 다운 상태 제한 시간이 끝났을 때 다운 사망 전환 확정 이벤트를 보낸다.
 	void HandleDownTimeout();
 

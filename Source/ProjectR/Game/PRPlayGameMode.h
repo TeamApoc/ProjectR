@@ -11,6 +11,8 @@
 
 class APRPlayerController;
 class APRPlayerState;
+class USoundBase;
+class UUserWidget;
 
 // 인게임 GameMode. 호스트 프로세스에만 존재
 // 로그인 승인, 게스트 캐릭터 페이로드 검증, 월드 상태 주입, 이탈 시 보상 커밋을 담당
@@ -83,7 +85,15 @@ protected:
 
 	// 전멸 확정 후 리스폰 지연
 	UPROPERTY(EditDefaultsOnly, Category = "ProjectR|Survival", meta = (ClampMin = "0.0"))
-	float PartyWipeRespawnDelay = 2.0f;
+	float PartyWipeRespawnDelay = 5.0f;
+
+	// 전멸 확정 시 전투 참여 클라이언트에게 한 번 재생할 효과음
+	UPROPERTY(EditDefaultsOnly, Category = "ProjectR|Survival|Audio")
+	TObjectPtr<USoundBase> PartyWipeSound;
+
+	// 전멸 확정 시 전투 참여 클라이언트에게 표시할 위젯
+	UPROPERTY(EditDefaultsOnly, Category = "ProjectR|Survival|UI")
+	TSubclassOf<UUserWidget> PartyWipeWidgetClass;
 
 	// 맵 이동 직후 최초 스폰에 사용할 SpawnPoint 태그
 	FGameplayTag TravelSpawnPointId;

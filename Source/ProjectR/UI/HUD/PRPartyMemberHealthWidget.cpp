@@ -122,7 +122,8 @@ void UPRPartyMemberHealthWidget::RefreshSurvivalState()
 	{
 		NewState = EPRPartyMemberSurvivalState::Dead;
 	}
-	else if (AbilitySystemComponent->HasMatchingGameplayTag(PRGameplayTags::State_Down))
+	else if (AbilitySystemComponent->HasMatchingGameplayTag(PRGameplayTags::State_Down)
+		|| PlayerState->IsDownTimerInfoActive())
 	{
 		NewState = EPRPartyMemberSurvivalState::Down;
 	}

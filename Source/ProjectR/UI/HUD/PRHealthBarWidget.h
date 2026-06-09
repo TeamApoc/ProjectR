@@ -8,7 +8,10 @@
 
 class APRPlayerState;
 class UAbilitySystemComponent;
+class UImage;
+class UMaterialInstanceDynamic;
 class USizeBox;
+class UWidget;
 struct FOnAttributeChangeData;
 
 // 체력 바 표시 모드
@@ -67,11 +70,19 @@ protected:
 	UFUNCTION(BlueprintImplementableEvent, Category = "ProjectR|HUD|Health")
 	void BP_OnHealthCriticalChanged(bool bIsCritical);
 
+	// 다운 게이지 표시 상태 변경 시 BP 연출 갱신 호출
+	UFUNCTION(BlueprintImplementableEvent, Category = "ProjectR|HUD|Health")
+	void BP_OnDownGaugeChanged(bool bInDownGaugeActive, float InRemainingPercent,
+		float InRemainingSeconds, float InDurationSeconds);
+
 private:
 	void TryBindToOwnerAbilitySystem();
 	void BindToAbilitySystem(UAbilitySystemComponent* InAbilitySystemComponent);
 	void UnbindFromAbilitySystem();
 	void RefreshHealthFromAbilitySystem();
+	void RefreshDownGaugeFromPlayerState(bool bForceBroadcast);
+	float ResolveServerWorldTimeSeconds() const;
+	bool IsDeadHealthSource() const;
 	void RefreshLayerPercents(bool bForceDelayedPercent);
 	void ApplyDisplayedPercentsToFill();
 	void HandleHealthChanged(const FOnAttributeChangeData& ChangeData);
@@ -80,12 +91,20 @@ private:
 	void HandleBindRetryTimer();
 	void StartDelayedLayer(float InStartPercent);
 	void ApplyBarLayoutWidths();
+	void CacheFillMaterials();
+	void ResetFillMaterials();
+	void CacheHealthFillOriginalTint();
+	void ApplyDownGaugeTint();
+	void ApplyLayerPercentToFill(USizeBox* FillSizeBox, UMaterialInstanceDynamic* FillMaterial, float FillPercent, float MaxFillWidth);
 	float GetBackBorderWidth() const;
 	float GetFillAreaWidth() const;
 	float GetMaxFillWidth() const;
 	USizeBox* GetCurrentFillSizeBox() const;
 	USizeBox* GetRecoverableFillSizeBox() const;
 	USizeBox* GetDelayedFillSizeBox() const;
+	UImage* ResolveFillImage(UImage* PreferredImage, USizeBox* FillSizeBox) const;
+	UImage* FindImageInWidget(UWidget* Widget) const;
+	UMaterialInstanceDynamic* ResolveFillMaterial(UImage* FillImage) const;
 
 private:
 	// 전체 체력 바 프레임 기준 SizeBox
@@ -116,6 +135,18 @@ private:
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional, AllowPrivateAccess = "true"), Category = "HUD")
 	TObjectPtr<USizeBox> FillClipBox;
 
+	// 현재 체력 Fill 머티리얼을 적용할 Image
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional, AllowPrivateAccess = "true"), Category = "HUD")
+	TObjectPtr<UImage> HealthFillImage;
+
+	// 회복 가능 체력 Fill 머티리얼을 적용할 Image
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional, AllowPrivateAccess = "true"), Category = "HUD")
+	TObjectPtr<UImage> RecoverableFillImage;
+
+	// 지연 체력 Fill 머티리얼을 적용할 Image
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional, AllowPrivateAccess = "true"), Category = "HUD")
+	TObjectPtr<UImage> DelayedFillImage;
+
 	// 플레이어 본인 체력 바 전체 프레임 기준 폭
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, meta = (AllowPrivateAccess = "true", ClampMin = "1.0"), Category = "HUD")
 	float MaxBarWidth = 500.0f;
@@ -140,6 +171,18 @@ private:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, meta = (AllowPrivateAccess = "true", ClampMin = "0"), Category = "HUD")
 	int32 MaxBindRetryCount = 20;
 
+	// Fill Image의 UI 머티리얼 Percentage 파라미터를 갱신할지 여부
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"), Category = "HUD|Material")
+	bool bUseMaterialFill = true;
+
+	// Fill 비율을 전달할 머티리얼 Scalar 파라미터 이름
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"), Category = "HUD|Material")
+	FName FillPercentParameterName = TEXT("Percentage");
+
+	// 다운 게이지 활성화 중 적용할 현재 체력 Fill 색상
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"), Category = "HUD|DownGauge")
+	FLinearColor DownGaugeFillTint = FLinearColor(1.0f, 0.35f, 0.0f, 1.0f);
+
 	UPROPERTY(BlueprintReadOnly, meta = (AllowPrivateAccess = "true"), Category = "HUD")
 	EPRHealthBarPresentationMode PresentationMode = EPRHealthBarPresentationMode::LocalPlayer;
 
@@ -161,7 +204,28 @@ private:
 	UPROPERTY(BlueprintReadOnly, meta = (AllowPrivateAccess = "true"), Category = "HUD")
 	float DelayedPercent = 1.0f;
 
+	UPROPERTY(BlueprintReadOnly, meta = (AllowPrivateAccess = "true"), Category = "HUD")
+	float DownRemainingSeconds = 0.0f;
+
+	UPROPERTY(BlueprintReadOnly, meta = (AllowPrivateAccess = "true"), Category = "HUD")
+	float DownRemainingPercent = 0.0f;
+
+	UPROPERTY(BlueprintReadOnly, meta = (AllowPrivateAccess = "true"), Category = "HUD")
+	float DownDurationSeconds = 0.0f;
+
+	UPROPERTY(Transient)
+	TObjectPtr<UMaterialInstanceDynamic> HealthFillMaterial;
+
+	UPROPERTY(Transient)
+	TObjectPtr<UMaterialInstanceDynamic> RecoverableFillMaterial;
+
+	UPROPERTY(Transient)
+	TObjectPtr<UMaterialInstanceDynamic> DelayedFillMaterial;
+
 	TWeakObjectPtr<UAbilitySystemComponent> CachedAbilitySystemComponent;
+	TWeakObjectPtr<APRPlayerState> CachedPlayerState;
+
+	FSlateColor HealthFillOriginalTint = FSlateColor(FLinearColor::White);
 
 	FDelegateHandle HealthChangedDelegateHandle;
 	FDelegateHandle MaxHealthChangedDelegateHandle;
@@ -173,4 +237,6 @@ private:
 	int32 CurrentBindRetryCount = 0;
 	bool bIsDelayedLayerActive = false;
 	bool bIsCriticalHealth = false;
+	bool bIsDownGaugeActive = false;
+	bool bHasCachedHealthFillOriginalTint = false;
 };

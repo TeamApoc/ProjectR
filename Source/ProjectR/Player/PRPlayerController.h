@@ -34,6 +34,8 @@ class UPRAbilitySystemComponent;
 class UPRQuickSlotComponent;
 struct FInputActionValue;
 class UInputAction;
+class USoundBase;
+class UUserWidget;
 class UPRUIControllerComponent;
 class UPRInteractionSensor;
 class UPRCheatHandler;
@@ -108,6 +110,14 @@ public:
 	// 맵 이동 또는 리스폰 전환 연출 시작
 	UFUNCTION(Client, Reliable)
 	void ClientNotifyMapTransition(float Delay, EPRMapTransitionType TransitionType);
+
+	// 전멸 확정 효과음 재생
+	UFUNCTION(Client, Reliable)
+	void ClientPlayPartyWipeSound(USoundBase* Sound);
+
+	// 전멸 확정 위젯 표시
+	UFUNCTION(Client, Reliable)
+	void ClientShowPartyWipeWidget(TSubclassOf<UUserWidget> WidgetClass);
 	
 	// 서버 -> 본인 클라. 무기 강화 결과를 UI에 전달한다
 	UFUNCTION(Client, Reliable)
@@ -255,6 +265,9 @@ private:
 
 	void UpdateCompanionHighlight();
 
+	// 전멸 확정 위젯 제거
+	void HidePartyWipeWidget();
+
 public:
 	// 무기 강화 결과를 UI에 알린다
 	UPROPERTY(BlueprintAssignable, Category = "ProjectR|WeaponUpgrade")
@@ -345,6 +358,9 @@ private:
 	// FX 서버 요청과 Client RPC 수신을 담당하는 Player 소유 컴포넌트
 	UPROPERTY(VisibleAnywhere, Category = "ProjectR|FX")
 	TObjectPtr<UPRFXNetworkComponent> FXNetworkComponent;
+
+	UPROPERTY(Transient)
+	TObjectPtr<UUserWidget> PartyWipeWidget;
 
 	// 서버 전용 웨이포인트 Travel UI 요청 대상 상호작용
 	TWeakObjectPtr<UPRInteraction_Waypoint> PendingWaypointTravelInteraction;

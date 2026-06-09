@@ -4,12 +4,15 @@
 
 #include "Net/UnrealNetwork.h"
 #include "ProjectR/Test/PRCheatHandler.h"
+#include "ProjectR/Audio/PRBGMSubsystem.h"
 #include "ProjectR/Game/PRGameInstance.h"
 #include "ProjectR/Game/PRPlayGameMode.h"
 #include "ProjectR/AbilitySystem/PRAbilitySystemComponent.h"
 #include "AbilitySystemBlueprintLibrary.h"
+#include "Blueprint/UserWidget.h"
 #include "EnhancedInputComponent.h"
 #include "InputAction.h"
+#include "Kismet/GameplayStatics.h"
 #include "ProjectR/FX/PRFXNetworkComponent.h"
 #include "ProjectR/Game/PRCameraManager.h"
 #include "ProjectR/Input/PRInputConfigDataAsset.h"
@@ -27,6 +30,7 @@
 #include "ProjectR/Shop/Components/PRShopComponent.h"
 #include "ProjectR/ItemSystem/Components/PRWeaponUpgradeComponent.h"
 #include "ProjectR/ItemSystem/Items/PRItemInstance_Weapon.h"
+#include "Sound/SoundBase.h"
 
 APRPlayerController::APRPlayerController()
 {
@@ -221,6 +225,8 @@ void APRPlayerController::ClientNotifyMapTransition_Implementation(float Delay, 
 			UIControllerComponent->RefreshForPawn(GetPawn());
 			break;
 		case EPRMapTransitionType::RespawnComplete:
+			HidePartyWipeWidget();
+
 			// 리스폰 완료 UI 복구
 			UIControllerComponent->RefreshForPawn(GetPawn());
 			break;
@@ -251,6 +257,18 @@ void APRPlayerController::ClientNotifyMapTransition_Implementation(float Delay, 
 			break;
 		default:
 			break;
+		}
+	}
+
+	if (TransitionType == EPRMapTransitionType::RespawnComplete && IsLocalController())
+	{
+		UWorld* World = GetWorld();
+		if (IsValid(World))
+		{
+			if (UPRBGMSubsystem* BGMSubsystem = World->GetSubsystem<UPRBGMSubsystem>())
+			{
+				BGMSubsystem->ResetToLevelBGM(0.0f);
+			}
 		}
 	}
 }
@@ -440,6 +458,16 @@ void APRPlayerController::UpdateCompanionHighlight()
 	}
 }
 
+void APRPlayerController::HidePartyWipeWidget()
+{
+	if (IsValid(PartyWipeWidget))
+	{
+		PartyWipeWidget->RemoveFromParent();
+	}
+
+	PartyWipeWidget = nullptr;
+}
+
 void APRPlayerController::SubmitLocalCharacterToServer()
 {
 	if (bCharacterSubmitted)
@@ -534,6 +562,51 @@ void APRPlayerController::ClientDispatchSurvivalGameplayEvent_Implementation(FGa
 		ControlledPawn,
 		EventTag,
 		Payload);
+}
+
+void APRPlayerController::ClientPlayPartyWipeSound_Implementation(USoundBase* Sound)
+{
+	if (!IsLocalController())
+	{
+		return;
+	}
+
+	UWorld* World = GetWorld();
+	if (IsValid(World))
+	{
+		if (UPRBGMSubsystem* BGMSubsystem = World->GetSubsystem<UPRBGMSubsystem>())
+		{
+			BGMSubsystem->StopBGM(0.0f);
+		}
+	}
+
+	if (!IsValid(Sound))
+	{
+		return;
+	}
+
+	UGameplayStatics::PlaySound2D(this, Sound, 1.0f, 1.0f, 0.0f, nullptr, nullptr, true);
+}
+
+void APRPlayerController::ClientShowPartyWipeWidget_Implementation(TSubclassOf<UUserWidget> WidgetClass)
+{
+	if (!IsLocalController())
+	{
+		return;
+	}
+
+	HidePartyWipeWidget();
+
+	if (!IsValid(WidgetClass.Get()))
+	{
+		return;
+	}
+
+	PartyWipeWidget = CreateWidget<UUserWidget>(this, WidgetClass);
+	if (IsValid(PartyWipeWidget))
+	{
+		PartyWipeWidget->AddToViewport(10000);
+	}
 }
 
 void APRPlayerController::ClientNotifyWeaponUpgradeResult_Implementation(const FPRWeaponUpgradeResult& Result)

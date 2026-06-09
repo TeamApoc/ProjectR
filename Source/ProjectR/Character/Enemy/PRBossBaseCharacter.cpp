@@ -199,6 +199,21 @@ void APRBossBaseCharacter::Multicast_BroadcastBossBGMPhasePreview_Implementation
 	BroadcastBossBGMPhasePreviewEvent(PreviewPhase);
 }
 
+void APRBossBaseCharacter::BroadcastBossBGMPatternCue(FGameplayTag CueTag)
+{
+	if (!HasAuthority() || !CueTag.IsValid())
+	{
+		return;
+	}
+
+	Multicast_BroadcastBossBGMPatternCue(CueTag);
+}
+
+void APRBossBaseCharacter::Multicast_BroadcastBossBGMPatternCue_Implementation(FGameplayTag CueTag)
+{
+	BroadcastBossBGMPatternCueEvent(CueTag);
+}
+
 void APRBossBaseCharacter::RegisterBossPatternActor(APRBossPatternActor* Actor)
 {
 	if (!HasAuthority() || !IsValid(Actor))
@@ -364,6 +379,31 @@ void APRBossBaseCharacter::BroadcastBossBGMPhasePreviewEvent(EPRBossPhase Previe
 	Payload.OldPhase = CurrentPhase;
 	Payload.NewPhase = PreviewPhase;
 	EventMgr->BroadcastTyped(PRGameplayTags::Event_Boss_BGMPhasePreview, Payload);
+}
+
+void APRBossBaseCharacter::BroadcastBossBGMPatternCueEvent(FGameplayTag CueTag)
+{
+	if (!CueTag.IsValid())
+	{
+		return;
+	}
+
+	UWorld* World = GetWorld();
+	if (!IsValid(World))
+	{
+		return;
+	}
+
+	UPREventManagerSubsystem* EventMgr = World->GetSubsystem<UPREventManagerSubsystem>();
+	if (!IsValid(EventMgr))
+	{
+		return;
+	}
+
+	FPRBossBGMPatternCueEventPayload Payload;
+	Payload.Boss = this;
+	Payload.CueTag = CueTag;
+	EventMgr->BroadcastTyped(PRGameplayTags::Event_Boss_BGMPatternCue, Payload);
 }
 
 void APRBossBaseCharacter::OnRep_CurrentPhase(EPRBossPhase OldPhase)

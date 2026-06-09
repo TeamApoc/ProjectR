@@ -4,6 +4,7 @@
 #include "AbilitySystemBlueprintLibrary.h"
 #include "GameplayEffectExtension.h"
 #include "Net/UnrealNetwork.h"
+#include "ProjectR/Character/Enemy/PREnemyBaseCharacter.h"
 #include "ProjectR/PRGameplayTags.h"
 
 // =====  UAttributeSet Interface =====
@@ -36,6 +37,20 @@ void UPRAttributeSet_Enemy::PostGameplayEffectExecute(const FGameplayEffectModCa
 			const FGameplayTag GroggyTag = PRGameplayTags::State_Groggy;
 			const bool bHasTag = ASC->HasMatchingGameplayTag(GroggyTag);
 			const float Current = GetGroggyGauge();
+			AActor* AvatarActor = ASC->GetAvatarActor();
+			const APREnemyBaseCharacter* EnemyAvatar = Cast<APREnemyBaseCharacter>(AvatarActor);
+			const bool bCanEnterGroggyState = !IsValid(EnemyAvatar) || EnemyAvatar->CanEnterGroggyState();
+
+			if (!bCanEnterGroggyState)
+			{
+				if (bHasTag)
+				{
+					ASC->RemoveLooseGameplayTag(GroggyTag);
+					ASC->RemoveReplicatedLooseGameplayTag(GroggyTag);
+					OnGroggyStateChanged.Broadcast(false);
+				}
+				return;
+			}
 
 			if (Current <= 0.0f && !bHasTag)
 			{
@@ -43,7 +58,6 @@ void UPRAttributeSet_Enemy::PostGameplayEffectExecute(const FGameplayEffectModCa
 				ASC->AddReplicatedLooseGameplayTag(GroggyTag);
 
 				AActor* Instigator = Data.EffectSpec.GetContext().GetOriginalInstigator();
-				AActor* AvatarActor = ASC->GetAvatarActor();
 				if (IsValid(AvatarActor) && AvatarActor->HasAuthority())
 				{
 					FGameplayEventData Payload;

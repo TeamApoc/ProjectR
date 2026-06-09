@@ -15,6 +15,7 @@
 #include "Net/Core/PushModel/PushModel.h"
 #include "Net/UnrealNetwork.h"
 #include "TimerManager.h"
+#include "Kismet/GameplayStatics.h"
 #include "ProjectR/Character/Enemy/Penitent/PRPenitentCharacter.h"
 #include "ProjectR/Combat/PRCombatGameplayTags.h"
 #include "ProjectR/Combat/PRCombatStatics.h"
@@ -209,7 +210,7 @@ bool APRGroundBoxProjectileBase::ReceiveDamageContext(const FPRDestructableDamag
 	if (CurrentHealth <= 0.0f)
 	{
 		// 체력 고갈에 따른 단일 소멸 경로
-		RequestGroundBoxEnd();
+		RequestGroundBoxEnd(EPRProjectileDestroyReason::DamageDepleted);
 	}
 
 	return true;
@@ -320,24 +321,22 @@ void APRGroundBoxProjectileBase::ResetTargetCooldowns()
 	TargetActorNextAllowedTimes.Reset();
 }
 
-void APRGroundBoxProjectileBase::RequestGroundBoxEnd()
+void APRGroundBoxProjectileBase::RequestGroundBoxEnd(EPRProjectileDestroyReason DestroyReason)
 {
 	if (!HasAuthority() || bDestroyRequested)
 	{
 		return;
 	}
 
-	DestroyGroundBox();
+	DestroyGroundBox(DestroyReason);
 }
 
-void APRGroundBoxProjectileBase::FinishFadeAndDestroy()
+void APRGroundBoxProjectileBase::DestroyEffcectStarted(EPRProjectileDestroyReason DestroyReason)
 {
-	if (!HasAuthority() || bDestroyRequested)
+	if (PRShouldPlayProjectileDestroyEffect(DestroyReason) && IsValid(ExplodeSound))
 	{
-		return;
+		UGameplayStatics::PlaySoundAtLocation(this, ExplodeSound, GetActorLocation(), GetActorRotation(), 1.f, 1.f, 0.f);
 	}
-
-	DestroyGroundBox();
 }
 
 void APRGroundBoxProjectileBase::HandleSourceOwnerDead()
@@ -371,7 +370,7 @@ void APRGroundBoxProjectileBase::HandleSafetyLifeTimeExpired()
 	}
 
 	// 명시 종료 누락에 따른 안전 제거
-	DestroyGroundBox();
+	DestroyGroundBox(EPRProjectileDestroyReason::LifeTimeExpired);
 }
 
 /*~ 오버랩 처리 ~*/
@@ -432,7 +431,7 @@ void APRGroundBoxProjectileBase::OnBreakableDetectionBoxHit(UPrimitiveComponent*
 	// 서버 파괴 처리
 	if (HasAuthority())
 	{
-		DestroyGroundBox();
+		DestroyGroundBox(EPRProjectileDestroyReason::Impact);
 		return;
 	}
 
@@ -821,7 +820,7 @@ void APRGroundBoxProjectileBase::InterpLaunchRepMovement(float DeltaSeconds)
 
 /*~ 소멸 처리 ~*/
 
-void APRGroundBoxProjectileBase::DestroyGroundBox()
+void APRGroundBoxProjectileBase::DestroyGroundBox(EPRProjectileDestroyReason DestroyReason)
 {
 	if (bDestroyRequested)
 	{
@@ -846,7 +845,7 @@ void APRGroundBoxProjectileBase::DestroyGroundBox()
 		MovementComponent->Deactivate();
 	}
 
-	MulticastHandleDestroyed();
+	MulticastHandleDestroyed(DestroyReason);
 	Destroy();
 }
 
@@ -872,7 +871,8 @@ void APRGroundBoxProjectileBase::MulticastHandleFadeRequested_Implementation()
 	OnGroundBoxFadeRequested.Broadcast(this);
 }
 
-void APRGroundBoxProjectileBase::MulticastHandleDestroyed_Implementation()
+void APRGroundBoxProjectileBase::MulticastHandleDestroyed_Implementation(EPRProjectileDestroyReason DestroyReason)
 {
+	DestroyEffcectStarted(DestroyReason);
 	OnGroundBoxDestroyed.Broadcast(this);
 }

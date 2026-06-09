@@ -8,6 +8,7 @@
 #include "Abilities/Tasks/AbilityTask_WaitGameplayEvent.h"
 #include "Animation/AnimMontage.h"
 #include "Components/SkeletalMeshComponent.h"
+#include "EngineUtils.h"
 #include "GameFramework/Character.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "ProjectR/AI/Components/PREnemyThreatComponent.h"
@@ -292,43 +293,111 @@ void UPRGameplayAbility_EnemyProjectileAttack::FireProjectile()
 		return;
 	}
 
-	const FTransform SpawnTransform = GetProjectileSpawnTransform();
-	const uint32 ProjectileId = GenerateProjectileId();
-
-	FActorSpawnParameters SpawnParameters;
-	SpawnParameters.Owner = AvatarActor;
-	SpawnParameters.Instigator = Cast<APawn>(AvatarActor);
-	SpawnParameters.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
-	SpawnParameters.CustomPreSpawnInitalization = [ProjectileId](AActor* Actor)
+	const int32 ProjectileFireCount = FMath::Max(GetProjectileFireCount(), 1);
+	for (int32 ProjectileIndex = 0; ProjectileIndex < ProjectileFireCount; ++ProjectileIndex)
 	{
-		if (APRProjectileBase* Projectile = Cast<APRProjectileBase>(Actor))
+		const FTransform SpawnTransform = GetProjectileSpawnTransformForIndex(ProjectileIndex);
+		const uint32 ProjectileId = GenerateProjectileId();
+
+		FActorSpawnParameters SpawnParameters;
+		SpawnParameters.Owner = AvatarActor;
+		SpawnParameters.Instigator = Cast<APawn>(AvatarActor);
+		SpawnParameters.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
+		SpawnParameters.CustomPreSpawnInitalization = [ProjectileId](AActor* Actor)
 		{
-			Projectile->InitializeProjectile(EPRProjectileRole::Auth, ProjectileId);
+			if (APRProjectileBase* Projectile = Cast<APRProjectileBase>(Actor))
+			{
+				Projectile->InitializeProjectile(EPRProjectileRole::Auth, ProjectileId);
+			}
+		};
+
+		APRProjectileBase* SpawnedProjectile = World->SpawnActor<APRProjectileBase>(
+			ProjectileClass,
+			SpawnTransform,
+			SpawnParameters);
+
+		if (!IsValid(SpawnedProjectile))
+		{
+			continue;
 		}
-	};
 
-	APRProjectileBase* SpawnedProjectile = World->SpawnActor<APRProjectileBase>(
-		ProjectileClass,
-		SpawnTransform,
-		SpawnParameters);
+		SpawnedProjectile->SetProjectileInitialVelocity(
+			CalculateProjectileAimDirectionForIndex(SpawnTransform.GetLocation(), ProjectileIndex),
+			ProjectileSpeedOverride);
 
-	if (!IsValid(SpawnedProjectile))
+		ConfigureSpawnedProjectile(SpawnedProjectile);
+		ConfigureProjectileHomingSchedule(SpawnedProjectile);
+
+		const FGameplayEffectSpecHandle EffectSpecHandle = BuildProjectileEffectSpec();
+		if (EffectSpecHandle.IsValid())
+		{
+			SpawnedProjectile->InitGameplayEffectSpec(EffectSpecHandle);
+		}
+
+		SpawnedProjectile->PushRepMovement(EPRRepMovementEvent::Spawn);
+	}
+
+	bProjectileFired = true;
+}
+
+void UPRGameplayAbility_EnemyProjectileAttack::ConfigureSpawnedProjectile(APRProjectileBase* SpawnedProjectile) const
+{
+	if (!IsValid(SpawnedProjectile) || !bIgnoreEnemyActorsForProjectile)
 	{
 		return;
 	}
 
-	SpawnedProjectile->SetProjectileInitialVelocity(
-		CalculateProjectileAimDirection(SpawnTransform.GetLocation()),
-		ProjectileSpeedOverride);
-
-	const FGameplayEffectSpecHandle EffectSpecHandle = BuildProjectileEffectSpec();
-	if (EffectSpecHandle.IsValid())
+	UWorld* World = GetWorld();
+	if (!IsValid(World))
 	{
-		SpawnedProjectile->InitGameplayEffectSpec(EffectSpecHandle);
+		return;
 	}
 
-	SpawnedProjectile->PushRepMovement(EPRRepMovementEvent::Spawn);
-	bProjectileFired = true;
+	for (TActorIterator<APREnemyBaseCharacter> EnemyIt(World); EnemyIt; ++EnemyIt)
+	{
+		SpawnedProjectile->AddProjectileIgnoredActor(*EnemyIt);
+	}
+}
+
+void UPRGameplayAbility_EnemyProjectileAttack::ConfigureProjectileHomingSchedule(APRProjectileBase* SpawnedProjectile) const
+{
+	if (!bUseInitialProjectileHoming || !IsValid(SpawnedProjectile))
+	{
+		return;
+	}
+
+	AActor* HomingTargetActor = GetCurrentThreatTarget();
+	if (!IsValid(HomingTargetActor) || !IsValid(HomingTargetActor->GetRootComponent()))
+	{
+		return;
+	}
+
+	const float ResolvedHomingAcceleration = FMath::Max(InitialProjectileHomingAcceleration, 0.0f);
+	if (ResolvedHomingAcceleration <= 0.0f)
+	{
+		return;
+	}
+
+	SpawnedProjectile->ConfigureProjectileHomingSchedule(
+		HomingTargetActor,
+		ResolvedHomingAcceleration,
+		InitialProjectileHomingStartDelay,
+		InitialProjectileHomingDuration);
+}
+
+int32 UPRGameplayAbility_EnemyProjectileAttack::GetProjectileFireCount() const
+{
+	return 1;
+}
+
+FTransform UPRGameplayAbility_EnemyProjectileAttack::GetProjectileSpawnTransformForIndex(int32 /*ProjectileIndex*/) const
+{
+	return GetProjectileSpawnTransform();
+}
+
+FVector UPRGameplayAbility_EnemyProjectileAttack::CalculateProjectileAimDirectionForIndex(const FVector& SpawnLocation, int32 /*ProjectileIndex*/) const
+{
+	return CalculateProjectileAimDirection(SpawnLocation);
 }
 
 FGameplayEffectSpecHandle UPRGameplayAbility_EnemyProjectileAttack::BuildProjectileEffectSpec() const

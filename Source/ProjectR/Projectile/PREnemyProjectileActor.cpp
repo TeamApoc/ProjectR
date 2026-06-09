@@ -3,6 +3,8 @@
 
 #include "PREnemyProjectileActor.h"
 
+#include "ProjectR/Character/Enemy/PREnemyBaseCharacter.h"
+
 APREnemyProjectileActor::APREnemyProjectileActor()
 {
 	PrimaryActorTick.bCanEverTick = false;
@@ -17,4 +19,14 @@ void APREnemyProjectileActor::HandleHit_Implementation(UPrimitiveComponent* HitC
 	Super::HandleHit_Implementation(HitComponent, OtherActor, OtherComp, NormalImpulse, Hit);
 
 	ApplyEffectToTargetWithHit(OtherActor, Hit);
+}
+
+bool APREnemyProjectileActor::ShouldIgnoreProjectileHit(AActor* OtherActor, UPrimitiveComponent* OtherComp, const FHitResult& Hit) const
+{
+	if (Super::ShouldIgnoreProjectileHit(OtherActor, OtherComp, Hit))
+	{
+		return true;
+	}
+
+	return IsValid(Cast<APREnemyBaseCharacter>(OtherActor));
 }

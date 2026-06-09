@@ -6,6 +6,7 @@
 #include "AbilitySystemComponent.h"
 #include "Camera/CameraComponent.h"
 #include "GameFramework/CharacterMovementComponent.h"
+#include "GameFramework/Controller.h"
 #include "GameFramework/SpringArmComponent.h"
 #include "EnhancedInputComponent.h"
 #include "EnhancedInputSubsystems.h"
@@ -144,7 +145,7 @@ APRPlayerCharacter::APRPlayerCharacter()
 UPRAbilitySystemComponent* APRPlayerCharacter::GetPRAbilitySystemComponent() const
 {
 	// 플레이어 ASC는 PlayerState에 있음
-	if (const APRPlayerState* PS = GetPlayerState<APRPlayerState>())
+	if (const APRPlayerState* PS = ResolvePlayerState())
 	{
 		return PS->GetPRAbilitySystemComponent();
 	}
@@ -153,7 +154,7 @@ UPRAbilitySystemComponent* APRPlayerCharacter::GetPRAbilitySystemComponent() con
 
 UPRWeaponManagerComponent* APRPlayerCharacter::GetWeaponManager() const
 {
-	if (APRPlayerState* PRPlayerState = GetPlayerState<APRPlayerState>())
+	if (APRPlayerState* PRPlayerState = ResolvePlayerState())
 	{
 		return PRPlayerState->GetWeaponManagerComponent();
 	}
@@ -162,47 +163,36 @@ UPRWeaponManagerComponent* APRPlayerCharacter::GetWeaponManager() const
 
 UPREquipmentManagerComponent* APRPlayerCharacter::GetEquipmentManager() const
 {
-	if (APRPlayerState* PRPlayerState = GetPlayerState<APRPlayerState>())
+	if (APRPlayerState* PRPlayerState = ResolvePlayerState())
 	{
 		return PRPlayerState->GetEquipmentManagerComponent();
 	}
 	return nullptr;
 }
 
+void APRPlayerCharacter::InitCharacter(AController* SourceController)
+{
+	APRPlayerState* SourcePlayerState = IsValid(SourceController)
+		? Cast<APRPlayerState>(SourceController->PlayerState)
+		: nullptr;
+	if (!IsValid(SourcePlayerState))
+	{
+		SourcePlayerState = GetPlayerState<APRPlayerState>();
+	}
+
+	InitializeCharacterRuntime(SourcePlayerState, true);
+}
+
 void APRPlayerCharacter::PossessedBy(AController* NewController)
 {
 	Super::PossessedBy(NewController);
+	InitCharacter(NewController);
 
-	// 서버 측 ActorInfo 초기화. Owner = PlayerState, Avatar = this
-	if (APRPlayerState* PS = GetPlayerState<APRPlayerState>())
+	// 서버 소유 캐릭터 전용 초기화
+	if (APRPlayerState* PS = ResolvePlayerState())
 	{
 		if (UPRAbilitySystemComponent* ASC = PS->GetPRAbilitySystemComponent())
 		{
-			const UPRAbilitySystemRegistry* Registry = UPRAssetManager::Get().GetAbilitySystemRegistry();
-			ASC->InitAbilityActorInfo(PS, this);
-			ASC->InitializeAttributesFromRegistry(
-				Registry,
-				EPRCharacterRole::Player,
-				PRRowNames::Player::Default);
-			
-			if (IsValid(Registry) && IsValid(Registry->PlayerInitializeGE))
-			{
-				// 플레이어 최초 초기화 생존 수치 적용. 저장 데이터가 있으면 이후 ApplySaveData에서 저장값으로 덮어씀
-				FGameplayEffectContextHandle EffectContextHandle = ASC->MakeEffectContext();
-				EffectContextHandle.AddSourceObject(this);
-				const FGameplayEffectSpecHandle DefaultInitSpecHandle = ASC->MakeOutgoingSpec(Registry->InitializeGE, 1.0f, EffectContextHandle);
-				if (DefaultInitSpecHandle.IsValid())
-				{
-					ASC->ApplyGameplayEffectSpecToSelf(*DefaultInitSpecHandle.Data.Get());
-				}
-				
-				const FGameplayEffectSpecHandle PlayerInitSpecHandle = ASC->MakeOutgoingSpec(Registry->PlayerInitializeGE, 1.0f, EffectContextHandle);
-				if (PlayerInitSpecHandle.IsValid())
-				{
-					ASC->ApplyGameplayEffectSpecToSelf(*PlayerInitSpecHandle.Data.Get());
-				}
-			}
-			
 			PS->GrantCharacterAbilitySet(AbilitySet, this);
 			
 			// 이 시점에서 플레이어의 ASC 유효하므로 BindTagChangeEvent 호출
@@ -235,17 +225,6 @@ void APRPlayerCharacter::PossessedBy(AController* NewController)
 			}
 		}
 
-		if (UPRWeaponManagerComponent* WeaponManager = GetWeaponManager())
-		{
-			WeaponManager->InitializeRuntimeLinks();
-			WeaponManager->InitializeWithPawn(this);
-		}
-
-		// PlayerState 장비 복원 이후 현재 장착 외형을 캐릭터 파츠에 반영
-		CacheDefaultEquipmentMeshes();
-		BindEquipmentManager();
-		ApplyEquipmentVisualsFromManager();
-		
 		PS->OnMouseSensitivityChanged.AddDynamic(this, &ThisClass::HandleMouseSensitivityChanged);
 		CachedCameraSensitivity = PS->GetCameraSensitivity();
 	}
@@ -263,23 +242,13 @@ void APRPlayerCharacter::OnRep_PlayerState()
 	// 클라이언트 측 ActorInfo 초기화
 	if (APRPlayerState* PS = GetPlayerState<APRPlayerState>())
 	{
+		InitializeCharacterRuntime(PS, false);
+
 		if (UPRAbilitySystemComponent* ASC = PS->GetPRAbilitySystemComponent())
 		{
-			ASC->InitAbilityActorInfo(PS, this);
 			BindTagChangeEvent();
 			BindMovementSpeedAttributeChange();
 		}
-
-		if (UPRWeaponManagerComponent* WeaponManager = GetWeaponManager())
-		{
-			WeaponManager->InitializeRuntimeLinks();
-			WeaponManager->InitializeWithPawn(this);
-		}
-
-		// 클라이언트는 PlayerState 복제 이후 장비 외형 복제 알림을 받아 파츠 메시를 갱신
-		CacheDefaultEquipmentMeshes();
-		BindEquipmentManager();
-		ApplyEquipmentVisualsFromManager();
 	}
 	
 	if (UPREventManagerSubsystem* EventManager = GetWorld()->GetSubsystem<UPREventManagerSubsystem>())
@@ -368,6 +337,7 @@ void APRPlayerCharacter::EndPlay(const EEndPlayReason::Type EndPlayReason)
 	CompleteExternalForcedMove(true);
 	UnbindEquipmentManager();
 	UnbindMovementSpeedAttributeChange();
+	CachedPlayerState = nullptr;
 
 	Super::EndPlay(EndPlayReason);
 }
@@ -661,6 +631,71 @@ void APRPlayerCharacter::UpdateMaxWalkSpeed()
 	}
 }
 
+APRPlayerState* APRPlayerCharacter::ResolvePlayerState() const
+{
+	if (APRPlayerState* PRPlayerState = GetPlayerState<APRPlayerState>())
+	{
+		return PRPlayerState;
+	}
+
+	return CachedPlayerState.Get();
+}
+
+void APRPlayerCharacter::InitializeCharacterRuntime(APRPlayerState* SourcePlayerState, bool bInitializeAttributes)
+{
+	if (!IsValid(SourcePlayerState))
+	{
+		return;
+	}
+
+	CachedPlayerState = SourcePlayerState;
+
+	// 저장 데이터 장비 복원 전 BP 기본 파츠 메시 보관
+	CacheDefaultEquipmentMeshes();
+
+	if (UPRAbilitySystemComponent* ASC = SourcePlayerState->GetPRAbilitySystemComponent())
+	{
+		ASC->InitAbilityActorInfo(SourcePlayerState, this);
+
+		if (bInitializeAttributes)
+		{
+			const UPRAbilitySystemRegistry* Registry = UPRAssetManager::Get().GetAbilitySystemRegistry();
+			ASC->InitializeAttributesFromRegistry(
+				Registry,
+				EPRCharacterRole::Player,
+				PRRowNames::Player::Default);
+
+			if (IsValid(Registry) && IsValid(Registry->PlayerInitializeGE))
+			{
+				// 플레이어 최초 초기화 생존 수치 적용
+				FGameplayEffectContextHandle EffectContextHandle = ASC->MakeEffectContext();
+				EffectContextHandle.AddSourceObject(this);
+				const FGameplayEffectSpecHandle DefaultInitSpecHandle = ASC->MakeOutgoingSpec(Registry->InitializeGE, 1.0f, EffectContextHandle);
+				if (DefaultInitSpecHandle.IsValid())
+				{
+					ASC->ApplyGameplayEffectSpecToSelf(*DefaultInitSpecHandle.Data.Get());
+				}
+
+				const FGameplayEffectSpecHandle PlayerInitSpecHandle = ASC->MakeOutgoingSpec(Registry->PlayerInitializeGE, 1.0f, EffectContextHandle);
+				if (PlayerInitSpecHandle.IsValid())
+				{
+					ASC->ApplyGameplayEffectSpecToSelf(*PlayerInitSpecHandle.Data.Get());
+				}
+			}
+		}
+	}
+
+	if (UPRWeaponManagerComponent* WeaponManager = GetWeaponManager())
+	{
+		WeaponManager->InitializeRuntimeLinks();
+		WeaponManager->InitializeWithPawn(this);
+	}
+
+	// PlayerState 장비 정보 기반 현재 파츠 메시 반영
+	BindEquipmentManager();
+	ApplyEquipmentVisualsFromManager();
+}
+
 bool APRPlayerCharacter::IsMoveInputLockedByState() const
 {
 	const UPRAbilitySystemComponent* ASC = GetPRAbilitySystemComponent();
@@ -912,25 +947,52 @@ void APRPlayerCharacter::ApplyEquipmentVisualsFromManager()
 
 void APRPlayerCharacter::CacheDefaultEquipmentMeshes()
 {
-	// 기본 메시 프로퍼티가 비어 있으면 현재 BP 파츠 메시를 해제 복원값으로 사용
-	if (!IsValid(DefaultHeadMesh.Get()) && IsValid(Mesh_Head))
+	if (!bDefaultHeadMeshCached)
 	{
-		DefaultHeadMesh = Mesh_Head->GetSkeletalMeshAsset();
+		if (!IsValid(DefaultHeadMesh.Get()) && IsValid(Mesh_Head))
+		{
+			// BP 기본 머리 파츠 메시의 해제 복원값
+			DefaultHeadMesh = Mesh_Head->GetSkeletalMeshAsset();
+		}
+
+		// 기본 머리 메시 없음 상태의 캐시 완료 기록
+		bDefaultHeadMeshCached = true;
 	}
 
-	if (!IsValid(DefaultBodyMesh.Get()) && IsValid(Mesh_Body))
+	if (!bDefaultBodyMeshCached)
 	{
-		DefaultBodyMesh = Mesh_Body->GetSkeletalMeshAsset();
+		if (!IsValid(DefaultBodyMesh.Get()) && IsValid(Mesh_Body))
+		{
+			// BP 기본 몸통 파츠 메시의 해제 복원값
+			DefaultBodyMesh = Mesh_Body->GetSkeletalMeshAsset();
+		}
+
+		// 기본 몸통 메시 없음 상태의 캐시 완료 기록
+		bDefaultBodyMeshCached = true;
 	}
 
-	if (!IsValid(DefaultHandsMesh.Get()) && IsValid(Mesh_Hands))
+	if (!bDefaultHandsMeshCached)
 	{
-		DefaultHandsMesh = Mesh_Hands->GetSkeletalMeshAsset();
+		if (!IsValid(DefaultHandsMesh.Get()) && IsValid(Mesh_Hands))
+		{
+			// BP 기본 손 파츠 메시의 해제 복원값
+			DefaultHandsMesh = Mesh_Hands->GetSkeletalMeshAsset();
+		}
+
+		// 기본 손 메시 없음 상태의 캐시 완료 기록
+		bDefaultHandsMeshCached = true;
 	}
 
-	if (!IsValid(DefaultLegsMesh.Get()) && IsValid(Mesh_Legs))
+	if (!bDefaultLegsMeshCached)
 	{
-		DefaultLegsMesh = Mesh_Legs->GetSkeletalMeshAsset();
+		if (!IsValid(DefaultLegsMesh.Get()) && IsValid(Mesh_Legs))
+		{
+			// BP 기본 다리 파츠 메시의 해제 복원값
+			DefaultLegsMesh = Mesh_Legs->GetSkeletalMeshAsset();
+		}
+
+		// 기본 다리 메시 없음 상태의 캐시 완료 기록
+		bDefaultLegsMeshCached = true;
 	}
 }
 
@@ -960,6 +1022,8 @@ void APRPlayerCharacter::ApplyEquipmentVisual(EPREquipmentSlotType SlotType, con
 
 	if (!IsValid(MeshToApply))
 	{
+		// 기본 메시가 없는 해제 파츠의 잔여 메시 제거
+		PartMeshComponent->SetSkeletalMesh(nullptr);
 		return;
 	}
 

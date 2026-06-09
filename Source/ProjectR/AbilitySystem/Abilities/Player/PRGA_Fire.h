@@ -48,10 +48,10 @@ public:
 	// 로컬 화면 Viewpoint 추출
 	virtual FPRFireViewpoint GetFireViewpoint() const;
 
-	// 1차 트레이스: 카메라에서 조준 방향으로 트레이스해 조준 끝점(월드 좌표)을 산출한다
-	virtual FVector ResolveAimPoint(const FPRFireViewpoint& View, float InTraceDistance) const;
+	// 1차 트레이스: 카메라에서 조준 방향으로 트레이스해 조준 끝점과 카메라 HitResult 산출
+	virtual FVector ResolveAimPoint(const FPRFireViewpoint& View, float InTraceDistance, FHitResult* OutCameraHitResult = nullptr) const;
 
-	// 2차 트레이스: 총구에서 조준 끝점으로 트레이스해 실제 발사 히트 결과를 산출한다
+	// 2차 트레이스: 총구에서 조준 끝점으로 트레이스해 실제 발사 히트 결과 산출
 	virtual FHitResult PerformMuzzleTrace(const FVector& MuzzleLoc, const FVector& AimPoint) const;
 	void SendRecoilEvent();
 
@@ -88,7 +88,7 @@ protected:
 	virtual void ApplyDamageFromShot(const FPRFireShotPayload& Payload);
 
 	// 히트스캔 발사 결과를 Trail FX Payload로 변환해 예측 재생과 서버 전파 요청
-	void PlayFireFX_Trail(const FVector& StartLocation, const FVector& EndLocation, bool bBlockingHit);
+	void PlayFireFX_Trail(const FVector& StartLocation, const FVector& EndLocation, const FHitResult* HitResult);
 	
 	// Trail 없는 FireFX
 	void PlayFireFX();

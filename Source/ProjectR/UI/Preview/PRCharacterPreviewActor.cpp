@@ -390,12 +390,15 @@ void APRCharacterPreviewActor::RefreshCharacterPartMesh(USkeletalMeshComponent* 
 	{
 		PreviewPartMeshComponent->SetSkeletalMesh(nullptr);
 		PreviewPartMeshComponent->SetVisibility(false, true);
+		PreviewPartMeshComponent->MarkRenderStateDirty();
+		PreviewPartMeshComponent->UpdateBounds();
 		return;
 	}
 
 	// 플레이어 캐릭터 파츠 컴포넌트에 이미 적용된 최종 메시 복사
 	PreviewPartMeshComponent->SetSkeletalMesh(SourcePartMeshComponent->GetSkeletalMeshAsset());
 	PreviewPartMeshComponent->SetVisibility(SourcePartMeshComponent->IsVisible(), true);
+	PreviewPartMeshComponent->MarkRenderStateDirty();
 	PreviewPartMeshComponent->UpdateBounds();
 }
 

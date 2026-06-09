@@ -29,6 +29,7 @@
 #include "ProjectR/UI/Inventory/PRInventoryItemListWidget.h"
 #include "ProjectR/UI/Inventory/PRInventoryItemSlotViewDataBuilder.h"
 #include "ProjectR/UI/Inventory/PRItemSlotWidget.h"
+#include "ProjectR/UI/Growth/PRPlayerStatsPanelWidget.h"
 #include "ProjectR/UI/Preview/PRCharacterPreviewWidget.h"
 #include "ProjectR/UI/PRUIManagerSubsystem.h"
 
@@ -51,6 +52,7 @@ void UPRInventoryWidget::SetInventorySources(UPRInventoryComponent* InInventoryC
 	BindInventorySourceEvents();
 	RefreshInventoryView();
 	RefreshCharacterPreviewWidget();
+	RefreshPlayerStatsPanelWidget();
 }
 
 /*~ UUserWidget Interface ~*/
@@ -69,6 +71,8 @@ void UPRInventoryWidget::NativeConstruct()
 	CloseItemList();
 	// 인벤토리 화면 갱신
 	RefreshInventoryView();
+	// 플레이어 성장 스탯 패널 갱신
+	RefreshPlayerStatsPanelWidget();
 }
 
 void UPRInventoryWidget::NativeDestruct()
@@ -851,6 +855,17 @@ void UPRInventoryWidget::RefreshCharacterPreviewWidget()
 
 	APRPlayerCharacter* SourceCharacter = GetPreviewSourceCharacter();
 	CharacterPreviewWidget->SetPreviewSources(SourceCharacter, WeaponManagerComponent);
+}
+
+void UPRInventoryWidget::RefreshPlayerStatsPanelWidget()
+{
+	if (!IsValid(PlayerStatsPanelWidget))
+	{
+		return;
+	}
+
+	APRPlayerState* PlayerState = IsValid(InventoryComponent) ? Cast<APRPlayerState>(InventoryComponent->GetOwner()) : nullptr;
+	PlayerStatsPanelWidget->SetPlayerStateSource(PlayerState);
 }
 
 APRPlayerCharacter* UPRInventoryWidget::GetPreviewSourceCharacter() const

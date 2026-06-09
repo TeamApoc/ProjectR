@@ -21,6 +21,7 @@
 #include "ProjectR/UI/HUD/PRStaminaBarWidget.h"
 #include "ProjectR/UI/HUD/PRQuickSlotWidget.h"
 #include "ProjectR/UI/Growth/PRLevelUpPopupWidget.h"
+#include "ProjectR/UI/Growth/PRTraitNotiTextWidget.h"
 #include "ProjectR/UI/WeaponStatusHUD/PRWeaponHUDWidget.h"
 
 UPRHUDWidget::UPRHUDWidget()
@@ -194,6 +195,11 @@ void UPRHUDWidget::OnPlayerReady()
 	if (IsValid(PlayerStaminaBar))
 	{
 		PlayerStaminaBar->RefreshStaminaFromOwner();
+	}
+
+	if (IsValid(TraitNotiTextWidget))
+	{
+		TraitNotiTextWidget->RefreshTraitPointFromOwner();
 	}
 
 	if (IsValid(PartyHealthList))

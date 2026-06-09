@@ -191,14 +191,6 @@ protected:
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "ProjectR|StartMenu")
 	TObjectPtr<UTextBlock> SessionStatusText;
 
-	// 호스트 시작 시 사용할 기본 맵
-	UPROPERTY(EditDefaultsOnly, Category = "ProjectR|StartMenu")
-	FName HostMapName = TEXT("L_Playground");
-
-	// 호스트 시작 시 허용할 최대 인원
-	UPROPERTY(EditDefaultsOnly, Category = "ProjectR|StartMenu", meta = (ClampMin = "1"))
-	int32 HostMaxPlayers = 4;
-
 	// UMG에서 바인딩할 주무기 슬롯 위젯
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "ProjectR|StartMenu")
 	TObjectPtr<UPRItemSlotWidget> PrimaryWeaponSlotWidget;

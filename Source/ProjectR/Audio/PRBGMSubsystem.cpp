@@ -96,15 +96,22 @@ void UPRBGMSubsystem::StopBGM(float FadeOutDuration)
 {
 	if (IsValid(CurrentAudioComponent))
 	{
+		ClearCurrentAudioFinishedBinding(CurrentAudioComponent);
 		FadeOutAndDestroyAudioComponent(CurrentAudioComponent, FadeOutDuration);
 	}
 
 	CurrentAudioComponent = nullptr;
 	CurrentSound = nullptr;
 	CurrentState = EPRBGMState::None;
+	CurrentSection = EPRBGMSection::Loop;
 }
 
 void UPRBGMSubsystem::SetBGMState(EPRBGMState NewState)
+{
+	PlayBGMStateSection(NewState, EPRBGMSection::Loop, false);
+}
+
+void UPRBGMSubsystem::PlayBGMStateSection(EPRBGMState NewState, EPRBGMSection Section, bool bForceRestartSameSound)
 {
 	if (NewState == EPRBGMState::None)
 	{
@@ -133,24 +140,62 @@ void UPRBGMSubsystem::SetBGMState(EPRBGMState NewState)
 		return;
 	}
 
-	USoundBase* Sound = LoadTrackSound(Track);
+	USoundBase* Sound = LoadTrackSound(Track, Section);
 	if (!IsValid(Sound))
 	{
 		return;
 	}
 
-	if (CurrentState == NewState && IsValid(CurrentAudioComponent))
+	if (CurrentState == NewState && CurrentSection == Section && IsValid(CurrentAudioComponent) && !bForceRestartSameSound)
 	{
 		return;
 	}
 
-	if (CurrentSound.Get() == Sound && IsValid(CurrentAudioComponent))
+	if (CurrentSound.Get() == Sound && CurrentSection == Section && IsValid(CurrentAudioComponent) && !bForceRestartSameSound)
 	{
 		CurrentState = NewState;
+		CurrentSection = Section;
 		return;
 	}
 
-	PlayTrack(NewState, Track);
+	PlayTrack(NewState, Track, Section, Track.StartTime, Track.FadeInDuration, Track.FadeOutDuration, bForceRestartSameSound);
+}
+
+void UPRBGMSubsystem::PlayPatternCue(FGameplayTag CueTag)
+{
+	if (!CueTag.IsValid())
+	{
+		return;
+	}
+
+	if (!bHasCurrentLevelEntry && !TryCacheCurrentLevelEntry())
+	{
+		return;
+	}
+
+	FPRBGMTrack Track;
+	if (!UPRBGMRegistryDataAsset::TryGetTrackForState(CurrentLevelEntry, CurrentState, Track))
+	{
+		return;
+	}
+
+	for (const FPRBGMPatternCue& PatternCue : Track.PatternCues)
+	{
+		if (!PatternCue.CueTag.MatchesTagExact(CueTag))
+		{
+			continue;
+		}
+
+		PlayTrack(
+			CurrentState,
+			Track,
+			EPRBGMSection::Loop,
+			PatternCue.StartTime,
+			PatternCue.FadeInDuration,
+			PatternCue.FadeOutDuration,
+			PatternCue.bForceRestartSameSound);
+		return;
+	}
 }
 
 void UPRBGMSubsystem::RestoreDefaultLevelBGM()
@@ -166,6 +211,12 @@ void UPRBGMSubsystem::RestoreDefaultLevelBGM()
 	}
 
 	SetBGMState(CurrentLevelEntry.DefaultState);
+}
+
+void UPRBGMSubsystem::ResetToLevelBGM(float FadeOutDuration)
+{
+	StopBGM(FMath::Max(FadeOutDuration, 0.0f));
+	StartLevelBGM();
 }
 
 /*~ 레벨 데이터 ~*/
@@ -208,34 +259,66 @@ bool UPRBGMSubsystem::TryCacheCurrentLevelEntry()
 	return true;
 }
 
-USoundBase* UPRBGMSubsystem::LoadTrackSound(const FPRBGMTrack& Track) const
+USoundBase* UPRBGMSubsystem::LoadTrackSound(const FPRBGMTrack& Track, EPRBGMSection Section) const
 {
+	switch (Section)
+	{
+	case EPRBGMSection::Intro:
+		if (!Track.IntroSound.IsNull())
+		{
+			return Track.IntroSound.LoadSynchronous();
+		}
+		break;
+	case EPRBGMSection::Outro:
+		if (!Track.OutroSound.IsNull())
+		{
+			return Track.OutroSound.LoadSynchronous();
+		}
+		return Track.Sound.LoadSynchronous();
+	case EPRBGMSection::Loop:
+	default:
+		break;
+	}
+
+	if (!Track.LoopSound.IsNull())
+	{
+		return Track.LoopSound.LoadSynchronous();
+	}
+
 	return Track.Sound.LoadSynchronous();
 }
 
 /*~ 오디오 재생 ~*/
 
-void UPRBGMSubsystem::PlayTrack(EPRBGMState NewState, const FPRBGMTrack& Track)
+bool UPRBGMSubsystem::PlayTrack(EPRBGMState NewState, const FPRBGMTrack& Track, EPRBGMSection Section, float StartTime, float FadeInDuration, float FadeOutDuration, bool bForceRestartSameSound)
 {
-	USoundBase* Sound = LoadTrackSound(Track);
+	USoundBase* Sound = LoadTrackSound(Track, Section);
 	if (!IsValid(Sound))
 	{
-		return;
+		return false;
+	}
+
+	if (CurrentSound.Get() == Sound && CurrentSection == Section && IsValid(CurrentAudioComponent) && !bForceRestartSameSound)
+	{
+		CurrentState = NewState;
+		CurrentSection = Section;
+		return true;
 	}
 
 	UWorld* World = GetWorld();
 	if (!IsValid(World))
 	{
-		return;
+		return false;
 	}
 
 	UAudioComponent* PreviousAudioComponent = CurrentAudioComponent;
+	ClearCurrentAudioFinishedBinding(PreviousAudioComponent);
 	CurrentAudioComponent = UGameplayStatics::SpawnSound2D(
 		World,
 		Sound,
 		FMath::Max(Track.VolumeMultiplier, 0.0f),
 		1.0f,
-		FMath::Max(Track.StartTime, 0.0f),
+		FMath::Max(StartTime, 0.0f),
 		nullptr,
 		false,
 		false);
@@ -243,22 +326,60 @@ void UPRBGMSubsystem::PlayTrack(EPRBGMState NewState, const FPRBGMTrack& Track)
 	if (!IsValid(CurrentAudioComponent))
 	{
 		CurrentAudioComponent = PreviousAudioComponent;
-		return;
+		return false;
 	}
 
 	CurrentAudioComponent->FadeIn(
-		FMath::Max(Track.FadeInDuration, 0.0f),
+		FMath::Max(FadeInDuration, 0.0f),
 		FMath::Max(Track.VolumeMultiplier, 0.0f),
-		FMath::Max(Track.StartTime, 0.0f));
+		FMath::Max(StartTime, 0.0f));
 
 	if (IsValid(PreviousAudioComponent))
 	{
-		FadeOutAndDestroyAudioComponent(PreviousAudioComponent, Track.FadeOutDuration);
+		FadeOutAndDestroyAudioComponent(PreviousAudioComponent, FadeOutDuration);
 	}
 
 	CurrentSound = Sound;
 	CurrentState = NewState;
+	CurrentSection = Section;
+	RefreshCurrentAudioFinishedBinding();
 	CleanupFadingAudioComponents();
+	return true;
+}
+
+void UPRBGMSubsystem::RefreshCurrentAudioFinishedBinding()
+{
+	if (!IsValid(CurrentAudioComponent))
+	{
+		return;
+	}
+
+	CurrentAudioComponent->OnAudioFinished.RemoveDynamic(this, &ThisClass::HandleCurrentAudioFinished);
+	CurrentAudioComponent->OnAudioFinished.AddDynamic(this, &ThisClass::HandleCurrentAudioFinished);
+}
+
+void UPRBGMSubsystem::ClearCurrentAudioFinishedBinding(UAudioComponent* AudioComponent)
+{
+	if (!IsValid(AudioComponent))
+	{
+		return;
+	}
+
+	AudioComponent->OnAudioFinished.RemoveDynamic(this, &ThisClass::HandleCurrentAudioFinished);
+}
+
+void UPRBGMSubsystem::HandleCurrentAudioFinished()
+{
+	if (CurrentSection == EPRBGMSection::Intro)
+	{
+		PlayBGMStateSection(CurrentState, EPRBGMSection::Loop, true);
+		return;
+	}
+
+	if (CurrentState == EPRBGMState::Victory && CurrentSection == EPRBGMSection::Outro)
+	{
+		ResetToLevelBGM(0.0f);
+	}
 }
 
 void UPRBGMSubsystem::FadeOutAndDestroyAudioComponent(UAudioComponent* AudioComponent, float FadeOutDuration)
@@ -483,6 +604,13 @@ void UPRBGMSubsystem::BindBossBGMEvents()
 			PRGameplayTags::Event_Boss_BGMPhasePreview,
 			FPREventMulticast::FDelegate::CreateUObject(this, &ThisClass::HandleBossPhaseChangedEvent));
 	}
+
+	if (!BossBGMPatternCueDelegateHandle.IsValid())
+	{
+		BossBGMPatternCueDelegateHandle = EventMgr->Listen(
+			PRGameplayTags::Event_Boss_BGMPatternCue,
+			FPREventMulticast::FDelegate::CreateUObject(this, &ThisClass::HandleBossBGMPatternCueEvent));
+	}
 }
 
 void UPRBGMSubsystem::UnbindBossBGMEvents()
@@ -494,6 +622,7 @@ void UPRBGMSubsystem::UnbindBossBGMEvents()
 		BossEncounterEndDelegateHandle.Reset();
 		BossPhaseChangedDelegateHandle.Reset();
 		BossBGMPhasePreviewDelegateHandle.Reset();
+		BossBGMPatternCueDelegateHandle.Reset();
 		return;
 	}
 
@@ -504,6 +633,7 @@ void UPRBGMSubsystem::UnbindBossBGMEvents()
 		BossEncounterEndDelegateHandle.Reset();
 		BossPhaseChangedDelegateHandle.Reset();
 		BossBGMPhasePreviewDelegateHandle.Reset();
+		BossBGMPatternCueDelegateHandle.Reset();
 		return;
 	}
 
@@ -511,6 +641,7 @@ void UPRBGMSubsystem::UnbindBossBGMEvents()
 	EventMgr->Unlisten(PRGameplayTags::Event_Boss_Encounter_End, BossEncounterEndDelegateHandle);
 	EventMgr->Unlisten(PRGameplayTags::Event_Boss_PhaseChanged, BossPhaseChangedDelegateHandle);
 	EventMgr->Unlisten(PRGameplayTags::Event_Boss_BGMPhasePreview, BossBGMPhasePreviewDelegateHandle);
+	EventMgr->Unlisten(PRGameplayTags::Event_Boss_BGMPatternCue, BossBGMPatternCueDelegateHandle);
 }
 
 void UPRBGMSubsystem::HandleBossEncounterBeginEvent(FGameplayTag EventTag, const FInstancedStruct& Payload)
@@ -521,13 +652,13 @@ void UPRBGMSubsystem::HandleBossEncounterBeginEvent(FGameplayTag EventTag, const
 		return;
 	}
 
-	SetBGMState(MapBossPhaseToBGMState(EncounterPayload->Boss->GetCurrentPhase()));
+	PlayBGMStateSection(MapBossPhaseToBGMState(EncounterPayload->Boss->GetCurrentPhase()), EPRBGMSection::Intro, false);
 }
 
 void UPRBGMSubsystem::HandleBossEncounterEndEvent(FGameplayTag EventTag, const FInstancedStruct& Payload)
 {
 	const EPRBGMState PreviousState = CurrentState;
-	SetBGMState(EPRBGMState::Victory);
+	PlayBGMStateSection(EPRBGMState::Victory, EPRBGMSection::Outro, false);
 
 	if (IsBossPhaseState(PreviousState) && IsBossPhaseState(CurrentState))
 	{
@@ -544,6 +675,17 @@ void UPRBGMSubsystem::HandleBossPhaseChangedEvent(FGameplayTag EventTag, const F
 	}
 
 	SetBGMState(MapBossPhaseToBGMState(PhasePayload->NewPhase));
+}
+
+void UPRBGMSubsystem::HandleBossBGMPatternCueEvent(FGameplayTag EventTag, const FInstancedStruct& Payload)
+{
+	const FPRBossBGMPatternCueEventPayload* CuePayload = Payload.GetPtr<FPRBossBGMPatternCueEventPayload>();
+	if (!CuePayload || !IsValid(CuePayload->Boss))
+	{
+		return;
+	}
+
+	PlayPatternCue(CuePayload->CueTag);
 }
 
 bool UPRBGMSubsystem::IsBossPhaseState(EPRBGMState State) const

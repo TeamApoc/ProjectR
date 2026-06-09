@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "GameplayTagContainer.h"
 #include "Net/UnrealNetwork.h"
 #include "ProjectR/AbilitySystem/Data/PRAbilitySet.h"
 #include "ProjectR/AI/PREnemyAITypes.h"
@@ -52,6 +53,20 @@ struct PROJECTR_API FPRBossPhaseChangedEventPayload : public FPREventPayload
 	EPRBossPhase NewPhase = EPRBossPhase::Phase1;
 };
 
+USTRUCT(BlueprintType)
+struct PROJECTR_API FPRBossBGMPatternCueEventPayload : public FPREventPayload
+{
+	GENERATED_BODY()
+
+	// BGM Cue를 발생시킨 보스 인스턴스
+	UPROPERTY(BlueprintReadWrite)
+	TObjectPtr<APRBossBaseCharacter> Boss = nullptr;
+
+	// DataAsset PatternCues와 매칭할 Cue 태그
+	UPROPERTY(BlueprintReadWrite)
+	FGameplayTag CueTag;
+};
+
 // 보스 몬스터 공통 베이스다.
 // 일반 적 베이스 위에 페이즈 상태, 페이즈별 AbilitySet, 체력 비율 기반 전환을 얹는다.
 UCLASS(Abstract)
@@ -99,6 +114,13 @@ public:
 	UFUNCTION(NetMulticast, Reliable)
 	void Multicast_BroadcastBossBGMPhasePreview(EPRBossPhase PreviewPhase);
 
+	// BGM 특수패턴 Cue를 각 머신의 EventManager로 발행
+	void BroadcastBossBGMPatternCue(FGameplayTag CueTag);
+
+	// 각 머신의 EventManager로 BGM 특수패턴 Cue 이벤트를 발행
+	UFUNCTION(NetMulticast, Reliable)
+	void Multicast_BroadcastBossBGMPatternCue(FGameplayTag CueTag);
+
 	// 보스가 생성한 지속형 패턴 Actor를 활성 목록에 등록한다.
 	UFUNCTION(BlueprintCallable, Category = "ProjectR|AI|Boss")
 	void RegisterBossPatternActor(APRBossPatternActor* Actor);
@@ -136,6 +158,9 @@ protected:
 
 	// EventManager로 보스 BGM 페이즈 예고를 발행
 	void BroadcastBossBGMPhasePreviewEvent(EPRBossPhase PreviewPhase);
+
+	// EventManager로 보스 BGM 특수패턴 Cue 발행
+	void BroadcastBossBGMPatternCueEvent(FGameplayTag CueTag);
 
 	UFUNCTION()
 	void OnRep_CurrentPhase(EPRBossPhase OldPhase);

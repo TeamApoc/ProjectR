@@ -3,10 +3,16 @@
 #include "ProjectR/UI/HUD/PRHealthBarWidget.h"
 
 #include "AbilitySystemComponent.h"
+#include "Components/ContentWidget.h"
+#include "Components/Image.h"
 #include "Components/OverlaySlot.h"
+#include "Components/PanelWidget.h"
 #include "Components/SizeBox.h"
+#include "GameFramework/GameStateBase.h"
 #include "GameFramework/PlayerController.h"
 #include "GameplayEffectTypes.h"
+#include "Materials/MaterialInstanceDynamic.h"
+#include "ProjectR/PRGameplayTags.h"
 #include "ProjectR/AbilitySystem/AttributeSets/PRAttributeSet_Common.h"
 #include "ProjectR/AbilitySystem/AttributeSets/PRAttributeSet_Player.h"
 #include "ProjectR/Player/PRPlayerState.h"
@@ -26,6 +32,10 @@ void UPRHealthBarWidget::NativeConstruct()
 {
 	Super::NativeConstruct();
 
+	CacheFillMaterials();
+	CacheHealthFillOriginalTint();
+	ApplyDownGaugeTint();
+
 	if (PresentationMode == EPRHealthBarPresentationMode::LocalPlayer)
 	{
 		CurrentBindRetryCount = 0;
@@ -41,6 +51,7 @@ void UPRHealthBarWidget::NativeDestruct()
 	}
 
 	UnbindFromAbilitySystem();
+	ResetFillMaterials();
 
 	Super::NativeDestruct();
 }
@@ -49,7 +60,9 @@ void UPRHealthBarWidget::NativeTick(const FGeometry& MyGeometry, float InDeltaTi
 {
 	Super::NativeTick(MyGeometry, InDeltaTime);
 
-	if (PresentationMode == EPRHealthBarPresentationMode::PartyMember || !bIsDelayedLayerActive)
+	RefreshDownGaugeFromPlayerState(false);
+
+	if (bIsDownGaugeActive || PresentationMode == EPRHealthBarPresentationMode::PartyMember || !bIsDelayedLayerActive)
 	{
 		return;
 	}
@@ -71,6 +84,7 @@ void UPRHealthBarWidget::NativeTick(const FGeometry& MyGeometry, float InDeltaTi
 
 void UPRHealthBarWidget::InitializeFromAbilitySystem(UAbilitySystemComponent* InAbilitySystemComponent)
 {
+	CachedPlayerState.Reset();
 	BindToAbilitySystem(InAbilitySystemComponent);
 }
 
@@ -82,6 +96,7 @@ void UPRHealthBarWidget::InitializeFromPlayerState(APRPlayerState* InPlayerState
 		return;
 	}
 
+	CachedPlayerState = InPlayerState;
 	BindToAbilitySystem(InPlayerState->GetAbilitySystemComponent());
 }
 
@@ -112,15 +127,22 @@ void UPRHealthBarWidget::SetPresentationMode(EPRHealthBarPresentationMode InMode
 void UPRHealthBarWidget::ClearHealthSource()
 {
 	UnbindFromAbilitySystem();
+	CachedPlayerState.Reset();
 	CurrentHealth = 0.0f;
 	CurrentMaxHealth = 0.0f;
 	CurrentRecoverableHealth = 0.0f;
 	CurrentPercent = 0.0f;
 	RecoverableEndPercent = 0.0f;
 	DelayedPercent = 0.0f;
+	DownRemainingSeconds = 0.0f;
+	DownRemainingPercent = 0.0f;
+	DownDurationSeconds = 0.0f;
 	bIsDelayedLayerActive = false;
+	bIsDownGaugeActive = false;
 	ApplyDisplayedPercentsToFill();
+	ApplyDownGaugeTint();
 	BP_OnHealthLayersChanged(CurrentPercent, RecoverableEndPercent, DelayedPercent, CurrentHealth, CurrentRecoverableHealth, CurrentMaxHealth);
+	BP_OnDownGaugeChanged(false, DownRemainingPercent, DownRemainingSeconds, DownDurationSeconds);
 }
 
 /*~ Binding ~*/
@@ -141,6 +163,7 @@ void UPRHealthBarWidget::TryBindToOwnerAbilitySystem()
 		return;
 	}
 
+	CachedPlayerState = PlayerState;
 	BindToAbilitySystem(PlayerState->GetAbilitySystemComponent());
 }
 
@@ -226,6 +249,91 @@ void UPRHealthBarWidget::RefreshHealthFromAbilitySystem()
 		: 0.0f;
 
 	RefreshLayerPercents(true);
+	RefreshDownGaugeFromPlayerState(true);
+}
+
+void UPRHealthBarWidget::RefreshDownGaugeFromPlayerState(bool bForceBroadcast)
+{
+	APRPlayerState* PlayerState = CachedPlayerState.Get();
+	const float PreviousRemainingPercent = DownRemainingPercent;
+	const float PreviousRemainingSeconds = DownRemainingSeconds;
+	const float PreviousDurationSeconds = DownDurationSeconds;
+	const bool bWasDownGaugeActive = bIsDownGaugeActive;
+	const bool bIsDeadHealthSource = IsDeadHealthSource();
+	const bool bHadVisibleSecondaryLayer = bIsDelayedLayerActive
+		|| DelayedPercent > UE_SMALL_NUMBER
+		|| RecoverableEndPercent > UE_SMALL_NUMBER
+		|| CurrentRecoverableHealth > UE_SMALL_NUMBER;
+
+	DownRemainingSeconds = 0.0f;
+	DownRemainingPercent = 0.0f;
+	DownDurationSeconds = 0.0f;
+	bIsDownGaugeActive = false;
+
+	if (!bIsDeadHealthSource && IsValid(PlayerState))
+	{
+		const FPRPlayerDownTimerInfo& DownTimerInfo = PlayerState->GetDownTimerInfo();
+		if (DownTimerInfo.bIsActive && DownTimerInfo.DurationSeconds > UE_SMALL_NUMBER)
+		{
+			const float ServerWorldTimeSeconds = ResolveServerWorldTimeSeconds();
+			DownRemainingSeconds = PlayerState->GetDownRemainingSeconds(ServerWorldTimeSeconds);
+			DownRemainingPercent = PlayerState->GetDownRemainingPercent(ServerWorldTimeSeconds);
+			DownDurationSeconds = DownTimerInfo.DurationSeconds;
+			bIsDownGaugeActive = (PlayerState->IsDown() || DownTimerInfo.bIsActive) && DownRemainingSeconds > 0.0f;
+		}
+	}
+
+	if (bIsDeadHealthSource)
+	{
+		CurrentRecoverableHealth = 0.0f;
+		RecoverableEndPercent = 0.0f;
+		DelayedPercent = 0.0f;
+		bIsDelayedLayerActive = false;
+	}
+
+	const bool bChanged = bForceBroadcast
+		|| bWasDownGaugeActive != bIsDownGaugeActive
+		|| (bIsDeadHealthSource && bHadVisibleSecondaryLayer)
+		|| !FMath::IsNearlyEqual(PreviousRemainingPercent, DownRemainingPercent, 0.001f)
+		|| !FMath::IsNearlyEqual(PreviousRemainingSeconds, DownRemainingSeconds, 0.01f)
+		|| !FMath::IsNearlyEqual(PreviousDurationSeconds, DownDurationSeconds, 0.01f);
+	if (!bChanged)
+	{
+		return;
+	}
+
+	if (bIsDownGaugeActive)
+	{
+		bIsDelayedLayerActive = false;
+	}
+
+	ApplyDisplayedPercentsToFill();
+	ApplyDownGaugeTint();
+	BP_OnDownGaugeChanged(bIsDownGaugeActive, DownRemainingPercent, DownRemainingSeconds, DownDurationSeconds);
+}
+
+float UPRHealthBarWidget::ResolveServerWorldTimeSeconds() const
+{
+	const UWorld* World = GetWorld();
+	if (!IsValid(World))
+	{
+		return 0.0f;
+	}
+
+	const AGameStateBase* GameState = World->GetGameState();
+	return IsValid(GameState) ? GameState->GetServerWorldTimeSeconds() : World->GetTimeSeconds();
+}
+
+bool UPRHealthBarWidget::IsDeadHealthSource() const
+{
+	const APRPlayerState* PlayerState = CachedPlayerState.Get();
+	if (IsValid(PlayerState) && PlayerState->IsDead())
+	{
+		return true;
+	}
+
+	const UAbilitySystemComponent* AbilitySystemComponent = CachedAbilitySystemComponent.Get();
+	return IsValid(AbilitySystemComponent) && AbilitySystemComponent->HasMatchingGameplayTag(PRGameplayTags::State_Dead);
 }
 
 void UPRHealthBarWidget::RefreshLayerPercents(bool bForceDelayedPercent)
@@ -238,7 +346,15 @@ void UPRHealthBarWidget::RefreshLayerPercents(bool bForceDelayedPercent)
 		? FMath::Clamp((CurrentHealth + CurrentRecoverableHealth) / CurrentMaxHealth, 0.0f, 1.0f)
 		: 0.0f;
 
-	if (PresentationMode == EPRHealthBarPresentationMode::PartyMember)
+	if (IsDeadHealthSource())
+	{
+		CurrentRecoverableHealth = 0.0f;
+		CurrentPercent = 0.0f;
+		RecoverableEndPercent = 0.0f;
+		DelayedPercent = 0.0f;
+		bIsDelayedLayerActive = false;
+	}
+	else if (PresentationMode == EPRHealthBarPresentationMode::PartyMember)
 	{
 		CurrentRecoverableHealth = 0.0f;
 		RecoverableEndPercent = CurrentPercent;
@@ -269,6 +385,7 @@ void UPRHealthBarWidget::RefreshLayerPercents(bool bForceDelayedPercent)
 void UPRHealthBarWidget::ApplyDisplayedPercentsToFill()
 {
 	ApplyBarLayoutWidths();
+	CacheFillMaterials();
 
 	const float MaxFillWidth = GetMaxFillWidth();
 	const float RecoverableFillPercent = PresentationMode == EPRHealthBarPresentationMode::PartyMember
@@ -277,21 +394,14 @@ void UPRHealthBarWidget::ApplyDisplayedPercentsToFill()
 	const float DelayedFillPercent = PresentationMode == EPRHealthBarPresentationMode::PartyMember
 		? 0.0f
 		: DelayedPercent;
+	const bool bIsDeadHealthSource = IsDeadHealthSource();
+	const float CurrentFillPercent = bIsDeadHealthSource ? 0.0f : (bIsDownGaugeActive ? DownRemainingPercent : CurrentPercent);
+	const float DisplayRecoverableFillPercent = (bIsDeadHealthSource || bIsDownGaugeActive) ? 0.0f : RecoverableFillPercent;
+	const float DisplayDelayedFillPercent = (bIsDeadHealthSource || bIsDownGaugeActive) ? 0.0f : DelayedFillPercent;
 
-	if (USizeBox* FillSizeBox = GetCurrentFillSizeBox())
-	{
-		FillSizeBox->SetWidthOverride(MaxFillWidth * CurrentPercent);
-	}
-
-	if (USizeBox* FillSizeBox = GetRecoverableFillSizeBox())
-	{
-		FillSizeBox->SetWidthOverride(MaxFillWidth * RecoverableFillPercent);
-	}
-
-	if (USizeBox* FillSizeBox = GetDelayedFillSizeBox())
-	{
-		FillSizeBox->SetWidthOverride(MaxFillWidth * DelayedFillPercent);
-	}
+	ApplyLayerPercentToFill(GetCurrentFillSizeBox(), HealthFillMaterial, CurrentFillPercent, MaxFillWidth);
+	ApplyLayerPercentToFill(GetRecoverableFillSizeBox(), RecoverableFillMaterial, DisplayRecoverableFillPercent, MaxFillWidth);
+	ApplyLayerPercentToFill(GetDelayedFillSizeBox(), DelayedFillMaterial, DisplayDelayedFillPercent, MaxFillWidth);
 }
 
 void UPRHealthBarWidget::HandleHealthChanged(const FOnAttributeChangeData& ChangeData)
@@ -377,6 +487,88 @@ void UPRHealthBarWidget::ApplyBarLayoutWidths()
 	}
 }
 
+void UPRHealthBarWidget::CacheFillMaterials()
+{
+	if (!bUseMaterialFill)
+	{
+		ResetFillMaterials();
+		return;
+	}
+
+	if (!IsValid(HealthFillMaterial))
+	{
+		HealthFillMaterial = ResolveFillMaterial(ResolveFillImage(HealthFillImage.Get(), GetCurrentFillSizeBox()));
+	}
+
+	if (!IsValid(RecoverableFillMaterial))
+	{
+		RecoverableFillMaterial = ResolveFillMaterial(ResolveFillImage(RecoverableFillImage.Get(), GetRecoverableFillSizeBox()));
+	}
+
+	if (!IsValid(DelayedFillMaterial))
+	{
+		DelayedFillMaterial = ResolveFillMaterial(ResolveFillImage(DelayedFillImage.Get(), GetDelayedFillSizeBox()));
+	}
+}
+
+void UPRHealthBarWidget::CacheHealthFillOriginalTint()
+{
+	if (bHasCachedHealthFillOriginalTint)
+	{
+		return;
+	}
+
+	UImage* FillImage = ResolveFillImage(HealthFillImage.Get(), GetCurrentFillSizeBox());
+	if (!IsValid(FillImage))
+	{
+		return;
+	}
+
+	HealthFillOriginalTint = FillImage->GetBrush().TintColor;
+	bHasCachedHealthFillOriginalTint = true;
+}
+
+void UPRHealthBarWidget::ApplyDownGaugeTint()
+{
+	CacheHealthFillOriginalTint();
+
+	UImage* FillImage = ResolveFillImage(HealthFillImage.Get(), GetCurrentFillSizeBox());
+	if (!IsValid(FillImage))
+	{
+		return;
+	}
+
+	FSlateBrush FillBrush = FillImage->GetBrush();
+	FillBrush.TintColor = bIsDownGaugeActive ? FSlateColor(DownGaugeFillTint) : HealthFillOriginalTint;
+	FillImage->SetBrush(FillBrush);
+}
+
+void UPRHealthBarWidget::ResetFillMaterials()
+{
+	HealthFillMaterial = nullptr;
+	RecoverableFillMaterial = nullptr;
+	DelayedFillMaterial = nullptr;
+}
+
+void UPRHealthBarWidget::ApplyLayerPercentToFill(USizeBox* FillSizeBox, UMaterialInstanceDynamic* FillMaterial, float FillPercent, float MaxFillWidth)
+{
+	const float ClampedPercent = FMath::Clamp(FillPercent, 0.0f, 1.0f);
+	if (IsValid(FillMaterial) && !FillPercentParameterName.IsNone())
+	{
+		FillMaterial->SetScalarParameterValue(FillPercentParameterName, ClampedPercent);
+		if (IsValid(FillSizeBox))
+		{
+			FillSizeBox->SetWidthOverride(MaxFillWidth);
+		}
+		return;
+	}
+
+	if (IsValid(FillSizeBox))
+	{
+		FillSizeBox->SetWidthOverride(MaxFillWidth * ClampedPercent);
+	}
+}
+
 float UPRHealthBarWidget::GetBackBorderWidth() const
 {
 	return PresentationMode == EPRHealthBarPresentationMode::PartyMember ? PartyMemberMaxBarWidth : MaxBarWidth;
@@ -443,4 +635,61 @@ USizeBox* UPRHealthBarWidget::GetRecoverableFillSizeBox() const
 USizeBox* UPRHealthBarWidget::GetDelayedFillSizeBox() const
 {
 	return IsValid(DelayedFillSizeBox) ? DelayedFillSizeBox.Get() : nullptr;
+}
+
+UImage* UPRHealthBarWidget::ResolveFillImage(UImage* PreferredImage, USizeBox* FillSizeBox) const
+{
+	if (IsValid(PreferredImage))
+	{
+		return PreferredImage;
+	}
+
+	if (!IsValid(FillSizeBox))
+	{
+		return nullptr;
+	}
+
+	return FindImageInWidget(FillSizeBox->GetContent());
+}
+
+UImage* UPRHealthBarWidget::FindImageInWidget(UWidget* Widget) const
+{
+	if (!IsValid(Widget))
+	{
+		return nullptr;
+	}
+
+	if (UImage* Image = Cast<UImage>(Widget))
+	{
+		return Image;
+	}
+
+	if (UPanelWidget* PanelWidget = Cast<UPanelWidget>(Widget))
+	{
+		const int32 ChildrenCount = PanelWidget->GetChildrenCount();
+		for (int32 ChildIndex = 0; ChildIndex < ChildrenCount; ++ChildIndex)
+		{
+			if (UImage* Image = FindImageInWidget(PanelWidget->GetChildAt(ChildIndex)))
+			{
+				return Image;
+			}
+		}
+	}
+
+	if (UContentWidget* ContentWidget = Cast<UContentWidget>(Widget))
+	{
+		return FindImageInWidget(ContentWidget->GetContent());
+	}
+
+	return nullptr;
+}
+
+UMaterialInstanceDynamic* UPRHealthBarWidget::ResolveFillMaterial(UImage* FillImage) const
+{
+	if (!IsValid(FillImage))
+	{
+		return nullptr;
+	}
+
+	return FillImage->GetDynamicMaterial();
 }

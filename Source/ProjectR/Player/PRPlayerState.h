@@ -27,6 +27,25 @@ class UPRPlayerGrowthComponent;
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnMouseSensitivityChanged, float, NewSensitivity);
 
+// 다운 대기 시간 HUD 공유 상태
+USTRUCT(BlueprintType)
+struct FPRPlayerDownTimerInfo
+{
+	GENERATED_BODY()
+
+	// 다운 타이머 활성 여부
+	UPROPERTY(BlueprintReadOnly, Category = "ProjectR|Survival")
+	bool bIsActive = false;
+
+	// 다운 대기 총 시간
+	UPROPERTY(BlueprintReadOnly, Category = "ProjectR|Survival")
+	float DurationSeconds = 0.0f;
+
+	// 다운 종료 서버 월드 시간
+	UPROPERTY(BlueprintReadOnly, Category = "ProjectR|Survival")
+	float EndServerWorldTimeSeconds = 0.0f;
+};
+
 // 플레이어별 복제 데이터 소유. Player ASC + AttributeSet의 소유자
 // Inventory/Equipment 컴포넌트는 각 시스템 구현 시 본 클래스에 부착 예정
 UCLASS()
@@ -122,6 +141,24 @@ public:
 
 	// 현재 플레이어 Pawn에게 생존 상태 전환 이벤트를 보낸다.
 	void SendSurvivalGameplayEvent(const FGameplayTag& EventTag) const;
+
+	// 다운 타이머 HUD 공유 상태 시작
+	void StartDownTimerInfo(float DurationSeconds, float EndServerWorldTimeSeconds);
+
+	// 다운 타이머 HUD 공유 상태 정리
+	void ClearDownTimerInfo();
+
+	// 다운 타이머 HUD 공유 상태 반환
+	const FPRPlayerDownTimerInfo& GetDownTimerInfo() const { return DownTimerInfo; }
+
+	// 서버 월드 시간 기준 남은 다운 시간 반환
+	float GetDownRemainingSeconds(float ServerWorldTimeSeconds) const;
+
+	// 서버 월드 시간 기준 남은 다운 비율 반환
+	float GetDownRemainingPercent(float ServerWorldTimeSeconds) const;
+
+	// 다운 타이머 HUD 공유 상태 활성 여부 확인
+	bool IsDownTimerInfoActive() const { return DownTimerInfo.bIsActive; }
 	
 	// 리스폰 전 PlayerState와 소유 시스템의 런타임 상태 초기화
 	void ResetState();
@@ -175,6 +212,9 @@ protected:
 	
 	UFUNCTION()
 	void OnInventoryChanged(UPRInventoryComponent* InInventory, const FPRInventoryChangeEventData& EventData);
+
+	UFUNCTION()
+	void OnRep_DownTimerInfo();
 	
 public:
 	FOnMouseSensitivityChanged OnMouseSensitivityChanged;
@@ -201,6 +241,10 @@ protected:
 	// 스탯 업그레이드 정보
 	UPROPERTY(Replicated)
 	FPRCharacterStatUpgradeInfo StatUpgradeInfo;
+
+	// 다운 대기 시간 HUD 공유 상태
+	UPROPERTY(ReplicatedUsing = OnRep_DownTimerInfo, BlueprintReadOnly, Category = "ProjectR|Survival")
+	FPRPlayerDownTimerInfo DownTimerInfo;
 	
 	// ===== Components =====
 	// 플레이어 ASC. PlayerState에 부착

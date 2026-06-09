@@ -531,24 +531,32 @@ void UPRStartMenuWidget::HandleStartButtonClicked()
 	// HostSession과 JoinSession의 즉시 실패 이벤트 전까지 중복 클릭 차단
 	RefreshStartButtonEnabled(false);
 
-	if (Address.IsEmpty())
+	// 메뉴 월드의 세션 시작 정책 위임
+	APRMenuGameMode* MenuGameMode = GetWorld() ? GetWorld()->GetAuthGameMode<APRMenuGameMode>() : nullptr;
+	if (!IsValid(MenuGameMode))
 	{
-		FPRHostSessionParams HostParams;
-		// 세션 서브시스템 OpenLevel 경로에 전달할 리슨 서버 설정
-		HostParams.MapName = HostMapName;
-		HostParams.MaxPlayers = HostMaxPlayers;
-
-		RefreshSessionStatusText(FText::FromString(TEXT("세션 개설 중")));
-		GameInstance->HostSession(HostParams);
+		RefreshStartButtonEnabled(true);
+		RefreshSessionStatusText(FText::FromString(TEXT("게임 모드 오류")));
 		return;
 	}
 
-	FPRJoinSessionParams JoinParams;
-	// 세션 서브시스템 내부에서 IPv4 형식 검증과 기본 포트 보정 처리
-	JoinParams.Address = Address;
+	if (Address.IsEmpty())
+	{
+		RefreshSessionStatusText(FText::FromString(TEXT("세션 개설 중")));
+		if (!MenuGameMode->RequestStartSession(GetOwningPlayer(), Address))
+		{
+			RefreshStartButtonEnabled(true);
+			RefreshSessionStatusText(FText::FromString(TEXT("세션 개설 실패")));
+		}
+		return;
+	}
 
 	RefreshSessionStatusText(FText::FromString(TEXT("세션 참가 중")));
-	GameInstance->JoinSession(JoinParams);
+	if (!MenuGameMode->RequestStartSession(GetOwningPlayer(), Address))
+	{
+		RefreshStartButtonEnabled(true);
+		RefreshSessionStatusText(FText::FromString(TEXT("세션 참가 실패")));
+	}
 }
 
 void UPRStartMenuWidget::HandleDeleteSaveSlotButtonClicked()

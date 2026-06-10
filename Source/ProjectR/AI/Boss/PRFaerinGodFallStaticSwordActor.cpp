@@ -63,6 +63,24 @@ void APRFaerinGodFallStaticSwordActor::Tick(float DeltaSeconds)
 		return;
 	}
 
+	if (SwordState == EPRFaerinGodFallStaticSwordState::EntryOrbitStartDelay
+		|| SwordState == EPRFaerinGodFallStaticSwordState::EntryOrbitGathering
+		|| SwordState == EPRFaerinGodFallStaticSwordState::EntryOrbitPreSpinHold
+		|| SwordState == EPRFaerinGodFallStaticSwordState::EntryOrbiting
+		|| SwordState == EPRFaerinGodFallStaticSwordState::EntryOrbitPostSpinHold)
+	{
+		UpdateEntryOrbitMovement(DeltaSeconds);
+		RefreshSwordTickEnabled();
+		return;
+	}
+
+	if (SwordState == EPRFaerinGodFallStaticSwordState::EntryStraightening)
+	{
+		UpdateEntryStraightening(DeltaSeconds);
+		RefreshSwordTickEnabled();
+		return;
+	}
+
 	if (SwordState == EPRFaerinGodFallStaticSwordState::EntryDiving
 		|| SwordState == EPRFaerinGodFallStaticSwordState::EntryDiveReturning
 		|| SwordState == EPRFaerinGodFallStaticSwordState::Dropping
@@ -103,6 +121,8 @@ void APRFaerinGodFallStaticSwordActor::CancelPatternActor()
 
 	ClearSwordTimers();
 	bImpactWarningSpawned = false;
+	bEntryOrbitImpactDropActive = false;
+	bEntryOrbitImpactSpreadActive = false;
 	ResetSwordVisualTransform();
 	SetSwordState(EPRFaerinGodFallStaticSwordState::Cancelled);
 	MulticastGodFallSwordCancelled();
@@ -148,8 +168,11 @@ void APRFaerinGodFallStaticSwordActor::BeginCharging(const float ChargeSeconds)
 	PatternTarget = nullptr;
 	bHasAssignedAttackLocation = false;
 	bImpactWarningSpawned = false;
+	bEntryOrbitImpactDropActive = false;
+	bEntryOrbitImpactSpreadActive = false;
 	OverheadMoveSpeed = 0.0f;
 	ResetSwordVisualTransform();
+	SetActorRotation(FRotator::ZeroRotator);
 	ApplySwordPresentationLocation(HomeLocation);
 	MulticastSetSwordPresentationLocation(HomeLocation);
 	SetSwordState(EPRFaerinGodFallStaticSwordState::Charging);
@@ -176,6 +199,7 @@ void APRFaerinGodFallStaticSwordActor::FinishCharging()
 	}
 
 	ApplySwordPresentationLocation(HomeLocation);
+	SetActorRotation(FRotator::ZeroRotator);
 	MulticastSetSwordPresentationLocation(HomeLocation);
 	ResetSwordVisualTransform();
 	SetSwordState(EPRFaerinGodFallStaticSwordState::Charged);
@@ -201,6 +225,8 @@ bool APRFaerinGodFallStaticSwordActor::StartEntryDive(const float DiveDistance,
 	PatternTarget = nullptr;
 	bHasAssignedAttackLocation = false;
 	bImpactWarningSpawned = false;
+	bEntryOrbitImpactDropActive = false;
+	bEntryOrbitImpactSpreadActive = false;
 	EntryDiveReturnSeconds = FMath::Max(ReturnSeconds, 0.0f);
 	EntryDiveChargeSecondsAfterReturn = FMath::Max(ChargeSecondsAfterReturn, 0.0f);
 
@@ -218,6 +244,140 @@ bool APRFaerinGodFallStaticSwordActor::StartEntryDive(const float DiveDistance,
 	if (SegmentDurationSeconds <= UE_SMALL_NUMBER)
 	{
 		FinishEntryDiveDown();
+		return true;
+	}
+
+	RefreshSwordTickEnabled();
+	return true;
+}
+
+
+bool APRFaerinGodFallStaticSwordActor::StartEntryOrbit(
+	const FVector& OrbitCenterLocation,
+	const float StartDelaySeconds,
+	const float GatherDurationSeconds,
+	const float PreSpinHoldSeconds,
+	const float OrbitDurationSeconds,
+	const float PostSpinHoldSeconds)
+{
+	if (!HasAuthority()
+		|| !IsValid(GodFallData)
+		|| SwordState == EPRFaerinGodFallStaticSwordState::MovingToTargetOverhead
+		|| SwordState == EPRFaerinGodFallStaticSwordState::Telegraph
+		|| SwordState == EPRFaerinGodFallStaticSwordState::Dropping
+		|| SwordState == EPRFaerinGodFallStaticSwordState::Impact
+		|| SwordState == EPRFaerinGodFallStaticSwordState::Returning)
+	{
+		return false;
+	}
+
+	ClearSwordTimers();
+	PatternTarget = nullptr;
+	bHasAssignedAttackLocation = false;
+	bImpactWarningSpawned = false;
+	EntryOrbitCenterLocation = OrbitCenterLocation;
+	EntryOrbitCenterLocation.Z += GodFallData->EntryOrbitHeightOffset;
+	EntryOrbitGatherStartLocation = GetActorLocation();
+	EntryOrbitElapsedSeconds = 0.0f;
+	EntryOrbitStartDelaySeconds = FMath::Max(StartDelaySeconds, 0.0f);
+	EntryOrbitGatherDurationSeconds = FMath::Max(GatherDurationSeconds, 0.0f);
+	EntryOrbitPreSpinHoldSeconds = FMath::Max(PreSpinHoldSeconds, 0.0f);
+	EntryOrbitDurationSeconds = FMath::Max(OrbitDurationSeconds, 0.0f);
+	EntryOrbitPostSpinHoldSeconds = FMath::Max(PostSpinHoldSeconds, 0.0f);
+
+	const float SpawnServerWorldTimeSeconds = ResolveServerWorldTimeSeconds();
+	MulticastStartSwordEntryOrbit(
+		EntryOrbitCenterLocation,
+		EntryOrbitGatherStartLocation,
+		EntryOrbitStartDelaySeconds,
+		EntryOrbitGatherDurationSeconds,
+		EntryOrbitPreSpinHoldSeconds,
+		EntryOrbitDurationSeconds,
+		EntryOrbitPostSpinHoldSeconds,
+		SpawnServerWorldTimeSeconds);
+
+	if (EntryOrbitStartDelaySeconds > UE_SMALL_NUMBER)
+	{
+		SetSwordState(EPRFaerinGodFallStaticSwordState::EntryOrbitStartDelay);
+		ApplySwordPresentationLocation(EntryOrbitGatherStartLocation);
+	}
+	else if (EntryOrbitGatherDurationSeconds > UE_SMALL_NUMBER)
+	{
+		SetSwordState(EPRFaerinGodFallStaticSwordState::EntryOrbitGathering);
+		ApplySwordPresentationLocation(EntryOrbitGatherStartLocation);
+	}
+	else if (EntryOrbitPreSpinHoldSeconds > UE_SMALL_NUMBER)
+	{
+		SetSwordState(EPRFaerinGodFallStaticSwordState::EntryOrbitPreSpinHold);
+		ApplySwordPresentationLocation(ResolveEntryOrbitLocation(0.0f));
+	}
+	else if (EntryOrbitDurationSeconds > UE_SMALL_NUMBER)
+	{
+		SetSwordState(EPRFaerinGodFallStaticSwordState::EntryOrbiting);
+		ApplySwordPresentationLocation(ResolveEntryOrbitLocation(0.0f));
+	}
+	else
+	{
+		SetSwordState(EPRFaerinGodFallStaticSwordState::EntryOrbitPostSpinHold);
+		ApplySwordPresentationLocation(ResolveEntryOrbitLocation(EntryOrbitDurationSeconds));
+	}
+
+	RefreshSwordTickEnabled();
+	return true;
+}
+
+bool APRFaerinGodFallStaticSwordActor::StartEntryOrbitImpactDrop(
+	const float DropSeconds,
+	const float ImpactHoldSeconds,
+	const float RiseSecondsAfterStraighten,
+	const float ChargeStartDelayAfterRise,
+	const float ChargeSecondsAfterReturn)
+{
+	if (!HasAuthority()
+		|| !IsValid(GodFallData)
+		|| (SwordState != EPRFaerinGodFallStaticSwordState::EntryOrbitStartDelay
+			&& SwordState != EPRFaerinGodFallStaticSwordState::EntryOrbitGathering
+			&& SwordState != EPRFaerinGodFallStaticSwordState::EntryOrbitPreSpinHold
+			&& SwordState != EPRFaerinGodFallStaticSwordState::EntryOrbiting
+			&& SwordState != EPRFaerinGodFallStaticSwordState::EntryOrbitPostSpinHold
+			&& SwordState != EPRFaerinGodFallStaticSwordState::SpawnedFromRigBone
+			&& SwordState != EPRFaerinGodFallStaticSwordState::EntryDiving))
+	{
+		return false;
+	}
+
+	ClearSwordTimers();
+	bEntryOrbitImpactDropActive = true;
+	bEntryOrbitImpactSpreadActive = GodFallData->bUseEntryOrbitImpactSpread;
+	EntryDiveReturnSeconds = FMath::Max(RiseSecondsAfterStraighten, 0.0f);
+	EntryImpactHoldSeconds = FMath::Max(ImpactHoldSeconds, 0.0f);
+	EntryChargeStartDelayAfterRise = FMath::Max(ChargeStartDelayAfterRise, 0.0f);
+	EntryDiveChargeSecondsAfterReturn = FMath::Max(ChargeSecondsAfterReturn, 0.0f);
+
+	// Drop 직전 최종 orbit 위치를 한 번 더 고정한다. 타이머가 조금 빨리 호출돼도 최소 반경/최대 기울기 상태에서 떨어지게 한다.
+	ApplySwordPresentationLocation(ResolveEntryOrbitLocation(EntryOrbitDurationSeconds));
+
+	FVector ImpactLocation = FVector::ZeroVector;
+	if (!ResolveEntryOrbitImpactLocation(ImpactLocation))
+	{
+		ImpactLocation = GetActorLocation() - FVector(0.0f, 0.0f, FMath::Max(GodFallData->EntrySwordDiveDistance, 0.0f));
+	}
+
+	SegmentStartLocation = GetActorLocation();
+	SegmentTargetLocation = ImpactLocation;
+	SegmentElapsedSeconds = 0.0f;
+	SegmentDurationSeconds = FMath::Max(DropSeconds, 0.0f);
+
+	SetSwordState(EPRFaerinGodFallStaticSwordState::EntryDiving);
+	MulticastStartSwordPresentationSegment(
+		EPRFaerinGodFallStaticSwordState::EntryDiving,
+		SegmentStartLocation,
+		SegmentTargetLocation,
+		SegmentDurationSeconds);
+
+	if (SegmentDurationSeconds <= UE_SMALL_NUMBER)
+	{
+		FinishEntryOrbitImpactDrop();
 		return true;
 	}
 
@@ -250,6 +410,8 @@ bool APRFaerinGodFallStaticSwordActor::StartAssignedAttack(AActor* InAssignedTar
 
 	ClearSwordTimers();
 	bImpactWarningSpawned = false;
+	bEntryOrbitImpactDropActive = false;
+	bEntryOrbitImpactSpreadActive = false;
 	AssignedOverheadLocation = ResolvedOverheadLocation;
 	AssignedImpactLocation = ResolvedImpactLocation;
 	AssignedWarningSeconds = FMath::Max(InWarningSeconds, 0.0f);
@@ -304,6 +466,7 @@ void APRFaerinGodFallStaticSwordActor::OnRep_SwordState()
 	if (SwordState == EPRFaerinGodFallStaticSwordState::Charging
 		|| SwordState == EPRFaerinGodFallStaticSwordState::Charged
 		|| SwordState == EPRFaerinGodFallStaticSwordState::Returning
+		|| SwordState == EPRFaerinGodFallStaticSwordState::EntryDiveReturning
 		|| SwordState == EPRFaerinGodFallStaticSwordState::Cancelled
 		|| SwordState == EPRFaerinGodFallStaticSwordState::None)
 	{
@@ -372,6 +535,7 @@ void APRFaerinGodFallStaticSwordActor::SetSwordState(const EPRFaerinGodFallStati
 	if (SwordState == EPRFaerinGodFallStaticSwordState::Charging
 		|| SwordState == EPRFaerinGodFallStaticSwordState::Charged
 		|| SwordState == EPRFaerinGodFallStaticSwordState::Returning
+		|| SwordState == EPRFaerinGodFallStaticSwordState::EntryDiveReturning
 		|| SwordState == EPRFaerinGodFallStaticSwordState::Cancelled
 		|| SwordState == EPRFaerinGodFallStaticSwordState::None)
 	{
@@ -391,6 +555,7 @@ void APRFaerinGodFallStaticSwordActor::ClearSwordTimers()
 		World->GetTimerManager().ClearTimer(TelegraphTimerHandle);
 		World->GetTimerManager().ClearTimer(ImpactHoldTimerHandle);
 		World->GetTimerManager().ClearTimer(ImpactWarningTimerHandle);
+		World->GetTimerManager().ClearTimer(EntryReturnChargeDelayTimerHandle);
 	}
 }
 
@@ -431,6 +596,203 @@ void APRFaerinGodFallStaticSwordActor::FinishEntryDiveDown()
 	RefreshSwordTickEnabled();
 }
 
+
+void APRFaerinGodFallStaticSwordActor::FinishEntryOrbitImpactDrop()
+{
+	if (!HasAuthority())
+	{
+		return;
+	}
+
+	ApplySwordPresentationLocation(SegmentTargetLocation);
+	bEntryOrbitImpactSpreadActive = false;
+	MulticastSetSwordPresentationLocation(SegmentTargetLocation);
+	SetSwordState(EPRFaerinGodFallStaticSwordState::EntryImpact);
+
+	const FRotator ImpactRotation = IsValid(GodFallData)
+		? GodFallData->SwordImpactNiagaraRotationOffset
+		: FRotator::ZeroRotator;
+	UNiagaraSystem* ImpactNiagaraSystem = IsValid(GodFallData) ? GodFallData->SwordImpactNiagaraSystem : nullptr;
+	const FVector ImpactNiagaraScale = IsValid(GodFallData) ? GodFallData->SwordImpactNiagaraScale : FVector::OneVector;
+	const float ImpactNiagaraLifeSeconds = IsValid(GodFallData) ? GodFallData->SwordImpactNiagaraLifeSeconds : 0.0f;
+	MulticastGodFallSwordImpact(SegmentTargetLocation, ImpactRotation, ImpactNiagaraSystem, ImpactNiagaraScale, ImpactNiagaraLifeSeconds);
+	OnEntryImpactFinished.Broadcast(this);
+
+	const float HoldSeconds = EntryImpactHoldSeconds;
+	if (HoldSeconds <= 0.0f)
+	{
+		BeginEntryOrbitStraightening();
+		return;
+	}
+
+	GetWorldTimerManager().SetTimer(
+		ImpactHoldTimerHandle,
+		this,
+		&APRFaerinGodFallStaticSwordActor::BeginEntryOrbitStraightening,
+		HoldSeconds,
+		false);
+}
+
+void APRFaerinGodFallStaticSwordActor::BeginEntryOrbitStraightening()
+{
+	if (!HasAuthority())
+	{
+		return;
+	}
+
+	EntryStraightenStartRotation = GetActorRotation();
+	EntryStraightenTargetRotation = FRotator::ZeroRotator;
+	EntryStraightenElapsedSeconds = 0.0f;
+	EntryStraightenDurationSeconds = IsValid(GodFallData)
+		? FMath::Max(GodFallData->EntryOrbitReturnStraightenSeconds, 0.0f)
+		: 0.0f;
+	EntryStraightenEaseExponent = IsValid(GodFallData)
+		? FMath::Max(GodFallData->EntryOrbitReturnStraightenExponent, 0.1f)
+		: 1.0f;
+
+	if (IsValid(GodFallData) && GodFallData->bRandomizeEntryOrbitReturnTiming)
+	{
+		const auto ResolveRandomRangeValue = [](const FPRFaerinGodFallFloatRange& Range, const float FallbackValue, const float MinClamp)
+		{
+			const float ClampedMin = FMath::Max(FMath::Min(Range.Min, Range.Max), MinClamp);
+			const float ClampedMax = FMath::Max(FMath::Max(Range.Min, Range.Max), MinClamp);
+			if (FMath::IsNearlyEqual(ClampedMin, ClampedMax))
+			{
+				return ClampedMin;
+			}
+
+			if (ClampedMax < MinClamp)
+			{
+				return FMath::Max(FallbackValue, MinClamp);
+			}
+
+			return FMath::FRandRange(ClampedMin, ClampedMax);
+		};
+
+		EntryStraightenDurationSeconds = ResolveRandomRangeValue(
+			GodFallData->EntryOrbitReturnStraightenSecondsRange,
+			EntryStraightenDurationSeconds,
+			0.0f);
+		EntryStraightenEaseExponent = ResolveRandomRangeValue(
+			GodFallData->EntryOrbitReturnStraightenExponentRange,
+			EntryStraightenEaseExponent,
+			0.1f);
+		EntryDiveReturnSeconds = ResolveRandomRangeValue(
+			GodFallData->EntryOrbitRiseAfterStraightenSecondsRange,
+			EntryDiveReturnSeconds,
+			0.0f);
+	}
+
+	SetSwordState(EPRFaerinGodFallStaticSwordState::EntryStraightening);
+	MulticastStartSwordEntryStraightening(
+		EntryStraightenStartRotation,
+		EntryStraightenTargetRotation,
+		EntryStraightenDurationSeconds,
+		EntryStraightenEaseExponent);
+	if (EntryStraightenDurationSeconds <= UE_SMALL_NUMBER)
+	{
+		UpdateEntryStraightening(EntryStraightenDurationSeconds);
+		return;
+	}
+
+	RefreshSwordTickEnabled();
+}
+
+void APRFaerinGodFallStaticSwordActor::UpdateEntryOrbitMovement(const float DeltaSeconds)
+{
+	if (!HasAuthority())
+	{
+		return;
+	}
+
+	EntryOrbitElapsedSeconds += DeltaSeconds;
+
+	const float TotalElapsedSeconds = EntryOrbitElapsedSeconds;
+	if (TotalElapsedSeconds < EntryOrbitStartDelaySeconds)
+	{
+		SetSwordState(EPRFaerinGodFallStaticSwordState::EntryOrbitStartDelay);
+		ApplySwordPresentationLocation(EntryOrbitGatherStartLocation);
+		return;
+	}
+
+	const float GatherElapsedSeconds = TotalElapsedSeconds - EntryOrbitStartDelaySeconds;
+	if (GatherElapsedSeconds < EntryOrbitGatherDurationSeconds)
+	{
+		SetSwordState(EPRFaerinGodFallStaticSwordState::EntryOrbitGathering);
+		ApplySwordPresentationLocation(ResolveEntryOrbitGatherLocation(GatherElapsedSeconds));
+		return;
+	}
+
+	const float PreSpinElapsedSeconds = GatherElapsedSeconds - EntryOrbitGatherDurationSeconds;
+	if (PreSpinElapsedSeconds < EntryOrbitPreSpinHoldSeconds)
+	{
+		SetSwordState(EPRFaerinGodFallStaticSwordState::EntryOrbitPreSpinHold);
+		ApplySwordPresentationLocation(ResolveEntryOrbitLocation(0.0f));
+		return;
+	}
+
+	const float SpinElapsedSeconds = PreSpinElapsedSeconds - EntryOrbitPreSpinHoldSeconds;
+	if (SpinElapsedSeconds < EntryOrbitDurationSeconds)
+	{
+		SetSwordState(EPRFaerinGodFallStaticSwordState::EntryOrbiting);
+		ApplySwordPresentationLocation(ResolveEntryOrbitLocation(SpinElapsedSeconds));
+		return;
+	}
+
+	const float PostSpinElapsedSeconds = SpinElapsedSeconds - EntryOrbitDurationSeconds;
+	if (PostSpinElapsedSeconds < EntryOrbitPostSpinHoldSeconds)
+	{
+		SetSwordState(EPRFaerinGodFallStaticSwordState::EntryOrbitPostSpinHold);
+		ApplySwordPresentationLocation(ResolveEntryOrbitLocation(EntryOrbitDurationSeconds));
+		return;
+	}
+
+	SetSwordState(EPRFaerinGodFallStaticSwordState::EntryOrbitPostSpinHold);
+	ApplySwordPresentationLocation(ResolveEntryOrbitLocation(EntryOrbitDurationSeconds));
+}
+
+void APRFaerinGodFallStaticSwordActor::UpdateEntryStraightening(const float DeltaSeconds)
+{
+	if (!HasAuthority())
+	{
+		return;
+	}
+
+	EntryStraightenElapsedSeconds += DeltaSeconds;
+	const float RawAlpha = FMath::Clamp(
+		EntryStraightenElapsedSeconds / FMath::Max(EntryStraightenDurationSeconds, UE_SMALL_NUMBER),
+		0.0f,
+		1.0f);
+	const float Alpha = FMath::Pow(RawAlpha, FMath::Max(EntryStraightenEaseExponent, 0.1f));
+	SetActorRotation(FMath::Lerp(EntryStraightenStartRotation, EntryStraightenTargetRotation, Alpha));
+
+	if (RawAlpha < 1.0f)
+	{
+		return;
+	}
+
+	SetActorRotation(EntryStraightenTargetRotation);
+	bEntryOrbitImpactDropActive = false;
+	SegmentStartLocation = GetActorLocation();
+	SegmentTargetLocation = HomeLocation;
+	SegmentElapsedSeconds = 0.0f;
+	SegmentDurationSeconds = EntryDiveReturnSeconds;
+
+	SetSwordState(EPRFaerinGodFallStaticSwordState::EntryDiveReturning);
+	MulticastStartSwordPresentationSegment(
+		EPRFaerinGodFallStaticSwordState::EntryDiveReturning,
+		SegmentStartLocation,
+		SegmentTargetLocation,
+		SegmentDurationSeconds);
+	if (SegmentDurationSeconds <= UE_SMALL_NUMBER)
+	{
+		FinishEntryDiveReturn();
+		return;
+	}
+
+	RefreshSwordTickEnabled();
+}
+
 void APRFaerinGodFallStaticSwordActor::FinishEntryDiveReturn()
 {
 	if (!HasAuthority())
@@ -438,9 +800,34 @@ void APRFaerinGodFallStaticSwordActor::FinishEntryDiveReturn()
 		return;
 	}
 
+	bEntryOrbitImpactDropActive = false;
+	bEntryOrbitImpactSpreadActive = false;
 	ApplySwordPresentationLocation(HomeLocation);
+	SetActorRotation(FRotator::ZeroRotator);
 	MulticastSetSwordPresentationLocation(HomeLocation);
 	ResetSwordVisualTransform();
+
+	if (EntryChargeStartDelayAfterRise > UE_SMALL_NUMBER)
+	{
+		GetWorldTimerManager().SetTimer(
+			EntryReturnChargeDelayTimerHandle,
+			this,
+			&APRFaerinGodFallStaticSwordActor::BeginChargingAfterEntryReturnDelay,
+			EntryChargeStartDelayAfterRise,
+			false);
+		return;
+	}
+
+	BeginChargingAfterEntryReturnDelay();
+}
+
+void APRFaerinGodFallStaticSwordActor::BeginChargingAfterEntryReturnDelay()
+{
+	if (!HasAuthority())
+	{
+		return;
+	}
+
 	BeginCharging(EntryDiveChargeSecondsAfterReturn);
 }
 
@@ -500,7 +887,7 @@ void APRFaerinGodFallStaticSwordActor::FinishDrop()
 	const float ImpactNiagaraLifeSeconds = IsValid(GodFallData) ? GodFallData->SwordImpactNiagaraLifeSeconds : 0.0f;
 	MulticastGodFallSwordImpact(SegmentTargetLocation, ImpactRotation, ImpactNiagaraSystem, ImpactNiagaraScale, ImpactNiagaraLifeSeconds);
 
-	const float HoldSeconds = IsValid(GodFallData) ? GodFallData->ImpactHoldSeconds : 0.0f;
+	const float HoldSeconds = EntryImpactHoldSeconds;
 	if (HoldSeconds <= 0.0f)
 	{
 		BeginReturning();
@@ -563,13 +950,23 @@ void APRFaerinGodFallStaticSwordActor::UpdateSegmentMovement(const float DeltaSe
 
 	SegmentElapsedSeconds += DeltaSeconds;
 	const float Alpha = FMath::Clamp(SegmentElapsedSeconds / FMath::Max(SegmentDurationSeconds, UE_SMALL_NUMBER), 0.0f, 1.0f);
-	ApplySwordPresentationLocation(FMath::Lerp(SegmentStartLocation, SegmentTargetLocation, Alpha));
+	const FVector PresentationLocation = (SwordState == EPRFaerinGodFallStaticSwordState::EntryDiving && bEntryOrbitImpactSpreadActive)
+		? ResolveEntryOrbitImpactSpreadLocation(Alpha)
+		: FMath::Lerp(SegmentStartLocation, SegmentTargetLocation, Alpha);
+	ApplySwordPresentationLocation(PresentationLocation);
 
 	if (Alpha >= 1.0f)
 	{
 		if (SwordState == EPRFaerinGodFallStaticSwordState::EntryDiving)
 		{
-			FinishEntryDiveDown();
+			if (bEntryOrbitImpactDropActive)
+			{
+				FinishEntryOrbitImpactDrop();
+			}
+			else
+			{
+				FinishEntryDiveDown();
+			}
 		}
 		else if (SwordState == EPRFaerinGodFallStaticSwordState::EntryDiveReturning)
 		{
@@ -763,6 +1160,202 @@ bool APRFaerinGodFallStaticSwordActor::ProjectTargetLocationToGround(const FVect
 	return true;
 }
 
+bool APRFaerinGodFallStaticSwordActor::ResolveEntryOrbitImpactLocation(FVector& OutGroundLocation) const
+{
+	if (!IsValid(GodFallData))
+	{
+		return false;
+	}
+
+	FVector TargetLocation = GetActorLocation();
+	if (GodFallData->bUseEntryOrbitImpactSpread)
+	{
+		const int32 SwordCount = 10;
+		const float BaseAngleDegrees = SwordCount > 0
+			? (360.0f / static_cast<float>(SwordCount)) * static_cast<float>(FMath::Max(SwordIndex, 0))
+			: 0.0f;
+		const float SpinAngleDegrees = ResolveEntryOrbitAngleDegrees(EntryOrbitDurationSeconds);
+		const float LandingAngleRadians = FMath::DegreesToRadians(
+			BaseAngleDegrees + SpinAngleDegrees + GodFallData->EntryOrbitImpactLandingAngleLeadDegrees);
+		const float LandingRadius = FMath::Max(GodFallData->EntryOrbitImpactLandingRadius, 0.0f);
+		const FVector LandingOffset(
+			FMath::Cos(LandingAngleRadians) * LandingRadius,
+			FMath::Sin(LandingAngleRadians) * LandingRadius,
+			0.0f);
+
+		TargetLocation = EntryOrbitCenterLocation + LandingOffset;
+	}
+
+	if (!ProjectTargetLocationToGround(TargetLocation, OutGroundLocation))
+	{
+		return false;
+	}
+
+	OutGroundLocation.Z += GodFallData->EntryOrbitImpactGroundOffsetZ;
+	return true;
+}
+
+FVector APRFaerinGodFallStaticSwordActor::ResolveEntryOrbitImpactSpreadLocation(const float Alpha) const
+{
+	if (!IsValid(GodFallData) || !bEntryOrbitImpactSpreadActive)
+	{
+		return FMath::Lerp(SegmentStartLocation, SegmentTargetLocation, Alpha);
+	}
+
+	const float SpreadStartAlpha = FMath::Clamp(GodFallData->EntryOrbitImpactSpreadStartAlpha, 0.0f, 1.0f);
+	const float RawSpreadAlpha = SpreadStartAlpha >= 1.0f - KINDA_SMALL_NUMBER
+		? (Alpha >= 1.0f ? 1.0f : 0.0f)
+		: FMath::Clamp((Alpha - SpreadStartAlpha) / (1.0f - SpreadStartAlpha), 0.0f, 1.0f);
+	const float SpreadAlpha = FMath::Pow(RawSpreadAlpha, FMath::Max(GodFallData->EntryOrbitImpactSpreadExponent, 0.1f));
+
+	FVector Result = FMath::Lerp(SegmentStartLocation, SegmentTargetLocation, Alpha);
+	Result.X = FMath::Lerp(SegmentStartLocation.X, SegmentTargetLocation.X, SpreadAlpha);
+	Result.Y = FMath::Lerp(SegmentStartLocation.Y, SegmentTargetLocation.Y, SpreadAlpha);
+	return Result;
+}
+
+FVector APRFaerinGodFallStaticSwordActor::ResolveEntryOrbitGatherLocation(const float ElapsedSeconds) const
+{
+	if (!IsValid(GodFallData))
+	{
+		return GetActorLocation();
+	}
+
+	const float Duration = FMath::Max(EntryOrbitGatherDurationSeconds, UE_SMALL_NUMBER);
+	const float RawAlpha = FMath::Clamp(ElapsedSeconds / Duration, 0.0f, 1.0f);
+	const float EaseExponent = FMath::Max(GodFallData->EntryOrbitGatherAccelerationExponent, 0.1f);
+	const float Alpha = FMath::Pow(RawAlpha, EaseExponent);
+	return FMath::Lerp(EntryOrbitGatherStartLocation, ResolveEntryOrbitLocation(0.0f), Alpha);
+}
+
+FVector APRFaerinGodFallStaticSwordActor::ResolveEntryOrbitLocation(const float ElapsedSeconds) const
+{
+	if (!IsValid(GodFallData))
+	{
+		return GetActorLocation();
+	}
+
+	const int32 SwordCount = 10;
+	const float BaseAngleDegrees = SwordCount > 0
+		? (360.0f / static_cast<float>(SwordCount)) * static_cast<float>(FMath::Max(SwordIndex, 0))
+		: 0.0f;
+	const float CurrentAngleRadians = FMath::DegreesToRadians(BaseAngleDegrees + ResolveEntryOrbitAngleDegrees(ElapsedSeconds));
+	const float Radius = ResolveEntryOrbitRadius(ElapsedSeconds);
+
+	const FVector CircleOffset(
+		FMath::Cos(CurrentAngleRadians) * Radius,
+		FMath::Sin(CurrentAngleRadians) * Radius,
+		0.0f);
+	return EntryOrbitCenterLocation + CircleOffset;
+}
+
+float APRFaerinGodFallStaticSwordActor::ResolveEntryOrbitRadius(const float ElapsedSeconds) const
+{
+	if (!IsValid(GodFallData))
+	{
+		return 0.0f;
+	}
+
+	const float StartRadius = FMath::Max(GodFallData->EntryOrbitRadius, 0.0f);
+	const float MinRadius = FMath::Clamp(GodFallData->EntryOrbitImpactMinRadius, 0.0f, StartRadius);
+	const float Duration = FMath::Max(EntryOrbitDurationSeconds, UE_SMALL_NUMBER);
+	const float NormalizedTime = FMath::Clamp(ElapsedSeconds / Duration, 0.0f, 1.0f);
+	const float ShrinkAlpha = ResolveEntryOrbitRangedAlpha(
+		NormalizedTime,
+		GodFallData->EntryOrbitRadiusShrinkStartAlpha,
+		GodFallData->EntryOrbitRadiusShrinkEndAlpha,
+		GodFallData->EntryOrbitRadiusShrinkExponent);
+	return FMath::Lerp(StartRadius, MinRadius, ShrinkAlpha);
+}
+
+float APRFaerinGodFallStaticSwordActor::ResolveEntryOrbitAngleDegrees(const float ElapsedSeconds) const
+{
+	if (!IsValid(GodFallData))
+	{
+		return 0.0f;
+	}
+
+	const float Duration = FMath::Max(EntryOrbitDurationSeconds, UE_SMALL_NUMBER);
+	const float ClampedTime = FMath::Clamp(ElapsedSeconds, 0.0f, Duration);
+	const float NormalizedTime = FMath::Clamp(ClampedTime / Duration, 0.0f, 1.0f);
+	const float Exponent = FMath::Max(GodFallData->EntryOrbitAccelerationExponent, 0.1f);
+
+	if (GodFallData->EntryOrbitSpinControlMode == EPRFaerinGodFallEntryOrbitSpinControlMode::TotalTurns)
+	{
+		return FMath::Max(GodFallData->EntryOrbitTotalTurns, 0.0f)
+			* 360.0f
+			* FMath::Pow(NormalizedTime, Exponent);
+	}
+
+	const float StartSpeed = FMath::Max(GodFallData->EntryOrbitStartAngularSpeedDeg, 0.0f);
+	const float MaxSpeed = FMath::Max(GodFallData->EntryOrbitMaxAngularSpeedDeg, StartSpeed);
+
+	// Speed(t) = Start + (Max - Start) * pow(t / Duration, Exponent)을 적분한 각도다.
+	return StartSpeed * ClampedTime
+		+ (MaxSpeed - StartSpeed) * Duration * FMath::Pow(NormalizedTime, Exponent + 1.0f) / (Exponent + 1.0f);
+}
+
+float APRFaerinGodFallStaticSwordActor::ResolveEntryOrbitRangedAlpha(
+	const float NormalizedTime,
+	const float StartAlpha,
+	const float EndAlpha,
+	const float Exponent) const
+{
+	const float ClampedStart = FMath::Clamp(StartAlpha, 0.0f, 1.0f);
+	const float ClampedEnd = FMath::Clamp(EndAlpha, 0.0f, 1.0f);
+	if (ClampedEnd <= ClampedStart + KINDA_SMALL_NUMBER)
+	{
+		return NormalizedTime >= ClampedStart ? 1.0f : 0.0f;
+	}
+
+	const float RawAlpha = FMath::Clamp((NormalizedTime - ClampedStart) / (ClampedEnd - ClampedStart), 0.0f, 1.0f);
+	return FMath::Pow(RawAlpha, FMath::Max(Exponent, 0.1f));
+}
+
+float APRFaerinGodFallStaticSwordActor::ResolveEntryOrbitSpinElapsedFromTotal(const float TotalElapsedSeconds) const
+{
+	return FMath::Clamp(
+		TotalElapsedSeconds
+		- EntryOrbitStartDelaySeconds
+		- EntryOrbitGatherDurationSeconds
+		- EntryOrbitPreSpinHoldSeconds,
+		0.0f,
+		FMath::Max(EntryOrbitDurationSeconds, 0.0f));
+}
+
+float APRFaerinGodFallStaticSwordActor::ResolveEntryOrbitTimelineDuration() const
+{
+	return FMath::Max(EntryOrbitStartDelaySeconds, 0.0f)
+		+ FMath::Max(EntryOrbitGatherDurationSeconds, 0.0f)
+		+ FMath::Max(EntryOrbitPreSpinHoldSeconds, 0.0f)
+		+ FMath::Max(EntryOrbitDurationSeconds, 0.0f)
+		+ FMath::Max(EntryOrbitPostSpinHoldSeconds, 0.0f);
+}
+
+FRotator APRFaerinGodFallStaticSwordActor::ResolveEntryOrbitTiltRotation(const float ElapsedSeconds) const
+{
+	if (!IsValid(GodFallData))
+	{
+		return FRotator::ZeroRotator;
+	}
+
+	const float Duration = FMath::Max(EntryOrbitDurationSeconds, UE_SMALL_NUMBER);
+	const float NormalizedTime = FMath::Clamp(ElapsedSeconds / Duration, 0.0f, 1.0f);
+	const float TiltAlpha = ResolveEntryOrbitRangedAlpha(
+		NormalizedTime,
+		GodFallData->EntryOrbitTiltStartAlpha,
+		GodFallData->EntryOrbitTiltEndAlpha,
+		GodFallData->EntryOrbitTiltExponent);
+	const float TiltDegrees = FMath::Clamp(GodFallData->EntryOrbitMaxOutwardTiltDegrees, 0.0f, 89.0f) * TiltAlpha;
+	const FVector ToSword = (GetActorLocation() - EntryOrbitCenterLocation).GetSafeNormal2D();
+	const float OutwardYaw = !ToSword.IsNearlyZero()
+		? ToSword.Rotation().Yaw
+		: 0.0f;
+
+	// Mesh baseline에 상대적으로 적용할 visual tilt다. Actor 위치 회전과 별개로 검이 바깥으로 벌어지는 느낌만 담당한다.
+	return FRotator(-TiltDegrees, OutwardYaw, 0.0f);
+}
+
 // ===== 피해 =====
 
 void APRFaerinGodFallStaticSwordActor::ApplySwordPresentationLocation(const FVector& Location)
@@ -876,6 +1469,7 @@ void APRFaerinGodFallStaticSwordActor::UpdateSwordVisualPresentation(const float
 	FinalLocation += ChargeShakeLocationDelta;
 	FinalRotation = FinalRotation * ChargeShakeRotationDelta.Quaternion();
 
+	FinalRotation = FinalRotation * ResolveEntryOrbitRotationDelta().Quaternion();
 	FinalRotation = FinalRotation * ResolveImpactSlantRotationDelta().Quaternion();
 
 	StaticSwordMeshComponent->SetRelativeTransform(FTransform(FinalRotation, FinalLocation, FinalScale));
@@ -902,18 +1496,33 @@ bool APRFaerinGodFallStaticSwordActor::ShouldTickSwordVisual() const
 	const bool bCanSlant = GodFallData->bEnableImpactVisualSlant
 		&& (VisualState == EPRFaerinGodFallStaticSwordState::Dropping
 			|| VisualState == EPRFaerinGodFallStaticSwordState::Impact);
+	const bool bCanEntryOrbitTilt = GodFallData->bUseEntryOrbitBeforeImpact
+		&& (VisualState == EPRFaerinGodFallStaticSwordState::EntryOrbitStartDelay
+			|| VisualState == EPRFaerinGodFallStaticSwordState::EntryOrbitGathering
+			|| VisualState == EPRFaerinGodFallStaticSwordState::EntryOrbitPreSpinHold
+			|| VisualState == EPRFaerinGodFallStaticSwordState::EntryOrbiting
+			|| VisualState == EPRFaerinGodFallStaticSwordState::EntryOrbitPostSpinHold
+			|| VisualState == EPRFaerinGodFallStaticSwordState::EntryDiving
+			|| VisualState == EPRFaerinGodFallStaticSwordState::EntryImpact
+			|| VisualState == EPRFaerinGodFallStaticSwordState::EntryStraightening);
 
-	return bCanHover || bCanChargeShake || bCanSlant;
+	return bCanHover || bCanChargeShake || bCanSlant || bCanEntryOrbitTilt;
 }
 
 bool APRFaerinGodFallStaticSwordActor::ShouldTickSwordMovement() const
 {
 	if (!HasAuthority())
 	{
-		return bClientSwordPresentationActive;
+		return bClientSwordPresentationActive || bClientSwordEntryOrbitActive || bClientSwordEntryStraighteningActive;
 	}
 
-	return SwordState == EPRFaerinGodFallStaticSwordState::EntryDiving
+	return SwordState == EPRFaerinGodFallStaticSwordState::EntryOrbitStartDelay
+		|| SwordState == EPRFaerinGodFallStaticSwordState::EntryOrbitGathering
+		|| SwordState == EPRFaerinGodFallStaticSwordState::EntryOrbitPreSpinHold
+		|| SwordState == EPRFaerinGodFallStaticSwordState::EntryOrbiting
+		|| SwordState == EPRFaerinGodFallStaticSwordState::EntryOrbitPostSpinHold
+		|| SwordState == EPRFaerinGodFallStaticSwordState::EntryDiving
+		|| SwordState == EPRFaerinGodFallStaticSwordState::EntryStraightening
 		|| SwordState == EPRFaerinGodFallStaticSwordState::EntryDiveReturning
 		|| SwordState == EPRFaerinGodFallStaticSwordState::MovingToTargetOverhead
 		|| SwordState == EPRFaerinGodFallStaticSwordState::Dropping
@@ -980,6 +1589,54 @@ void APRFaerinGodFallStaticSwordActor::ResolveChargeShakeDelta(FVector& OutLocat
 		FMath::Sin(Phase * 0.89f) * GodFallData->ChargeShakeAmplitudeRotation.Pitch,
 		FMath::Sin(Phase * 1.17f) * GodFallData->ChargeShakeAmplitudeRotation.Yaw,
 		FMath::Cos(Phase * 1.07f) * GodFallData->ChargeShakeAmplitudeRotation.Roll) * RampAlpha;
+}
+
+FRotator APRFaerinGodFallStaticSwordActor::ResolveEntryOrbitRotationDelta() const
+{
+	const EPRFaerinGodFallStaticSwordState VisualState = bClientSwordPresentationActive
+		? ClientPresentationState
+		: SwordState;
+	if (!IsValid(GodFallData)
+		|| !GodFallData->bUseEntryOrbitBeforeImpact
+		|| (VisualState != EPRFaerinGodFallStaticSwordState::EntryOrbitStartDelay
+			&& VisualState != EPRFaerinGodFallStaticSwordState::EntryOrbitGathering
+			&& VisualState != EPRFaerinGodFallStaticSwordState::EntryOrbitPreSpinHold
+			&& VisualState != EPRFaerinGodFallStaticSwordState::EntryOrbiting
+			&& VisualState != EPRFaerinGodFallStaticSwordState::EntryOrbitPostSpinHold
+			&& VisualState != EPRFaerinGodFallStaticSwordState::EntryDiving
+			&& VisualState != EPRFaerinGodFallStaticSwordState::EntryImpact
+			&& VisualState != EPRFaerinGodFallStaticSwordState::EntryStraightening))
+	{
+		return FRotator::ZeroRotator;
+	}
+
+	const float TotalEntryOrbitElapsedSeconds = bClientSwordEntryOrbitActive
+		? ClientEntryOrbitElapsedSeconds
+		: EntryOrbitElapsedSeconds;
+	const float EffectiveElapsedSeconds = (VisualState == EPRFaerinGodFallStaticSwordState::EntryDiving
+		|| VisualState == EPRFaerinGodFallStaticSwordState::EntryImpact
+		|| VisualState == EPRFaerinGodFallStaticSwordState::EntryStraightening)
+		? EntryOrbitDurationSeconds
+		: ResolveEntryOrbitSpinElapsedFromTotal(TotalEntryOrbitElapsedSeconds);
+	FRotator OrbitTiltRotation = ResolveEntryOrbitTiltRotation(EffectiveElapsedSeconds);
+	if (VisualState == EPRFaerinGodFallStaticSwordState::EntryStraightening)
+	{
+		const float StraightenElapsed = bClientSwordEntryStraighteningActive
+			? ClientEntryStraightenElapsedSeconds
+			: EntryStraightenElapsedSeconds;
+		const float StraightenDuration = bClientSwordEntryStraighteningActive
+			? ClientEntryStraightenDurationSeconds
+			: EntryStraightenDurationSeconds;
+		const float RawAlpha = FMath::Clamp(StraightenElapsed / FMath::Max(StraightenDuration, UE_SMALL_NUMBER), 0.0f, 1.0f);
+		const float EaseExponent = bClientSwordEntryStraighteningActive
+			? ClientEntryStraightenEaseExponent
+			: EntryStraightenEaseExponent;
+		const float RemainingAlpha = 1.0f - FMath::Pow(RawAlpha, FMath::Max(EaseExponent, 0.1f));
+		OrbitTiltRotation.Pitch *= RemainingAlpha;
+		OrbitTiltRotation.Yaw *= RemainingAlpha;
+		OrbitTiltRotation.Roll *= RemainingAlpha;
+	}
+	return OrbitTiltRotation;
 }
 
 FRotator APRFaerinGodFallStaticSwordActor::ResolveImpactSlantRotationDelta() const
@@ -1079,6 +1736,7 @@ void APRFaerinGodFallStaticSwordActor::ScheduleImpactWarningLocal(
 	}
 
 	World->GetTimerManager().ClearTimer(ImpactWarningTimerHandle);
+		World->GetTimerManager().ClearTimer(EntryReturnChargeDelayTimerHandle);
 	if (DelaySeconds <= UE_SMALL_NUMBER)
 	{
 		SpawnImpactWarningLocal(ImpactLocation, ImpactRotation, NiagaraSystemPath, Scale, LifeSeconds);
@@ -1140,6 +1798,18 @@ float APRFaerinGodFallStaticSwordActor::ResolveServerWorldTimeSeconds() const
 
 void APRFaerinGodFallStaticSwordActor::UpdateClientSwordPresentation(const float DeltaSeconds)
 {
+	if (bClientSwordEntryOrbitActive)
+	{
+		UpdateClientEntryOrbitMovement(DeltaSeconds);
+		return;
+	}
+
+	if (bClientSwordEntryStraighteningActive)
+	{
+		UpdateClientEntryStraightening(DeltaSeconds);
+		return;
+	}
+
 	if (!bClientSwordPresentationActive)
 	{
 		RefreshSwordTickEnabled();
@@ -1153,6 +1823,87 @@ void APRFaerinGodFallStaticSwordActor::UpdateClientSwordPresentation(const float
 	}
 
 	UpdateClientSegmentMovement(DeltaSeconds);
+}
+
+void APRFaerinGodFallStaticSwordActor::UpdateClientEntryOrbitMovement(const float DeltaSeconds)
+{
+	ClientEntryOrbitElapsedSeconds += DeltaSeconds;
+	EntryOrbitCenterLocation = ClientEntryOrbitCenterLocation;
+	EntryOrbitGatherStartLocation = ClientEntryOrbitGatherStartLocation;
+	EntryOrbitStartDelaySeconds = ClientEntryOrbitStartDelaySeconds;
+	EntryOrbitGatherDurationSeconds = ClientEntryOrbitGatherDurationSeconds;
+	EntryOrbitPreSpinHoldSeconds = ClientEntryOrbitPreSpinHoldSeconds;
+	EntryOrbitDurationSeconds = ClientEntryOrbitDurationSeconds;
+	EntryOrbitPostSpinHoldSeconds = ClientEntryOrbitPostSpinHoldSeconds;
+
+	const float TotalElapsedSeconds = ClientEntryOrbitElapsedSeconds;
+	if (TotalElapsedSeconds < ClientEntryOrbitStartDelaySeconds)
+	{
+		EntryOrbitElapsedSeconds = TotalElapsedSeconds;
+		ClientPresentationState = EPRFaerinGodFallStaticSwordState::EntryOrbitStartDelay;
+		SetActorLocation(ClientEntryOrbitGatherStartLocation, false, nullptr, ETeleportType::TeleportPhysics);
+		return;
+	}
+
+	const float GatherElapsedSeconds = TotalElapsedSeconds - ClientEntryOrbitStartDelaySeconds;
+	if (GatherElapsedSeconds < ClientEntryOrbitGatherDurationSeconds)
+	{
+		EntryOrbitElapsedSeconds = TotalElapsedSeconds;
+		ClientPresentationState = EPRFaerinGodFallStaticSwordState::EntryOrbitGathering;
+		SetActorLocation(ResolveEntryOrbitGatherLocation(GatherElapsedSeconds), false, nullptr, ETeleportType::TeleportPhysics);
+		return;
+	}
+
+	const float PreSpinElapsedSeconds = GatherElapsedSeconds - ClientEntryOrbitGatherDurationSeconds;
+	if (PreSpinElapsedSeconds < ClientEntryOrbitPreSpinHoldSeconds)
+	{
+		EntryOrbitElapsedSeconds = TotalElapsedSeconds;
+		ClientPresentationState = EPRFaerinGodFallStaticSwordState::EntryOrbitPreSpinHold;
+		SetActorLocation(ResolveEntryOrbitLocation(0.0f), false, nullptr, ETeleportType::TeleportPhysics);
+		return;
+	}
+
+	const float SpinElapsedSeconds = PreSpinElapsedSeconds - ClientEntryOrbitPreSpinHoldSeconds;
+	if (SpinElapsedSeconds < ClientEntryOrbitDurationSeconds)
+	{
+		EntryOrbitElapsedSeconds = TotalElapsedSeconds;
+		ClientPresentationState = EPRFaerinGodFallStaticSwordState::EntryOrbiting;
+		SetActorLocation(ResolveEntryOrbitLocation(SpinElapsedSeconds), false, nullptr, ETeleportType::TeleportPhysics);
+		return;
+	}
+
+	const float PostSpinElapsedSeconds = SpinElapsedSeconds - ClientEntryOrbitDurationSeconds;
+	if (PostSpinElapsedSeconds < ClientEntryOrbitPostSpinHoldSeconds)
+	{
+		EntryOrbitElapsedSeconds = TotalElapsedSeconds;
+		ClientPresentationState = EPRFaerinGodFallStaticSwordState::EntryOrbitPostSpinHold;
+		SetActorLocation(ResolveEntryOrbitLocation(ClientEntryOrbitDurationSeconds), false, nullptr, ETeleportType::TeleportPhysics);
+		return;
+	}
+
+	EntryOrbitElapsedSeconds = TotalElapsedSeconds;
+	ClientPresentationState = EPRFaerinGodFallStaticSwordState::EntryOrbitPostSpinHold;
+	SetActorLocation(ResolveEntryOrbitLocation(ClientEntryOrbitDurationSeconds), false, nullptr, ETeleportType::TeleportPhysics);
+}
+
+void APRFaerinGodFallStaticSwordActor::UpdateClientEntryStraightening(const float DeltaSeconds)
+{
+	ClientEntryStraightenElapsedSeconds += DeltaSeconds;
+	const float RawAlpha = FMath::Clamp(
+		ClientEntryStraightenElapsedSeconds / FMath::Max(ClientEntryStraightenDurationSeconds, UE_SMALL_NUMBER),
+		0.0f,
+		1.0f);
+	const float Alpha = FMath::Pow(RawAlpha, FMath::Max(ClientEntryStraightenEaseExponent, 0.1f));
+	SetActorRotation(FMath::Lerp(ClientEntryStraightenStartRotation, ClientEntryStraightenTargetRotation, Alpha));
+
+	if (RawAlpha >= 1.0f)
+	{
+		SetActorRotation(ClientEntryStraightenTargetRotation);
+		bClientSwordEntryStraighteningActive = false;
+		ClientPresentationState = EPRFaerinGodFallStaticSwordState::None;
+	}
+
+	RefreshSwordTickEnabled();
 }
 
 void APRFaerinGodFallStaticSwordActor::UpdateClientSegmentMovement(const float DeltaSeconds)
@@ -1199,6 +1950,68 @@ void APRFaerinGodFallStaticSwordActor::UpdateClientTargetOverheadMovement(const 
 	}
 }
 
+void APRFaerinGodFallStaticSwordActor::StartClientSwordEntryOrbit(
+	const FVector& OrbitCenterLocation,
+	const FVector& GatherStartLocation,
+	const float StartDelaySeconds,
+	const float GatherDurationSeconds,
+	const float PreSpinHoldSeconds,
+	const float OrbitDurationSeconds,
+	const float PostSpinHoldSeconds,
+	const float SpawnServerWorldTimeSeconds)
+{
+	ClientEntryOrbitCenterLocation = OrbitCenterLocation;
+	EntryOrbitCenterLocation = OrbitCenterLocation;
+	ClientEntryOrbitGatherStartLocation = GatherStartLocation;
+	EntryOrbitGatherStartLocation = GatherStartLocation;
+	ClientEntryOrbitStartDelaySeconds = FMath::Max(StartDelaySeconds, 0.0f);
+	EntryOrbitStartDelaySeconds = ClientEntryOrbitStartDelaySeconds;
+	ClientEntryOrbitGatherDurationSeconds = FMath::Max(GatherDurationSeconds, 0.0f);
+	EntryOrbitGatherDurationSeconds = ClientEntryOrbitGatherDurationSeconds;
+	ClientEntryOrbitPreSpinHoldSeconds = FMath::Max(PreSpinHoldSeconds, 0.0f);
+	EntryOrbitPreSpinHoldSeconds = ClientEntryOrbitPreSpinHoldSeconds;
+	ClientEntryOrbitDurationSeconds = FMath::Max(OrbitDurationSeconds, 0.0f);
+	EntryOrbitDurationSeconds = ClientEntryOrbitDurationSeconds;
+	ClientEntryOrbitPostSpinHoldSeconds = FMath::Max(PostSpinHoldSeconds, 0.0f);
+	EntryOrbitPostSpinHoldSeconds = ClientEntryOrbitPostSpinHoldSeconds;
+	const float TotalDuration = ResolveEntryOrbitTimelineDuration();
+	ClientEntryOrbitElapsedSeconds = FMath::Clamp(
+		ResolveServerWorldTimeSeconds() - SpawnServerWorldTimeSeconds,
+		0.0f,
+		TotalDuration);
+	EntryOrbitElapsedSeconds = ClientEntryOrbitElapsedSeconds;
+	bClientSwordEntryOrbitActive = true;
+	UpdateClientEntryOrbitMovement(0.0f);
+}
+
+void APRFaerinGodFallStaticSwordActor::StartClientSwordEntryStraightening(
+	const FRotator StartRotation,
+	const FRotator TargetRotation,
+	const float DurationSeconds,
+	const float EaseExponent)
+{
+	bClientSwordEntryOrbitActive = false;
+	bClientSwordPresentationActive = false;
+	bClientSwordEntryStraighteningActive = true;
+	ClientPresentationState = EPRFaerinGodFallStaticSwordState::EntryStraightening;
+	ClientEntryStraightenStartRotation = StartRotation;
+	ClientEntryStraightenTargetRotation = TargetRotation;
+	ClientEntryStraightenElapsedSeconds = 0.0f;
+	ClientEntryStraightenDurationSeconds = FMath::Max(DurationSeconds, 0.0f);
+	ClientEntryStraightenEaseExponent = FMath::Max(EaseExponent, 0.1f);
+	SetActorRotation(StartRotation);
+
+	if (ClientEntryStraightenDurationSeconds <= UE_SMALL_NUMBER)
+	{
+		SetActorRotation(TargetRotation);
+		bClientSwordEntryStraighteningActive = false;
+		ClientPresentationState = EPRFaerinGodFallStaticSwordState::None;
+		return;
+	}
+
+	RefreshSwordTickEnabled();
+}
+
 void APRFaerinGodFallStaticSwordActor::StartClientSwordPresentationSegment(
 	const EPRFaerinGodFallStaticSwordState NewState,
 	const FVector& StartLocation,
@@ -1213,6 +2026,8 @@ void APRFaerinGodFallStaticSwordActor::StartClientSwordPresentationSegment(
 		bImpactWarningSpawned = false;
 	}
 
+	bClientSwordEntryOrbitActive = false;
+	bClientSwordEntryStraighteningActive = false;
 	ClientPresentationState = NewState;
 	ClientSegmentStartLocation = StartLocation;
 	ClientSegmentTargetLocation = TargetLocation;
@@ -1261,8 +2076,50 @@ void APRFaerinGodFallStaticSwordActor::SetClientSwordPresentationLocation(const 
 {
 	SetActorLocation(Location, false, nullptr, ETeleportType::TeleportPhysics);
 	bClientSwordPresentationActive = false;
+	bClientSwordEntryOrbitActive = false;
+	bClientSwordEntryStraighteningActive = false;
 	ClientPresentationState = EPRFaerinGodFallStaticSwordState::None;
 	RefreshSwordTickEnabled();
+}
+
+void APRFaerinGodFallStaticSwordActor::MulticastStartSwordEntryOrbit_Implementation(
+	const FVector OrbitCenterLocation,
+	const FVector GatherStartLocation,
+	const float StartDelaySeconds,
+	const float GatherDurationSeconds,
+	const float PreSpinHoldSeconds,
+	const float OrbitDurationSeconds,
+	const float PostSpinHoldSeconds,
+	const float SpawnServerWorldTimeSeconds)
+{
+	if (HasAuthority())
+	{
+		return;
+	}
+
+	StartClientSwordEntryOrbit(
+		OrbitCenterLocation,
+		GatherStartLocation,
+		StartDelaySeconds,
+		GatherDurationSeconds,
+		PreSpinHoldSeconds,
+		OrbitDurationSeconds,
+		PostSpinHoldSeconds,
+		SpawnServerWorldTimeSeconds);
+}
+
+void APRFaerinGodFallStaticSwordActor::MulticastStartSwordEntryStraightening_Implementation(
+	FRotator StartRotation,
+	FRotator TargetRotation,
+	float DurationSeconds,
+	float EaseExponent)
+{
+	if (HasAuthority())
+	{
+		return;
+	}
+
+	StartClientSwordEntryStraightening(StartRotation, TargetRotation, DurationSeconds, EaseExponent);
 }
 
 void APRFaerinGodFallStaticSwordActor::MulticastSetSwordPresentationLocation_Implementation(FVector Location)

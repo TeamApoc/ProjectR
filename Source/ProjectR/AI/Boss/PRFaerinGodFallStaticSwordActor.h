@@ -17,7 +17,14 @@ enum class EPRFaerinGodFallStaticSwordState : uint8
 {
 	None					UMETA(DisplayName = "None"),
 	SpawnedFromRigBone		UMETA(DisplayName = "Spawned From Rig Bone"),
+	EntryOrbitStartDelay	UMETA(DisplayName = "Entry Orbit Start Delay"),
+	EntryOrbitGathering	UMETA(DisplayName = "Entry Orbit Gathering"),
+	EntryOrbitPreSpinHold	UMETA(DisplayName = "Entry Orbit Pre Spin Hold"),
+	EntryOrbiting			UMETA(DisplayName = "Entry Orbiting"),
+	EntryOrbitPostSpinHold	UMETA(DisplayName = "Entry Orbit Post Spin Hold"),
 	EntryDiving				UMETA(DisplayName = "Entry Diving"),
+	EntryImpact				UMETA(DisplayName = "Entry Impact"),
+	EntryStraightening		UMETA(DisplayName = "Entry Straightening"),
 	EntryDiveReturning		UMETA(DisplayName = "Entry Dive Returning"),
 	Charging				UMETA(DisplayName = "Charging"),
 	Charged					UMETA(DisplayName = "Charged"),
@@ -31,6 +38,7 @@ enum class EPRFaerinGodFallStaticSwordState : uint8
 
 DECLARE_MULTICAST_DELEGATE_OneParam(FPRFaerinGodFallSwordChargeFinishedSignature, class APRFaerinGodFallStaticSwordActor*);
 DECLARE_MULTICAST_DELEGATE_OneParam(FPRFaerinGodFallSwordAssignedAttackFinishedSignature, class APRFaerinGodFallStaticSwordActor*);
+DECLARE_MULTICAST_DELEGATE_OneParam(FPRFaerinGodFallSwordEntryImpactFinishedSignature, class APRFaerinGodFallStaticSwordActor*);
 
 // God Fall 변환 이후 개별 검의 충전, 1회 돌진, 원위치 복귀를 수행하는 StaticMesh 검 Actor다.
 UCLASS(Blueprintable)
@@ -63,6 +71,21 @@ public:
 	// God Fall entry 하강에 맞춰 아래로 한 번 돌진한 뒤 자기 위치로 복귀한다.
 	bool StartEntryDive(float DiveDistance, float DiveSeconds, float ReturnSeconds, float ChargeSecondsAfterReturn);
 
+	// StaticSword 전환 후 페어린 주변 원형 대형 회전을 시작한다. 실제 낙하는 StartEntryOrbitImpactDrop에서 시작한다.
+	bool StartEntryOrbit(const FVector& OrbitCenterLocation,
+		float StartDelaySeconds,
+		float GatherDurationSeconds,
+		float PreSpinHoldSeconds,
+		float OrbitDurationSeconds,
+		float PostSpinHoldSeconds);
+
+	// 현재 원형 대형 위치에서 실제 지면까지 꽂히는 entry 낙하를 시작한다.
+	bool StartEntryOrbitImpactDrop(float DropSeconds,
+		float ImpactHoldSeconds,
+		float RiseSecondsAfterStraighten,
+		float ChargeStartDelayAfterRise,
+		float ChargeSecondsAfterReturn);
+
 	// 충전 완료 상태에서 지정 target에게 1회 공격을 시작한다.
 	bool StartAssignedAttack(AActor* InAssignedTarget, float InWarningSeconds, float InOverheadMoveSeconds);
 
@@ -88,6 +111,7 @@ public:
 public:
 	FPRFaerinGodFallSwordChargeFinishedSignature OnChargeFinished;
 	FPRFaerinGodFallSwordAssignedAttackFinishedSignature OnAssignedAttackFinished;
+	FPRFaerinGodFallSwordEntryImpactFinishedSignature OnEntryImpactFinished;
 
 protected:
 	/*~ AActor Interface ~*/
@@ -138,7 +162,12 @@ private:
 	void ClearSwordTimers();
 	void FinishCharging();
 	void FinishEntryDiveDown();
+	void FinishEntryOrbitImpactDrop();
+	void BeginEntryOrbitStraightening();
+	void UpdateEntryOrbitMovement(float DeltaSeconds);
+	void UpdateEntryStraightening(float DeltaSeconds);
 	void FinishEntryDiveReturn();
+	void BeginChargingAfterEntryReturnDelay();
 	void FinishMoveToTargetOverhead();
 	void BeginTelegraph();
 	void BeginDropping();
@@ -149,12 +178,24 @@ private:
 	void UpdateTargetOverheadMovement(float DeltaSeconds);
 	bool IsValidAssignedTarget(AActor* CandidateTarget) const;
 	void UpdateClientSwordPresentation(float DeltaSeconds);
+	void UpdateClientEntryOrbitMovement(float DeltaSeconds);
+	void UpdateClientEntryStraightening(float DeltaSeconds);
 	void UpdateClientSegmentMovement(float DeltaSeconds);
 	void UpdateClientTargetOverheadMovement(float DeltaSeconds);
 	bool RefreshAssignedAttackLocations();
 	bool ResolveAssignedAttackLocations(FVector& OutOverheadLocation, FVector& OutGroundLocation) const;
 	bool ResolveAssignedImpactLocation(FVector& OutGroundLocation) const;
 	bool ProjectTargetLocationToGround(const FVector& TargetLocation, FVector& OutGroundLocation) const;
+	bool ResolveEntryOrbitImpactLocation(FVector& OutGroundLocation) const;
+	FVector ResolveEntryOrbitImpactSpreadLocation(float Alpha) const;
+	FVector ResolveEntryOrbitGatherLocation(float ElapsedSeconds) const;
+	FVector ResolveEntryOrbitLocation(float ElapsedSeconds) const;
+	float ResolveEntryOrbitRadius(float ElapsedSeconds) const;
+	float ResolveEntryOrbitAngleDegrees(float ElapsedSeconds) const;
+	float ResolveEntryOrbitRangedAlpha(float NormalizedTime, float StartAlpha, float EndAlpha, float Exponent) const;
+	float ResolveEntryOrbitSpinElapsedFromTotal(float TotalElapsedSeconds) const;
+	float ResolveEntryOrbitTimelineDuration() const;
+	FRotator ResolveEntryOrbitTiltRotation(float ElapsedSeconds) const;
 	void ApplySwordPresentationLocation(const FVector& Location);
 	void SpawnNiagaraAtLocationLocal(UNiagaraSystem* NiagaraSystem,
 		const FVector& Location,
@@ -170,6 +211,7 @@ private:
 	FVector ResolveHoverLocationDelta() const;
 	void ResolveChargeShakeDelta(FVector& OutLocationDelta, FRotator& OutRotationDelta) const;
 	FRotator ResolveImpactSlantRotationDelta() const;
+	FRotator ResolveEntryOrbitRotationDelta() const;
 	float ResolveImpactSlantAlpha() const;
 	void ScheduleImpactWarning();
 	void ScheduleImpactWarningLocal(const FVector& ImpactLocation,
@@ -193,11 +235,35 @@ private:
 		float MoveDurationSeconds,
 		float MoveAcceleration);
 	void SetClientSwordPresentationLocation(const FVector& Location);
+	void StartClientSwordEntryOrbit(const FVector& OrbitCenterLocation,
+		const FVector& GatherStartLocation,
+		float StartDelaySeconds,
+		float GatherDurationSeconds,
+		float PreSpinHoldSeconds,
+		float OrbitDurationSeconds,
+		float PostSpinHoldSeconds,
+		float SpawnServerWorldTimeSeconds);
+	void StartClientSwordEntryStraightening(FRotator StartRotation, FRotator TargetRotation, float DurationSeconds, float EaseExponent);
 	void ApplyImpactDamage();
 
 	// GodFall 검의 고정 구간 위치를 클라이언트와 맞춘다.
 	UFUNCTION(NetMulticast, Reliable)
 	void MulticastSetSwordPresentationLocation(FVector Location);
+
+	// StaticSword 원형 대형 회전을 모든 클라이언트에서 로컬 보간하도록 시작한다.
+	UFUNCTION(NetMulticast, Reliable)
+	void MulticastStartSwordEntryOrbit(FVector OrbitCenterLocation,
+		FVector GatherStartLocation,
+		float StartDelaySeconds,
+		float GatherDurationSeconds,
+		float PreSpinHoldSeconds,
+		float OrbitDurationSeconds,
+		float PostSpinHoldSeconds,
+		float SpawnServerWorldTimeSeconds);
+
+	// Entry impact 후 검을 직선으로 세우는 회전을 모든 클라이언트에서 로컬 보간하도록 시작한다.
+	UFUNCTION(NetMulticast, Reliable)
+	void MulticastStartSwordEntryStraightening(FRotator StartRotation, FRotator TargetRotation, float DurationSeconds, float EaseExponent);
 
 	// GodFall 검의 고정 목표 이동 구간을 클라이언트가 로컬 보간하도록 시작한다.
 	UFUNCTION(NetMulticast, Reliable)
@@ -242,6 +308,7 @@ private:
 	FTimerHandle TelegraphTimerHandle;
 	FTimerHandle ImpactHoldTimerHandle;
 	FTimerHandle ImpactWarningTimerHandle;
+	FTimerHandle EntryReturnChargeDelayTimerHandle;
 
 	FVector SegmentStartLocation = FVector::ZeroVector;
 	FVector SegmentTargetLocation = FVector::ZeroVector;
@@ -251,9 +318,29 @@ private:
 	FVector ClientSegmentStartLocation = FVector::ZeroVector;
 	FVector ClientSegmentTargetLocation = FVector::ZeroVector;
 	FVector ClientAssignedOverheadLocation = FVector::ZeroVector;
+	FVector EntryOrbitCenterLocation = FVector::ZeroVector;
+	FVector EntryOrbitGatherStartLocation = FVector::ZeroVector;
+	FVector ClientEntryOrbitCenterLocation = FVector::ZeroVector;
+	FVector ClientEntryOrbitGatherStartLocation = FVector::ZeroVector;
+	FRotator EntryStraightenStartRotation = FRotator::ZeroRotator;
+	FRotator EntryStraightenTargetRotation = FRotator::ZeroRotator;
+	FRotator ClientEntryStraightenStartRotation = FRotator::ZeroRotator;
+	FRotator ClientEntryStraightenTargetRotation = FRotator::ZeroRotator;
 	float SegmentElapsedSeconds = 0.0f;
 	float SegmentDurationSeconds = 0.0f;
+	float EntryOrbitElapsedSeconds = 0.0f;
+	float EntryOrbitStartDelaySeconds = 0.0f;
+	float EntryOrbitGatherDurationSeconds = 0.0f;
+	float EntryOrbitPreSpinHoldSeconds = 0.0f;
+	float EntryOrbitDurationSeconds = 0.0f;
+	float EntryOrbitPostSpinHoldSeconds = 0.0f;
+	float EntryStraightenElapsedSeconds = 0.0f;
+	float EntryStraightenDurationSeconds = 0.0f;
+	float EntryStraightenEaseExponent = 1.0f;
 	float EntryDiveReturnSeconds = 0.0f;
+	float EntryImpactHoldSeconds = 0.0f;
+	bool bEntryOrbitImpactSpreadActive = false;
+	float EntryChargeStartDelayAfterRise = 0.0f;
 	float EntryDiveChargeSecondsAfterReturn = 0.0f;
 	float OverheadMoveElapsedSeconds = 0.0f;
 	float OverheadMoveDurationSeconds = 0.0f;
@@ -261,6 +348,15 @@ private:
 	float OverheadMoveAcceleration = 0.0f;
 	float ClientSegmentElapsedSeconds = 0.0f;
 	float ClientSegmentDurationSeconds = 0.0f;
+	float ClientEntryOrbitElapsedSeconds = 0.0f;
+	float ClientEntryOrbitStartDelaySeconds = 0.0f;
+	float ClientEntryOrbitGatherDurationSeconds = 0.0f;
+	float ClientEntryOrbitPreSpinHoldSeconds = 0.0f;
+	float ClientEntryOrbitDurationSeconds = 0.0f;
+	float ClientEntryOrbitPostSpinHoldSeconds = 0.0f;
+	float ClientEntryStraightenElapsedSeconds = 0.0f;
+	float ClientEntryStraightenDurationSeconds = 0.0f;
+	float ClientEntryStraightenEaseExponent = 1.0f;
 	float ClientOverheadMoveElapsedSeconds = 0.0f;
 	float ClientOverheadMoveDurationSeconds = 0.0f;
 	float ClientOverheadMoveSpeed = 0.0f;
@@ -271,6 +367,9 @@ private:
 	TWeakObjectPtr<AActor> ClientAssignedTarget;
 	bool bHasAssignedAttackLocation = false;
 	bool bClientSwordPresentationActive = false;
+	bool bClientSwordEntryOrbitActive = false;
+	bool bClientSwordEntryStraighteningActive = false;
+	bool bEntryOrbitImpactDropActive = false;
 	bool bMeshBaselineCaptured = false;
 	bool bImpactWarningSpawned = false;
 	EPRFaerinGodFallStaticSwordState ClientPresentationState = EPRFaerinGodFallStaticSwordState::None;

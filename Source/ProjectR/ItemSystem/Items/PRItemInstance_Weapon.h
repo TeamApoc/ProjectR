@@ -52,10 +52,6 @@ public:
 	UFUNCTION(BlueprintPure, Category = "ProjectR|Weapon")
 	bool HasEquippedModItem() const;
 
-	// 현재 활성 무기 슬롯에 장착되어 있는지 확인한다
-	UFUNCTION(BlueprintPure, Category = "ProjectR|Weapon")
-	bool IsEquippedCurrentWeaponSlot() const { return bIsEquippedCurrentWeaponSlot; }
-
 	// 무기 슬롯에 장착되어 있는지 확인한다
 	bool IsEquippedWeaponSlot() const { return bIsEquippedWeaponSlot; }
 
@@ -141,10 +137,6 @@ public:
 	// Mod 장착으로 부여한 어빌리티와 효과 핸들
 	UPROPERTY(Transient)
 	FPRAbilitySetHandles ModAbilityHandles;
-
-	// 현재 활성 무기 슬롯에 장착되어 어빌리티 부여 대상인지 여부
-	UPROPERTY(Replicated, Transient, VisibleInstanceOnly, BlueprintReadOnly, Category = "ProjectR|Weapon")
-	bool bIsEquippedCurrentWeaponSlot = false;
 
 	// 무기 슬롯 장착 여부
 	UPROPERTY(Transient)

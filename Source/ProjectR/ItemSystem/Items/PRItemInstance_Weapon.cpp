@@ -197,7 +197,6 @@ void UPRItemInstance_Weapon::OnUnequipped(AActor* OwnerActor)
 {
 	// 슬롯 장착 상태 해제
 	bIsEquippedWeaponSlot = false;
-	bIsEquippedCurrentWeaponSlot = false;
 
 	if (!IsValid(OwnerActor))
 	{
@@ -208,17 +207,6 @@ void UPRItemInstance_Weapon::OnUnequipped(AActor* OwnerActor)
 	ResetTransientRuntimeOnDeactivate();
 }
 
-void UPRItemInstance_Weapon::OnCurrentSlotActivated()
-{
-	// 현재 슬롯 상태 기록
-	bIsEquippedCurrentWeaponSlot = true;
-}
-
-void UPRItemInstance_Weapon::OnCurrentSlotDeactivated()
-{
-	// 현재 슬롯 상태 해제
-	bIsEquippedCurrentWeaponSlot = false;
-}
 
 void UPRItemInstance_Weapon::OnModChanged(AActor* OwnerActor, UPRWeaponModDataAsset* NewModData)
 {

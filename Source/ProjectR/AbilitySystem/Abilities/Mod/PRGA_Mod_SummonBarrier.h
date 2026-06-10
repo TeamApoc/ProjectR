@@ -8,6 +8,9 @@
 #include "PRGA_Mod_SummonBarrier.generated.h"
 
 class APRGroundBoxProjectileBase;
+class APRBarrierAnchorActor;
+class APawn;
+class UPRBarrierAbilityDataAsset;
 struct FGameplayEffectRemovalInfo;
 
 // 배리어를 소환하고 재입력 시 발사하는 모드 어빌리티
@@ -56,11 +59,17 @@ protected:
 	// 서버 배리어 생성
 	APRGroundBoxProjectileBase* SpawnBarrier(const FGameplayAbilityActorInfo* ActorInfo);
 
+	// 서버 배리어 앵커 생성
+	APRBarrierAnchorActor* SpawnBarrierAnchor(APawn* PlayerPawn);
+
 	// 활성 배리어 발사
 	bool LaunchActiveBarrier(const FGameplayAbilityActorInfo* ActorInfo);
 
 	// 배리어 제거 요청
 	void RequestActiveBarrierEnd();
+
+	// 배리어 앵커 제거
+	void DestroyActiveBarrierAnchor();
 
 	// 런타임 바인딩 정리
 	void CleanupBarrierRuntime();
@@ -91,34 +100,18 @@ protected:
 	void HandleBarrierDestroyed(APRGroundBoxProjectileBase* DestroyedBarrier);
 
 protected:
-	// 생성할 배리어 액터 클래스
+	// 배리어 공용 설정 데이터
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "ProjectR|Mod|Barrier")
-	TSubclassOf<APRGroundBoxProjectileBase> BarrierActorClass;
-
-	// 플레이어 기준 생성 위치
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "ProjectR|Mod|Barrier")
-	FVector SpawnOffset = FVector(180.0f, 0.0f, 0.0f);
-
-	// 배리어 접촉 피해
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "ProjectR|Mod|Barrier|Damage", meta = (ClampMin = "0.0"))
-	float BarrierDamage = 0.0f;
-
-	// 배리어 접촉 그로기 피해
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "ProjectR|Mod|Barrier|Damage", meta = (ClampMin = "0.0"))
-	float BarrierGroggyDamage = 0.0f;
-
-	// 배리어 체력 오버라이드
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "ProjectR|Mod|Barrier|Health", meta = (ClampMin = "0.0"))
-	float BarrierMaxHealth = 0.0f;
-
-	// 배리어 발사 속도
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "ProjectR|Mod|Barrier|Launch", meta = (ClampMin = "0.0"))
-	float LaunchSpeed = 1800.0f;
+	TObjectPtr<UPRBarrierAbilityDataAsset> BarrierData;
 
 private:
 	// 현재 서버에서 유지 중인 배리어
 	UPROPERTY(Transient)
 	TObjectPtr<APRGroundBoxProjectileBase> ActiveBarrier;
+
+	// 현재 서버에서 유지 중인 배리어 앵커
+	UPROPERTY(Transient)
+	TObjectPtr<APRBarrierAnchorActor> ActiveBarrierAnchor;
 
 	// 활성 지속시간 비용 GE 핸들
 	FActiveGameplayEffectHandle ActiveDurationCostHandle;

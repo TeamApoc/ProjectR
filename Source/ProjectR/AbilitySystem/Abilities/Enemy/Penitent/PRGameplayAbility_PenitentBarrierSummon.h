@@ -8,6 +8,7 @@
 #include "PRGameplayAbility_PenitentBarrierSummon.generated.h"
 
 class APRGroundBoxProjectileBase;
+class UPRBarrierAbilityDataAsset;
 class UAbilityTask_PlayMontageAndWait;
 class UAbilityTask_WaitGameplayEvent;
 class UAnimMontage;
@@ -60,9 +61,9 @@ protected:
 	bool ExecuteBarrierSummon();
 
 protected:
-	// 생성할 배리어 액터 클래스
+	// 배리어 공용 설정 데이터
 	UPROPERTY(EditDefaultsOnly, Category = "ProjectR|Penitent|Barrier")
-	TSubclassOf<APRGroundBoxProjectileBase> BarrierActorClass;
+	TObjectPtr<UPRBarrierAbilityDataAsset> BarrierData;
 
 	// 배리어 소환 몽타주
 	UPROPERTY(EditDefaultsOnly, Category = "ProjectR|Penitent|Barrier|Montage")

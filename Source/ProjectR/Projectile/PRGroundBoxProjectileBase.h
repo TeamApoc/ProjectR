@@ -83,6 +83,10 @@ public:
 	UFUNCTION(BlueprintCallable, BlueprintAuthorityOnly, Category = "ProjectR|GroundBox")
 	void InitializeAttachedBarrier(APRPenitentCharacter* OwnerPenitent);
 
+	// 부착 소환 상태 공용 초기화
+	UFUNCTION(BlueprintCallable, BlueprintAuthorityOnly, Category = "ProjectR|GroundBox")
+	void InitializeAttachedGroundBox(const FPRGroundBoxLaunchParams& Params);
+
 	// 이동 시작 처리
 	UFUNCTION(BlueprintCallable, Category = "ProjectR|GroundBox")
 	void LaunchGroundBoxProjectile(const FVector& LaunchDirection, float LaunchSpeed);

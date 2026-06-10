@@ -280,6 +280,16 @@ void APRGroundBoxProjectileBase::InitializeAttachedBarrier(APRPenitentCharacter*
 
 	FPRGroundBoxLaunchParams Params;
 	Params.SourceActor = OwnerPenitent;
+	InitializeAttachedGroundBox(Params);
+}
+
+void APRGroundBoxProjectileBase::InitializeAttachedGroundBox(const FPRGroundBoxLaunchParams& Params)
+{
+	if (!HasAuthority() || bDestroyRequested)
+	{
+		return;
+	}
+
 	InitGroundBoxProjectile(Params);
 
 	bLaunched = false;

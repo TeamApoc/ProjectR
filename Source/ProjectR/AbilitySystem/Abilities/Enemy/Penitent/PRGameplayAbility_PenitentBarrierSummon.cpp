@@ -6,10 +6,13 @@
 #include "Abilities/Tasks/AbilityTask_PlayMontageAndWait.h"
 #include "Abilities/Tasks/AbilityTask_WaitGameplayEvent.h"
 #include "Animation/AnimMontage.h"
+#include "Components/SceneComponent.h"
 #include "ProjectR/AbilitySystem/PRAbilitySystemComponent.h"
+#include "ProjectR/AbilitySystem/Data/PRBarrierAbilityDataAsset.h"
 #include "ProjectR/Character/Enemy/Penitent/PRPenitentCharacter.h"
 #include "ProjectR/Combat/PRCombatGameplayTags.h"
 #include "ProjectR/PRGameplayTags.h"
+#include "ProjectR/Projectile/PRBarrierAnchorActor.h"
 #include "ProjectR/Projectile/PRGroundBoxProjectileBase.h"
 
 UPRGameplayAbility_PenitentBarrierSummon::UPRGameplayAbility_PenitentBarrierSummon()
@@ -50,7 +53,9 @@ bool UPRGameplayAbility_PenitentBarrierSummon::CanActivateAbility(const FGamepla
 		return true;
 	}
 
-	return IsValid(BarrierActorClass)
+	return IsValid(BarrierData)
+		&& IsValid(BarrierData->BarrierActorClass)
+		&& IsValid(BarrierData->BarrierAnchorActorClass)
 		&& !AbilitySystemComponent->HasMatchingGameplayTag(PRGameplayTags::State_Enemy_Penitent_BarrierSummon);
 }
 
@@ -211,22 +216,45 @@ bool UPRGameplayAbility_PenitentBarrierSummon::ExecuteBarrierSummon()
 		return false;
 	}
 
-	USceneComponent* BarrierAttachPoint = PenitentCharacter->GetBarrierAttachPoint();
-	if (!IsValid(BarrierAttachPoint))
+	if (!IsValid(BarrierData)
+		|| !IsValid(BarrierData->BarrierActorClass)
+		|| !IsValid(BarrierData->BarrierAnchorActorClass))
 	{
-		// 배리어 부착 기준 누락
-		UE_LOG(LogTemp, Warning, TEXT("UPRGameplayAbility_PenitentBarrierSummon | 배리어 부착 씬 컴포넌트가 유효하지 않습니다."));
+		// 배리어 데이터 누락
+		UE_LOG(LogTemp, Warning, TEXT("UPRGameplayAbility_PenitentBarrierSummon | 배리어 데이터가 유효하지 않습니다."));
 		return false;
 	}
 
-	const FTransform SpawnTransform = BarrierAttachPoint->GetComponentTransform();
 	FActorSpawnParameters SpawnParameters;
 	SpawnParameters.Owner = PenitentCharacter;
 	SpawnParameters.Instigator = PenitentCharacter;
 	SpawnParameters.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AdjustIfPossibleButAlwaysSpawn;
 
+	APRBarrierAnchorActor* BarrierAnchor = World->SpawnActor<APRBarrierAnchorActor>(
+		BarrierData->BarrierAnchorActorClass,
+		PenitentCharacter->GetActorTransform(),
+		SpawnParameters);
+	if (!IsValid(BarrierAnchor))
+	{
+		// 배리어 앵커 스폰 실패
+		UE_LOG(LogTemp, Warning, TEXT("UPRGameplayAbility_PenitentBarrierSummon | 배리어 앵커가 정상적으로 스폰되지 않았습니다."));
+		return false;
+	}
+
+	BarrierAnchor->InitializeAnchor(PenitentCharacter, BarrierData);
+	USceneComponent* BarrierAttachComponent = BarrierAnchor->GetBarrierAttachComponent();
+	if (!IsValid(BarrierAttachComponent))
+	{
+		// 배리어 부착 기준 누락
+		UE_LOG(LogTemp, Warning, TEXT("UPRGameplayAbility_PenitentBarrierSummon | 배리어 부착 컴포넌트가 유효하지 않습니다."));
+		BarrierAnchor->Destroy();
+		return false;
+	}
+
+	const FName AttachSocketName = BarrierAnchor->GetBarrierAttachSocketName();
+	const FTransform SpawnTransform = BarrierAttachComponent->GetSocketTransform(AttachSocketName);
 	APRGroundBoxProjectileBase* BarrierActor = World->SpawnActor<APRGroundBoxProjectileBase>(
-		BarrierActorClass,
+		BarrierData->BarrierActorClass,
 		SpawnTransform,
 		SpawnParameters);
 
@@ -234,13 +262,20 @@ bool UPRGameplayAbility_PenitentBarrierSummon::ExecuteBarrierSummon()
 	{
 		// 배리어 액터 스폰 실패
 		UE_LOG(LogTemp, Warning, TEXT("UPRGameplayAbility_PenitentBarrierSummon | 배리어 액터가 정상적으로 스폰되지 않았습니다."));
+		BarrierAnchor->Destroy();
 		return false;
 	}
 
 	// 노티파이 프레임 기준 배리어 부착 상태 확정
-	BarrierActor->AttachToComponent(BarrierAttachPoint, FAttachmentTransformRules::KeepWorldTransform);
-	BarrierActor->InitializeAttachedBarrier(PenitentCharacter);
-	PenitentCharacter->SetSpawnedBarrierActor(BarrierActor);
+	FPRGroundBoxLaunchParams LaunchParams;
+	LaunchParams.SourceActor = PenitentCharacter;
+	LaunchParams.OverrideMaxHealth = BarrierData->BarrierMaxHealth;
+	BarrierActor->InitializeAttachedGroundBox(LaunchParams);
+	BarrierActor->AttachToComponent(
+		BarrierAttachComponent,
+		FAttachmentTransformRules::SnapToTargetNotIncludingScale,
+		AttachSocketName);
+	PenitentCharacter->SetSpawnedBarrierActor(BarrierActor, BarrierAnchor);
 	AbilitySystemComponent->AddLooseGameplayTag(PRGameplayTags::State_Enemy_Penitent_BarrierSummon);
 	return true;
 }

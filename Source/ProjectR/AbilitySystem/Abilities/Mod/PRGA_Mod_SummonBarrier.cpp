@@ -3,10 +3,13 @@
 #include "PRGA_Mod_SummonBarrier.h"
 
 #include "AbilitySystemComponent.h"
+#include "Components/SceneComponent.h"
 #include "Engine/World.h"
 #include "GameFramework/Controller.h"
 #include "GameFramework/Pawn.h"
+#include "ProjectR/AbilitySystem/Data/PRBarrierAbilityDataAsset.h"
 #include "ProjectR/PRGameplayTags.h"
+#include "ProjectR/Projectile/PRBarrierAnchorActor.h"
 #include "ProjectR/Projectile/PRGroundBoxProjectileBase.h"
 
 UPRGA_Mod_SummonBarrier::UPRGA_Mod_SummonBarrier()
@@ -72,8 +75,8 @@ void UPRGA_Mod_SummonBarrier::ActivateAbility(const FGameplayAbilitySpecHandle H
 
 void UPRGA_Mod_SummonBarrier::OnRemoveAbility(const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilitySpec& Spec)
 {
-	RequestActiveBarrierEnd();
-	CleanupBarrierRuntime();
+	// RequestActiveBarrierEnd();
+	// CleanupBarrierRuntime();
 	Super::OnRemoveAbility(ActorInfo, Spec);
 }
 
@@ -91,7 +94,7 @@ void UPRGA_Mod_SummonBarrier::OnDurationStarted_Implementation()
 		return;
 	}
 
-	if (!IsValid(BarrierActorClass) || !IsValid(SpawnBarrier(GetCurrentActorInfo())))
+	if (!IsValid(BarrierData) || !IsValid(SpawnBarrier(GetCurrentActorInfo())))
 	{
 		CleanupBarrierRuntime();
 		EndAbility(CurrentSpecHandle, CurrentActorInfo, CurrentActivationInfo, true, true);
@@ -115,7 +118,10 @@ bool UPRGA_Mod_SummonBarrier::HasLaunchActivationWindow() const
 
 APRGroundBoxProjectileBase* UPRGA_Mod_SummonBarrier::SpawnBarrier(const FGameplayAbilityActorInfo* ActorInfo)
 {
-	if (ActorInfo == nullptr || !IsValid(BarrierActorClass))
+	if (ActorInfo == nullptr
+		|| !IsValid(BarrierData)
+		|| !IsValid(BarrierData->BarrierActorClass)
+		|| !IsValid(BarrierData->BarrierAnchorActorClass))
 	{
 		return nullptr;
 	}
@@ -135,9 +141,22 @@ APRGroundBoxProjectileBase* UPRGA_Mod_SummonBarrier::SpawnBarrier(const FGamepla
 	RequestActiveBarrierEnd();
 	bLaunchRequested = false;
 
-	const FVector SpawnLocation = PlayerPawn->GetActorLocation()
-		+ PlayerPawn->GetActorRotation().RotateVector(SpawnOffset);
-	const FRotator SpawnRotation = PlayerPawn->GetActorRotation();
+	APRBarrierAnchorActor* SpawnedAnchor = SpawnBarrierAnchor(PlayerPawn);
+	if (!IsValid(SpawnedAnchor))
+	{
+		return nullptr;
+	}
+	ActiveBarrierAnchor = SpawnedAnchor;
+
+	USceneComponent* AttachComponent = SpawnedAnchor->GetBarrierAttachComponent();
+	if (!IsValid(AttachComponent))
+	{
+		DestroyActiveBarrierAnchor();
+		return nullptr;
+	}
+
+	const FName AttachSocketName = SpawnedAnchor->GetBarrierAttachSocketName();
+	const FTransform SpawnTransform = AttachComponent->GetSocketTransform(AttachSocketName);
 
 	FActorSpawnParameters SpawnParameters;
 	SpawnParameters.Owner = PlayerPawn;
@@ -145,24 +164,60 @@ APRGroundBoxProjectileBase* UPRGA_Mod_SummonBarrier::SpawnBarrier(const FGamepla
 	SpawnParameters.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AdjustIfPossibleButAlwaysSpawn;
 
 	APRGroundBoxProjectileBase* SpawnedBarrier = World->SpawnActor<APRGroundBoxProjectileBase>(
-		BarrierActorClass,
-		SpawnLocation,
-		SpawnRotation,
+		BarrierData->BarrierActorClass,
+		SpawnTransform,
 		SpawnParameters);
 	if (!IsValid(SpawnedBarrier))
 	{
+		DestroyActiveBarrierAnchor();
 		return nullptr;
 	}
 
 	FPRGroundBoxLaunchParams LaunchParams;
 	LaunchParams.SourceActor = PlayerPawn;
-	LaunchParams.DamageEffectSpec = MakeModEffectSpec(BarrierDamage, BarrierGroggyDamage);
-	LaunchParams.OverrideMaxHealth = BarrierMaxHealth;
-	SpawnedBarrier->InitGroundBoxProjectile(LaunchParams);
+	LaunchParams.DamageEffectSpec = MakeModEffectSpec(BarrierData->BarrierDamage, BarrierData->BarrierGroggyDamage);
+	LaunchParams.OverrideMaxHealth = BarrierData->BarrierMaxHealth;
+	SpawnedBarrier->InitializeAttachedGroundBox(LaunchParams);
+	SpawnedBarrier->AttachToComponent(
+		AttachComponent,
+		FAttachmentTransformRules::SnapToTargetNotIncludingScale,
+		AttachSocketName);
 	SpawnedBarrier->OnGroundBoxDestroyed.AddDynamic(this, &ThisClass::HandleBarrierDestroyed);
 
 	ActiveBarrier = SpawnedBarrier;
 	return SpawnedBarrier;
+}
+
+APRBarrierAnchorActor* UPRGA_Mod_SummonBarrier::SpawnBarrierAnchor(APawn* PlayerPawn)
+{
+	if (!IsValid(PlayerPawn) || !IsValid(BarrierData) || !IsValid(BarrierData->BarrierAnchorActorClass))
+	{
+		return nullptr;
+	}
+
+	UWorld* World = PlayerPawn->GetWorld();
+	if (!IsValid(World))
+	{
+		return nullptr;
+	}
+
+	FActorSpawnParameters SpawnParameters;
+	SpawnParameters.Owner = PlayerPawn;
+	SpawnParameters.Instigator = PlayerPawn;
+	SpawnParameters.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
+
+	APRBarrierAnchorActor* SpawnedAnchor = World->SpawnActor<APRBarrierAnchorActor>(
+		BarrierData->BarrierAnchorActorClass,
+		PlayerPawn->GetActorTransform(),
+		SpawnParameters);
+	if (!IsValid(SpawnedAnchor))
+	{
+		return nullptr;
+	}
+
+	// 소스 부착
+	SpawnedAnchor->InitializeAnchor(PlayerPawn, BarrierData);
+	return SpawnedAnchor;
 }
 
 bool UPRGA_Mod_SummonBarrier::LaunchActiveBarrier(const FGameplayAbilityActorInfo* ActorInfo)
@@ -173,7 +228,7 @@ bool UPRGA_Mod_SummonBarrier::LaunchActiveBarrier(const FGameplayAbilityActorInf
 	}
 
 	const FVector LaunchDirection = ResolveLaunchDirection(ActorInfo);
-	if (LaunchDirection.IsNearlyZero() || LaunchSpeed <= 0.0f)
+	if (!IsValid(BarrierData) || LaunchDirection.IsNearlyZero() || BarrierData->LaunchSpeed <= 0.0f)
 	{
 		return false;
 	}
@@ -184,9 +239,10 @@ bool UPRGA_Mod_SummonBarrier::LaunchActiveBarrier(const FGameplayAbilityActorInf
 	UnbindSurvivalTagEvents();
 
 	BarrierToLaunch->OnGroundBoxDestroyed.RemoveDynamic(this, &ThisClass::HandleBarrierDestroyed);
-	BarrierToLaunch->LaunchGroundBoxProjectile(LaunchDirection, LaunchSpeed);
+	BarrierToLaunch->LaunchGroundBoxProjectile(LaunchDirection, BarrierData->LaunchSpeed);
 
 	ActiveBarrier = nullptr;
+	DestroyActiveBarrierAnchor();
 	return true;
 }
 
@@ -199,7 +255,19 @@ void UPRGA_Mod_SummonBarrier::RequestActiveBarrierEnd()
 	}
 
 	ActiveBarrier = nullptr;
+	DestroyActiveBarrierAnchor();
 	bLaunchRequested = false;
+}
+
+void UPRGA_Mod_SummonBarrier::DestroyActiveBarrierAnchor()
+{
+	if (IsValid(ActiveBarrierAnchor) && ActiveBarrierAnchor->HasAuthority())
+	{
+		// 활성 앵커 제거
+		ActiveBarrierAnchor->Destroy();
+	}
+
+	ActiveBarrierAnchor = nullptr;
 }
 
 void UPRGA_Mod_SummonBarrier::CleanupBarrierRuntime()
@@ -214,6 +282,7 @@ void UPRGA_Mod_SummonBarrier::CleanupBarrierRuntime()
 
 	ActiveDurationCostHandle.Invalidate();
 	ActiveBarrier = nullptr;
+	DestroyActiveBarrierAnchor();
 	bLaunchRequested = false;
 }
 

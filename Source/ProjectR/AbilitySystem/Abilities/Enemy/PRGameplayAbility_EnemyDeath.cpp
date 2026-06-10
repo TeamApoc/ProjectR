@@ -338,14 +338,4 @@ void UPRGameplayAbility_EnemyDeath::FinishDeath()
 	}
 
 	bDeathFinished = true;
-
-	if (APRBossBaseCharacter* BossCharacter = Cast<APRBossBaseCharacter>(GetAvatarActorFromActorInfo()))
-	{
-		UWorld* World = BossCharacter->GetWorld();
-		if (APRPlayGameMode* PlayGameMode = IsValid(World) ? World->GetAuthGameMode<APRPlayGameMode>() : nullptr)
-		{
-			// 보스 처치 상태 보고
-			PlayGameMode->ReportBossDefeated(BossCharacter->GetMonsterId());
-		}
-	}
 }

@@ -186,6 +186,7 @@ namespace PRGameplayTags
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Event_Player_HUDMessage, "Event.Player.HUDMessage", "HUD 안내 메시지 표시 알림");
 
 	// ===== Event.Boss.* =====
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Event_Boss_Spawn, "Event.Boss.Spawn", "보스 스폰 요청");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Event_Boss_Encounter_Begin, "Event.Boss.Encounter.Begin", "보스 조우 시작 (FPRBossEncounterEventPayload 동반)");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Event_Boss_Encounter_End, "Event.Boss.Encounter.End", "보스 조우 종료");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Event_Boss_PhaseChanged, "Event.Boss.PhaseChanged", "보스 페이즈 변경");

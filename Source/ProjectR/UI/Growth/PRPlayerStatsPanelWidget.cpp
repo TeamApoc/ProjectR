@@ -199,7 +199,7 @@ FText UPRPlayerStatsPanelWidget::GetTraitDisplayName(EPRTraitStatType TraitType)
 	case EPRTraitStatType::MovementSpeed:
 		return FText::FromString(TEXT("이동 속도"));
 	case EPRTraitStatType::AttackPower:
-		return FText::FromString(TEXT("공격력"));
+		return FText::FromString(TEXT("공격력 보너스"));
 	case EPRTraitStatType::MaxStamina:
 		return FText::FromString(TEXT("최대 스태미너"));
 	case EPRTraitStatType::CriticalHitChance:

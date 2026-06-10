@@ -11,12 +11,32 @@ class UNiagaraSystem;
 class USkeletalMeshComponent;
 class UAnimSequenceBase;
 
+USTRUCT(BlueprintType)
+struct PROJECTR_API FPRSwordTrailSocketPair
+{
+	GENERATED_BODY()
+
+public:
+	// false면 이 슬롯은 무시한다.
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "ProjectR|Weapon|Trail|Socket")
+	bool bEnabled = true;
+
+	// 검날 하단 / 손잡이 위쪽 소켓명
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "ProjectR|Weapon|Trail|Socket")
+	FName BladeBottomSocketName = FName(TEXT("trail-bottom"));
+
+	// 검끝 소켓명
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "ProjectR|Weapon|Trail|Socket")
+	FName BladeTopSocketName = FName(TEXT("trail-top"));
+};
+
 /**
- * 검이 포함된 SkeletalMeshComponent의 두 소켓을 기준으로 Niagara 검 궤적을 재생하는 Notify State.
+ * 검이 포함된 SkeletalMeshComponent의 소켓 쌍을 기준으로 Niagara 검 궤적을 재생하는 Notify State.
  *
  * 사용 전제:
  * - 검 메쉬가 캐릭터/몬스터 Skeletal Mesh에 포함되어 있어야 한다.
  * - 같은 Skeletal Mesh 또는 Skeleton에 BladeBottomSocketName / BladeTopSocketName 소켓이 있어야 한다.
+ * - AdditionalSocketPairs에 trail-top2 / trail-bottom2 같은 추가 소켓 쌍을 넣으면 같은 Notify 구간에서 Trail이 추가 생성된다.
  * - SwordEffects 계열 Trail Niagara는 User.TrailSize를 사용하므로 bSetUserTrailSize를 기본 true로 둔다.
  */
 UCLASS(meta = (DisplayName = "PR Sword Trail Niagara"))
@@ -49,13 +69,21 @@ protected:
 	UPROPERTY(EditAnywhere, Category = "ProjectR|Weapon|Trail")
 	TObjectPtr<UNiagaraSystem> TrailSystem = nullptr;
 
-	// 검날 하단 / 손잡이 위쪽 소켓명
+	// 기존 Notify 호환용 기본 소켓 쌍 사용 여부.
+	UPROPERTY(EditAnywhere, Category = "ProjectR|Weapon|Trail|Socket")
+	bool bUsePrimarySocketPair = true;
+
+	// 기본 검날 하단 / 손잡이 위쪽 소켓명.
 	UPROPERTY(EditAnywhere, Category = "ProjectR|Weapon|Trail|Socket")
 	FName BladeBottomSocketName = FName(TEXT("trail-bottom"));
 
-	// 검끝 소켓명
+	// 기본 검끝 소켓명.
 	UPROPERTY(EditAnywhere, Category = "ProjectR|Weapon|Trail|Socket")
 	FName BladeTopSocketName = FName(TEXT("trail-top"));
+
+	// 추가 Trail 소켓 쌍. 예: trail-bottom2 / trail-top2, trail-bottom3 / trail-top3.
+	UPROPERTY(EditAnywhere, Category = "ProjectR|Weapon|Trail|Socket")
+	TArray<FPRSwordTrailSocketPair> AdditionalSocketPairs;
 
 	// 기본 TrailSize Niagara 변수명
 	UPROPERTY(EditAnywhere, Category = "ProjectR|Weapon|Trail|Niagara")
@@ -94,15 +122,27 @@ protected:
 	bool bDestroyImmediatelyOnEnd = false;
 
 private:
-	struct FActiveTrailData
+	struct FActiveTrailInstance
 	{
 		TWeakObjectPtr<UNiagaraComponent> Component;
+		FName BladeBottomSocketName = NAME_None;
+		FName BladeTopSocketName = NAME_None;
+	};
+
+	struct FActiveTrailData
+	{
+		TArray<FActiveTrailInstance> Instances;
 	};
 
 	TMap<FObjectKey, FActiveTrailData> ActiveTrails;
 
 	bool ShouldRunForMesh(const USkeletalMeshComponent* MeshComp) const;
-	bool BuildTrailTransform(const USkeletalMeshComponent* MeshComp, FVector& OutLocation, FRotator& OutRotation, float& OutTrailSize) const;
-	void UpdateTrailComponent(const USkeletalMeshComponent* MeshComp, UNiagaraComponent* TrailComponent) const;
+	bool BuildTrailTransform(const USkeletalMeshComponent* MeshComp,
+		FName InBladeBottomSocketName,
+		FName InBladeTopSocketName,
+		FVector& OutLocation,
+		FRotator& OutRotation,
+		float& OutTrailSize) const;
+	void UpdateTrailComponent(const USkeletalMeshComponent* MeshComp, FActiveTrailInstance& TrailInstance) const;
 	void EndTrailForMesh(USkeletalMeshComponent* MeshComp);
 };

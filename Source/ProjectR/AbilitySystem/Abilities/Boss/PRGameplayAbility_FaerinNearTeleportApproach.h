@@ -14,6 +14,7 @@ class ACharacter;
 class APREnemyBaseCharacter;
 class UEnvQuery;
 class UNiagaraSystem;
+class UTexture;
 
 // Faerin 3페이즈 이전 접근 루프에서 사용하는 근거리 텔레포트 접근 Ability다.
 UCLASS(Abstract)
@@ -77,7 +78,10 @@ protected:
 	bool ResolveHomeReappearLocation(FVector& OutLocation) const;
 
 	// 보스 몸에 연결되는 근거리 텔레포트 순간 Niagara를 모든 클라이언트에 요청한다.
-	void SpawnBodyNiagara(UNiagaraSystem* NiagaraSystem) const;
+	void SpawnBodyNiagara(UNiagaraSystem* NiagaraSystem, float LifeSeconds) const;
+
+	// Death GA의 Dissolve 처리 방식과 동일하게 근거리 텔레포트 몸 Dissolve 시각 연출을 요청한다.
+	void PlayNearTeleportDissolveVisual(UNiagaraSystem* NiagaraSystem, float Duration, float StartValue, float EndValue) const;
 
 	// 보스의 숨김/충돌 상태를 원래 전투 가능 상태로 되돌린다.
 	void RestoreBossPresentation(ACharacter* BossCharacter) const;
@@ -100,9 +104,62 @@ protected:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Faerin|NearTeleport|VFX")
 	TObjectPtr<UNiagaraSystem> TeleportOutNiagaraSystem;
 
+	// 텔레포트 인 Niagara를 이 시간 뒤 강제로 비활성화/삭제한다. 0 이하면 Niagara 자체 AutoDestroy만 사용한다.
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Faerin|NearTeleport|VFX|Lifetime", meta = (ClampMin = "0.0"))
+	float TeleportInBodyNiagaraLifeSeconds = 0.0f;
+
+	// 텔레포트 아웃 Niagara를 이 시간 뒤 강제로 비활성화/삭제한다. 0 이하면 Niagara 자체 AutoDestroy만 사용한다.
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Faerin|NearTeleport|VFX|Lifetime", meta = (ClampMin = "0.0"))
+	float TeleportOutBodyNiagaraLifeSeconds = 0.0f;
+
 	// 재등장 순간 보스 몸에 붙일 역방향 디졸브 Niagara다.
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Faerin|NearTeleport|VFX")
 	TObjectPtr<UNiagaraSystem> ReappearDissolveNiagaraSystem;
+
+
+	// 사라짐 디졸브 Niagara/Material 파라미터 보간 시간이다. 0 이하면 즉시 종료값으로 적용한다.
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Faerin|NearTeleport|VFX|Dissolve", meta = (ClampMin = "0.0"))
+	float DisappearDissolveDuration = 0.5f;
+
+	// 재등장 역디졸브 Niagara/Material 파라미터 보간 시간이다. 0 이하면 즉시 종료값으로 적용한다.
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Faerin|NearTeleport|VFX|Dissolve", meta = (ClampMin = "0.0"))
+	float ReappearDissolveDuration = 0.5f;
+
+	// 사라짐 디졸브 시작 값이다.
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Faerin|NearTeleport|VFX|Dissolve")
+	float DisappearDissolveStartValue = 1.0f;
+
+	// 사라짐 디졸브 종료 값이다.
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Faerin|NearTeleport|VFX|Dissolve")
+	float DisappearDissolveEndValue = 0.0f;
+
+	// 재등장 역디졸브 시작 값이다.
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Faerin|NearTeleport|VFX|Dissolve")
+	float ReappearDissolveStartValue = 0.0f;
+
+	// 재등장 역디졸브 종료 값이다.
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Faerin|NearTeleport|VFX|Dissolve")
+	float ReappearDissolveEndValue = 1.0f;
+
+	// Dissolve 재질에서 사용하는 Scalar Parameter 이름이다. Death GA와 기본값을 맞춘다.
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Faerin|NearTeleport|VFX|Dissolve")
+	FName DissolveScalarParameterName = TEXT("DissolveAmount");
+
+	// Dissolve Niagara에 전달할 진행도 User Parameter 이름이다. Death GA와 기본값을 맞춘다.
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Faerin|NearTeleport|VFX|Dissolve")
+	FName NiagaraDissolveParameterName = TEXT("User.DissolveAmount");
+
+	// Dissolve Niagara가 사용하는 노이즈 텍스처다. 비워 두면 전달하지 않는다.
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Faerin|NearTeleport|VFX|Dissolve")
+	TObjectPtr<UTexture> DissolveTexture;
+
+	// Dissolve Niagara 노이즈 텍스처 UV 스케일이다.
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Faerin|NearTeleport|VFX|Dissolve")
+	FVector2D DissolveTextureUV = FVector2D(1.0f, 1.0f);
+
+	// Dissolve Material/Niagara 진행값 갱신 간격이다.
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Faerin|NearTeleport|VFX|Dissolve", meta = (ClampMin = "0.001"))
+	float DissolveTickInterval = 0.016f;
 
 	// 몸 Niagara를 붙일 소켓 이름이다. 비워 두면 Mesh 루트에 붙는다.
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Faerin|NearTeleport|VFX")

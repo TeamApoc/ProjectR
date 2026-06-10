@@ -748,12 +748,6 @@ bool UPRWeaponManagerComponent::EquipWeaponInternal(UPRItemInstance_Weapon* Weap
 
 	if (IsValid(CurrentWeaponInstance))
 	{
-		if (bWasWeaponSlotCurrent)
-		{
-			// 기존 활성 슬롯 상태 해제
-			CurrentWeaponInstance->OnCurrentSlotDeactivated();
-		}
-
 		// 기존 슬롯 무기 해제
 		CurrentWeaponInstance->OnUnequipped(GetOwner());
 	}
@@ -777,9 +771,6 @@ bool UPRWeaponManagerComponent::EquipWeaponInternal(UPRItemInstance_Weapon* Weap
 
 		// 현재 슬롯 태그 갱신
 		UpdateCurrentWeaponSlotTags(OldWeaponSlot, CurrentWeaponSlot);
-
-		// 새 활성 슬롯 상태 기록
-		WeaponItem->OnCurrentSlotActivated();
 	}
 
 	// 무기 슬롯 최대 자원과 현재 자원을 GE로 적용
@@ -1122,12 +1113,6 @@ bool UPRWeaponManagerComponent::UnequipWeaponFromSlotInternal(EPRWeaponSlotType 
 
 	CacheAmmoRatiosForSlot(TargetSlot);
 
-	if (bWasTargetSlotCurrent)
-	{
-		// 현재 활성 슬롯 상태 해제
-		CurrentWeaponInstance->OnCurrentSlotDeactivated();
-	}
-
 	// 해제 대상 무기 AbilitySet 회수
 	CurrentWeaponInstance->OnUnequipped(GetOwner());
 
@@ -1143,17 +1128,8 @@ bool UPRWeaponManagerComponent::UnequipWeaponFromSlotInternal(EPRWeaponSlotType 
 		// 현재 슬롯 태그 갱신
 		UpdateCurrentWeaponSlotTags(PreWeaponSlot, CurrentWeaponSlot);
 
-		// 다음 활성 슬롯이 존재하는 경우
-		if (CurrentWeaponSlot != EPRWeaponSlotType::None)
-		{
-			// 다음 활성 슬롯의 원본 Item을 찾을 수 있는 경우
-			if (UPRItemInstance_Weapon* NextWeaponInstance = GetWeaponInstanceBySlotType(CurrentWeaponSlot))
-			{
-				// 다음 활성 슬롯 상태 기록
-				NextWeaponInstance->OnCurrentSlotActivated();
-			}
-		}
-		else
+		// 다음 활성 슬롯이 없는
+		if (CurrentWeaponSlot == EPRWeaponSlotType::None)
 		{
 			// 활성 슬롯 후보가 없으므로 비무장 상태로 변경
 			ArmedState = EPRArmedState::Unarmed;
@@ -1314,26 +1290,12 @@ void UPRWeaponManagerComponent::SetCurrentWeaponSlotInternal(EPRWeaponSlotType T
 	// 전환 전 활성 슬롯. 이전 활성 무기 해제 알림 대상 판단에 사용
 	const EPRWeaponSlotType PreWeaponSlot = CurrentWeaponSlot;
 
-	// 이전 활성 슬롯이 있었던 경우
-	if (PreWeaponSlot != EPRWeaponSlotType::None)
-	{
-		// 이전 활성 슬롯의 원본 Item을 찾을 수 있는 경우
-		if (UPRItemInstance_Weapon* PreWeaponInstance = GetWeaponInstanceBySlotType(PreWeaponSlot))
-		{
-			// 이전 활성 슬롯 상태 해제
-			PreWeaponInstance->OnCurrentSlotDeactivated();
-		}
-	}
-
 	// 활성 무기 사용 흐름을 타겟 슬롯으로 전환
 	// 타겟 슬롯을 활성 슬롯으로 지정
 	CurrentWeaponSlot = TargetSlot;
 
 	// 현재 슬롯 태그 갱신
 	UpdateCurrentWeaponSlotTags(PreWeaponSlot, CurrentWeaponSlot);
-
-	// 새 활성 슬롯 상태 기록
-	TargetWeaponInstance->OnCurrentSlotActivated();
 
 	// 활성 슬롯 기준 전투 값을 새 무기 데이터로 갱신
 	ApplyCurrentWeaponGE(TargetWeaponInstance);

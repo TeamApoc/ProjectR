@@ -73,12 +73,6 @@ public:
 	// 무기 슬롯 해제 시점의 생명주기 훅
 	void OnUnequipped(AActor* OwnerActor);
 
-	// 현재 활성 슬롯 진입 시점의 생명주기 훅
-	void OnCurrentSlotActivated();
-
-	// 현재 활성 슬롯 이탈 시점의 생명주기 훅
-	void OnCurrentSlotDeactivated();
-
 	// Mod 교체 시점의 생명주기 훅
 	void OnModChanged(AActor* OwnerActor, UPRWeaponModDataAsset* NewModData);
 

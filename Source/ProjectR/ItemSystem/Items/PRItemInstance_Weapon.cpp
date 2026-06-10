@@ -65,7 +65,6 @@ void UPRItemInstance_Weapon::GetLifetimeReplicatedProps(TArray<FLifetimeProperty
 
 	DOREPLIFETIME(UPRItemInstance_Weapon, ModData);
 	DOREPLIFETIME(UPRItemInstance_Weapon, EquippedModItem);
-	DOREPLIFETIME(UPRItemInstance_Weapon, bIsEquippedCurrentWeaponSlot);
 	DOREPLIFETIME(UPRItemInstance_Weapon, UpgradeLevel);
 }
 
@@ -127,7 +126,6 @@ void UPRItemInstance_Weapon::InitializeMod(UPRWeaponModDataAsset* InModData)
 	ModData = InModData;
 	ClearEquippedModItem();
 	bIsEquippedWeaponSlot = false;
-	bIsEquippedCurrentWeaponSlot = false;
 }
 
 UPRWeaponDataAsset* UPRItemInstance_Weapon::GetWeaponData() const

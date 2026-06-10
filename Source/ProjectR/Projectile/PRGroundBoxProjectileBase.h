@@ -211,6 +211,7 @@ protected:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "ProjectR|GroundBox")
 	TObjectPtr<USceneComponent> Root;
 	
+	// 지면 트레이스 시작 위치(프로젝타일 상단)
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "ProjectR|GroundBox")
 	TObjectPtr<USceneComponent> TraceStartPoint;
 

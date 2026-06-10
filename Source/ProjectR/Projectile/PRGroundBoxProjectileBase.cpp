@@ -126,7 +126,7 @@ void APRGroundBoxProjectileBase::BeginPlay()
 	
 	if (IsValid(WallMeshComponent))
 	{
-			CorrectionZLocation = WallMeshComponent->GetRelativeLocation().Z;
+		CorrectionZLocation = WallMeshComponent->GetRelativeLocation().Z;
 	}
 }
 

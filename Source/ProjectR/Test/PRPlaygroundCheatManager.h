@@ -35,6 +35,14 @@ public:
 	UFUNCTION(Exec)
 	void PR_InfiniteMode(int32 bEnable);
 
+	// 공격력 치트 보너스 누적. PRCheatHandler의 Server RPC로 라우팅
+	UFUNCTION(Exec)
+	void PR_AddAttackPower(float Amount);
+
+	// 공격력 치트 보너스 초기화. PRCheatHandler의 Server RPC로 라우팅
+	UFUNCTION(Exec)
+	void PR_ResetAttackPower();
+
 	// 플라이 모드 토글. 1이면 비행, 0이면 보행. PRCheatHandler의 Server RPC로 라우팅
 	UFUNCTION(Exec)
 	void PR_Fly(int32 bEnable);

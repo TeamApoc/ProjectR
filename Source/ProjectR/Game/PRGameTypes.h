@@ -51,6 +51,41 @@ enum class EPRTraitStatType : uint8
 	CriticalDamageMultiplier
 };
 
+namespace PRStaticTexts
+{
+	const FText MaxHealth = FText::FromString(TEXT("최대 체력"));
+	const FText Armor = FText::FromString(TEXT("방어력"));
+	const FText MovementSpeed =  FText::FromString(TEXT("이동 속도"));
+	const FText AttackPower = FText::FromString(TEXT("공격력 보너스"));
+	const FText MaxStamina = FText::FromString(TEXT("최대 스태미너"));
+	const FText CriticalHitChance = FText::FromString(TEXT("치명타 확률"));
+	const FText CriticalDamageMultiplier = FText::FromString(TEXT("치명타 피해"));
+	const FText Unknown = FText::FromString(TEXT("알 수 없음"));
+
+	static FText GetTraitDisplayText(const EPRTraitStatType InType)
+	{
+		switch (InType)
+		{
+		case EPRTraitStatType::MaxHealth:
+			return MaxHealth;
+		case EPRTraitStatType::Armor:
+			return Armor;
+		case EPRTraitStatType::MovementSpeed:
+			return MovementSpeed;
+		case EPRTraitStatType::AttackPower:
+			return AttackPower;
+		case EPRTraitStatType::MaxStamina:
+			return MaxStamina;
+		case EPRTraitStatType::CriticalHitChance:
+			return CriticalHitChance;
+		case EPRTraitStatType::CriticalDamageMultiplier:
+			return CriticalDamageMultiplier;
+		default:
+			return Unknown;
+		}
+	}
+}
+
 // 능력치별 특성 투자 포인트 내역
 USTRUCT(BlueprintType)
 struct FPRTraitInvestmentInfo
@@ -558,6 +593,77 @@ struct FPRCharacterSaveData
 
 /*~ 월드 세이브 ~*/
 
+// 월드와 Waypoint를 함께 식별하는 진행 상태 키
+USTRUCT(BlueprintType)
+struct FPRWaypointKey
+{
+	GENERATED_BODY()
+
+public:
+	// 에셋 경로와 무관한 논리 월드 식별자
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (Categories = "World"))
+	FGameplayTag WorldId;
+
+	// 목적지 맵의 SpawnPoint와 매칭되는 Waypoint 식별자
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (Categories = "SpawnPoint"))
+	FGameplayTag WaypointId;
+
+	// 저장·복제·서버 요청에서 사용할 수 있는 완전한 키 여부
+	bool IsValid() const
+	{
+		return WorldId.IsValid() && WaypointId.IsValid();
+	}
+
+	bool operator==(const FPRWaypointKey& Other) const
+	{
+		return WorldId == Other.WorldId && WaypointId == Other.WaypointId;
+	}
+};
+
+// Travel 가능한 Waypoint 해금 기록
+USTRUCT(BlueprintType)
+struct FPRUnlockedWaypointEntry
+{
+	GENERATED_BODY()
+
+public:
+	// 해금된 Waypoint 목적지
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	FPRWaypointKey WaypointKey;
+
+	bool operator==(const FPRUnlockedWaypointEntry& Other) const
+	{
+		return WaypointKey == Other.WaypointKey;
+	}
+};
+
+// 월드와 SpawnPoint를 함께 식별하는 실제 스폰 위치 키
+USTRUCT(BlueprintType)
+struct FPRSpawnPointKey
+{
+	GENERATED_BODY()
+
+public:
+	// 에셋 경로와 무관한 논리 월드 식별자
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (Categories = "World"))
+	FGameplayTag WorldId;
+
+	// 실제 플레이어 소환에 사용한 SpawnPoint 식별자
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (Categories = "SpawnPoint"))
+	FGameplayTag SpawnPointId;
+
+	// 저장·복제·시작 위치 복원에 사용할 수 있는 완전한 키 여부
+	bool IsValid() const
+	{
+		return WorldId.IsValid() && SpawnPointId.IsValid();
+	}
+
+	bool operator==(const FPRSpawnPointKey& Other) const
+	{
+		return WorldId == Other.WorldId && SpawnPointId == Other.SpawnPointId;
+	}
+};
+
 // 호스트 세이브에서 로드되어 GameState에 복제되는 월드 진행 상태
 USTRUCT(BlueprintType)
 struct FPRWorldSaveData
@@ -568,17 +674,17 @@ struct FPRWorldSaveData
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	EPRSaveVersion Version = EPRSaveVersion::V1;
 
-	// 마지막으로 활성화된 체크포인트이자 리스폰 기준 SpawnPoint 태그
+	// 전멸 리스폰과 Travel UI 빠른 이동에 사용할 마지막 방문 Waypoint
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	FGameplayTag LastCheckpointId;
+	FPRWaypointKey LastVisitedWaypoint;
 
-	// 마지막으로 활성화된 Waypoint ID. UI와 Waypoint 진행 상태에 사용
+	// 시작 메뉴에서 이어하기 시 사용할 마지막 실제 스폰 위치
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	FGameplayTag LastActiveWaypointId;
+	FPRSpawnPointKey SavedSpawnPoint;
 
-	// 활성화된 체크포인트 집합. UI 목록·워프에 사용
+	// 활성화되어 Travel 가능한 Waypoint 목록
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	TArray<FGameplayTag> UnlockedCheckpoints;
+	TArray<FPRUnlockedWaypointEntry> UnlockedWaypoints;
 
 	// 처치 완료된 보스 ID 집합. 재도전 시 상태 초기화 분기
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)

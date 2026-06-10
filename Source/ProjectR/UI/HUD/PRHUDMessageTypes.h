@@ -16,4 +16,7 @@ enum class EPRHUDMessageType : uint8
 
 	// 상호작용하지 않은 플레이어에게 다른 플레이어 대기 상태를 알리는 상태
 	OtherPlayersWaiting,
+
+	// 맵 이동 확정 이후 실제 이동을 기다리는 상태
+	MapTravelInProgress,
 };

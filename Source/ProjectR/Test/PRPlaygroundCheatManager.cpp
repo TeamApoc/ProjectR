@@ -76,6 +76,34 @@ void UPRPlaygroundCheatManager::PR_InfiniteMode(int32 bEnable)
 #endif
 }
 
+void UPRPlaygroundCheatManager::PR_AddAttackPower(float Amount)
+{
+#if !UE_BUILD_SHIPPING
+	UPRCheatHandler* Handler = GetCheatHandler();
+	if (!IsValid(Handler))
+	{
+		UE_LOG(LogTemp, Warning, TEXT("PR_AddAttackPower: CheatHandler 없음. PC의 CheatHandlerClass 확인 필요"));
+		return;
+	}
+
+	Handler->ServerCheatAddAttackPower(Amount);
+#endif
+}
+
+void UPRPlaygroundCheatManager::PR_ResetAttackPower()
+{
+#if !UE_BUILD_SHIPPING
+	UPRCheatHandler* Handler = GetCheatHandler();
+	if (!IsValid(Handler))
+	{
+		UE_LOG(LogTemp, Warning, TEXT("PR_ResetAttackPower: CheatHandler 없음. PC의 CheatHandlerClass 확인 필요"));
+		return;
+	}
+
+	Handler->ServerCheatResetAttackPower();
+#endif
+}
+
 void UPRPlaygroundCheatManager::PR_Fly(int32 bEnable)
 {
 #if !UE_BUILD_SHIPPING

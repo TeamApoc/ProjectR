@@ -3,10 +3,32 @@
 #include "PRInteraction_MapTravelBase.h"
 
 #include "Engine/World.h"
+#include "GameFramework/PlayerState.h"
 #include "TimerManager.h"
 #include "ProjectR/Game/PRGameInstance.h"
 #include "ProjectR/Game/PRGameStateBase.h"
+#include "ProjectR/Player/PRPlayerController.h"
 #include "ProjectR/World/PRSpawnPointTags.h"
+
+namespace
+{
+	// 플레이어 상태 기준 PR 플레이어 컨트롤러 조회
+	APRPlayerController* ResolveMapTravelPlayerController(const APlayerState* PlayerState)
+	{
+		if (!IsValid(PlayerState))
+		{
+			return nullptr;
+		}
+
+		APRPlayerController* Controller = Cast<APRPlayerController>(PlayerState->GetOwner());
+		if (!IsValid(Controller) && IsValid(PlayerState->GetPawn()))
+		{
+			Controller = Cast<APRPlayerController>(PlayerState->GetPawn()->GetController());
+		}
+
+		return Controller;
+	}
+}
 
 UPRInteraction_MapTravelBase::UPRInteraction_MapTravelBase()
 {
@@ -18,7 +40,7 @@ bool UPRInteraction_MapTravelBase::IsPartySyncActionLocked() const
 	return bTravelInProgress;
 }
 
-void UPRInteraction_MapTravelBase::StartTravelToSpawnPoint(TSoftObjectPtr<UWorld> MapToTravel, FGameplayTag SpawnPointId)
+void UPRInteraction_MapTravelBase::StartTravelToSpawnPoint(TSoftObjectPtr<UWorld> MapToTravel, FGameplayTag SpawnPointId, float TransitionDelay)
 {
 	UWorld* World = GetWorld();
 	// 목적지 데이터는 EntranceGate 또는 Waypoint 같은 하위 클래스 소유
@@ -32,19 +54,23 @@ void UPRInteraction_MapTravelBase::StartTravelToSpawnPoint(TSoftObjectPtr<UWorld
 		return;
 	}
 
-	constexpr float TravelDelay = 1.5f;
+	const float ResolvedTransitionDelay = FMath::Max(0.0f, TransitionDelay);
 	const FGameplayTag ResolvedSpawnPointId = SpawnPointId.IsValid() ? SpawnPointId : PRSpawnPointTags::SpawnPoint_Default;
 	bTravelInProgress = true;
 	// 이동 확정 이후 파티 대기 판정과 안내 메시지 정리
 	ClearPartySyncCheckTimer();
 	ClearPartySyncWaitingMessages();
+	// 실제 맵 이동 전환 알림
+	NotifyMapTransitionToAllPlayers(ResolvedTransitionDelay, EPRMapTransitionType::MapTravel);
 
 	// ServerTravel 시작 예약
-	World->GetTimerManager().SetTimer(TravelDelayTimerHandle, FTimerDelegate::CreateWeakLambda(this, [this, MapToTravel, ResolvedSpawnPointId]()
+	FTimerDelegate TravelDelegate = FTimerDelegate::CreateWeakLambda(this, [this, MapToTravel, ResolvedSpawnPointId, ResolvedTransitionDelay]()
 	{
 		UWorld* TimerWorld = GetWorld();
 		if (!IsValid(TimerWorld))
 		{
+			// 월드 소멸에 따른 맵 전환 취소 알림
+			NotifyMapTransitionToAllPlayers(ResolvedTransitionDelay, EPRMapTransitionType::CancelTravel);
 			bTravelInProgress = false;
 			return;
 		}
@@ -62,6 +88,8 @@ void UPRInteraction_MapTravelBase::StartTravelToSpawnPoint(TSoftObjectPtr<UWorld
 
 			if (!GameInstance->ServerTravelToMap(MapToTravel, false))
 			{
+				// ServerTravel 실패에 따른 맵 전환 취소 알림
+				NotifyMapTransitionToAllPlayers(ResolvedTransitionDelay, EPRMapTransitionType::CancelTravel);
 				bTravelInProgress = false;
 				return;
 			}
@@ -77,6 +105,30 @@ void UPRInteraction_MapTravelBase::StartTravelToSpawnPoint(TSoftObjectPtr<UWorld
 			return;
 		}
 
+		// GameInstance 조회 실패에 따른 맵 전환 취소 알림
+		NotifyMapTransitionToAllPlayers(ResolvedTransitionDelay, EPRMapTransitionType::CancelTravel);
 		bTravelInProgress = false;
-	}), TravelDelay, false);
+	});
+
+	if (ResolvedTransitionDelay <= 0.0f)
+	{
+		// 지연 시간이 없을 때 즉시 ServerTravel 실행
+		TravelDelegate.ExecuteIfBound();
+		return;
+	}
+
+	World->GetTimerManager().SetTimer(TravelDelayTimerHandle, TravelDelegate, ResolvedTransitionDelay, false);
+}
+
+void UPRInteraction_MapTravelBase::NotifyMapTransitionToAllPlayers(float Delay, EPRMapTransitionType TransitionType) const
+{
+	for (APlayerState* PlayerState : GetPlayerArray())
+	{
+		APRPlayerController* Controller = ResolveMapTravelPlayerController(PlayerState);
+		if (IsValid(Controller))
+		{
+			// 로컬 맵 전환 페이드와 HUD 메시지 처리를 PlayerController에 위임
+			Controller->ClientNotifyMapTransition(Delay, TransitionType);
+		}
+	}
 }

@@ -185,6 +185,7 @@ namespace PRGameplayTags
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Event_Player_AttackTarget); // 플레이어 실제 피해 대상 알림
 
 	// ===== Event.Boss.* — 보스 조우 이벤트 =====
+	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Event_Boss_Spawn); // 보스 스폰 요청
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Event_Boss_Encounter_Begin); // 보스 조우 시작 (FPRBossEncounterEventPayload 동반)
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Event_Boss_Encounter_End); // 보스 조우 종료
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Event_Boss_PhaseChanged); // 보스 페이즈 변경

@@ -15,6 +15,7 @@
 #include "ProjectR/Player/PRPlayerController.h"
 #include "ProjectR/Player/PRPlayerState.h"
 #include "ProjectR/ItemSystem/Types/PRWeaponTypes.h"
+#include "ProjectR/PRGameplayTags.h"
 
 
 /*~ RPC 라우팅 ~*/
@@ -74,6 +75,16 @@ void UPRCheatHandler::ServerCheatRespawn_Implementation()
 		Interactor->ClearFocus();
 	}
 
+	APRPlayerState* PRPlayerState = PC->GetPlayerState<APRPlayerState>();
+	if (IsValid(PRPlayerState))
+	{
+		// 리스폰 직전 저장 데이터 보관
+		PRPlayerState->PrepareStateForRespawn();
+
+		// PlayerState 소유 시스템 런타임 상태 초기화
+		PRPlayerState->ResetState();
+	}
+
 	// 기존 폰 제거
 	if (APawn* CurrentPawn = PC->GetPawn())
 	{
@@ -81,14 +92,10 @@ void UPRCheatHandler::ServerCheatRespawn_Implementation()
 		CurrentPawn->Destroy();
 	}
 
-	// PlayerState 의 AbilitySystem 초기화. 새 폰의 PossessedBy 에서 GiveAbilitySet + InitializeAttributesFromRegistry 로 재구성됨
-	if (UPRAbilitySystemComponent* ASC = GetOwningPlayerASC())
-	{
-		ASC->ClearAllAbilities();
-		ASC->RemoveActiveEffects(FGameplayEffectQuery());
-	}
-
 	GameMode->RestartPlayer(PC);
+
+	// 리스폰 후 치트 공격력 재적용
+	ApplyAttackPowerCheatEffect();
 #endif
 }
 
@@ -182,6 +189,36 @@ void UPRCheatHandler::ServerCheatInfiniteMode_Implementation(bool bEnable)
 }
 
 
+/*~ 공격력 치트 ~*/
+
+void UPRCheatHandler::ServerCheatAddAttackPower_Implementation(float Amount)
+{
+#if !UE_BUILD_SHIPPING
+	if (Amount <= 0.0f)
+	{
+		return;
+	}
+
+	const float PreviousCheatAddedAttackPower = CheatAddedAttackPower;
+	CheatAddedAttackPower += Amount;
+	if (!ApplyAttackPowerCheatEffect())
+	{
+		// 적용 실패 시 이전 치트 수치 복원
+		CheatAddedAttackPower = PreviousCheatAddedAttackPower;
+		ApplyAttackPowerCheatEffect();
+	}
+#endif
+}
+
+void UPRCheatHandler::ServerCheatResetAttackPower_Implementation()
+{
+#if !UE_BUILD_SHIPPING
+	RemoveAttackPowerCheatEffect();
+	CheatAddedAttackPower = 0.0f;
+#endif
+}
+
+
 /*~ 플라이 모드 ~*/
 
 void UPRCheatHandler::ServerCheatFly_Implementation(bool bEnable)
@@ -220,4 +257,54 @@ UPRAbilitySystemComponent* UPRCheatHandler::GetOwningPlayerASC() const
 	}
 
 	return PS->GetPRAbilitySystemComponent();
+}
+
+bool UPRCheatHandler::ApplyAttackPowerCheatEffect()
+{
+	UPRAbilitySystemComponent* ASC = GetOwningPlayerASC();
+	if (!IsValid(ASC))
+	{
+		return false;
+	}
+
+	if (CheatAddedAttackPower <= 0.0f)
+	{
+		// 누적 수치 없음
+		RemoveAttackPowerCheatEffect();
+		return false;
+	}
+
+	if (!IsValid(AttackPowerCheatEffectClass))
+	{
+		return false;
+	}
+
+	FGameplayEffectContextHandle ContextHandle = ASC->MakeEffectContext();
+	ContextHandle.AddSourceObject(this);
+
+	const FGameplayEffectSpecHandle SpecHandle = ASC->MakeOutgoingSpec(AttackPowerCheatEffectClass, 1.0f, ContextHandle);
+	if (!SpecHandle.IsValid())
+	{
+		return false;
+	}
+
+	// 성장 공격력 보너스와 같은 SetByCaller 경로 사용
+	SpecHandle.Data->SetSetByCallerMagnitude(PRGameplayTags::SetByCaller_Trait_PlayerAttackPower, CheatAddedAttackPower);
+
+	// 새 효과 준비 완료 후 기존 효과 교체
+	RemoveAttackPowerCheatEffect();
+
+	AttackPowerCheatEffectHandle = ASC->ApplyGameplayEffectSpecToSelf(*SpecHandle.Data.Get());
+	return AttackPowerCheatEffectHandle.IsValid();
+}
+
+void UPRCheatHandler::RemoveAttackPowerCheatEffect()
+{
+	UPRAbilitySystemComponent* ASC = GetOwningPlayerASC();
+	if (IsValid(ASC) && AttackPowerCheatEffectHandle.IsValid())
+	{
+		ASC->RemoveActiveGameplayEffect(AttackPowerCheatEffectHandle);
+	}
+
+	AttackPowerCheatEffectHandle.Invalidate();
 }

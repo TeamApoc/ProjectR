@@ -215,18 +215,26 @@ void APRPlayerController::ClientNotifyMapTransition_Implementation(float Delay, 
 		switch (TransitionType)
 		{
 		case EPRMapTransitionType::MapTravel:
+			// 실제 맵 이동 대기 HUD 메시지 표시
+			UIControllerComponent->NotifyHUDMessage(EPRHUDMessageType::MapTravelInProgress);
+			break;
+		case EPRMapTransitionType::WaypointTravelUI:
+			break;
 		case EPRMapTransitionType::Respawn:
-		
-			// UI 정리
-			UIControllerComponent->RemoveAllWidget();
+			// 리스폰 전환에 따른 HUD 메시지 정리
+			UIControllerComponent->NotifyHUDMessage(EPRHUDMessageType::None);
 			break;
 		case EPRMapTransitionType::CancelTravel:
+			// 전환 취소에 따른 HUD 메시지 정리
+			UIControllerComponent->NotifyHUDMessage(EPRHUDMessageType::None);
 			// UI 정리
 			UIControllerComponent->RefreshForPawn(GetPawn());
 			break;
 		case EPRMapTransitionType::RespawnComplete:
 			HidePartyWipeWidget();
 
+			// 리스폰 완료에 따른 HUD 메시지 정리
+			UIControllerComponent->NotifyHUDMessage(EPRHUDMessageType::None);
 			// 리스폰 완료 UI 복구
 			UIControllerComponent->RefreshForPawn(GetPawn());
 			break;
@@ -242,6 +250,10 @@ void APRPlayerController::ClientNotifyMapTransition_Implementation(float Delay, 
 		{
 		case EPRMapTransitionType::MapTravel:
 			// 맵 이동 페이드
+			CM->FadeOut(EPRFadeColorPreset::White, Delay, false);
+			break;
+		case EPRMapTransitionType::WaypointTravelUI:
+			// Waypoint Travel UI 표시 전 페이드
 			CM->FadeOut(EPRFadeColorPreset::White, Delay, false);
 			break;
 		case EPRMapTransitionType::Respawn:
@@ -721,15 +733,15 @@ void APRPlayerController::RequestSellShopItem(UPRShopComponent* ShopComponent, F
 	ServerRequestSellShopItem(ShopComponent, EntryId, Quantity);
 }
 
-void APRPlayerController::RequestWaypointTravel(FSoftObjectPath WorldDataAssetPath, FGameplayTag WaypointId)
+void APRPlayerController::RequestWaypointTravel(const FPRWaypointKey& WaypointKey)
 {
-	if (!WorldDataAssetPath.IsValid() || !WaypointId.IsValid())
+	if (!WaypointKey.IsValid())
 	{
 		return;
 	}
 
 	// 서버 목적지 검증 요청
-	ServerRequestWaypointTravel(WorldDataAssetPath, WaypointId);
+	ServerRequestWaypointTravel(WaypointKey);
 }
 
 void APRPlayerController::RequestCancelWaypointTravel()
@@ -824,7 +836,7 @@ void APRPlayerController::ServerRequestSellShopItem_Implementation(UPRShopCompon
 	ShopComponent->RequestSellItem(this, EntryId, Quantity);
 }
 
-void APRPlayerController::ServerRequestWaypointTravel_Implementation(FSoftObjectPath WorldDataAssetPath, FGameplayTag WaypointId)
+void APRPlayerController::ServerRequestWaypointTravel_Implementation(FPRWaypointKey WaypointKey)
 {
 	if (!IsHostControllerForWaypointTravel())
 	{
@@ -840,7 +852,7 @@ void APRPlayerController::ServerRequestWaypointTravel_Implementation(FSoftObject
 	}
 
 	// 웨이포인트 상호작용에 이동 위임
-	WaypointInteraction->RequestWaypointTravel(this, WorldDataAssetPath, WaypointId);
+	WaypointInteraction->RequestWaypointTravel(this, WaypointKey);
 }
 
 void APRPlayerController::ServerRequestCancelWaypointTravel_Implementation()

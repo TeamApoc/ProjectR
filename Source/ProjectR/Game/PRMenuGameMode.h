@@ -46,6 +46,9 @@ private:
 	// 메뉴 프리뷰 캐릭터 노출과 충돌 비활성화
 	void ConfigurePreviewCharacter(APRPlayerCharacter* InPreviewCharacter) const;
 
+	// 저장된 스폰 위치 기준 Host 시작 맵 이름 결정
+	FName ResolveHostMapNameFromSave(const FPRWorldSaveData& WorldSaveData) const;
+
 protected:
 	// 호스트 시작 시 사용할 기본 맵
 	UPROPERTY(EditDefaultsOnly, Category = "ProjectR|Menu|Session")

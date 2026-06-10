@@ -1,6 +1,7 @@
 // Copyright ProjectR. All Rights Reserved.
 
 #include "PRGameInstance.h"
+#include "PRGameStateBase.h"
 #include "PRSessionSubsystem.h"
 #include "PRSaveGame.h"
 #include "Engine/Engine.h"
@@ -157,6 +158,7 @@ bool UPRGameInstance::LoadLocalCharacter(FName SlotName)
 	}
 
 	LocalCharacterSave = LoadedPRSaveGame->CharacterSaveData;
+	LocalWorldSave = LoadedPRSaveGame->WorldSaveData;
 	return true;
 }
 
@@ -175,6 +177,7 @@ bool UPRGameInstance::SaveLocalCharacter(FName SlotName)
 	}
 
 	NewSaveGame->CharacterSaveData = LocalCharacterSave;
+	NewSaveGame->WorldSaveData = LocalWorldSave;
 	return UGameplayStatics::SaveGameToSlot(NewSaveGame, SlotName.ToString(), LocalCharacterSaveUserIndex);
 }
 
@@ -238,6 +241,8 @@ bool UPRGameInstance::SaveLocalCharacterSlot(int32 SlotIndex)
 		return false;
 	}
 
+	RefreshLocalWorldSaveFromGameState();
+
 	const FString SlotName = BuildLocalCharacterSlotName(SlotIndex);
 	const bool bSaved = SaveLocalCharacter(FName(*SlotName));
 	if (bSaved)
@@ -268,6 +273,7 @@ bool UPRGameInstance::DeleteLocalCharacterSaveSlot(int32 SlotIndex)
 		// 삭제된 슬롯을 세션 진입용 캐릭터로 계속 사용하지 않도록 활성 슬롯 초기화
 		ActiveLocalCharacterSlotIndex = INDEX_NONE;
 		LocalCharacterSave = FPRCharacterSaveData();
+		LocalWorldSave = FPRWorldSaveData();
 	}
 
 	return bDeleted;
@@ -334,12 +340,15 @@ bool UPRGameInstance::EnsureEmptyLocalCharacterSaveSlot()
 	}
 
 	const FPRCharacterSaveData PreviousLocalCharacter = LocalCharacterSave;
+	const FPRWorldSaveData PreviousLocalWorldSave = LocalWorldSave;
 	const int32 PreviousActiveLocalCharacterSlotIndex = ActiveLocalCharacterSlotIndex;
 	LocalCharacterSave = FPRCharacterSaveData();
+	LocalWorldSave = FPRWorldSaveData();
 
 	// 기존 진행 슬롯을 덮어쓰지 않는 첫 빈 슬롯 저장
 	const bool bSaved = SaveLocalCharacterSlot(FirstEmptySlotIndex);
 	LocalCharacterSave = PreviousLocalCharacter;
+	LocalWorldSave = PreviousLocalWorldSave;
 	ActiveLocalCharacterSlotIndex = PreviousActiveLocalCharacterSlotIndex;
 	return bSaved;
 }
@@ -377,6 +386,7 @@ bool UPRGameInstance::EnsureLocalCharacterReadyForSession()
 
 	// 모든 저장 슬롯 로드 실패 시 런타임 기본 페이로드 사용
 	LocalCharacterSave = FPRCharacterSaveData();
+	LocalWorldSave = FPRWorldSaveData();
 	ActiveLocalCharacterSlotIndex = INDEX_NONE;
 	return true;
 }
@@ -403,4 +413,17 @@ bool UPRGameInstance::IsDefaultLocalCharacterSaveData(const FPRCharacterSaveData
 	const FPRCharacterSaveData DefaultSaveData;
 	// 구조체 전체 기본값 비교로 신규 게임 슬롯 판별
 	return FPRCharacterSaveData::StaticStruct()->CompareScriptStruct(&SaveData, &DefaultSaveData, PPF_None);
+}
+
+void UPRGameInstance::RefreshLocalWorldSaveFromGameState()
+{
+	UWorld* World = GetWorld();
+	const APRGameStateBase* GameState = IsValid(World) ? World->GetGameState<APRGameStateBase>() : nullptr;
+	if (!IsValid(GameState))
+	{
+		return;
+	}
+
+	// 저장 직전 서버 GameState의 월드 진행 상태 스냅샷 반영
+	LocalWorldSave = GameState->MakeWorldSaveData();
 }

@@ -11,6 +11,17 @@ class UAnimMontage;
 class UNiagaraSystem;
 class UTexture;
 
+// Death Dissolve 시작 기준이다. 기본값은 기존 동작처럼 몽타주 종료 이후다.
+UENUM(BlueprintType)
+enum class EPRDeathDissolveTimingMode : uint8
+{
+	// Death Montage가 끝난 뒤 지정 지연 시간 후 Dissolve를 시작한다.
+	AfterMontageEnd UMETA(DisplayName = "After Montage End"),
+
+	// Death Montage가 시작된 뒤 지정 지연 시간 후 Dissolve를 시작한다.
+	AfterMontageStart UMETA(DisplayName = "After Montage Start")
+};
+
 // State.Dead 이벤트를 받아 적을 사망 상태로 고정하고, 사망 몽타주와 삭제 타이밍을 관리하는 Ability다.
 UCLASS(Abstract)
 class PROJECTR_API UPRGameplayAbility_EnemyDeath : public UPRGameplayAbility_EnemyBase
@@ -86,9 +97,17 @@ protected:
 	UPROPERTY(EditDefaultsOnly, Category = "ProjectR|Death|Dissolve")
 	bool bUseDissolveOnDeath = false;
 
-	// 몽타주 마지막 자세 고정 후 Dissolve 시작까지 대기할 시간이다.
+	// Dissolve 시작 기준이다. 기본값은 기존 공용 적처럼 Death Montage 종료 이후다.
+	UPROPERTY(EditDefaultsOnly, Category = "ProjectR|Death|Dissolve", meta = (EditCondition = "bUseDissolveOnDeath"))
+	EPRDeathDissolveTimingMode DissolveTimingMode = EPRDeathDissolveTimingMode::AfterMontageEnd;
+
+	// DissolveTimingMode가 AfterMontageEnd일 때, 몽타주 마지막 자세 고정 후 Dissolve 시작까지 대기할 시간이다.
 	UPROPERTY(EditDefaultsOnly, Category = "ProjectR|Death|Dissolve", meta = (EditCondition = "bUseDissolveOnDeath", ClampMin = "0.0"))
 	float DissolveDelayAfterMontage = 0.0f;
+
+	// DissolveTimingMode가 AfterMontageStart일 때, Death Montage 시작 후 Dissolve 시작까지 대기할 시간이다.
+	UPROPERTY(EditDefaultsOnly, Category = "ProjectR|Death|Dissolve", meta = (EditCondition = "bUseDissolveOnDeath", ClampMin = "0.0"))
+	float DissolveDelayAfterMontageStart = 0.65f;
 
 	// Dissolve가 진행되는 시간이다.
 	UPROPERTY(EditDefaultsOnly, Category = "ProjectR|Death|Dissolve", meta = (EditCondition = "bUseDissolveOnDeath", ClampMin = "0.0"))

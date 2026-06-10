@@ -49,6 +49,7 @@ namespace PRGameplayTags
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Ability_Enemy_RoyalArcher_Pattern, "Ability.Enemy.RoyalArcher.Pattern", "RoyalArcher 패턴 루트");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Ability_Enemy_RoyalArcher_WakeFromPerch, "Ability.Enemy.RoyalArcher.WakeFromPerch", "RoyalArcher 전투 시작");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Ability_Enemy_RoyalArcher_FlameArrow, "Ability.Enemy.RoyalArcher.FlameArrow", "RoyalArcher 주력 사격");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Ability_Enemy_RoyalArcher_TripleArrow, "Ability.Enemy.RoyalArcher.TripleArrow", "RoyalArcher 3연속 화살 사격");
 
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Ability_Enemy_SoldierArmored_Pattern, "Ability.Enemy.SoldierArmored.Pattern", "Soldier_Armored 패턴 루트");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Ability_Enemy_SoldierArmored_HammerSwing01, "Ability.Enemy.SoldierArmored.HammerSwing01", "Soldier_Armored 1타");
@@ -190,6 +191,7 @@ namespace PRGameplayTags
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Event_Boss_Encounter_End, "Event.Boss.Encounter.End", "보스 조우 종료");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Event_Boss_PhaseChanged, "Event.Boss.PhaseChanged", "보스 페이즈 변경");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Event_Boss_BGMPhasePreview, "Event.Boss.BGMPhasePreview", "보스 BGM 페이즈 예고");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Event_Boss_BGMPatternCue, "Event.Boss.BGMPatternCue", "보스 BGM 특수패턴 Cue");
 
 	// ===== Cue.* =====
 

@@ -74,6 +74,11 @@ TArray<EPREquipmentSlotType> FPREquipmentList::GetActiveSlots() const
 	return ActiveSlots;
 }
 
+void FPREquipmentList::Clear()
+{
+	Entries.Reset();
+}
+
 UPREquipmentManagerComponent::UPREquipmentManagerComponent()
 {
 	PrimaryComponentTick.bCanEverTick = false;
@@ -228,12 +233,23 @@ FPREquipmentSaveData UPREquipmentManagerComponent::MakeSaveData() const
 
 void UPREquipmentManagerComponent::ApplySaveData(const FPREquipmentSaveData& InSaveData)
 {
-	// 기존 장착 상태 초기화
+	// 기존 장착 효과 해제
 	TArray<EPREquipmentSlotType> ActiveSlots = EquippedList.GetActiveSlots();
 	for (EPREquipmentSlotType SlotType : ActiveSlots)
 	{
 		UnequipSlot(SlotType);
 	}
+
+	// 저장 데이터 재적용 기준 상태 초기화
+	EquippedList.Clear();
+	ReplicatedEquipmentInfos.Reset();
+
+	if (IsValid(GetOwner()))
+	{
+		GetOwner()->ForceNetUpdate();
+	}
+
+	OnEquipmentVisualInfosChanged.Broadcast(this);
 	
 	UPRInventoryComponent* InventoryComponent = UPRGameplayStatics::GetInventoryComponent(GetOwner());
 	if (!IsValid(InventoryComponent))

@@ -51,6 +51,7 @@ namespace PRGameplayTags
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Ability_Enemy_RoyalArcher_Pattern); // RoyalArcher 패턴 루트
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Ability_Enemy_RoyalArcher_WakeFromPerch); // RoyalArcher 전투 시작
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Ability_Enemy_RoyalArcher_FlameArrow); // RoyalArcher 주력 사격
+	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Ability_Enemy_RoyalArcher_TripleArrow); // RoyalArcher 3연속 화살 사격
 
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Ability_Enemy_SoldierArmored_Pattern); // Soldier_Armored 패턴 루트
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Ability_Enemy_SoldierArmored_HammerSwing01); // Soldier_Armored 1타
@@ -188,6 +189,7 @@ namespace PRGameplayTags
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Event_Boss_Encounter_End); // 보스 조우 종료
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Event_Boss_PhaseChanged); // 보스 페이즈 변경
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Event_Boss_BGMPhasePreview); // 보스 BGM 페이즈 예고
+	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Event_Boss_BGMPatternCue); // 보스 BGM 특수패턴 Cue
 
 	// ===== Cue.* — GameplayCue 식별 =====
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Cue_Critical_Boss_PhaseTransition); // 보스 페이즈 전환 연출 Cue

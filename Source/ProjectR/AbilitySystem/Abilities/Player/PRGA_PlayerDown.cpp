@@ -6,11 +6,16 @@
 #include "Abilities/Tasks/AbilityTask_PlayMontageAndWait.h"
 #include "Abilities/Tasks/AbilityTask_WaitGameplayEvent.h"
 #include "Animation/AnimMontage.h"
+#include "Components/AudioComponent.h"
+#include "Engine/World.h"
 #include "GameFramework/CharacterMovementComponent.h"
+#include "GameFramework/GameStateBase.h"
+#include "Kismet/GameplayStatics.h"
 #include "ProjectR/Character/PRPlayerCharacter.h"
 #include "ProjectR/Game/PRPlayGameMode.h"
 #include "ProjectR/Player/PRPlayerState.h"
 #include "ProjectR/PRGameplayTags.h"
+#include "Sound/SoundBase.h"
 #include "TimerManager.h"
 
 UPRGA_PlayerDown::UPRGA_PlayerDown()
@@ -76,6 +81,7 @@ void UPRGA_PlayerDown::ActivateAbility(const FGameplayAbilitySpecHandle Handle,
 		}
 	}
 
+	PlayDownAudio();
 	PlayDownEnterMontage();
 	StartDownTimer();
 	//StartDownDeathEventWait();
@@ -89,6 +95,8 @@ void UPRGA_PlayerDown::EndAbility(const FGameplayAbilitySpecHandle Handle,
 	bool bWasCancelled)
 {
 	StopDownTimer();
+	ClearDownTimerInfo();
+	StopDownAudio();
 	SetDownEnterMovementBlocked(false);
 
 	if (IsValid(ActiveMontageTask))
@@ -127,11 +135,14 @@ void UPRGA_PlayerDown::StartDownTimer()
 		return;
 	}
 
+	const float ClampedDownTimeout = FMath::Max(DownTimeout, 0.0f);
+	StartDownTimerInfo(ClampedDownTimeout);
+
 	World->GetTimerManager().SetTimer(
 		DownTimerHandle,
 		this,
 		&UPRGA_PlayerDown::HandleDownTimeout,
-		FMath::Max(DownTimeout, 0.0f),
+		ClampedDownTimeout,
 		false);
 }
 
@@ -142,6 +153,55 @@ void UPRGA_PlayerDown::StopDownTimer()
 	{
 		World->GetTimerManager().ClearTimer(DownTimerHandle);
 	}
+}
+
+void UPRGA_PlayerDown::StartDownTimerInfo(float DurationSeconds)
+{
+	AActor* AvatarActor = GetAvatarActorFromActorInfo();
+	if (!IsValid(AvatarActor) || !AvatarActor->HasAuthority())
+	{
+		return;
+	}
+
+	const APRPlayerCharacter* PlayerCharacter = Cast<APRPlayerCharacter>(AvatarActor);
+	APRPlayerState* PlayerState = IsValid(PlayerCharacter) ? PlayerCharacter->GetPlayerState<APRPlayerState>() : nullptr;
+	if (!IsValid(PlayerState))
+	{
+		return;
+	}
+
+	const float ClampedDurationSeconds = FMath::Max(DurationSeconds, 0.0f);
+	PlayerState->StartDownTimerInfo(
+		ClampedDurationSeconds,
+		ResolveServerWorldTimeSeconds() + ClampedDurationSeconds);
+}
+
+void UPRGA_PlayerDown::ClearDownTimerInfo() const
+{
+	const AActor* AvatarActor = GetAvatarActorFromActorInfo();
+	if (!IsValid(AvatarActor) || !AvatarActor->HasAuthority())
+	{
+		return;
+	}
+
+	const APRPlayerCharacter* PlayerCharacter = Cast<APRPlayerCharacter>(AvatarActor);
+	APRPlayerState* PlayerState = IsValid(PlayerCharacter) ? PlayerCharacter->GetPlayerState<APRPlayerState>() : nullptr;
+	if (IsValid(PlayerState))
+	{
+		PlayerState->ClearDownTimerInfo();
+	}
+}
+
+float UPRGA_PlayerDown::ResolveServerWorldTimeSeconds() const
+{
+	const UWorld* World = GetWorld();
+	if (!IsValid(World))
+	{
+		return 0.0f;
+	}
+
+	const AGameStateBase* GameState = World->GetGameState();
+	return IsValid(GameState) ? GameState->GetServerWorldTimeSeconds() : World->GetTimeSeconds();
 }
 
 void UPRGA_PlayerDown::HandleDownTimeout()
@@ -321,4 +381,171 @@ void UPRGA_PlayerDown::PlayDownEnterMontage()
 	ActiveMontageTask->OnInterrupted.AddDynamic(this, &UPRGA_PlayerDown::HandleDownMontageInterrupted);
 	ActiveMontageTask->OnCancelled.AddDynamic(this, &UPRGA_PlayerDown::HandleDownMontageInterrupted);
 	ActiveMontageTask->ReadyForActivation();
+}
+
+bool UPRGA_PlayerDown::CanPlayDownAudio() const
+{
+	const UWorld* World = GetWorld();
+	if (!IsValid(World) || World->GetNetMode() == NM_DedicatedServer)
+	{
+		return false;
+	}
+
+	const APRPlayerCharacter* PlayerCharacter = Cast<APRPlayerCharacter>(GetAvatarActorFromActorInfo());
+	return IsValid(PlayerCharacter) && PlayerCharacter->IsLocallyControlled();
+}
+
+void UPRGA_PlayerDown::PlayDownAudio()
+{
+	if (!CanPlayDownAudio())
+	{
+		return;
+	}
+
+	UWorld* World = GetWorld();
+	if (!IsValid(World))
+	{
+		return;
+	}
+
+	const float ClampedVolumeMultiplier = FMath::Max(DownAudioVolumeMultiplier, 0.0f);
+	const float ClampedFadeInDuration = FMath::Max(DownAudioFadeInDuration, 0.0f);
+
+	if (IsValid(DownEnterBGM))
+	{
+		DownEnterBGMAudioComponent = UGameplayStatics::SpawnSound2D(
+			World,
+			DownEnterBGM,
+			ClampedVolumeMultiplier,
+			1.0f,
+			0.0f,
+			nullptr,
+			false,
+			true);
+
+		if (IsValid(DownEnterBGMAudioComponent))
+		{
+			DownEnterBGMAudioComponent->FadeIn(ClampedFadeInDuration, ClampedVolumeMultiplier, 0.0f);
+		}
+	}
+
+	if (DownTimeout <= UrgentHeartbeatRemainingTime)
+	{
+		StartUrgentHeartbeatLoop();
+		return;
+	}
+
+	if (IsValid(DownHeartbeatLoop))
+	{
+		DownHeartbeatAudioComponent = UGameplayStatics::SpawnSound2D(
+			World,
+			DownHeartbeatLoop,
+			ClampedVolumeMultiplier,
+			1.0f,
+			0.0f,
+			nullptr,
+			false,
+			false);
+
+		if (IsValid(DownHeartbeatAudioComponent))
+		{
+			DownHeartbeatAudioComponent->FadeIn(ClampedFadeInDuration, ClampedVolumeMultiplier, 0.0f);
+		}
+	}
+
+	const float UrgentHeartbeatDelay = FMath::Max(DownTimeout - UrgentHeartbeatRemainingTime, 0.0f);
+	World->GetTimerManager().SetTimer(
+		UrgentHeartbeatTimerHandle,
+		this,
+		&UPRGA_PlayerDown::StartUrgentHeartbeatLoop,
+		UrgentHeartbeatDelay,
+		false);
+}
+
+void UPRGA_PlayerDown::StartUrgentHeartbeatLoop()
+{
+	if (!CanPlayDownAudio())
+	{
+		return;
+	}
+
+	FadeOutAndClearAudioComponent(DownHeartbeatAudioComponent);
+
+	if (IsValid(DownUrgentHeartbeatAudioComponent) || !IsValid(DownUrgentHeartbeatLoop))
+	{
+		return;
+	}
+
+	UWorld* World = GetWorld();
+	if (!IsValid(World))
+	{
+		return;
+	}
+
+	const float ClampedVolumeMultiplier = FMath::Max(DownAudioVolumeMultiplier, 0.0f);
+	DownUrgentHeartbeatAudioComponent = UGameplayStatics::SpawnSound2D(
+		World,
+		DownUrgentHeartbeatLoop,
+		ClampedVolumeMultiplier,
+		1.0f,
+		0.0f,
+		nullptr,
+		false,
+		false);
+
+	if (IsValid(DownUrgentHeartbeatAudioComponent))
+	{
+		DownUrgentHeartbeatAudioComponent->FadeIn(FMath::Max(DownAudioFadeInDuration, 0.0f), ClampedVolumeMultiplier, 0.0f);
+	}
+}
+
+void UPRGA_PlayerDown::StopDownAudio()
+{
+	UWorld* World = GetWorld();
+	if (IsValid(World))
+	{
+		World->GetTimerManager().ClearTimer(UrgentHeartbeatTimerHandle);
+	}
+
+	FadeOutAndClearAudioComponent(DownEnterBGMAudioComponent);
+	FadeOutAndClearAudioComponent(DownHeartbeatAudioComponent);
+	FadeOutAndClearAudioComponent(DownUrgentHeartbeatAudioComponent);
+}
+
+void UPRGA_PlayerDown::FadeOutAndClearAudioComponent(TObjectPtr<UAudioComponent>& AudioComponent)
+{
+	if (!IsValid(AudioComponent))
+	{
+		AudioComponent = nullptr;
+		return;
+	}
+
+	const float ClampedFadeOutDuration = FMath::Max(DownAudioFadeOutDuration, 0.0f);
+	UWorld* World = GetWorld();
+	if (!IsValid(World) || ClampedFadeOutDuration <= UE_SMALL_NUMBER)
+	{
+		AudioComponent->Stop();
+		AudioComponent->DestroyComponent();
+		AudioComponent = nullptr;
+		return;
+	}
+
+	UAudioComponent* FadingAudioComponent = AudioComponent;
+	FadingAudioComponent->FadeOut(ClampedFadeOutDuration, 0.0f);
+	AudioComponent = nullptr;
+
+	FTimerHandle DestroyTimerHandle;
+	TWeakObjectPtr<UAudioComponent> WeakAudioComponent(FadingAudioComponent);
+	World->GetTimerManager().SetTimer(
+		DestroyTimerHandle,
+		FTimerDelegate::CreateLambda([WeakAudioComponent]()
+		{
+			if (UAudioComponent* AudioComponentToDestroy = WeakAudioComponent.Get())
+			{
+				AudioComponentToDestroy->Stop();
+				AudioComponentToDestroy->DestroyComponent();
+			}
+		}),
+		ClampedFadeOutDuration,
+		false);
 }

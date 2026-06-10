@@ -168,6 +168,10 @@ void UPRGameplayAbility_FaerinPhaseTransition::HandleGodFallCastStarted()
 
 	bGodFallCastStarted = true;
 	BroadcastBGMPhasePreview(PendingTargetPhase);
+	if (APRFaerinCharacter* FaerinCharacter = Cast<APRFaerinCharacter>(GetAvatarActorFromActorInfo()))
+	{
+		FaerinCharacter->BroadcastBossBGMPatternCue(PRGameplayTags::Pattern_Boss_Faerin_Godfall);
+	}
 
 	if (BodyMontageQueue.IsEmpty())
 	{

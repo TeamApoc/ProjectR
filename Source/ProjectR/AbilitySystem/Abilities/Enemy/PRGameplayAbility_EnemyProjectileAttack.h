@@ -72,6 +72,21 @@ protected:
 	// 현재 설정으로 투사체 1발을 발사한다.
 	virtual void FireProjectile();
 
+	// 스폰된 투사체에 충돌 무시, 호밍 등 공통 후처리를 적용한다.
+	virtual void ConfigureSpawnedProjectile(APRProjectileBase* SpawnedProjectile) const;
+
+	// 투사체 초기 호밍 스케줄을 서버와 원격 클라이언트에 동일하게 전달한다.
+	virtual void ConfigureProjectileHomingSchedule(APRProjectileBase* SpawnedProjectile) const;
+
+	// 한 번의 발사 이벤트에서 생성할 투사체 수를 반환한다.
+	virtual int32 GetProjectileFireCount() const;
+
+	// 다중 투사체 발사 시 인덱스별 스폰 Transform을 계산한다.
+	virtual FTransform GetProjectileSpawnTransformForIndex(int32 ProjectileIndex) const;
+
+	// 다중 투사체 발사 시 인덱스별 조준 방향을 계산한다.
+	virtual FVector CalculateProjectileAimDirectionForIndex(const FVector& SpawnLocation, int32 ProjectileIndex) const;
+
 	// 투사체에 주입할 적 피해 GE Spec을 생성한다.
 	virtual FGameplayEffectSpecHandle BuildProjectileEffectSpec() const;
 
@@ -133,6 +148,26 @@ protected:
 	// 타겟 속도 예측 계수. 0이면 현재 위치만 조준한다.
 	UPROPERTY(EditDefaultsOnly, Category = "ProjectR|Projectile", meta = (ClampMin = "0.0"))
 	float ProjectileTargetLead = 6.0f;
+
+	// true면 스폰 시점에 월드의 모든 적 캐릭터를 투사체 이동/충돌 무시 대상으로 등록한다.
+	UPROPERTY(EditDefaultsOnly, Category = "ProjectR|Projectile")
+	bool bIgnoreEnemyActorsForProjectile = false;
+
+	// true면 발사 직후 일정 시간 동안 타겟을 향한 호밍을 적용한다.
+	UPROPERTY(EditDefaultsOnly, Category = "ProjectR|Projectile|Homing")
+	bool bUseInitialProjectileHoming = false;
+
+	// 초기 호밍 가속도다. 0 이하면 호밍을 적용하지 않는다.
+	UPROPERTY(EditDefaultsOnly, Category = "ProjectR|Projectile|Homing", meta = (ClampMin = "0.0", EditCondition = "bUseInitialProjectileHoming"))
+	float InitialProjectileHomingAcceleration = 0.0f;
+
+	// 발사 후 호밍을 시작하기까지의 지연 시간이다.
+	UPROPERTY(EditDefaultsOnly, Category = "ProjectR|Projectile|Homing", meta = (ClampMin = "0.0", EditCondition = "bUseInitialProjectileHoming"))
+	float InitialProjectileHomingStartDelay = 0.0f;
+
+	// 호밍을 유지할 시간이다. 0 이하면 켜진 뒤 계속 유지되므로 Royal Archer에서는 양수로 둔다.
+	UPROPERTY(EditDefaultsOnly, Category = "ProjectR|Projectile|Homing", meta = (ClampMin = "0.0", EditCondition = "bUseInitialProjectileHoming"))
+	float InitialProjectileHomingDuration = 0.0f;
 
 	// 체력 피해 배율
 	UPROPERTY(EditDefaultsOnly, Category = "ProjectR|Combat", meta = (ClampMin = "0.0"))

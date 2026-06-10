@@ -6,11 +6,13 @@
 #include "Components/Widget.h"
 #include "Engine/LocalPlayer.h"
 #include "GameFramework/PlayerController.h"
+#include "Kismet/GameplayStatics.h"
 #include "ProjectR/Character/PRPlayerCharacter.h"
 #include "ProjectR/ItemSystem/Components/PREquipmentManagerComponent.h"
 #include "ProjectR/ItemSystem/Components/PRInventoryComponent.h"
 #include "ProjectR/Player/PRPlayerState.h"
 #include "ProjectR/ItemSystem/Components/PRQuickSlotComponent.h"
+#include "ProjectR/ItemSystem/Data/PRItemDataAsset.h"
 #include "ProjectR/UI/HUD/PRHUDWidget.h"
 #include "ProjectR/UI/InGameMenu/PRInGameMenuWidget.h"
 #include "ProjectR/UI/Inventory/PRInventoryWidget.h"
@@ -28,6 +30,10 @@
 #include "ProjectR/ItemSystem/Components/PRWeaponUpgradeComponent.h"
 #include "ProjectR/ItemSystem/Components/PRWeaponManagerComponent.h"
 #include "ProjectR/ItemSystem/Data/PRWeaponDataAsset.h"
+#include "ProjectR/System/PRAssetManager.h"
+#include "Sound/SoundBase.h"
+#include "UObject/StructOnScope.h"
+#include "UObject/UnrealType.h"
 
 namespace
 {
@@ -44,11 +50,139 @@ namespace
 			return FText::GetEmpty();
 		}
 	}
+
+	constexpr int32 DamageFXZOrder = 9000;
+	const FName DamageFXCreateFunctionName(TEXT("CreateDamageFX"));
+	const FName DamageFXColor1ParameterName(TEXT("DamageColor1"));
+	const FName DamageFXColor2ParameterName(TEXT("DamageColor2"));
+	const FName DamageFXFadeInDurationParameterName(TEXT("FadeInDuration"));
+	const FName DamageFXFadeOutDurationParameterName(TEXT("FadeOutDuration"));
+	const FName DamageFXForceRemoveParameterName(TEXT("ForceRemove"));
+	const FName DamageFXPulseLoopParameterName(TEXT("PulseLoop"));
+	const FName DamageFXPulseOpacityMinMaxParameterName(TEXT("PulseOpacityMinMax"));
+
+	FProperty* FindDamageFXParameter(UFunction* Function, FName ParameterName)
+	{
+		if (!IsValid(Function))
+		{
+			return nullptr;
+		}
+
+		FProperty* ParameterProperty = Function->FindPropertyByName(ParameterName);
+		if (ParameterProperty == nullptr || !ParameterProperty->HasAnyPropertyFlags(CPF_Parm))
+		{
+			return nullptr;
+		}
+
+		return ParameterProperty;
+	}
+
+	void SetDamageFXScalarParameter(UFunction* Function, void* Parameters, FName ParameterName, double Value)
+	{
+		FProperty* ParameterProperty = FindDamageFXParameter(Function, ParameterName);
+		if (ParameterProperty == nullptr || Parameters == nullptr)
+		{
+			return;
+		}
+
+		if (FFloatProperty* FloatProperty = CastField<FFloatProperty>(ParameterProperty))
+		{
+			FloatProperty->SetPropertyValue_InContainer(Parameters, static_cast<float>(Value));
+			return;
+		}
+
+		if (FDoubleProperty* DoubleProperty = CastField<FDoubleProperty>(ParameterProperty))
+		{
+			DoubleProperty->SetPropertyValue_InContainer(Parameters, Value);
+			return;
+		}
+
+		if (FIntProperty* IntProperty = CastField<FIntProperty>(ParameterProperty))
+		{
+			IntProperty->SetPropertyValue_InContainer(Parameters, static_cast<int32>(Value));
+			return;
+		}
+
+		if (FByteProperty* ByteProperty = CastField<FByteProperty>(ParameterProperty))
+		{
+			ByteProperty->SetPropertyValue_InContainer(Parameters, static_cast<uint8>(Value));
+		}
+	}
+
+	void SetDamageFXBoolParameter(UFunction* Function, void* Parameters, FName ParameterName, bool bValue)
+	{
+		FProperty* ParameterProperty = FindDamageFXParameter(Function, ParameterName);
+		if (ParameterProperty == nullptr || Parameters == nullptr)
+		{
+			return;
+		}
+
+		if (FBoolProperty* BoolProperty = CastField<FBoolProperty>(ParameterProperty))
+		{
+			BoolProperty->SetPropertyValue_InContainer(Parameters, bValue);
+		}
+	}
+
+	void SetDamageFXLinearColorParameter(UFunction* Function, void* Parameters, FName ParameterName, const FLinearColor& Value)
+	{
+		FProperty* ParameterProperty = FindDamageFXParameter(Function, ParameterName);
+		if (ParameterProperty == nullptr || Parameters == nullptr)
+		{
+			return;
+		}
+
+		FStructProperty* StructProperty = CastField<FStructProperty>(ParameterProperty);
+		if (StructProperty == nullptr || StructProperty->Struct != TBaseStructure<FLinearColor>::Get())
+		{
+			return;
+		}
+
+		*StructProperty->ContainerPtrToValuePtr<FLinearColor>(Parameters) = Value;
+	}
+
+	void SetDamageFXVector2DParameter(UFunction* Function, void* Parameters, FName ParameterName, const FVector2D& Value)
+	{
+		FProperty* ParameterProperty = FindDamageFXParameter(Function, ParameterName);
+		if (ParameterProperty == nullptr || Parameters == nullptr)
+		{
+			return;
+		}
+
+		FStructProperty* StructProperty = CastField<FStructProperty>(ParameterProperty);
+		if (StructProperty == nullptr || StructProperty->Struct != TBaseStructure<FVector2D>::Get())
+		{
+			return;
+		}
+
+		*StructProperty->ContainerPtrToValuePtr<FVector2D>(Parameters) = Value;
+	}
+
+	void ApplyDamageFXParameters(UFunction* Function, void* Parameters, const FPRDamageFXSettings& DamageFXSettings)
+	{
+		SetDamageFXLinearColorParameter(Function, Parameters, DamageFXColor1ParameterName, DamageFXSettings.DamageColor1);
+		SetDamageFXLinearColorParameter(Function, Parameters, DamageFXColor2ParameterName, DamageFXSettings.DamageColor2);
+		SetDamageFXScalarParameter(Function, Parameters, DamageFXFadeInDurationParameterName, DamageFXSettings.FadeInDuration);
+		SetDamageFXScalarParameter(Function, Parameters, DamageFXFadeOutDurationParameterName, DamageFXSettings.FadeOutDuration);
+		SetDamageFXBoolParameter(Function, Parameters, DamageFXForceRemoveParameterName, DamageFXSettings.bForceRemove);
+		SetDamageFXBoolParameter(Function, Parameters, DamageFXPulseLoopParameterName, DamageFXSettings.bPulseLoop);
+		SetDamageFXVector2DParameter(Function, Parameters, DamageFXPulseOpacityMinMaxParameterName, DamageFXSettings.PulseOpacityMinMax);
+	}
 }
 
 UPRUIControllerComponent::UPRUIControllerComponent()
 {
 	PrimaryComponentTick.bCanEverTick = false;
+
+	WeakDamageFXSettings.PulseOpacityMinMax = FVector2D(0.15f, 0.55f);
+	WeakDamageFXSettings.FadeOutDuration = 0.25f;
+
+	StrongDamageFXSettings.PulseOpacityMinMax = FVector2D(0.25f, 0.85f);
+	StrongDamageFXSettings.FadeInDuration = 0.05f;
+	StrongDamageFXSettings.FadeOutDuration = 0.35f;
+
+	DownDamageFXSettings.PulseOpacityMinMax = FVector2D(0.35f, 1.0f);
+	DownDamageFXSettings.FadeInDuration = 0.08f;
+	DownDamageFXSettings.FadeOutDuration = 0.55f;
 }
 
 void UPRUIControllerComponent::ToggleInventory()
@@ -403,11 +537,38 @@ void UPRUIControllerComponent::HideWeaponScope()
 	}
 }
 
+void UPRUIControllerComponent::ShowDamageFX(EPRDamageFXIntensity DamageFXIntensity)
+{
+	if (!IsLocalPlayer())
+	{
+		return;
+	}
+
+	UUserWidget* CreatedDamageFXWidget = GetOrCreateDamageFXWidget();
+	if (!IsValid(CreatedDamageFXWidget))
+	{
+		return;
+	}
+
+	if (!CreatedDamageFXWidget->IsInViewport())
+	{
+		CreatedDamageFXWidget->AddToViewport(DamageFXZOrder);
+	}
+
+	CreatedDamageFXWidget->SetVisibility(ESlateVisibility::HitTestInvisible);
+	InvokeDamageFXCreate(CreatedDamageFXWidget, ResolveDamageFXSettings(DamageFXIntensity));
+}
+
 void UPRUIControllerComponent::ShowLevelUpPopup(int32 PreviousLevel, int32 CurrentLevel)
 {
 	if (!IsLocalPlayer() || CurrentLevel <= PreviousLevel)
 	{
 		return;
+	}
+
+	if (IsValid(LevelUpSound))
+	{
+		UGameplayStatics::PlaySound2D(this, LevelUpSound, 1.0f, 1.0f, 0.0f, nullptr, nullptr, true);
 	}
 
 	if (IsValid(HUDWidget))
@@ -421,6 +582,11 @@ void UPRUIControllerComponent::ShowPickupRewardNotification(const FPRPickupNotif
 	if (!IsLocalPlayer() || Payload.Quantity <= 0)
 	{
 		return;
+	}
+
+	if (USoundBase* PickupRewardSound = ResolvePickupRewardSound(Payload))
+	{
+		UGameplayStatics::PlaySound2D(this, PickupRewardSound, 1.0f, 1.0f, 0.0f, nullptr, nullptr, true);
 	}
 
 	if (IsValid(HUDWidget))
@@ -506,6 +672,7 @@ void UPRUIControllerComponent::EndPlay(const EEndPlayReason::Type EndPlayReason)
 
 	UnbindWeaponManager();
 	RemoveWeaponScopeWidget();
+	RemoveDamageFXWidget();
 	RemoveItemTooltipWidget();
 	TearDownHUDWidget();
 
@@ -549,6 +716,11 @@ void UPRUIControllerComponent::RemoveAllWidget()
 	if (WeaponScopeWidget)
 	{
 		WeaponScopeWidget->RemoveFromParent();
+	}
+	if (IsValid(DamageFXWidget))
+	{
+		DamageFXWidget->RemoveFromParent();
+		DamageFXWidget = nullptr;
 	}
 	if (ItemTooltipWidget)
 	{
@@ -667,6 +839,39 @@ UPRUIManagerSubsystem* UPRUIControllerComponent::GetUIManager() const
 	}
 
 	return LocalPlayer->GetSubsystem<UPRUIManagerSubsystem>();
+}
+
+USoundBase* UPRUIControllerComponent::ResolvePickupRewardSound(const FPRPickupNotificationPayload& Payload) const
+{
+	const UPRItemDataAsset* ItemData = ResolvePickupRewardItemData(Payload);
+	if (IsValid(ItemData))
+	{
+		if (const TObjectPtr<USoundBase>* RaritySound = PickupRewardSoundsByRarity.Find(ItemData->GetRarity()))
+		{
+			if (IsValid(RaritySound->Get()))
+			{
+				return RaritySound->Get();
+			}
+		}
+	}
+
+	USoundBase* DefaultPickupSound = DefaultPickupRewardSound.Get();
+	return IsValid(DefaultPickupSound) ? DefaultPickupSound : nullptr;
+}
+
+UPRItemDataAsset* UPRUIControllerComponent::ResolvePickupRewardItemData(const FPRPickupNotificationPayload& Payload) const
+{
+	if (Payload.RewardType != EPRRewardType::Item && Payload.RewardType != EPRRewardType::Ammo)
+	{
+		return nullptr;
+	}
+
+	if (!Payload.ItemAssetId.IsValid())
+	{
+		return nullptr;
+	}
+
+	return UPRAssetManager::Get().GetItemDataByPrimaryAssetId(Payload.ItemAssetId);
 }
 
 UPRInventoryWidget* UPRUIControllerComponent::GetOrCreateInventoryWidget()
@@ -896,6 +1101,72 @@ void UPRUIControllerComponent::RemoveWeaponScopeWidget()
 
 	WeaponScopeWidget = nullptr;
 	CurrentScopeWidgetClass = nullptr;
+}
+
+UUserWidget* UPRUIControllerComponent::GetOrCreateDamageFXWidget()
+{
+	if (IsValid(DamageFXWidget))
+	{
+		return DamageFXWidget;
+	}
+
+	APlayerController* PlayerController = GetOwningPlayerController();
+	if (!IsValid(PlayerController) || !IsValid(DamageFXWidgetClass.Get()))
+	{
+		return nullptr;
+	}
+
+	DamageFXWidget = CreateWidget<UUserWidget>(PlayerController, DamageFXWidgetClass);
+	return DamageFXWidget;
+}
+
+void UPRUIControllerComponent::InvokeDamageFXCreate(UUserWidget* InDamageFXWidget, const FPRDamageFXSettings& DamageFXSettings) const
+{
+	if (!IsValid(InDamageFXWidget))
+	{
+		return;
+	}
+
+	UFunction* DamageFXFunction = InDamageFXWidget->FindFunction(DamageFXCreateFunctionName);
+	if (!IsValid(DamageFXFunction))
+	{
+		return;
+	}
+
+	if (DamageFXFunction->ParmsSize <= 0)
+	{
+		InDamageFXWidget->ProcessEvent(DamageFXFunction, nullptr);
+		return;
+	}
+
+	FStructOnScope DamageFXParameters(DamageFXFunction);
+	void* ParameterData = DamageFXParameters.GetStructMemory();
+	ApplyDamageFXParameters(DamageFXFunction, ParameterData, DamageFXSettings);
+	InDamageFXWidget->ProcessEvent(DamageFXFunction, ParameterData);
+}
+
+const FPRDamageFXSettings& UPRUIControllerComponent::ResolveDamageFXSettings(EPRDamageFXIntensity DamageFXIntensity) const
+{
+	switch (DamageFXIntensity)
+	{
+	case EPRDamageFXIntensity::Strong:
+		return StrongDamageFXSettings;
+	case EPRDamageFXIntensity::Down:
+		return DownDamageFXSettings;
+	case EPRDamageFXIntensity::Weak:
+	default:
+		return WeakDamageFXSettings;
+	}
+}
+
+void UPRUIControllerComponent::RemoveDamageFXWidget()
+{
+	if (IsValid(DamageFXWidget))
+	{
+		DamageFXWidget->RemoveFromParent();
+	}
+
+	DamageFXWidget = nullptr;
 }
 
 void UPRUIControllerComponent::BindWeaponManager(UPRWeaponManagerComponent* WeaponManagerComponent)

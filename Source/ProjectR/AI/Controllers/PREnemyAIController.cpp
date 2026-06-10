@@ -136,6 +136,7 @@ void APREnemyAIController::OnPossess(APawn* InPawn)
 	if (IsValid(CachedBlackboardComponent))
 	{
 		CachedBlackboardComponent->SetValueAsVector(HomeLocationKey, EnemyInterface->GetHomeLocation());
+		EnemyInterface->InitializeEnemyBlackboard(CachedBlackboardComponent);
 		ApplyTacticalModeState(EPRTacticalMode::Idle);
 	}
 

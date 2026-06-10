@@ -32,33 +32,36 @@ void UPRGA_Mod_GrantAbility::ActivateAbility(const FGameplayAbilitySpecHandle Ha
 		return;
 	}
 	
-	if (!HasAuthority(&ActivationInfo))
+	if (HasAuthority(&ActivationInfo))
+	{
+		if (UAbilitySystemComponent* ASC = ActorInfo->AbilitySystemComponent.Get())
+		{
+			FGameplayAbilitySpec AbilitySpecToGrant (AbilityToGrant,1);
+			AbilitySpecToGrant.SourceObject = this;
+			GrantedSpecHandle = ASC->GiveAbility(AbilitySpecToGrant);
+		}
+	
+		if (UPRWeaponDataAsset* WeaponData = GetCurrentWeaponData())
+		{
+			if (ModCostPolicy == EPRModCostPolicy::Stack)
+			{
+				WaitModStackExhausted(WeaponData->SlotType);	
+			}
+			else if (ModCostPolicy == EPRModCostPolicy::GaugeDuration)
+			{
+				// TODO: 게이지 소모 감지
+			}
+		}
+	}
+	
+	if (IsLocallyControlled())
 	{
 		// 클라는 서버의 종료 신호를 대기 or Input 재입력 대기
 		UAbilityTask_WaitInputPress* WaitInputPress = UAbilityTask_WaitInputPress::WaitInputPress(this,false);
 		WaitInputPress->OnPress.AddDynamic(this,&ThisClass::OnInputPressed);
 		WaitInputPress->ReadyForActivation();
-		return;
 	}
 	
-	if (UAbilitySystemComponent* ASC = ActorInfo->AbilitySystemComponent.Get())
-	{
-		FGameplayAbilitySpec AbilitySpecToGrant (AbilityToGrant,1);
-		AbilitySpecToGrant.SourceObject = this;
-		GrantedSpecHandle = ASC->GiveAbility(AbilitySpecToGrant);
-	}
-	
-	if (UPRWeaponDataAsset* WeaponData = GetCurrentWeaponData())
-	{
-		if (ModCostPolicy == EPRModCostPolicy::Stack)
-		{
-			WaitModStackExhausted(WeaponData->SlotType);	
-		}
-		else if (ModCostPolicy == EPRModCostPolicy::GaugeDuration)
-		{
-			// TODO: 게이지 소모 감지
-		}
-	}
 }
 
 void UPRGA_Mod_GrantAbility::EndAbility(const FGameplayAbilitySpecHandle Handle,

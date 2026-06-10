@@ -20,6 +20,10 @@ public:
 protected:
 	virtual void HandleImpact(const FHitResult& Hit, float TimeSlice, const FVector& MoveDelta) override;
 
+public:
+	UFUNCTION(BlueprintPure)
+	bool GetShouldBounce() const {return bShouldBounce;}
+	
 protected:
 	// 최대 바운스 허용 횟수. 0이면 바운스 불가
 	UPROPERTY(EditDefaultsOnly, Category=ProjectileBounces, meta = (ClampMin = "0"))

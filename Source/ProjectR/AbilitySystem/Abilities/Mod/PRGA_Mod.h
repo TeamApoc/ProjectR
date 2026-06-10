@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "ActiveGameplayEffectHandle.h"
 #include "ProjectR/ProjectR.h"
 #include "ProjectR/AbilitySystem/PRGameplayAbility.h"
 #include "ProjectR/AbilitySystem/Abilities/Player/PRFireAbilityTypes.h"
@@ -44,7 +45,9 @@ public:
 	// ========= Mod Base  =============
 	// 모드 공통 비용 조건을 검사한다
 	virtual bool CheckCost(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo, FGameplayTagContainer* OptionalRelevantTags = nullptr) const override;
-	void ApplyModCost(const FGameplayAbilityActorInfo* ActorInfo) const;
+
+	// 모드 공통 비용을 적용하고 적용된 GE 핸들을 반환
+	FActiveGameplayEffectHandle ApplyModCost(const FGameplayAbilityActorInfo* ActorInfo) const;
 
 	// 모드 공통 비용을 적용한다
 	virtual void ApplyCost(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilityActivationInfo ActivationInfo) const override;
@@ -67,6 +70,12 @@ protected:
 	// 모드 비용 처리 방식을 설정한다
 	void SetModCostPolicy(EPRModCostPolicy InModCostType);
 
+	// 마지막으로 적용된 모드 비용 GE 핸들을 반환
+	FActiveGameplayEffectHandle GetLastAppliedModCostHandle() const;
+
+	// 현재 슬롯의 모드 게이지 Attribute를 반환
+	FGameplayAttribute GetCurrentModGaugeAttribute(const FGameplayAbilityActorInfo* ActorInfo) const;
+
 protected:
 	// 모드 비용 처리 방식
 	UPROPERTY(EditDefaultsOnly, Category = "ProjectR|Mod")
@@ -83,6 +92,9 @@ protected:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "ProjectR|Mod|Cost", meta = (ClampMin = "0.0"))
 	float ModDuration = 0.0f;
 
+	// 마지막으로 적용된 모드 비용 GE 핸들
+	mutable FActiveGameplayEffectHandle LastAppliedModCostHandle;
+
 private:
 	// ========= Mod Base  =============
 	bool TryGetCurrentModCostContext(const FGameplayAbilityActorInfo* ActorInfo, EPRWeaponSlotType& OutSlotType, UAbilitySystemComponent*& OutASC, UPRItemInstance_Weapon*& OutWeaponInstance) const;
@@ -93,8 +105,8 @@ private:
 	// 현재 슬롯의 지속시간형 Mod 게이지 비용이 적용 중인지 확인
 	bool HasActiveModGaugeLock(const FGameplayAbilityActorInfo* ActorInfo) const;
 	// 스택 소모 코스트 적용
-	void ApplyModStackCost(const FGameplayAbilityActorInfo* ActorInfo) const;
-	void ApplyModGaugeDurationCost(const FGameplayAbilityActorInfo* ActorInfo) const;
+	FActiveGameplayEffectHandle ApplyModStackCost(const FGameplayAbilityActorInfo* ActorInfo) const;
+	FActiveGameplayEffectHandle ApplyModGaugeDurationCost(const FGameplayAbilityActorInfo* ActorInfo) const;
 	FGameplayAttribute GetModGaugeAttribute(EPRWeaponSlotType SlotType) const;
 	FGameplayAttribute GetMaxModGaugeAttribute(EPRWeaponSlotType SlotType) const;
 	FGameplayAttribute GetModStackAttribute(EPRWeaponSlotType SlotType) const;

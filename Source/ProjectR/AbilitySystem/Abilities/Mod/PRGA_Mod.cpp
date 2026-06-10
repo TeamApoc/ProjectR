@@ -216,14 +216,26 @@ bool UPRGA_Mod::TryGetCurrentModCostContext(const FGameplayAbilityActorInfo* Act
 		return false;
 	}
 
-	OutSlotType = WeaponManager->GetCurrentWeaponSlot();
+	UPRItemInstance_Weapon* SourceWeaponInstance = Cast<UPRItemInstance_Weapon>(GetCurrentSourceObject());
+	if (!IsValid(SourceWeaponInstance) || !IsValid(SourceWeaponInstance->GetWeaponData()))
+	{
+		return false;
+	}
+
+	OutSlotType = SourceWeaponInstance->GetWeaponData()->SlotType;
 	if (OutSlotType == EPRWeaponSlotType::None)
 	{
 		return false;
 	}
 
-	OutWeaponInstance = WeaponManager->GetWeaponInstanceBySlotType(OutSlotType);
-	return IsValid(OutWeaponInstance);
+	if (WeaponManager->GetCurrentWeaponSlot() != OutSlotType
+		|| WeaponManager->GetWeaponInstanceBySlotType(OutSlotType) != SourceWeaponInstance)
+	{
+		return false;
+	}
+
+	OutWeaponInstance = SourceWeaponInstance;
+	return true;
 }
 
 bool UPRGA_Mod::HasModStackCost(const FGameplayAbilityActorInfo* ActorInfo) const

@@ -10,7 +10,10 @@ UPRWeaponModDataAsset::UPRWeaponModDataAsset()
 	ItemInstanceClass = UPRItemInstance_Mod::StaticClass();
 }
 
-void UPRWeaponModDataAsset::GiveToAbilitySystem(UAbilitySystemComponent* TargetASC,  FPRAbilitySetHandles& OutHandles, UObject* InSourceObject)
+void UPRWeaponModDataAsset::GiveToAbilitySystem(UAbilitySystemComponent* TargetASC,
+	FPRAbilitySetHandles& OutHandles,
+	UObject* InSourceObject,
+	const FGameplayTagContainer* AdditionalDynamicTags)
 {
 	for (const FPRAbilityEntry& Entry :EquippedAbilities)
 	{
@@ -19,7 +22,7 @@ void UPRWeaponModDataAsset::GiveToAbilitySystem(UAbilitySystemComponent* TargetA
 			continue;
 		}
 
-		Entry.GiveToAbilitySystem(TargetASC, OutHandles, InSourceObject);
+		Entry.GiveToAbilitySystem(TargetASC, OutHandles, InSourceObject, AdditionalDynamicTags);
 	}
 
 	for (const FPREffectEntry& Entry :EquippedEffects)

@@ -56,6 +56,9 @@ public:
 	UFUNCTION(BlueprintPure, Category = "ProjectR|Weapon")
 	bool IsEquippedCurrentWeaponSlot() const { return bIsEquippedCurrentWeaponSlot; }
 
+	// 무기 슬롯에 장착되어 있는지 확인한다
+	bool IsEquippedWeaponSlot() const { return bIsEquippedWeaponSlot; }
+
 	// 입력 데이터가 현재 무기와 같은지 확인한다
 	bool MatchesWeaponData(const UPRWeaponDataAsset* InWeaponData) const;
 
@@ -68,11 +71,17 @@ public:
 	// 장착된 Mod Item을 비운다
 	void ClearEquippedModItem();
 
-	// 활성 슬롯 장착 시점의 생명주기 훅
+	// 무기 슬롯 장착 시점의 생명주기 훅
 	void OnEquipped(AActor* OwnerActor);
 
-	// 활성 슬롯 해제 시점의 생명주기 훅
+	// 무기 슬롯 해제 시점의 생명주기 훅
 	void OnUnequipped(AActor* OwnerActor);
+
+	// 현재 활성 슬롯 진입 시점의 생명주기 훅
+	void OnCurrentSlotActivated();
+
+	// 현재 활성 슬롯 이탈 시점의 생명주기 훅
+	void OnCurrentSlotDeactivated();
 
 	// Mod 교체 시점의 생명주기 훅
 	void OnModChanged(AActor* OwnerActor, UPRWeaponModDataAsset* NewModData);
@@ -136,6 +145,10 @@ public:
 	// 현재 활성 무기 슬롯에 장착되어 어빌리티 부여 대상인지 여부
 	UPROPERTY(Replicated, Transient, VisibleInstanceOnly, BlueprintReadOnly, Category = "ProjectR|Weapon")
 	bool bIsEquippedCurrentWeaponSlot = false;
+
+	// 무기 슬롯 장착 여부
+	UPROPERTY(Transient)
+	bool bIsEquippedWeaponSlot = false;
 
 	// 현재 무기 강화 단계
 	UPROPERTY(ReplicatedUsing = OnRep_UpgradeLevel, VisibleInstanceOnly, BlueprintReadOnly, Category = "ProjectR|WeaponUpgrade")

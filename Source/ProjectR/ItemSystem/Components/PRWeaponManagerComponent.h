@@ -285,6 +285,9 @@ private:
 	// 지정 무기 Item이 연결된 슬롯 타입을 반환한다
 	EPRWeaponSlotType ResolveWeaponItemSlot(const UPRItemInstance_Weapon* WeaponItem) const;
 
+	// 현재 슬롯 상태 태그를 갱신한다
+	void UpdateCurrentWeaponSlotTags(EPRWeaponSlotType OldSlot, EPRWeaponSlotType NewSlot);
+
 	// 현재 소유자의 PlayerState를 반환한다
 	APRPlayerState* GetOwnerPlayerState() const;
 

@@ -29,7 +29,8 @@ bool PRShouldPlayProjectileDestroyEffect(EPRProjectileDestroyReason DestroyReaso
 bool FPRProjectileRepMovement::NetSerialize(FArchive& Ar, UPackageMap* Map, bool& bOutSuccess)
 {
 	uint8 EventByte = static_cast<uint8>(Event);
-	Ar.SerializeBits(&EventByte, 2);
+	// 이동 이벤트 6종 인코딩
+	Ar.SerializeBits(&EventByte, 3);
 	Event = static_cast<EPRRepMovementEvent>(EventByte);
 
 	bool bLocationSuccess = true;

@@ -50,7 +50,9 @@ enum class EPRRepMovementEvent : uint8
 	Spawn,       // 최초 스폰 (SimulatedProxy 언히든 + 시뮬 시작)
 	Bounce,      // 바운스 발생 시 위치/속도 스냅
 	Detonation,  // 폭발/착탄 확정
-	Launch		 // 프로젝타일 런치 상태
+	Launch,		 // 프로젝타일 런치 상태
+	Stop,		 // 최종 충돌 정착
+	Fall		 // 최종 충돌 낙하 시작
 };
 
 // 투사체 소멸 원인

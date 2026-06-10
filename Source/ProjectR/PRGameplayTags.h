@@ -182,6 +182,7 @@ namespace PRGameplayTags
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Event_Player_ModActivation); // Mod On / Off 이벤트
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Event_Player_WorldMarker); // 월드 마커 추가·제거 알림
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Event_Player_HUDMessage); // HUD 안내 메시지 표시 알림
+	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Event_Player_AttackTarget); // 플레이어 실제 피해 대상 알림
 
 	// ===== Event.Boss.* — 보스 조우 이벤트 =====
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Event_Boss_Spawn); // 보스 스폰 요청

@@ -41,13 +41,14 @@ public:
 		const FGameplayAbilityActivationInfo ActivationInfo,
 		const FGameplayEventData* TriggerEventData) override;
 
-	// 어빌리티 회수 시 활성 배리어를 정리한다
-	virtual void OnRemoveAbility(const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilitySpec& Spec) override;
-
 protected:
 	/*~ UPRGA_Mod_HasDuration Interface ~*/
 	// 지속시간 비용 확정 후 서버 배리어를 생성한다
 	virtual void OnDurationStarted_Implementation() override;
+
+	/*~ UPRGA_Mod Interface ~*/
+	// 어빌리티 회수 시 배리어 런타임 정리
+	virtual void CleanupRuntimeOnAbilityRemoved(const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilitySpec& Spec) override;
 
 protected:
 	// 활성 배리어 보유 여부 확인

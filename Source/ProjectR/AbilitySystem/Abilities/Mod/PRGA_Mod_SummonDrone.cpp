@@ -54,6 +54,15 @@ void UPRGA_Mod_SummonDrone::OnDurationStarted_Implementation()
 	}
 }
 
+/*~ UPRGA_Mod Interface ~*/
+
+void UPRGA_Mod_SummonDrone::CleanupRuntimeOnAbilityRemoved(const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilitySpec& Spec)
+{
+	// 활성 드론 정리
+	DestroyActiveDrone();
+	Super::CleanupRuntimeOnAbilityRemoved(ActorInfo, Spec);
+}
+
 /*~ 소환 ~*/
 
 APRSupportDroneActor* UPRGA_Mod_SummonDrone::SpawnSupportDrone(const FGameplayAbilityActorInfo* ActorInfo)

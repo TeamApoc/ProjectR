@@ -27,12 +27,15 @@ public:
 		const FGameplayTagContainer* SourceTags,
 		const FGameplayTagContainer* TargetTags,
 		FGameplayTagContainer* OptionalRelevantTags) const override;
-	virtual void OnRemoveAbility(const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilitySpec& Spec) override;
 
 protected:
 	/*~ UPRGA_Mod_HasDuration Interface ~*/
 	// 지속시간 시작 시 버프 이펙트를 적용한다
 	virtual void OnDurationStarted_Implementation() override;
+
+	/*~ UPRGA_Mod Interface ~*/
+	// 어빌리티 회수 시 버프 런타임 정리
+	virtual void CleanupRuntimeOnAbilityRemoved(const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilitySpec& Spec) override;
 
 protected:
 	// 동일 버프 이펙트가 이미 활성 중인지 확인한다

@@ -73,13 +73,6 @@ void UPRGA_Mod_SummonBarrier::ActivateAbility(const FGameplayAbilitySpecHandle H
 	Super::ActivateAbility(Handle, ActorInfo, ActivationInfo, TriggerEventData);
 }
 
-void UPRGA_Mod_SummonBarrier::OnRemoveAbility(const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilitySpec& Spec)
-{
-	// RequestActiveBarrierEnd();
-	// CleanupBarrierRuntime();
-	Super::OnRemoveAbility(ActorInfo, Spec);
-}
-
 /*~ UPRGA_Mod_HasDuration Interface ~*/
 
 void UPRGA_Mod_SummonBarrier::OnDurationStarted_Implementation()
@@ -102,6 +95,16 @@ void UPRGA_Mod_SummonBarrier::OnDurationStarted_Implementation()
 	}
 
 	BindSurvivalTagEvents();
+}
+
+/*~ UPRGA_Mod Interface ~*/
+
+void UPRGA_Mod_SummonBarrier::CleanupRuntimeOnAbilityRemoved(const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilitySpec& Spec)
+{
+	// 활성 배리어 정리
+	RequestActiveBarrierEnd();
+	CleanupBarrierRuntime();
+	Super::CleanupRuntimeOnAbilityRemoved(ActorInfo, Spec);
 }
 
 /*~ 배리어 상태 ~*/

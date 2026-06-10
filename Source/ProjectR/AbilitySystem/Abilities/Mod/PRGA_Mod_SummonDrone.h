@@ -31,6 +31,10 @@ protected:
 	// 지속시간 시작 시 서버 드론 소환
 	virtual void OnDurationStarted_Implementation() override;
 
+	/*~ UPRGA_Mod Interface ~*/
+	// 어빌리티 회수 시 드론 런타임 정리
+	virtual void CleanupRuntimeOnAbilityRemoved(const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilitySpec& Spec) override;
+
 protected:
 	// 서버에서 드론을 생성한다
 	APRSupportDroneActor* SpawnSupportDrone(const FGameplayAbilityActorInfo* ActorInfo);

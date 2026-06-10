@@ -4,12 +4,13 @@
 
 #include "CoreMinimal.h"
 #include "PRInteraction_MapTravelBase.h"
+#include "ProjectR/Game/PRGameTypes.h"
 #include "TimerManager.h"
 #include "PRInteraction_Waypoint.generated.h"
 
 class APRPlayerController;
 class UGameplayEffect;
-class UPRWorldDataAsset;
+class UPRWorldRegistry;
 enum class EPRMapTransitionType : uint8;
 
 // 호스트 UI 선택 결과로 목적지가 정해지는 웨이포인트 상호작용
@@ -22,7 +23,7 @@ public:
 	UPRInteraction_Waypoint();
 
 	// 호스트 선택 웨이포인트 목적지 이동 요청
-	void RequestWaypointTravel(APRPlayerController* RequestingController, FSoftObjectPath WorldDataAssetPath, FGameplayTag WaypointId);
+	void RequestWaypointTravel(APRPlayerController* RequestingController, const FPRWaypointKey& WaypointKey);
 
 	// 호스트 웨이포인트 Travel UI 닫힘 처리
 	void CancelWaypointTravel(APRPlayerController* RequestingController);
@@ -54,7 +55,7 @@ protected:
 	void UnlockPlayerInteraction();
 
 private:
-	// Waypoint 활성 상태와 체크포인트 상태 갱신
+	// Waypoint 해금 상태 갱신
 	void RecordWaypointActivation();
 
 	// Waypoint 활성화에 따른 월드 오브젝트 복구
@@ -81,8 +82,14 @@ private:
 	// 서버 월드에서 호스트 컨트롤러 조회
 	APRPlayerController* FindHostPlayerController() const;
 
-	// 목적지 월드 데이터 에셋과 웨이포인트 ID 검증
-	bool ValidateWaypointTravelRequest(FSoftObjectPath WorldDataAssetPath, FGameplayTag WaypointId, UPRWorldDataAsset*& OutWorldDataAsset) const;
+	// 목적지 WorldId와 웨이포인트 ID 검증
+	bool ValidateWaypointTravelRequest(const FPRWaypointKey& WaypointKey, TSoftObjectPtr<UWorld>& OutMapAsset) const;
+
+	// 프로젝트 월드 Registry 조회
+	const UPRWorldRegistry* GetWorldRegistry() const;
+
+	// 현재 상호작용 중인 Waypoint 키 생성
+	bool ResolveInteractedWaypointKey(FPRWaypointKey& OutWaypointKey) const;
 
 	// 모든 플레이어 Waypoint 취소 처리
 	void BroadcastWaypointCancelEventToAllPlayers() const;

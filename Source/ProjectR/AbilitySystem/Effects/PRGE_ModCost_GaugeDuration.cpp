@@ -8,8 +8,8 @@
 
 UPRGE_ModCost_GaugeDuration::UPRGE_ModCost_GaugeDuration()
 {
+	// 지속시간형 비용 수명
 	DurationPolicy = EGameplayEffectDurationType::HasDuration;
-
 	FSetByCallerFloat DurationSetByCaller;
 	DurationSetByCaller.DataTag = PRCombatGameplayTags::SetByCaller_ModDuration;
 	DurationMagnitude = FGameplayEffectModifierMagnitude(DurationSetByCaller);

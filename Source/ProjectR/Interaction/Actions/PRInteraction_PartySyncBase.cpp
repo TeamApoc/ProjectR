@@ -147,8 +147,14 @@ void UPRInteraction_PartySyncBase::ClearPartySyncCheckTimer()
 	}
 }
 
-void UPRInteraction_PartySyncBase::ClearPartySyncWaitingMessages() const
+void UPRInteraction_PartySyncBase::ClearPartySyncWaitingMessages()
 {
+	if (UWorld* World = GetWorld())
+	{
+		// 예약된 대기 HUD 메시지 갱신 취소
+		World->GetTimerManager().ClearTimer(PartySyncMessageTimerHandle);
+	}
+
 	for (APlayerState* PlayerState :GetPlayerArray())
 	{
 		const APRPlayerState* PRPlayerState = Cast<APRPlayerState>(PlayerState);

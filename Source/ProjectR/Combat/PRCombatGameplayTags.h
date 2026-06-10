@@ -51,5 +51,6 @@ namespace PRCombatGameplayTags
 	
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Ability_Source_Weapon_Primary);
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Ability_Source_Weapon_Secondary);
+	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Ability_Source_Drone);
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Event_Ability_EnemyProjectileFire);
 }

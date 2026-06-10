@@ -6,6 +6,7 @@
 #include "ProjectR/UI/Crosshair/PRCrosshairConfig.h"
 #include "ProjectR/Audio/PRBGMRegistryDataAsset.h"
 #include "ProjectR/UI/PRUISoundDataAsset.h"
+#include "ProjectR/World/PRWorldRegistry.h"
 
 TSubclassOf<UUserWidget> UPRDeveloperSettings::GetCrosshairWidgetSync(EPRCrosshairType CrosshairType) const
 {
@@ -30,6 +31,11 @@ const UPRUISoundDataAsset* UPRDeveloperSettings::GetDefaultUISoundDataSync() con
 const UPRBGMRegistryDataAsset* UPRDeveloperSettings::GetDefaultBGMRegistrySync() const
 {
 	return DefaultBGMRegistry.LoadSynchronous();
+}
+
+const UPRWorldRegistry* UPRDeveloperSettings::GetWorldRegistrySync() const
+{
+	return WorldRegistry.LoadSynchronous();
 }
 
 FPRFloatingTextStyle UPRDeveloperSettings::GetFloatingTextStyleSync(EPRFloatingTextType TextType) const

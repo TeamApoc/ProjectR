@@ -98,6 +98,12 @@ void UPRProjectileMovementComponent::HandleImpact(const FHitResult& Hit, float T
 		{
 			// 캐릭터에 바운스 하지 않은 경우만 남은 바운스 횟수 차감
 			++CurrentBounceCount;
+
+			// 최대 바운스 도달 처리
+			if (CurrentBounceCount >= MaxBounceCount)
+			{
+				bShouldBounce = false;
+			}
 		}
 		
 		// 서버 권위 투사체인 경우 바운스 시점 위치/속도를 클라이언트에 동기화

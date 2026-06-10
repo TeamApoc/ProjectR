@@ -5,14 +5,11 @@
 #include "AbilitySystemComponent.h"
 #include "Animation/AnimMontage.h"
 #include "GameplayEffect.h"
-#include "Abilities/Tasks/AbilityTask_PlayMontageAndWait.h"
 #include "ProjectR/Combat/PRCombatGameplayTags.h"
 #include "ProjectR/PRGameplayTags.h"
 
 UPRGA_Mod_Buff::UPRGA_Mod_Buff()
 {
-	SetModCostPolicy(EPRModCostPolicy::GaugeDuration);
-	ReplicationPolicy = EGameplayAbilityReplicationPolicy::ReplicateYes;
 }
 
 bool UPRGA_Mod_Buff::CanActivateAbility(const FGameplayAbilitySpecHandle Handle,
@@ -47,56 +44,29 @@ bool UPRGA_Mod_Buff::CanActivateAbility(const FGameplayAbilitySpecHandle Handle,
 	return true;
 }
 
-void UPRGA_Mod_Buff::ActivateAbility(const FGameplayAbilitySpecHandle Handle,
-	const FGameplayAbilityActorInfo* ActorInfo,
-	const FGameplayAbilityActivationInfo ActivationInfo,
-	const FGameplayEventData* TriggerEventData)
-{
-	Super::ActivateAbility(Handle, ActorInfo, ActivationInfo, TriggerEventData);
-
-	if (!CommitAbility(Handle, ActorInfo, ActivationInfo))
-	{
-		EndAbility(Handle, ActorInfo, ActivationInfo, /*bReplicateEndAbility=*/true, /*bWasCancelled=*/true);
-		return;
-	}
-	
-	// 서버는 이펙트 적용
-	if (HasAuthority(&ActivationInfo))
-	{
-		ApplyBuffEffect();
-	}
-	
-	// 몽타주 재생
-	if (IsValid(ActivationMontage))
-	{
-		UAbilityTask_PlayMontageAndWait* MontageTask = UAbilityTask_PlayMontageAndWait::CreatePlayMontageAndWaitProxy(this,
-			FName("PlayMontage"),
-			ActivationMontage);
-		MontageTask->OnBlendOut.AddDynamic(this, &ThisClass::HandleMontageEnd);
-		MontageTask->OnInterrupted.AddDynamic(this, &ThisClass::HandleMontageEnd);
-		MontageTask->OnCompleted.AddDynamic(this, &ThisClass::HandleMontageEnd);
-		MontageTask->OnCancelled.AddDynamic(this, &ThisClass::HandleMontageEnd);
-	}
-	else
-	{
-		EndAbility(Handle, ActorInfo, ActivationInfo, true, true);
-	}
-}
-
-void UPRGA_Mod_Buff::EndAbility(const FGameplayAbilitySpecHandle Handle,
-	const FGameplayAbilityActorInfo* ActorInfo,
-	const FGameplayAbilityActivationInfo ActivationInfo,
-	bool bReplicateEndAbility,
-	bool bWasCancelled)
-{
-	Super::EndAbility(Handle, ActorInfo, ActivationInfo, bReplicateEndAbility, bWasCancelled);
-}
-
 void UPRGA_Mod_Buff::OnRemoveAbility(const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilitySpec& Spec)
 {
 	RemoveActiveBuffEffect();
 	Super::OnRemoveAbility(ActorInfo, Spec);
 }
+
+/*~ UPRGA_Mod_HasDuration Interface ~*/
+
+void UPRGA_Mod_Buff::OnDurationStarted_Implementation()
+{
+	Super::OnDurationStarted_Implementation();
+
+	// 버프 발동 연출
+	PlayActivationMontageIfValid();
+
+	if (HasAuthority(&CurrentActivationInfo))
+	{
+		// 서버 버프 적용
+		ApplyBuffEffect();
+	}
+}
+
+/*~ 버프 처리 ~*/
 
 bool UPRGA_Mod_Buff::HasActiveBuffEffect(const FGameplayAbilityActorInfo* ActorInfo) const
 {
@@ -118,7 +88,7 @@ bool UPRGA_Mod_Buff::ApplyBuffEffect()
 	{
 		return false;
 	}
-	// 서버 권한 확인 후 실행
+	// 서버 권한 확인
 
 	const FGameplayEffectSpecHandle SpecHandle = MakeOutgoingGameplayEffectSpec(BuffEffect, BuffEffectLevel);
 	if (!SpecHandle.IsValid())
@@ -269,9 +239,4 @@ void UPRGA_Mod_Buff::RemoveActiveBuffEffect()
 	ActiveBuffHandle.Invalidate();
 	BuffRemovedDelegateHandle.Reset();
 	UnbindSurvivalTagEvents();
-}
-
-void UPRGA_Mod_Buff::HandleMontageEnd()
-{
-	K2_EndAbility();
 }

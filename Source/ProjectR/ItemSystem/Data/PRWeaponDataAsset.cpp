@@ -29,8 +29,10 @@ const UPRCrosshairConfig* UPRWeaponDataAsset::GetCrosshairConfig() const
 	return DeveloperSettings->GetDefaultCrosshairConfigSync();
 }
 
-void UPRWeaponDataAsset::GiveToAbilitySystem(UAbilitySystemComponent* TargetASC, FPRAbilitySetHandles& OutHandles,
-	UObject* InSourceObject)
+void UPRWeaponDataAsset::GiveToAbilitySystem(UAbilitySystemComponent* TargetASC,
+	FPRAbilitySetHandles& OutHandles,
+	UObject* InSourceObject,
+	const FGameplayTagContainer* AdditionalDynamicTags)
 {
 	for (const FPRAbilityEntry& Entry :EquippedAbilities)
 	{
@@ -39,7 +41,7 @@ void UPRWeaponDataAsset::GiveToAbilitySystem(UAbilitySystemComponent* TargetASC,
 			continue;
 		}
 
-		Entry.GiveToAbilitySystem(TargetASC, OutHandles, InSourceObject);
+		Entry.GiveToAbilitySystem(TargetASC, OutHandles, InSourceObject, AdditionalDynamicTags);
 	}
 
 	for (const FPREffectEntry& Entry :EquippedEffects)

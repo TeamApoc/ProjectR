@@ -7,6 +7,7 @@
 #include "Net/UnrealNetwork.h"
 #include "ProjectR/AbilitySystem/PRAbilitySystemComponent.h"
 #include "ProjectR/Character/PRCharacterBase.h"
+#include "ProjectR/PRGameplayTags.h"
 #include "ProjectR/ItemSystem/Components/PRInventoryComponent.h"
 #include "ProjectR/ItemSystem/Data/PRWeaponDataAsset.h"
 #include "ProjectR/ItemSystem/Data/PRWeaponModDataAsset.h"
@@ -35,6 +36,27 @@ namespace
 
 		return nullptr;
 	}
+
+	// 슬롯 반대 차단 태그 구성
+	FGameplayTagContainer BuildOppositeSlotBlockTags(const UPRWeaponDataAsset* WeaponData)
+	{
+		FGameplayTagContainer BlockTags;
+		if (!IsValid(WeaponData))
+		{
+			return BlockTags;
+		}
+
+		if (WeaponData->SlotType == EPRWeaponSlotType::Primary)
+		{
+			BlockTags.AddTag(PRGameplayTags::State_CurrentWeaponSlot_Secondary);
+		}
+		else if (WeaponData->SlotType == EPRWeaponSlotType::Secondary)
+		{
+			BlockTags.AddTag(PRGameplayTags::State_CurrentWeaponSlot_Primary);
+		}
+
+		return BlockTags;
+	}
 }
 
 void UPRItemInstance_Weapon::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const
@@ -43,7 +65,6 @@ void UPRItemInstance_Weapon::GetLifetimeReplicatedProps(TArray<FLifetimeProperty
 
 	DOREPLIFETIME(UPRItemInstance_Weapon, ModData);
 	DOREPLIFETIME(UPRItemInstance_Weapon, EquippedModItem);
-	DOREPLIFETIME(UPRItemInstance_Weapon, bIsEquippedCurrentWeaponSlot);
 	DOREPLIFETIME(UPRItemInstance_Weapon, UpgradeLevel);
 }
 
@@ -104,7 +125,7 @@ void UPRItemInstance_Weapon::InitializeMod(UPRWeaponModDataAsset* InModData)
 {
 	ModData = InModData;
 	ClearEquippedModItem();
-	bIsEquippedCurrentWeaponSlot = false;
+	bIsEquippedWeaponSlot = false;
 }
 
 UPRWeaponDataAsset* UPRItemInstance_Weapon::GetWeaponData() const
@@ -155,22 +176,25 @@ void UPRItemInstance_Weapon::ClearEquippedModItem()
 
 void UPRItemInstance_Weapon::OnEquipped(AActor* OwnerActor)
 {
-	// 장착 생명주기에서는 실제 부여 로직 대신 인터페이스 함수만 통과시킨다
 	if (!IsValid(OwnerActor))
 	{
 		return;
 	}
 
-	// 활성 슬롯 상태는 AbilitySet 부여 성공 여부와 분리해 먼저 기록한다
-	bIsEquippedCurrentWeaponSlot = true;
+	if (bIsEquippedWeaponSlot)
+	{
+		return;
+	}
 
+	// 슬롯 장착 상태 기록
+	bIsEquippedWeaponSlot = true;
 	GrantEquippedAbilitySets(OwnerActor);
 }
 
 void UPRItemInstance_Weapon::OnUnequipped(AActor* OwnerActor)
 {
-	// 해제 생명주기에서는 실제 회수 로직 대신 인터페이스 함수만 통과시킨다
-	bIsEquippedCurrentWeaponSlot = false;
+	// 슬롯 장착 상태 해제
+	bIsEquippedWeaponSlot = false;
 
 	if (!IsValid(OwnerActor))
 	{
@@ -180,6 +204,7 @@ void UPRItemInstance_Weapon::OnUnequipped(AActor* OwnerActor)
 	ClearEquippedAbilitySets(OwnerActor);
 	ResetTransientRuntimeOnDeactivate();
 }
+
 
 void UPRItemInstance_Weapon::OnModChanged(AActor* OwnerActor, UPRWeaponModDataAsset* NewModData)
 {
@@ -207,12 +232,14 @@ void UPRItemInstance_Weapon::GrantEquippedAbilitySets(AActor* OwnerActor)
 	
 	if (UPRWeaponDataAsset* WeaponData = GetWeaponData())
 	{
-		WeaponData->GiveToAbilitySystem(ASC,WeaponAbilityHandles,this);
+		const FGameplayTagContainer SlotBlockTags = BuildOppositeSlotBlockTags(WeaponData);
+		WeaponData->GiveToAbilitySystem(ASC, WeaponAbilityHandles, this, &SlotBlockTags);
 	}
 
 	if (IsValid(ModData))
 	{
-		ModData->GiveToAbilitySystem(ASC,ModAbilityHandles,this);
+		const FGameplayTagContainer SlotBlockTags = BuildOppositeSlotBlockTags(GetWeaponData());
+		ModData->GiveToAbilitySystem(ASC, ModAbilityHandles, this, &SlotBlockTags);
 	}
 
 	LastWeaponFailReason = EPRWeaponActionFailReason::None;
@@ -271,7 +298,7 @@ void UPRItemInstance_Weapon::RebuildModAbility(AActor* OwnerActor, UPRWeaponModD
 	}
 
 	const UPRWeaponModDataAsset* PreviousModData = ModData;
-	const bool bWasEquipped = IsEquippedCurrentWeaponSlot();
+	const bool bWasEquipped = IsEquippedWeaponSlot();
 
 	ASC->ClearAbilitySetByHandles(ModAbilityHandles);
 
@@ -299,7 +326,8 @@ void UPRItemInstance_Weapon::RebuildModAbility(AActor* OwnerActor, UPRWeaponModD
 
 	if (bWasEquipped)
 	{
-		NewModData->GiveToAbilitySystem(ASC,ModAbilityHandles,this);
+		const FGameplayTagContainer SlotBlockTags = BuildOppositeSlotBlockTags(GetWeaponData());
+		NewModData->GiveToAbilitySystem(ASC, ModAbilityHandles, this, &SlotBlockTags);
 	}
 
 	UE_LOG(

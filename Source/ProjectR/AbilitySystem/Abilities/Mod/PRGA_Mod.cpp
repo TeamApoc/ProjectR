@@ -79,6 +79,21 @@ void UPRGA_Mod::EndAbility(const FGameplayAbilitySpecHandle Handle, const FGamep
 	Super::EndAbility(Handle, ActorInfo, ActivationInfo, bReplicateEndAbility, bWasCancelled);
 }
 
+void UPRGA_Mod::OnRemoveAbility(const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilitySpec& Spec)
+{
+	// 실제 인스턴스 정리
+	if (UPRGA_Mod* InstancedAbility = Cast<UPRGA_Mod>(Spec.GetPrimaryInstance()))
+	{
+		InstancedAbility->CleanupRuntimeOnAbilityRemoved(ActorInfo, Spec);
+	}
+	else
+	{
+		CleanupRuntimeOnAbilityRemoved(ActorInfo, Spec);
+	}
+
+	Super::OnRemoveAbility(ActorInfo, Spec);
+}
+
 // ========= Mod Base  =============
 
 bool UPRGA_Mod::CheckCost(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo,
@@ -125,6 +140,12 @@ FActiveGameplayEffectHandle UPRGA_Mod::ApplyModCost(const FGameplayAbilityActorI
 	else if (ModCostPolicy == EPRModCostPolicy::GaugeDuration)
 	{
 		LastAppliedModCostHandle = ApplyModGaugeDurationCost(ActorInfo);
+	}
+
+	if (LastAppliedModCostHandle.IsValid())
+	{
+		// 비용 핸들 캐싱
+		ActiveModCostHandles.AddUnique(LastAppliedModCostHandle);
 	}
 
 	return LastAppliedModCostHandle;
@@ -186,6 +207,34 @@ FGameplayAttribute UPRGA_Mod::GetCurrentModGaugeAttribute(const FGameplayAbility
 	return GetModGaugeAttribute(SlotType);
 }
 
+void UPRGA_Mod::CleanupRuntimeOnAbilityRemoved(const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilitySpec& Spec)
+{
+	UAbilitySystemComponent* ASC = ActorInfo != nullptr ? ActorInfo->AbilitySystemComponent.Get() : nullptr;
+	if (!IsValid(ASC) && !HasAnyFlags(RF_ClassDefaultObject))
+	{
+		ASC = GetAbilitySystemComponentFromActorInfo();
+	}
+
+	if (!IsValid(ASC))
+	{
+		ActiveModCostHandles.Reset();
+		LastAppliedModCostHandle.Invalidate();
+		return;
+	}
+
+	for (const FActiveGameplayEffectHandle& Handle : ActiveModCostHandles)
+	{
+		if (Handle.IsValid())
+		{
+			// 비용 GE 제거
+			ASC->RemoveActiveGameplayEffect(Handle);
+		}
+	}
+
+	ActiveModCostHandles.Reset();
+	LastAppliedModCostHandle.Invalidate();
+}
+
 bool UPRGA_Mod::TryGetCurrentModCostContext(const FGameplayAbilityActorInfo* ActorInfo, EPRWeaponSlotType& OutSlotType,
 	UAbilitySystemComponent*& OutASC, UPRItemInstance_Weapon*& OutWeaponInstance) const
 {
@@ -216,14 +265,26 @@ bool UPRGA_Mod::TryGetCurrentModCostContext(const FGameplayAbilityActorInfo* Act
 		return false;
 	}
 
-	OutSlotType = WeaponManager->GetCurrentWeaponSlot();
+	UPRItemInstance_Weapon* SourceWeaponInstance = Cast<UPRItemInstance_Weapon>(GetCurrentSourceObject());
+	if (!IsValid(SourceWeaponInstance) || !IsValid(SourceWeaponInstance->GetWeaponData()))
+	{
+		return false;
+	}
+
+	OutSlotType = SourceWeaponInstance->GetWeaponData()->SlotType;
 	if (OutSlotType == EPRWeaponSlotType::None)
 	{
 		return false;
 	}
 
-	OutWeaponInstance = WeaponManager->GetWeaponInstanceBySlotType(OutSlotType);
-	return IsValid(OutWeaponInstance);
+	if (WeaponManager->GetCurrentWeaponSlot() != OutSlotType
+		|| WeaponManager->GetWeaponInstanceBySlotType(OutSlotType) != SourceWeaponInstance)
+	{
+		return false;
+	}
+
+	OutWeaponInstance = SourceWeaponInstance;
+	return true;
 }
 
 bool UPRGA_Mod::HasModStackCost(const FGameplayAbilityActorInfo* ActorInfo) const

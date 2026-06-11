@@ -8,8 +8,8 @@
 
 class UMotionWarpingComponent;
 class UPRSoldierArmoredDebugDrawComponent;
+class APRBarrierAnchorActor;
 class APRGroundBoxProjectileBase;
-class USpringArmComponent;
 
 UCLASS()
 class PROJECTR_API APRPenitentCharacter : public APREnemyBaseCharacter
@@ -23,11 +23,11 @@ public:
 	// 현재 소환된 배리어 액터를 반환한다.
 	APRGroundBoxProjectileBase* GetSpawnedBarrierActor() const { return SpawnedBarrierActor.Get(); }
 
-	// 배리어 액터 부착 씬 컴포넌트를 반환한다.
-	USceneComponent* GetBarrierAttachPoint() const {return BarrierAttachPoint.Get();}
+	// 현재 소환된 배리어 앵커 액터를 반환한다.
+	APRBarrierAnchorActor* GetSpawnedBarrierAnchorActor() const { return SpawnedBarrierAnchorActor.Get(); }
 	
-	// 현재 소환된 배리어 액터 참조를 저장한다.
-	void SetSpawnedBarrierActor(APRGroundBoxProjectileBase* InBarrierActor);
+	// 현재 소환된 배리어와 앵커 참조를 저장한다.
+	void SetSpawnedBarrierActor(APRGroundBoxProjectileBase* InBarrierActor, APRBarrierAnchorActor* InAnchorActor = nullptr);
 
 	// 현재 소환된 배리어 액터 참조를 제거한다.
 	void ClearSpawnedBarrierActor(APRGroundBoxProjectileBase* BarrierActorToClear = nullptr);
@@ -50,13 +50,10 @@ protected:
 	// 현재 소환되어 유지 중인 배리어 액터
 	UPROPERTY(VisibleInstanceOnly, Category = "ProjectR|Penitent")
 	TObjectPtr<APRGroundBoxProjectileBase> SpawnedBarrierActor;
-	
-	// 배리어가 부착되는 씬 컴포넌트
-	UPROPERTY(EditDefaultsOnly, Category = "ProjectR|Penitent")
-	TObjectPtr<USceneComponent> BarrierAttachPoint;
-	
-	UPROPERTY(EditDefaultsOnly, Category = "ProjectR|Penitent")
-	TObjectPtr<USpringArmComponent> BarrierBoom;
+
+	// 현재 소환되어 유지 중인 배리어 앵커 액터
+	UPROPERTY(VisibleInstanceOnly, Category = "ProjectR|Penitent")
+	TObjectPtr<APRBarrierAnchorActor> SpawnedBarrierAnchorActor;
 	
 	// Soldier_Armored PIE debug range draw
 	UPROPERTY(VisibleAnywhere, Category = "ProjectR|Debug")

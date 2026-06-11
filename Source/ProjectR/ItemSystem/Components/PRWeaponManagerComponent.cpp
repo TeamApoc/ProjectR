@@ -94,13 +94,20 @@ UPRWeaponManagerComponent::UPRWeaponManagerComponent()
 
 void UPRWeaponManagerComponent::EndPlay(const EEndPlayReason::Type EndPlayReason)
 {
-	// 컴포넌트 종료 전에 활성 무기 Item의 AbilitySet을 회수해 ASC 핸들이 남지 않도록 정리
-	if (UPRItemInstance_Weapon* CurrentWeaponInstance = GetWeaponInstanceBySlotType(CurrentWeaponSlot))
+	// 컴포넌트 종료 전에 주무기 Item의 AbilitySet 회수
+	if (IsValid(PrimaryWeaponInstance))
 	{
-		CurrentWeaponInstance->OnUnequipped(GetOwner());
+		PrimaryWeaponInstance->OnUnequipped(GetOwner());
+	}
+
+	// 컴포넌트 종료 전에 보조무기 Item의 AbilitySet 회수
+	if (IsValid(SecondaryWeaponInstance))
+	{
+		SecondaryWeaponInstance->OnUnequipped(GetOwner());
 	}
 
 	// PlayerState ASC에 남은 장착 지속 효과를 모두 회수
+	UpdateCurrentWeaponSlotTags(CurrentWeaponSlot, EPRWeaponSlotType::None);
 	RemoveAllEquipEffects();
 
 	// 컴포넌트 종료 시 남아 있는 주무기 Actor 정리
@@ -238,17 +245,18 @@ void UPRWeaponManagerComponent::ApplySaveData(const FPRWeaponManagerSaveData& In
 	{
 		return;
 	}
-	if (IsValid(PrimaryWeaponInstance) && CurrentWeaponSlot == EPRWeaponSlotType::Primary)
+	if (IsValid(PrimaryWeaponInstance))
 	{
-		// 기존 주무기 활성 상태 정리
+		// 기존 주무기 슬롯 장착 상태 정리
 		PrimaryWeaponInstance->OnUnequipped(GetOwner());
 	}
-	if (IsValid(SecondaryWeaponInstance) && CurrentWeaponSlot == EPRWeaponSlotType::Secondary)
+	if (IsValid(SecondaryWeaponInstance))
 	{
-		// 기존 보조무기 활성 상태 정리
+		// 기존 보조무기 슬롯 장착 상태 정리
 		SecondaryWeaponInstance->OnUnequipped(GetOwner());
 	}
 	RemoveAllEquipEffects();
+	UpdateCurrentWeaponSlotTags(CurrentWeaponSlot, EPRWeaponSlotType::None);
 	PrimaryWeaponInstance = nullptr;
 	SecondaryWeaponInstance = nullptr;
 	CurrentWeaponSlot = EPRWeaponSlotType::None;
@@ -738,15 +746,10 @@ bool UPRWeaponManagerComponent::EquipWeaponInternal(UPRItemInstance_Weapon* Weap
 		CacheAmmoRatiosForSlot(WeaponSlot);
 	}
 
-	// 장착 슬롯이 장착 전 활성 슬롯이었던 경우
-	if (bWasWeaponSlotCurrent)
+	if (IsValid(CurrentWeaponInstance))
 	{
-		// 교체 대상인 기존 무기 Item이 있는 경우
-		if (IsValid(CurrentWeaponInstance))
-		{
-			// 기존 활성 무기 해제 알림 전달
-			CurrentWeaponInstance->OnUnequipped(GetOwner());
-		}
+		// 기존 슬롯 무기 해제
+		CurrentWeaponInstance->OnUnequipped(GetOwner());
 	}
 
 	// 새 무기 장착 전에 기존 슬롯 지속 효과를 회수해 최대치 누적을 방지
@@ -755,15 +758,19 @@ bool UPRWeaponManagerComponent::EquipWeaponInternal(UPRItemInstance_Weapon* Weap
 	// 장착 검증이 끝난 뒤 장착 슬롯 원본을 새 무기로 확정
 	GetMutableWeaponInstanceBySlot(WeaponSlot) = WeaponItem;
 
+	// 무기의 어빌리티셋을 플레이어에게 부여
+	WeaponItem->OnEquipped(GetOwner());
+
 	// 현재 활성 슬롯이 비어 있거나 이미 활성 중인 슬롯에 다시 장착하는 경우
 	if (CurrentWeaponSlot == EPRWeaponSlotType::None || CurrentWeaponSlot == WeaponSlot)
 	{
-		// 활성 무기 사용 흐름으로 진입
+		const EPRWeaponSlotType OldWeaponSlot = CurrentWeaponSlot;
+
 		// 장착 슬롯을 활성 슬롯으로 지정
 		CurrentWeaponSlot = WeaponSlot;
 
-		// 무기의 어빌리티셋을 플레이어에게 부여
-		WeaponItem->OnEquipped(GetOwner());
+		// 현재 슬롯 태그 갱신
+		UpdateCurrentWeaponSlotTags(OldWeaponSlot, CurrentWeaponSlot);
 	}
 
 	// 무기 슬롯 최대 자원과 현재 자원을 GE로 적용
@@ -1106,12 +1113,8 @@ bool UPRWeaponManagerComponent::UnequipWeaponFromSlotInternal(EPRWeaponSlotType 
 
 	CacheAmmoRatiosForSlot(TargetSlot);
 
-	// 해제 대상이 활성 슬롯이었던 경우
-	if (bWasTargetSlotCurrent)
-	{
-		// 현재 활성 무기 해제 알림 전달
-		CurrentWeaponInstance->OnUnequipped(GetOwner());
-	}
+	// 해제 대상 무기 AbilitySet 회수
+	CurrentWeaponInstance->OnUnequipped(GetOwner());
 
 	// 슬롯 해제를 서버 원본 상태에 먼저 반영
 	GetMutableWeaponInstanceBySlot(TargetSlot) = nullptr;
@@ -1122,17 +1125,11 @@ bool UPRWeaponManagerComponent::UnequipWeaponFromSlotInternal(EPRWeaponSlotType 
 		// 남은 슬롯 중 다음 활성 슬롯 선정
 		CurrentWeaponSlot = ResolveNextWeaponSlotAfterUnequip(TargetSlot);
 
-		// 다음 활성 슬롯이 존재하는 경우
-		if (CurrentWeaponSlot != EPRWeaponSlotType::None)
-		{
-			// 다음 활성 슬롯의 원본 Item을 찾을 수 있는 경우
-			if (UPRItemInstance_Weapon* NextWeaponInstance = GetWeaponInstanceBySlotType(CurrentWeaponSlot))
-			{
-				// 다음 활성 무기 장착 알림 전달
-				NextWeaponInstance->OnEquipped(GetOwner());
-			}
-		}
-		else
+		// 현재 슬롯 태그 갱신
+		UpdateCurrentWeaponSlotTags(PreWeaponSlot, CurrentWeaponSlot);
+
+		// 다음 활성 슬롯이 없는
+		if (CurrentWeaponSlot == EPRWeaponSlotType::None)
 		{
 			// 활성 슬롯 후보가 없으므로 비무장 상태로 변경
 			ArmedState = EPRArmedState::Unarmed;
@@ -1146,7 +1143,7 @@ bool UPRWeaponManagerComponent::UnequipWeaponFromSlotInternal(EPRWeaponSlotType 
 	if (bWasTargetSlotCurrent)
 	{
 		// 활성 슬롯이 바뀐 경우 현재 무기 전투 스탯도 새 활성 슬롯 기준으로 갱신
-		ApplyCurrentWeaponGE(CurrentWeaponInstance);
+		ApplyCurrentWeaponGE(GetWeaponInstanceBySlotType(CurrentWeaponSlot));
 	}
 
 	// 해제 결과를 공개 비주얼 정보에 반영
@@ -1293,23 +1290,12 @@ void UPRWeaponManagerComponent::SetCurrentWeaponSlotInternal(EPRWeaponSlotType T
 	// 전환 전 활성 슬롯. 이전 활성 무기 해제 알림 대상 판단에 사용
 	const EPRWeaponSlotType PreWeaponSlot = CurrentWeaponSlot;
 
-	// 이전 활성 슬롯이 있었던 경우
-	if (PreWeaponSlot != EPRWeaponSlotType::None)
-	{
-		// 이전 활성 슬롯의 원본 Item을 찾을 수 있는 경우
-		if (UPRItemInstance_Weapon* PreWeaponInstance = GetWeaponInstanceBySlotType(PreWeaponSlot))
-		{
-			// 이전 활성 무기 해제 알림 전달
-			PreWeaponInstance->OnUnequipped(GetOwner());
-		}
-	}
-
 	// 활성 무기 사용 흐름을 타겟 슬롯으로 전환
 	// 타겟 슬롯을 활성 슬롯으로 지정
 	CurrentWeaponSlot = TargetSlot;
 
-	// 새 활성 무기의 어빌리티셋을 플레이어에게 부여
-	TargetWeaponInstance->OnEquipped(GetOwner());
+	// 현재 슬롯 태그 갱신
+	UpdateCurrentWeaponSlotTags(PreWeaponSlot, CurrentWeaponSlot);
 
 	// 활성 슬롯 기준 전투 값을 새 무기 데이터로 갱신
 	ApplyCurrentWeaponGE(TargetWeaponInstance);
@@ -1767,6 +1753,65 @@ EPRWeaponSlotType UPRWeaponManagerComponent::ResolveWeaponItemSlot(const UPRItem
 	}
 
 	return EPRWeaponSlotType::None;
+}
+
+void UPRWeaponManagerComponent::UpdateCurrentWeaponSlotTags(EPRWeaponSlotType OldSlot, EPRWeaponSlotType NewSlot)
+{
+	if (OldSlot == NewSlot)
+	{
+		return;
+	}
+
+	UPRAbilitySystemComponent* ASC = CachedASC.IsValid() ? CachedASC.Get() : nullptr;
+	if (!IsValid(ASC))
+	{
+		if (APRPlayerState* PlayerState = GetOwnerPlayerState())
+		{
+			ASC = PlayerState->GetPRAbilitySystemComponent();
+		}
+	}
+
+	if (!IsValid(ASC))
+	{
+		return;
+	}
+
+	auto ResolveSlotTag = [](EPRWeaponSlotType SlotType) -> FGameplayTag
+	{
+		if (SlotType == EPRWeaponSlotType::Primary)
+		{
+			return PRGameplayTags::State_CurrentWeaponSlot_Primary;
+		}
+
+		if (SlotType == EPRWeaponSlotType::Secondary)
+		{
+			return PRGameplayTags::State_CurrentWeaponSlot_Secondary;
+		}
+
+		return FGameplayTag();
+	};
+
+	const FGameplayTag OldTag = ResolveSlotTag(OldSlot);
+	if (OldTag.IsValid())
+	{
+		// 이전 슬롯 태그 제거
+		ASC->RemoveLooseGameplayTag(OldTag);
+		if (IsValid(GetOwner()) && GetOwner()->HasAuthority())
+		{
+			ASC->RemoveReplicatedLooseGameplayTag(OldTag);
+		}
+	}
+
+	const FGameplayTag NewTag = ResolveSlotTag(NewSlot);
+	if (NewTag.IsValid())
+	{
+		// 현재 슬롯 태그 추가
+		ASC->AddLooseGameplayTag(NewTag);
+		if (IsValid(GetOwner()) && GetOwner()->HasAuthority())
+		{
+			ASC->AddReplicatedLooseGameplayTag(NewTag);
+		}
+	}
 }
 
 APRPlayerState* UPRWeaponManagerComponent::GetOwnerPlayerState() const

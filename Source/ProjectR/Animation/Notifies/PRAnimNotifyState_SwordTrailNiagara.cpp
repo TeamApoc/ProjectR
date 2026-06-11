@@ -33,37 +33,85 @@ void UPRAnimNotifyState_SwordTrailNiagara::NotifyBegin(USkeletalMeshComponent* M
 	// 같은 메시에서 같은 Notify State가 재진입하면 이전 컴포넌트를 먼저 정리한다.
 	EndTrailForMesh(MeshComp);
 
-	FVector TrailLocation = FVector::ZeroVector;
-	FRotator TrailRotation = FRotator::ZeroRotator;
-	float TrailSize = 0.0f;
-	if (!BuildTrailTransform(MeshComp, TrailLocation, TrailRotation, TrailSize))
+	TArray<FPRSwordTrailSocketPair> SocketPairs;
+	if (bUsePrimarySocketPair)
 	{
-		return;
+		FPRSwordTrailSocketPair PrimarySocketPair;
+		PrimarySocketPair.bEnabled = true;
+		PrimarySocketPair.BladeBottomSocketName = BladeBottomSocketName;
+		PrimarySocketPair.BladeTopSocketName = BladeTopSocketName;
+		SocketPairs.Add(PrimarySocketPair);
 	}
 
-	UNiagaraComponent* TrailComponent = UNiagaraFunctionLibrary::SpawnSystemAttached(
-		TrailSystem,
-		MeshComp,
-		NAME_None,
-		TrailLocation,
-		TrailRotation,
-		EAttachLocation::KeepWorldPosition,
-true,
-false,
-ENCPoolMethod::None,
-false);
+	for (const FPRSwordTrailSocketPair& AdditionalSocketPair : AdditionalSocketPairs)
+	{
+		if (AdditionalSocketPair.bEnabled)
+		{
+			SocketPairs.Add(AdditionalSocketPair);
+		}
+	}
 
-	if (!IsValid(TrailComponent))
+	if (SocketPairs.Num() <= 0)
 	{
 		UE_LOG(LogPRSwordTrailNiagaraNotify, Warning,
-			TEXT("Failed to spawn sword trail Niagara system on mesh '%s'."),
+			TEXT("Sword trail notify has no enabled socket pairs on mesh '%s'."),
 			*GetNameSafe(MeshComp));
 		return;
 	}
 
-	ActiveTrails.Add(FObjectKey(MeshComp), FActiveTrailData{ TrailComponent });
-	UpdateTrailComponent(MeshComp, TrailComponent);
-	TrailComponent->Activate(true);
+	FActiveTrailData NewTrailData;
+
+	for (const FPRSwordTrailSocketPair& SocketPair : SocketPairs)
+	{
+		FVector TrailLocation = FVector::ZeroVector;
+		FRotator TrailRotation = FRotator::ZeroRotator;
+		float TrailSize = 0.0f;
+		if (!BuildTrailTransform(MeshComp,
+			SocketPair.BladeBottomSocketName,
+			SocketPair.BladeTopSocketName,
+			TrailLocation,
+			TrailRotation,
+			TrailSize))
+		{
+			continue;
+		}
+
+		UNiagaraComponent* TrailComponent = UNiagaraFunctionLibrary::SpawnSystemAttached(
+			TrailSystem,
+			MeshComp,
+			NAME_None,
+			TrailLocation,
+			TrailRotation,
+			EAttachLocation::KeepWorldPosition,
+			true,
+			false,
+			ENCPoolMethod::None,
+			false);
+
+		if (!IsValid(TrailComponent))
+		{
+			UE_LOG(LogPRSwordTrailNiagaraNotify, Warning,
+				TEXT("Failed to spawn sword trail Niagara system on mesh '%s' for sockets '%s' -> '%s'."),
+				*GetNameSafe(MeshComp),
+				*SocketPair.BladeBottomSocketName.ToString(),
+				*SocketPair.BladeTopSocketName.ToString());
+			continue;
+		}
+
+		FActiveTrailInstance NewInstance;
+		NewInstance.Component = TrailComponent;
+		NewInstance.BladeBottomSocketName = SocketPair.BladeBottomSocketName;
+		NewInstance.BladeTopSocketName = SocketPair.BladeTopSocketName;
+		NewTrailData.Instances.Add(NewInstance);
+
+		UpdateTrailComponent(MeshComp, NewTrailData.Instances.Last());
+		TrailComponent->Activate(true);
+	}
+
+	if (NewTrailData.Instances.Num() > 0)
+	{
+		ActiveTrails.Add(FObjectKey(MeshComp), MoveTemp(NewTrailData));
+	}
 }
 
 void UPRAnimNotifyState_SwordTrailNiagara::NotifyTick(USkeletalMeshComponent* MeshComp,
@@ -82,14 +130,22 @@ void UPRAnimNotifyState_SwordTrailNiagara::NotifyTick(USkeletalMeshComponent* Me
 		return;
 	}
 
-	UNiagaraComponent* TrailComponent = TrailData->Component.Get();
-	if (!IsValid(TrailComponent))
+	for (int32 InstanceIndex = TrailData->Instances.Num() - 1; InstanceIndex >= 0; --InstanceIndex)
 	{
-		ActiveTrails.Remove(FObjectKey(MeshComp));
-		return;
+		FActiveTrailInstance& TrailInstance = TrailData->Instances[InstanceIndex];
+		if (!TrailInstance.Component.IsValid())
+		{
+			TrailData->Instances.RemoveAtSwap(InstanceIndex);
+			continue;
+		}
+
+		UpdateTrailComponent(MeshComp, TrailInstance);
 	}
 
-	UpdateTrailComponent(MeshComp, TrailComponent);
+	if (TrailData->Instances.Num() <= 0)
+	{
+		ActiveTrails.Remove(FObjectKey(MeshComp));
+	}
 }
 
 void UPRAnimNotifyState_SwordTrailNiagara::NotifyEnd(USkeletalMeshComponent* MeshComp,
@@ -127,6 +183,8 @@ bool UPRAnimNotifyState_SwordTrailNiagara::ShouldRunForMesh(const USkeletalMeshC
 }
 
 bool UPRAnimNotifyState_SwordTrailNiagara::BuildTrailTransform(const USkeletalMeshComponent* MeshComp,
+	FName InBladeBottomSocketName,
+	FName InBladeTopSocketName,
 	FVector& OutLocation,
 	FRotator& OutRotation,
 	float& OutTrailSize) const
@@ -136,26 +194,26 @@ bool UPRAnimNotifyState_SwordTrailNiagara::BuildTrailTransform(const USkeletalMe
 		return false;
 	}
 
-	if (!MeshComp->DoesSocketExist(BladeBottomSocketName))
+	if (InBladeBottomSocketName.IsNone() || !MeshComp->DoesSocketExist(InBladeBottomSocketName))
 	{
 		UE_LOG(LogPRSwordTrailNiagaraNotify, Warning,
 			TEXT("Sword trail bottom socket '%s' does not exist on mesh '%s'."),
-			*BladeBottomSocketName.ToString(),
+			*InBladeBottomSocketName.ToString(),
 			*GetNameSafe(MeshComp));
 		return false;
 	}
 
-	if (!MeshComp->DoesSocketExist(BladeTopSocketName))
+	if (InBladeTopSocketName.IsNone() || !MeshComp->DoesSocketExist(InBladeTopSocketName))
 	{
 		UE_LOG(LogPRSwordTrailNiagaraNotify, Warning,
 			TEXT("Sword trail top socket '%s' does not exist on mesh '%s'."),
-			*BladeTopSocketName.ToString(),
+			*InBladeTopSocketName.ToString(),
 			*GetNameSafe(MeshComp));
 		return false;
 	}
 
-	const FVector BottomLocation = MeshComp->GetSocketLocation(BladeBottomSocketName);
-	const FVector TopLocation = MeshComp->GetSocketLocation(BladeTopSocketName);
+	const FVector BottomLocation = MeshComp->GetSocketLocation(InBladeBottomSocketName);
+	const FVector TopLocation = MeshComp->GetSocketLocation(InBladeTopSocketName);
 	const FVector BladeVector = TopLocation - BottomLocation;
 	const float BladeLength = BladeVector.Size();
 
@@ -163,8 +221,8 @@ bool UPRAnimNotifyState_SwordTrailNiagara::BuildTrailTransform(const USkeletalMe
 	{
 		UE_LOG(LogPRSwordTrailNiagaraNotify, Warning,
 			TEXT("Sword trail sockets '%s' and '%s' overlap on mesh '%s'."),
-			*BladeBottomSocketName.ToString(),
-			*BladeTopSocketName.ToString(),
+			*InBladeBottomSocketName.ToString(),
+			*InBladeTopSocketName.ToString(),
 			*GetNameSafe(MeshComp));
 		return false;
 	}
@@ -176,8 +234,9 @@ bool UPRAnimNotifyState_SwordTrailNiagara::BuildTrailTransform(const USkeletalMe
 }
 
 void UPRAnimNotifyState_SwordTrailNiagara::UpdateTrailComponent(const USkeletalMeshComponent* MeshComp,
-	UNiagaraComponent* TrailComponent) const
+	FActiveTrailInstance& TrailInstance) const
 {
+	UNiagaraComponent* TrailComponent = TrailInstance.Component.Get();
 	if (!IsValid(MeshComp) || !IsValid(TrailComponent))
 	{
 		return;
@@ -186,7 +245,12 @@ void UPRAnimNotifyState_SwordTrailNiagara::UpdateTrailComponent(const USkeletalM
 	FVector TrailLocation = FVector::ZeroVector;
 	FRotator TrailRotation = FRotator::ZeroRotator;
 	float TrailSize = 0.0f;
-	if (!BuildTrailTransform(MeshComp, TrailLocation, TrailRotation, TrailSize))
+	if (!BuildTrailTransform(MeshComp,
+		TrailInstance.BladeBottomSocketName,
+		TrailInstance.BladeTopSocketName,
+		TrailLocation,
+		TrailRotation,
+		TrailSize))
 	{
 		return;
 	}
@@ -217,20 +281,23 @@ void UPRAnimNotifyState_SwordTrailNiagara::EndTrailForMesh(USkeletalMeshComponen
 		return;
 	}
 
-	UNiagaraComponent* TrailComponent = TrailData.Component.Get();
-	if (!IsValid(TrailComponent))
+	for (const FActiveTrailInstance& TrailInstance : TrailData.Instances)
 	{
-		return;
-	}
+		UNiagaraComponent* TrailComponent = TrailInstance.Component.Get();
+		if (!IsValid(TrailComponent))
+		{
+			continue;
+		}
 
-	if (bDestroyImmediatelyOnEnd)
-	{
-		TrailComponent->DestroyComponent();
-		return;
-	}
+		if (bDestroyImmediatelyOnEnd)
+		{
+			TrailComponent->DestroyComponent();
+			continue;
+		}
 
-	if (bDeactivateOnEnd)
-	{
-		TrailComponent->Deactivate();
+		if (bDeactivateOnEnd)
+		{
+			TrailComponent->Deactivate();
+		}
 	}
 }

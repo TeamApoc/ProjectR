@@ -46,8 +46,8 @@ protected:
 	// 파티 동기화 판정 타이머 정리
 	void ClearPartySyncCheckTimer();
 
-	// 파티 동기화 대기 HUD 메시지 제거
-	void ClearPartySyncWaitingMessages() const;
+	// 파티 동기화 대기 HUD 메시지와 갱신 예약 제거
+	void ClearPartySyncWaitingMessages();
 
 private:
 	// 전투 가능 플레이어 전원 상호작용 상태 검사
@@ -71,11 +71,11 @@ private:
 protected:
 	// 파티 동기화 판정 지연
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|Interaction|PartySync", meta = (ClampMin = "0.0"))
-	float PartySyncCheckDelay = 2.0f;
+	float PartySyncCheckDelay = 0.3f;
 
 	// 파티 동기화 대기 메시지 표시 지연
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|Interaction|PartySync", meta = (ClampMin = "0.1"))
-	float PartySyncMessageDelay = 0.5f;
+	float PartySyncMessageDelay = 0.3f;
 
 private:
 	// 전원 상호작용 판정 예약 타이머

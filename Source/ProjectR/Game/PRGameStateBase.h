@@ -12,8 +12,11 @@
 
 class APRPlayerCharacter;
 
-// 체크포인트 활성화 시 발행
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnCheckpointActivatedSignature, FGameplayTag, CheckpointId);
+// Waypoint 활성화 시 발행
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnWaypointActivatedSignature, FPRWaypointKey, WaypointKey);
+
+// 마지막 방문 Waypoint 변경 시 발행
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnLastVisitedWaypointChangedSignature, FPRWaypointKey, WaypointKey);
 
 // 보스 처치 시 발행
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnBossDefeatedSignature, FName, BossId);
@@ -29,11 +32,20 @@ public:
 	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
 
 public:
-	// 현재 활성 체크포인트 조회
-	FGameplayTag GetActiveCheckpoint() const { return ActiveCheckpoint; }
+	// 마지막 방문 Waypoint 조회
+	FPRWaypointKey GetLastVisitedWaypoint() const { return LastVisitedWaypoint; }
 
-	// 마지막 활성 Waypoint 태그 조회
-	FGameplayTag GetLastActiveWaypointId() const { return LastActiveWaypointId; }
+	// 저장된 실제 스폰 위치 조회
+	FPRSpawnPointKey GetSavedSpawnPoint() const { return SavedSpawnPoint; }
+
+	// 활성화된 Waypoint 목록 조회
+	const TArray<FPRUnlockedWaypointEntry>& GetUnlockedWaypoints() const { return UnlockedWaypoints; }
+
+	// 지정 Waypoint 활성화 여부 조회
+	bool IsWaypointUnlocked(const FPRWaypointKey& WaypointKey) const;
+
+	// 지정 월드에 활성화된 Waypoint 존재 여부 조회
+	bool HasUnlockedWaypointInWorld(FGameplayTag WorldId) const;
 
 	// 보스 처치 여부 조회
 	bool IsBossDefeated(FName BossId) const;
@@ -47,14 +59,17 @@ public:
 	// 현재 월드 진행 상태 저장 데이터
 	FPRWorldSaveData MakeWorldSaveData() const;
 
-	// 서버 전용. 체크포인트 활성화 반영
-	void SetActiveCheckpoint(FGameplayTag CheckpointId);
+	// 서버 전용. Waypoint 해금 반영
+	void ActivateWaypoint(const FPRWaypointKey& WaypointKey);
 
-	// 서버 전용. 마지막 활성 Waypoint 태그 반영
-	void SetLastActiveWaypointId(FGameplayTag WaypointId);
+	// 서버 전용. Waypoint 해금 목록 추가
+	void UnlockWaypoint(const FPRWaypointKey& WaypointKey);
 
-	// 서버 전용. 마지막 활성 Waypoint 태그 초기화
-	void ClearLastActiveWaypointId();
+	// 서버 전용. 실제 Travel 확정 목적지를 마지막 방문 Waypoint로 기록
+	void VisitWaypoint(const FPRWaypointKey& WaypointKey);
+
+	// 서버 전용. 실제 플레이어 소환에 사용한 SpawnPoint 기록
+	void RecordSpawnPoint(const FPRSpawnPointKey& SpawnPointKey);
 
 	// 서버 전용. 보스 처치 반영
 	void MarkBossDefeated(FName BossId);
@@ -63,9 +78,9 @@ public:
 	void ServerSubmitWorldMarker(const FPRWorldMarkerRequest& Request);
 
 protected:
-	// ActiveCheckpoint 복제 콜백. 클라이언트에서 UI·리스폰 지점 갱신 트리거
+	// LastVisitedWaypoint 복제 콜백. 클라이언트에서 UI·리스폰 지점 갱신 트리거
 	UFUNCTION()
-	void OnRep_ActiveCheckpoint(FGameplayTag OldCheckpoint);
+	void OnRep_LastVisitedWaypoint(FPRWaypointKey OldLastVisitedWaypoint);
 
 	// 월드 마커 이벤트 전파
 	UFUNCTION(NetMulticast, Reliable)
@@ -78,9 +93,13 @@ protected:
 	void RemoveWorldMarker(FGuid MarkerId);
 
 public:
-	// 체크포인트 활성화 이벤트
+	// Waypoint 활성화 이벤트
 	UPROPERTY(BlueprintAssignable)
-	FOnCheckpointActivatedSignature OnCheckpointActivated;
+	FOnWaypointActivatedSignature OnWaypointActivated;
+
+	// 마지막 방문 Waypoint 변경 이벤트
+	UPROPERTY(BlueprintAssignable)
+	FOnLastVisitedWaypointChangedSignature OnLastVisitedWaypointChanged;
 
 	// 보스 처치 이벤트
 	UPROPERTY(BlueprintAssignable)
@@ -91,17 +110,17 @@ protected:
 	UPROPERTY(EditDefaultsOnly, Category = "ProjectR|WorldMarker", meta = (ClampMin = "1"))
 	int32 MaxActiveMarkersPerPlayer = 1;
 
-	// 현재 활성 체크포인트. 변경 시 OnRep으로 UI/리스폰 지점 갱신
-	UPROPERTY(ReplicatedUsing = OnRep_ActiveCheckpoint)
-	FGameplayTag ActiveCheckpoint;
+	// 마지막 방문 Waypoint. 변경 시 OnRep으로 UI/리스폰 지점 갱신
+	UPROPERTY(ReplicatedUsing = OnRep_LastVisitedWaypoint)
+	FPRWaypointKey LastVisitedWaypoint;
 
-	// 이번 세션에서 해금된 체크포인트 집합
+	// 저장 시 시작 메뉴 이어하기 위치로 사용할 실제 스폰 위치
 	UPROPERTY(Replicated)
-	TArray<FGameplayTag> UnlockedCheckpoints;
+	FPRSpawnPointKey SavedSpawnPoint;
 
-	// 마지막 활성 Waypoint 태그
+	// 이번 세션에서 해금된 Waypoint 집합
 	UPROPERTY(Replicated)
-	FGameplayTag LastActiveWaypointId;
+	TArray<FPRUnlockedWaypointEntry> UnlockedWaypoints;
 
 	// 처치된 보스 ID. 재도전 트리거·컷신 분기용
 	UPROPERTY(Replicated)
@@ -109,7 +128,7 @@ protected:
 
 	// 호스트 기준 월드 세이브 버전. 디버그·불일치 진단용
 	UPROPERTY(Replicated)
-	EPRSaveVersion WorldSaveVersion = EPRSaveVersion::None;
+	EPRSaveVersion WorldSaveVersion = EPRSaveVersion::V1;
 
 	// 플레이어별 활성 마커 목록
 	TMap<TWeakObjectPtr<APlayerState>, FPRActiveWorldMarkerList> ActiveMarkerIdsByPlayer;

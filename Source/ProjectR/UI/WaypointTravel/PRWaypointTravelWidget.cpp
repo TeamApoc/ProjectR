@@ -4,10 +4,17 @@
 
 #include "Components/Button.h"
 #include "Components/PanelWidget.h"
+#include "Engine/LocalPlayer.h"
+#include "ProjectR/Game/PRGameStateBase.h"
 #include "ProjectR/Player/PRPlayerController.h"
+#include "ProjectR/System/PRDeveloperSettings.h"
 #include "ProjectR/UI/Components/PRUIControllerComponent.h"
+#include "ProjectR/UI/PRUIManagerSubsystem.h"
+#include "ProjectR/UI/WaypointTravel/PRWaypointTravelMapWidget.h"
 #include "ProjectR/UI/WaypointTravel/PRWaypointTravelNodeWidget.h"
+#include "ProjectR/UI/WaypointTravel/PRWaypointTravelWorldWidget.h"
 #include "ProjectR/World/PRWorldDataAsset.h"
+#include "ProjectR/World/PRWorldRegistry.h"
 
 UPRWaypointTravelWidget::UPRWaypointTravelWidget()
 {
@@ -18,7 +25,25 @@ UPRWaypointTravelWidget::UPRWaypointTravelWidget()
 
 void UPRWaypointTravelWidget::RebuildNodeList()
 {
+	for (UPRWaypointTravelNodeWidget* NodeWidget : NodeWidgets)
+	{
+		if (IsValid(NodeWidget))
+		{
+			NodeWidget->RemoveFromParent();
+		}
+	}
+
+	for (UPRWaypointTravelWorldWidget* WorldWidget : WorldWidgets)
+	{
+		if (IsValid(WorldWidget))
+		{
+			// 기존 월드 항목 이벤트 해제
+			WorldWidget->OnWorldSelected.RemoveDynamic(this, &ThisClass::HandleWorldSelected);
+		}
+	}
+
 	NodeWidgets.Reset();
+	WorldWidgets.Reset();
 
 	if (!IsValid(NodeListPanel))
 	{
@@ -26,11 +51,7 @@ void UPRWaypointTravelWidget::RebuildNodeList()
 	}
 
 	NodeListPanel->ClearChildren();
-
-	if (!IsValid(NodeWidgetClass.Get()))
-	{
-		return;
-	}
+	NodeListPanel->SetVisibility(ESlateVisibility::Visible);
 
 	APlayerController* OwningPlayerController = GetOwningPlayer();
 	if (!IsValid(OwningPlayerController))
@@ -38,59 +59,178 @@ void UPRWaypointTravelWidget::RebuildNodeList()
 		return;
 	}
 
-	const TArray<FPRWaypointTravelNodeOption> NodeOptions = BuildTemporaryNodeOptions();
-	for (const FPRWaypointTravelNodeOption& NodeOption : NodeOptions)
+	FPRWaypointTravelNodeOption LastVisitedNodeOption;
+	if (IsValid(NodeWidgetClass.Get()) && BuildLastVisitedWaypointOption(LastVisitedNodeOption))
 	{
 		UPRWaypointTravelNodeWidget* NodeWidget = CreateWidget<UPRWaypointTravelNodeWidget>(
 			OwningPlayerController,
 			NodeWidgetClass);
-		if (!IsValid(NodeWidget))
+		if (IsValid(NodeWidget))
+		{
+			// 마지막 방문 Waypoint 항목 생성
+			NodeWidget->SetNodeOption(LastVisitedNodeOption);
+			NodeListPanel->AddChild(NodeWidget);
+			NodeWidgets.Add(NodeWidget);
+		}
+	}
+
+	if (!IsValid(WorldWidgetClass.Get()))
+	{
+		return;
+	}
+
+	for (const FPRWaypointTravelWorldOption& WorldOption : BuildWorldOptions())
+	{
+		UPRWaypointTravelWorldWidget* WorldWidget = CreateWidget<UPRWaypointTravelWorldWidget>(
+			OwningPlayerController,
+			WorldWidgetClass);
+		if (!IsValid(WorldWidget))
 		{
 			continue;
 		}
 
-		// 목적지 버튼 생성
-		NodeWidget->SetNodeOption(NodeOption);
-		NodeWidget->OnNodeSelected.RemoveDynamic(this, &ThisClass::HandleNodeSelected);
-		NodeWidget->OnNodeSelected.AddDynamic(this, &ThisClass::HandleNodeSelected);
-		NodeListPanel->AddChild(NodeWidget);
-		NodeWidgets.Add(NodeWidget);
+		// 월드 선택 항목 생성
+		WorldWidget->SetWorldOption(WorldOption);
+		WorldWidget->OnWorldSelected.RemoveDynamic(this, &ThisClass::HandleWorldSelected);
+		WorldWidget->OnWorldSelected.AddDynamic(this, &ThisClass::HandleWorldSelected);
+		NodeListPanel->AddChild(WorldWidget);
+		WorldWidgets.Add(WorldWidget);
 	}
 }
 
-void UPRWaypointTravelWidget::RequestTravelToNode(const FPRWaypointTravelNodeOption& NodeOption)
+void UPRWaypointTravelWidget::RebuildOverview()
 {
-	if (bTravelRequestPending)
+	// Overview 화면 상태 복귀
+	CurrentWorldMapId = FGameplayTag();
+	ClearMapWidget();
+
+	if (IsValid(BackButton))
 	{
-		return;
+		// 뒤로가기 버튼 숨김
+		BackButton->SetVisibility(ESlateVisibility::Collapsed);
 	}
 
-	APRPlayerController* PlayerController = GetOwningPlayer<APRPlayerController>();
-	if (!IsValid(PlayerController))
-	{
-		return;
-	}
-
-	// 서버 이동 요청
-	bTravelRequestPending = true;
-	PlayerController->RequestWaypointTravel(NodeOption.WorldDataAsset.ToSoftObjectPath(), NodeOption.WaypointId);
+	RebuildNodeList();
 }
+
+void UPRWaypointTravelWidget::OpenWorldMap(FGameplayTag WorldId)
+{
+	if (!WorldId.IsValid())
+	{
+		return;
+	}
+
+	// 선택 월드 지도 상태 전환
+	CurrentWorldMapId = WorldId;
+	RebuildMapWidget(WorldId);
+
+	if (IsValid(BackButton))
+	{
+		// 월드 지도 뒤로가기 버튼 표시
+		BackButton->SetVisibility(ESlateVisibility::Visible);
+	}
+
+	RebuildNodeList();
+}
+
+
+bool UPRWaypointTravelWidget::BuildLastVisitedWaypointOption(FPRWaypointTravelNodeOption& OutOption) const
+{
+	OutOption = FPRWaypointTravelNodeOption();
+
+	UWorld* World = GetWorld();
+	const APRGameStateBase* GameState = IsValid(World) ? World->GetGameState<APRGameStateBase>() : nullptr;
+	if (!IsValid(GameState))
+	{
+		return false;
+	}
+
+	return BuildNodeOptionFromKey(GameState->GetLastVisitedWaypoint(), false, OutOption);
+}
+
+TArray<FPRWaypointTravelWorldOption> UPRWaypointTravelWidget::BuildWorldOptions() const
+{
+	TArray<FPRWaypointTravelWorldOption> WorldOptions;
+
+	const UPRWorldRegistry* WorldRegistry = GetWorldRegistry();
+	if (!IsValid(WorldRegistry))
+	{
+		return WorldOptions;
+	}
+
+	UWorld* World = GetWorld();
+	const APRGameStateBase* GameState = IsValid(World) ? World->GetGameState<APRGameStateBase>() : nullptr;
+	for (const TPair<FGameplayTag, TSoftObjectPtr<UPRWorldDataAsset>>& Pair : WorldRegistry->GetWorldDataById())
+	{
+		UPRWorldDataAsset* WorldDataAsset = Pair.Value.LoadSynchronous();
+		if (!IsValid(WorldDataAsset) || !WorldDataAsset->WorldId.MatchesTagExact(Pair.Key))
+		{
+			continue;
+		}
+
+		const bool bHasUnlockedWaypoint = IsValid(GameState) && GameState->HasUnlockedWaypointInWorld(Pair.Key);
+		if (!bHasUnlockedWaypoint)
+		{
+			continue;
+		}
+
+		// 활성 Waypoint 보유 월드 옵션
+		FPRWaypointTravelWorldOption WorldOption;
+		WorldOption.WorldId = Pair.Key;
+		WorldOption.WorldDisplayName = WorldDataAsset->DisplayName;
+		WorldOption.ThumbnailTexture = WorldDataAsset->ThumbnailTexture;
+		WorldOption.bHasUnlockedWaypoint = bHasUnlockedWaypoint;
+		WorldOption.bDevOnly = false;
+		WorldOptions.Add(WorldOption);
+	}
+
+	if (!UPRWorldRegistry::IsDevTravelEnabled())
+	{
+		return WorldOptions;
+	}
+
+	for (const TPair<FGameplayTag, TSoftObjectPtr<UPRWorldDataAsset>>& Pair : WorldRegistry->GetDevWorldDataById())
+	{
+		if (WorldRegistry->IsWorldIdRegistered(Pair.Key))
+		{
+			continue;
+		}
+
+		UPRWorldDataAsset* WorldDataAsset = Pair.Value.LoadSynchronous();
+		if (!IsValid(WorldDataAsset) || !WorldDataAsset->WorldId.MatchesTagExact(Pair.Key))
+		{
+			continue;
+		}
+
+		// 개발용 월드 옵션
+		FPRWaypointTravelWorldOption WorldOption;
+		WorldOption.WorldId = Pair.Key;
+		WorldOption.WorldDisplayName = WorldDataAsset->DisplayName;
+		WorldOption.bHasUnlockedWaypoint = true;
+		WorldOption.bDevOnly = true;
+		WorldOptions.Add(WorldOption);
+	}
+
+	return WorldOptions;
+}
+
 
 void UPRWaypointTravelWidget::NativeConstruct()
 {
 	Super::NativeConstruct();
 
 	// Travel UI 초기화
-	bTravelRequestPending = false;
 	BindChildWidgetEvents();
-	RebuildNodeList();
+	RebuildOverview();
 }
 
 void UPRWaypointTravelWidget::NativeDestruct()
 {
 	// Travel UI 정리
+	ClearMapWidget();
 	UnbindChildWidgetEvents();
 	NodeWidgets.Reset();
+	WorldWidgets.Reset();
 
 	Super::NativeDestruct();
 }
@@ -99,6 +239,13 @@ FReply UPRWaypointTravelWidget::NativeOnKeyDown(const FGeometry& InGeometry, con
 {
 	if (GetUIInputAction(InKeyEvent.GetKey()) == EPRUIInputAction::Cancel)
 	{
+		if (CurrentWorldMapId.IsValid())
+		{
+			// 지도 화면 취소 입력으로 Overview 복귀
+			RebuildOverview();
+			return FReply::Handled();
+		}
+
 		// 취소 입력 처리
 		CloseTravelWidget(true);
 		return FReply::Handled();
@@ -115,6 +262,13 @@ void UPRWaypointTravelWidget::BindChildWidgetEvents()
 		CloseButton->OnClicked.RemoveDynamic(this, &ThisClass::HandleCloseButtonClicked);
 		CloseButton->OnClicked.AddDynamic(this, &ThisClass::HandleCloseButtonClicked);
 	}
+
+	if (IsValid(BackButton))
+	{
+		// 뒤로가기 입력 수신
+		BackButton->OnClicked.RemoveDynamic(this, &ThisClass::HandleBackButtonClicked);
+		BackButton->OnClicked.AddDynamic(this, &ThisClass::HandleBackButtonClicked);
+	}
 }
 
 void UPRWaypointTravelWidget::UnbindChildWidgetEvents()
@@ -125,53 +279,159 @@ void UPRWaypointTravelWidget::UnbindChildWidgetEvents()
 		CloseButton->OnClicked.RemoveDynamic(this, &ThisClass::HandleCloseButtonClicked);
 	}
 
-	for (UPRWaypointTravelNodeWidget* NodeWidget : NodeWidgets)
+	if (IsValid(BackButton))
 	{
-		if (IsValid(NodeWidget))
+		// 뒤로가기 입력 해제
+		BackButton->OnClicked.RemoveDynamic(this, &ThisClass::HandleBackButtonClicked);
+	}
+
+	for (UPRWaypointTravelWorldWidget* WorldWidget : WorldWidgets)
+	{
+		if (IsValid(WorldWidget))
 		{
-			// 노드 선택 해제
-			NodeWidget->OnNodeSelected.RemoveDynamic(this, &ThisClass::HandleNodeSelected);
+			// 월드 선택 해제
+			WorldWidget->OnWorldSelected.RemoveDynamic(this, &ThisClass::HandleWorldSelected);
 		}
 	}
 }
 
-TArray<FPRWaypointTravelNodeOption> UPRWaypointTravelWidget::BuildTemporaryNodeOptions() const
+bool UPRWaypointTravelWidget::RebuildMapWidget(FGameplayTag WorldId)
 {
-	TArray<FPRWaypointTravelNodeOption> NodeOptions;
+	ClearMapWidget();
 
-	for (const TSoftObjectPtr<UPRWorldDataAsset>& WorldDataAssetPtr : TemporaryWorldDataAssets)
+	const UPRWorldRegistry* WorldRegistry = GetWorldRegistry();
+	if (!IsValid(WorldRegistry))
 	{
-		UPRWorldDataAsset* WorldDataAsset = WorldDataAssetPtr.LoadSynchronous();
-		if (!IsValid(WorldDataAsset))
+		return false;
+	}
+
+	UPRWorldDataAsset* WorldDataAsset = WorldRegistry->LoadWorldDataSync(WorldId, UPRWorldRegistry::IsDevTravelEnabled());
+	if (!IsValid(WorldDataAsset) || !WorldDataAsset->WorldId.MatchesTagExact(WorldId))
+	{
+		return false;
+	}
+
+	if (!IsValid(WorldDataAsset->MapWidgetClass.Get()))
+	{
+		return false;
+	}
+
+	UPRUIManagerSubsystem* UIManager = GetUIManager();
+	if (!IsValid(UIManager))
+	{
+		return false;
+	}
+
+	// 월드별 지도 위젯 생성 후 UIManager 스택에 Push
+	UPRWaypointTravelMapWidget* MapWidget = Cast<UPRWaypointTravelMapWidget>(UIManager->PushUI(WorldDataAsset->MapWidgetClass));
+	if (!IsValid(MapWidget))
+	{
+		return false;
+	}
+
+	CurrentMapWidget = MapWidget;
+	CurrentMapWidget->SetMapContext(WorldId);
+	return true;
+}
+
+void UPRWaypointTravelWidget::ClearMapWidget()
+{
+	if (IsValid(CurrentMapWidget))
+	{
+		// UIManager 스택에서 지도 위젯 Pop
+		UPRUIManagerSubsystem* UIManager = GetUIManager();
+		if (IsValid(UIManager))
 		{
-			continue;
+			UIManager->PopUI(CurrentMapWidget.Get());
 		}
-
-		for (const FPRWaypointTravelNodeDefinition& NodeDefinition : WorldDataAsset->WaypointNodes)
+		else
 		{
-			if (!NodeDefinition.WaypointId.IsValid())
-			{
-				continue;
-			}
-
-			// 임시 노드 변환
-			FPRWaypointTravelNodeOption NodeOption;
-			NodeOption.WorldDataAsset = WorldDataAssetPtr;
-			NodeOption.MapAsset = WorldDataAsset->MapAsset;
-			NodeOption.WaypointId = NodeDefinition.WaypointId;
-			NodeOption.WorldDisplayName = WorldDataAsset->DisplayName;
-			NodeOption.WaypointDisplayName = NodeDefinition.DisplayName;
-			NodeOptions.Add(NodeOption);
+			CurrentMapWidget->RemoveFromParent();
 		}
 	}
 
-	return NodeOptions;
+	CurrentMapWidget = nullptr;
+}
+
+bool UPRWaypointTravelWidget::BuildNodeOptionFromKey(const FPRWaypointKey& WaypointKey, bool bAllowLockedNode, FPRWaypointTravelNodeOption& OutOption) const
+{
+	OutOption = FPRWaypointTravelNodeOption();
+	if (!WaypointKey.IsValid())
+	{
+		return false;
+	}
+
+	const UPRWorldRegistry* WorldRegistry = GetWorldRegistry();
+	if (!IsValid(WorldRegistry))
+	{
+		return false;
+	}
+
+	UPRWorldDataAsset* WorldDataAsset = WorldRegistry->LoadWorldDataSync(WaypointKey.WorldId, UPRWorldRegistry::IsDevTravelEnabled());
+	if (!IsValid(WorldDataAsset) || !WorldDataAsset->WorldId.MatchesTagExact(WaypointKey.WorldId))
+	{
+		return false;
+	}
+
+	FPRWaypointTravelNodeDefinition NodeDefinition;
+	if (!WorldDataAsset->FindWaypointNode(WaypointKey.WaypointId, NodeDefinition))
+	{
+		return false;
+	}
+
+	UWorld* World = GetWorld();
+	const APRGameStateBase* GameState = IsValid(World) ? World->GetGameState<APRGameStateBase>() : nullptr;
+	const bool bUnlocked = IsValid(GameState) && GameState->IsWaypointUnlocked(WaypointKey);
+	const bool bDevTravelEnabled = !bUnlocked
+		&& !WorldRegistry->IsWorldIdRegistered(WaypointKey.WorldId)
+		&& WorldRegistry->IsDevWorldIdRegistered(WaypointKey.WorldId)
+		&& UPRWorldRegistry::IsDevTravelEnabled();
+	if (!bAllowLockedNode && !bUnlocked && !bDevTravelEnabled)
+	{
+		return false;
+	}
+
+	OutOption.WaypointKey = WaypointKey;
+	OutOption.WorldDisplayName = WorldDataAsset->DisplayName;
+	OutOption.WaypointDisplayName = NodeDefinition.DisplayName;
+	OutOption.ThumbnailTexture = NodeDefinition.ThumbnailTexture;
+	OutOption.bUnlocked = bUnlocked;
+	OutOption.bDevTravelEnabled = bDevTravelEnabled;
+	return true;
+}
+
+const UPRWorldRegistry* UPRWaypointTravelWidget::GetWorldRegistry() const
+{
+	const UPRDeveloperSettings* Settings = GetDefault<UPRDeveloperSettings>();
+	if (!IsValid(Settings))
+	{
+		return nullptr;
+	}
+
+	return Settings->GetWorldRegistrySync();
+}
+
+UPRUIManagerSubsystem* UPRWaypointTravelWidget::GetUIManager() const
+{
+	APlayerController* OwningPlayerController = GetOwningPlayer();
+	if (!IsValid(OwningPlayerController))
+	{
+		return nullptr;
+	}
+
+	ULocalPlayer* LocalPlayer = OwningPlayerController->GetLocalPlayer();
+	if (!IsValid(LocalPlayer))
+	{
+		return nullptr;
+	}
+
+	return LocalPlayer->GetSubsystem<UPRUIManagerSubsystem>();
 }
 
 void UPRWaypointTravelWidget::CloseTravelWidget(bool bNotifyServerCancel)
 {
 	APRPlayerController* PlayerController = GetOwningPlayer<APRPlayerController>();
-	if (bNotifyServerCancel && !bTravelRequestPending && IsValid(PlayerController))
+	if (bNotifyServerCancel && IsValid(PlayerController))
 	{
 		// 서버 취소 요청
 		PlayerController->RequestCancelWaypointTravel();
@@ -196,8 +456,14 @@ void UPRWaypointTravelWidget::HandleCloseButtonClicked()
 	CloseTravelWidget(true);
 }
 
-void UPRWaypointTravelWidget::HandleNodeSelected(const FPRWaypointTravelNodeOption& NodeOption)
+void UPRWaypointTravelWidget::HandleBackButtonClicked()
 {
-	// 노드 선택 처리
-	RequestTravelToNode(NodeOption);
+	// Overview 복귀 처리
+	RebuildOverview();
+}
+
+void UPRWaypointTravelWidget::HandleWorldSelected(FGameplayTag WorldId)
+{
+	// 월드 지도 열기 처리
+	OpenWorldMap(WorldId);
 }

@@ -71,7 +71,10 @@ protected:
 	bool ShouldTargetAvoidShift(AActor* TargetActor) const;
 
 	// Shift 시전 대상 발밑에 경고 Niagara를 재생한다.
-	void SpawnShiftWarningVFX() const;
+	void SpawnShiftWarningVFX();
+
+	// Shift 적중 시 바닥에 남아 있던 기존 Warning Niagara를 즉시 정리한다.
+	void StopActiveShiftWarningVFX();
 
 	// Shift 경고 Niagara를 재생할 바닥 위치를 계산한다.
 	bool ResolveShiftWarningLocation(AActor* TargetActor, FVector& OutLocation) const;
@@ -93,6 +96,12 @@ protected:
 
 	// Shift 적중 시 플레이어 강인도 피해를 적용한다.
 	void ApplyShiftImpactToTarget(AActor* TargetActor);
+
+	// Shift 적중 후 대상에게 경고 Niagara를 부착해 끌려가는 동안 따라가게 한다.
+	void SpawnAttachedShiftWarningVFX(AActor* TargetActor, float SuggestedLifeSeconds) const;
+
+	// 부착 경고 Niagara의 실제 유지 시간을 계산한다.
+	float ResolveAttachedShiftWarningLifeSeconds(float SuggestedLifeSeconds) const;
 
 	// 클라이언트 권위 이동 설정을 쓰는 플레이어에게 서버 이동을 동일하게 미러링한다.
 	void MirrorShiftMoveToOwningClient(AActor* TargetActor, const FVector& Destination, const FRotator& Rotation, float Duration) const;
@@ -283,6 +292,10 @@ protected:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Faerin|Shift|Warning", meta = (ClampMin = "0.0"))
 	float ShiftWarningNiagaraLifeSeconds = 1.2f;
 
+	// Shift 적중 시 바닥에 남아 있던 기존 Warning Niagara를 즉시 삭제할지 여부다.
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Faerin|Shift|Warning")
+	bool bDestroyWorldShiftWarningVFXOnHit = true;
+
 	// Shift 경고 위치를 바닥으로 보정할 때 위로 올릴 trace 시작 높이다.
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Faerin|Shift|Warning", meta = (ClampMin = "0.0"))
 	float ShiftWarningGroundTraceUpOffset = 500.0f;
@@ -294,6 +307,38 @@ protected:
 	// Shift 경고 위치의 바닥 trace channel이다.
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Faerin|Shift|Warning")
 	TEnumAsByte<ECollisionChannel> ShiftWarningGroundTraceChannel = ECC_Visibility;
+
+	// Shift 적중 시 기존 Warning Niagara를 대상 Mesh/Socket에 다시 부착해 끌려가는 동안 따라가게 할지 여부다.
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Faerin|Shift|Warning|Attached")
+	bool bAttachShiftWarningVFXOnHit = true;
+
+	// 부착 경고 Niagara를 붙일 플레이어 Mesh Socket 이름이다. 없으면 Mesh root에 붙는다.
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Faerin|Shift|Warning|Attached", meta = (EditCondition = "bAttachShiftWarningVFXOnHit"))
+	FName ShiftWarningAttachedSocketName = TEXT("ShiftWarning_Attach");
+
+	// 부착 경고 Niagara의 Socket 기준 상대 위치 오프셋이다.
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Faerin|Shift|Warning|Attached", meta = (EditCondition = "bAttachShiftWarningVFXOnHit"))
+	FVector ShiftWarningAttachedLocationOffset = FVector::ZeroVector;
+
+	// 부착 경고 Niagara의 Socket 기준 상대 회전 오프셋이다.
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Faerin|Shift|Warning|Attached", meta = (EditCondition = "bAttachShiftWarningVFXOnHit"))
+	FRotator ShiftWarningAttachedRotationOffset = FRotator::ZeroRotator;
+
+	// 월드 경고 Niagara Scale에 곱할 부착 경고 Niagara Scale 배율이다.
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Faerin|Shift|Warning|Attached", meta = (EditCondition = "bAttachShiftWarningVFXOnHit"))
+	FVector ShiftWarningAttachedScaleMultiplier = FVector::OneVector;
+
+	// 0보다 크면 부착 경고 Niagara 유지 시간을 직접 사용한다. 0이면 Shift 이동 시간 기반으로 계산한다.
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Faerin|Shift|Warning|Attached", meta = (EditCondition = "bAttachShiftWarningVFXOnHit", ClampMin = "0.0"))
+	float ShiftWarningAttachedLifeSeconds = 0.0f;
+
+	// Shift 이동 시간 기반 계산 시 추가로 더할 유지 시간이다.
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Faerin|Shift|Warning|Attached", meta = (EditCondition = "bAttachShiftWarningVFXOnHit", ClampMin = "0.0"))
+	float ShiftWarningAttachedLifeExtraSeconds = 0.05f;
+
+	// Shift 이동 시간이 0에 가까울 때도 최소한 보일 부착 경고 Niagara 유지 시간이다.
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Faerin|Shift|Warning|Attached", meta = (EditCondition = "bAttachShiftWarningVFXOnHit", ClampMin = "0.0"))
+	float ShiftWarningAttachedMinimumLifeSeconds = 0.12f;
 
 	// 이 Shift Ability 동안 보스에게 무적 태그를 부여할지 여부다.
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Faerin|Shift|Invulnerability")
@@ -321,6 +366,8 @@ private:
 
 	UPROPERTY(Transient)
 	TObjectPtr<AActor> ActiveShiftTarget;
+
+	FName ActiveShiftWarningVFXKey = NAME_None;
 
 	FTimerHandle SmoothShiftTimerHandle;
 	FVector SmoothShiftStartLocation = FVector::ZeroVector;

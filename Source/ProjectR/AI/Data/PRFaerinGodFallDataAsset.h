@@ -48,6 +48,37 @@ struct FPRFaerinGodFallBodyNiagaraCue
 	float LifeSeconds = 0.0f;
 };
 
+
+// God Fall Entry Orbit 회전 제어 방식이다.
+UENUM(BlueprintType)
+enum class EPRFaerinGodFallEntryOrbitSpinControlMode : uint8
+{
+	SpeedRamp	UMETA(DisplayName = "Speed Ramp"),
+	TotalTurns	UMETA(DisplayName = "Total Turns")
+};
+
+// God Fall Entry Orbit 연출에서 최소/최대 랜덤값을 지정하기 위한 float range다.
+USTRUCT(BlueprintType)
+struct FPRFaerinGodFallFloatRange
+{
+	GENERATED_BODY()
+
+	FPRFaerinGodFallFloatRange() = default;
+	FPRFaerinGodFallFloatRange(const float InMin, const float InMax)
+		: Min(InMin)
+		, Max(InMax)
+	{
+	}
+
+	// 랜덤으로 뽑을 최소값이다.
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Faerin|GodFall|Range", meta = (ClampMin = "0.0"))
+	float Min = 0.0f;
+
+	// 랜덤으로 뽑을 최대값이다. Min보다 작으면 코드에서 자동으로 정렬해 사용한다.
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Faerin|GodFall|Range", meta = (ClampMin = "0.0"))
+	float Max = 0.0f;
+};
+
 // Faerin God Fall의 맵 배치 검 Rig 전환, 본체 연출, StaticSword 충전/배정 루프를 관리하는 데이터다.
 UCLASS(BlueprintType)
 class PROJECTR_API UPRFaerinGodFallDataAsset : public UPrimaryDataAsset
@@ -136,6 +167,178 @@ public:
 	// Entry dive 후 StaticSword가 자기 위치로 복귀하는 시간이다.
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Faerin|GodFall|Body|Presentation", meta = (ClampMin = "0.0"))
 	float EntrySwordDiveReturnSeconds = 0.35f;
+
+	// StaticSword 전환 후 첫 하강 전에 페어린 주변 원형 대형 회전을 사용할지 결정한다.
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Faerin|GodFall|EntryOrbit", meta = (InlineEditConditionToggle))
+	bool bUseEntryOrbitBeforeImpact = true;
+
+	// StaticSword 전환 직후 Entry Orbit 타임라인을 시작하기 전 대기 시간이다. 검이 전환된 순간을 짧게 보여주고 싶을 때 사용한다.
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Faerin|GodFall|EntryOrbit|Timeline", meta = (ClampMin = "0.0", EditCondition = "bUseEntryOrbitBeforeImpact"))
+	float EntryOrbitStartDelayAfterStaticSwitch = 0.15f;
+
+	// 현재 위치에서 페어린 주변 원형 대형 슬롯까지 부드럽게 이동하는 시간이다.
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Faerin|GodFall|EntryOrbit|Timeline", meta = (ClampMin = "0.0", EditCondition = "bUseEntryOrbitBeforeImpact"))
+	float EntryOrbitGatherDuration = 0.45f;
+
+	// 원형 대형 슬롯으로 모일 때 사용하는 ease 곡선이다. 1보다 크면 초반은 느리고 후반에 더 빠르게 모인다.
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Faerin|GodFall|EntryOrbit|Timeline", meta = (ClampMin = "0.1", EditCondition = "bUseEntryOrbitBeforeImpact"))
+	float EntryOrbitGatherAccelerationExponent = 1.5f;
+
+	// 원형 대형에 도착한 뒤 회전을 시작하기 전에 잠깐 대형을 보여주는 시간이다.
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Faerin|GodFall|EntryOrbit|Timeline", meta = (ClampMin = "0.0", EditCondition = "bUseEntryOrbitBeforeImpact"))
+	float EntryOrbitPreSpinHoldSeconds = 0.15f;
+
+	// 원형 대형 상태에서 회전/가속/바깥 기울기/반경 축소를 진행하는 시간이다.
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Faerin|GodFall|EntryOrbit|Timeline", meta = (ClampMin = "0.0", EditCondition = "bUseEntryOrbitBeforeImpact"))
+	float EntryOrbitSpinDuration = 2.2f;
+
+	// 회전이 끝난 뒤 바닥 낙하 직전에 최종 대형을 잠깐 유지하는 시간이다.
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Faerin|GodFall|EntryOrbit|Timeline", meta = (ClampMin = "0.0", EditCondition = "bUseEntryOrbitBeforeImpact"))
+	float EntryOrbitPostSpinHoldSeconds = 0.05f;
+
+	// 원형 대형 시작 반지름이다. 페어린 위치를 중심으로 각 검이 이 반경 위에서 회전한다.
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Faerin|GodFall|EntryOrbit|Shape", meta = (ClampMin = "0.0", EditCondition = "bUseEntryOrbitBeforeImpact"))
+	float EntryOrbitRadius = 650.0f;
+
+	// 충돌 직전까지 줄어드는 최소 반경이다. EntryOrbitRadius보다 클 수 없으며, 값이 작을수록 검들이 중심 쪽으로 더 모인다.
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Faerin|GodFall|EntryOrbit|Shape", meta = (ClampMin = "0.0", EditCondition = "bUseEntryOrbitBeforeImpact"))
+	float EntryOrbitImpactMinRadius = 220.0f;
+
+	// 원형 대형 중심의 높이 보정이다. 0이면 현재 페어린 위치 높이를 중심으로 회전한다.
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Faerin|GodFall|EntryOrbit|Shape", meta = (EditCondition = "bUseEntryOrbitBeforeImpact"))
+	float EntryOrbitHeightOffset = 0.0f;
+
+	// 지면 trace 결과에 더할 Z 보정이다. 검 pivot 때문에 바닥 위에 뜨거나 너무 깊게 박히면 이 값으로 맞춘다.
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Faerin|GodFall|EntryOrbit|Shape", meta = (EditCondition = "bUseEntryOrbitBeforeImpact"))
+	float EntryOrbitImpactGroundOffsetZ = -20.0f;
+
+	// 회전 제어 방식이다. SpeedRamp는 시작/최대 속도, TotalTurns는 총 회전 바퀴 수를 기준으로 한다.
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Faerin|GodFall|EntryOrbit|Spin", meta = (EditCondition = "bUseEntryOrbitBeforeImpact"))
+	EPRFaerinGodFallEntryOrbitSpinControlMode EntryOrbitSpinControlMode = EPRFaerinGodFallEntryOrbitSpinControlMode::SpeedRamp;
+
+	// SpeedRamp 모드에서 회전 시작 속도(deg/sec)다.
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Faerin|GodFall|EntryOrbit|Spin", meta = (ClampMin = "0.0", EditCondition = "bUseEntryOrbitBeforeImpact"))
+	float EntryOrbitStartAngularSpeedDeg = 35.0f;
+
+	// SpeedRamp 모드에서 회전이 끝날 때 도달할 최대 속도(deg/sec)다.
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Faerin|GodFall|EntryOrbit|Spin", meta = (ClampMin = "0.0", EditCondition = "bUseEntryOrbitBeforeImpact"))
+	float EntryOrbitMaxAngularSpeedDeg = 540.0f;
+
+	// 회전 가속 곡선이다. SpeedRamp에서는 속도 보간 곡선, TotalTurns에서는 누적 회전량 곡선으로 사용한다.
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Faerin|GodFall|EntryOrbit|Spin", meta = (ClampMin = "0.1", EditCondition = "bUseEntryOrbitBeforeImpact"))
+	float EntryOrbitAccelerationExponent = 2.0f;
+
+	// TotalTurns 모드에서 회전 구간 동안 몇 바퀴 돌지 직접 지정한다.
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Faerin|GodFall|EntryOrbit|Spin", meta = (ClampMin = "0.0", EditCondition = "bUseEntryOrbitBeforeImpact"))
+	float EntryOrbitTotalTurns = 1.25f;
+
+	// 회전 구간 중 반경 축소를 시작할 normalized time이다. 0이면 회전 시작부터 줄어든다.
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Faerin|GodFall|EntryOrbit|RadiusShrink", meta = (ClampMin = "0.0", ClampMax = "1.0", EditCondition = "bUseEntryOrbitBeforeImpact"))
+	float EntryOrbitRadiusShrinkStartAlpha = 0.25f;
+
+	// 회전 구간 중 반경 축소를 완료할 normalized time이다. 1이면 회전 끝에서 최소 반경에 도달한다.
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Faerin|GodFall|EntryOrbit|RadiusShrink", meta = (ClampMin = "0.0", ClampMax = "1.0", EditCondition = "bUseEntryOrbitBeforeImpact"))
+	float EntryOrbitRadiusShrinkEndAlpha = 1.0f;
+
+	// 회전 중 반경이 줄어드는 곡선이다. 1보다 크면 후반에 더 급격히 좁아진다.
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Faerin|GodFall|EntryOrbit|RadiusShrink", meta = (ClampMin = "0.1", EditCondition = "bUseEntryOrbitBeforeImpact"))
+	float EntryOrbitRadiusShrinkExponent = 1.35f;
+
+	// 원형 회전 중 검이 바깥 방향으로 벌어지는 최대 각도다.
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Faerin|GodFall|EntryOrbit|Tilt", meta = (ClampMin = "0.0", ClampMax = "89.0", EditCondition = "bUseEntryOrbitBeforeImpact"))
+	float EntryOrbitMaxOutwardTiltDegrees = 38.0f;
+
+	// 회전 구간 중 바깥쪽 기울어짐을 시작할 normalized time이다.
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Faerin|GodFall|EntryOrbit|Tilt", meta = (ClampMin = "0.0", ClampMax = "1.0", EditCondition = "bUseEntryOrbitBeforeImpact"))
+	float EntryOrbitTiltStartAlpha = 0.35f;
+
+	// 회전 구간 중 바깥쪽 기울어짐을 완료할 normalized time이다.
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Faerin|GodFall|EntryOrbit|Tilt", meta = (ClampMin = "0.0", ClampMax = "1.0", EditCondition = "bUseEntryOrbitBeforeImpact"))
+	float EntryOrbitTiltEndAlpha = 1.0f;
+
+	// 바깥쪽 벌어짐 각도 증가 곡선이다. 1보다 크면 후반에 더 크게 벌어진다.
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Faerin|GodFall|EntryOrbit|Tilt", meta = (ClampMin = "0.1", EditCondition = "bUseEntryOrbitBeforeImpact"))
+	float EntryOrbitTiltExponent = 1.5f;
+
+	// Entry Orbit 후 지면으로 꽂히는 시간이다. 0 이하이면 BossFastDropSeconds를 사용한다.
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Faerin|GodFall|EntryOrbit|Impact", meta = (ClampMin = "0.0", EditCondition = "bUseEntryOrbitBeforeImpact"))
+	float EntryOrbitImpactDropSeconds = 0.18f;
+
+	// Entry Orbit 낙하 때 현재 회전 각도 방향으로 바깥쪽 landing 지점을 잡아 퍼지며 박히게 할지 결정한다.
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Faerin|GodFall|EntryOrbit|Impact Spread", meta = (EditCondition = "bUseEntryOrbitBeforeImpact"))
+	bool bUseEntryOrbitImpactSpread = true;
+
+	// Entry Orbit 낙하가 끝날 때 검이 꽂힐 최종 원형 반경이다. EntryOrbitImpactMinRadius보다 크면 회전 후 바깥으로 퍼지며 박힌다.
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Faerin|GodFall|EntryOrbit|Impact Spread", meta = (ClampMin = "0.0", EditCondition = "bUseEntryOrbitBeforeImpact && bUseEntryOrbitImpactSpread"))
+	float EntryOrbitImpactLandingRadius = 750.0f;
+
+	// 최종 landing 각도를 회전 방향으로 얼마나 앞당길지 정한다. 0이면 순수 방사형, 양수면 회전 관성 방향으로 더 휘어져 꽂힌다.
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Faerin|GodFall|EntryOrbit|Impact Spread", meta = (EditCondition = "bUseEntryOrbitBeforeImpact && bUseEntryOrbitImpactSpread"))
+	float EntryOrbitImpactLandingAngleLeadDegrees = 25.0f;
+
+	// 낙하 구간 중 바깥 확산을 시작할 normalized time이다. 0이면 낙하 시작부터 퍼지고, 0.25면 먼저 내려간 뒤 퍼진다.
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Faerin|GodFall|EntryOrbit|Impact Spread", meta = (ClampMin = "0.0", ClampMax = "1.0", EditCondition = "bUseEntryOrbitBeforeImpact && bUseEntryOrbitImpactSpread"))
+	float EntryOrbitImpactSpreadStartAlpha = 0.0f;
+
+	// 낙하 중 XY 확산 보간 곡선이다. 1은 선형, 1보다 크면 초반은 덜 퍼지고 후반에 빠르게 벌어진다.
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Faerin|GodFall|EntryOrbit|Impact Spread", meta = (ClampMin = "0.1", EditCondition = "bUseEntryOrbitBeforeImpact && bUseEntryOrbitImpactSpread"))
+	float EntryOrbitImpactSpreadExponent = 1.4f;
+
+	// Entry Impact 후 검이 박힌 상태로 유지되는 시간이다. 일반 주기 낙하 검의 ImpactHoldSeconds와 분리한다.
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Faerin|GodFall|EntryOrbit|Impact", meta = (ClampMin = "0.0", EditCondition = "bUseEntryOrbitBeforeImpact"))
+	float EntryOrbitImpactHoldSeconds = 0.25f;
+
+	// Entry Impact 후 다시 상승하기 전에 검을 먼저 직선으로 세우는 시간이다.
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Faerin|GodFall|EntryOrbit|Return", meta = (ClampMin = "0.0", EditCondition = "bUseEntryOrbitBeforeImpact"))
+	float EntryOrbitReturnStraightenSeconds = 0.25f;
+
+	// Entry Impact 후 검을 직선으로 세울 때 사용하는 ease 곡선이다.
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Faerin|GodFall|EntryOrbit|Return", meta = (ClampMin = "0.1", EditCondition = "bUseEntryOrbitBeforeImpact"))
+	float EntryOrbitReturnStraightenExponent = 1.5f;
+
+	// 검이 직선으로 선 뒤 HomeLocation까지 상승하는 시간이다. 기존 EntrySwordDiveReturnSeconds와 분리한다.
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Faerin|GodFall|EntryOrbit|Return", meta = (ClampMin = "0.0", EditCondition = "bUseEntryOrbitBeforeImpact"))
+	float EntryOrbitRiseAfterStraightenSeconds = 0.45f;
+
+	// Entry Impact 후 검별 복귀 연출 시간을 랜덤으로 부여할지 결정한다. 켜면 아래 Range 값에서 각 StaticSword Actor마다 별도 값을 뽑는다.
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Faerin|GodFall|EntryOrbit|Return|Random", meta = (EditCondition = "bUseEntryOrbitBeforeImpact"))
+	bool bRandomizeEntryOrbitReturnTiming = true;
+
+	// 검별 직선 세우기 시간 범위다. bRandomizeEntryOrbitReturnTiming이 false면 EntryOrbitReturnStraightenSeconds를 사용한다.
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Faerin|GodFall|EntryOrbit|Return|Random", meta = (EditCondition = "bUseEntryOrbitBeforeImpact && bRandomizeEntryOrbitReturnTiming"))
+	FPRFaerinGodFallFloatRange EntryOrbitReturnStraightenSecondsRange = FPRFaerinGodFallFloatRange(0.18f, 0.45f);
+
+	// 검별 직선 세우기 ease exponent 범위다. 값이 클수록 후반에 빠르게 선다.
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Faerin|GodFall|EntryOrbit|Return|Random", meta = (EditCondition = "bUseEntryOrbitBeforeImpact && bRandomizeEntryOrbitReturnTiming"))
+	FPRFaerinGodFallFloatRange EntryOrbitReturnStraightenExponentRange = FPRFaerinGodFallFloatRange(1.0f, 2.2f);
+
+	// 검별 상승 시간 범위다. bRandomizeEntryOrbitReturnTiming이 false면 EntryOrbitRiseAfterStraightenSeconds를 사용한다.
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Faerin|GodFall|EntryOrbit|Return|Random", meta = (EditCondition = "bUseEntryOrbitBeforeImpact && bRandomizeEntryOrbitReturnTiming"))
+	FPRFaerinGodFallFloatRange EntryOrbitRiseAfterStraightenSecondsRange = FPRFaerinGodFallFloatRange(0.35f, 0.9f);
+
+	// 상승 완료 후 Charging 상태로 들어가기 전 추가 대기 시간이다.
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Faerin|GodFall|EntryOrbit|Return", meta = (ClampMin = "0.0", EditCondition = "bUseEntryOrbitBeforeImpact"))
+	float EntryOrbitChargeStartDelayAfterRise = 0.0f;
+
+	// Entry Orbit 후 모든 검이 바닥에 꽂히는 순간 전역 데미지를 1회 적용할지 결정한다.
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Faerin|GodFall|EntryOrbit|Damage", meta = (InlineEditConditionToggle))
+	bool bApplyEntryOrbitImpactGlobalDamage = true;
+
+	// Entry Impact 전역 데미지에 사용할 GameplayEffect다. 비워 두면 ImpactDamageEffectClass, Registry Enemy Damage GE 순으로 fallback한다.
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Faerin|GodFall|EntryOrbit|Damage", meta = (EditCondition = "bApplyEntryOrbitImpactGlobalDamage"))
+	TSubclassOf<UGameplayEffect> EntryOrbitImpactGlobalDamageEffectClass;
+
+	// Entry Impact 전역 데미지의 Enemy AttackPower 배율이다.
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Faerin|GodFall|EntryOrbit|Damage", meta = (ClampMin = "0.0", EditCondition = "bApplyEntryOrbitImpactGlobalDamage"))
+	float EntryOrbitImpactGlobalDamageMultiplier = 1.0f;
+
+	// Entry Impact 전역 데미지가 플레이어에게 적용할 강인도 피해량이다.
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Faerin|GodFall|EntryOrbit|Damage", meta = (ClampMin = "0.0", EditCondition = "bApplyEntryOrbitImpactGlobalDamage"))
+	float EntryOrbitImpactGlobalPoiseDamage = 0.0f;
+
+	// 0 이하이면 현재 GodFall target 전체에게 적용한다. 0 초과이면 페어린 시전 위치 기준 반경 안의 대상만 맞춘다.
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Faerin|GodFall|EntryOrbit|Damage", meta = (ClampMin = "0.0", EditCondition = "bApplyEntryOrbitImpactGlobalDamage"))
+	float EntryOrbitImpactGlobalDamageRadius = 0.0f;
 
 	// Phase2 기준 검 충전 최소 시간이다.
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Faerin|GodFall|Timing", meta = (ClampMin = "0.0"))

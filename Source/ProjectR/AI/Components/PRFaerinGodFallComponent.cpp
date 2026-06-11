@@ -8,6 +8,8 @@
 #include "Components/SkeletalMeshComponent.h"
 #include "EngineUtils.h"
 #include "Engine/World.h"
+#include "Engine/EngineTypes.h"
+#include "Engine/OverlapResult.h"
 #include "NiagaraComponent.h"
 #include "GameplayEffect.h"
 #include "NiagaraFunctionLibrary.h"
@@ -145,6 +147,9 @@ bool UPRFaerinGodFallComponent::StartGodFallEntry(AActor* InPatternTarget)
 
 	ActivePatternTargets.Reset();
 	NextTargetAssignmentIndex = 0;
+	PendingEntryOrbitImpactSwordCount = 0;
+	FinishedEntryOrbitImpactSwordCount = 0;
+	bEntryOrbitImpactGlobalDamageApplied = false;
 	RefreshGodFallTargets(InPatternTarget);
 	ActiveStaticSwords.Reset();
 
@@ -159,6 +164,9 @@ bool UPRFaerinGodFallComponent::StartGodFallEntry(AActor* InPatternTarget)
 	bGodFallConvertedToStaticSwords = false;
 	bBodyDropMontageStarted = false;
 	bBodyMontageSequenceFinished = false;
+	PendingEntryOrbitImpactSwordCount = 0;
+	FinishedEntryOrbitImpactSwordCount = 0;
+	bEntryOrbitImpactGlobalDamageApplied = false;
 	EntryRuntimeState = EPRFaerinGodFallEntryRuntimeState::Idle;
 	CurrentGodFallPhase = EPRBossPhase::Phase2;
 
@@ -177,6 +185,9 @@ void UPRFaerinGodFallComponent::CancelGodFallEntry()
 	CancelSwordRisePoiseDamage();
 	MulticastCleanupGodFallBodyNiagara();
 	bGodFallEntryRunning = false;
+	PendingEntryOrbitImpactSwordCount = 0;
+	FinishedEntryOrbitImpactSwordCount = 0;
+	bEntryOrbitImpactGlobalDamageApplied = false;
 	EntryRuntimeState = EPRFaerinGodFallEntryRuntimeState::Idle;
 	SetComponentTickEnabled(false);
 	EndBossPresentationReplicationOverride();
@@ -259,6 +270,11 @@ void UPRFaerinGodFallComponent::ConvertRigToStaticSwords()
 
 	bGodFallConvertedToStaticSwords = true;
 	DestroyPlacedRigActor();
+
+	// StaticSword로 전환된 직후 바로 원형 대형/회전 프레젠테이션을 시작한다.
+	// 기존처럼 BodyDrop 몽타주 시작까지 기다리면 전환 직후 원형 배치가 보이지 않는다.
+	StartStaticSwordEntryOrbit();
+
 	BroadcastEntryFinished(!ActiveStaticSwords.IsEmpty());
 }
 
@@ -366,6 +382,9 @@ void UPRFaerinGodFallComponent::StartGodFallCast()
 		MulticastSetPlacedRigHidden(false);
 	}
 
+	bStaticSwordEntryOrbitStarted = false;
+	StaticSwordEntryOrbitStartServerTimeSeconds = -1.0f;
+
 	ApplyBossPresentationTransform(BossCastGroundLocation, BossCastRotation);
 	BossPresentationElapsedSeconds = 0.0f;
 	BossChargeApexLocation = BossCastGroundLocation + FVector(0.0f, 0.0f, GodFallData->BossChargeRiseHeight);
@@ -441,7 +460,12 @@ void UPRFaerinGodFallComponent::BeginBossDropPresentation()
 	}
 
 	ClearRigTimers();
-	const float DropDelaySeconds = FMath::Max(GodFallData->BossDropSeconds, 0.0f);
+	if (GodFallData->bUseEntryOrbitBeforeImpact && !bStaticSwordEntryOrbitStarted)
+	{
+		StartStaticSwordEntryOrbit();
+	}
+
+	const float DropDelaySeconds = ResolveStaticSwordEntryDiveDelaySeconds();
 	if (DropDelaySeconds <= 0.0f)
 	{
 		ExecuteBossFastDrop();
@@ -802,12 +826,82 @@ bool UPRFaerinGodFallComponent::SpawnStaticSwordFromBone(const int32 BoneArrayIn
 		BoneName,
 		SpawnTransform);
 	StaticSword->OnChargeFinished.AddUObject(this, &UPRFaerinGodFallComponent::HandleStaticSwordChargeFinished);
+	StaticSword->OnEntryImpactFinished.AddUObject(this, &UPRFaerinGodFallComponent::HandleStaticSwordEntryImpactFinished);
 	StaticSword->OnAssignedAttackFinished.AddUObject(this, &UPRFaerinGodFallComponent::HandleStaticSwordAssignedAttackFinished);
 	ActiveStaticSwords.Add(StaticSword);
 	return true;
 }
 
 // ===== StaticSword 충전 / 배정 =====
+
+void UPRFaerinGodFallComponent::StartStaticSwordEntryOrbit()
+{
+	ClearInvalidStaticSwordRefs();
+	APRBossBaseCharacter* OwnerBoss = GetOwnerBoss();
+	if (!IsValid(OwnerBoss) || !IsValid(GodFallData) || !GodFallData->bUseEntryOrbitBeforeImpact)
+	{
+		return;
+	}
+
+	if (bStaticSwordEntryOrbitStarted)
+	{
+		return;
+	}
+
+	const FVector OrbitCenterLocation = OwnerBoss->GetActorLocation();
+	const float StartDelaySeconds = FMath::Max(GodFallData->EntryOrbitStartDelayAfterStaticSwitch, 0.0f);
+	const float GatherDurationSeconds = FMath::Max(GodFallData->EntryOrbitGatherDuration, 0.0f);
+	const float PreSpinHoldSeconds = FMath::Max(GodFallData->EntryOrbitPreSpinHoldSeconds, 0.0f);
+	const float OrbitDurationSeconds = FMath::Max(GodFallData->EntryOrbitSpinDuration, 0.0f);
+	const float PostSpinHoldSeconds = FMath::Max(GodFallData->EntryOrbitPostSpinHoldSeconds, 0.0f);
+	int32 StartedSwordCount = 0;
+	for (APRFaerinGodFallStaticSwordActor* StaticSword : ActiveStaticSwords)
+	{
+		if (IsValid(StaticSword) && StaticSword->StartEntryOrbit(
+				OrbitCenterLocation,
+				StartDelaySeconds,
+				GatherDurationSeconds,
+				PreSpinHoldSeconds,
+				OrbitDurationSeconds,
+				PostSpinHoldSeconds))
+		{
+			++StartedSwordCount;
+		}
+	}
+
+	if (StartedSwordCount > 0)
+	{
+		bStaticSwordEntryOrbitStarted = true;
+		StaticSwordEntryOrbitStartServerTimeSeconds = GetWorld() ? GetWorld()->GetTimeSeconds() : 0.0f;
+	}
+}
+
+float UPRFaerinGodFallComponent::ResolveStaticSwordEntryDiveDelaySeconds() const
+{
+	if (!IsValid(GodFallData))
+	{
+		return 0.0f;
+	}
+
+	const float BaseDelaySeconds = FMath::Max(GodFallData->BossDropSeconds, 0.0f);
+	if (!GodFallData->bUseEntryOrbitBeforeImpact || !bStaticSwordEntryOrbitStarted)
+	{
+		return BaseDelaySeconds;
+	}
+
+	const UWorld* World = GetWorld();
+	const float NowSeconds = World ? World->GetTimeSeconds() : StaticSwordEntryOrbitStartServerTimeSeconds;
+	const float ElapsedSinceOrbitStart = FMath::Max(NowSeconds - StaticSwordEntryOrbitStartServerTimeSeconds, 0.0f);
+
+	// Entry Orbit은 StaticSword 전환 기준 전용 타임라인으로 제어한다.
+	// BossDropSeconds는 보스 몸 하강 연출값으로만 남기고, 검 낙하 시점은 아래 값들로 직접 조절한다.
+	const float EntryOrbitTotalSeconds = FMath::Max(GodFallData->EntryOrbitStartDelayAfterStaticSwitch, 0.0f)
+		+ FMath::Max(GodFallData->EntryOrbitGatherDuration, 0.0f)
+		+ FMath::Max(GodFallData->EntryOrbitPreSpinHoldSeconds, 0.0f)
+		+ FMath::Max(GodFallData->EntryOrbitSpinDuration, 0.0f)
+		+ FMath::Max(GodFallData->EntryOrbitPostSpinHoldSeconds, 0.0f);
+	return FMath::Max(EntryOrbitTotalSeconds - ElapsedSinceOrbitStart, 0.0f);
+}
 
 void UPRFaerinGodFallComponent::StartStaticSwordEntryDive()
 {
@@ -817,16 +911,58 @@ void UPRFaerinGodFallComponent::StartStaticSwordEntryDive()
 		return;
 	}
 
+	PendingEntryOrbitImpactSwordCount = 0;
+	FinishedEntryOrbitImpactSwordCount = 0;
+	bEntryOrbitImpactGlobalDamageApplied = false;
+
+	const float DropSeconds = GodFallData->bUseEntryOrbitBeforeImpact && GodFallData->EntryOrbitImpactDropSeconds > 0.0f
+		? GodFallData->EntryOrbitImpactDropSeconds
+		: GodFallData->BossFastDropSeconds;
+
 	for (APRFaerinGodFallStaticSwordActor* StaticSword : ActiveStaticSwords)
 	{
-		if (IsValid(StaticSword))
+		if (!IsValid(StaticSword))
 		{
-			StaticSword->StartEntryDive(
+			continue;
+		}
+
+		const bool bStarted = GodFallData->bUseEntryOrbitBeforeImpact
+			? StaticSword->StartEntryOrbitImpactDrop(
+				DropSeconds,
+				GodFallData->EntryOrbitImpactHoldSeconds,
+				GodFallData->EntryOrbitRiseAfterStraightenSeconds,
+				GodFallData->EntryOrbitChargeStartDelayAfterRise,
+				ResolveSwordChargeSeconds())
+			: StaticSword->StartEntryDive(
 				GodFallData->EntrySwordDiveDistance,
 				GodFallData->BossFastDropSeconds,
 				GodFallData->EntrySwordDiveReturnSeconds,
 				ResolveSwordChargeSeconds());
+
+		if (bStarted && GodFallData->bUseEntryOrbitBeforeImpact)
+		{
+			++PendingEntryOrbitImpactSwordCount;
 		}
+	}
+
+	if (GodFallData->bUseEntryOrbitBeforeImpact && PendingEntryOrbitImpactSwordCount <= 0)
+	{
+		ApplyEntryOrbitImpactGlobalDamage();
+	}
+}
+
+void UPRFaerinGodFallComponent::HandleStaticSwordEntryImpactFinished(APRFaerinGodFallStaticSwordActor* FinishedSword)
+{
+	if (!IsValid(FinishedSword) || !IsValid(GodFallData) || !GodFallData->bUseEntryOrbitBeforeImpact)
+	{
+		return;
+	}
+
+	++FinishedEntryOrbitImpactSwordCount;
+	if (!bEntryOrbitImpactGlobalDamageApplied
+		&& FinishedEntryOrbitImpactSwordCount >= FMath::Max(PendingEntryOrbitImpactSwordCount, 1))
+	{
+		ApplyEntryOrbitImpactGlobalDamage();
 	}
 }
 
@@ -1322,6 +1458,123 @@ void UPRFaerinGodFallComponent::CancelSwordRisePoiseDamage()
 	if (UWorld* World = GetWorld())
 	{
 		World->GetTimerManager().ClearTimer(SwordRisePoiseDamageTimerHandle);
+	}
+}
+
+void UPRFaerinGodFallComponent::ApplyEntryOrbitImpactGlobalDamage()
+{
+	APRBossBaseCharacter* OwnerBoss = GetOwnerBoss();
+	if (!IsValid(OwnerBoss) || !OwnerBoss->HasAuthority() || !IsValid(GodFallData))
+	{
+		return;
+	}
+
+	if (bEntryOrbitImpactGlobalDamageApplied
+		|| !GodFallData->bUseEntryOrbitBeforeImpact
+		|| !GodFallData->bApplyEntryOrbitImpactGlobalDamage)
+	{
+		return;
+	}
+
+	bEntryOrbitImpactGlobalDamageApplied = true;
+
+	UPRAbilitySystemComponent* SourceASC = OwnerBoss->GetEnemyAbilitySystemComponent();
+	if (!IsValid(SourceASC))
+	{
+		UE_LOG(LogPRFaerinGodFall, Warning,
+			TEXT("God Fall entry orbit global damage skipped because SourceASC is invalid. Owner=%s"),
+			*GetNameSafe(OwnerBoss));
+		return;
+	}
+
+	TSubclassOf<UGameplayEffect> DamageEffectClass = GodFallData->EntryOrbitImpactGlobalDamageEffectClass;
+	if (!IsValid(DamageEffectClass))
+	{
+		DamageEffectClass = GodFallData->ImpactDamageEffectClass;
+	}
+	if (!IsValid(DamageEffectClass))
+	{
+		const UPRAbilitySystemRegistry* Registry = UPRAssetManager::Get().GetAbilitySystemRegistry();
+		if (IsValid(Registry))
+		{
+			DamageEffectClass = Registry->DamageGE_FromEnemy;
+		}
+	}
+
+	if (!IsValid(DamageEffectClass))
+	{
+		UE_LOG(LogPRFaerinGodFall, Warning,
+			TEXT("God Fall entry orbit global damage skipped because DamageEffectClass is invalid. Owner=%s"),
+			*GetNameSafe(OwnerBoss));
+		return;
+	}
+
+	TArray<TWeakObjectPtr<AActor>> DamageTargets;
+	const float DamageRadius = FMath::Max(GodFallData->EntryOrbitImpactGlobalDamageRadius, 0.0f);
+	if (DamageRadius <= UE_SMALL_NUMBER)
+	{
+		RefreshGodFallTargets();
+		DamageTargets = ActivePatternTargets;
+	}
+	else if (UWorld* World = GetWorld(); IsValid(World))
+	{
+		TArray<FOverlapResult> OverlapResults;
+		FCollisionQueryParams QueryParams(SCENE_QUERY_STAT(FaerinGodFallEntryOrbitGlobalDamageOverlap), false, OwnerBoss);
+		QueryParams.AddIgnoredActor(OwnerBoss);
+		const FCollisionShape CollisionShape = FCollisionShape::MakeSphere(DamageRadius);
+		if (World->OverlapMultiByChannel(
+			OverlapResults,
+			BossCastGroundLocation,
+			FQuat::Identity,
+			GodFallData->ImpactOverlapChannel,
+			CollisionShape,
+			QueryParams))
+		{
+			for (const FOverlapResult& OverlapResult : OverlapResults)
+			{
+				DamageTargets.Add(OverlapResult.GetActor());
+			}
+		}
+	}
+
+	TSet<TWeakObjectPtr<AActor>> DamagedActors;
+	for (const TWeakObjectPtr<AActor>& TargetPtr : DamageTargets)
+	{
+		AActor* TargetActor = TargetPtr.Get();
+		if (!IsValidGodFallTarget(TargetActor) || DamagedActors.Contains(TargetActor) || !Cast<APRPlayerCharacter>(TargetActor))
+		{
+			continue;
+		}
+
+		UAbilitySystemComponent* TargetASC = UAbilitySystemBlueprintLibrary::GetAbilitySystemComponent(TargetActor);
+		if (!IsValid(TargetASC))
+		{
+			continue;
+		}
+
+		FGameplayEffectContextHandle EffectContext = SourceASC->MakeEffectContext();
+		EffectContext.AddSourceObject(GetOwner());
+
+		FGameplayEffectSpecHandle SpecHandle = SourceASC->MakeOutgoingSpec(
+			DamageEffectClass,
+			1.0f,
+			EffectContext);
+
+		if (!SpecHandle.IsValid())
+		{
+			continue;
+		}
+
+		SpecHandle.Data->SetSetByCallerMagnitude(
+			PRCombatGameplayTags::SetByCaller_AttackMultiplier,
+			FMath::Max(GodFallData->EntryOrbitImpactGlobalDamageMultiplier, 0.0f));
+
+		SpecHandle.Data->SetSetByCallerMagnitude(
+			PRCombatGameplayTags::SetByCaller_PoiseDamage,
+			FMath::Max(GodFallData->EntryOrbitImpactGlobalPoiseDamage, 0.0f));
+
+		SourceASC->ApplyGameplayEffectSpecToTarget(*SpecHandle.Data.Get(), TargetASC);
+		DamagedActors.Add(TargetActor);
 	}
 }
 

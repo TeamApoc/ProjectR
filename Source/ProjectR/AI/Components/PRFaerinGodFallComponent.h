@@ -101,7 +101,10 @@ private:
 	void HandleRigChargeFinished();
 	void HandleRigTiltPullFinished();
 	bool SpawnStaticSwordFromBone(int32 BoneArrayIndex, FName BoneName);
+	void StartStaticSwordEntryOrbit();
+	float ResolveStaticSwordEntryDiveDelaySeconds() const;
 	void StartStaticSwordEntryDive();
+	void HandleStaticSwordEntryImpactFinished(APRFaerinGodFallStaticSwordActor* FinishedSword);
 	void HandleStaticSwordChargeFinished(APRFaerinGodFallStaticSwordActor* FinishedSword);
 	void HandleStaticSwordAssignedAttackFinished(APRFaerinGodFallStaticSwordActor* FinishedSword);
 	void TryAssignNextSword();
@@ -121,6 +124,7 @@ private:
 	void ScheduleSwordRisePoiseDamage();
 	void ApplySwordRisePoiseDamage();
 	void CancelSwordRisePoiseDamage();
+	void ApplyEntryOrbitImpactGlobalDamage();
 	void DestroyPlacedRigActor();
 	void SetPlacedRigHidden(bool bNewHidden);
 	void ApplyBossPresentationTransform(const FVector& Location, const FRotator& Rotation);
@@ -217,6 +221,11 @@ private:
 	FTimerHandle RigTiltPullTimerHandle;
 	FTimerHandle BossDropTimerHandle;
 	FTimerHandle SwordRisePoiseDamageTimerHandle;
+	int32 PendingEntryOrbitImpactSwordCount = 0;
+	int32 FinishedEntryOrbitImpactSwordCount = 0;
+	bool bEntryOrbitImpactGlobalDamageApplied = false;
+	bool bStaticSwordEntryOrbitStarted = false;
+	float StaticSwordEntryOrbitStartServerTimeSeconds = -1.0f;
 	TArray<FTimerHandle> BodyNiagaraCueTimerHandles;
 	TArray<FTimerHandle> BodyNiagaraCleanupTimerHandles;
 	int32 NextTargetAssignmentIndex = 0;

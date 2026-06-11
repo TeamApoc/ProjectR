@@ -285,6 +285,14 @@ protected:
 	UPROPERTY(EditDefaultsOnly, Category = "ProjectR|TickOptimization", meta = (ClampMin = "0.0"))
 	float TickDeactivationRadius = 3500.0f;
 
+	// Visibility 검사 없이 AI 비용을 다시 활성화하는 내부 반경
+	UPROPERTY(EditDefaultsOnly, Category = "ProjectR|TickOptimization", meta = (ClampMin = "0.0"))
+	float TickAlwaysActiveActivationRadius = 2000.0f;
+
+	// Visibility 검사 없이 AI 비용 활성 상태를 유지하는 내부 반경
+	UPROPERTY(EditDefaultsOnly, Category = "ProjectR|TickOptimization", meta = (ClampMin = "0.0"))
+	float TickAlwaysActiveDeactivationRadius = 2500.0f;
+
 	// 비활성 상태에서 플레이어 접근 시 시각 비용을 다시 활성화하는 반경
 	UPROPERTY(EditDefaultsOnly, Category = "ProjectR|TickOptimization", meta = (ClampMin = "0.0"))
 	float VisibilityActivationRadius = 4500.0f;

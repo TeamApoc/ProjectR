@@ -15,11 +15,19 @@ struct PROJECTR_API FPRTickOptimizationConfig
 
 	// Tick 비활성 상태에서 활성 상태로 전환되는 기준 반경
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "ProjectR|TickOptimization")
-	float TickActivationRadius = 4000.0f;
+	float TickActivationRadius = 4500.0f;
 
 	// Tick 활성 상태에서 비활성 상태로 전환되는 기준 반경
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "ProjectR|TickOptimization")
-	float TickDeactivationRadius = 4500.0f;
+	float TickDeactivationRadius = 5000.0f;
+
+	// Visibility 검사 없이 Tick 활성 상태로 전환되는 내부 기준 반경
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "ProjectR|TickOptimization")
+	float TickAlwaysActiveActivationRadius = 3000.0f;
+
+	// Visibility 검사 없이 Tick 활성 상태를 유지하는 내부 기준 반경
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "ProjectR|TickOptimization")
+	float TickAlwaysActiveDeactivationRadius = 3500.0f;
 
 	// Visibility 비활성 상태에서 활성 상태로 전환되는 기준 반경
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "ProjectR|TickOptimization")

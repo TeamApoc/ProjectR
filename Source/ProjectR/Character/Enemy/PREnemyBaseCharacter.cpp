@@ -848,6 +848,8 @@ FPRTickOptimizationConfig APREnemyBaseCharacter::GetTickConfig() const
 	FPRTickOptimizationConfig Config;
 	Config.TickActivationRadius = TickActivationRadius;
 	Config.TickDeactivationRadius = TickDeactivationRadius;
+	Config.TickAlwaysActiveActivationRadius = TickAlwaysActiveActivationRadius;
+	Config.TickAlwaysActiveDeactivationRadius = TickAlwaysActiveDeactivationRadius;
 	Config.VisibilityActivationRadius = VisibilityActivationRadius;
 	Config.VisibilityDeactivationRadius = VisibilityDeactivationRadius;
 	Config.bStartTickActive = bStartTickActive;

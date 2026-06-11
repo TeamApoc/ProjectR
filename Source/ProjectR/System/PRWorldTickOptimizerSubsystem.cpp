@@ -3,6 +3,7 @@
 #include "PRWorldTickOptimizerSubsystem.h"
 
 #include "AbilitySystemComponent.h"
+#include "CollisionQueryParams.h"
 #include "DrawDebugHelpers.h"
 #include "Engine/World.h"
 #include "GameFramework/PlayerController.h"
@@ -28,10 +29,43 @@ namespace
 		TEXT("월드 Tick 최적화 대상 액터 상태 박스 표시 여부.\n0: 비활성\n1: 활성"),
 		ECVF_Default);
 
+	static TAutoConsoleVariable<int32> CVarPRWorldTickOptimizerVisibilityGateEnabled(
+		TEXT("pr.WorldTickOptimizer.VisibilityGate.Enabled"),
+		1,
+		TEXT("월드 Tick 최적화 Visibility 게이트 활성 여부.\n0: B 반경 내부 Tick 활성\n1: A 반경 내부 Tick 활성, A-B 구간 Visibility 검사"),
+		ECVF_Default);
+
+	static TAutoConsoleVariable<int32> CVarPRWorldTickOptimizerVisibilityGateMaxTracesPerEvaluation(
+		TEXT("pr.WorldTickOptimizer.VisibilityGate.MaxTracesPerEvaluation"),
+		128,
+		TEXT("월드 Tick 최적화 Visibility 게이트 평가당 최대 trace 횟수.\n0 이하: 무제한"),
+		ECVF_Default);
+
 	// 액터 상태 디버그 박스 표시 여부 확인
 	bool IsActorDebugDrawEnabled()
 	{
 		return CVarPRWorldTickOptimizerShowActors.GetValueOnGameThread() > 0;
+	}
+
+	// Tick Visibility 게이트 활성 여부 확인
+	bool IsTickVisibilityGateEnabled()
+	{
+		return CVarPRWorldTickOptimizerVisibilityGateEnabled.GetValueOnGameThread() > 0;
+	}
+
+	// Tick Visibility 게이트 trace 예산 반환
+	int32 GetTickVisibilityGateTraceBudget()
+	{
+		return CVarPRWorldTickOptimizerVisibilityGateMaxTracesPerEvaluation.GetValueOnGameThread();
+	}
+
+	// Tick Visibility 게이트 반경 설정 유효성 확인
+	bool IsTickVisibilityGateConfigValid(const FPRTickOptimizationConfig& Config)
+	{
+		return Config.TickAlwaysActiveActivationRadius > 0.0f
+			&& Config.TickAlwaysActiveDeactivationRadius >= Config.TickAlwaysActiveActivationRadius
+			&& Config.TickActivationRadius > Config.TickAlwaysActiveActivationRadius
+			&& Config.TickDeactivationRadius > Config.TickAlwaysActiveDeactivationRadius;
 	}
 
 	// 최적화 대상 액터의 Tick 활성 상태 시각화
@@ -52,7 +86,14 @@ namespace
 				continue;
 			}
 
-			const FColor DebugColor = Entry.IsTickActive() ? FColor::Green : FColor::Red;
+			FColor DebugColor = FColor::Green;
+			if (!Entry.IsTickActive())
+			{
+				DebugColor = Entry.DebugState == EPRTickOptimizationDebugState::BlockedByVisibility
+					? FColor::Yellow
+					: FColor::Red;
+			}
+
 			DrawDebugBox(
 				World,
 				TargetActor->GetActorLocation(),
@@ -138,6 +179,7 @@ void UPRWorldTickOptimizerSubsystem::ForceActivateTarget(AActor* TargetActor)
 	}
 
 	Entry->bForceActive = true;
+	Entry->DebugState = EPRTickOptimizationDebugState::Active;
 	ApplyEntryActiveState(*Entry, true, true);
 }
 
@@ -179,6 +221,8 @@ void UPRWorldTickOptimizerSubsystem::ForceEvaluate()
 	}
 
 	BuildSources();
+	const int32 TraceBudget = GetTickVisibilityGateTraceBudget();
+	RemainingVisibilityGateTraceBudget = TraceBudget <= 0 ? -1 : TraceBudget;
 	EvaluateTargets();
 	DrawActorStateBoxes(World, ActiveEntries, EvaluationInterval);
 }
@@ -296,6 +340,19 @@ bool UPRWorldTickOptimizerSubsystem::BuildEntry(AActor* TargetActor, FPRTickOpti
 		return false;
 	}
 
+	if (!IsTickVisibilityGateConfigValid(Config))
+	{
+		UE_LOG(
+			LogPRWorldTickOptimizer,
+			Warning,
+			TEXT("[WorldTickOptimizer] Tick 내부 반경 설정 오류 Target=%s InnerActivation=%.1f InnerDeactivation=%.1f OuterActivation=%.1f OuterDeactivation=%.1f"),
+			*GetNameSafe(TargetActor),
+			Config.TickAlwaysActiveActivationRadius,
+			Config.TickAlwaysActiveDeactivationRadius,
+			Config.TickActivationRadius,
+			Config.TickDeactivationRadius);
+	}
+
 	if (Config.VisibilityActivationRadius <= 0.0f || Config.VisibilityDeactivationRadius < Config.VisibilityActivationRadius)
 	{
 		UE_LOG(
@@ -405,6 +462,8 @@ void UPRWorldTickOptimizerSubsystem::RestoreAllTargetsActive()
 			TargetInterface->SetTickActive(true);
 		}
 
+		Entry.DebugState = EPRTickOptimizationDebugState::Active;
+
 		if (!Entry.bIsVisibilityActive)
 		{
 			Entry.bIsVisibilityActive = true;
@@ -455,14 +514,26 @@ void UPRWorldTickOptimizerSubsystem::EvaluateTarget(FPRTickOptimizationEntry& En
 	if (Entry.bForceActive)
 	{
 		// 강제 활성 대상의 거리 기반 비활성화 차단
+		Entry.DebugState = EPRTickOptimizationDebugState::Active;
 		ApplyEntryActiveState(Entry, true, true);
 		return;
 	}
 
 	const FVector TargetLocation = TargetInterface->GetTickLocation();
-	const bool bShouldTickBeActive = Entry.bIsTickActive
-		? HasSourceInsideRadius(TargetLocation, Entry.Config.TickDeactivationRadius)
-		: HasSourceInsideRadius(TargetLocation, Entry.Config.TickActivationRadius);
+	bool bShouldTickBeActive = false;
+	if (IsTickVisibilityGateEnabled() && IsTickVisibilityGateConfigValid(Entry.Config))
+	{
+		bShouldTickBeActive = EvaluateTickVisibilityGate(Entry, TargetLocation);
+	}
+	else
+	{
+		bShouldTickBeActive = Entry.bIsTickActive
+			? HasSourceInsideRadius(TargetLocation, Entry.Config.TickDeactivationRadius)
+			: HasSourceInsideRadius(TargetLocation, Entry.Config.TickActivationRadius);
+		Entry.DebugState = bShouldTickBeActive
+			? EPRTickOptimizationDebugState::Active
+			: EPRTickOptimizationDebugState::OutsideRadius;
+	}
 
 	const bool bShouldVisibilityBeActive = Entry.bIsVisibilityActive
 		? HasSourceInsideRadius(TargetLocation, Entry.Config.VisibilityDeactivationRadius)
@@ -498,4 +569,118 @@ bool UPRWorldTickOptimizerSubsystem::HasSourceInsideRadius(const FVector& Target
 	}
 
 	return false;
+}
+
+bool UPRWorldTickOptimizerSubsystem::EvaluateTickVisibilityGate(FPRTickOptimizationEntry& Entry, const FVector& TargetLocation)
+{
+	struct FPRVisibilityGateSourceCandidate
+	{
+		// Visibility trace 대상 플레이어 기준점
+		const FPRTickOptimizationSource* Source = nullptr;
+
+		// 가까운 기준점 우선 검사용 거리 제곱
+		float DistanceSquared = 0.0f;
+	};
+
+	AActor* TargetActor = Entry.TargetActor.Get();
+	const UWorld* World = GetWorld();
+	if (!IsValid(TargetActor) || !IsValid(World))
+	{
+		return Entry.bIsTickActive;
+	}
+
+	const float InnerRadius = Entry.bIsTickActive
+		? Entry.Config.TickAlwaysActiveDeactivationRadius
+		: Entry.Config.TickAlwaysActiveActivationRadius;
+	const float OuterRadius = Entry.bIsTickActive
+		? Entry.Config.TickDeactivationRadius
+		: Entry.Config.TickActivationRadius;
+	const float InnerRadiusSquared = FMath::Square(InnerRadius);
+	const float OuterRadiusSquared = FMath::Square(OuterRadius);
+
+	TArray<FPRVisibilityGateSourceCandidate, TInlineAllocator<4>> TraceCandidates;
+	for (const FPRTickOptimizationSource& Source : CachedSources)
+	{
+		const float DistanceSquared = FVector::DistSquared(TargetLocation, Source.Location);
+		if (DistanceSquared <= InnerRadiusSquared)
+		{
+			Entry.DebugState = EPRTickOptimizationDebugState::Active;
+			return true;
+		}
+
+		if (DistanceSquared <= OuterRadiusSquared)
+		{
+			FPRVisibilityGateSourceCandidate Candidate;
+			Candidate.Source = &Source;
+			Candidate.DistanceSquared = DistanceSquared;
+			TraceCandidates.Add(Candidate);
+		}
+	}
+
+	if (TraceCandidates.IsEmpty())
+	{
+		Entry.DebugState = EPRTickOptimizationDebugState::OutsideRadius;
+		return false;
+	}
+
+	TraceCandidates.Sort(
+		[](const FPRVisibilityGateSourceCandidate& Left, const FPRVisibilityGateSourceCandidate& Right)
+		{
+			return Left.DistanceSquared < Right.DistanceSquared;
+		});
+
+	for (const FPRVisibilityGateSourceCandidate& Candidate : TraceCandidates)
+	{
+		if (Candidate.Source == nullptr)
+		{
+			continue;
+		}
+
+		if (!TryConsumeVisibilityGateTraceBudget())
+		{
+			// Trace 예산 소진 시 비활성 전환 보류
+			return Entry.bIsTickActive;
+		}
+
+		// 플레이어와 대상 자체를 제외한 월드 차폐물 검사
+		FCollisionQueryParams TraceParams(SCENE_QUERY_STAT(PRWorldTickOptimizerVisibilityGate), false);
+		TraceParams.AddIgnoredActor(TargetActor);
+		AActor* SourceActor = Candidate.Source->SourceActor.Get();
+		if (IsValid(SourceActor))
+		{
+			TraceParams.AddIgnoredActor(SourceActor);
+		}
+
+		FHitResult HitResult;
+		const bool bBlocked = World->LineTraceSingleByChannel(
+			HitResult,
+			Candidate.Source->Location,
+			TargetLocation,
+			ECC_Visibility,
+			TraceParams);
+		if (!bBlocked)
+		{
+			Entry.DebugState = EPRTickOptimizationDebugState::Active;
+			return true;
+		}
+	}
+
+	Entry.DebugState = EPRTickOptimizationDebugState::BlockedByVisibility;
+	return false;
+}
+
+bool UPRWorldTickOptimizerSubsystem::TryConsumeVisibilityGateTraceBudget()
+{
+	if (RemainingVisibilityGateTraceBudget < 0)
+	{
+		return true;
+	}
+
+	if (RemainingVisibilityGateTraceBudget <= 0)
+	{
+		return false;
+	}
+
+	--RemainingVisibilityGateTraceBudget;
+	return true;
 }

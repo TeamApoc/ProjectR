@@ -9,6 +9,19 @@
 
 class AActor;
 
+// Tick 최적화 디버그 박스 색상 선택 기준
+enum class EPRTickOptimizationDebugState : uint8
+{
+	// Tick 비용 활성 상태
+	Active,
+
+	// Tick 외부 반경 이탈 상태
+	OutsideRadius,
+
+	// 내부 반경과 외부 반경 사이 Visibility 차폐 상태
+	BlockedByVisibility
+};
+
 // 월드 Tick 최적화 대상의 평가 상태 보관 항목
 USTRUCT()
 struct FPRTickOptimizationEntry
@@ -32,6 +45,9 @@ struct FPRTickOptimizationEntry
 
 	// 거리 평가 결과와 무관하게 대상 상태를 활성으로 유지할지 여부
 	bool bForceActive = false;
+
+	// 마지막 평가에서 디버그 박스 색상 결정에 사용할 상태
+	EPRTickOptimizationDebugState DebugState = EPRTickOptimizationDebugState::Active;
 
 	// 등록 시점에 읽은 거리 평가 설정값
 	FPRTickOptimizationConfig Config;
@@ -123,6 +139,12 @@ protected:
 	// 플레이어 기준점 중 하나가 지정 반경 안에 있는지 여부 반환
 	bool HasSourceInsideRadius(const FVector& TargetLocation, float Radius) const;
 
+	// Tick Visibility 게이트 조건으로 Tick 활성 여부 평가
+	bool EvaluateTickVisibilityGate(FPRTickOptimizationEntry& Entry, const FVector& TargetLocation);
+
+	// Visibility 게이트 trace 예산 소모 가능 여부 반환
+	bool TryConsumeVisibilityGateTraceBudget();
+
 protected:
 	// 실제 거리 평가에 사용하는 안정적인 대상 목록
 	TArray<FPRTickOptimizationEntry> ActiveEntries;
@@ -147,4 +169,7 @@ protected:
 
 	// 프레임 분산 평가에서 다음으로 처리할 활성 목록 인덱스
 	int32 NextEvaluationIndex = 0;
+
+	// 현재 평가 호출에서 남은 Visibility 게이트 trace 횟수. 음수는 무제한
+	int32 RemainingVisibilityGateTraceBudget = -1;
 };

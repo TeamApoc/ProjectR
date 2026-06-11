@@ -4,9 +4,17 @@
 #include "PRPlayerMenuTabListWidget.h"
 
 #include "Blueprint/WidgetTree.h"
+#include "CommonActionWidget.h"
 #include "CommonButtonBase.h"
 #include "Components/HorizontalBox.h"
 #include "ProjectR/UI/TextButton/PRTextButton.h"
+
+void UPRPlayerMenuTabListWidget::NativeOnInitialized()
+{
+	Super::NativeOnInitialized();
+
+	SynchronizeTabActionWidgets();
+}
 
 void UPRPlayerMenuTabListWidget::RebuildDesignPreviewTabs(const TArray<FName>& TabNameIDs, TSubclassOf<UCommonButtonBase> ButtonWidgetType)
 {
@@ -77,4 +85,19 @@ void UPRPlayerMenuTabListWidget::HandleTabRemoval_Implementation(FName TabNameID
 	}
 
 	TabButtonContainer->RemoveChild(TabButton);
+}
+
+void UPRPlayerMenuTabListWidget::SynchronizeTabActionWidgets()
+{
+	if (IsValid(TabLeft))
+	{
+		// 이전 탭 입력 표시용 액션 행 연결
+		TabLeft->SetInputAction(PreviousTabInputActionData);
+	}
+
+	if (IsValid(TabRight))
+	{
+		// 다음 탭 입력 표시용 액션 행 연결
+		TabRight->SetInputAction(NextTabInputActionData);
+	}
 }

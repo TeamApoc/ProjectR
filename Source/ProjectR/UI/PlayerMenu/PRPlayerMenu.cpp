@@ -106,4 +106,7 @@ void UPRPlayerMenu::RegisterSwitcherTabs()
 		// 최초 탭 선택
 		TabList->SelectTabByID(FirstTabName, true);
 	}
+
+	// CommonUI 표준 탭 입력 등록
+	TabList->SetListeningForInput(true);
 }

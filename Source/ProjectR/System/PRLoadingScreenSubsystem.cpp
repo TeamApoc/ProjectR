@@ -8,7 +8,6 @@
 #include "Engine/GameViewportClient.h"
 #include "Engine/StaticMesh.h"
 #include "Engine/StaticMeshActor.h"
-#include "Engine/UserInterfaceSettings.h"
 #include "Engine/World.h"
 #include "EngineUtils.h"
 #include "GameFramework/PlayerController.h"
@@ -32,9 +31,6 @@
 #include "ProjectR/Utils/PRAssetUtils.h"
 #include "Sound/SoundBase.h"
 #include "TimerManager.h"
-#include "Widgets/Layout/SBox.h"
-#include "Widgets/Layout/SDPIScaler.h"
-#include "Widgets/SOverlay.h"
 
 namespace
 {
@@ -204,29 +200,7 @@ void UPRLoadingScreenSubsystem::ShowPersistentLoadingOverlay(const FString& MapN
 		}
 	}
 
-	FVector2D ViewportSize = FVector2D::ZeroVector;
-	ViewportClient->GetViewportSize(ViewportSize);
-	const FIntPoint ViewportIntSize(
-		FMath::Max(1, FMath::TruncToInt32(ViewportSize.X)),
-		FMath::Max(1, FMath::TruncToInt32(ViewportSize.Y)));
-	const float DPIScale = GetDefault<UUserInterfaceSettings>()->GetDPIScaleBasedOnSize(ViewportIntSize);
-
-	PersistentLoadingSlateWidget = SNew(SBox)
-		.HAlign(HAlign_Fill)
-		.VAlign(VAlign_Fill)
-		[
-			SNew(SOverlay)
-			+ SOverlay::Slot()
-			.HAlign(HAlign_Fill)
-			.VAlign(VAlign_Fill)
-			[
-				SNew(SDPIScaler)
-				.DPIScale(DPIScale)
-				[
-					PersistentLoadingWidget->TakeWidget()
-				]
-			]
-		];
+	PersistentLoadingSlateWidget = PersistentLoadingWidget->TakeWidget();
 
 	ViewportClient->AddViewportWidgetContent(PersistentLoadingSlateWidget.ToSharedRef(), 100000);
 	bPersistentLoadingOverlayAdded = true;

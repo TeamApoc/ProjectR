@@ -32,8 +32,8 @@ public:
 	virtual AActor* ChoosePlayerStart_Implementation(AController* Player) override;
 
 public:
-	// 월드 이벤트 반영. 체크포인트 트리거·보스 처치 등에서 호출
-	void ReportCheckpointActivated(FGameplayTag CheckpointId);
+	// 월드 이벤트 반영. Waypoint 트리거·보스 처치 등에서 호출
+	void ReportWaypointActivated(const FPRWaypointKey& WaypointKey);
 	void ReportBossDefeated(FName BossId);
 
 	// 접속 플레이어 캐릭터 페이로드를 검증하고 PlayerState에 주입
@@ -47,6 +47,9 @@ public:
 	// 플레이어 생존 상태가 바뀌었음을 알리고 전멸 여부를 평가한다.
 	void NotifyPlayerSurvivalStateChanged(APRPlayerState* PlayerState);
 
+	// 기본 웨이포인트 해금
+	void UnlockDefaultWaypoints();
+
 protected:
 	// 페이로드 검증. 실패 시 OutReason에 사유 기록
 	bool ValidateCharacterPayload(const FPRCharacterSaveData& Payload, FString& OutReason) const;
@@ -54,19 +57,28 @@ protected:
 	// 파티 전원이 다운 또는 사망 상태인지 확인한다.
 	void EvaluatePartyWipe();
 
-	// 전멸을 확정하고 모든 전투 참여 플레이어에게 최종 사망 이벤트를 보낸다.
+	// 전멸 확정과 모든 전투 참여 플레이어 최종 사망 이벤트 전송
 	void ConfirmPartyWipe();
 
-	// 전멸 파티를 마지막 체크포인트 기준으로 현재 월드에서 복구
+	// 전멸 파티를 마지막 방문 Waypoint 기준으로 현재 월드에서 복구
 	void RespawnParty();
 
-	// 일반 스폰에 사용할 SpawnPoint 태그를 결정한다
+	// 일반 스폰에 사용할 SpawnPoint 태그 결정
 	FGameplayTag ResolvePlayerStartSpawnPointId() const;
 
-	// 전멸 리스폰에 사용할 SpawnPoint 태그를 결정한다
+	// 전멸 리스폰에 사용할 SpawnPoint 태그 결정
 	FGameplayTag ResolvePartyRespawnSpawnPointId() const;
 
+	// 현재 월드의 WorldId와 사용한 SpawnPointId GameState 기록
+	void RecordCurrentWorldSpawnPoint(FGameplayTag SpawnPointId) const;
+
+	// 현재 월드의 WorldId Registry 조회
+	bool ResolveCurrentWorldId(FGameplayTag& OutWorldId) const;
+
 protected:
+	UPROPERTY(EditDefaultsOnly, Category = "ProjectR|World")
+	TArray<FPRWaypointKey> DefaultUnlockedWaypoints;
+
 	// 호스트 시작 시 로드된 월드 세이브. InitGame에서 주입되어 GameState에 전달된다
 	UPROPERTY(VisibleInstanceOnly, Category = "ProjectR|World")
 	FPRWorldSaveData HostWorldSave;

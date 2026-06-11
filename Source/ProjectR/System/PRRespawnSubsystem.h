@@ -42,6 +42,9 @@ public:
 	UFUNCTION(BlueprintCallable)
 	void RegisterRespawnableActor(AActor* InActor);
 
+	UFUNCTION(BlueprintCallable)
+	void UnregisterRespawnableActor(AActor* InActor);
+	
 	// 월드 오브젝트 리스폰 시 파괴할 일회성 액터 등록
 	UFUNCTION(BlueprintCallable)
 	void RegisterDisposableActor(AActor* InActor);

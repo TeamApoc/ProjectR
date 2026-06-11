@@ -45,6 +45,7 @@ namespace PRCombatGameplayTags
 	
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Ability_Source_Weapon_Primary, "Ability.Source.Weapon.Primary", "주무기에 의한 대미지 컨텍스트 태그");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Ability_Source_Weapon_Secondary, "Ability.Source.Weapon.Secondary", "보조무기에 의한 대미지 컨텍스트 태그");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Ability_Source_Drone, "Ability.Source.Drone", "드론 보조 공격 대미지 컨텍스트 태그");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Event_Ability_EnemyProjectileFire, "Event.Ability.EnemyProjectileFire", "적 투사체 발사 프레임 이벤트");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Event_Ability_PenitentBarrierSummon, "Event.Ability.Penitent.BarrierSummon", "Penitent 배리어 소환 프레임 이벤트");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Event_Ability_PenitentBarrierLaunch, "Event.Ability.Penitent.BarrierLaunch", "Penitent 배리어 발사 프레임 이벤트");

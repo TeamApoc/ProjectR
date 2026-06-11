@@ -28,6 +28,12 @@ void UPRGA_Interact::ActivateAbility(const FGameplayAbilitySpecHandle Handle,
 {
 	Super::ActivateAbility(Handle, ActorInfo, ActivationInfo, TriggerEventData);
 	
+	if (!CommitAbility(Handle, ActorInfo, ActivationInfo))
+	{
+		K2_EndAbility();
+		return;
+	}
+	
 	if (!ActorInfo->IsLocallyControlledPlayer())
 	{
 		// 서버 인스턴스의 유지형 상호작용 시작 대기

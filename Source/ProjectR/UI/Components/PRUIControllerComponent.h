@@ -122,7 +122,7 @@ public:
 
 	// 웨이포인트 Travel UI 열기
 	UFUNCTION(BlueprintCallable, Category = "ProjectR|UI")
-	void OpenWaypointTravel();
+	void OpenWaypointTravel(bool bShowWorldResetButton = false);
 
 	// 강화 위젯이 열려 있으면 닫는다
 	UFUNCTION(BlueprintCallable, Category = "ProjectR|UI")

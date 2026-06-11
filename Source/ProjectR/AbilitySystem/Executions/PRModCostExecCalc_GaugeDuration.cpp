@@ -55,7 +55,7 @@ void UPRModCostExecCalc_GaugeDuration::Execute_Implementation(
 		return;
 	}
 
-	const float Duration = Spec.GetSetByCallerMagnitude(PRCombatGameplayTags::SetByCaller_ModDuration, false, Spec.GetDuration());
+	const float Duration = Spec.GetSetByCallerMagnitude(PRCombatGameplayTags::SetByCaller_ModDuration, false, 0.0f);
 	const float Period = Spec.GetPeriod();
 	if (Duration <= KINDA_SMALL_NUMBER || Period <= KINDA_SMALL_NUMBER)
 	{

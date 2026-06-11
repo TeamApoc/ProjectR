@@ -1,11 +1,14 @@
 // Copyright ProjectR. All Rights Reserved.
 
 #include "PRGameInstance.h"
+#include "PRGameStateBase.h"
 #include "PRSessionSubsystem.h"
 #include "PRSaveGame.h"
 #include "Engine/Engine.h"
 #include "GameFramework/GameUserSettings.h"
 #include "Kismet/GameplayStatics.h"
+#include "ProjectR/System/PRDeveloperSettings.h"
+#include "ProjectR/World/PRWorldRegistry.h"
 
 namespace
 {
@@ -65,6 +68,66 @@ void UPRGameInstance::LeaveSession()
 	}
 
 	Session->EndSession();
+}
+
+bool UPRGameInstance::RequestHostSession()
+{
+	if (!IsValid(GetSubsystem<UPRSessionSubsystem>()))
+	{
+		return false;
+	}
+
+	const FPRWorldSaveData& LocalWorldSaveData = GetLocalWorldSave();
+
+	FPRHostSessionParams HostParams;
+	// 세션 서브시스템 CreateSession 완료 후 OpenLevel 경로에 전달할 리슨 서버 설정
+	HostParams.MapName = ResolveHostMapNameFromSave(LocalWorldSaveData);
+	HostParams.MaxPlayers = HostMaxPlayers;
+
+	// 인게임 GameMode 초기화 단계에서 복원할 월드 진행 상태 예약
+	SetPendingWorldSaveData(LocalWorldSaveData);
+	if (LocalWorldSaveData.SavedSpawnPoint.IsValid())
+	{
+		// 이어하기 최초 스폰 지점 예약
+		SetPendingTravelSpawnPointId(LocalWorldSaveData.SavedSpawnPoint.SpawnPointId);
+	}
+
+	HostSession(HostParams);
+	return true;
+}
+
+bool UPRGameInstance::RequestJoinFirstSession()
+{
+	if (!IsValid(GetSubsystem<UPRSessionSubsystem>()))
+	{
+		return false;
+	}
+
+	FPRJoinSessionParams JoinParams;
+	// 주소 공백은 PRSessionSubsystem의 OSS Null 세션 검색 경로
+	JoinParams.Address = FString();
+	JoinSession(JoinParams);
+	return true;
+}
+
+bool UPRGameInstance::RequestStartSession(const FString& Address)
+{
+	if (!IsValid(GetSubsystem<UPRSessionSubsystem>()))
+	{
+		return false;
+	}
+
+	const FString TrimmedAddress = Address.TrimStartAndEnd();
+	if (TrimmedAddress.IsEmpty())
+	{
+		return RequestHostSession();
+	}
+
+	FPRJoinSessionParams JoinParams;
+	// 레거시 IP 직접 참가 호환용 주소 전달
+	JoinParams.Address = TrimmedAddress;
+	JoinSession(JoinParams);
+	return true;
 }
 
 bool UPRGameInstance::ApplyGraphicsQualityProfile(EPRGraphicsQualityProfile QualityProfile, bool bSaveSettings)
@@ -157,6 +220,7 @@ bool UPRGameInstance::LoadLocalCharacter(FName SlotName)
 	}
 
 	LocalCharacterSave = LoadedPRSaveGame->CharacterSaveData;
+	LocalWorldSave = LoadedPRSaveGame->WorldSaveData;
 	return true;
 }
 
@@ -175,6 +239,7 @@ bool UPRGameInstance::SaveLocalCharacter(FName SlotName)
 	}
 
 	NewSaveGame->CharacterSaveData = LocalCharacterSave;
+	NewSaveGame->WorldSaveData = LocalWorldSave;
 	return UGameplayStatics::SaveGameToSlot(NewSaveGame, SlotName.ToString(), LocalCharacterSaveUserIndex);
 }
 
@@ -238,6 +303,8 @@ bool UPRGameInstance::SaveLocalCharacterSlot(int32 SlotIndex)
 		return false;
 	}
 
+	RefreshLocalWorldSaveFromGameState();
+
 	const FString SlotName = BuildLocalCharacterSlotName(SlotIndex);
 	const bool bSaved = SaveLocalCharacter(FName(*SlotName));
 	if (bSaved)
@@ -268,9 +335,40 @@ bool UPRGameInstance::DeleteLocalCharacterSaveSlot(int32 SlotIndex)
 		// 삭제된 슬롯을 세션 진입용 캐릭터로 계속 사용하지 않도록 활성 슬롯 초기화
 		ActiveLocalCharacterSlotIndex = INDEX_NONE;
 		LocalCharacterSave = FPRCharacterSaveData();
+		LocalWorldSave = FPRWorldSaveData();
 	}
 
 	return bDeleted;
+}
+
+bool UPRGameInstance::ResetLocalCharacterSaveSlot(int32 SlotIndex)
+{
+	if (!IsValidLocalCharacterSlotIndex(SlotIndex))
+	{
+		return false;
+	}
+
+	const FPRCharacterSaveData PreviousLocalCharacter = LocalCharacterSave;
+	const FPRWorldSaveData PreviousLocalWorldSave = LocalWorldSave;
+	const int32 PreviousActiveLocalCharacterSlotIndex = ActiveLocalCharacterSlotIndex;
+
+	LocalCharacterSave = FPRCharacterSaveData();
+	LocalWorldSave = FPRWorldSaveData();
+
+	const FString SlotName = BuildLocalCharacterSlotName(SlotIndex);
+	const bool bSaved = SaveLocalCharacter(FName(*SlotName));
+	if (bSaved)
+	{
+		// 재생성된 신규 슬롯 즉시 선택 가능 상태
+		ActiveLocalCharacterSlotIndex = SlotIndex;
+		return true;
+	}
+
+	// 저장 실패 시 이전 로컬 캐시 복구
+	LocalCharacterSave = PreviousLocalCharacter;
+	LocalWorldSave = PreviousLocalWorldSave;
+	ActiveLocalCharacterSlotIndex = PreviousActiveLocalCharacterSlotIndex;
+	return false;
 }
 
 bool UPRGameInstance::SaveActiveLocalCharacterSlot()
@@ -334,12 +432,15 @@ bool UPRGameInstance::EnsureEmptyLocalCharacterSaveSlot()
 	}
 
 	const FPRCharacterSaveData PreviousLocalCharacter = LocalCharacterSave;
+	const FPRWorldSaveData PreviousLocalWorldSave = LocalWorldSave;
 	const int32 PreviousActiveLocalCharacterSlotIndex = ActiveLocalCharacterSlotIndex;
 	LocalCharacterSave = FPRCharacterSaveData();
+	LocalWorldSave = FPRWorldSaveData();
 
 	// 기존 진행 슬롯을 덮어쓰지 않는 첫 빈 슬롯 저장
 	const bool bSaved = SaveLocalCharacterSlot(FirstEmptySlotIndex);
 	LocalCharacterSave = PreviousLocalCharacter;
+	LocalWorldSave = PreviousLocalWorldSave;
 	ActiveLocalCharacterSlotIndex = PreviousActiveLocalCharacterSlotIndex;
 	return bSaved;
 }
@@ -377,6 +478,7 @@ bool UPRGameInstance::EnsureLocalCharacterReadyForSession()
 
 	// 모든 저장 슬롯 로드 실패 시 런타임 기본 페이로드 사용
 	LocalCharacterSave = FPRCharacterSaveData();
+	LocalWorldSave = FPRWorldSaveData();
 	ActiveLocalCharacterSlotIndex = INDEX_NONE;
 	return true;
 }
@@ -403,4 +505,41 @@ bool UPRGameInstance::IsDefaultLocalCharacterSaveData(const FPRCharacterSaveData
 	const FPRCharacterSaveData DefaultSaveData;
 	// 구조체 전체 기본값 비교로 신규 게임 슬롯 판별
 	return FPRCharacterSaveData::StaticStruct()->CompareScriptStruct(&SaveData, &DefaultSaveData, PPF_None);
+}
+
+void UPRGameInstance::RefreshLocalWorldSaveFromGameState()
+{
+	UWorld* World = GetWorld();
+	const APRGameStateBase* GameState = IsValid(World) ? World->GetGameState<APRGameStateBase>() : nullptr;
+	if (!IsValid(GameState))
+	{
+		return;
+	}
+
+	// 저장 직전 서버 GameState의 월드 진행 상태 스냅샷 반영
+	LocalWorldSave = GameState->MakeWorldSaveData();
+}
+
+FName UPRGameInstance::ResolveHostMapNameFromSave(const FPRWorldSaveData& WorldSaveData) const
+{
+	if (!WorldSaveData.SavedSpawnPoint.IsValid())
+	{
+		return HostMapName;
+	}
+
+	const UPRDeveloperSettings* Settings = GetDefault<UPRDeveloperSettings>();
+	const UPRWorldRegistry* WorldRegistry = IsValid(Settings) ? Settings->GetWorldRegistrySync() : nullptr;
+	if (!IsValid(WorldRegistry))
+	{
+		return HostMapName;
+	}
+
+	TSoftObjectPtr<UWorld> MapAsset;
+	if (!WorldRegistry->ResolveMapAsset(WorldSaveData.SavedSpawnPoint.WorldId, MapAsset) || MapAsset.IsNull())
+	{
+		return HostMapName;
+	}
+
+	const FString MapPackageName = MapAsset.GetLongPackageName();
+	return MapPackageName.IsEmpty() ? HostMapName : FName(*MapPackageName);
 }

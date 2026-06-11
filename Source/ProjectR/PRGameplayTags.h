@@ -121,6 +121,8 @@ namespace PRGameplayTags
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(State_Reviving); // 소생중 상태
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(State_WeaponZooming); // 무기 줌 상태
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(State_SwappingWeapon); // 무기 교체 Draw 몽타주 진행 상태
+	UE_DECLARE_GAMEPLAY_TAG_EXTERN(State_CurrentWeaponSlot_Primary); // 현재 주무기 슬롯 상태
+	UE_DECLARE_GAMEPLAY_TAG_EXTERN(State_CurrentWeaponSlot_Secondary); // 현재 보조무기 슬롯 상태
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(State_Mod_Primary_GaugeLocked); // 주무기 Mod 게이지 축적 차단 상태
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(State_Mod_Secondary_GaugeLocked); // 보조무기 Mod 게이지 축적 차단 상태
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(State_Mod_Fire_Enabled); // 발사형 모드 활성 상태
@@ -182,8 +184,10 @@ namespace PRGameplayTags
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Event_Player_ModActivation); // Mod On / Off 이벤트
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Event_Player_WorldMarker); // 월드 마커 추가·제거 알림
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Event_Player_HUDMessage); // HUD 안내 메시지 표시 알림
+	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Event_Player_AttackTarget); // 플레이어 실제 피해 대상 알림
 
 	// ===== Event.Boss.* — 보스 조우 이벤트 =====
+	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Event_Boss_Spawn); // 보스 스폰 요청
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Event_Boss_Encounter_Begin); // 보스 조우 시작 (FPRBossEncounterEventPayload 동반)
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Event_Boss_Encounter_End); // 보스 조우 종료
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Event_Boss_PhaseChanged); // 보스 페이즈 변경

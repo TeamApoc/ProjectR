@@ -3,9 +3,9 @@
 #include "PRMenuGameMode.h"
 
 #include "Components/CapsuleComponent.h"
+#include "Engine/World.h"
 #include "GameFramework/PlayerController.h"
 #include "ProjectR/Character/PRPlayerCharacter.h"
-#include "ProjectR/Game/PRGameInstance.h"
 #include "ProjectR/Game/PRMenuHUD.h"
 #include "ProjectR/Player/PRMenuPlayerController.h"
 #include "ProjectR/Player/PRPlayerState.h"
@@ -46,40 +46,6 @@ void APRMenuGameMode::Logout(AController* Exiting)
 }
 
 /*~ APRMenuGameMode Interface ~*/
-
-bool APRMenuGameMode::RequestStartSession(APlayerController* RequestingController, const FString& Address)
-{
-	// 메뉴 위젯 소유 컨트롤러 유효성 확인
-	if (!IsValid(RequestingController))
-	{
-		return false;
-	}
-
-	UPRGameInstance* GameInstance = Cast<UPRGameInstance>(GetGameInstance());
-	if (!IsValid(GameInstance))
-	{
-		return false;
-	}
-
-	const FString TrimmedAddress = Address.TrimStartAndEnd();
-	if (TrimmedAddress.IsEmpty())
-	{
-		FPRHostSessionParams HostParams;
-		// 세션 서브시스템 OpenLevel 경로에 전달할 리슨 서버 설정
-		HostParams.MapName = HostMapName;
-		HostParams.MaxPlayers = HostMaxPlayers;
-
-		GameInstance->HostSession(HostParams);
-		return true;
-	}
-
-	FPRJoinSessionParams JoinParams;
-	// 입력 주소는 세션 서브시스템에서 형식 검증
-	JoinParams.Address = TrimmedAddress;
-
-	GameInstance->JoinSession(JoinParams);
-	return true;
-}
 
 bool APRMenuGameMode::ApplyPreviewSaveData(APlayerController* RequestingController, const FPRCharacterSaveData& InSaveData)
 {

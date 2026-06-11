@@ -39,6 +39,14 @@ public:
 	UFUNCTION(Server, Reliable)
 	void ServerCheatInfiniteMode(bool bEnable);
 
+	// 클라 요청 수신 후 서버에서 공격력 치트 보너스 누적 적용
+	UFUNCTION(Server, Reliable)
+	void ServerCheatAddAttackPower(float Amount);
+
+	// 클라 요청 수신 후 서버에서 공격력 치트 보너스 초기화
+	UFUNCTION(Server, Reliable)
+	void ServerCheatResetAttackPower();
+
 	// 클라 요청 수신 후 서버에서 본인 폰 플라이 모드 토글
 	UFUNCTION(Server, Reliable)
 	void ServerCheatFly(bool bEnable);
@@ -47,12 +55,28 @@ private:
 	// 컨트롤러 소유 PlayerState의 ASC 조회
 	UPRAbilitySystemComponent* GetOwningPlayerASC() const;
 
+	// 공격력 치트 GE 적용
+	bool ApplyAttackPowerCheatEffect();
+
+	// 공격력 치트 GE 회수
+	void RemoveAttackPowerCheatEffect();
+
 protected:
 	// 무한 모드용 GE 클래스. 에디터에서 Infinite Duration 타입으로 지정 필요
 	UPROPERTY(EditDefaultsOnly, Category = "ProjectR|Cheat")
 	TSubclassOf<UGameplayEffect> InfiniteModeEffectClass;
 
+	// 공격력 치트용 GE 클래스. 에디터에서 Infinite Duration 및 SetByCaller Modifier 지정 필요
+	UPROPERTY(EditDefaultsOnly, Category = "ProjectR|Cheat")
+	TSubclassOf<UGameplayEffect> AttackPowerCheatEffectClass;
+
 private:
 	// 현재 적용 중인 무한 모드 GE 핸들 (서버 권위 상태)
 	FActiveGameplayEffectHandle InfiniteModeEffectHandle;
+
+	// 현재 적용 중인 공격력 치트 GE 핸들
+	FActiveGameplayEffectHandle AttackPowerCheatEffectHandle;
+
+	// 치트 명령으로 누적한 공격력 보너스
+	float CheatAddedAttackPower = 0.0f;
 };

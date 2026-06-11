@@ -10,6 +10,7 @@
 class UAbilityTask_PlayMontageAndWait;
 class UAbilityTask_WaitGameplayEvent;
 class UAnimMontage;
+class UPRBarrierAbilityDataAsset;
 
 // Penitent 배리어 발사 Ability
 UCLASS()
@@ -59,9 +60,9 @@ protected:
 	bool ExecuteBarrierLaunch();
 
 protected:
-	// 발사 속도
-	UPROPERTY(EditDefaultsOnly, Category = "ProjectR|Penitent|Barrier", meta = (ClampMin = "0.0"))
-	float LaunchSpeed = 1800.0f;
+	// 배리어 공용 설정 데이터
+	UPROPERTY(EditDefaultsOnly, Category = "ProjectR|Penitent|Barrier")
+	TObjectPtr<UPRBarrierAbilityDataAsset> BarrierData;
 
 	// 배리어 발사 몽타주
 	UPROPERTY(EditDefaultsOnly, Category = "ProjectR|Penitent|Barrier|Montage")

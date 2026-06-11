@@ -83,6 +83,10 @@ public:
 	UFUNCTION(BlueprintCallable, BlueprintAuthorityOnly, Category = "ProjectR|GroundBox")
 	void InitializeAttachedBarrier(APRPenitentCharacter* OwnerPenitent);
 
+	// 부착 소환 상태 공용 초기화
+	UFUNCTION(BlueprintCallable, BlueprintAuthorityOnly, Category = "ProjectR|GroundBox")
+	void InitializeAttachedGroundBox(const FPRGroundBoxLaunchParams& Params);
+
 	// 이동 시작 처리
 	UFUNCTION(BlueprintCallable, Category = "ProjectR|GroundBox")
 	void LaunchGroundBoxProjectile(const FVector& LaunchDirection, float LaunchSpeed);
@@ -211,6 +215,7 @@ protected:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "ProjectR|GroundBox")
 	TObjectPtr<USceneComponent> Root;
 	
+	// 지면 트레이스 시작 위치(프로젝타일 상단)
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "ProjectR|GroundBox")
 	TObjectPtr<USceneComponent> TraceStartPoint;
 

@@ -32,55 +32,52 @@ void UPRGA_Mod_GrantAbility::ActivateAbility(const FGameplayAbilitySpecHandle Ha
 		return;
 	}
 	
-	if (!HasAuthority(&ActivationInfo))
+	if (HasAuthority(&ActivationInfo))
+	{
+		if (UAbilitySystemComponent* ASC = ActorInfo->AbilitySystemComponent.Get())
+		{
+			FGameplayAbilitySpec AbilitySpecToGrant (AbilityToGrant,1);
+			AbilitySpecToGrant.SourceObject = this;
+			GrantedSpecHandle = ASC->GiveAbility(AbilitySpecToGrant);
+		}
+	
+		if (UPRWeaponDataAsset* WeaponData = GetCurrentWeaponData())
+		{
+			if (ModCostPolicy == EPRModCostPolicy::Stack)
+			{
+				WaitModStackExhausted(WeaponData->SlotType);	
+			}
+			else if (ModCostPolicy == EPRModCostPolicy::GaugeDuration)
+			{
+				// TODO: 게이지 소모 감지
+			}
+		}
+	}
+	
+	if (IsLocallyControlled())
 	{
 		// 클라는 서버의 종료 신호를 대기 or Input 재입력 대기
 		UAbilityTask_WaitInputPress* WaitInputPress = UAbilityTask_WaitInputPress::WaitInputPress(this,false);
 		WaitInputPress->OnPress.AddDynamic(this,&ThisClass::OnInputPressed);
 		WaitInputPress->ReadyForActivation();
-		return;
 	}
 	
-	if (UAbilitySystemComponent* ASC = ActorInfo->AbilitySystemComponent.Get())
-	{
-		FGameplayAbilitySpec AbilitySpecToGrant (AbilityToGrant,1);
-		AbilitySpecToGrant.SourceObject = this;
-		GrantedSpecHandle = ASC->GiveAbility(AbilitySpecToGrant);
-	}
-	
-	if (UPRWeaponDataAsset* WeaponData = GetCurrentWeaponData())
-	{
-		if (ModCostPolicy == EPRModCostPolicy::Stack)
-		{
-			WaitModStackExhausted(WeaponData->SlotType);	
-		}
-		else if (ModCostPolicy == EPRModCostPolicy::GaugeDuration)
-		{
-			// TODO: 게이지 소모 감지
-		}
-	}
 }
 
 void UPRGA_Mod_GrantAbility::EndAbility(const FGameplayAbilitySpecHandle Handle,
 	const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilityActivationInfo ActivationInfo,
 	bool bReplicateEndAbility, bool bWasCancelled)
 {
-	if (UAbilitySystemComponent* ASC = ActorInfo->AbilitySystemComponent.Get())
-	{
-		if (CostAttribute.IsValid() && CostExhaustedHandle.IsValid())
-		{
-			ASC->GetGameplayAttributeValueChangeDelegate(CostAttribute).Remove(CostExhaustedHandle);
-			CostExhaustedHandle.Reset();
-		}
-	
-		if (GrantedSpecHandle.IsValid())
-		{
-			ASC->ClearAbility(GrantedSpecHandle);
-			GrantedSpecHandle = FGameplayAbilitySpecHandle(); // Invalidate
-		}
-	}
+	CleanupGrantedAbilityRuntime(ActorInfo);
 	
 	Super::EndAbility(Handle, ActorInfo, ActivationInfo, bReplicateEndAbility, bWasCancelled);
+}
+
+void UPRGA_Mod_GrantAbility::CleanupRuntimeOnAbilityRemoved(const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilitySpec& Spec)
+{
+	// 부여 어빌리티 정리
+	CleanupGrantedAbilityRuntime(ActorInfo);
+	Super::CleanupRuntimeOnAbilityRemoved(ActorInfo, Spec);
 }
 
 void UPRGA_Mod_GrantAbility::WaitModStackExhausted(EPRWeaponSlotType WeaponSlotType)
@@ -113,6 +110,36 @@ void UPRGA_Mod_GrantAbility::WaitModStackExhausted(EPRWeaponSlotType WeaponSlotT
 				K2_EndAbility();		
 			}
 		});	
+	}
+}
+
+void UPRGA_Mod_GrantAbility::CleanupGrantedAbilityRuntime(const FGameplayAbilityActorInfo* ActorInfo)
+{
+	UAbilitySystemComponent* ASC = ActorInfo != nullptr ? ActorInfo->AbilitySystemComponent.Get() : nullptr;
+	if (!IsValid(ASC) && !HasAnyFlags(RF_ClassDefaultObject))
+	{
+		ASC = GetAbilitySystemComponentFromActorInfo();
+	}
+
+	if (!IsValid(ASC))
+	{
+		CostExhaustedHandle.Reset();
+		GrantedSpecHandle = FGameplayAbilitySpecHandle();
+		return;
+	}
+
+	if (CostAttribute.IsValid() && CostExhaustedHandle.IsValid())
+	{
+		// 비용 감시 해제
+		ASC->GetGameplayAttributeValueChangeDelegate(CostAttribute).Remove(CostExhaustedHandle);
+		CostExhaustedHandle.Reset();
+	}
+
+	if (GrantedSpecHandle.IsValid())
+	{
+		// 부여 어빌리티 회수
+		ASC->ClearAbility(GrantedSpecHandle);
+		GrantedSpecHandle = FGameplayAbilitySpecHandle();
 	}
 }
 

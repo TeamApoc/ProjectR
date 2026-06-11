@@ -4,7 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "ActiveGameplayEffectHandle.h"
-#include "PRGA_Mod.h"
+#include "PRGA_Mod_HasDuration.h"
 #include "PRGA_Mod_Buff.generated.h"
 
 class UAnimMontage;
@@ -13,7 +13,7 @@ struct FGameplayEffectRemovalInfo;
 
 // 자기 자신에게 지속시간형 버프를 적용하는 Mod 어빌리티
 UCLASS()
-class PROJECTR_API UPRGA_Mod_Buff : public UPRGA_Mod
+class PROJECTR_API UPRGA_Mod_Buff : public UPRGA_Mod_HasDuration
 {
 	GENERATED_BODY()
 
@@ -27,16 +27,15 @@ public:
 		const FGameplayTagContainer* SourceTags,
 		const FGameplayTagContainer* TargetTags,
 		FGameplayTagContainer* OptionalRelevantTags) const override;
-	virtual void ActivateAbility(const FGameplayAbilitySpecHandle Handle,
-		const FGameplayAbilityActorInfo* ActorInfo,
-		const FGameplayAbilityActivationInfo ActivationInfo,
-		const FGameplayEventData* TriggerEventData) override;
-	virtual void EndAbility(const FGameplayAbilitySpecHandle Handle,
-		const FGameplayAbilityActorInfo* ActorInfo,
-		const FGameplayAbilityActivationInfo ActivationInfo,
-		bool bReplicateEndAbility,
-		bool bWasCancelled) override;
-	virtual void OnRemoveAbility(const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilitySpec& Spec) override;
+
+protected:
+	/*~ UPRGA_Mod_HasDuration Interface ~*/
+	// 지속시간 시작 시 버프 이펙트를 적용한다
+	virtual void OnDurationStarted_Implementation() override;
+
+	/*~ UPRGA_Mod Interface ~*/
+	// 어빌리티 회수 시 버프 런타임 정리
+	virtual void CleanupRuntimeOnAbilityRemoved(const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilitySpec& Spec) override;
 
 protected:
 	// 동일 버프 이펙트가 이미 활성 중인지 확인한다
@@ -68,10 +67,6 @@ protected:
 
 	// 활성 버프 이펙트를 제거한다
 	void RemoveActiveBuffEffect();
-
-private:
-	UFUNCTION()
-	void HandleMontageEnd();
 	
 	
 protected:

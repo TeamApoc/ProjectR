@@ -11,6 +11,7 @@
 #include "EnvironmentQuery/EnvQuery.h"
 #include "GameFramework/Character.h"
 #include "GameFramework/CharacterMovementComponent.h"
+#include "HAL/PlatformTime.h"
 #include "NiagaraSystem.h"
 #include "ProjectR/AI/PREnemyEQSSelectionUtils.h"
 #include "ProjectR/Character/PRPlayerCharacter.h"
@@ -57,6 +58,7 @@ void UPRGameplayAbility_FaerinShiftSequence::ActivateAbility(
 	bShiftSequenceFinished = false;
 	bOwnerInvulnerabilityApplied = false;
 	ActiveShiftTarget = nullptr;
+	ActiveShiftWarningVFXKey = NAME_None;
 	SmoothShiftElapsedSeconds = 0.0f;
 	LastSmoothShiftUpdateTime = 0.0f;
 
@@ -149,6 +151,7 @@ void UPRGameplayAbility_FaerinShiftSequence::EndAbility(
 	bFinishWhenShiftMoveCompletes = false;
 	bShiftSequenceFinished = false;
 	ActiveShiftTarget = nullptr;
+	ActiveShiftWarningVFXKey = NAME_None;
 	SmoothShiftElapsedSeconds = 0.0f;
 	LastSmoothShiftUpdateTime = 0.0f;
 
@@ -240,7 +243,7 @@ bool UPRGameplayAbility_FaerinShiftSequence::ShouldTargetAvoidShift(AActor* Targ
 	return IsValid(TargetAbilitySystem) && TargetAbilitySystem->HasMatchingGameplayTag(PRGameplayTags::State_Dodging);
 }
 
-void UPRGameplayAbility_FaerinShiftSequence::SpawnShiftWarningVFX() const
+void UPRGameplayAbility_FaerinShiftSequence::SpawnShiftWarningVFX()
 {
 	if (!IsValid(ShiftWarningNiagaraSystem))
 	{
@@ -261,12 +264,36 @@ void UPRGameplayAbility_FaerinShiftSequence::SpawnShiftWarningVFX() const
 	}
 
 	const FSoftObjectPath WarningSystemPath(ShiftWarningNiagaraSystem.Get());
-	FaerinCharacter->Multicast_SpawnFaerinWorldNiagara(
+	ActiveShiftWarningVFXKey = FName(*FString::Printf(
+		TEXT("FaerinShiftWarning_%s_%llu"),
+		*GetNameSafe(this),
+		static_cast<unsigned long long>(FPlatformTime::Cycles64())));
+
+	FaerinCharacter->Multicast_SpawnFaerinTrackedWorldNiagara(
+		ActiveShiftWarningVFXKey,
 		WarningSystemPath,
 		WarningLocation,
 		ShiftWarningNiagaraRotationOffset,
 		ShiftWarningNiagaraScale,
 		ShiftWarningNiagaraLifeSeconds);
+}
+
+void UPRGameplayAbility_FaerinShiftSequence::StopActiveShiftWarningVFX()
+{
+	if (!bDestroyWorldShiftWarningVFXOnHit || ActiveShiftWarningVFXKey == NAME_None)
+	{
+		return;
+	}
+
+	APRFaerinCharacter* FaerinCharacter = Cast<APRFaerinCharacter>(GetAvatarActorFromActorInfo());
+	if (!IsValid(FaerinCharacter) || !FaerinCharacter->HasAuthority())
+	{
+		ActiveShiftWarningVFXKey = NAME_None;
+		return;
+	}
+
+	FaerinCharacter->Multicast_StopFaerinTrackedNiagara(ActiveShiftWarningVFXKey);
+	ActiveShiftWarningVFXKey = NAME_None;
 }
 
 bool UPRGameplayAbility_FaerinShiftSequence::ResolveShiftWarningLocation(AActor* TargetActor, FVector& OutLocation) const
@@ -433,6 +460,48 @@ void UPRGameplayAbility_FaerinShiftSequence::ApplyShiftImpactToTarget(AActor* Ta
 	ApplyAttackPowerDamage(TargetActor, 0.0f, ShiftImpactPoiseDamage);
 }
 
+void UPRGameplayAbility_FaerinShiftSequence::SpawnAttachedShiftWarningVFX(AActor* TargetActor, const float SuggestedLifeSeconds) const
+{
+	if (!bAttachShiftWarningVFXOnHit || !IsValid(ShiftWarningNiagaraSystem) || !IsValid(TargetActor))
+	{
+		return;
+	}
+
+	APRFaerinCharacter* FaerinCharacter = Cast<APRFaerinCharacter>(GetAvatarActorFromActorInfo());
+	if (!IsValid(FaerinCharacter) || !FaerinCharacter->HasAuthority())
+	{
+		return;
+	}
+
+	const float LifeSeconds = ResolveAttachedShiftWarningLifeSeconds(SuggestedLifeSeconds);
+	if (LifeSeconds <= UE_SMALL_NUMBER)
+	{
+		return;
+	}
+
+	const FSoftObjectPath WarningSystemPath(ShiftWarningNiagaraSystem.Get());
+	FaerinCharacter->Multicast_SpawnFaerinAttachedNiagara(
+		WarningSystemPath,
+		TargetActor,
+		ShiftWarningAttachedSocketName,
+		ShiftWarningAttachedLocationOffset,
+		ShiftWarningAttachedRotationOffset,
+		ShiftWarningNiagaraScale * ShiftWarningAttachedScaleMultiplier,
+		LifeSeconds);
+}
+
+float UPRGameplayAbility_FaerinShiftSequence::ResolveAttachedShiftWarningLifeSeconds(const float SuggestedLifeSeconds) const
+{
+	if (ShiftWarningAttachedLifeSeconds > UE_SMALL_NUMBER)
+	{
+		return ShiftWarningAttachedLifeSeconds;
+	}
+
+	return FMath::Max(
+		FMath::Max(SuggestedLifeSeconds, 0.0f) + FMath::Max(ShiftWarningAttachedLifeExtraSeconds, 0.0f),
+		FMath::Max(ShiftWarningAttachedMinimumLifeSeconds, 0.0f));
+}
+
 void UPRGameplayAbility_FaerinShiftSequence::MirrorShiftMoveToOwningClient(
 	AActor* TargetActor,
 	const FVector& Destination,
@@ -505,6 +574,8 @@ bool UPRGameplayAbility_FaerinShiftSequence::ApplyInstantShiftToTarget(const FVe
 
 	StopShiftedTargetMovement(TargetActor);
 	ApplyShiftImpactToTarget(TargetActor);
+	StopActiveShiftWarningVFX();
+	SpawnAttachedShiftWarningVFX(TargetActor, 0.0f);
 	MirrorShiftMoveToOwningClient(TargetActor, Destination, TargetRotation, 0.0f);
 
 	if (bDrawDebug)
@@ -544,6 +615,8 @@ bool UPRGameplayAbility_FaerinShiftSequence::StartSmoothTargetShift(const FVecto
 		true);
 
 	ApplyShiftImpactToTarget(TargetActor);
+	StopActiveShiftWarningVFX();
+	SpawnAttachedShiftWarningVFX(TargetActor, SmoothPullDuration);
 	MirrorShiftMoveToOwningClient(TargetActor, Destination, SmoothShiftEndRotation, SmoothPullDuration);
 	TickSmoothTargetShift();
 	return true;

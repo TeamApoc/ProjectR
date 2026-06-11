@@ -119,6 +119,8 @@ namespace PRGameplayTags
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(State_Block_Interaction, "State.Block.Interaction", "상호작용 비활성화 상태");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(State_WeaponZooming, "State.WeaponZooming", "움직임 비활성화 상태");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(State_SwappingWeapon, "State.SwappingWeapon", "무기 교체 Draw 몽타주 진행 상태");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(State_CurrentWeaponSlot_Primary, "State.CurrentWeaponSlot.Primary", "현재 주무기 슬롯 상태");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(State_CurrentWeaponSlot_Secondary, "State.CurrentWeaponSlot.Secondary", "현재 보조무기 슬롯 상태");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(State_Mod_Primary_GaugeLocked, "State.Mod.Primary.GaugeLocked", "주무기 Mod 게이지 축적 차단 상태");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(State_Mod_Secondary_GaugeLocked, "State.Mod.Secondary.GaugeLocked", "보조무기 Mod 게이지 축적 차단 상태");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(State_Mod_Fire_Enabled, "State.Mod.Fire.Enabled", "발사형 모드 활성 상태");
@@ -184,8 +186,10 @@ namespace PRGameplayTags
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Event_Player_ModActivation, "Event.Player.ModActivation", "Mod On/Off 이벤트");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Event_Player_WorldMarker, "Event.Player.WorldMarker", "월드 마커 추가 제거 알림");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Event_Player_HUDMessage, "Event.Player.HUDMessage", "HUD 안내 메시지 표시 알림");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Event_Player_AttackTarget, "Event.Player.AttackTarget", "플레이어 실제 피해 대상 알림");
 
 	// ===== Event.Boss.* =====
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Event_Boss_Spawn, "Event.Boss.Spawn", "보스 스폰 요청");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Event_Boss_Encounter_Begin, "Event.Boss.Encounter.Begin", "보스 조우 시작 (FPRBossEncounterEventPayload 동반)");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Event_Boss_Encounter_End, "Event.Boss.Encounter.End", "보스 조우 종료");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Event_Boss_PhaseChanged, "Event.Boss.PhaseChanged", "보스 페이즈 변경");

@@ -10,11 +10,16 @@
 #include "Internationalization/Regex.h"
 #include "Misc/PackageName.h"
 #include "ProjectR/System/PRLoadingScreenSubsystem.h"
+#include "Online/OnlineSessionNames.h"
+#include "OnlineSubsystemUtils.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogPRSession, Log, All);
 
 namespace
 {
+	const FName ProjectRSessionName(TEXT("ProjectRSession"));
+	constexpr int32 LocalUserNum = 0;
+
 	FString NormalizeMapPackageName(const FString& MapPackageName)
 	{
 		// PIE 접두사와 오브젝트 이름 접미사를 제거한 비교용 패키지 이름
@@ -71,6 +76,14 @@ void UPRSessionSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 
 void UPRSessionSubsystem::Deinitialize()
 {
+	if (IOnlineSessionPtr SessionInterface = GetOnlineSessionInterface())
+	{
+		SessionInterface->ClearOnCreateSessionCompleteDelegate_Handle(CreateSessionCompleteDelegateHandle);
+		SessionInterface->ClearOnFindSessionsCompleteDelegate_Handle(FindSessionsCompleteDelegateHandle);
+		SessionInterface->ClearOnJoinSessionCompleteDelegate_Handle(JoinSessionCompleteDelegateHandle);
+		SessionInterface->ClearOnDestroySessionCompleteDelegate_Handle(DestroySessionCompleteDelegateHandle);
+	}
+
 	if (GEngine)
 	{
 		GEngine->NetworkFailureEvent.RemoveAll(this);
@@ -113,10 +126,76 @@ void UPRSessionSubsystem::StartHost(const FPRHostSessionParams& Params)
 		}
 	}
 
+	IOnlineSessionPtr SessionInterface = GetOnlineSessionInterface();
+	if (!SessionInterface.IsValid())
+	{
+		OnSessionFailed.Broadcast(EPRSessionFailReason::Unknown, TEXT("Online session interface invalid"));
+		SetState(EPRSessionState::None);
+		return;
+	}
+
+	if (SessionInterface->GetNamedSession(ProjectRSessionName))
+	{
+		// 기존 세션 제거 후 동일 파라미터로 재생성
+		bCreateSessionAfterDestroy = true;
+		DestroySessionCompleteDelegateHandle = SessionInterface->AddOnDestroySessionCompleteDelegate_Handle(
+			FOnDestroySessionCompleteDelegate::CreateUObject(this, &ThisClass::HandleDestroySessionComplete));
+		if (!SessionInterface->DestroySession(ProjectRSessionName))
+		{
+			SessionInterface->ClearOnDestroySessionCompleteDelegate_Handle(DestroySessionCompleteDelegateHandle);
+			bCreateSessionAfterDestroy = false;
+			OnSessionFailed.Broadcast(EPRSessionFailReason::Unknown, TEXT("Destroy existing session failed"));
+			SetState(EPRSessionState::None);
+		}
+		return;
+	}
+
+	PendingHostSettings = MakeShared<FOnlineSessionSettings>();
+	PendingHostSettings->NumPublicConnections = FMath::Max(Params.MaxPlayers, 1);
+	PendingHostSettings->NumPrivateConnections = 0;
+	PendingHostSettings->bIsLANMatch = true;
+	PendingHostSettings->bShouldAdvertise = !Params.bPrivate;
+	PendingHostSettings->bAllowJoinInProgress = true;
+	PendingHostSettings->bAllowJoinViaPresence = false;
+	PendingHostSettings->bUsesPresence = false;
+	PendingHostSettings->Set(SETTING_MAPNAME, Params.MapName.ToString(), EOnlineDataAdvertisementType::ViaOnlineServiceAndPing);
+
+	CreateSessionCompleteDelegateHandle = SessionInterface->AddOnCreateSessionCompleteDelegate_Handle(
+		FOnCreateSessionCompleteDelegate::CreateUObject(this, &ThisClass::HandleCreateSessionComplete));
+
+	UE_LOG(LogPRSession, Log, TEXT("[StartHost] CreateSession Map=%s, MaxPlayers=%d"),
+		*Params.MapName.ToString(), Params.MaxPlayers);
+
+	if (!SessionInterface->CreateSession(LocalUserNum, ProjectRSessionName, *PendingHostSettings))
+	{
+		SessionInterface->ClearOnCreateSessionCompleteDelegate_Handle(CreateSessionCompleteDelegateHandle);
+		PendingHostSettings.Reset();
+		OnSessionFailed.Broadcast(EPRSessionFailReason::Unknown, TEXT("CreateSession request failed"));
+		SetState(EPRSessionState::None);
+	}
+}
+
+void UPRSessionSubsystem::HandleCreateSessionComplete(FName SessionName, bool bWasSuccessful)
+{
+	if (IOnlineSessionPtr SessionInterface = GetOnlineSessionInterface())
+	{
+		SessionInterface->ClearOnCreateSessionCompleteDelegate_Handle(CreateSessionCompleteDelegateHandle);
+	}
+
+	PendingHostSettings.Reset();
+
+	if (!bWasSuccessful)
+	{
+		UE_LOG(LogPRSession, Warning, TEXT("[HandleCreateSessionComplete] Failed Session=%s"), *SessionName.ToString());
+		OnSessionFailed.Broadcast(EPRSessionFailReason::Unknown, TEXT("CreateSession failed"));
+		SetState(EPRSessionState::None);
+		return;
+	}
+
 	// listen 옵션으로 리슨 서버 개시. SessionPort 명시로 PIE/Standalone 포트 통일
-	const FString Options = FString::Printf(TEXT("listen?MaxPlayers=%d?Port=%d"), Params.MaxPlayers, SessionPort);
-	UE_LOG(LogPRSession, Log, TEXT("[StartHost] OpenLevel Map=%s, Options=%s"), *Params.MapName.ToString(), *Options);
-	UGameplayStatics::OpenLevel(this, Params.MapName, true, Options);
+	const FString Options = FString::Printf(TEXT("listen?MaxPlayers=%d?Port=%d"), PendingHostParams.MaxPlayers, SessionPort);
+	UE_LOG(LogPRSession, Log, TEXT("[HandleCreateSessionComplete] OpenLevel Map=%s, Options=%s"), *PendingHostParams.MapName.ToString(), *Options);
+	UGameplayStatics::OpenLevel(this, PendingHostParams.MapName, true, Options);
 
 	// OpenLevel은 비동기이므로 Hosted 전이는 맵 로드 완료 시 GameMode에서 확정한다
 	SetState(EPRSessionState::Hosted);
@@ -134,10 +213,162 @@ bool UPRSessionSubsystem::ValidateAddress(const FString& Address) const
 
 void UPRSessionSubsystem::StartJoin(const FPRJoinSessionParams& Params)
 {
-	if (!ValidateAddress(Params.Address))
+	const FString TrimmedAddress = Params.Address.TrimStartAndEnd();
+	if (!TrimmedAddress.IsEmpty())
 	{
-		UE_LOG(LogPRSession, Warning, TEXT("[StartJoin] InvalidAddress=%s"), *Params.Address);
-		OnSessionFailed.Broadcast(EPRSessionFailReason::InvalidAddress, Params.Address);
+		StartDirectJoin(TrimmedAddress);
+		return;
+	}
+
+	UGameInstance* GameInstance = GetGameInstance();
+	if (!IsValid(GameInstance))
+	{
+		OnSessionFailed.Broadcast(EPRSessionFailReason::Unknown, TEXT("GameInstance invalid"));
+		return;
+	}
+
+	UWorld* World = GetWorld();
+	const ENetMode NetMode = IsValid(World) ? World->GetNetMode() : NM_Standalone;
+	if (NetMode == NM_ListenServer || NetMode == NM_DedicatedServer)
+	{
+		UE_LOG(LogPRSession, Warning, TEXT("[StartJoin] 호스트 프로세스에서 검색 참가 시도 차단 NetMode=%d"), static_cast<int32>(NetMode));
+		OnSessionFailed.Broadcast(EPRSessionFailReason::Unknown, TEXT("Cannot join from a hosting instance"));
+		return;
+	}
+
+	IOnlineSessionPtr SessionInterface = GetOnlineSessionInterface();
+	if (!SessionInterface.IsValid())
+	{
+		OnSessionFailed.Broadcast(EPRSessionFailReason::Unknown, TEXT("Online session interface invalid"));
+		return;
+	}
+
+	PendingSessionSearch = MakeShared<FOnlineSessionSearch>();
+	PendingSessionSearch->bIsLanQuery = true;
+	PendingSessionSearch->MaxSearchResults = 20;
+	PendingSessionSearch->PingBucketSize = 50;
+
+	SetState(EPRSessionState::Finding);
+
+	FindSessionsCompleteDelegateHandle = SessionInterface->AddOnFindSessionsCompleteDelegate_Handle(
+		FOnFindSessionsCompleteDelegate::CreateUObject(this, &ThisClass::HandleFindSessionsComplete));
+
+	UE_LOG(LogPRSession, Log, TEXT("[StartJoin] FindSessions"));
+	if (!SessionInterface->FindSessions(LocalUserNum, PendingSessionSearch.ToSharedRef()))
+	{
+		SessionInterface->ClearOnFindSessionsCompleteDelegate_Handle(FindSessionsCompleteDelegateHandle);
+		PendingSessionSearch.Reset();
+		OnSessionFailed.Broadcast(EPRSessionFailReason::SessionSearchFailed, TEXT("FindSessions request failed"));
+		SetState(EPRSessionState::None);
+	}
+}
+
+void UPRSessionSubsystem::HandleFindSessionsComplete(bool bWasSuccessful)
+{
+	if (IOnlineSessionPtr SessionInterface = GetOnlineSessionInterface())
+	{
+		SessionInterface->ClearOnFindSessionsCompleteDelegate_Handle(FindSessionsCompleteDelegateHandle);
+	}
+
+	const int32 ResultCount = PendingSessionSearch.IsValid() ? PendingSessionSearch->SearchResults.Num() : 0;
+	UE_LOG(LogPRSession, Log, TEXT("[HandleFindSessionsComplete] Success=%d, Results=%d"), bWasSuccessful ? 1 : 0, ResultCount);
+
+	if (!bWasSuccessful)
+	{
+		PendingSessionSearch.Reset();
+		OnSessionFailed.Broadcast(EPRSessionFailReason::SessionSearchFailed, TEXT("FindSessions failed"));
+		SetState(EPRSessionState::None);
+		return;
+	}
+
+	if (ResultCount <= 0)
+	{
+		PendingSessionSearch.Reset();
+		OnSessionFailed.Broadcast(EPRSessionFailReason::NoSessionFound, TEXT("No session found"));
+		SetState(EPRSessionState::None);
+		return;
+	}
+
+	if (!JoinFirstSearchResult())
+	{
+		PendingSessionSearch.Reset();
+		OnSessionFailed.Broadcast(EPRSessionFailReason::NetworkFailure, TEXT("JoinSession request failed"));
+		SetState(EPRSessionState::None);
+	}
+}
+
+bool UPRSessionSubsystem::JoinFirstSearchResult()
+{
+	IOnlineSessionPtr SessionInterface = GetOnlineSessionInterface();
+	if (!SessionInterface.IsValid() || !PendingSessionSearch.IsValid() || PendingSessionSearch->SearchResults.Num() <= 0)
+	{
+		return false;
+	}
+
+	SetState(EPRSessionState::Joining);
+
+	JoinSessionCompleteDelegateHandle = SessionInterface->AddOnJoinSessionCompleteDelegate_Handle(
+		FOnJoinSessionCompleteDelegate::CreateUObject(this, &ThisClass::HandleJoinSessionComplete));
+
+	const FOnlineSessionSearchResult& SearchResult = PendingSessionSearch->SearchResults[0];
+	if (!SessionInterface->JoinSession(LocalUserNum, ProjectRSessionName, SearchResult))
+	{
+		SessionInterface->ClearOnJoinSessionCompleteDelegate_Handle(JoinSessionCompleteDelegateHandle);
+		return false;
+	}
+
+	return true;
+}
+
+void UPRSessionSubsystem::HandleJoinSessionComplete(FName SessionName, EOnJoinSessionCompleteResult::Type Result)
+{
+	IOnlineSessionPtr SessionInterface = GetOnlineSessionInterface();
+	if (SessionInterface.IsValid())
+	{
+		SessionInterface->ClearOnJoinSessionCompleteDelegate_Handle(JoinSessionCompleteDelegateHandle);
+	}
+
+	PendingSessionSearch.Reset();
+
+	if (Result != EOnJoinSessionCompleteResult::Success || !SessionInterface.IsValid())
+	{
+		UE_LOG(LogPRSession, Warning, TEXT("[HandleJoinSessionComplete] Failed Session=%s, Result=%d"),
+			*SessionName.ToString(), static_cast<int32>(Result));
+		OnSessionFailed.Broadcast(EPRSessionFailReason::NetworkFailure, TEXT("JoinSession failed"));
+		SetState(EPRSessionState::None);
+		return;
+	}
+
+	FString TravelAddress;
+	if (!SessionInterface->GetResolvedConnectString(ProjectRSessionName, TravelAddress) || TravelAddress.IsEmpty())
+	{
+		OnSessionFailed.Broadcast(EPRSessionFailReason::NetworkFailure, TEXT("Resolved connect string empty"));
+		SetState(EPRSessionState::None);
+		return;
+	}
+
+	UGameInstance* GameInstance = GetGameInstance();
+	APlayerController* PC = IsValid(GameInstance) ? GameInstance->GetFirstLocalPlayerController() : nullptr;
+	if (!IsValid(PC))
+	{
+		OnSessionFailed.Broadcast(EPRSessionFailReason::Unknown, TEXT("PlayerController invalid"));
+		SetState(EPRSessionState::None);
+		return;
+	}
+
+	UE_LOG(LogPRSession, Log, TEXT("[HandleJoinSessionComplete] ClientTravel Address=%s PC=%s"),
+		*TravelAddress, *PC->GetName());
+
+	// OSS가 해석한 접속 문자열로 이동. 실제 Joined 전이는 새 맵에서 확정
+	PC->ClientTravel(TravelAddress, TRAVEL_Absolute);
+}
+
+void UPRSessionSubsystem::StartDirectJoin(const FString& Address)
+{
+	if (!ValidateAddress(Address))
+	{
+		UE_LOG(LogPRSession, Warning, TEXT("[StartDirectJoin] InvalidAddress=%s"), *Address);
+		OnSessionFailed.Broadcast(EPRSessionFailReason::InvalidAddress, Address);
 		return;
 	}
 
@@ -166,13 +397,13 @@ void UPRSessionSubsystem::StartJoin(const FPRJoinSessionParams& Params)
 	}
 
 	// 메뉴에서 포트 미입력 시 SessionPort로 보정. 호스트와 동일 포트 강제
-	FString TravelAddress = Params.Address;
+	FString TravelAddress = Address;
 	if (!TravelAddress.Contains(TEXT(":")))
 	{
 		TravelAddress += FString::Printf(TEXT(":%d"), SessionPort);
 	}
 
-	UE_LOG(LogPRSession, Log, TEXT("[StartJoin] ClientTravel Address=%s NetMode=%d PC=%s"),
+	UE_LOG(LogPRSession, Log, TEXT("[StartDirectJoin] ClientTravel Address=%s NetMode=%d PC=%s"),
 		*TravelAddress, static_cast<int32>(NetMode), *PC->GetName());
 
 	SetState(EPRSessionState::Joining);
@@ -280,10 +511,50 @@ void UPRSessionSubsystem::EndSession()
 {
 	SetState(EPRSessionState::Leaving);
 
+	IOnlineSessionPtr SessionInterface = GetOnlineSessionInterface();
+	if (SessionInterface.IsValid() && SessionInterface->GetNamedSession(ProjectRSessionName))
+	{
+		DestroySessionCompleteDelegateHandle = SessionInterface->AddOnDestroySessionCompleteDelegate_Handle(
+			FOnDestroySessionCompleteDelegate::CreateUObject(this, &ThisClass::HandleDestroySessionComplete));
+		if (SessionInterface->DestroySession(ProjectRSessionName))
+		{
+			return;
+		}
+
+		SessionInterface->ClearOnDestroySessionCompleteDelegate_Handle(DestroySessionCompleteDelegateHandle);
+	}
+
+	TravelToMenuMap();
+	SetState(EPRSessionState::None);
+}
+
+void UPRSessionSubsystem::HandleDestroySessionComplete(FName SessionName, bool bWasSuccessful)
+{
+	if (IOnlineSessionPtr SessionInterface = GetOnlineSessionInterface())
+	{
+		SessionInterface->ClearOnDestroySessionCompleteDelegate_Handle(DestroySessionCompleteDelegateHandle);
+	}
+
+	UE_LOG(LogPRSession, Log, TEXT("[HandleDestroySessionComplete] Session=%s, Success=%d"),
+		*SessionName.ToString(), bWasSuccessful ? 1 : 0);
+
+	if (bCreateSessionAfterDestroy)
+	{
+		// 기존 세션 제거 후 Host 요청 재개
+		bCreateSessionAfterDestroy = false;
+		StartHost(PendingHostParams);
+		return;
+	}
+
+	TravelToMenuMap();
+	SetState(EPRSessionState::None);
+}
+
+void UPRSessionSubsystem::TravelToMenuMap()
+{
 	UWorld* World = GetWorld();
 	if (!IsValid(World))
 	{
-		SetState(EPRSessionState::None);
 		return;
 	}
 
@@ -302,7 +573,8 @@ void UPRSessionSubsystem::EndSession()
 	}
 	else
 	{
-		if (UGameInstance* GameInstance = GetGameInstance())
+		UGameInstance* GameInstance = GetGameInstance();
+		if (IsValid(GameInstance))
 		{
 			if (UPRLoadingScreenSubsystem* LoadingScreen = GameInstance->GetSubsystem<UPRLoadingScreenSubsystem>())
 			{
@@ -310,13 +582,11 @@ void UPRSessionSubsystem::EndSession()
 			}
 		}
 
-		if (APlayerController* PC = GetGameInstance()->GetFirstLocalPlayerController())
+		if (APlayerController* PC = GameInstance->GetFirstLocalPlayerController())
 		{
 			PC->ClientTravel(MenuMapName.ToString(), TRAVEL_Absolute);
 		}
 	}
-
-	SetState(EPRSessionState::None);
 }
 
 // ===== 네트워크 실패 ===== 
@@ -328,4 +598,10 @@ void UPRSessionSubsystem::HandleNetworkFailure(UWorld* World, UNetDriver* NetDri
 
 	OnSessionFailed.Broadcast(EPRSessionFailReason::NetworkFailure, ErrorString);
 	SetState(EPRSessionState::None);
+}
+
+IOnlineSessionPtr UPRSessionSubsystem::GetOnlineSessionInterface() const
+{
+	// PIE의 월드별 OnlineSubsystem 컨텍스트를 반영한 세션 인터페이스 조회
+	return Online::GetSessionInterface(GetWorld());
 }

@@ -55,6 +55,9 @@ public:
 
 	// InputTag 조회
 	const FGameplayTag& GetInputTag() const { return InputTag; }
+
+	// Spec 동적 태그 기반 현재 슬롯 차단 여부 확인
+	bool HasDynamicActivationBlockedTag(const UAbilitySystemComponent* InOwnerASC, const FGameplayAbilitySpec* InAbilitySpec) const;
 	
 	// Instance된 어빌리티의 SourceObject(ItemInstance)로부터 WeaponData를 반환
 	UPRWeaponDataAsset* GetCurrentWeaponData() const;

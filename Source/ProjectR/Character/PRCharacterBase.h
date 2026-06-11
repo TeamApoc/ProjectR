@@ -60,6 +60,9 @@ protected:
 protected:
 	UPROPERTY(EditAnywhere, Category = "PR Config|Character")
 	FName CharacterID;
+	
+	UPROPERTY(EditAnywhere, Category = "PR Config|Character")
+	FText CharacterDisplayName;
 
 	UPROPERTY(EditAnywhere, Category = "PR Config|Ability")
 	TObjectPtr<UPRAbilitySet> AbilitySet;

@@ -9,6 +9,7 @@
 #include "GameFramework/Character.h"
 #include "NavigationSystem.h"
 #include "NiagaraSystem.h"
+#include "Engine/Texture.h"
 #include "ProjectR/AbilitySystem/Abilities/Boss/PRBossAbilityTagUtils.h"
 #include "ProjectR/AI/PREnemyEQSSelectionUtils.h"
 #include "ProjectR/Character/Enemy/Boss/PRFaerinCharacter.h"
@@ -185,8 +186,12 @@ void UPRGameplayAbility_FaerinNearTeleportApproach::BeginDisappear(ACharacter* B
 
 	BeginBossMovementReplicationOverride(BossCharacter);
 	BossCharacter->SetActorEnableCollision(false);
-	SpawnBodyNiagara(DisappearDissolveNiagaraSystem);
-	SpawnBodyNiagara(TeleportInNiagaraSystem);
+	PlayNearTeleportDissolveVisual(
+		DisappearDissolveNiagaraSystem,
+		DisappearDissolveDuration,
+		DisappearDissolveStartValue,
+		DisappearDissolveEndValue);
+	SpawnBodyNiagara(TeleportInNiagaraSystem, TeleportInBodyNiagaraLifeSeconds);
 	BossCharacter->ForceNetUpdate();
 
 	if (DisappearPresentationSeconds <= 0.0f)
@@ -280,15 +285,22 @@ void UPRGameplayAbility_FaerinNearTeleportApproach::ReappearNearSelf()
 			CachedReappearLocation,
 			CachedReappearRotation,
 			TeleportOutNiagaraSystem,
+			nullptr,
+			BodyNiagaraAttachSocketName,
+			TeleportOutBodyNiagaraLifeSeconds,
+			0.0f);
+		PlayNearTeleportDissolveVisual(
 			ReappearDissolveNiagaraSystem,
-			BodyNiagaraAttachSocketName);
+			ReappearDissolveDuration,
+			ReappearDissolveStartValue,
+			ReappearDissolveEndValue);
 		bPresentationRestoredDuringTeleport = true;
 	}
 	else
 	{
 		RestoreBossPresentation(BossCharacter);
-		SpawnBodyNiagara(TeleportOutNiagaraSystem);
-		SpawnBodyNiagara(ReappearDissolveNiagaraSystem);
+		SpawnBodyNiagara(TeleportOutNiagaraSystem, TeleportOutBodyNiagaraLifeSeconds);
+		SpawnBodyNiagara(ReappearDissolveNiagaraSystem, 0.0f);
 		bPresentationRestoredDuringTeleport = true;
 	}
 	BossCharacter->SetActorEnableCollision(bOriginalActorCollisionEnabled);
@@ -593,7 +605,9 @@ bool UPRGameplayAbility_FaerinNearTeleportApproach::ResolveHomeReappearLocation(
 	return !OutLocation.ContainsNaN();
 }
 
-void UPRGameplayAbility_FaerinNearTeleportApproach::SpawnBodyNiagara(UNiagaraSystem* NiagaraSystem) const
+void UPRGameplayAbility_FaerinNearTeleportApproach::SpawnBodyNiagara(
+	UNiagaraSystem* NiagaraSystem,
+	const float LifeSeconds) const
 {
 	if (!IsValid(NiagaraSystem))
 	{
@@ -606,7 +620,40 @@ void UPRGameplayAbility_FaerinNearTeleportApproach::SpawnBodyNiagara(UNiagaraSys
 		return;
 	}
 
-	FaerinCharacter->Multicast_SpawnNearTeleportBodyNiagara(NiagaraSystem, BodyNiagaraAttachSocketName);
+	FaerinCharacter->Multicast_SpawnNearTeleportBodyNiagara(
+		NiagaraSystem,
+		BodyNiagaraAttachSocketName,
+		LifeSeconds);
+}
+
+void UPRGameplayAbility_FaerinNearTeleportApproach::PlayNearTeleportDissolveVisual(
+	UNiagaraSystem* NiagaraSystem,
+	const float Duration,
+	const float StartValue,
+	const float EndValue) const
+{
+	if (!IsValid(NiagaraSystem))
+	{
+		return;
+	}
+
+	APRFaerinCharacter* FaerinCharacter = Cast<APRFaerinCharacter>(GetAvatarActorFromActorInfo());
+	if (!IsValid(FaerinCharacter))
+	{
+		return;
+	}
+
+	FaerinCharacter->Multicast_PlayNearTeleportDissolveVisual(
+		NiagaraSystem,
+		BodyNiagaraAttachSocketName,
+		Duration,
+		StartValue,
+		EndValue,
+		DissolveScalarParameterName,
+		NiagaraDissolveParameterName,
+		DissolveTexture,
+		DissolveTextureUV,
+		DissolveTickInterval);
 }
 
 void UPRGameplayAbility_FaerinNearTeleportApproach::RestoreBossPresentation(ACharacter* BossCharacter) const

@@ -23,6 +23,7 @@ class UPRUISoundDataAsset;
 class UPRMapPreloadDataAsset;
 class UPRRuntimePreloadDataAsset;
 class UWorld;
+class UPRWorldRegistry;
 
 // 플로팅 텍스트 타입별 위젯 클래스 및 색상 설정
 USTRUCT(BlueprintType)
@@ -86,6 +87,9 @@ public:
 	// 기본 BGM Registry 데이터 에셋을 동기 로드 후 반환
 	const UPRBGMRegistryDataAsset* GetDefaultBGMRegistrySync() const;
 
+	// 기본 World Registry 데이터 에셋을 동기 로드 후 반환
+	const UPRWorldRegistry* GetWorldRegistrySync() const;
+
 	// FloatingTextType에 따른 스타일(위젯 클래스 + 색상)을 동기 로드 후 반환
 	FPRFloatingTextStyle GetFloatingTextStyleSync(EPRFloatingTextType TextType) const;
 
@@ -104,6 +108,10 @@ public:
 	// 총기 Impact 태그별 Niagara와 Decal 재생 데이터 및 Physical Surface fallback 매핑을 보관하는 Registry 소프트 레퍼런스
 	UPROPERTY(EditAnywhere, Config, Category = "Registries", meta = (AllowedClasses = "/Script/ProjectR.PRImpactRegistry"))
 	TSoftObjectPtr<UPRImpactRegistry> ImpactRegistry;
+
+	// WorldId 기반 월드 데이터 조회용 Registry 소프트 레퍼런스
+	UPROPERTY(EditAnywhere, Config, Category = "Registries", meta = (AllowedClasses = "/Script/ProjectR.PRWorldRegistry"))
+	TSoftObjectPtr<UPRWorldRegistry> WorldRegistry;
 
 	// 몬스터별 드롭 보상 테이블
 	UPROPERTY(EditAnywhere, Config, Category = "Registries", meta = (RequiredAssetDataTags = "RowStructure=/Script/ProjectR.PRMonsterDropTableRow"))

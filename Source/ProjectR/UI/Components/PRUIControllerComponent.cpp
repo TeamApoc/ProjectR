@@ -18,6 +18,7 @@
 #include "ProjectR/UI/Inventory/PRInventoryWidget.h"
 #include "ProjectR/UI/Inventory/PRItemTooltipWidget.h"
 #include "ProjectR/UI/Inventory/PRItemTooltipViewDataBuilder.h"
+#include "ProjectR/UI/PlayerMenu/PRPlayerMenu.h"
 #include "ProjectR/UI/Growth/PRTraitWindowWidget.h"
 #include "ProjectR/UI/PRUIManagerSubsystem.h"
 #include "ProjectR/UI/Shop/PRShopWidget.h"
@@ -338,6 +339,34 @@ void UPRUIControllerComponent::ToggleInGameMenu()
 	UIManager->PushUIInstance(CreatedInGameMenuWidget);
 }
 
+void UPRUIControllerComponent::TogglePlayerMenu()
+{
+	if (!IsLocalPlayer())
+	{
+		return;
+	}
+
+	UPRUIManagerSubsystem* UIManager = GetUIManager();
+	if (!IsValid(UIManager))
+	{
+		return;
+	}
+
+	if (IsValid(PlayerMenuWidget) && PlayerMenuWidget->IsInViewport())
+	{
+		UIManager->PopUI(PlayerMenuWidget);
+		return;
+	}
+
+	UPRPlayerMenu* CreatedPlayerMenuWidget = GetOrCreatePlayerMenuWidget();
+	if (!IsValid(CreatedPlayerMenuWidget))
+	{
+		return;
+	}
+
+	UIManager->PushUIInstance(CreatedPlayerMenuWidget);
+}
+
 void UPRUIControllerComponent::CloseInGameMenu()
 {
 	if (!IsLocalPlayer())
@@ -358,6 +387,29 @@ void UPRUIControllerComponent::CloseInGameMenu()
 	else
 	{
 		InGameMenuWidget->RemoveFromParent();
+	}
+}
+
+void UPRUIControllerComponent::ClosePlayerMenu()
+{
+	if (!IsLocalPlayer())
+	{
+		return;
+	}
+
+	if (!IsValid(PlayerMenuWidget) || !PlayerMenuWidget->IsInViewport())
+	{
+		return;
+	}
+
+	UPRUIManagerSubsystem* UIManager = GetUIManager();
+	if (IsValid(UIManager))
+	{
+		UIManager->PopUI(PlayerMenuWidget);
+	}
+	else
+	{
+		PlayerMenuWidget->RemoveFromParent();
 	}
 }
 
@@ -671,6 +723,8 @@ void UPRUIControllerComponent::EndPlay(const EEndPlayReason::Type EndPlayReason)
 	WaypointTravelWidget = nullptr;
 	CloseInGameMenu();
 	InGameMenuWidget = nullptr;
+	ClosePlayerMenu();
+	PlayerMenuWidget = nullptr;
 
 	UnbindWeaponManager();
 	RemoveWeaponScopeWidget();
@@ -732,6 +786,10 @@ void UPRUIControllerComponent::RemoveAllWidget()
 	if (InGameMenuWidget)
 	{
 		InGameMenuWidget->RemoveFromParent();
+	}
+	if (PlayerMenuWidget)
+	{
+		PlayerMenuWidget->RemoveFromParent();
 	}
 	if (WaypointTravelWidget)
 	{
@@ -977,6 +1035,23 @@ UPRInGameMenuWidget* UPRUIControllerComponent::GetOrCreateInGameMenuWidget()
 
 	InGameMenuWidget = CreateWidget<UPRInGameMenuWidget>(PlayerController, InGameMenuWidgetClass);
 	return InGameMenuWidget;
+}
+
+UPRPlayerMenu* UPRUIControllerComponent::GetOrCreatePlayerMenuWidget()
+{
+	if (IsValid(PlayerMenuWidget))
+	{
+		return PlayerMenuWidget;
+	}
+
+	APlayerController* PlayerController = GetOwningPlayerController();
+	if (!IsValid(PlayerController) || !IsValid(PlayerMenuWidgetClass.Get()))
+	{
+		return nullptr;
+	}
+
+	PlayerMenuWidget = CreateWidget<UPRPlayerMenu>(PlayerController, PlayerMenuWidgetClass);
+	return PlayerMenuWidget;
 }
 
 UPRItemTooltipWidget* UPRUIControllerComponent::GetOrCreateItemTooltipWidget()

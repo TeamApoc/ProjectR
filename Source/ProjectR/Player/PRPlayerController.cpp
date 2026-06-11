@@ -161,6 +161,11 @@ void APRPlayerController::SetupInputComponent()
 	{
 		EIC->BindAction(InGameMenuAction.Get(), ETriggerEvent::Started, this, &APRPlayerController::OnInGameMenuInputStarted);
 	}
+	
+	if (IsValid(PlayerMenuAction.Get()))
+	{
+		EIC->BindAction(PlayerMenuAction.Get(), ETriggerEvent::Started, this, &APRPlayerController::OnPlayerMenuInputStarted);
+	}
 
 	
 	for (int32 SlotIndex = 0; SlotIndex < QuickSlotActions.Num(); ++SlotIndex)
@@ -935,6 +940,16 @@ void APRPlayerController::OnInGameMenuInputStarted()
 	}
 
 	UIControllerComponent->ToggleInGameMenu();
+}
+
+void APRPlayerController::OnPlayerMenuInputStarted()
+{
+	if (!IsValid(UIControllerComponent))
+	{
+		return;
+	}
+
+	UIControllerComponent->TogglePlayerMenu();
 }
 
 void APRPlayerController::OnQuickSlotInputStarted(int32 SlotIndex)

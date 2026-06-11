@@ -250,7 +250,14 @@ void APRPlayerController::ClientNotifyMapTransition_Implementation(float Delay, 
 		{
 		case EPRMapTransitionType::MapTravel:
 			// 맵 이동 페이드
-			CM->FadeOut(EPRFadeColorPreset::White, Delay, false);
+			if (Delay <= 0.0f)
+			{
+				CM->FadeIn(EPRFadeColorPreset::White, 0.0f, false);
+			}
+			else
+			{
+				CM->FadeOut(EPRFadeColorPreset::White, Delay, false);
+			}
 			break;
 		case EPRMapTransitionType::WaypointTravelUI:
 			// Waypoint Travel UI 표시 전 페이드

@@ -74,7 +74,7 @@ void UPRInteraction_Waypoint::RequestWaypointTravel(APRPlayerController* Request
 	UnlockPlayerInteraction();
 
 	// 선택 노드 목적지 이동
-	StartTravelToSpawnPoint(MapAsset, WaypointKey.WaypointId, TravelUIFadeDuration);
+	StartTravelToSpawnPoint(MapAsset, WaypointKey.WaypointId, 0.0f);
 }
 
 void UPRInteraction_Waypoint::CancelWaypointTravel(APRPlayerController* RequestingController)

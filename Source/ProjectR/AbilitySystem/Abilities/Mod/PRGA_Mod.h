@@ -41,6 +41,7 @@ public:
 	/*~ UGameplayAbility Interface ~*/
 	virtual void ActivateAbility(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilityActivationInfo ActivationInfo, const FGameplayEventData* TriggerEventData) override;
 	virtual void EndAbility(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilityActivationInfo ActivationInfo, bool bReplicateEndAbility, bool bWasCancelled) override;
+	virtual void OnRemoveAbility(const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilitySpec& Spec) override;
 	
 	// ========= Mod Base  =============
 	// 모드 공통 비용 조건을 검사한다
@@ -76,6 +77,9 @@ protected:
 	// 현재 슬롯의 모드 게이지 Attribute를 반환
 	FGameplayAttribute GetCurrentModGaugeAttribute(const FGameplayAbilityActorInfo* ActorInfo) const;
 
+	// 어빌리티 회수 시 런타임 상태 정리
+	virtual void CleanupRuntimeOnAbilityRemoved(const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilitySpec& Spec);
+
 protected:
 	// 모드 비용 처리 방식
 	UPROPERTY(EditDefaultsOnly, Category = "ProjectR|Mod")
@@ -94,6 +98,9 @@ protected:
 
 	// 마지막으로 적용된 모드 비용 GE 핸들
 	mutable FActiveGameplayEffectHandle LastAppliedModCostHandle;
+
+	// 적용된 모드 비용 GE 핸들 목록
+	mutable TArray<FActiveGameplayEffectHandle> ActiveModCostHandles;
 
 private:
 	// ========= Mod Base  =============

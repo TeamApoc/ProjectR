@@ -154,6 +154,12 @@ void UPRGA_Fire::OnFailActivateAbility(const UAbilitySystemComponent* InOwnerASC
 		return;
 	}
 
+	if (HasDynamicActivationBlockedTag(InOwnerASC, InAbilitySpec))
+	{
+		// 비활성 슬롯 차단
+		return;
+	}
+
 	const FGameplayAbilityActorInfo* ActorInfo = InOwnerASC->AbilityActorInfo.Get();
 	if (ActorInfo == nullptr || CheckCost(InAbilitySpec->Handle, ActorInfo))
 	{

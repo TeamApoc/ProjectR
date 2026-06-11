@@ -6,6 +6,7 @@
 #include "Abilities/Tasks/AbilityTask_PlayMontageAndWait.h"
 #include "Abilities/Tasks/AbilityTask_WaitGameplayEvent.h"
 #include "Animation/AnimMontage.h"
+#include "ProjectR/AbilitySystem/Data/PRBarrierAbilityDataAsset.h"
 #include "ProjectR/Character/Enemy/Penitent/PRPenitentCharacter.h"
 #include "ProjectR/Combat/PRCombatGameplayTags.h"
 #include "ProjectR/PRGameplayTags.h"
@@ -40,6 +41,8 @@ bool UPRGameplayAbility_PenitentBarrierLaunch::CanActivateAbility(const FGamepla
 
 	return IsValid(AbilitySystemComponent)
 		&& IsValid(PenitentCharacter)
+		&& IsValid(BarrierData)
+		&& BarrierData->LaunchSpeed > 0.0f
 		&& PenitentCharacter->HasActiveBarrier()
 		&& AbilitySystemComponent->HasMatchingGameplayTag(PRGameplayTags::State_Enemy_Penitent_BarrierSummon);
 }
@@ -186,8 +189,13 @@ bool UPRGameplayAbility_PenitentBarrierLaunch::ExecuteBarrierLaunch()
 	}
 
 	// 노티파이 프레임 기준 배리어 발사 상태 확정
+	if (!IsValid(BarrierData) || BarrierData->LaunchSpeed <= 0.0f)
+	{
+		return false;
+	}
+
 	BarrierActor->DetachFromActor(FDetachmentTransformRules::KeepWorldTransform);
-	BarrierActor->LaunchGroundBoxProjectile(PenitentCharacter->GetActorForwardVector(), LaunchSpeed);
+	BarrierActor->LaunchGroundBoxProjectile(PenitentCharacter->GetActorForwardVector(), BarrierData->LaunchSpeed);
 	PenitentCharacter->CleanupSummonedBarrier(false);
 	return true;
 }

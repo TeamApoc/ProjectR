@@ -22,6 +22,21 @@ bool UPRGameplayAbility::CanActivateAbility(const FGameplayAbilitySpecHandle Han
                                              const FGameplayTagContainer* TargetTags,
                                              FGameplayTagContainer* OptionalRelevantTags) const
 {
+	if (ActorInfo)
+	{
+		UAbilitySystemComponent* ASC = ActorInfo->AbilitySystemComponent.Get();
+		const FGameplayAbilitySpec* AbilitySpec = IsValid(ASC) ? ASC->FindAbilitySpecFromHandle(Handle) : nullptr;
+		if (HasDynamicActivationBlockedTag(ASC, AbilitySpec))
+		{
+			if (OptionalRelevantTags)
+			{
+				// 슬롯 차단
+				OptionalRelevantTags->AddTag(PRGameplayTags::Fail_Blocked);
+			}
+			return false;
+		}
+	}
+
 	// GAS 표준 검사 후 실패 사유 분류. OptionalRelevantTags에 Fail.* 누적
 	const bool bCanActivate = Super::CanActivateAbility(Handle, ActorInfo, SourceTags, TargetTags, OptionalRelevantTags);
 	if (!bCanActivate && OptionalRelevantTags && ActorInfo)
@@ -63,6 +78,40 @@ bool UPRGameplayAbility::CanActivateAbility(const FGameplayAbilitySpecHandle Han
 	}
 	
 	return bCanActivate;
+}
+
+bool UPRGameplayAbility::HasDynamicActivationBlockedTag(const UAbilitySystemComponent* InOwnerASC,
+	const FGameplayAbilitySpec* InAbilitySpec) const
+{
+	if (!IsValid(InOwnerASC) || InAbilitySpec == nullptr)
+	{
+		return false;
+	}
+
+	const FGameplayTagContainer& DynamicTags = InAbilitySpec->GetDynamicSpecSourceTags();
+	const bool bBlocksPrimarySlot = DynamicTags.HasTagExact(PRGameplayTags::State_CurrentWeaponSlot_Primary);
+	const bool bBlocksSecondarySlot = DynamicTags.HasTagExact(PRGameplayTags::State_CurrentWeaponSlot_Secondary);
+	if (!bBlocksPrimarySlot && !bBlocksSecondarySlot)
+	{
+		return false;
+	}
+
+	const FGameplayAbilityActorInfo* ActorInfo = InOwnerASC->AbilityActorInfo.Get();
+	const UPRWeaponManagerComponent* WeaponManager = GetWeaponManager(ActorInfo);
+	if (IsValid(WeaponManager))
+	{
+		const EPRWeaponSlotType CurrentSlot = WeaponManager->GetCurrentWeaponSlot();
+		if (CurrentSlot == EPRWeaponSlotType::Primary || CurrentSlot == EPRWeaponSlotType::Secondary)
+		{
+			return (bBlocksPrimarySlot && CurrentSlot == EPRWeaponSlotType::Primary)
+				|| (bBlocksSecondarySlot && CurrentSlot == EPRWeaponSlotType::Secondary);
+		}
+	}
+
+	FGameplayTagContainer OwnedTags;
+	InOwnerASC->GetOwnedGameplayTags(OwnedTags);
+	return (bBlocksPrimarySlot && OwnedTags.HasTagExact(PRGameplayTags::State_CurrentWeaponSlot_Primary))
+		|| (bBlocksSecondarySlot && OwnedTags.HasTagExact(PRGameplayTags::State_CurrentWeaponSlot_Secondary));
 }
 
 UPRWeaponDataAsset* UPRGameplayAbility::GetCurrentWeaponData() const

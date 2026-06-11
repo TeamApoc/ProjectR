@@ -18,7 +18,10 @@ class PROJECTR_API UPRWeaponModDataAsset : public UPRItemDataAsset
 public:
 	UPRWeaponModDataAsset();
 
-	void GiveToAbilitySystem(UAbilitySystemComponent* TargetASC, FPRAbilitySetHandles& OutHandles, UObject* InSourceObject);
+	void GiveToAbilitySystem(UAbilitySystemComponent* TargetASC,
+		FPRAbilitySetHandles& OutHandles,
+		UObject* InSourceObject,
+		const FGameplayTagContainer* AdditionalDynamicTags = nullptr);
 	
 public:
 	// Mod 분류와 호환성 검증에 사용할 태그 목록

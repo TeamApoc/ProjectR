@@ -19,6 +19,8 @@ DEFINE_LOG_CATEGORY_STATIC(LogPRSession, Log, All);
 namespace
 {
 	const FName ProjectRSessionName(TEXT("ProjectRSession"));
+	const FName ProjectRSessionProtocolKey(TEXT("PROJECTREVENENTPROTOCOL"));
+	const FString ProjectRSessionProtocolValue(TEXT("1"));
 	constexpr int32 LocalUserNum = 0;
 
 	FString NormalizeMapPackageName(const FString& MapPackageName)
@@ -151,14 +153,17 @@ void UPRSessionSubsystem::StartHost(const FPRHostSessionParams& Params)
 		return;
 	}
 
+	// Steam 로비 공개 세션 설정
 	PendingHostSettings = MakeShared<FOnlineSessionSettings>();
 	PendingHostSettings->NumPublicConnections = FMath::Max(Params.MaxPlayers, 1);
 	PendingHostSettings->NumPrivateConnections = 0;
-	PendingHostSettings->bIsLANMatch = true;
+	PendingHostSettings->bIsLANMatch = false;
 	PendingHostSettings->bShouldAdvertise = !Params.bPrivate;
 	PendingHostSettings->bAllowJoinInProgress = true;
-	PendingHostSettings->bAllowJoinViaPresence = false;
-	PendingHostSettings->bUsesPresence = false;
+	PendingHostSettings->bAllowJoinViaPresence = true;
+	PendingHostSettings->bUsesPresence = true;
+	PendingHostSettings->bUseLobbiesIfAvailable = true;
+	PendingHostSettings->Set(ProjectRSessionProtocolKey, ProjectRSessionProtocolValue, EOnlineDataAdvertisementType::ViaOnlineService);
 	PendingHostSettings->Set(SETTING_MAPNAME, Params.MapName.ToString(), EOnlineDataAdvertisementType::ViaOnlineServiceAndPing);
 
 	CreateSessionCompleteDelegateHandle = SessionInterface->AddOnCreateSessionCompleteDelegate_Handle(
@@ -244,10 +249,18 @@ void UPRSessionSubsystem::StartJoin(const FPRJoinSessionParams& Params)
 		return;
 	}
 
+	// Steam 로비 검색 조건
 	PendingSessionSearch = MakeShared<FOnlineSessionSearch>();
-	PendingSessionSearch->bIsLanQuery = true;
+	PendingSessionSearch->bIsLanQuery = false;
 	PendingSessionSearch->MaxSearchResults = 20;
 	PendingSessionSearch->PingBucketSize = 50;
+	// Steam 테스트 App ID 480의 외부 로비 제외용 프로토콜 필터
+	PendingSessionSearch->QuerySettings.Set(ProjectRSessionProtocolKey, ProjectRSessionProtocolValue, EOnlineComparisonOp::Equals);
+#if defined(SEARCH_LOBBIES)
+	PendingSessionSearch->QuerySettings.Set(SEARCH_LOBBIES, true, EOnlineComparisonOp::Equals);
+#else
+	PendingSessionSearch->QuerySettings.Set(SEARCH_PRESENCE, true, EOnlineComparisonOp::Equals);
+#endif
 
 	SetState(EPRSessionState::Finding);
 

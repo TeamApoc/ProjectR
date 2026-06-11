@@ -117,6 +117,9 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "ProjectR|UI")
 	void OpenShop(UPRShopComponent* ShopComponent);
 
+	// 로딩 화면 뒤에서 상점 위젯 생성과 선택적 렌더 프리웜
+	void PrewarmShopUI(const TArray<UPRShopComponent*>& ShopComponents, bool bRenderPrewarm, FSimpleDelegate OnComplete);
+
 	// 웨이포인트 Travel UI 열기
 	UFUNCTION(BlueprintCallable, Category = "ProjectR|UI")
 	void OpenWaypointTravel(bool bShowWorldResetButton = false);

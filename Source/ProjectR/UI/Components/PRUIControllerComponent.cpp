@@ -7,6 +7,7 @@
 #include "Engine/LocalPlayer.h"
 #include "GameFramework/PlayerController.h"
 #include "Kismet/GameplayStatics.h"
+#include "TimerManager.h"
 #include "ProjectR/Character/PRPlayerCharacter.h"
 #include "ProjectR/ItemSystem/Components/PREquipmentManagerComponent.h"
 #include "ProjectR/ItemSystem/Components/PRInventoryComponent.h"
@@ -410,7 +411,74 @@ void UPRUIControllerComponent::OpenShop(UPRShopComponent* ShopComponent)
 	}
 
 	CreatedShopWidget->SetShopContext(ShopComponent);
+	CreatedShopWidget->SetVisibility(ESlateVisibility::Visible);
 	UIManager->PushUIInstance(CreatedShopWidget);
+}
+
+void UPRUIControllerComponent::PrewarmShopUI(const TArray<UPRShopComponent*>& ShopComponents, bool bRenderPrewarm, FSimpleDelegate OnComplete)
+{
+	if (!IsLocalPlayer())
+	{
+		OnComplete.ExecuteIfBound();
+		return;
+	}
+
+	UPRShopComponent* RepresentativeShopComponent = nullptr;
+	for (UPRShopComponent* ShopComponent : ShopComponents)
+	{
+		if (IsValid(ShopComponent))
+		{
+			RepresentativeShopComponent = ShopComponent;
+			break;
+		}
+	}
+
+	if (!IsValid(RepresentativeShopComponent))
+	{
+		OnComplete.ExecuteIfBound();
+		return;
+	}
+
+	UPRShopWidget* CreatedShopWidget = GetOrCreateShopWidget();
+	if (!IsValid(CreatedShopWidget))
+	{
+		OnComplete.ExecuteIfBound();
+		return;
+	}
+
+	CreatedShopWidget->SetShopContext(RepresentativeShopComponent);
+	if (!bRenderPrewarm)
+	{
+		OnComplete.ExecuteIfBound();
+		return;
+	}
+
+	const ESlateVisibility PreviousVisibility = CreatedShopWidget->GetVisibility();
+	CreatedShopWidget->SetVisibility(ESlateVisibility::HitTestInvisible);
+	CreatedShopWidget->AddToViewport(-1000);
+
+	UWorld* World = GetWorld();
+	if (!IsValid(World))
+	{
+		CreatedShopWidget->RemoveFromParent();
+		CreatedShopWidget->SetVisibility(PreviousVisibility);
+		OnComplete.ExecuteIfBound();
+		return;
+	}
+
+	FTimerDelegate TimerDelegate;
+	TimerDelegate.BindWeakLambda(this, [WeakWidget = TWeakObjectPtr<UPRShopWidget>(CreatedShopWidget), PreviousVisibility, OnComplete]()
+	{
+		if (UPRShopWidget* ShopWidget = WeakWidget.Get())
+		{
+			ShopWidget->RemoveFromParent();
+			ShopWidget->SetVisibility(PreviousVisibility);
+		}
+
+		OnComplete.ExecuteIfBound();
+	});
+
+	World->GetTimerManager().SetTimerForNextTick(TimerDelegate);
 }
 
 void UPRUIControllerComponent::OpenWaypointTravel(bool bShowWorldResetButton)

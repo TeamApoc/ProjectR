@@ -190,25 +190,7 @@ UDataTable* UPRPlayerStatsPanelWidget::ResolveTraitRuleTable() const
 
 FText UPRPlayerStatsPanelWidget::GetTraitDisplayName(EPRTraitStatType TraitType) const
 {
-	switch (TraitType)
-	{
-	case EPRTraitStatType::MaxHealth:
-		return FText::FromString(TEXT("최대 체력"));
-	case EPRTraitStatType::Armor:
-		return FText::FromString(TEXT("방어력"));
-	case EPRTraitStatType::MovementSpeed:
-		return FText::FromString(TEXT("이동 속도"));
-	case EPRTraitStatType::AttackPower:
-		return FText::FromString(TEXT("공격력"));
-	case EPRTraitStatType::MaxStamina:
-		return FText::FromString(TEXT("최대 스태미너"));
-	case EPRTraitStatType::CriticalHitChance:
-		return FText::FromString(TEXT("치명타 확률"));
-	case EPRTraitStatType::CriticalDamageMultiplier:
-		return FText::FromString(TEXT("치명타 피해"));
-	default:
-		return FText::FromString(TEXT("알 수 없음"));
-	}
+	return PRStaticTexts::GetTraitDisplayText(TraitType);
 }
 
 FText UPRPlayerStatsPanelWidget::MakeTraitValueText(EPRTraitStatType TraitType, float Value) const

@@ -30,6 +30,8 @@
 #include "Engine/DataTable.h"
 #include "ProjectR/PRGameplayTags.h"
 #include "ProjectR/System/PRAssetManager.h"
+#include "ProjectR/System/PREventManagerSubsystem.h"
+#include "ProjectR/System/PREventTypes.h"
 #include "ProjectR/System/PRRespawnSubsystem.h"
 #include "ProjectR/System/PRWorldTickOptimizerSubsystem.h"
 #include "ProjectR/Player/PRPlayerController.h"
@@ -585,6 +587,12 @@ void APREnemyBaseCharacter::GiveModGauge(const FPRDamageAppliedContext& Context)
 		return;
 	}
 
+    // 드론이 준 피해로는 모드 게이지를 충전하지 않음
+	if (Context.EffectTags.HasTagExact(PRCombatGameplayTags::Ability_Source_Drone))
+	{
+		return;
+	}
+
 	UAbilitySystemComponent* TargetASC = UAbilitySystemBlueprintLibrary::GetAbilitySystemComponent(
 		Context.Instigator.Get());
 	if (!IsValid(TargetASC))
@@ -757,6 +765,22 @@ void APREnemyBaseCharacter::OnPostDamageApplied(const FPRDamageAppliedContext& C
 		if (UPRCombatStatics::GetActorTeam(ThreatSourceActor) == EPRTeam::Player)
 		{
 			ThreatComponent->AddDamageThreat(ThreatSourceActor, Context.FinalDamage);
+
+			if (!Context.EffectTags.HasTagExact(PRCombatGameplayTags::Ability_Source_Drone))
+			{
+				if (UWorld* World = GetWorld())
+				{
+					if (UPREventManagerSubsystem* EventManager = World->GetSubsystem<UPREventManagerSubsystem>())
+					{
+						FPRPlayerAttackTargetPayload Payload;
+						Payload.Attacker = ThreatSourceActor;
+						Payload.Target = this;
+						Payload.ServerWorldTimeSeconds = World->GetTimeSeconds();
+						Payload.HitResult = Context.HitResult;
+						EventManager->BroadcastTyped(PRGameplayTags::Event_Player_AttackTarget, Payload);
+					}
+				}
+			}
 		}
 	}
 

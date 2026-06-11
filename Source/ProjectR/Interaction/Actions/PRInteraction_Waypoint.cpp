@@ -12,17 +12,19 @@
 #include "ProjectR/Player/PRPlayerController.h"
 #include "ProjectR/PRGameplayTags.h"
 #include "ProjectR/Player/PRPlayerState.h"
+#include "ProjectR/System/PRDeveloperSettings.h"
 #include "ProjectR/System/PRRespawnSubsystem.h"
 #include "ProjectR/Utils/PRGameplayStatics.h"
-#include "ProjectR/World/PRWorldDataAsset.h"
+#include "ProjectR/World/PRWorldRegistry.h"
 #include "ProjectR/World/PRWaypointActor.h"
 #include "UObject/ConstructorHelpers.h"
 
 UPRInteraction_Waypoint::UPRInteraction_Waypoint()
 {
+	PartySyncCheckDelay = 2.1f;
 }
 
-void UPRInteraction_Waypoint::RequestWaypointTravel(APRPlayerController* RequestingController, FSoftObjectPath WorldDataAssetPath, FGameplayTag WaypointId)
+void UPRInteraction_Waypoint::RequestWaypointTravel(APRPlayerController* RequestingController, const FPRWaypointKey& WaypointKey)
 {
 	AActor* OwnerActor = GetOwner();
 	if (!IsValid(OwnerActor) || !OwnerActor->HasAuthority())
@@ -36,16 +38,34 @@ void UPRInteraction_Waypoint::RequestWaypointTravel(APRPlayerController* Request
 		return;
 	}
 
-	UPRWorldDataAsset* WorldDataAsset = nullptr;
-	if (!ValidateWaypointTravelRequest(WorldDataAssetPath, WaypointId, WorldDataAsset))
+	TSoftObjectPtr<UWorld> MapAsset;
+	if (!ValidateWaypointTravelRequest(WaypointKey, MapAsset))
 	{
 		return;
 	}
 
+	UWorld* World = GetWorld();
+	APRGameStateBase* GameState = IsValid(World) ? World->GetGameState<APRGameStateBase>() : nullptr;
+	if (!IsValid(GameState))
+	{
+		UE_LOG(LogTemp, Warning, TEXT("WaypointTravel rejected: game state is not available"));
+		return;
+	}
+
+	FPRWaypointKey InteractedWaypointKey;
+	if (!ResolveInteractedWaypointKey(InteractedWaypointKey))
+	{
+		UE_LOG(LogTemp, Warning, TEXT("WaypointTravel rejected: interacted waypoint is not resolved"));
+		return;
+	}
+
+	// 실제 Travel 확정 직전 마지막 상호작용 Waypoint 기록
+	GameState->VisitWaypoint(InteractedWaypointKey);
+
 	// UI 선택 대기 종료
 	bWaitingForWaypointTravelSelection = false;
 	bWaitingActivateFadeOut = false;
-	if (UWorld* World = GetWorld())
+	if (IsValid(World))
 	{
 		// Travel UI 오픈 예약 정리
 		World->GetTimerManager().ClearTimer(WaypointActivateTimerHandle);
@@ -54,7 +74,7 @@ void UPRInteraction_Waypoint::RequestWaypointTravel(APRPlayerController* Request
 	UnlockPlayerInteraction();
 
 	// 선택 노드 목적지 이동
-	StartTravelToSpawnPoint(WorldDataAsset->MapAsset, WaypointId);
+	StartTravelToSpawnPoint(MapAsset, WaypointKey.WaypointId, TravelUIFadeDuration);
 }
 
 void UPRInteraction_Waypoint::CancelWaypointTravel(APRPlayerController* RequestingController)
@@ -136,20 +156,21 @@ bool UPRInteraction_Waypoint::IsPartySyncActionLocked() const
 
 void UPRInteraction_Waypoint::RecordWaypointActivation()
 {
-	APRGameStateBase* GameState = GetWorld()->GetGameState<APRGameStateBase>();
-	const APRWaypointActor* WaypointActor = Cast<APRWaypointActor>(GetOwner());
-	if (!IsValid(GameState) || !IsValid(WaypointActor))
+	UWorld* World = GetWorld();
+	APRGameStateBase* GameState = IsValid(World) ? World->GetGameState<APRGameStateBase>() : nullptr;
+	if (!IsValid(GameState))
 	{
 		return;
 	}
 
-	const FGameplayTag SpawnPointId = WaypointActor->GetSpawnPointId();
+	FPRWaypointKey ActivatedWaypointKey;
+	if (!ResolveInteractedWaypointKey(ActivatedWaypointKey))
+	{
+		return;
+	}
 
-	// 활성 Waypoint 기록
-	GameState->SetLastActiveWaypointId(SpawnPointId);
-
-	// 전멸 리스폰 기준 체크포인트 기록
-	GameState->SetActiveCheckpoint(SpawnPointId);
+	// Waypoint 해금 상태 기록
+	GameState->ActivateWaypoint(ActivatedWaypointKey);
 }
 
 void UPRInteraction_Waypoint::RespawnWorldObjects()
@@ -236,8 +257,8 @@ void UPRInteraction_Waypoint::ScheduleWaypointTravelUI()
 
 	bWaitingActivateFadeOut = true;
 
-	// 전원 FadeOut 알림
-	NotifyMapTransitionToAllPlayers(EPRMapTransitionType::MapTravel);
+	// 전원 Travel UI 진입 FadeOut 알림
+	NotifyMapTransitionToAllPlayers(EPRMapTransitionType::WaypointTravelUI);
 
 	World->GetTimerManager().ClearTimer(WaypointActivateTimerHandle);
 	if (TravelUIFadeDuration <= 0.0f)
@@ -293,7 +314,7 @@ bool UPRInteraction_Waypoint::OpenWaypointTravelUI()
 	HostController->SetPendingWaypointTravelInteraction(this);
 
 	// 호스트 로컬 클라이언트 UI 열기
-	HostController->ClientOpenWaypointTravelUI();
+	HostController->ClientOpenWaypointTravelUI(ShouldShowWorldResetButton());
 	return true;
 }
 
@@ -388,9 +409,9 @@ APRPlayerController* UPRInteraction_Waypoint::FindHostPlayerController() const
 	return nullptr;
 }
 
-bool UPRInteraction_Waypoint::ValidateWaypointTravelRequest(FSoftObjectPath WorldDataAssetPath, FGameplayTag WaypointId, UPRWorldDataAsset*& OutWorldDataAsset) const
+bool UPRInteraction_Waypoint::ValidateWaypointTravelRequest(const FPRWaypointKey& WaypointKey, TSoftObjectPtr<UWorld>& OutMapAsset) const
 {
-	OutWorldDataAsset = nullptr;
+	OutMapAsset.Reset();
 
 	if (!bWaitingForWaypointTravelSelection)
 	{
@@ -398,34 +419,95 @@ bool UPRInteraction_Waypoint::ValidateWaypointTravelRequest(FSoftObjectPath Worl
 		return false;
 	}
 
-	if (!WorldDataAssetPath.IsValid() || !WaypointId.IsValid())
+	if (!WaypointKey.IsValid())
 	{
 		UE_LOG(LogTemp, Warning, TEXT("WaypointTravel rejected: invalid destination data"));
 		return false;
 	}
 
-	// UI 임시 에셋 경로 서버 로드
-	UPRWorldDataAsset* WorldDataAsset = Cast<UPRWorldDataAsset>(WorldDataAssetPath.TryLoad());
-	if (!IsValid(WorldDataAsset))
+	const UPRWorldRegistry* WorldRegistry = GetWorldRegistry();
+	if (!IsValid(WorldRegistry))
 	{
-		UE_LOG(LogTemp, Warning, TEXT("WaypointTravel rejected: world data asset load failed"));
+		UE_LOG(LogTemp, Warning, TEXT("WaypointTravel rejected: world registry is not configured"));
 		return false;
 	}
 
-	if (WorldDataAsset->MapAsset.IsNull())
+	const bool bRegisteredWorld = WorldRegistry->IsWorldIdRegistered(WaypointKey.WorldId);
+	const bool bRegisteredDevWorld = WorldRegistry->IsDevWorldIdRegistered(WaypointKey.WorldId);
+	if (!bRegisteredWorld)
 	{
-		UE_LOG(LogTemp, Warning, TEXT("WaypointTravel rejected: target map is null"));
+		if (!bRegisteredDevWorld)
+		{
+			UE_LOG(LogTemp, Warning, TEXT("WaypointTravel rejected: world id is not registered %s"), *WaypointKey.WorldId.ToString());
+			return false;
+		}
+
+		if (!UPRWorldRegistry::IsDevTravelEnabled())
+		{
+			UE_LOG(LogTemp, Warning, TEXT("WaypointTravel rejected: dev world travel is disabled %s"), *WaypointKey.WorldId.ToString());
+			return false;
+		}
+	}
+
+	if (!WorldRegistry->HasWaypoint(WaypointKey))
+	{
+		UE_LOG(LogTemp, Warning, TEXT("WaypointTravel rejected: waypoint node not found %s"), *WaypointKey.WaypointId.ToString());
 		return false;
 	}
 
-	if (!WorldDataAsset->HasWaypointNode(WaypointId))
+	if (bRegisteredWorld)
 	{
-		UE_LOG(LogTemp, Warning, TEXT("WaypointTravel rejected: waypoint node not found %s"), *WaypointId.ToString());
+		const APRGameStateBase* GameState = GetWorld() ? GetWorld()->GetGameState<APRGameStateBase>() : nullptr;
+		if (!IsValid(GameState) || !GameState->IsWaypointUnlocked(WaypointKey))
+		{
+			UE_LOG(LogTemp, Warning, TEXT("WaypointTravel rejected: waypoint is locked %s"), *WaypointKey.WaypointId.ToString());
+			return false;
+		}
+	}
+
+	if (!WorldRegistry->ResolveMapAsset(WaypointKey.WorldId, OutMapAsset))
+	{
+		UE_LOG(LogTemp, Warning, TEXT("WaypointTravel rejected: target map is null %s"), *WaypointKey.WorldId.ToString());
 		return false;
 	}
 
-	OutWorldDataAsset = WorldDataAsset;
-	return true;
+	return !OutMapAsset.IsNull();
+}
+
+const UPRWorldRegistry* UPRInteraction_Waypoint::GetWorldRegistry() const
+{
+	const UPRDeveloperSettings* Settings = GetDefault<UPRDeveloperSettings>();
+	if (!IsValid(Settings))
+	{
+		return nullptr;
+	}
+
+	return Settings->GetWorldRegistrySync();
+}
+
+bool UPRInteraction_Waypoint::ResolveInteractedWaypointKey(FPRWaypointKey& OutWaypointKey) const
+{
+	OutWaypointKey = FPRWaypointKey();
+
+	UWorld* World = GetWorld();
+	const APRWaypointActor* WaypointActor = Cast<APRWaypointActor>(GetOwner());
+	const UPRWorldRegistry* WorldRegistry = GetWorldRegistry();
+	if (!IsValid(World) || !IsValid(WaypointActor) || !IsValid(WorldRegistry))
+	{
+		UE_LOG(LogTemp, Warning, TEXT("Waypoint key resolve failed: invalid owner or registry"));
+		return false;
+	}
+
+	FGameplayTag CurrentWorldId;
+	if (!WorldRegistry->FindWorldIdByMap(World, CurrentWorldId))
+	{
+		UE_LOG(LogTemp, Warning, TEXT("Waypoint key resolve failed: current world is not registered"));
+		return false;
+	}
+
+	OutWaypointKey.WorldId = CurrentWorldId;
+	OutWaypointKey.WaypointId = WaypointActor->GetSpawnPointId();
+	return OutWaypointKey.IsValid();
 }
 
 void UPRInteraction_Waypoint::BroadcastWaypointCancelEventToAllPlayers() const

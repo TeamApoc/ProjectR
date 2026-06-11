@@ -5,14 +5,19 @@
 #include "CoreMinimal.h"
 #include "ProjectR/Character/Enemy/PRBossBaseCharacter.h"
 #include "UObject/SoftObjectPath.h"
+#include "TimerManager.h"
 #include "PRFaerinCharacter.generated.h"
 
 class UPRFaerinDebugDrawComponent;
 class UPRFaerinCombatDirectorComponent;
 class UPRFaerinGodFallComponent;
+class UPRFaerinPatternVFXComponent;
 class UPRFaerinTeleportVFXComponent;
 class UMotionWarpingComponent;
+class UMaterialInstanceDynamic;
+class UNiagaraComponent;
 class UNiagaraSystem;
+class UTexture;
 
 // Faerin 보스 본체 클래스다.
 // 패턴 분기와 포털/검 생성 로직은 넣지 않고, 보스 공통 베이스에 Faerin 기본 데이터만 얹는다.
@@ -40,18 +45,59 @@ public:
 	UFUNCTION(BlueprintPure, Category = "ProjectR|AI|Boss|Faerin|TeleportVFX")
 	UPRFaerinTeleportVFXComponent* GetTeleportVFXComponent() const { return TeleportVFXComponent; }
 
+	// Faerin 패턴 VFX를 수동으로 켜고 끄는 컴포넌트를 반환한다.
+	UFUNCTION(BlueprintPure, Category = "ProjectR|AI|Boss|Faerin|PatternVFX")
+	UPRFaerinPatternVFXComponent* GetPatternVFXComponent() const { return PatternVFXComponent; }
+
 	UFUNCTION(BlueprintPure, Category = "ProjectR|AI|Boss|Faerin")
 	bool IsBossEncounterActive() const { return bBossEncounterActive; }
 
 	// 근거리 텔레포트 순간 보스 몸 위치의 Niagara를 모든 클라이언트에 재생한다.
 	UFUNCTION(NetMulticast, Reliable)
-	void Multicast_SpawnNearTeleportBodyNiagara(UNiagaraSystem* NiagaraSystem, FName AttachSocketName);
+	void Multicast_SpawnNearTeleportBodyNiagara(UNiagaraSystem* NiagaraSystem, FName AttachSocketName, float LifeSeconds);
+
+	// Death Dissolve와 같은 방식으로 근거리 텔레포트용 몸 Dissolve Niagara/Material 파라미터를 모든 클라이언트에서 재생한다.
+	UFUNCTION(NetMulticast, Reliable)
+	void Multicast_PlayNearTeleportDissolveVisual(
+		UNiagaraSystem* DissolveNiagaraSystem,
+		FName AttachSocketName,
+		float DissolveDuration,
+		float DissolveStartValue,
+		float DissolveEndValue,
+		FName DissolveScalarParameterName,
+		FName NiagaraDissolveParameterName,
+		UTexture* DissolveTexture,
+		FVector2D DissolveTextureUV,
+		float DissolveTickInterval);
 
 	// 서버가 확정한 월드 위치에 Faerin 패턴용 Niagara를 모든 클라이언트에서 재생한다.
 	UFUNCTION(NetMulticast, Reliable)
 	void Multicast_SpawnFaerinWorldNiagara(FSoftObjectPath NiagaraSystemPath,
 		FVector_NetQuantize Location,
 		FRotator Rotation,
+		FVector Scale,
+		float LifeSeconds);
+
+	// 서버가 확정한 월드 위치에 Faerin 패턴용 Niagara를 key 기반으로 재생한다. 이후 같은 key로 즉시 정리할 수 있다.
+	UFUNCTION(NetMulticast, Reliable)
+	void Multicast_SpawnFaerinTrackedWorldNiagara(FName EffectKey,
+		FSoftObjectPath NiagaraSystemPath,
+		FVector_NetQuantize Location,
+		FRotator Rotation,
+		FVector Scale,
+		float LifeSeconds);
+
+	// key 기반으로 생성된 Faerin 패턴용 Niagara를 모든 클라이언트에서 즉시 정리한다.
+	UFUNCTION(NetMulticast, Reliable)
+	void Multicast_StopFaerinTrackedNiagara(FName EffectKey);
+
+	// 지정 대상 Actor의 Mesh/Socket에 Faerin 패턴용 Niagara를 모든 클라이언트에서 부착 재생한다.
+	UFUNCTION(NetMulticast, Reliable)
+	void Multicast_SpawnFaerinAttachedNiagara(FSoftObjectPath NiagaraSystemPath,
+		AActor* AttachActor,
+		FName AttachSocketName,
+		FVector LocationOffset,
+		FRotator RotationOffset,
 		FVector Scale,
 		float LifeSeconds);
 
@@ -62,7 +108,9 @@ public:
 		FRotator ReappearRotation,
 		UNiagaraSystem* TeleportOutNiagaraSystem,
 		UNiagaraSystem* ReappearDissolveNiagaraSystem,
-		FName AttachSocketName);
+		FName AttachSocketName,
+		float TeleportOutLifeSeconds,
+		float ReappearDissolveLifeSeconds);
 
 	// 근거리 텔레포트 사라짐/재등장 상태를 모든 클라이언트에 맞춘다.
 	UFUNCTION(NetMulticast, Reliable)
@@ -90,13 +138,17 @@ protected:
 	UPROPERTY(VisibleAnywhere, Category = "ProjectR|AI|Boss|Faerin|TeleportVFX")
 	TObjectPtr<UPRFaerinTeleportVFXComponent> TeleportVFXComponent;
 
+	// 특정 패턴에서 수동 호출로 표시/정리할 Faerin 패턴 VFX 컴포넌트다.
+	UPROPERTY(VisibleAnywhere, Category = "ProjectR|AI|Boss|Faerin|PatternVFX")
+	TObjectPtr<UPRFaerinPatternVFXComponent> PatternVFXComponent;
+
 	// 공격 루트모션 방향 보정을 위한 Motion Warping 컴포넌트다.
 	UPROPERTY(VisibleAnywhere, Category = "ProjectR|Animation")
 	TObjectPtr<UMotionWarpingComponent> MotionWarpingComponent;
 
 private:
 	// 현재 보스 Mesh 위치를 기준으로 근거리 텔레포트 Niagara를 재생한다.
-	void SpawnNearTeleportBodyNiagaraLocal(UNiagaraSystem* NiagaraSystem, FName AttachSocketName) const;
+	void SpawnNearTeleportBodyNiagaraLocal(UNiagaraSystem* NiagaraSystem, FName AttachSocketName, float LifeSeconds) const;
 
 	// 서버가 전달한 soft path를 클라이언트에서 로드해 월드 Niagara를 재생한다.
 	void SpawnFaerinWorldNiagaraLocal(const FSoftObjectPath& NiagaraSystemPath,
@@ -104,6 +156,43 @@ private:
 		const FRotator& Rotation,
 		const FVector& Scale,
 		float LifeSeconds) const;
+
+	// 서버가 전달한 soft path를 클라이언트에서 로드해 key 기반 월드 Niagara를 재생한다.
+	void SpawnFaerinTrackedWorldNiagaraLocal(FName EffectKey,
+		const FSoftObjectPath& NiagaraSystemPath,
+		const FVector& Location,
+		const FRotator& Rotation,
+		const FVector& Scale,
+		float LifeSeconds);
+
+	// key 기반 월드 Niagara를 즉시 정리한다.
+	void StopFaerinTrackedNiagaraLocal(FName EffectKey);
+
+	// 서버가 전달한 soft path를 클라이언트에서 로드해 대상 Actor의 Mesh/Socket에 Niagara를 부착 재생한다.
+	void SpawnFaerinAttachedNiagaraLocal(const FSoftObjectPath& NiagaraSystemPath,
+		AActor* AttachActor,
+		FName AttachSocketName,
+		const FVector& LocationOffset,
+		const FRotator& RotationOffset,
+		const FVector& Scale,
+		float LifeSeconds) const;
+
+
+	// 근거리 텔레포트 사라짐/재등장 Dissolve Material/Niagara 진행 값을 초기화하고 보간한다.
+	void StartNearTeleportDissolveVisual(
+		UNiagaraSystem* DissolveNiagaraSystem,
+		FName AttachSocketName,
+		float DissolveDuration,
+		float DissolveStartValue,
+		float DissolveEndValue,
+		FName DissolveScalarParameterName,
+		FName NiagaraDissolveParameterName,
+		UTexture* DissolveTexture,
+		const FVector2D& DissolveTextureUV,
+		float DissolveTickInterval);
+	void TickNearTeleportDissolveVisual();
+	void CompleteNearTeleportDissolveVisual();
+	void ApplyNearTeleportDissolveVisualValue(float DissolveValue);
 
 	// EventManager로 보스 조우 시작 알림 브로드캐스트
 	void BroadcastBossEncounterBegin();
@@ -120,6 +209,22 @@ private:
 private:
 	UPROPERTY(ReplicatedUsing = OnRep_BossEncounterActive)
 	bool bBossEncounterActive = false;
+
+	TMap<FName, TWeakObjectPtr<UNiagaraComponent>> TrackedFaerinNiagaraComponents;
+
+	UPROPERTY(Transient)
+	TArray<TObjectPtr<UMaterialInstanceDynamic>> NearTeleportDissolveDynamicMaterials;
+
+	UPROPERTY(Transient)
+	TObjectPtr<UNiagaraComponent> ActiveNearTeleportDissolveNiagara;
+	FTimerHandle NearTeleportDissolveTickTimerHandle;
+	float NearTeleportDissolveElapsedTime = 0.0f;
+	float NearTeleportDissolveDuration = 0.0f;
+	float NearTeleportDissolveStartValue = 0.0f;
+	float NearTeleportDissolveEndValue = 1.0f;
+	float NearTeleportDissolveTickInterval = 0.016f;
+	FName NearTeleportDissolveScalarParameterName = TEXT("DissolveAmount");
+	FName NearTeleportNiagaraDissolveParameterName = TEXT("User.DissolveAmount");
 
 	bool bBossEncounterEventBroadcasted = false;
 };

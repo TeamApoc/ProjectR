@@ -46,6 +46,8 @@ namespace
 			return NSLOCTEXT("ProjectR", "HUDMessage_WaitingForOtherPlayers", "다른 플레이어를 기다리는 중");
 		case EPRHUDMessageType::OtherPlayersWaiting:
 			return NSLOCTEXT("ProjectR", "HUDMessage_OtherPlayersWaiting", "다른 플레이어들이 기다리는 중");
+		case EPRHUDMessageType::MapTravelInProgress:
+			return NSLOCTEXT("ProjectR", "HUDMessage_MapTravelInProgress", "이동 중");
 		default:
 			return FText::GetEmpty();
 		}
@@ -411,7 +413,7 @@ void UPRUIControllerComponent::OpenShop(UPRShopComponent* ShopComponent)
 	UIManager->PushUIInstance(CreatedShopWidget);
 }
 
-void UPRUIControllerComponent::OpenWaypointTravel()
+void UPRUIControllerComponent::OpenWaypointTravel(bool bShowWorldResetButton)
 {
 	if (!IsLocalPlayer())
 	{
@@ -432,8 +434,9 @@ void UPRUIControllerComponent::OpenWaypointTravel()
 		return;
 	}
 
-	// 임시 목적지 목록 갱신
-	CreatedWaypointTravelWidget->RebuildNodeList();
+	// Waypoint Travel Overview 갱신
+	CreatedWaypointTravelWidget->SetWorldResetButtonVisible(bShowWorldResetButton);
+	CreatedWaypointTravelWidget->RebuildOverview();
 	UIManager->PushUIInstance(CreatedWaypointTravelWidget);
 }
 

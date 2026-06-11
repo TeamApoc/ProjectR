@@ -7,10 +7,18 @@ bool FPRAbilityEntry::IsValid() const
 	return ::IsValid(AbilityClass);
 }
 
-void FPRAbilityEntry::GiveToAbilitySystem(UAbilitySystemComponent* TargetASC, FPRAbilitySetHandles& OutHandles, UObject* InSourceObject) const
+void FPRAbilityEntry::GiveToAbilitySystem(UAbilitySystemComponent* TargetASC,
+	FPRAbilitySetHandles& OutHandles,
+	UObject* InSourceObject,
+	const FGameplayTagContainer* AdditionalDynamicTags) const
 {
 	FGameplayAbilitySpec Spec(AbilityClass, Level);
 	Spec.GetDynamicSpecSourceTags().AppendTags(DynamicTags);
+	if (AdditionalDynamicTags)
+	{
+		// 슬롯 차단 태그 추가
+		Spec.GetDynamicSpecSourceTags().AppendTags(*AdditionalDynamicTags);
+	}
 	if (::IsValid(InSourceObject))
 	{
 		Spec.SourceObject = InSourceObject;

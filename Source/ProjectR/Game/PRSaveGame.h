@@ -17,4 +17,8 @@ public:
 	// 저장 파일에 기록된 캐릭터 상태
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "ProjectR|Save")
 	FPRCharacterSaveData CharacterSaveData;
+
+	// 저장 파일에 기록된 월드 진행 상태
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "ProjectR|Save")
+	FPRWorldSaveData WorldSaveData;
 };

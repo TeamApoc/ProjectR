@@ -46,6 +46,19 @@ void UPRRespawnSubsystem::RegisterRespawnableActor(AActor* InActor)
 	RegisteredActors.Add(NewInfo);
 }
 
+void UPRRespawnSubsystem::UnregisterRespawnableActor(AActor* InActor)
+{
+	if (!IsValid(InActor))
+	{
+		return;
+	}
+	
+	RegisteredActors.RemoveAll([this, InActor](const FPRRespawnActorInfo& ActorInfo)
+	{
+		return ActorInfo.Actor == InActor;
+	});
+}
+
 void UPRRespawnSubsystem::RegisterDisposableActor(AActor* InActor)
 {
 	// 등록 대상 검증

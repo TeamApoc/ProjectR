@@ -5,12 +5,20 @@
 #include "ProjectR/AbilitySystem/PRAbilitySystemComponent.h"
 #include "ProjectR/AI/Boss/PRBossPatternActor.h"
 #include "ProjectR/PRGameplayTags.h"
+#include "ProjectR/Game/PRGameStateBase.h"
+#include "ProjectR/Game/PRPlayGameMode.h"
 #include "ProjectR/System/PREventManagerSubsystem.h"
+#include "ProjectR/System/PRRespawnSubsystem.h"
 
 APRBossBaseCharacter::APRBossBaseCharacter()
 {
 	// 페이즈 임계값은 보스 BP/데이터에서 설정한다. C++ 기본값을 두면 몬스터별 튜닝이 하드코딩된다.
 	bUseWorldHealthBar = false;
+}
+
+void APRBossBaseCharacter::BeginPlay()
+{
+	Super::BeginPlay();
 }
 
 void APRBossBaseCharacter::EndPlay(const EEndPlayReason::Type EndPlayReason)
@@ -300,6 +308,10 @@ void APRBossBaseCharacter::CancelBossPatternActorsForPhaseTransition()
 
 FText APRBossBaseCharacter::GetBossDisplayName() const
 {
+	if (!CharacterDisplayName.IsEmpty())
+	{
+		return CharacterDisplayName;
+	}
 	return FText::FromName(CharacterID);
 }
 
@@ -326,9 +338,32 @@ void APRBossBaseCharacter::HandleGameplayTagUpdated(const FGameplayTag& ChangedT
 	{
 		return;
 	}
-
+	
+	// 보스는 사망시 리스폰 대상에서 제거
+	if (HasAuthority())
+	{
+		if (ChangedTag.MatchesTag(PRGameplayTags::State_Dead))
+		{
+			if (bIsRespawnable)
+			{
+				// 리스폰 시스템 등록해제
+				if (UPRRespawnSubsystem* RespawnSubsystem = GetWorld()->GetSubsystem<UPRRespawnSubsystem>())
+				{
+					RespawnSubsystem->UnregisterRespawnableActor(this);
+				}
+				bIsRespawnable = false;
+			}
+			
+			// 보스 처치 상태 보고
+			if (APRPlayGameMode* PlayGameMode = GetWorld()->GetAuthGameMode<APRPlayGameMode>())
+			{
+				PlayGameMode->ReportBossDefeated(GetMonsterId());
+			}
+		}
+	}
+	
 	if (ChangedTag.MatchesTag(PRGameplayTags::State_Dead)
-		|| ChangedTag.MatchesTag(PRGameplayTags::State_Groggy))
+	|| ChangedTag.MatchesTag(PRGameplayTags::State_Groggy))
 	{
 		CancelAllBossPatternActors();
 	}

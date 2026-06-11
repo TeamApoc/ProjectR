@@ -192,7 +192,7 @@ FPRInventoryItemSlotViewData UPRInventoryItemSlotViewDataBuilder::BuildQuickSlot
 	}
 	else
 	{
-		ViewData.DisplayName = FText::FromString(TEXT("퀵슬롯 비어 있음"));
+		ViewData.DisplayName = FText::FromString(TEXT("(비어 있음)"));
 	}
 
 	return ViewData;
@@ -204,7 +204,7 @@ FPRInventoryItemSlotViewData UPRInventoryItemSlotViewDataBuilder::BuildEmptyQuic
 	FPRInventoryItemSlotViewData ViewData;
 	ViewData.ItemType = EPRItemType::Consumable;
 	ViewData.ContextIndex = SlotIndex;
-	ViewData.DisplayName = FText::FromString(TEXT("퀵슬롯 비어 있음"));
+	ViewData.DisplayName = FText::FromString(TEXT("(비어 있음)"));
 	return ViewData;
 }
 

@@ -9,6 +9,7 @@
 #include "PRInteraction_MapTravelBase.generated.h"
 
 class UWorld;
+enum class EPRMapTransitionType : uint8;
 
 // 파티 동기화 완료 이후 ServerTravel 실행 기반 클래스
 UCLASS(Abstract)
@@ -26,9 +27,12 @@ protected:
 	virtual bool IsPartySyncActionLocked() const override;
 
 	// 하위 클래스가 제공한 맵과 SpawnPoint 태그로 ServerTravel 실행
-	void StartTravelToSpawnPoint(TSoftObjectPtr<UWorld> MapToTravel, FGameplayTag SpawnPointId);
+	void StartTravelToSpawnPoint(TSoftObjectPtr<UWorld> MapToTravel, FGameplayTag SpawnPointId, float TransitionDelay = 1.5f);
 
 private:
+	// 모든 플레이어에게 맵 전환 연출 알림
+	void NotifyMapTransitionToAllPlayers(float Delay, EPRMapTransitionType TransitionType) const;
+
 	// 페이드아웃 이후 ServerTravel 예약 타이머
 	FTimerHandle TravelDelayTimerHandle;
 

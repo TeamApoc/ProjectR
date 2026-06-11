@@ -51,7 +51,7 @@ public:
 		float InDuration);
 
 	// 지표면 스냅 대상 컴포넌트 등록 (BP ConstructionScript에서 호출)
-	UFUNCTION(BlueprintCallable, Category = "EffectArea")
+	UFUNCTION(BlueprintCallable, Category = "ProjectR|EffectArea")
 	void AddGroundSnapComponent(USceneComponent* Component);
 
 protected:
@@ -104,29 +104,29 @@ private:
 
 public:
 	// 이펙트 적용 정책
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "EffectArea")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "ProjectR|EffectArea")
 	EEffectAreaApplyPolicy ApplyPolicy;
 
 	// WhileOverlap 정책 재적용 주기 (초). 0 이하면 진입 시 1회만 적용
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "EffectArea",
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "ProjectR|EffectArea",
 		meta = (ClampMin = "0.0", EditCondition = "ApplyPolicy == EEffectAreaApplyPolicy::WhileOverlap"))
 	float ReapplyInterval = 0.5f;
 
 protected:
 	// 오버랩 감지용 구체 콜리전
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "EffectArea")
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "ProjectR|EffectArea")
 	TObjectPtr<USphereComponent> CollisionComponent;
 
 	// 적용할 이펙트 스펙 핸들
-	UPROPERTY(BlueprintReadOnly, Category = "EffectArea")
+	UPROPERTY(BlueprintReadOnly, Category = "ProjectR|EffectArea")
 	FGameplayEffectSpecHandle EffectSpecHandle;
 
 	// 이펙트 소유자 ASC
-	UPROPERTY(BlueprintReadOnly, Category = "EffectArea")
+	UPROPERTY(BlueprintReadOnly, Category = "ProjectR|EffectArea")
 	TWeakObjectPtr<UAbilitySystemComponent> SourceASC;
 
 	// 영역 잔여 시간 (초)
-	UPROPERTY(BlueprintReadOnly, Category = "EffectArea")
+	UPROPERTY(BlueprintReadOnly, Category = "ProjectR|EffectArea")
 	float RemainingTime;
 
 private:

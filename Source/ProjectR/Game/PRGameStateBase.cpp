@@ -14,11 +14,38 @@ void APRGameStateBase::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& Out
 {
 	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
 
-	DOREPLIFETIME(APRGameStateBase, ActiveCheckpoint);
-	DOREPLIFETIME(APRGameStateBase, UnlockedCheckpoints);
-	DOREPLIFETIME(APRGameStateBase, LastActiveWaypointId);
+	DOREPLIFETIME(APRGameStateBase, LastVisitedWaypoint);
+	DOREPLIFETIME(APRGameStateBase, LastActivatedWaypoint);
+	DOREPLIFETIME(APRGameStateBase, SavedSpawnPoint);
+	DOREPLIFETIME(APRGameStateBase, UnlockedWaypoints);
 	DOREPLIFETIME(APRGameStateBase, DefeatedBosses);
 	DOREPLIFETIME(APRGameStateBase, WorldSaveVersion);
+}
+
+bool APRGameStateBase::IsWaypointUnlocked(const FPRWaypointKey& WaypointKey) const
+{
+	if (!WaypointKey.IsValid())
+	{
+		return false;
+	}
+
+	return UnlockedWaypoints.ContainsByPredicate([&WaypointKey](const FPRUnlockedWaypointEntry& Entry)
+	{
+		return Entry.WaypointKey == WaypointKey;
+	});
+}
+
+bool APRGameStateBase::HasUnlockedWaypointInWorld(FGameplayTag WorldId) const
+{
+	if (!WorldId.IsValid())
+	{
+		return false;
+	}
+
+	return UnlockedWaypoints.ContainsByPredicate([WorldId](const FPRUnlockedWaypointEntry& Entry)
+	{
+		return Entry.WaypointKey.WorldId.MatchesTagExact(WorldId);
+	});
 }
 
 bool APRGameStateBase::IsBossDefeated(FName BossId) const
@@ -58,9 +85,12 @@ void APRGameStateBase::InitializeFromWorldSave(const FPRWorldSaveData& WorldSave
 	}
 
 	WorldSaveVersion = WorldSave.Version;
-	ActiveCheckpoint = WorldSave.LastCheckpointId;
-	LastActiveWaypointId = WorldSave.LastActiveWaypointId;
-	UnlockedCheckpoints = WorldSave.UnlockedCheckpoints;
+	LastVisitedWaypoint = WorldSave.LastVisitedWaypoint;
+	LastActivatedWaypoint = WorldSave.LastActivatedWaypoint.IsValid()
+		? WorldSave.LastActivatedWaypoint
+		: WorldSave.LastVisitedWaypoint;
+	SavedSpawnPoint = WorldSave.SavedSpawnPoint;
+	UnlockedWaypoints = WorldSave.UnlockedWaypoints;
 	DefeatedBosses = WorldSave.DefeatedBosses;
 }
 
@@ -68,48 +98,89 @@ FPRWorldSaveData APRGameStateBase::MakeWorldSaveData() const
 {
 	FPRWorldSaveData SaveData;
 	SaveData.Version = WorldSaveVersion;
-	SaveData.LastCheckpointId = ActiveCheckpoint;
-	SaveData.LastActiveWaypointId = LastActiveWaypointId;
-	SaveData.UnlockedCheckpoints = UnlockedCheckpoints;
+	SaveData.LastVisitedWaypoint = LastVisitedWaypoint;
+	SaveData.LastActivatedWaypoint = LastActivatedWaypoint;
+	SaveData.SavedSpawnPoint = SavedSpawnPoint;
+	SaveData.UnlockedWaypoints = UnlockedWaypoints;
 	SaveData.DefeatedBosses = DefeatedBosses;
 	return SaveData;
 }
 
-void APRGameStateBase::SetActiveCheckpoint(FGameplayTag CheckpointId)
+void APRGameStateBase::ActivateWaypoint(const FPRWaypointKey& WaypointKey)
 {
-	if (!HasAuthority() || !CheckpointId.IsValid())
+	if (!HasAuthority() || !WaypointKey.IsValid())
 	{
 		return;
 	}
 
-	ActiveCheckpoint = CheckpointId;
-	UnlockedCheckpoints.AddUnique(CheckpointId);
+	UnlockWaypoint(WaypointKey);
+	LastActivatedWaypoint = WaypointKey;
 
-	// 서버 로컬에서도 이벤트 발행(호스트 UI 갱신)
-	OnCheckpointActivated.Broadcast(CheckpointId);
+	// 서버 로컬 호스트 활성화 이벤트
+	OnWaypointActivated.Broadcast(WaypointKey);
+	UE_LOG(
+		LogTemp,
+		Log,
+		TEXT("Waypoint unlocked: World=%s Waypoint=%s"),
+		*WaypointKey.WorldId.ToString(),
+		*WaypointKey.WaypointId.ToString());
 }
 
-void APRGameStateBase::SetLastActiveWaypointId(FGameplayTag WaypointId)
+void APRGameStateBase::UnlockWaypoint(const FPRWaypointKey& WaypointKey)
 {
-	// 서버에서만 상태 변경
-	if (!HasAuthority())
+	if (!HasAuthority() || !WaypointKey.IsValid())
 	{
 		return;
 	}
 
-	LastActiveWaypointId = WaypointId;
-	UE_LOG(LogTemp, Log, TEXT("LastActiveWaypointId updated: %s"), *LastActiveWaypointId.ToString());
+	FPRUnlockedWaypointEntry UnlockedEntry;
+	UnlockedEntry.WaypointKey = WaypointKey;
+	UnlockedWaypoints.AddUnique(UnlockedEntry);
 }
 
-void APRGameStateBase::ClearLastActiveWaypointId()
+void APRGameStateBase::VisitWaypoint(const FPRWaypointKey& WaypointKey)
 {
-	// 서버에서만 상태 초기화
-	if (!HasAuthority())
+	if (!HasAuthority() || !WaypointKey.IsValid())
 	{
 		return;
 	}
 
-	LastActiveWaypointId = FGameplayTag();
+	if (LastVisitedWaypoint == WaypointKey)
+	{
+		return;
+	}
+
+	// 실제 Travel 확정 목적지 기록
+	LastVisitedWaypoint = WaypointKey;
+	OnLastVisitedWaypointChanged.Broadcast(WaypointKey);
+	UE_LOG(
+		LogTemp,
+		Log,
+		TEXT("LastVisitedWaypoint updated: World=%s Waypoint=%s"),
+		*WaypointKey.WorldId.ToString(),
+		*WaypointKey.WaypointId.ToString());
+}
+
+void APRGameStateBase::RecordSpawnPoint(const FPRSpawnPointKey& SpawnPointKey)
+{
+	if (!HasAuthority() || !SpawnPointKey.IsValid())
+	{
+		return;
+	}
+
+	if (SavedSpawnPoint == SpawnPointKey)
+	{
+		return;
+	}
+
+	// 실제 소환 완료 위치 기록
+	SavedSpawnPoint = SpawnPointKey;
+	UE_LOG(
+		LogTemp,
+		Log,
+		TEXT("SavedSpawnPoint updated: World=%s SpawnPoint=%s"),
+		*SpawnPointKey.WorldId.ToString(),
+		*SpawnPointKey.SpawnPointId.ToString());
 }
 
 void APRGameStateBase::MarkBossDefeated(FName BossId)
@@ -126,6 +197,25 @@ void APRGameStateBase::MarkBossDefeated(FName BossId)
 
 	DefeatedBosses.Add(BossId);
 	OnBossDefeated.Broadcast(BossId);
+}
+
+void APRGameStateBase::ResetWorldProgress()
+{
+	if (!HasAuthority())
+	{
+		return;
+	}
+
+	// 월드 진행 상태 기본값 복귀
+	LastVisitedWaypoint = FPRWaypointKey();
+	LastActivatedWaypoint = FPRWaypointKey();
+	// 실제 시작 위치 유지
+	UnlockedWaypoints.Reset();
+	DefeatedBosses.Reset();
+	WorldSaveVersion = EPRSaveVersion::V1;
+
+	// 서버 로컬 UI 갱신 이벤트
+	OnLastVisitedWaypointChanged.Broadcast(LastVisitedWaypoint);
 }
 
 void APRGameStateBase::ServerSubmitWorldMarker(const FPRWorldMarkerRequest& Request)
@@ -212,14 +302,14 @@ void APRGameStateBase::ServerSubmitWorldMarker(const FPRWorldMarkerRequest& Requ
 	EnforceMarkerLimit(SourcePlayerState);
 }
 
-void APRGameStateBase::OnRep_ActiveCheckpoint(FGameplayTag OldCheckpoint)
+void APRGameStateBase::OnRep_LastVisitedWaypoint(FPRWaypointKey OldLastVisitedWaypoint)
 {
-	if (ActiveCheckpoint == OldCheckpoint)
+	if (LastVisitedWaypoint == OldLastVisitedWaypoint)
 	{
 		return;
 	}
 
-	OnCheckpointActivated.Broadcast(ActiveCheckpoint);
+	OnLastVisitedWaypointChanged.Broadcast(LastVisitedWaypoint);
 }
 
 void APRGameStateBase::MulticastWorldMarkerEvent_Implementation(const FPRWorldMarkerEventPayload& Payload)
@@ -252,7 +342,7 @@ void APRGameStateBase::EnforceMarkerLimit(APlayerState* SourcePlayerState)
 	const int32 MarkerLimit = FMath::Max(1, MaxActiveMarkersPerPlayer);
 	const TWeakObjectPtr<APlayerState> SourcePlayerKey(SourcePlayerState);
 	FPRActiveWorldMarkerList* MarkerList = ActiveMarkerIdsByPlayer.Find(SourcePlayerKey);
-	if (MarkerList == nullptr)
+	if (!MarkerList)
 	{
 		return;
 	}

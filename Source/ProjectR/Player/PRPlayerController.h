@@ -20,6 +20,7 @@ enum class EPRMapTransitionType : uint8
 {
 	None,
 	MapTravel,
+	WaypointTravelUI,
 	Respawn,
 	RespawnComplete,
 	CancelTravel,
@@ -133,7 +134,7 @@ public:
 
 	// 서버 -> 호스트 클라. 웨이포인트 Travel UI 열기
 	UFUNCTION(Client, Reliable)
-	void ClientOpenWaypointTravelUI();
+	void ClientOpenWaypointTravelUI(bool bShowWorldResetButton);
 
 	// 서버 -> 본인 클라. 상점 구매 결과를 UI에 전달한다
 	UFUNCTION(Client, Reliable)
@@ -172,7 +173,7 @@ public:
 	void RequestSellShopItem(UPRShopComponent* ShopComponent, FName EntryId, int32 Quantity);
 
 	// 웨이포인트 Travel UI 선택 목적지 이동 서버 요청
-	void RequestWaypointTravel(FSoftObjectPath WorldDataAssetPath, FGameplayTag WaypointId);
+	void RequestWaypointTravel(const FPRWaypointKey& WaypointKey);
 
 	// 웨이포인트 Travel UI 닫힘 서버 통지
 	void RequestCancelWaypointTravel();
@@ -212,7 +213,7 @@ protected:
 
 	// 클라이언트 -> 서버. 활성 또는 UI 대기 웨이포인트 상호작용 목적지 이동 위임
 	UFUNCTION(Server, Reliable)
-	void ServerRequestWaypointTravel(FSoftObjectPath WorldDataAssetPath, FGameplayTag WaypointId);
+	void ServerRequestWaypointTravel(FPRWaypointKey WaypointKey);
 
 	// 클라이언트 -> 서버. 활성 또는 UI 대기 웨이포인트 상호작용 취소 위임
 	UFUNCTION(Server, Reliable)

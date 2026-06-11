@@ -3,8 +3,11 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Engine/HitResult.h"
 #include "ProjectR/ItemSystem/Types/PRWeaponTypes.h"
 #include "PREventTypes.generated.h"
+
+class AActor;
 
 enum class EPRWeaponSlotType : uint8;
 /**
@@ -42,4 +45,26 @@ struct PROJECTR_API FPRHUDMessageEventPayload : public FPREventPayload
 	// HUD에 표시할 안내 문구
 	UPROPERTY(BlueprintReadWrite)
 	FText Message;
+};
+
+USTRUCT(BlueprintType)
+struct PROJECTR_API FPRPlayerAttackTargetPayload : public FPREventPayload
+{
+	GENERATED_BODY()
+
+	// 공격 주체 플레이어
+	UPROPERTY(BlueprintReadWrite)
+	TObjectPtr<AActor> Attacker = nullptr;
+
+	// 실제 피해를 받은 대상
+	UPROPERTY(BlueprintReadWrite)
+	TObjectPtr<AActor> Target = nullptr;
+
+	// 서버 피해 적용 시점
+	UPROPERTY(BlueprintReadWrite)
+	float ServerWorldTimeSeconds = 0.0f;
+
+	// 피격 결과
+	UPROPERTY(BlueprintReadWrite)
+	FHitResult HitResult;
 };

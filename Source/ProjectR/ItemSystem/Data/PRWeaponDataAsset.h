@@ -39,7 +39,10 @@ public:
 	UFUNCTION(BlueprintPure)
 	const UPRCrosshairConfig* GetCrosshairConfig() const;
 
-	void GiveToAbilitySystem(UAbilitySystemComponent* TargetASC, FPRAbilitySetHandles& OutHandles, UObject* InSourceObject);
+	void GiveToAbilitySystem(UAbilitySystemComponent* TargetASC,
+		FPRAbilitySetHandles& OutHandles,
+		UObject* InSourceObject,
+		const FGameplayTagContainer* AdditionalDynamicTags = nullptr);
 	
 public:
 	// 무기 타입 분류

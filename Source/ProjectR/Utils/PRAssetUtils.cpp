@@ -2,13 +2,20 @@
 
 #include "PRAssetUtils.h"
 
+#include "Blueprint/UserWidget.h"
+#include "GameplayEffect.h"
 #include "ProjectR/Character/PRPlayerCharacter.h"
+#include "ProjectR/AbilitySystem/PRGameplayAbility.h"
+#include "ProjectR/AbilitySystem/Data/PRAbilitySet.h"
+#include "ProjectR/FX/PRFXTags.h"
 #include "ProjectR/ItemSystem/Actors/PRWeaponActor.h"
 #include "ProjectR/ItemSystem/Components/PREquipmentManagerComponent.h"
 #include "ProjectR/ItemSystem/Components/PRWeaponManagerComponent.h"
 #include "ProjectR/ItemSystem/Data/PREquipmentDataAsset.h"
 #include "ProjectR/ItemSystem/Data/PRWeaponDataAsset.h"
 #include "ProjectR/ItemSystem/Data/PRWeaponModDataAsset.h"
+#include "ProjectR/System/PRDeveloperSettings.h"
+#include "ProjectR/UI/Crosshair/PRCrosshairConfig.h"
 
 void UPRAssetUtils::CollectPreviewRootAssetPaths(const FPRCharacterSaveData& SaveData, TArray<FSoftObjectPath>& OutAssetPaths)
 {
@@ -148,6 +155,80 @@ void UPRAssetUtils::CollectLoadedAssetsFromMap(const TMap<FSoftObjectPath, TWeak
 			OutLoadedAssets.AddUnique(LoadedAsset);
 		}
 	}
+}
+
+void UPRAssetUtils::AddWeaponEntryPathByIndex(const FPRCharacterSaveData& SaveData, int32 WeaponIndex, TArray<FSoftObjectPath>& OutAssetPaths)
+{
+	if (!SaveData.Inventory.Weapons.IsValidIndex(WeaponIndex))
+	{
+		return;
+	}
+
+	const FPRWeaponItemSaveEntry& WeaponEntry = SaveData.Inventory.Weapons[WeaponIndex];
+	if (WeaponEntry.WeaponData.IsNull())
+	{
+		return;
+	}
+
+	AddUniqueAssetPath(WeaponEntry.WeaponData.ToSoftObjectPath(), OutAssetPaths);
+	AddLoadedWeaponDependencyPaths(WeaponEntry.WeaponData.Get(), OutAssetPaths);
+}
+
+void UPRAssetUtils::AddLoadedWeaponDependencyPaths(const UPRWeaponDataAsset* WeaponData, TArray<FSoftObjectPath>& OutAssetPaths)
+{
+	if (!IsValid(WeaponData))
+	{
+		return;
+	}
+
+	AddUniqueAssetPathFromObject(WeaponData->WeaponActorClass.Get(), OutAssetPaths);
+	AddUniqueAssetPathFromObject(WeaponData->WeaponAnimLayerClass.Get(), OutAssetPaths);
+	AddUniqueAssetPathFromObject(WeaponData->WeaponUpgradeTable, OutAssetPaths);
+	AddUniqueAssetPathFromObject(WeaponData->ShootMontage, OutAssetPaths);
+	AddUniqueAssetPathFromObject(WeaponData->ReloadMontage, OutAssetPaths);
+	AddUniqueAssetPathFromObject(WeaponData->ScopeWidgetClass.Get(), OutAssetPaths);
+	AddUniqueAssetPathFromObject(WeaponData->CrosshairConfig.Get(), OutAssetPaths);
+
+	for (const FPRAbilityEntry& AbilityEntry : WeaponData->EquippedAbilities)
+	{
+		AddUniqueAssetPathFromObject(AbilityEntry.AbilityClass.Get(), OutAssetPaths);
+	}
+
+	for (const FPREffectEntry& EffectEntry : WeaponData->EquippedEffects)
+	{
+		AddUniqueAssetPathFromObject(EffectEntry.EffectClass.Get(), OutAssetPaths);
+	}
+}
+
+void UPRAssetUtils::CollectPlayerRuntimePreloadPaths(const FPRCharacterSaveData& SaveData, TArray<FSoftObjectPath>& OutAssetPaths)
+{
+	const UPRDeveloperSettings* Settings = GetDefault<UPRDeveloperSettings>();
+	if (Settings && !Settings->FXRegistry.IsNull())
+	{
+		AddUniqueAssetPath(Settings->FXRegistry.ToSoftObjectPath(), OutAssetPaths);
+	}
+
+	if (SaveData.WeaponManager.CurrentWeaponSlot == EPRWeaponSlotType::Primary)
+	{
+		AddWeaponEntryPathByIndex(SaveData, SaveData.WeaponManager.PrimaryWeaponIndex, OutAssetPaths);
+		return;
+	}
+
+	if (SaveData.WeaponManager.CurrentWeaponSlot == EPRWeaponSlotType::Secondary)
+	{
+		AddWeaponEntryPathByIndex(SaveData, SaveData.WeaponManager.SecondaryWeaponIndex, OutAssetPaths);
+		return;
+	}
+
+	AddWeaponEntryPathByIndex(SaveData, SaveData.WeaponManager.PrimaryWeaponIndex, OutAssetPaths);
+	AddWeaponEntryPathByIndex(SaveData, SaveData.WeaponManager.SecondaryWeaponIndex, OutAssetPaths);
+}
+
+void UPRAssetUtils::CollectDefaultPlayerCombatFXTags(FGameplayTagContainer& OutFXTags)
+{
+	OutFXTags.AddTag(PRFXTags::FX_Weapon_Trail);
+	OutFXTags.AddTag(PRFXTags::FX_Weapon_OutOfAmmo);
+	OutFXTags.AddTag(PRFXTags::FX_Weapon_SimpleFire);
 }
 
 void UPRAssetUtils::AddUniqueAssetPath(const FSoftObjectPath& AssetPath, TArray<FSoftObjectPath>& OutAssetPaths)

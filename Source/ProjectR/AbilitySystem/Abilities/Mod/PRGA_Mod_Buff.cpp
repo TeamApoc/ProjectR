@@ -44,12 +44,6 @@ bool UPRGA_Mod_Buff::CanActivateAbility(const FGameplayAbilitySpecHandle Handle,
 	return true;
 }
 
-void UPRGA_Mod_Buff::OnRemoveAbility(const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilitySpec& Spec)
-{
-	RemoveActiveBuffEffect();
-	Super::OnRemoveAbility(ActorInfo, Spec);
-}
-
 /*~ UPRGA_Mod_HasDuration Interface ~*/
 
 void UPRGA_Mod_Buff::OnDurationStarted_Implementation()
@@ -64,6 +58,15 @@ void UPRGA_Mod_Buff::OnDurationStarted_Implementation()
 		// 서버 버프 적용
 		ApplyBuffEffect();
 	}
+}
+
+/*~ UPRGA_Mod Interface ~*/
+
+void UPRGA_Mod_Buff::CleanupRuntimeOnAbilityRemoved(const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilitySpec& Spec)
+{
+	// 버프 런타임 정리
+	RemoveActiveBuffEffect();
+	Super::CleanupRuntimeOnAbilityRemoved(ActorInfo, Spec);
 }
 
 /*~ 버프 처리 ~*/

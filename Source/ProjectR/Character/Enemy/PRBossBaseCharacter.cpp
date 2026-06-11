@@ -308,6 +308,10 @@ void APRBossBaseCharacter::CancelBossPatternActorsForPhaseTransition()
 
 FText APRBossBaseCharacter::GetBossDisplayName() const
 {
+	if (!CharacterDisplayName.IsEmpty())
+	{
+		return CharacterDisplayName;
+	}
 	return FText::FromName(CharacterID);
 }
 

@@ -56,7 +56,10 @@ struct PROJECTR_API FPRAbilityEntry
 	bool IsValid() const;
 	
 	// 어빌리티 부여
-	void GiveToAbilitySystem(UAbilitySystemComponent* TargetASC, FPRAbilitySetHandles& OutHandles, UObject* InSourceObject = nullptr) const;
+	void GiveToAbilitySystem(UAbilitySystemComponent* TargetASC,
+		FPRAbilitySetHandles& OutHandles,
+		UObject* InSourceObject = nullptr,
+		const FGameplayTagContainer* AdditionalDynamicTags = nullptr) const;
 };
 
 // AbilitySet 내 Startup GE 항목

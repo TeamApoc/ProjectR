@@ -74,7 +74,7 @@ void UPRInteraction_Waypoint::RequestWaypointTravel(APRPlayerController* Request
 	UnlockPlayerInteraction();
 
 	// 선택 노드 목적지 이동
-	StartTravelToSpawnPoint(MapAsset, WaypointKey.WaypointId, TravelUIFadeDuration);
+	StartTravelToSpawnPoint(MapAsset, WaypointKey.WaypointId, 0.0f);
 }
 
 void UPRInteraction_Waypoint::CancelWaypointTravel(APRPlayerController* RequestingController)
@@ -314,7 +314,7 @@ bool UPRInteraction_Waypoint::OpenWaypointTravelUI()
 	HostController->SetPendingWaypointTravelInteraction(this);
 
 	// 호스트 로컬 클라이언트 UI 열기
-	HostController->ClientOpenWaypointTravelUI();
+	HostController->ClientOpenWaypointTravelUI(ShouldShowWorldResetButton());
 	return true;
 }
 

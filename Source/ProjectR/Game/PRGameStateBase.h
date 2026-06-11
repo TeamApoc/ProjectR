@@ -35,6 +35,9 @@ public:
 	// 마지막 방문 Waypoint 조회
 	FPRWaypointKey GetLastVisitedWaypoint() const { return LastVisitedWaypoint; }
 
+	// 마지막 활성화 Waypoint 조회
+	FPRWaypointKey GetLastActivatedWaypoint() const { return LastActivatedWaypoint; }
+
 	// 저장된 실제 스폰 위치 조회
 	FPRSpawnPointKey GetSavedSpawnPoint() const { return SavedSpawnPoint; }
 
@@ -81,7 +84,7 @@ public:
 	void ServerSubmitWorldMarker(const FPRWorldMarkerRequest& Request);
 
 protected:
-	// LastVisitedWaypoint 복제 콜백. 클라이언트에서 UI·리스폰 지점 갱신 트리거
+	// LastVisitedWaypoint 복제 콜백. 클라이언트에서 Travel UI 갱신 트리거
 	UFUNCTION()
 	void OnRep_LastVisitedWaypoint(FPRWaypointKey OldLastVisitedWaypoint);
 
@@ -113,9 +116,13 @@ protected:
 	UPROPERTY(EditDefaultsOnly, Category = "ProjectR|WorldMarker", meta = (ClampMin = "1"))
 	int32 MaxActiveMarkersPerPlayer = 1;
 
-	// 마지막 방문 Waypoint. 변경 시 OnRep으로 UI/리스폰 지점 갱신
+	// 마지막 방문 Waypoint. 변경 시 OnRep으로 Travel UI 갱신
 	UPROPERTY(ReplicatedUsing = OnRep_LastVisitedWaypoint)
 	FPRWaypointKey LastVisitedWaypoint;
+
+	// 마지막 활성화 Waypoint. 전멸 리스폰 기준 지점
+	UPROPERTY(Replicated)
+	FPRWaypointKey LastActivatedWaypoint;
 
 	// 저장 시 시작 메뉴 이어하기 위치로 사용할 실제 스폰 위치
 	UPROPERTY(Replicated)

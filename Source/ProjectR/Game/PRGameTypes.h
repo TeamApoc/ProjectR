@@ -680,9 +680,13 @@ struct FPRWorldSaveData
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	EPRSaveVersion Version = EPRSaveVersion::V1;
 
-	// 전멸 리스폰과 Travel UI 빠른 이동에 사용할 마지막 방문 Waypoint
+	// Travel UI 빠른 이동에 표시할 마지막 방문 Waypoint
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	FPRWaypointKey LastVisitedWaypoint;
+
+	// 전멸 리스폰에 사용할 마지막 활성화 Waypoint
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	FPRWaypointKey LastActivatedWaypoint;
 
 	// 시작 메뉴에서 이어하기 시 사용할 마지막 실제 스폰 위치
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)

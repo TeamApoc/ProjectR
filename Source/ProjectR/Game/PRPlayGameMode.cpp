@@ -50,10 +50,11 @@ void APRPlayGameMode::InitGameState()
 	{
 		const bool bHasHostWorldSaveData =
 			HostWorldSave.LastVisitedWaypoint.IsValid()
+			|| HostWorldSave.LastActivatedWaypoint.IsValid()
 			|| HostWorldSave.SavedSpawnPoint.IsValid()
 			|| !HostWorldSave.UnlockedWaypoints.IsEmpty()
 			|| !HostWorldSave.DefeatedBosses.IsEmpty();
-		if (!GS->GetLastVisitedWaypoint().IsValid() && bHasHostWorldSaveData)
+		if (!GS->GetLastVisitedWaypoint().IsValid() && !GS->GetLastActivatedWaypoint().IsValid() && bHasHostWorldSaveData)
 		{
 			GS->InitializeFromWorldSave(HostWorldSave);
 		}
@@ -391,10 +392,17 @@ FGameplayTag APRPlayGameMode::ResolvePartyRespawnSpawnPointId() const
 {
 	// 전멸 리스폰 지점 우선
 	const APRGameStateBase* PRGameState = Cast<APRGameStateBase>(GameState);
+	if (IsValid(PRGameState) && PRGameState->GetLastActivatedWaypoint().IsValid())
+	{
+		const FGameplayTag RespawnSpawnPointId = PRGameState->GetLastActivatedWaypoint().WaypointId;
+		UE_LOG(LogTemp, Log, TEXT("Party respawn spawn point resolved from LastActivatedWaypoint: %s"), *RespawnSpawnPointId.ToString());
+		return RespawnSpawnPointId;
+	}
+
 	if (IsValid(PRGameState) && PRGameState->GetLastVisitedWaypoint().IsValid())
 	{
 		const FGameplayTag RespawnSpawnPointId = PRGameState->GetLastVisitedWaypoint().WaypointId;
-		UE_LOG(LogTemp, Log, TEXT("Party respawn spawn point resolved from LastVisitedWaypoint: %s"), *RespawnSpawnPointId.ToString());
+		UE_LOG(LogTemp, Log, TEXT("Party respawn spawn point fallback from LastVisitedWaypoint: %s"), *RespawnSpawnPointId.ToString());
 		return RespawnSpawnPointId;
 	}
 

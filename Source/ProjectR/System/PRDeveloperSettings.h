@@ -170,10 +170,6 @@ public:
 	UPROPERTY(EditDefaultsOnly, Config, Category = "LoadingScreen")
 	bool bEnableLoadingScreenSystem = true;
 
-	// 새 월드 생성 후 Viewport를 덮을 로딩 위젯
-	UPROPERTY(EditDefaultsOnly, Config, Category = "LoadingScreen")
-	TSoftClassPtr<UUserWidget> MoviePlayerWidgetClass;
-
 	// 새 월드 생성 후 Viewport에 표시할 로딩 위젯
 	UPROPERTY(EditDefaultsOnly, Config, Category = "LoadingScreen")
 	TSoftClassPtr<UUserWidget> LoadingScreenWidgetClass;
@@ -182,7 +178,6 @@ public:
 	UPROPERTY(EditDefaultsOnly, Config, Category = "LoadingScreen", meta = (ClampMin = "0.0"))
 	float MinimumLoadingScreenSeconds = 0.25f;
 
-	// MoviePlayer에서 Viewport 로딩 위젯으로 넘길 때 유지할 지연 시간
 	// Required 큐 기본 타임아웃
 	UPROPERTY(EditDefaultsOnly, Config, Category = "LoadingScreen", meta = (ClampMin = "0.0"))
 	float RequiredPreloadTimeoutSeconds = 15.0f;

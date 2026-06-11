@@ -35,6 +35,18 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "ProjectR|Session")
 	void LeaveSession();
 
+	// 로컬 월드 저장 상태를 기준으로 Host 세션 시작 요청
+	UFUNCTION(BlueprintCallable, Category = "ProjectR|Session")
+	bool RequestHostSession();
+
+	// OSS 검색 결과의 첫 번째 세션 참가 요청
+	UFUNCTION(BlueprintCallable, Category = "ProjectR|Session")
+	bool RequestJoinFirstSession();
+
+	// 레거시 주소 입력 기반 Host 또는 Join 세션 요청
+	UFUNCTION(BlueprintCallable, Category = "ProjectR|Session")
+	bool RequestStartSession(const FString& Address);
+
 	// 전체 Scalability 그룹에 그래픽 품질 프로필 적용
 	UFUNCTION(BlueprintCallable, Category = "ProjectR|Settings")
 	bool ApplyGraphicsQualityProfile(EPRGraphicsQualityProfile QualityProfile, bool bSaveSettings = false);
@@ -140,10 +152,21 @@ private:
 	// 현재 월드 GameState의 월드 진행 상태를 로컬 저장 캐시에 반영
 	void RefreshLocalWorldSaveFromGameState();
 
+	// 저장된 스폰 위치 기준 Host 시작 맵 이름 결정
+	FName ResolveHostMapNameFromSave(const FPRWorldSaveData& WorldSaveData) const;
+
 protected:
 	// 게임 시작 시 기본으로 적용할 그래픽 품질 프로필
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "ProjectR|Settings")
 	EPRGraphicsQualityProfile DefaultGraphicsQualityProfile = EPRGraphicsQualityProfile::High;
+
+	// 호스트 시작 시 사용할 기본 맵
+	UPROPERTY(EditDefaultsOnly, Category = "ProjectR|Session")
+	FName HostMapName = TEXT("L_Playground");
+
+	// 호스트 시작 시 허용할 최대 인원
+	UPROPERTY(EditDefaultsOnly, Category = "ProjectR|Session", meta = (ClampMin = "1"))
+	int32 HostMaxPlayers = 4;
 
 	// 현재 플레이어가 들고 다니는 캐릭터 스펙. Join 시 이 데이터가 호스트로 전송됨
 	UPROPERTY(VisibleInstanceOnly, Category = "ProjectR|Save")

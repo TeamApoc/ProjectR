@@ -209,6 +209,8 @@ enum class EPRSessionState : uint8
 	Hosting,
 	// 호스트 완료(인게임)
 	Hosted,
+	// 세션 검색 진행 중
+	Finding,
 	// 참가 진행 중(접속 시도)
 	Joining,
 	// 참가 완료(인게임)
@@ -233,6 +235,10 @@ enum class EPRSessionFailReason : uint8
 	VersionMismatch,
 	// 캐릭터 페이로드 검증 실패
 	CharacterRejected,
+	// 세션 검색 실패
+	SessionSearchFailed,
+	// 참가 가능한 세션 없음
+	NoSessionFound,
 };
 
 /*~ 월드 오브젝트 상태 ~*/
@@ -718,7 +724,7 @@ struct FPRJoinSessionParams
 {
 	GENERATED_BODY()
 
-	// 접속 주소. IP 방식: "192.168.0.10:7777". OSS 단계에서는 세션 Resolve 결과
+	// 접속 주소. 비어 있으면 OSS Null 검색 결과의 첫 번째 세션 사용
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	FString Address;
 };

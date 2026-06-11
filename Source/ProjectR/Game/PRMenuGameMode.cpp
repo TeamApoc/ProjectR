@@ -6,12 +6,9 @@
 #include "Engine/World.h"
 #include "GameFramework/PlayerController.h"
 #include "ProjectR/Character/PRPlayerCharacter.h"
-#include "ProjectR/Game/PRGameInstance.h"
 #include "ProjectR/Game/PRMenuHUD.h"
 #include "ProjectR/Player/PRMenuPlayerController.h"
 #include "ProjectR/Player/PRPlayerState.h"
-#include "ProjectR/System/PRDeveloperSettings.h"
-#include "ProjectR/World/PRWorldRegistry.h"
 
 APRMenuGameMode::APRMenuGameMode()
 {
@@ -49,49 +46,6 @@ void APRMenuGameMode::Logout(AController* Exiting)
 }
 
 /*~ APRMenuGameMode Interface ~*/
-
-bool APRMenuGameMode::RequestStartSession(APlayerController* RequestingController, const FString& Address)
-{
-	// 메뉴 위젯 소유 컨트롤러 유효성 확인
-	if (!IsValid(RequestingController))
-	{
-		return false;
-	}
-
-	UPRGameInstance* GameInstance = Cast<UPRGameInstance>(GetGameInstance());
-	if (!IsValid(GameInstance))
-	{
-		return false;
-	}
-
-	const FString TrimmedAddress = Address.TrimStartAndEnd();
-	if (TrimmedAddress.IsEmpty())
-	{
-		FPRHostSessionParams HostParams;
-		const FPRWorldSaveData& LocalWorldSave = GameInstance->GetLocalWorldSave();
-		// 세션 서브시스템 OpenLevel 경로에 전달할 리슨 서버 설정
-		HostParams.MapName = ResolveHostMapNameFromSave(LocalWorldSave);
-		HostParams.MaxPlayers = HostMaxPlayers;
-
-		// 인게임 GameMode 초기화 단계에서 복원할 월드 진행 상태 예약
-		GameInstance->SetPendingWorldSaveData(LocalWorldSave);
-		if (LocalWorldSave.SavedSpawnPoint.IsValid())
-		{
-			// 이어하기 최초 스폰 지점 예약
-			GameInstance->SetPendingTravelSpawnPointId(LocalWorldSave.SavedSpawnPoint.SpawnPointId);
-		}
-
-		GameInstance->HostSession(HostParams);
-		return true;
-	}
-
-	FPRJoinSessionParams JoinParams;
-	// 입력 주소는 세션 서브시스템에서 형식 검증
-	JoinParams.Address = TrimmedAddress;
-
-	GameInstance->JoinSession(JoinParams);
-	return true;
-}
 
 bool APRMenuGameMode::ApplyPreviewSaveData(APlayerController* RequestingController, const FPRCharacterSaveData& InSaveData)
 {
@@ -203,28 +157,4 @@ void APRMenuGameMode::ConfigurePreviewCharacter(APRPlayerCharacter* InPreviewCha
 	{
 		CapsuleComponent->SetCollisionEnabled(ECollisionEnabled::NoCollision);
 	}
-}
-
-FName APRMenuGameMode::ResolveHostMapNameFromSave(const FPRWorldSaveData& WorldSaveData) const
-{
-	if (!WorldSaveData.SavedSpawnPoint.IsValid())
-	{
-		return HostMapName;
-	}
-
-	const UPRDeveloperSettings* Settings = GetDefault<UPRDeveloperSettings>();
-	const UPRWorldRegistry* WorldRegistry = IsValid(Settings) ? Settings->GetWorldRegistrySync() : nullptr;
-	if (!IsValid(WorldRegistry))
-	{
-		return HostMapName;
-	}
-
-	TSoftObjectPtr<UWorld> MapAsset;
-	if (!WorldRegistry->ResolveMapAsset(WorldSaveData.SavedSpawnPoint.WorldId, MapAsset) || MapAsset.IsNull())
-	{
-		return HostMapName;
-	}
-
-	const FString MapPackageName = MapAsset.GetLongPackageName();
-	return MapPackageName.IsEmpty() ? HostMapName : FName(*MapPackageName);
 }

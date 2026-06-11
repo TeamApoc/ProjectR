@@ -116,6 +116,27 @@ public:
 	UFUNCTION(NetMulticast, Reliable)
 	void Multicast_SetNearTeleportHidden(bool bShouldHide);
 
+	// 분신이 본체에 복귀했을 때 서버에서 페어린 체력을 회복하고 회복 VFX를 전파한다.
+	void ApplyFaerinCloneMergeHeal(
+		float HealAmount,
+		float HealMaxHealthRatio,
+		UNiagaraSystem* HealNiagaraSystem,
+		FName AttachSocketName,
+		FVector LocationOffset,
+		FRotator RotationOffset,
+		FVector Scale,
+		float LifeSeconds);
+
+	// 분신 복귀 회복 Niagara를 모든 클라이언트에서 재생한다.
+	UFUNCTION(NetMulticast, Reliable)
+	void Multicast_SpawnFaerinCloneHealNiagara(
+		UNiagaraSystem* HealNiagaraSystem,
+		FName AttachSocketName,
+		FVector LocationOffset,
+		FRotator RotationOffset,
+		FVector Scale,
+		float LifeSeconds);
+
 protected:
 	/*~ AActor Interface ~*/
 	virtual void BeginPlay() override;

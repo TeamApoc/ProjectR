@@ -2,6 +2,7 @@
 
 #include "PRFaerinCharacter.h"
 
+#include "AbilitySystemComponent.h"
 #include "Components/SceneComponent.h"
 #include "Engine/World.h"
 #include "GameFramework/Character.h"
@@ -16,6 +17,8 @@
 #include "ProjectR/AI/Components/PRFaerinGodFallComponent.h"
 #include "ProjectR/AI/Components/PRFaerinPatternVFXComponent.h"
 #include "ProjectR/AI/Components/PRFaerinTeleportVFXComponent.h"
+#include "ProjectR/AbilitySystem/AttributeSets/PRAttributeSet_Common.h"
+#include "ProjectR/AbilitySystem/PRAbilitySystemComponent.h"
 #include "ProjectR/PRGameplayTags.h"
 #include "ProjectR/System/PREventManagerSubsystem.h"
 #include "Net/UnrealNetwork.h"
@@ -183,6 +186,112 @@ void APRFaerinCharacter::Multicast_PlayNearTeleportReappearPresentation_Implemen
 void APRFaerinCharacter::Multicast_SetNearTeleportHidden_Implementation(bool bShouldHide)
 {
 	SetActorHiddenInGame(bShouldHide);
+}
+
+void APRFaerinCharacter::ApplyFaerinCloneMergeHeal(
+	const float HealAmount,
+	const float HealMaxHealthRatio,
+	UNiagaraSystem* HealNiagaraSystem,
+	const FName AttachSocketName,
+	const FVector LocationOffset,
+	const FRotator RotationOffset,
+	const FVector Scale,
+	const float LifeSeconds)
+{
+	if (!HasAuthority() || !IsValid(AbilitySystemComponent) || !IsValid(CommonSet) || HealAmount <= 0.0f)
+	{
+		return;
+	}
+
+	const float MaxHealth = CommonSet->GetMaxHealth();
+	if (MaxHealth <= UE_SMALL_NUMBER)
+	{
+		return;
+	}
+
+	const float HealCapRatio = HealMaxHealthRatio > 0.0f
+		? FMath::Clamp(HealMaxHealthRatio, 0.0f, 1.0f)
+		: 1.0f;
+	const float HealCap = MaxHealth * HealCapRatio;
+	const float CurrentHealth = CommonSet->GetHealth();
+	const float NewHealth = FMath::Min(CurrentHealth + HealAmount, HealCap);
+	if (NewHealth <= CurrentHealth + UE_SMALL_NUMBER)
+	{
+		return;
+	}
+
+	AbilitySystemComponent->SetNumericAttributeBase(UPRAttributeSet_Common::GetHealthAttribute(), NewHealth);
+
+	if (IsValid(HealNiagaraSystem))
+	{
+		Multicast_SpawnFaerinCloneHealNiagara(
+			HealNiagaraSystem,
+			AttachSocketName,
+			LocationOffset,
+			RotationOffset,
+			Scale,
+			LifeSeconds);
+	}
+}
+
+void APRFaerinCharacter::Multicast_SpawnFaerinCloneHealNiagara_Implementation(
+	UNiagaraSystem* HealNiagaraSystem,
+	const FName AttachSocketName,
+	const FVector LocationOffset,
+	const FRotator RotationOffset,
+	const FVector Scale,
+	const float LifeSeconds)
+{
+	if (!IsValid(HealNiagaraSystem) || !IsValid(GetMesh()))
+	{
+		return;
+	}
+
+	const FName ResolvedSocketName = AttachSocketName != NAME_None && GetMesh()->DoesSocketExist(AttachSocketName)
+		? AttachSocketName
+		: NAME_None;
+	UNiagaraComponent* NiagaraComponent = UNiagaraFunctionLibrary::SpawnSystemAttached(
+		HealNiagaraSystem,
+		GetMesh(),
+		ResolvedSocketName,
+		LocationOffset,
+		RotationOffset,
+		EAttachLocation::KeepRelativeOffset,
+		true,
+		true,
+		ENCPoolMethod::None,
+		false);
+	if (!IsValid(NiagaraComponent))
+	{
+		return;
+	}
+
+	NiagaraComponent->SetRelativeScale3D(Scale);
+	if (LifeSeconds <= UE_SMALL_NUMBER)
+	{
+		return;
+	}
+
+	UWorld* World = GetWorld();
+	if (!IsValid(World))
+	{
+		return;
+	}
+
+	TWeakObjectPtr<UNiagaraComponent> WeakNiagaraComponent = NiagaraComponent;
+	FTimerHandle CleanupTimerHandle;
+	World->GetTimerManager().SetTimer(
+		CleanupTimerHandle,
+		FTimerDelegate::CreateWeakLambda(this, [WeakNiagaraComponent]()
+		{
+			if (UNiagaraComponent* ActiveNiagaraComponent = WeakNiagaraComponent.Get())
+			{
+				ActiveNiagaraComponent->Deactivate();
+				ActiveNiagaraComponent->DestroyComponent();
+			}
+		}),
+		LifeSeconds,
+		false);
 }
 
 void APRFaerinCharacter::SpawnNearTeleportBodyNiagaraLocal(

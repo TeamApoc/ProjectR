@@ -764,6 +764,11 @@ bool UPRFaerinCombatDirectorComponent::IsRangedPreApproachPatternPlan(const FPRF
 		return true;
 	}
 
+	if (PatternPlan.AbilityTag.MatchesTagExact(PRGameplayTags::Ability_Boss_Faerin_CloneSequence))
+	{
+		return true;
+	}
+
 	if (PatternPlan.PatternRule.PatternGroupTag.MatchesTag(PRGameplayTags::Pattern_Boss_Faerin_Portal))
 	{
 		return true;

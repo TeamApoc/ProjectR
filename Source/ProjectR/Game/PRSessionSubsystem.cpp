@@ -9,6 +9,7 @@
 #include "Kismet/GameplayStatics.h"
 #include "Internationalization/Regex.h"
 #include "Misc/PackageName.h"
+#include "ProjectR/System/PRLoadingScreenSubsystem.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogPRSession, Log, All);
 
@@ -104,6 +105,14 @@ void UPRSessionSubsystem::StartHost(const FPRHostSessionParams& Params)
 	PendingHostParams = Params;
 	SetState(EPRSessionState::Hosting);
 
+	if (UGameInstance* GameInstance = GetGameInstance())
+	{
+		if (UPRLoadingScreenSubsystem* LoadingScreen = GameInstance->GetSubsystem<UPRLoadingScreenSubsystem>())
+		{
+			LoadingScreen->BeginTravelToMap(TEXT("StartHost"), Params.MapName.ToString());
+		}
+	}
+
 	// listen 옵션으로 리슨 서버 개시. SessionPort 명시로 PIE/Standalone 포트 통일
 	const FString Options = FString::Printf(TEXT("listen?MaxPlayers=%d?Port=%d"), Params.MaxPlayers, SessionPort);
 	UE_LOG(LogPRSession, Log, TEXT("[StartHost] OpenLevel Map=%s, Options=%s"), *Params.MapName.ToString(), *Options);
@@ -168,6 +177,11 @@ void UPRSessionSubsystem::StartJoin(const FPRJoinSessionParams& Params)
 
 	SetState(EPRSessionState::Joining);
 
+	if (UPRLoadingScreenSubsystem* LoadingScreen = GameInstance->GetSubsystem<UPRLoadingScreenSubsystem>())
+	{
+		LoadingScreen->BeginTravel(TEXT("StartJoin"));
+	}
+
 	// 접속 시도. 실패는 HandleNetworkFailure로 통지됨
 	// ClientTravel은 비동기. 실제 Joined 전이는 새 맵에서 PostLogin/WelcomeReceived 시점에 확정해야 함
 	PC->ClientTravel(TravelAddress, TRAVEL_Absolute);
@@ -216,6 +230,14 @@ bool UPRSessionSubsystem::ServerTravelToMap(TSoftObjectPtr<UWorld> MapAsset, boo
 	if (IsSameMapForRestart(World, PackageName))
 	{
 		// 현재 맵 재진입은 플레이어 리스폰과 동일한 Restart URL 사용
+		if (UGameInstance* GameInstance = GetGameInstance())
+		{
+			if (UPRLoadingScreenSubsystem* LoadingScreen = GameInstance->GetSubsystem<UPRLoadingScreenSubsystem>())
+			{
+				LoadingScreen->BeginTravelToMap(TEXT("ServerTravelRestart"), CurrentPackageName);
+			}
+		}
+
 		const bool bRestartStarted = World->ServerTravel(TEXT("?Restart"), false);
 		if (!bRestartStarted)
 		{
@@ -232,6 +254,14 @@ bool UPRSessionSubsystem::ServerTravelToMap(TSoftObjectPtr<UWorld> MapAsset, boo
 	const bool bResolvedAbsolute = bAbsolute;
 
 	// 다른 맵 이동은 소프트 참조 패키지 이름으로 ServerTravel 실행
+	if (UGameInstance* GameInstance = GetGameInstance())
+	{
+		if (UPRLoadingScreenSubsystem* LoadingScreen = GameInstance->GetSubsystem<UPRLoadingScreenSubsystem>())
+		{
+			LoadingScreen->BeginTravelToMap(TEXT("ServerTravelToMap"), PackageName);
+		}
+	}
+
 	const bool bTravelStarted = World->ServerTravel(TravelURL, bResolvedAbsolute);
 	if (!bTravelStarted)
 	{
@@ -260,10 +290,26 @@ void UPRSessionSubsystem::EndSession()
 	// 호스트는 ServerTravel(모든 클라 동반 이동), 게스트는 ClientTravel
 	if (World->GetNetMode() == NM_ListenServer || World->GetNetMode() == NM_DedicatedServer)
 	{
+		if (UGameInstance* GameInstance = GetGameInstance())
+		{
+			if (UPRLoadingScreenSubsystem* LoadingScreen = GameInstance->GetSubsystem<UPRLoadingScreenSubsystem>())
+			{
+				LoadingScreen->BeginTravelToMap(TEXT("EndSessionHost"), MenuMapName.ToString());
+			}
+		}
+
 		World->ServerTravel(MenuMapName.ToString(), true);
 	}
 	else
 	{
+		if (UGameInstance* GameInstance = GetGameInstance())
+		{
+			if (UPRLoadingScreenSubsystem* LoadingScreen = GameInstance->GetSubsystem<UPRLoadingScreenSubsystem>())
+			{
+				LoadingScreen->BeginTravelToMap(TEXT("EndSessionClient"), MenuMapName.ToString());
+			}
+		}
+
 		if (APlayerController* PC = GetGameInstance()->GetFirstLocalPlayerController())
 		{
 			PC->ClientTravel(MenuMapName.ToString(), TRAVEL_Absolute);

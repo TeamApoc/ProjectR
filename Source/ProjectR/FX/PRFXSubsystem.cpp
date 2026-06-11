@@ -118,6 +118,26 @@ bool UPRFXSubsystem::FindRegistryEntry(FGameplayTag FXTag, FPRFXRegistryEntry& O
 	return Registry->FindEntry(FXTag, OutEntry);
 }
 
+void UPRFXSubsystem::CollectPreloadAssetPathsForTags(const FGameplayTagContainer& FXTags, TArray<FSoftObjectPath>& OutAssetPaths) const
+{
+	for (const FGameplayTag& FXTag : FXTags)
+	{
+		FPRFXRegistryEntry Entry;
+		if (!FindRegistryEntry(FXTag, Entry))
+		{
+			continue;
+		}
+
+		for (const TSoftClassPtr<UPRFXCue>& CueClass : Entry.CueClasses)
+		{
+			if (!CueClass.IsNull())
+			{
+				OutAssetPaths.AddUnique(CueClass.ToSoftObjectPath());
+			}
+		}
+	}
+}
+
 bool UPRFXSubsystem::ResolveCues(FGameplayTag FXTag, TArray<UPRFXCue*>& OutCues)
 {
 	OutCues.Reset();

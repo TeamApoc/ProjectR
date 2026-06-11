@@ -45,6 +45,9 @@ public:
 	// Registry에서 FXTag에 해당하는 Entry 조회
 	bool FindRegistryEntry(FGameplayTag FXTag, FPRFXRegistryEntry& OutEntry) const;
 
+	// FXTag 목록에 필요한 Cue 클래스 경로 수집
+	void CollectPreloadAssetPathsForTags(const FGameplayTagContainer& FXTags, TArray<FSoftObjectPath>& OutAssetPaths) const;
+
 protected:
 	// Registry에서 Cue 클래스들을 찾고 Instancing 정책에 맞는 Cue 목록 구성
 	bool ResolveCues(FGameplayTag FXTag, TArray<UPRFXCue*>& OutCues);

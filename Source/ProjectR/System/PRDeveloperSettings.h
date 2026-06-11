@@ -20,6 +20,9 @@ class APRRewardPickupActor;
 class UPRCrosshairConfig;
 class UPRBGMRegistryDataAsset;
 class UPRUISoundDataAsset;
+class UPRMapPreloadDataAsset;
+class UPRRuntimePreloadDataAsset;
+class UWorld;
 
 // 플로팅 텍스트 타입별 위젯 클래스 및 색상 설정
 USTRUCT(BlueprintType)
@@ -153,4 +156,37 @@ public:
 	// 거리 텍스트 표시 시작 거리
 	UPROPERTY(EditDefaultsOnly, Config, Category = "UI|WorldMarker", meta = (ClampMin = "0.0", Units = "m"))
 	float WorldMarkerDistanceVisibleMinMeters = 20.0f;
+
+	// 로딩 화면 시스템 사용 여부
+	UPROPERTY(EditDefaultsOnly, Config, Category = "LoadingScreen")
+	bool bEnableLoadingScreenSystem = true;
+
+	// 새 월드 생성 후 Viewport를 덮을 로딩 위젯
+	UPROPERTY(EditDefaultsOnly, Config, Category = "LoadingScreen")
+	TSoftClassPtr<UUserWidget> MoviePlayerWidgetClass;
+
+	// 새 월드 생성 후 Viewport에 표시할 로딩 위젯
+	UPROPERTY(EditDefaultsOnly, Config, Category = "LoadingScreen")
+	TSoftClassPtr<UUserWidget> LoadingScreenWidgetClass;
+
+	// 최소 로딩 화면 표시 시간
+	UPROPERTY(EditDefaultsOnly, Config, Category = "LoadingScreen", meta = (ClampMin = "0.0"))
+	float MinimumLoadingScreenSeconds = 0.25f;
+
+	// MoviePlayer에서 Viewport 로딩 위젯으로 넘길 때 유지할 지연 시간
+	// Required 큐 기본 타임아웃
+	UPROPERTY(EditDefaultsOnly, Config, Category = "LoadingScreen", meta = (ClampMin = "0.0"))
+	float RequiredPreloadTimeoutSeconds = 15.0f;
+
+	// Soft Gate 기본 타임아웃
+	UPROPERTY(EditDefaultsOnly, Config, Category = "LoadingScreen", meta = (ClampMin = "0.0"))
+	float SoftPreloadTimeoutSeconds = 2.0f;
+
+	// 맵별 프리로드 데이터 매핑
+	UPROPERTY(EditDefaultsOnly, Config, Category = "LoadingScreen")
+	TMap<TSoftObjectPtr<UWorld>, TSoftObjectPtr<UPRMapPreloadDataAsset>> MapPreloadDataAssets;
+
+	// 플레이어와 전역 런타임 공통 프리로드 데이터
+	UPROPERTY(EditDefaultsOnly, Config, Category = "LoadingScreen")
+	TSoftObjectPtr<UPRRuntimePreloadDataAsset> RuntimePreloadDataAsset;
 };

@@ -240,6 +240,12 @@ private:
 	// 플레이어 메뉴 위젯 인스턴스를 생성하거나 캐시된 인스턴스를 반환한다
 	UPRPlayerMenu* GetOrCreatePlayerMenuWidget();
 
+	// 플레이어 메뉴를 CommonUI 활성 위젯으로 표시
+	void ShowPlayerMenuWidget(UPRPlayerMenu* InPlayerMenuWidget);
+
+	// 플레이어 메뉴를 CommonUI 활성 위젯에서 제거
+	void HidePlayerMenuWidget();
+
 	// 아이템 툴팁 위젯 인스턴스를 생성하거나 캐시된 인스턴스를 반환한다
 	UPRItemTooltipWidget* GetOrCreateItemTooltipWidget();
 

@@ -3,7 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "ProjectR/UI/PRWidgetBase.h"
+#include "CommonActivatableWidget.h"
 #include "PRPlayerMenu.generated.h"
 
 class UCommonButtonBase;
@@ -13,7 +13,7 @@ class UCommonActivatableWidgetSwitcher;
  *
  */
 UCLASS()
-class PROJECTR_API UPRPlayerMenu : public UPRWidgetBase
+class PROJECTR_API UPRPlayerMenu : public UCommonActivatableWidget
 {
 	GENERATED_BODY()
 public:
@@ -26,8 +26,8 @@ public:
 	// 탭 목록 초기 등록
 	virtual void NativeOnInitialized() override;
 
-	// 플레이어 메뉴 전용 입력 의도 변환
-	virtual EPRUIInputAction GetUIInputAction(const FKey& Key) const override;
+	// 플레이어 메뉴 닫기 입력 처리
+	virtual FReply NativeOnKeyDown(const FGeometry& InGeometry, const FKeyEvent& InKeyEvent) override;
 
 protected:
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "ProjectR|PlayerMenu")

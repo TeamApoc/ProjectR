@@ -6,13 +6,14 @@
 #include "CommonActivatableWidgetSwitcher.h"
 #include "CommonButtonBase.h"
 #include "Components/Widget.h"
+#include "GameFramework/PlayerController.h"
+#include "InputCoreTypes.h"
+#include "ProjectR/UI/Components/PRUIControllerComponent.h"
 #include "PRPlayerMenuTabListWidget.h"
 
 UPRPlayerMenu::UPRPlayerMenu()
 {
-	Layer = EPRUILayer::Menu;
-	InputMode = EPBUIInputMode::UIOnly;
-	bShowMouseCursor = true;
+	SetIsFocusable(true);
 }
 
 void UPRPlayerMenu::NativePreConstruct()
@@ -51,15 +52,31 @@ void UPRPlayerMenu::NativeOnInitialized()
 	RegisterSwitcherTabs();
 }
 
-EPRUIInputAction UPRPlayerMenu::GetUIInputAction(const FKey& Key) const
+FReply UPRPlayerMenu::NativeOnKeyDown(const FGeometry& InGeometry, const FKeyEvent& InKeyEvent)
 {
-	if (Key == EKeys::Tab)
+	const FKey Key = InKeyEvent.GetKey();
+	if (Key == EKeys::Tab
+		|| Key == EKeys::Escape
+		|| Key == EKeys::Virtual_Back
+		|| Key == EKeys::Gamepad_FaceButton_Right)
 	{
-		// 메뉴 입력 재사용 닫기
-		return EPRUIInputAction::Cancel;
+		if (APlayerController* OwningPlayerController = GetOwningPlayer())
+		{
+			if (UPRUIControllerComponent* UIController = OwningPlayerController->FindComponentByClass<UPRUIControllerComponent>())
+			{
+				// 메뉴 닫기 입력을 전용 표시 경로로 위임
+				UIController->ClosePlayerMenu();
+				return FReply::Handled();
+			}
+		}
+
+		// 전용 컨트롤러 경로가 없을 때 최소 정리
+		DeactivateWidget();
+		RemoveFromParent();
+		return FReply::Handled();
 	}
 
-	return Super::GetUIInputAction(Key);
+	return Super::NativeOnKeyDown(InGeometry, InKeyEvent);
 }
 
 void UPRPlayerMenu::RegisterSwitcherTabs()

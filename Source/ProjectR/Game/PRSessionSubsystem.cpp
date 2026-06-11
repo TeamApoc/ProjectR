@@ -19,6 +19,7 @@ namespace
 {
 	const FName ProjectRSessionName(TEXT("ProjectRSession"));
 	constexpr int32 LocalUserNum = 0;
+	constexpr float LoadingOverlayTravelDelay = 0.05f;
 
 	FString NormalizeMapPackageName(const FString& MapPackageName)
 	{
@@ -103,6 +104,43 @@ void UPRSessionSubsystem::SetState(EPRSessionState NewState)
 
 	CurrentState = NewState;
 	OnSessionStateChanged.Broadcast(CurrentState);
+}
+
+void UPRSessionSubsystem::RunTravelAfterLoadingOverlay(FName TravelReason, const FString& MapName, TFunction<void()> TravelAction)
+{
+	if (!TravelAction)
+	{
+		return;
+	}
+
+	if (UGameInstance* GameInstance = GetGameInstance())
+	{
+		if (UPRLoadingScreenSubsystem* LoadingScreen = GameInstance->GetSubsystem<UPRLoadingScreenSubsystem>())
+		{
+			if (MapName.IsEmpty())
+			{
+				LoadingScreen->BeginTravel(TravelReason);
+			}
+			else
+			{
+				LoadingScreen->BeginTravelToMap(TravelReason, MapName);
+			}
+		}
+	}
+
+	UWorld* World = GetWorld();
+	if (!IsValid(World) || LoadingOverlayTravelDelay <= 0.0f)
+	{
+		TravelAction();
+		return;
+	}
+
+	World->GetTimerManager().ClearTimer(LoadingOverlayTravelTimerHandle);
+	FTimerDelegate TravelDelegate = FTimerDelegate::CreateWeakLambda(this, [TravelAction = MoveTemp(TravelAction)]() mutable
+	{
+		TravelAction();
+	});
+	World->GetTimerManager().SetTimer(LoadingOverlayTravelTimerHandle, TravelDelegate, LoadingOverlayTravelDelay, false);
 }
 
 // ===== Host 경로 ===== 
@@ -195,7 +233,11 @@ void UPRSessionSubsystem::HandleCreateSessionComplete(FName SessionName, bool bW
 	// listen 옵션으로 리슨 서버 개시. SessionPort 명시로 PIE/Standalone 포트 통일
 	const FString Options = FString::Printf(TEXT("listen?MaxPlayers=%d?Port=%d"), PendingHostParams.MaxPlayers, SessionPort);
 	UE_LOG(LogPRSession, Log, TEXT("[HandleCreateSessionComplete] OpenLevel Map=%s, Options=%s"), *PendingHostParams.MapName.ToString(), *Options);
-	UGameplayStatics::OpenLevel(this, PendingHostParams.MapName, true, Options);
+	const FName MapName = PendingHostParams.MapName;
+	RunTravelAfterLoadingOverlay(TEXT("StartHost"), MapName.ToString(), [this, MapName, Options]()
+	{
+		UGameplayStatics::OpenLevel(this, MapName, true, Options);
+	});
 
 	// OpenLevel은 비동기이므로 Hosted 전이는 맵 로드 완료 시 GameMode에서 확정한다
 	SetState(EPRSessionState::Hosted);
@@ -360,7 +402,13 @@ void UPRSessionSubsystem::HandleJoinSessionComplete(FName SessionName, EOnJoinSe
 		*TravelAddress, *PC->GetName());
 
 	// OSS가 해석한 접속 문자열로 이동. 실제 Joined 전이는 새 맵에서 확정
-	PC->ClientTravel(TravelAddress, TRAVEL_Absolute);
+	RunTravelAfterLoadingOverlay(TEXT("StartJoin"), FString(), [PC, TravelAddress]()
+	{
+		if (IsValid(PC))
+		{
+			PC->ClientTravel(TravelAddress, TRAVEL_Absolute);
+		}
+	});
 }
 
 void UPRSessionSubsystem::StartDirectJoin(const FString& Address)
@@ -408,14 +456,15 @@ void UPRSessionSubsystem::StartDirectJoin(const FString& Address)
 
 	SetState(EPRSessionState::Joining);
 
-	if (UPRLoadingScreenSubsystem* LoadingScreen = GameInstance->GetSubsystem<UPRLoadingScreenSubsystem>())
-	{
-		LoadingScreen->BeginTravel(TEXT("StartJoin"));
-	}
-
 	// 접속 시도. 실패는 HandleNetworkFailure로 통지됨
 	// ClientTravel은 비동기. 실제 Joined 전이는 새 맵에서 PostLogin/WelcomeReceived 시점에 확정해야 함
-	PC->ClientTravel(TravelAddress, TRAVEL_Absolute);
+	RunTravelAfterLoadingOverlay(TEXT("StartJoin"), FString(), [PC, TravelAddress]()
+	{
+		if (IsValid(PC))
+		{
+			PC->ClientTravel(TravelAddress, TRAVEL_Absolute);
+		}
+	});
 }
 
 // ===== ServerTravel =====
@@ -461,48 +510,38 @@ bool UPRSessionSubsystem::ServerTravelToMap(TSoftObjectPtr<UWorld> MapAsset, boo
 	if (IsSameMapForRestart(World, PackageName))
 	{
 		// 현재 맵 재진입은 플레이어 리스폰과 동일한 Restart URL 사용
-		if (UGameInstance* GameInstance = GetGameInstance())
+		RunTravelAfterLoadingOverlay(TEXT("ServerTravelRestart"), CurrentPackageName, [this, CurrentPackageName, PackageName]()
 		{
-			if (UPRLoadingScreenSubsystem* LoadingScreen = GameInstance->GetSubsystem<UPRLoadingScreenSubsystem>())
+			UWorld* TravelWorld = GetWorld();
+			if (!IsValid(TravelWorld) || !TravelWorld->ServerTravel(TEXT("?Restart"), false))
 			{
-				LoadingScreen->BeginTravelToMap(TEXT("ServerTravelRestart"), CurrentPackageName);
+				UE_LOG(LogPRSession, Warning, TEXT("[ServerTravelToMap] Restart failed. Current=%s, Target=%s"),
+					*CurrentPackageName,
+					*PackageName);
+				OnSessionFailed.Broadcast(EPRSessionFailReason::MapLoadFailed, TEXT("?Restart"));
 			}
-		}
+		});
 
-		const bool bRestartStarted = World->ServerTravel(TEXT("?Restart"), false);
-		if (!bRestartStarted)
-		{
-			UE_LOG(LogPRSession, Warning, TEXT("[ServerTravelToMap] Restart failed. Current=%s, Target=%s"),
-				*CurrentPackageName,
-				*PackageName);
-			OnSessionFailed.Broadcast(EPRSessionFailReason::MapLoadFailed, TEXT("?Restart"));
-		}
-
-		return bRestartStarted;
+		return true;
 	}
 
 	const FString TravelURL = PackageName;
 	const bool bResolvedAbsolute = bAbsolute;
 
 	// 다른 맵 이동은 소프트 참조 패키지 이름으로 ServerTravel 실행
-	if (UGameInstance* GameInstance = GetGameInstance())
+	RunTravelAfterLoadingOverlay(TEXT("ServerTravelToMap"), PackageName, [this, TravelURL, CurrentPackageName, bResolvedAbsolute]()
 	{
-		if (UPRLoadingScreenSubsystem* LoadingScreen = GameInstance->GetSubsystem<UPRLoadingScreenSubsystem>())
+		UWorld* TravelWorld = GetWorld();
+		if (!IsValid(TravelWorld) || !TravelWorld->ServerTravel(TravelURL, bResolvedAbsolute))
 		{
-			LoadingScreen->BeginTravelToMap(TEXT("ServerTravelToMap"), PackageName);
+			UE_LOG(LogPRSession, Warning, TEXT("[ServerTravelToMap] ServerTravel failed. URL=%s, Current=%s"),
+				*TravelURL,
+				*CurrentPackageName);
+			OnSessionFailed.Broadcast(EPRSessionFailReason::MapLoadFailed, TravelURL);
 		}
-	}
+	});
 
-	const bool bTravelStarted = World->ServerTravel(TravelURL, bResolvedAbsolute);
-	if (!bTravelStarted)
-	{
-		UE_LOG(LogPRSession, Warning, TEXT("[ServerTravelToMap] ServerTravel failed. URL=%s, Current=%s"),
-			*TravelURL,
-			*CurrentPackageName);
-		OnSessionFailed.Broadcast(EPRSessionFailReason::MapLoadFailed, TravelURL);
-	}
-
-	return bTravelStarted;
+	return true;
 }
 
 // ===== 종료 =====
@@ -561,30 +600,32 @@ void UPRSessionSubsystem::TravelToMenuMap()
 	// 호스트는 ServerTravel(모든 클라 동반 이동), 게스트는 ClientTravel
 	if (World->GetNetMode() == NM_ListenServer || World->GetNetMode() == NM_DedicatedServer)
 	{
-		if (UGameInstance* GameInstance = GetGameInstance())
+		RunTravelAfterLoadingOverlay(TEXT("EndSessionHost"), MenuMapName.ToString(), [this]()
 		{
-			if (UPRLoadingScreenSubsystem* LoadingScreen = GameInstance->GetSubsystem<UPRLoadingScreenSubsystem>())
+			UWorld* TravelWorld = GetWorld();
+			if (IsValid(TravelWorld))
 			{
-				LoadingScreen->BeginTravelToMap(TEXT("EndSessionHost"), MenuMapName.ToString());
+				TravelWorld->ServerTravel(MenuMapName.ToString(), true);
 			}
-		}
-
-		World->ServerTravel(MenuMapName.ToString(), true);
+		});
 	}
 	else
 	{
 		UGameInstance* GameInstance = GetGameInstance();
-		if (IsValid(GameInstance))
+		if (!IsValid(GameInstance))
 		{
-			if (UPRLoadingScreenSubsystem* LoadingScreen = GameInstance->GetSubsystem<UPRLoadingScreenSubsystem>())
-			{
-				LoadingScreen->BeginTravelToMap(TEXT("EndSessionClient"), MenuMapName.ToString());
-			}
+			return;
 		}
 
 		if (APlayerController* PC = GameInstance->GetFirstLocalPlayerController())
 		{
-			PC->ClientTravel(MenuMapName.ToString(), TRAVEL_Absolute);
+			RunTravelAfterLoadingOverlay(TEXT("EndSessionClient"), MenuMapName.ToString(), [this, PC]()
+			{
+				if (IsValid(PC))
+				{
+					PC->ClientTravel(MenuMapName.ToString(), TRAVEL_Absolute);
+				}
+			});
 		}
 	}
 }

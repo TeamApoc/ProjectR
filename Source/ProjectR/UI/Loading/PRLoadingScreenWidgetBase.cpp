@@ -17,15 +17,6 @@ void UPRLoadingScreenWidgetBase::SetLoadingDestination(const FString& MapPackage
 	OnLoadingDestinationChanged(DestinationMapPackageName, DestinationMapShortName);
 }
 
-void UPRLoadingScreenWidgetBase::SetLoadingScreenWidgetPhase(EPRLoadingScreenWidgetPhase NewPhase)
-{
-	LoadingScreenWidgetPhase = NewPhase;
-
-	const FName PackageName(*DestinationMapPackageName);
-	const FPRLoadingScreenImageEntry* ImageEntry = FindImageEntry(PackageName, DestinationMapShortName);
-	ApplyImageBrushes(ImageEntry);
-}
-
 const FPRLoadingScreenImageEntry* UPRLoadingScreenWidgetBase::FindImageEntry(FName MapPackageName, FName MapShortName) const
 {
 	for (const FPRLoadingScreenImageEntry& ImageEntry : MapImageEntries)
@@ -42,10 +33,9 @@ const FPRLoadingScreenImageEntry* UPRLoadingScreenWidgetBase::FindImageEntry(FNa
 void UPRLoadingScreenWidgetBase::ApplyImageBrushes(const FPRLoadingScreenImageEntry* ImageEntry)
 {
 	const FSlateBrush& PrimaryBrush = ImageEntry ? ImageEntry->PrimaryImageBrush : DefaultPrimaryImageBrush;
-	const bool bMoviePlayerPhase = LoadingScreenWidgetPhase == EPRLoadingScreenWidgetPhase::MoviePlayer;
 	const FSlateBrush& SecondaryBrush = ImageEntry
-		? (bMoviePlayerPhase ? ImageEntry->MoviePlayerSecondaryImageBrush : ImageEntry->ViewportSecondaryImageBrush)
-		: (bMoviePlayerPhase ? DefaultMoviePlayerSecondaryImageBrush : DefaultViewportSecondaryImageBrush);
+		? ImageEntry->ViewportSecondaryImageBrush
+		: DefaultViewportSecondaryImageBrush;
 
 	if (IsValid(PrimaryImage))
 	{

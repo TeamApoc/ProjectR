@@ -8,18 +8,13 @@
 
 class UPRMapPreloadDataAsset;
 class UPRRuntimePreloadDataAsset;
+class AActor;
 class UNiagaraComponent;
 class UNiagaraSystem;
+class SWidget;
+class UStaticMeshComponent;
 class UUserWidget;
 class UWorld;
-
-UENUM(BlueprintType)
-enum class EPRLoadingGateType : uint8
-{
-	Hard,
-	Soft,
-	Display
-};
 
 UENUM(BlueprintType)
 enum class EPRLoadingState : uint8
@@ -61,10 +56,9 @@ public:
 private:
 	void HandlePreLoadMap(const FString& MapName);
 	void HandlePostLoadMapWithWorld(UWorld* LoadedWorld);
-	void StartMoviePlayerScreen(const FString& MapName);
-	void StopMoviePlayerScreen();
-	void ShowViewportLoadingWidget();
-	void HideViewportLoadingWidget();
+	void ShowPersistentLoadingOverlay(const FString& MapName);
+	void HidePersistentLoadingOverlay();
+	bool IsPersistentLoadingOverlayVisible() const;
 	void StartCharacterRuntimePreload();
 	void HandleCharacterRuntimeBasePreloadComplete();
 	void HandleCharacterRuntimeBasePreloadTimeout();
@@ -79,6 +73,9 @@ private:
 	void AdvanceNiagaraRenderPrewarmFrame();
 	void FinishNiagaraRenderPrewarm();
 	void CollectNiagaraRenderPrewarmSystems(UPRMapPreloadDataAsset* MapPreloadData, UPRRuntimePreloadDataAsset* RuntimePreloadData, TArray<UNiagaraSystem*>& OutNiagaraSystems) const;
+	void StartInteractionOutlineRenderPrewarm(UWorld* LoadedWorld);
+	void AdvanceInteractionOutlineRenderPrewarmFrame();
+	void FinishInteractionOutlineRenderPrewarm();
 	void StartShopUIPrewarm(UWorld* LoadedWorld, UPRMapPreloadDataAsset* MapPreloadData);
 	void HandleShopUIPrewarmComplete();
 	void TryReveal();
@@ -99,21 +96,28 @@ private:
 	bool bCharacterRuntimeCuePreloadStarted = false;
 	bool bNiagaraRenderPrewarmComplete = true;
 	bool bNiagaraRenderPrewarmInProgress = false;
+	bool bInteractionOutlineRenderPrewarmComplete = true;
+	bool bInteractionOutlineRenderPrewarmInProgress = false;
 	bool bShopUIPrewarmComplete = true;
 	bool bMinimumDisplayTimeComplete = false;
 	int32 RemainingNiagaraRenderPrewarmFrames = 0;
+	int32 InteractionOutlineRenderPrewarmStep = 0;
 	TWeakObjectPtr<UWorld> CurrentLoadedWorld;
 	FTimerHandle MinimumDisplayTimerHandle;
-	uint64 RequiredPreloadRequestId = 0;
-	uint64 CharacterRuntimeBasePreloadRequestId = 0;
-	uint64 CharacterRuntimeCuePreloadRequestId = 0;
 
 	UPROPERTY(Transient)
-	TObjectPtr<UUserWidget> MoviePlayerWidget;
+	TObjectPtr<UUserWidget> PersistentLoadingWidget;
 
-	UPROPERTY(Transient)
-	TObjectPtr<UUserWidget> ViewportLoadingWidget;
+	TSharedPtr<SWidget> PersistentLoadingSlateWidget;
+
+	bool bPersistentLoadingOverlayAdded = false;
 
 	UPROPERTY(Transient)
 	TArray<TObjectPtr<UNiagaraComponent>> PrewarmNiagaraComponents;
+
+	UPROPERTY(Transient)
+	TObjectPtr<AActor> PrewarmInteractionOutlineActor;
+
+	UPROPERTY(Transient)
+	TObjectPtr<UStaticMeshComponent> PrewarmInteractionOutlineMeshComponent;
 };

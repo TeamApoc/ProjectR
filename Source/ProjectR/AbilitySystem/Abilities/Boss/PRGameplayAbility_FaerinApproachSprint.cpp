@@ -304,8 +304,18 @@ bool UPRGameplayAbility_FaerinApproachSprint::MoveDirectlyTowardTarget(float Del
 		return true;
 	}
 
+	const FVector OldLocation = EnemyCharacter->GetActorLocation();
 	FHitResult SweepHit;
 	EnemyCharacter->AddActorWorldOffset(CachedBurstDirection * MoveDistance, true, &SweepHit);
+	if (UCharacterMovementComponent* MovementComponent = EnemyCharacter->GetCharacterMovement())
+	{
+		const FVector AppliedVelocity = DeltaTime > UE_SMALL_NUMBER
+			? (EnemyCharacter->GetActorLocation() - OldLocation) / DeltaTime
+			: FVector::ZeroVector;
+		MovementComponent->SetMovementMode(MOVE_Walking);
+		MovementComponent->Velocity = AppliedVelocity;
+	}
+
 	return !SweepHit.bBlockingHit;
 }
 

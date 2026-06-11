@@ -1,5 +1,5 @@
 // Copyright ProjectR. All Rights Reserved.
-
+// Author: 손승우 (애니메이션 State 검격 Trail Niagara 윈도우/트리거 노티파이 구현)
 #pragma once
 
 #include "CoreMinimal.h"

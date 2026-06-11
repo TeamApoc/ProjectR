@@ -1,6 +1,6 @@
 ﻿// Copyright (c) 2026 TeamApoc. All Rights Reserved.
-
-
+// Author: 배유찬 (Mod 게이지 및 스택 상태 보존 구현)
+// Author: 이건주 (무기 Mod 장착 시 특수 이펙트 및 HUD 상태 동기화 구현)
 #include "PRItemInstance_Mod.h"
 
 #include "Logging/LogMacros.h"

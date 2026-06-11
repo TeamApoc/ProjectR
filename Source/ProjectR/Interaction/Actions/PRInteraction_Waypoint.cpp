@@ -1,5 +1,6 @@
 // Copyright ProjectR. All Rights Reserved.
-
+// Author: 김동석 (상호작용 시 로딩화면 프리웜 연동)
+// Author: 배유찬 (웨이포인트 활성화, 리스폰 지점 등록 및 트래블 UI 연동 구현)
 #include "PRInteraction_Waypoint.h"
 
 #include "Engine/Blueprint.h"
@@ -74,7 +75,7 @@ void UPRInteraction_Waypoint::RequestWaypointTravel(APRPlayerController* Request
 	UnlockPlayerInteraction();
 
 	// 선택 노드 목적지 이동
-	StartTravelToSpawnPoint(MapAsset, WaypointKey.WaypointId, TravelUIFadeDuration);
+	StartTravelToSpawnPoint(MapAsset, WaypointKey.WaypointId, 0.0f);
 }
 
 void UPRInteraction_Waypoint::CancelWaypointTravel(APRPlayerController* RequestingController)

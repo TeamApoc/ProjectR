@@ -1,5 +1,6 @@
 // Copyright ProjectR. All Rights Reserved.
-
+// Author: 김동석 (피격 경직 및 조준 반응 조건 연동)
+// Author: 손승우 (아머드 솔저 및 일반 몬스터 공격 패턴 데이터 설계)
 #pragma once
 
 #include "CoreMinimal.h"

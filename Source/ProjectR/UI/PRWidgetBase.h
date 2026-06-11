@@ -1,5 +1,6 @@
 // Copyright (c) 2026 TeamApoc. All Rights Reserved.
-
+// Author: 김동석 (버튼 호버/클릭 시 공용 사운드 자동 재생 구현)
+// Author: 배유찬 (UI 입력 제어 및 라이프사이클/스택 관리 구현)
 #pragma once
 
 #include "CoreMinimal.h"

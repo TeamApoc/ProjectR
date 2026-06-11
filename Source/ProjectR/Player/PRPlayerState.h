@@ -1,5 +1,7 @@
 // Copyright ProjectR. All Rights Reserved.
-
+// Author: 김동석 (경험치/레벨업, 성장 특성 포인트 및 재화(골드) 데이터 관리 구현)
+// Author: 배유찬 (리스폰 정보, 온라인 세션 및 패스트 트래블 상태 데이터 영속화)
+// Author: 이건주 (카메라 감도 설정 및 인벤토리 장비 스탯 데이터 저장 구현)
 #pragma once
 
 #include "CoreMinimal.h"

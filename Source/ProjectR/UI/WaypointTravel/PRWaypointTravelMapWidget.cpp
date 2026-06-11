@@ -1,5 +1,5 @@
 // Copyright ProjectR. All Rights Reserved.
-
+// Author: 배유찬 (웨이포인트 Travel Map UI 위젯 구현)
 #include "PRWaypointTravelMapWidget.h"
 
 #include "Blueprint/WidgetTree.h"

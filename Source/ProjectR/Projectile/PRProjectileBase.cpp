@@ -1,6 +1,7 @@
 // Copyright (c) 2026 TeamApoc. All Rights Reserved.
-
-
+// Author: 배유찬 (투사체 궤적 바운스(반사), 탄약 소모 연동 및 멀티플레이 동기화 구현)
+// Author: 손승우 (적 AI 전용 사격 충돌 물리 및 피격 연동 구현)
+// Author: 이건주 (특수 충돌 사운드(SFX) 및 파괴 가능 보스 포털 충돌 판정 구현)
 #include "PRProjectileBase.h"
 
 #include "AbilitySystemBlueprintLibrary.h"

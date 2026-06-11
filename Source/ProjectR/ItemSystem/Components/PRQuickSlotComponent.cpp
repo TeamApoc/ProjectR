@@ -1,5 +1,5 @@
 // Copyright (c) 2026 TeamApoc. All Rights Reserved.
-
+// Author: 배유찬 (퀵슬롯 슬롯 컴포넌트 구현)
 #include "PRQuickSlotComponent.h"
 
 #include "GameFramework/Controller.h"

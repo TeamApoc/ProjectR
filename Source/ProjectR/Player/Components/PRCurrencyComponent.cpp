@@ -1,5 +1,6 @@
 // Copyright ProjectR. All Rights Reserved.
-
+// Author: 김동석 (골드 획득/소모 로직 및 실시간 UI 동기화 구현)
+// Author: 배유찬 (리스폰 골드 패널티 및 골드 상태 보존 구현)
 #include "PRCurrencyComponent.h"
 
 #include "Net/UnrealNetwork.h"

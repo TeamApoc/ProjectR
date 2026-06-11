@@ -1,5 +1,6 @@
 ﻿// Copyright (c) 2026 TeamApoc. All Rights Reserved.
-
+// Author: 배유찬 (무기 변경 시 HUD 동기화 구현)
+// Author: 이건주 (무기 장착 상태, 탄창 실시간 잔여량 및 Mod 버프 애니메이션 구현)
 #pragma once
 
 #include "CoreMinimal.h"

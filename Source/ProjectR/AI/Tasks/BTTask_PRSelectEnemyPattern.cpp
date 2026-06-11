@@ -1,5 +1,7 @@
 // Copyright ProjectR. All Rights Reserved.
-
+// Author: 김동석 (조준 여부 연동 패턴 선택 확률 보정 구현)
+// Author: 손승우 (보스 및 일반 몬스터의 거리 기반 패턴 선택 알고리즘 구현)
+// Author: 이건주 (Penitent 몬스터 패턴 선택 분기 구현)
 #include "BTTask_PRSelectEnemyPattern.h"
 
 #include "BehaviorTree/BlackboardComponent.h"

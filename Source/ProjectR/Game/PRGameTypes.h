@@ -1,5 +1,6 @@
 // Copyright ProjectR. All Rights Reserved.
-
+// Author: 김동석 (성장 특성 포인트 관련 데이터 타입 정의)
+// Author: 배유찬 (온라인 세션, 패스트 트래블 및 장비 슬롯 데이터 타입 정의)
 #pragma once
 
 #include "CoreMinimal.h"

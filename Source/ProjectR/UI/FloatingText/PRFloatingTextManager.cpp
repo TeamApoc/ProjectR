@@ -1,5 +1,5 @@
 // Copyright (c) 2026 TeamApoc. All Rights Reserved.
-
+// Author: 배유찬 (UI Floating Text 매니저 구현)
 #include "PRFloatingTextManager.h"
 #include "PRFloatingTextWidget.h"
 #include "Components/WidgetComponent.h"

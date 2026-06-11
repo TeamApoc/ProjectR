@@ -1,6 +1,5 @@
 // Copyright (c) 2026 TeamApoc. All Rights Reserved.
-
-
+// Author: 배유찬 (장비 Weapon 상호작용 액션 실행 로직 구현)
 #include "PRInteraction_EquipWeapon.h"
 
 #include "GameFramework/Pawn.h"

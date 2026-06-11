@@ -1,4 +1,5 @@
-﻿// Fill out your copyright notice in the Description page of Project Settings.
+﻿// Author: 김동석 (Linked 애니메이션 인스턴스 구현)
+// Fill out your copyright notice in the Description page of Project Settings.
 
 
 #include "PRLinkedAnimInstance.h"

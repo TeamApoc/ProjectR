@@ -1,5 +1,5 @@
 // Copyright (c) 2026 TeamApoc. All Rights Reserved.
-
+// Author: 김동석 (Stamina Bar UI 위젯 구현)
 #include "ProjectR/UI/HUD/PRStaminaBarWidget.h"
 
 #include "AbilitySystemComponent.h"

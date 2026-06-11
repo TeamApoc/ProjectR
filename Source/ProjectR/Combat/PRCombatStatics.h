@@ -1,5 +1,8 @@
 // Copyright ProjectR. All Rights Reserved.
-
+// Author: 김동석 (조준 피격 보정용 정적 함수 구현)
+// Author: 배유찬 (약점 판정 및 기본 피해 계산 로직 구현)
+// Author: 손승우 (적 AI 상태별 피해 보정 정적 함수 구현)
+// Author: 이건주 (Penitent 몬스터용 특수 피해 계산식 구현)
 #pragma once
 
 #include "CoreMinimal.h"

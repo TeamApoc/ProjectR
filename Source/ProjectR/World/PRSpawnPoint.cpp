@@ -1,5 +1,5 @@
 // Copyright ProjectR. All Rights Reserved.
-
+// Author: 배유찬 (월드 배치용 스폰 Point 및 관련 시스템 구현)
 #include "PRSpawnPoint.h"
 
 #include "GameFramework/PlayerStart.h"

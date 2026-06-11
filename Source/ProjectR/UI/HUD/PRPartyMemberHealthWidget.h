@@ -1,5 +1,5 @@
 // Copyright (c) 2026 TeamApoc. All Rights Reserved.
-
+// Author: 김동석 (Party Member Health UI 위젯 구현)
 #pragma once
 
 #include "CoreMinimal.h"

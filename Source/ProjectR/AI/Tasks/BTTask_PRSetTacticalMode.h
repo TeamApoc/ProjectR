@@ -1,5 +1,6 @@
 // Copyright ProjectR. All Rights Reserved.
-
+// Author: 김동석 (플레이어 조준 대응용 우회 전술 전환 연동)
+// Author: 손승우 (EQS 기반 적 전술 이동 상태 전환 구현)
 #pragma once
 
 #include "CoreMinimal.h"

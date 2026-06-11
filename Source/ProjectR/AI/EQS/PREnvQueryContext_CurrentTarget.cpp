@@ -1,5 +1,5 @@
 // Copyright ProjectR. All Rights Reserved.
-
+// Author: 손승우 (Env Query Context Current 타겟 구현)
 #include "PREnvQueryContext_CurrentTarget.h"
 
 #include "AIController.h"

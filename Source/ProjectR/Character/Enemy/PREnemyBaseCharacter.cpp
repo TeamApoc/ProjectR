@@ -1,5 +1,8 @@
 // Copyright ProjectR. All Rights Reserved.
-
+// Author: 김동석 (적 체력 UI 및 아이템 drop 연동 구현)
+// Author: 배유찬 (어그로 마커(핑) 연동, 대미지 팝업 및 ASC 태그 이벤트 바인딩 구현)
+// Author: 손승우 (적 AI 상태 제어, 사망 디졸브 연출 및 아머드 솔저 적 캐릭터 구현)
+// Author: 이건주 (Penitent 및 드론/배리어 패턴 지원 적 캐릭터 구현)
 #include "PREnemyBaseCharacter.h"
 
 #include "AbilitySystemBlueprintLibrary.h"

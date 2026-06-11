@@ -1,5 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
-
+// Author: 김동석 (로딩 화면 프리로드 및 오디오 모듈 종속성 설정)
+// Author: 배유찬 (온라인 세션 및 어빌리티 시스템 종속성 설정)
+// Author: 손승우 (AI 및 모션 워핑 모듈 종속성 설정)
 using UnrealBuildTool;
 
 public class ProjectR : ModuleRules
@@ -26,6 +28,8 @@ public class ProjectR : ModuleRules
 			"StructUtils",
 			"Niagara",
 			"PhysicsCore",
+			"MoviePlayer",
+			"Slate",
 			"SlateCore",
 			"OnlineSubsystem",
 		});

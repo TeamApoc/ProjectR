@@ -1,5 +1,6 @@
 ﻿// Copyright (c) 2026 TeamApoc. All Rights Reserved.
-
+// Author: 김동석 (상호작용 시 로딩화면 프리웜 연동)
+// Author: 배유찬 (웨이포인트 활성화, 리스폰 지점 등록 및 트래블 UI 연동 구현)
 #pragma once
 
 #include "CoreMinimal.h"

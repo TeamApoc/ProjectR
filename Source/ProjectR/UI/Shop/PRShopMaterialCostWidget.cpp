@@ -1,5 +1,5 @@
 // Copyright ProjectR. All Rights Reserved.
-
+// Author: 김동석 (상점 Material Cost UI 위젯 구현)
 #include "PRShopMaterialCostWidget.h"
 
 #include "Components/Image.h"

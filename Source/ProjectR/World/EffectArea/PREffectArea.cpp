@@ -1,6 +1,6 @@
 // Copyright (c) 2026 TeamApoc. All Rights Reserved.
-
-
+// Author: 배유찬 (이펙트 영역 액터 기초 설계 및 리스폰 연동 구현)
+// Author: 이건주 (드론 회복 및 Penitent 몬스터용 특수 이펙트 영역 구현)
 #include "PREffectArea.h"
 
 #include "AbilitySystemBlueprintLibrary.h"

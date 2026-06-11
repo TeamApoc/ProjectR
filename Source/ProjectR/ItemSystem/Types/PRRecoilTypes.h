@@ -1,5 +1,5 @@
 // Copyright ProjectR. All Rights Reserved.
-
+// Author: 김동석 (Recoil 타입 및 구조체 정의)
 #pragma once
 
 #include "CoreMinimal.h"

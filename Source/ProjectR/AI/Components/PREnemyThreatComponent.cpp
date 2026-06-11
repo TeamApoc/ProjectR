@@ -1,5 +1,6 @@
 // Copyright ProjectR. All Rights Reserved.
-
+// Author: 김동석 (조준 및 전투 상태 기반 위협도 보정 연동)
+// Author: 손승우 (AI 어그로 관리 및 위협도 기반 타겟 선정 시스템 구현)
 #include "PREnemyThreatComponent.h"
 
 #include "AbilitySystemComponent.h"

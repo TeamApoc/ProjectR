@@ -1,5 +1,6 @@
 // Copyright ProjectR. All Rights Reserved.
-
+// Author: 배유찬 (Mod 게이지/스택 관리 및 투사체 발사형 Mod 기반 구현)
+// Author: 이건주 (GE 기반 무기 자원 갱신 및 Mod 공용 로직 구현)
 #include "PRGA_Mod.h"
 #include "AbilitySystemComponent.h"
 #include "AbilitySystemBlueprintLibrary.h"

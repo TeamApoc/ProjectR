@@ -1,6 +1,5 @@
 ﻿// Copyright (c) 2026 TeamApoc. All Rights Reserved.
-
-
+// Author: 배유찬 (월드 배치용 Boss Spawner 및 관련 시스템 구현)
 #include "PRBossSpawner.h"
 
 #include "Components/ArrowComponent.h"

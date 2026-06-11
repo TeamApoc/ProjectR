@@ -1,5 +1,5 @@
 // Copyright ProjectR. All Rights Reserved.
-
+// Author: 손승우 (적 AI Pick Reachable Location 비헤이비어 트리 태스크 구현)
 #include "BTTask_PRPickReachableLocation.h"
 
 #include "AIController.h"

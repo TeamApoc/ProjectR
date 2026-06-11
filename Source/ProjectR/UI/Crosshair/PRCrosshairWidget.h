@@ -1,5 +1,5 @@
 // Copyright (c) 2026 TeamApoc. All Rights Reserved.
-
+// Author: 배유찬 (크로스헤어 UI 위젯 구현)
 #pragma once
 
 #include "CoreMinimal.h"

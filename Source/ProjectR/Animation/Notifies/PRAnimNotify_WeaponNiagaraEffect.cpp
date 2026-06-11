@@ -1,5 +1,5 @@
 // Copyright ProjectR. All Rights Reserved.
-
+// Author: 김동석 (애니메이션 Weapon Niagara 이펙트 윈도우/트리거 노티파이 구현)
 #include "PRAnimNotify_WeaponNiagaraEffect.h"
 
 #include "NiagaraComponent.h"

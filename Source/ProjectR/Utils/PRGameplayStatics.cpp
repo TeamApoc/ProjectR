@@ -1,6 +1,6 @@
 ﻿// Copyright (c) 2026 TeamApoc. All Rights Reserved.
-
-
+// Author: 배유찬 (사격 데칼, 투사체 예측 궤적 및 UI 호출 등 코어 정적 헬퍼 함수 구축)
+// Author: 이건주 (무기 Mod 버프 상태 체크 정적 헬퍼 구현)
 #include "PRGameplayStatics.h"
 
 #include "AbilitySystemBlueprintLibrary.h"

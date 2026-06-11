@@ -1,5 +1,5 @@
 // Copyright ProjectR. All Rights Reserved.
-
+// Author: 배유찬 (이펙트 Network 컴포넌트 구현)
 #pragma once
 
 #include "CoreMinimal.h"

@@ -1,5 +1,5 @@
 // Copyright (c) 2026 TeamApoc. All Rights Reserved.
-
+// Author: 김동석 (UI 픽업 Notification 타입 및 구조체 정의)
 #pragma once
 
 #include "CoreMinimal.h"

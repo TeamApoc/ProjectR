@@ -1,6 +1,6 @@
 ﻿// Copyright (c) 2026 TeamApoc. All Rights Reserved.
-
-
+// Author: 배유찬 (Mod 충전 게이지 비주얼 연동 구현)
+// Author: 이건주 (무기 종류 아이콘 실시간 갱신 구현)
 #include "PRWeaponStatusWidget.h"
 
 #include "Components/Image.h"

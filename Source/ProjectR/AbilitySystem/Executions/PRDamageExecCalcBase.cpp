@@ -1,5 +1,5 @@
 // Copyright ProjectR. All Rights Reserved.
-
+// Author: 배유찬 (Damage Exec Calc 기본 구조 구현)
 #include "PRDamageExecCalcBase.h"
 
 #include "GameFramework/Pawn.h"

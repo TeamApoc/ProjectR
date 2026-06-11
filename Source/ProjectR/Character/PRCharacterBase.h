@@ -1,5 +1,6 @@
 // Copyright ProjectR. All Rights Reserved.
-
+// Author: 김동석 (조준 오프셋 연동용 캐릭터 기본 처리)
+// Author: 배유찬 (어빌리티 시스템 컴포넌트(ASC) 연동 및 캐릭터 기본 물리/이펙트 구조 구축)
 #pragma once
 
 #include "CoreMinimal.h"

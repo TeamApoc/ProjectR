@@ -1,5 +1,5 @@
 // Copyright ProjectR. All Rights Reserved.
-
+// Author: 김동석 (애니메이션 Footstep 사운드 윈도우/트리거 노티파이 구현)
 #pragma once
 
 #include "CoreMinimal.h"

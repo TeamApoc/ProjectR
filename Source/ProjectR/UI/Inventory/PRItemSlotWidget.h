@@ -1,5 +1,7 @@
 ﻿// Copyright (c) 2026 TeamApoc. All Rights Reserved.
-
+// Author: 김동석 (아이템 등급 비주얼 및 마우스 오버 툴팁 호출 구현)
+// Author: 배유찬 (슬롯 클릭 시 장비 장착/해제 어빌리티 연동 구현)
+// Author: 이건주 (3D 모델 아이콘 렌더링 구현)
 #pragma once
 
 #include "CoreMinimal.h"

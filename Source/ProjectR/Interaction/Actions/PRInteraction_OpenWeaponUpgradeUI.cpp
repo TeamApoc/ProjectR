@@ -1,5 +1,5 @@
 // Copyright ProjectR. All Rights Reserved.
-
+// Author: 김동석 (Open Weapon 강화/업그레이드 UI 상호작용 액션 실행 로직 구현)
 #include "PRInteraction_OpenWeaponUpgradeUI.h"
 
 #include "ProjectR/Player/PRPlayerController.h"

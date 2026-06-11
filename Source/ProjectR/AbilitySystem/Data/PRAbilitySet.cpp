@@ -1,4 +1,6 @@
-﻿#include "PRAbilitySet.h"
+﻿// Author: 배유찬 (어빌리티 세트 로드 및 입력 매핑 구조 구현)
+// Author: 이건주 (배리어 모드 및 무기 전용 어빌리티 매핑 구조 구현)
+#include "PRAbilitySet.h"
 
 #include "ProjectR/AbilitySystem/PRGameplayAbility.h"
 

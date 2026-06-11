@@ -1,5 +1,6 @@
 // Copyright ProjectR. All Rights Reserved.
-
+// Author: 배유찬 (사격 궤적 및 일반 투사체 이펙트 태그 정의)
+// Author: 손승우 (보스 패턴 관련 비주얼 이펙트 태그 정의)
 #include "PRFXTags.h"
 
 namespace PRFXTags

@@ -1,6 +1,6 @@
 ﻿// Copyright (c) 2026 TeamApoc. All Rights Reserved.
-
-
+// Author: 배유찬 (크로스헤어 및 사격 UI 정적 호출 구현)
+// Author: 이건주 (무기 상태 및 드론 전용 UI 정적 호출 구현)
 #include "PRUserInterfaceStatics.h"
 
 #include "ProjectR/System/PRDeveloperSettings.h"

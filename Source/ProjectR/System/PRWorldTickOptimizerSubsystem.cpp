@@ -1,5 +1,5 @@
 // Copyright ProjectR. All Rights Reserved.
-
+// Author: 배유찬 (World Tick Optimizer 서브시스템 구현)
 #include "PRWorldTickOptimizerSubsystem.h"
 
 #include "AbilitySystemComponent.h"

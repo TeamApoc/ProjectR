@@ -1,5 +1,6 @@
 // Copyright ProjectR. All Rights Reserved.
-
+// Author: 배유찬 (사망 리스폰 시 지면 투사체 제거 연동)
+// Author: 이건주 (지면 충격파 투사체 설계 및 충돌 사운드/이펙트 연동 구현)
 #pragma once
 
 #include "CoreMinimal.h"

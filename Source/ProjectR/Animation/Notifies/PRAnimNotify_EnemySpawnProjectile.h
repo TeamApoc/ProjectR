@@ -1,5 +1,7 @@
 ﻿// Copyright (c) 2026 TeamApoc. All Rights Reserved.
-
+// Author: 김동석 (조준 방어 상태 연동 투사체 판정)
+// Author: 손승우 (로열 아처 및 보스 원거리 투사체 스폰 트리거 구현)
+// Author: 이건주 (Penitent 사격 시 투사체 발사 트리거 구현)
 #pragma once
 
 #include "CoreMinimal.h"

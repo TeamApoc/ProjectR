@@ -1,4 +1,5 @@
-﻿#include "PRFireAbilityTypes.h"
+﻿// Author: 배유찬 (플레이어 Fire 타입 어빌리티 구현)
+#include "PRFireAbilityTypes.h"
 
 bool FPRFireShotPayload::NetSerialize(FArchive& Ar, UPackageMap* Map, bool& bOutSuccess)
 {

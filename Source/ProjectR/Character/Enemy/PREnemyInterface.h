@@ -1,5 +1,5 @@
 // Copyright ProjectR. All Rights Reserved.
-
+// Author: 손승우 (Enemy 인터페이스 정의)
 #pragma once
 
 #include "CoreMinimal.h"

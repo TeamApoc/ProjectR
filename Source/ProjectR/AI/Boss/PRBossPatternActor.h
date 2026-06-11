@@ -1,5 +1,5 @@
 // Copyright ProjectR. All Rights Reserved.
-
+// Author: 손승우 (Boss Pattern Actor 구현)
 #pragma once
 
 #include "CoreMinimal.h"

@@ -1,5 +1,5 @@
 // Copyright (c) 2026 TeamApoc. All Rights Reserved.
-
+// Author: 김동석 (성장 특성 Noti Text UI 위젯 구현)
 #pragma once
 
 #include "CoreMinimal.h"

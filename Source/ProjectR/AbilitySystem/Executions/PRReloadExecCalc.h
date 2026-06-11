@@ -1,5 +1,6 @@
 // Copyright ProjectR. All Rights Reserved.
-
+// Author: 배유찬 (기본 재장전 연산 및 좌수 IK 보정 로직 구현)
+// Author: 이건주 (Mod 버프에 따른 재장전 가중치 연산 구현)
 #pragma once
 
 #include "CoreMinimal.h"

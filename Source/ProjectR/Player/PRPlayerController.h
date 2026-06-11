@@ -1,5 +1,7 @@
 // Copyright ProjectR. All Rights Reserved.
-
+// Author: 김동석 (로딩 화면 프리웜, 픽업 알림 및 강화/성장 UI 호출 제어 구현)
+// Author: 배유찬 (세션 매치메이킹 UI, 리스폰 흐름 및 패스트 트래블 UI, 플래시라이트 입력 제어 구현)
+// Author: 이건주 (마우스 감도 설정 갱신 및 인벤토리/무기 상태 HUD 호출 제어 구현)
 #pragma once
 
 #include "CoreMinimal.h"

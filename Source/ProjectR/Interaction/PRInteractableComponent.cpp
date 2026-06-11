@@ -1,5 +1,5 @@
 // Copyright (c) 2026 TeamApoc. All Rights Reserved.
-
+// Author: 배유찬 (Interactable 컴포넌트 구현)
 #include "PRInteractableComponent.h"
 #include "PRInteractionAction.h"
 #include "Components/MeshComponent.h"

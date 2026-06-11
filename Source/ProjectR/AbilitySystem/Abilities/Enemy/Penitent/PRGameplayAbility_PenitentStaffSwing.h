@@ -1,5 +1,5 @@
 ﻿// Copyright (c) 2026 TeamApoc. All Rights Reserved.
-
+// Author: 이건주 (적 AI Penitent 몬스터 Staff Swing 공격 패턴 어빌리티 구현)
 #pragma once
 
 #include "CoreMinimal.h"

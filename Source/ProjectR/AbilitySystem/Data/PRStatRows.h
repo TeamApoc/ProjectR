@@ -1,5 +1,7 @@
 // Copyright ProjectR. All Rights Reserved.
-
+// Author: 김동석 (특성 성장 및 피격 경직 임계치 테이블 구조체 정의)
+// Author: 배유찬 (기본 레벨업 능력치 밸런스 테이블 구조체 정의)
+// Author: 이건주 (장비 능력치 가중치 테이블 구조체 정의)
 #pragma once
 
 #include "CoreMinimal.h"

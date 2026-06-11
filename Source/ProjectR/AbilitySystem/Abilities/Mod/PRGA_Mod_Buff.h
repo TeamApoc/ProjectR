@@ -1,5 +1,6 @@
 // Copyright ProjectR. All Rights Reserved.
-
+// Author: 배유찬 (버프 활성화 시 스택/게이지 소모 로직 구현)
+// Author: 이건주 (GE 기반 무기 버프 Mod 구현)
 #pragma once
 
 #include "CoreMinimal.h"

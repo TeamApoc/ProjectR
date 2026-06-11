@@ -1,5 +1,7 @@
 // Copyright ProjectR. All Rights Reserved.
-
+// Author: 김동석 (조준 상태 관련 피해 배율 속성 구현)
+// Author: 배유찬 (데미지 파이프라인 기반 적 속성 연동)
+// Author: 손승우 (몬스터 그로기 임계치 및 상태 속성 구현)
 #pragma once
 
 #include "CoreMinimal.h"

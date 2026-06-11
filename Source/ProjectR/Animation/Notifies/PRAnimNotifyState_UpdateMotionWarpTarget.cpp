@@ -1,5 +1,5 @@
 // Copyright ProjectR. All Rights Reserved.
-
+// Author: 손승우 (애니메이션 State Update Motion Warp 타겟 윈도우/트리거 노티파이 구현)
 #include "PRAnimNotifyState_UpdateMotionWarpTarget.h"
 
 #include "PRAnimNotifyMotionWarpTargetUtils.h"

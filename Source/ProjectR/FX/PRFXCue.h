@@ -1,5 +1,6 @@
 // Copyright ProjectR. All Rights Reserved.
-
+// Author: 배유찬 (총기 사격 궤적(Tracer) 및 피격 폭발 비주얼 이펙트 연동 구현)
+// Author: 손승우 (보스 순간이동 및 포털 특수 VFX 트리거 구현)
 #pragma once
 
 #include "CoreMinimal.h"

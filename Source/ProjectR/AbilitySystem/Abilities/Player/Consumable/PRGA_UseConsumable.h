@@ -1,5 +1,6 @@
 ﻿// Copyright (c) 2026 TeamApoc. All Rights Reserved.
-
+// Author: 배유찬 (인벤토리 아이템 소모 및 장비 연동 구현)
+// Author: 이건주 (소모품 사용 애니메이션 중 무기 비활성화 및 행동 차단 구현)
 #pragma once
 
 #include "CoreMinimal.h"

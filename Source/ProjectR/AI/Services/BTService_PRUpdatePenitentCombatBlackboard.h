@@ -1,5 +1,5 @@
 // Copyright ProjectR. All Rights Reserved.
-
+// Author: 이건주 (적 AI Update Penitent 몬스터 전투 블랙보드 갱신용 비헤이비어 트리 서비스 구현)
 #pragma once
 
 #include "CoreMinimal.h"

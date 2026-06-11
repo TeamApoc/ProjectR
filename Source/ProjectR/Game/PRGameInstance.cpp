@@ -1,5 +1,5 @@
 // Copyright ProjectR. All Rights Reserved.
-
+// Author: 배유찬 (Game 인스턴스 구현)
 #include "PRGameInstance.h"
 #include "PRGameStateBase.h"
 #include "PRSessionSubsystem.h"

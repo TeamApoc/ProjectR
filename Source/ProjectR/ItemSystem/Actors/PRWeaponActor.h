@@ -1,5 +1,8 @@
 // Copyright ProjectR. All Rights Reserved.
-
+// Author: 김동석 (무기 스켈레탈 메시 조작 애니메이션 연동)
+// Author: 배유찬 (무기 사격 이펙트(Tracer), 재장전 애니메이션 및 투사체 발사 제어 구현)
+// Author: 손승우 (보스용 특수 타격 판정 무기 연동)
+// Author: 이건주 (인벤토리 연동 및 3D 프리뷰 연동 구현)
 #pragma once
 
 #include "CoreMinimal.h"

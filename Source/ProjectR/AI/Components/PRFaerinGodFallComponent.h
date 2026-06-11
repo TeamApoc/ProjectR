@@ -1,5 +1,6 @@
 // Copyright ProjectR. All Rights Reserved.
-
+// Author: 배유찬 (패턴 시작 시 카메라 및 조준 카메라 보정 연동)
+// Author: 손승우 (GodFall 패턴 시퀀스 및 지면 충격파 VFX, PoiseDamage 판정 구현)
 #pragma once
 
 #include "CoreMinimal.h"

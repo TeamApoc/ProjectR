@@ -1,5 +1,5 @@
 // Copyright ProjectR. All Rights Reserved.
-
+// Author: 김동석 (Weapon 강화/업그레이드 Material Cost UI 위젯 구현)
 #pragma once
 
 #include "CoreMinimal.h"

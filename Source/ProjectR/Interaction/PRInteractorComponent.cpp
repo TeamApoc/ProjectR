@@ -1,5 +1,5 @@
 // Copyright (c) 2026 TeamApoc. All Rights Reserved.
-
+// Author: 배유찬 (Interactor 컴포넌트 구현)
 #include "PRInteractorComponent.h"
 #include "PRInteractableComponent.h"
 #include "PRInteractionAction.h"

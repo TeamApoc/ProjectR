@@ -1,5 +1,5 @@
 ﻿// Copyright (c) 2026 TeamApoc. All Rights Reserved.
-
+// Author: 이건주 (UI FPR Weapon Status View 데이터 구현)
 #pragma once
 
 #include "CoreMinimal.h"

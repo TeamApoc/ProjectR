@@ -1,6 +1,7 @@
 // Copyright (c) 2026 TeamApoc. All Rights Reserved.
-
-
+// Author: 김동석 (보유 골드 실시간 수량 갱신 구현)
+// Author: 배유찬 (플레이어 스탯 상세 정보 및 장비 장착 외형 동기화 구현)
+// Author: 이건주 (캐릭터 3D 프리뷰 회전 제어 및 무기 상태 연동 구현)
 #include "PRInventoryWidget.h"
 
 #include "GameFramework/PlayerController.h"

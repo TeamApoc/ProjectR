@@ -1,5 +1,6 @@
 // Copyright ProjectR. All Rights Reserved.
-
+// Author: 김동석 (회피 판정 및 데미지 트리거 연동)
+// Author: 손승우 (근접 공격 데미지 판정(히트) 트리거 구현)
 #pragma once
 
 #include "CoreMinimal.h"

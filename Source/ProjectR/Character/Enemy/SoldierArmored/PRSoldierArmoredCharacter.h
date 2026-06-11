@@ -1,5 +1,5 @@
 // Copyright ProjectR. All Rights Reserved.
-
+// Author: 손승우 (Soldier Armored Character 구현)
 #pragma once
 
 #include "CoreMinimal.h"

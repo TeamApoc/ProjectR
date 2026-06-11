@@ -1,5 +1,5 @@
 // Copyright ProjectR. All Rights Reserved.
-
+// Author: 이건주 (Barrier Anchor Actor 구현)
 #include "PRBarrierAnchorActor.h"
 
 #include "GameFramework/Pawn.h"

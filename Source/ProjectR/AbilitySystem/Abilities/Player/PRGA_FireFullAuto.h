@@ -1,5 +1,6 @@
 // Copyright (c) 2026 TeamApoc. All Rights Reserved.
-
+// Author: 김동석 (연사 반동 애니메이션 및 경직 제어 구현)
+// Author: 배유찬 (연사 투사체 사격 제어 및 탄약 소모 연동 구현)
 #pragma once
 
 #include "CoreMinimal.h"

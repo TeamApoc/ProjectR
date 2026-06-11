@@ -1,5 +1,5 @@
 // Copyright ProjectR. All Rights Reserved.
-
+// Author: 배유찬 (피격 임팩트 매니저 서브시스템 구현)
 #include "PRImpactManagerSubsystem.h"
 
 #include "PRImpactPoolActor.h"

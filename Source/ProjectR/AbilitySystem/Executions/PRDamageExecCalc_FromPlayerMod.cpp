@@ -1,5 +1,6 @@
 // Copyright ProjectR. All Rights Reserved.
-
+// Author: 배유찬 (Mod 피해량 연산 및 대미지 팝업 연동 구현)
+// Author: 손승우 (적 AI 상태별 Mod 피해 보정 구현)
 #include "PRDamageExecCalc_FromPlayerMod.h"
 #include "AbilitySystemComponent.h"
 #include "ProjectR/AbilitySystem/AttributeSets/PRAttributeSet_Common.h"

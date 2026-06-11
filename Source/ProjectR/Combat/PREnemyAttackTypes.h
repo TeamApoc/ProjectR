@@ -1,5 +1,5 @@
 // Copyright ProjectR. All Rights Reserved.
-
+// Author: 손승우 (Enemy 공격 타입 및 구조체 정의)
 #pragma once
 
 #include "CoreMinimal.h"

@@ -1,5 +1,6 @@
 // Copyright ProjectR. All Rights Reserved.
-
+// Author: 김동석 (보상 획득 시 골드/아이템 드롭 및 HUD 팝업 연동 구현)
+// Author: 배유찬 (필드 보상 스포너 및 리스폰 연동 구현)
 #pragma once
 
 #include "CoreMinimal.h"

@@ -1,5 +1,5 @@
 // Copyright ProjectR. All Rights Reserved.
-
+// Author: 배유찬 (Game State 기본 구조 구현)
 #include "PRGameStateBase.h"
 #include "Net/UnrealNetwork.h"
 #include "GameFramework/PlayerState.h"

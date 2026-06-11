@@ -1,5 +1,5 @@
 // Copyright ProjectR. All Rights Reserved.
-
+// Author: 손승우 (적 AI Has Enemy Pattern Candidate 조건 판정용 비헤이비어 트리 데코레이터 구현)
 #include "BTDecorator_PRHasEnemyPatternCandidate.h"
 
 #include "ProjectR/AI/PREnemyPatternSelectionUtils.h"

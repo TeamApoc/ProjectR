@@ -1,5 +1,7 @@
 // Copyright ProjectR. All Rights Reserved.
-
+// Author: 김동석 (페어린 보스 전용 체력 UI 연동)
+// Author: 배유찬 (페어린 보스 조우 상호작용 연동)
+// Author: 손승우 (페어린 보스 고유 공격 패턴(GodFall/소환/검격) 및 VFX 연출 구현)
 #include "PRFaerinCharacter.h"
 
 #include "Components/SceneComponent.h"

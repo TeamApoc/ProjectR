@@ -1,5 +1,5 @@
 // Copyright ProjectR. All Rights Reserved.
-
+// Author: 손승우 (적 AI Fae 로열 아처 Groggy 상태/패턴 어빌리티 구현)
 #include "PRGameplayAbility_FaeRoyalArcherGroggy.h"
 
 #include "Abilities/Tasks/AbilityTask_PlayMontageAndWait.h"

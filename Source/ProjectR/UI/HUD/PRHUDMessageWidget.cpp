@@ -1,5 +1,5 @@
 // Copyright (c) 2026 TeamApoc. All Rights Reserved.
-
+// Author: 배유찬 (HUD Message UI 위젯 구현)
 #include "PRHUDMessageWidget.h"
 
 #include "Components/PanelWidget.h"

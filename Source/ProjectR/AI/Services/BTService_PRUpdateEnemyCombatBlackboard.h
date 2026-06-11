@@ -1,5 +1,6 @@
 // Copyright ProjectR. All Rights Reserved.
-
+// Author: 김동석 (조준 상태 연동 어그로 갱신 구현)
+// Author: 손승우 (적 AI의 타겟 가시성, 사거리 및 블랙보드 전투 정보 갱신 구현)
 #pragma once
 
 #include "CoreMinimal.h"

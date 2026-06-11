@@ -1,5 +1,6 @@
 // Copyright ProjectR. All Rights Reserved.
-
+// Author: 김동석 (상점 거래 비용/재료 유효성 검사 구현)
+// Author: 배유찬 (장비 및 소모품 거래 관련 상점 기초 로직 구현)
 #include "PRShopComponent.h"
 
 #include "Net/UnrealNetwork.h"

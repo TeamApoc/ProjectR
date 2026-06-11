@@ -1,6 +1,7 @@
 // Copyright (c) 2026 TeamApoc. All Rights Reserved.
-
-
+// Author: 김동석 (플레이어 HP/포이즈 게이지 및 픽업 보상 알림 UI 구현)
+// Author: 배유찬 (Mod 게이지, 핑/마커 알림 및 홀드 상호작용 게이지 UI 구현)
+// Author: 이건주 (무기 장착 상태 및 소모품 퀵슬롯 UI 구현)
 #include "PRHUDWidget.h"
 
 #include "PRInteractionProgressBar.h"

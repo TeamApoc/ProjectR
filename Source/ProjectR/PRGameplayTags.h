@@ -1,5 +1,8 @@
 // Copyright (c) 2026 TeamApoc. All Rights Reserved.
-
+// Author: 김동석 (플레이어 이동/조준 및 피격/사망 관련 상태 태그 정의)
+// Author: 배유찬 (코어 어빌리티, 상호작용, 핑/마커 및 데미지 파이프라인 태그 정의)
+// Author: 손승우 (몬스터 및 보스 AI 전투 태그 정의)
+// Author: 이건주 (배리어/드론 모드 및 소모품/퀵슬롯 관련 게임플레이 태그 정의)
 #pragma once
 #include "NativeGameplayTags.h"
 

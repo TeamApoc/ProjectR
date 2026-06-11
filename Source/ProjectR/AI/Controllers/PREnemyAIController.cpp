@@ -1,5 +1,6 @@
 // Copyright ProjectR. All Rights Reserved.
-
+// Author: 김동석 (조준 상태 기반 탐지 보정 연동)
+// Author: 손승우 (일반 몬스터 및 보스 AI 인지 제어 및 비헤이비어 트리 연동 구현)
 #include "PREnemyAIController.h"
 
 #include "BehaviorTree/BehaviorTree.h"

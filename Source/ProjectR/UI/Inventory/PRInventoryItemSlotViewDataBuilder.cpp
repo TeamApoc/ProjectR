@@ -1,5 +1,5 @@
 // Copyright (c) 2026 TeamApoc. All Rights Reserved.
-
+// Author: 배유찬 (UI 인벤토리 Item 슬롯 View 데이터 Builder 구현)
 #include "PRInventoryItemSlotViewDataBuilder.h"
 
 #include "ProjectR/ItemSystem/Data/PRConsumableDataAsset.h"

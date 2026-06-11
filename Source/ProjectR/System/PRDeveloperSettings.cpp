@@ -1,5 +1,6 @@
 // Copyright ProjectR. All Rights Reserved.
-
+// Author: 김동석 (BGM/사운드, 로딩 화면 및 성장/특성 밸런스 설정 정의)
+// Author: 배유찬 (패스트 트래블, 핑/마커 및 VFX/어빌리티 설정 정의)
 #include "PRDeveloperSettings.h"
 #include "Blueprint/UserWidget.h"
 #include "ProjectR/UI/FloatingText/PRFloatingTextWidget.h"

@@ -1,5 +1,7 @@
 // Copyright ProjectR. All Rights Reserved.
-
+// Author: 김동석 (스태미나 소모/회복 및 Poise 경직, 성장 특성 포인트 속성 구현)
+// Author: 배유찬 (피해 연동용 플레이어 방어 속성 구현)
+// Author: 이건주 (장비 인벤토리 연동용 능력치 속성 구현)
 #pragma once
 
 #include "CoreMinimal.h"

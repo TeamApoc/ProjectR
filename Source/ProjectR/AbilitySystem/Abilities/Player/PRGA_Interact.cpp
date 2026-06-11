@@ -1,6 +1,5 @@
 ﻿// Copyright (c) 2026 TeamApoc. All Rights Reserved.
-
-
+// Author: 배유찬 (플레이어 Interact 어빌리티 구현)
 #include "PRGA_Interact.h"
 #include "Abilities/Tasks/AbilityTask_WaitInputRelease.h"
 #include "ProjectR/AbilitySystem/Tasks/PRAbilityTask_FaceTarget.h"

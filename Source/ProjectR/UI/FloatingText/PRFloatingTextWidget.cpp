@@ -1,5 +1,5 @@
 // Copyright (c) 2026 TeamApoc. All Rights Reserved.
-
+// Author: 배유찬 (Floating Text UI 위젯 구현)
 #include "PRFloatingTextWidget.h"
 
 #include "Animation/WidgetAnimation.h"

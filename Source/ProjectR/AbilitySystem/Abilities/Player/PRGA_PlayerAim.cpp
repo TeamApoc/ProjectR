@@ -1,5 +1,6 @@
 // Copyright (c) 2026 TeamApoc. All Rights Reserved.
-
+// Author: 김동석 (무기별 줌(Zoom) 기능 및 조준용 카메라/애님레이어 구현)
+// Author: 배유찬 (조준 시 HUD 크로스헤어 및 사격 프리뷰 연동 구현)
 #include "ProjectR/AbilitySystem/Abilities/Player/PRGA_PlayerAim.h"
 
 #include "ProjectR/Character/PRPlayerCharacter.h"

@@ -1,5 +1,6 @@
 // Copyright ProjectR. All Rights Reserved.
-
+// Author: 김동석 (재화/아이템 드롭 처리 및 픽업 HUD 알림 연동 구현)
+// Author: 배유찬 (드롭 확률 테이블 기반 아이템 스포너 배치 시스템 구현)
 #include "PRItemDropManagerSubsystem.h"
 
 #include "GameFramework/Controller.h"

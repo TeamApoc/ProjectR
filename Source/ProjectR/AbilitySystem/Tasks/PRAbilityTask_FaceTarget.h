@@ -1,5 +1,5 @@
 // Copyright ProjectR. All Rights Reserved.
-
+// Author: 배유찬 (어빌리티 태스크 Face 타겟 구현)
 #pragma once
 
 #include "CoreMinimal.h"

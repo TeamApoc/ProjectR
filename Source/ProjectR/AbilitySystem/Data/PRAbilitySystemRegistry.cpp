@@ -1,5 +1,6 @@
 // Copyright ProjectR. All Rights Reserved.
-
+// Author: 배유찬 (어빌리티 레지스트리 초기 구축 및 무기/상태 데이터 캐싱 구현)
+// Author: 이건주 (Mod 버프 관련 무기 데이터 매핑 구현)
 #include "PRAbilitySystemRegistry.h"
 
 #include "PRStatRows.h"

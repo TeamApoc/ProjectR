@@ -1,6 +1,5 @@
 ﻿// Copyright (c) 2026 TeamApoc. All Rights Reserved.
-
-
+// Author: 이건주 (Mod Cost Exec Calc Gauge Duration 구현)
 #include "PRModCostExecCalc_GaugeDuration.h"
 
 #include "ProjectR/AbilitySystem/AttributeSets/PRAttributeSet_Weapon.h"

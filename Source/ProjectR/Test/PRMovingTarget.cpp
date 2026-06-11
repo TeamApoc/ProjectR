@@ -1,5 +1,5 @@
 // Copyright ProjectR. All Rights Reserved.
-
+// Author: 배유찬 (Moving 타겟 구현)
 #include "PRMovingTarget.h"
 #include "Components/BoxComponent.h"
 #include "ProjectR/AbilitySystem/PRAbilitySystemComponent.h"

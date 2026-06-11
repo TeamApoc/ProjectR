@@ -1,5 +1,6 @@
 // Copyright ProjectR. All Rights Reserved.
-
+// Author: 배유찬 (Mod 충전 게이지 요구량 및 액티브 어빌리티 데이터 정의)
+// Author: 이건주 (드론 및 배리어 Mod 전용 비주얼/스탯 데이터 정의)
 #pragma once
 
 #include "CoreMinimal.h"

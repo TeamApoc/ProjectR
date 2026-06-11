@@ -1,5 +1,6 @@
 // Copyright ProjectR. All Rights Reserved.
-
+// Author: 김동석 (플레이어 피격 경직 시퀀스 및 화면 이펙트 구현)
+// Author: 배유찬 (플래시라이트 상태 연동)
 #include "PRGA_PlayerHitReact.h"
 
 #include "AbilitySystemComponent.h"

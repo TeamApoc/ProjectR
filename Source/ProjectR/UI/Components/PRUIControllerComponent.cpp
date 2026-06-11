@@ -1,5 +1,8 @@
 // Copyright (c) 2026 TeamApoc. All Rights Reserved.
-
+// Author: 김동석 (레벨업, 픽업 알림 및 피격 피플래시 UI 호출 관리 구현)
+// Author: 배유찬 (온라인 세션, 패스트 트래블 지도 및 테스트 UI 호출 관리 구현)
+// Author: 손승우 (보스전 체력바 UI 호출 연동 구현)
+// Author: 이건주 (인벤토리 메인 위젯 및 캐릭터 3D 프리뷰 호출 구현)
 #include "PRUIControllerComponent.h"
 
 #include "Blueprint/UserWidget.h"

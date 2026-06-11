@@ -1,5 +1,5 @@
 // Copyright ProjectR. All Rights Reserved.
-
+// Author: 김동석 (Loading Screen 기본 구조 UI 위젯 구현)
 #pragma once
 
 #include "CoreMinimal.h"

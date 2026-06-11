@@ -1,5 +1,6 @@
 // Copyright ProjectR. All Rights Reserved.
-
+// Author: 김동석 (로딩 화면 프리웜 및 프리로드 에셋 캐싱 시스템 구현)
+// Author: 배유찬 (어빌리티 레지스트리 및 리스폰 관련 에셋 비동기 로드 구현)
 #pragma once
 
 #include "CoreMinimal.h"

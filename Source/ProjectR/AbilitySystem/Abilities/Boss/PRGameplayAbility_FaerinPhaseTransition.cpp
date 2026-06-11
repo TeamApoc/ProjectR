@@ -46,8 +46,9 @@ void UPRGameplayAbility_FaerinPhaseTransition::ActivateAbility(const FGameplayAb
 	bGodFallCastStarted = false;
 	bGodFallEntrySucceeded = false;
 	bBodyMontageSequenceFinished = false;
-	bPausedBrainLogicForGodFall = false;
+	bPausedBrainLogicForPhaseTransition = false;
 	bBGMPhasePreviewed = false;
+	bStandardPhaseTransitionMontageActive = false;
 	PausedBrainComponent.Reset();
 	bSuppressBodyMontageCallbacks = false;
 	BodyMontageQueue.Reset();
@@ -96,7 +97,7 @@ void UPRGameplayAbility_FaerinPhaseTransition::ActivateAbility(const FGameplayAb
 			this,
 			&UPRGameplayAbility_FaerinPhaseTransition::HandleGodFallCastStarted);
 
-		PauseOwnerBrainForGodFall(FaerinCharacter);
+		PauseOwnerBrainForPhaseTransition(FaerinCharacter);
 
 		if (!ActiveGodFallComponent->StartGodFallEntry(PatternTarget))
 		{
@@ -109,12 +110,15 @@ void UPRGameplayAbility_FaerinPhaseTransition::ActivateAbility(const FGameplayAb
 		return;
 	}
 
-	FaerinCharacter->CommitPhaseTransition(PendingTargetPhase);
-	bPhaseTransitionCommitted = true;
-
-	if (UPRFaerinGodFallComponent* GodFallComponent = FaerinCharacter->GetGodFallComponent())
+	if (TryStartStandardPhaseTransitionMontage(FaerinCharacter))
 	{
-		GodFallComponent->ApplyGodFallPhaseScaling(PendingTargetPhase);
+		return;
+	}
+
+	if (!CommitPendingPhaseTransition())
+	{
+		EndAbility(Handle, ActorInfo, ActivationInfo, true, true);
+		return;
 	}
 
 	EndAbility(Handle, ActorInfo, ActivationInfo, true, false);
@@ -145,8 +149,9 @@ void UPRGameplayAbility_FaerinPhaseTransition::EndAbility(const FGameplayAbility
 	bGodFallCastStarted = false;
 	bGodFallEntrySucceeded = false;
 	bBodyMontageSequenceFinished = false;
+	bStandardPhaseTransitionMontageActive = false;
 	bSuppressBodyMontageCallbacks = false;
-	ResumeOwnerBrainForGodFall();
+	ResumeOwnerBrainForPhaseTransition();
 
 	if (bWasCancelled && !bPhaseTransitionCommitted)
 	{
@@ -215,6 +220,18 @@ void UPRGameplayAbility_FaerinPhaseTransition::PlayNextBodyMontage()
 	if (!BodyMontageQueue.IsValidIndex(ActiveBodyMontageIndex))
 	{
 		bBodyMontageSequenceFinished = true;
+		if (bStandardPhaseTransitionMontageActive)
+		{
+			if (!CommitPendingPhaseTransition())
+			{
+				EndAbility(CurrentSpecHandle, CurrentActorInfo, CurrentActivationInfo, true, true);
+				return;
+			}
+
+			EndAbility(CurrentSpecHandle, CurrentActorInfo, CurrentActivationInfo, true, false);
+			return;
+		}
+
 		if (IsValid(ActiveGodFallComponent))
 		{
 			ActiveGodFallComponent->NotifyGodFallBodyMontageSequenceFinished();
@@ -237,7 +254,11 @@ void UPRGameplayAbility_FaerinPhaseTransition::PlayNextBodyMontage()
 		&& MontageToPlay == ActiveGodFallComponent->GetGodFallData()->BossBodyDropMontage;
 
 	float PlayRate = 1.0f;
-	if (IsValid(ActiveGodFallComponent) && IsValid(ActiveGodFallComponent->GetGodFallData()))
+	if (bStandardPhaseTransitionMontageActive)
+	{
+		PlayRate = FMath::Max(StandardTransitionMontagePlayRate, 0.01f);
+	}
+	else if (IsValid(ActiveGodFallComponent) && IsValid(ActiveGodFallComponent->GetGodFallData()))
 	{
 		PlayRate = FMath::Max(ActiveGodFallComponent->GetGodFallData()->BossBodyMontagePlayRate, 0.01f);
 	}
@@ -275,6 +296,76 @@ void UPRGameplayAbility_FaerinPhaseTransition::ClearBodyMontageTask()
 	}
 }
 
+bool UPRGameplayAbility_FaerinPhaseTransition::TryStartStandardPhaseTransitionMontage(APRFaerinCharacter* FaerinCharacter)
+{
+	if (!IsValid(FaerinCharacter))
+	{
+		return false;
+	}
+
+	UAnimMontage* TransitionMontage = ResolveStandardPhaseTransitionMontage();
+	if (!IsValid(TransitionMontage))
+	{
+		if (PendingTargetPhase == EPRBossPhase::Phase3 || PendingTargetPhase == EPRBossPhase::Phase4)
+		{
+			UE_LOG(LogPRFaerinPhaseTransition, Warning,
+				TEXT("Faerin standard phase transition montage is not set. Boss=%s TargetPhase=%d"),
+				*GetNameSafe(FaerinCharacter),
+				static_cast<int32>(PendingTargetPhase));
+		}
+		return false;
+	}
+
+	BodyMontageQueue.Reset();
+	BodyMontageQueue.Add(TransitionMontage);
+	ActiveBodyMontageIndex = INDEX_NONE;
+	bBodyMontageSequenceFinished = false;
+	bStandardPhaseTransitionMontageActive = true;
+
+	BroadcastBGMPhasePreview(PendingTargetPhase);
+	PauseOwnerBrainForPhaseTransition(FaerinCharacter);
+	PlayNextBodyMontage();
+	return true;
+}
+
+UAnimMontage* UPRGameplayAbility_FaerinPhaseTransition::ResolveStandardPhaseTransitionMontage() const
+{
+	switch (PendingTargetPhase)
+	{
+	case EPRBossPhase::Phase3:
+		return Phase2To3TransitionMontage;
+	case EPRBossPhase::Phase4:
+		return Phase3To4TransitionMontage;
+	default:
+		return nullptr;
+	}
+}
+
+bool UPRGameplayAbility_FaerinPhaseTransition::CommitPendingPhaseTransition()
+{
+	if (bPhaseTransitionCommitted)
+	{
+		return true;
+	}
+
+	APRFaerinCharacter* FaerinCharacter = Cast<APRFaerinCharacter>(GetAvatarActorFromActorInfo());
+	if (!IsValid(FaerinCharacter) || !FaerinCharacter->HasAuthority())
+	{
+		return false;
+	}
+
+	FaerinCharacter->CommitPhaseTransition(PendingTargetPhase);
+	bPhaseTransitionCommitted = true;
+	bBGMPhasePreviewed = false;
+
+	if (UPRFaerinGodFallComponent* GodFallComponent = FaerinCharacter->GetGodFallComponent())
+	{
+		GodFallComponent->ApplyGodFallPhaseScaling(PendingTargetPhase);
+	}
+
+	return true;
+}
+
 void UPRGameplayAbility_FaerinPhaseTransition::TryCommitPhase2GodFallTransition()
 {
 	if (bPhaseTransitionCommitted || !bGodFallEntrySucceeded || !bBodyMontageSequenceFinished)
@@ -289,19 +380,16 @@ void UPRGameplayAbility_FaerinPhaseTransition::TryCommitPhase2GodFallTransition(
 		return;
 	}
 
-	FaerinCharacter->CommitPhaseTransition(PendingTargetPhase);
-	bPhaseTransitionCommitted = true;
-	bBGMPhasePreviewed = false;
-
-	if (IsValid(ActiveGodFallComponent))
+	if (!CommitPendingPhaseTransition())
 	{
-		ActiveGodFallComponent->ApplyGodFallPhaseScaling(PendingTargetPhase);
+		EndAbility(CurrentSpecHandle, CurrentActorInfo, CurrentActivationInfo, true, true);
+		return;
 	}
 
 	EndAbility(CurrentSpecHandle, CurrentActorInfo, CurrentActivationInfo, true, false);
 }
 
-void UPRGameplayAbility_FaerinPhaseTransition::PauseOwnerBrainForGodFall(APRFaerinCharacter* FaerinCharacter)
+void UPRGameplayAbility_FaerinPhaseTransition::PauseOwnerBrainForPhaseTransition(APRFaerinCharacter* FaerinCharacter)
 {
 	if (!IsValid(FaerinCharacter))
 	{
@@ -323,28 +411,28 @@ void UPRGameplayAbility_FaerinPhaseTransition::PauseOwnerBrainForGodFall(APRFaer
 	AIController->ClearFocus(EAIFocusPriority::Gameplay);
 
 	UBrainComponent* BrainComponent = AIController->GetBrainComponent();
-	if (IsValid(BrainComponent) && !bPausedBrainLogicForGodFall)
+	if (IsValid(BrainComponent) && !bPausedBrainLogicForPhaseTransition)
 	{
-		BrainComponent->PauseLogic(TEXT("Faerin God Fall"));
+		BrainComponent->PauseLogic(TEXT("Faerin Phase Transition"));
 		PausedBrainComponent = BrainComponent;
-		bPausedBrainLogicForGodFall = true;
+		bPausedBrainLogicForPhaseTransition = true;
 	}
 }
 
-void UPRGameplayAbility_FaerinPhaseTransition::ResumeOwnerBrainForGodFall()
+void UPRGameplayAbility_FaerinPhaseTransition::ResumeOwnerBrainForPhaseTransition()
 {
-	if (!bPausedBrainLogicForGodFall)
+	if (!bPausedBrainLogicForPhaseTransition)
 	{
 		return;
 	}
 
 	if (UBrainComponent* BrainComponent = PausedBrainComponent.Get())
 	{
-		BrainComponent->ResumeLogic(TEXT("Faerin God Fall"));
+		BrainComponent->ResumeLogic(TEXT("Faerin Phase Transition"));
 	}
 
 	PausedBrainComponent.Reset();
-	bPausedBrainLogicForGodFall = false;
+	bPausedBrainLogicForPhaseTransition = false;
 }
 
 void UPRGameplayAbility_FaerinPhaseTransition::RollbackPhaseTransition()

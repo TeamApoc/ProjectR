@@ -14,6 +14,7 @@
 #include "NiagaraComponent.h"
 #include "NiagaraFunctionLibrary.h"
 #include "NiagaraSystem.h"
+#include "ProjectR/AI/PREnemyAITypes.h"
 #include "ProjectR/AI/Components/PRFaerinCombatDirectorComponent.h"
 #include "ProjectR/AI/Components/PRFaerinDebugDrawComponent.h"
 #include "ProjectR/AI/Components/PRFaerinGodFallComponent.h"
@@ -90,6 +91,14 @@ void APRFaerinCharacter::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& O
 void APRFaerinCharacter::RequestBossEncounterBegin()
 {
 	SetBossEncounterActive(true);
+}
+
+void APRFaerinCharacter::CustomizeEnemyTargetingConfig(FPREnemyTargetingConfig& InOutTargetingConfig) const
+{
+	InOutTargetingConfig.bNeverForgetPlayerCandidates = true;
+	InOutTargetingConfig.bKeepCurrentTargetDuringPhaseTransition = true;
+	InOutTargetingConfig.bRestoreCurrentTargetFromCandidates = true;
+	InOutTargetingConfig.bIgnoreEngagementRetainRadiusForPlayerCandidates = true;
 }
 
 void APRFaerinCharacter::Multicast_SpawnNearTeleportBodyNiagara_Implementation(

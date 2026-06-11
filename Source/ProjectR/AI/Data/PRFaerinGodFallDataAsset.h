@@ -57,6 +57,18 @@ enum class EPRFaerinGodFallEntryOrbitSpinControlMode : uint8
 	TotalTurns	UMETA(DisplayName = "Total Turns")
 };
 
+// God Fall 검 메시의 기준 local 축이다.
+UENUM(BlueprintType)
+enum class EPRFaerinGodFallLocalAxis : uint8
+{
+	PlusX	UMETA(DisplayName = "+X"),
+	MinusX	UMETA(DisplayName = "-X"),
+	PlusY	UMETA(DisplayName = "+Y"),
+	MinusY	UMETA(DisplayName = "-Y"),
+	PlusZ	UMETA(DisplayName = "+Z"),
+	MinusZ	UMETA(DisplayName = "-Z")
+};
+
 // God Fall Entry Orbit 연출에서 최소/최대 랜덤값을 지정하기 위한 float range다.
 USTRUCT(BlueprintType)
 struct FPRFaerinGodFallFloatRange
@@ -259,6 +271,30 @@ public:
 	// 바깥쪽 벌어짐 각도 증가 곡선이다. 1보다 크면 후반에 더 크게 벌어진다.
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Faerin|GodFall|EntryOrbit|Tilt", meta = (ClampMin = "0.1", EditCondition = "bUseEntryOrbitBeforeImpact"))
 	float EntryOrbitTiltExponent = 1.5f;
+
+	// Entry Orbit 중 지정한 검 면이 항상 Faerin 중심을 바라보도록 회전을 계산할지 여부다.
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Faerin|GodFall|EntryOrbit|CenterFacingCone", meta = (InlineEditConditionToggle))
+	bool bUseEntryOrbitCenterFacingConeRotation = true;
+
+	// 검 메시 local 공간에서 검 길이 방향으로 사용할 축이다.
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Faerin|GodFall|EntryOrbit|CenterFacingCone", meta = (EditCondition = "bUseEntryOrbitCenterFacingConeRotation"))
+	EPRFaerinGodFallLocalAxis EntryOrbitConeLocalBladeAxis = EPRFaerinGodFallLocalAxis::PlusZ;
+
+	// Faerin 중심을 바라봐야 하는 검 면의 local normal 축이다.
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Faerin|GodFall|EntryOrbit|CenterFacingCone", meta = (EditCondition = "bUseEntryOrbitCenterFacingConeRotation"))
+	EPRFaerinGodFallLocalAxis EntryOrbitCenterFacingLocalFaceAxis = EPRFaerinGodFallLocalAxis::MinusY;
+
+	// 메시 축 보정이 더 필요할 때 마지막에 곱할 회전 보정값이다.
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Faerin|GodFall|EntryOrbit|CenterFacingCone", meta = (EditCondition = "bUseEntryOrbitCenterFacingConeRotation"))
+	FRotator EntryOrbitCenterFacingRotationOffset = FRotator::ZeroRotator;
+
+	// 선택한 blade axis 반대쪽이 실제 검 끝 방향일 때 중앙 교차를 피하도록 cone 기울기 방향을 뒤집는다.
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Faerin|GodFall|EntryOrbit|CenterFacingCone", meta = (EditCondition = "bUseEntryOrbitCenterFacingConeRotation"))
+	bool bInvertEntryOrbitCenterFacingConeTiltDirection = false;
+
+	// Impact Spread / EntryDiving 중에도 같은 면이 중심을 바라보는 회전을 유지할지 여부다.
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Faerin|GodFall|EntryOrbit|CenterFacingCone", meta = (EditCondition = "bUseEntryOrbitCenterFacingConeRotation"))
+	bool bKeepEntryOrbitCenterFacingDuringImpactDrop = true;
 
 	// Entry Orbit 후 지면으로 꽂히는 시간이다. 0 이하이면 BossFastDropSeconds를 사용한다.
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Faerin|GodFall|EntryOrbit|Impact", meta = (ClampMin = "0.0", EditCondition = "bUseEntryOrbitBeforeImpact"))

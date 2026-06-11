@@ -881,6 +881,11 @@ bool UPRFaerinCombatDirectorComponent::ActivatePatternAbility(
 		return false;
 	}
 
+	if (ObservedRole == EPRFaerinObservedAbilityRole::Pattern)
+	{
+		bHasStartedMainPatternInCurrentPhase = true;
+	}
+
 	LoopState = EPRFaerinCombatLoopState::WaitingPatternEnd;
 	ObservedAbilityRole = ObservedRole;
 	BindAbilityEndDelegate();
@@ -935,6 +940,11 @@ bool UPRFaerinCombatDirectorComponent::TrySelectPrePatternPortalAssistPlan(
 	OutAssistPlan = FPRFaerinPatternPlan();
 
 	if (!PhaseConfig.bUsePrePatternPortalAssist || PhaseConfig.PrePatternPortalAssistChance <= 0.0f)
+	{
+		return false;
+	}
+
+	if (ShouldSuppressPortalAssistForCurrentPhase())
 	{
 		return false;
 	}
@@ -1054,6 +1064,20 @@ bool UPRFaerinCombatDirectorComponent::IsPortalPatternPlan(const FPRFaerinPatter
 	return PatternPlan.PatternRule.PatternGroupTag.MatchesTag(PRGameplayTags::Pattern_Boss_Faerin_Portal);
 }
 
+bool UPRFaerinCombatDirectorComponent::ShouldSuppressPortalAssistForCurrentPhase() const
+{
+	const EPRBossPhase CurrentPhase = bHasPeriodicSidePatternPhase
+		? PeriodicSidePatternPhase
+		: ResolveCurrentPhase();
+	return IsFirstMainPatternPortalSuppressionPhase(CurrentPhase)
+		&& !bHasStartedMainPatternInCurrentPhase;
+}
+
+bool UPRFaerinCombatDirectorComponent::IsFirstMainPatternPortalSuppressionPhase(const EPRBossPhase Phase) const
+{
+	return Phase == EPRBossPhase::Phase3 || Phase == EPRBossPhase::Phase4;
+}
+
 void UPRFaerinCombatDirectorComponent::RefreshPeriodicSidePatternPhase(const EPRBossPhase CurrentPhase)
 {
 	if (bHasPeriodicSidePatternPhase && PeriodicSidePatternPhase == CurrentPhase)
@@ -1064,11 +1088,17 @@ void UPRFaerinCombatDirectorComponent::RefreshPeriodicSidePatternPhase(const EPR
 	PeriodicSidePatternPhase = CurrentPhase;
 	bHasPeriodicSidePatternPhase = true;
 	PeriodicSidePatternNextAllowedTimes.Reset();
+	bHasStartedMainPatternInCurrentPhase = false;
 }
 
 void UPRFaerinCombatDirectorComponent::TryActivatePeriodicSidePatterns(
 	const FPRFaerinPhaseLoopConfig& PhaseConfig)
 {
+	if (ShouldSuppressPortalAssistForCurrentPhase())
+	{
+		return;
+	}
+
 	for (const FPRFaerinPeriodicSidePatternConfig& SidePatternConfig : PhaseConfig.PeriodicSidePatterns)
 	{
 		if (TryActivatePeriodicSidePattern(SidePatternConfig))

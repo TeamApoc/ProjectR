@@ -20,6 +20,7 @@ class UMaterialInstanceDynamic;
 class UNiagaraComponent;
 class UNiagaraSystem;
 class UTexture;
+struct FPREnemyTargetingConfig;
 
 // Faerin 보스 본체 클래스다.
 // 패턴 분기와 포털/검 생성 로직은 넣지 않고, 보스 공통 베이스에 Faerin 기본 데이터만 얹는다.
@@ -37,6 +38,9 @@ public:
 	/*~ APRBossBaseCharacter Interface ~*/
 	// 보스와 플레이어의 실제 교전 확인 후 HUD 조우 시작 요청
 	virtual void RequestBossEncounterBegin() override;
+
+	/*~ IPREnemyInterface ~*/
+	virtual void CustomizeEnemyTargetingConfig(FPREnemyTargetingConfig& InOutTargetingConfig) const override;
 	
 	/*~ APRFaerinCharacter Interface ~*/ 
 	// God Fall 맵 배치 Rig 전환과 지속 검 hazard를 담당하는 component를 반환한다.

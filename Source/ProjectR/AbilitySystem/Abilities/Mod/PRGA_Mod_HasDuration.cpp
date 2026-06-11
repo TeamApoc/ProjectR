@@ -1,6 +1,5 @@
 // Copyright (c) 2026 TeamApoc. All Rights Reserved.
-
-
+// Author: 이건주 (Mod Has Duration 구현)
 #include "PRGA_Mod_HasDuration.h"
 
 UPRGA_Mod_HasDuration::UPRGA_Mod_HasDuration()

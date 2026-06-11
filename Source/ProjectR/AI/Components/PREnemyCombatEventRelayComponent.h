@@ -1,5 +1,6 @@
 // Copyright ProjectR. All Rights Reserved.
-
+// Author: 김동석 (조준 상태 변화에 따른 AI 알림 연동)
+// Author: 손승우 (아머드 솔저 전투 이동 및 EQS 관련 AI 이벤트 중계 구현)
 #pragma once
 
 #include "CoreMinimal.h"

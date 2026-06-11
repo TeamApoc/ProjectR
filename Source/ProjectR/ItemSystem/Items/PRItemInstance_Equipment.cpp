@@ -1,5 +1,5 @@
 // Copyright ProjectR. All Rights Reserved.
-
+// Author: 배유찬 (Item 인스턴스 Equipment 구현)
 #include "PRItemInstance_Equipment.h"
 #include "ProjectR/ItemSystem/Data/PREquipmentDataAsset.h"
 #include "ProjectR/ItemSystem/Components/PREquipmentManagerComponent.h"

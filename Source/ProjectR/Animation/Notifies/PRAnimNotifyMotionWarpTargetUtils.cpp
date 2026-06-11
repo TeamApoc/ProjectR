@@ -1,5 +1,5 @@
 // Copyright ProjectR. All Rights Reserved.
-
+// Author: 손승우 (애니메이션 Motion Warp 타겟 Utils 윈도우/트리거 노티파이 구현)
 #include "PRAnimNotifyMotionWarpTargetUtils.h"
 
 #include "Components/SkeletalMeshComponent.h"

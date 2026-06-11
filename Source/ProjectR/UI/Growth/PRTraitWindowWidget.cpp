@@ -1,5 +1,6 @@
 // Copyright ProjectR. All Rights Reserved.
-
+// Author: 김동석 (능력치 특성 투자 버튼 및 스탯 변경 정보 구현)
+// Author: 배유찬 (특성창 UI 스택 입력 연동)
 #include "PRTraitWindowWidget.h"
 
 #include "Components/Button.h"

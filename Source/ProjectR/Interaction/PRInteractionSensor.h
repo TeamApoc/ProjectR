@@ -1,5 +1,5 @@
 // Copyright (c) 2026 TeamD20. All Rights Reserved.
-
+// Author: 배유찬 (Interaction Sensor 구현)
 #pragma once
 
 #include "CoreMinimal.h"

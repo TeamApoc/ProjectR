@@ -1,5 +1,5 @@
 // Copyright ProjectR. All Rights Reserved.
-
+// Author: 배유찬 (피격 임팩트 Pool Actor 구현)
 #include "PRImpactPoolActor.h"
 
 #include "Components/DecalComponent.h"

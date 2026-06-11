@@ -1,6 +1,5 @@
 // Copyright (c) 2026 TeamApoc. All Rights Reserved.
-
-
+// Author: 배유찬 (Debug Log 상호작용 액션 실행 로직 구현)
 #include "PRInteraction_DebugLog.h"
 
 #include "Engine/Engine.h"

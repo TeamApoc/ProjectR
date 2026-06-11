@@ -1,5 +1,6 @@
 // Copyright ProjectR. All Rights Reserved.
-
+// Author: 김동석 (경험치 획득 기반 레벨업 처리 및 특성 투자 시스템 구현)
+// Author: 배유찬 (사망 리스폰 시 경험치 페널티 구현)
 #include "PRPlayerGrowthComponent.h"
 
 #include "AbilitySystemComponent.h"

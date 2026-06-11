@@ -1,5 +1,5 @@
 // Copyright ProjectR. All Rights Reserved.
-
+// Author: 손승우 (적 AI Evade 상태/패턴 어빌리티 구현)
 #include "PRGameplayAbility_EnemyEvade.h"
 
 #include "AIController.h"

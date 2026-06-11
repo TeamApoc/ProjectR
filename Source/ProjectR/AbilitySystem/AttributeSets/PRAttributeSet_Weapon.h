@@ -1,5 +1,6 @@
 // Copyright ProjectR. All Rights Reserved.
-
+// Author: 배유찬 (무기 탄약량, 약점 피해율 및 Mod 게이지 충전 속성 구현)
+// Author: 이건주 (Mod 버프 연동용 무기 속성 구현)
 #pragma once
 
 #include "CoreMinimal.h"

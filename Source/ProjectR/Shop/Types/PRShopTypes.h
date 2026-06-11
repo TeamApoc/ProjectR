@@ -1,5 +1,6 @@
 // Copyright ProjectR. All Rights Reserved.
-
+// Author: 김동석 (재화/재료 복합 거래 타입 정의)
+// Author: 배유찬 (기본 상점 거래 분류 타입 정의)
 #pragma once
 
 #include "CoreMinimal.h"

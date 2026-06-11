@@ -1,5 +1,5 @@
 // Copyright ProjectR. All Rights Reserved.
-
+// Author: 배유찬 (상점 Item 슬롯 UI 위젯 구현)
 #include "PRShopItemSlotWidget.h"
 
 #include "Components/Button.h"

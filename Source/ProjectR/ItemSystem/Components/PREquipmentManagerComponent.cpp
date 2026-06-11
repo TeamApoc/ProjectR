@@ -1,5 +1,6 @@
 // Copyright ProjectR. All Rights Reserved.
-
+// Author: 배유찬 (장비 슬롯 제어 및 장착 장비 기반 캐릭터 외형 변경 구현)
+// Author: 이건주 (인벤토리 연동 장비 동기화 구현)
 #include "PREquipmentManagerComponent.h"
 #include "Engine/ActorChannel.h"
 #include "Net/UnrealNetwork.h"

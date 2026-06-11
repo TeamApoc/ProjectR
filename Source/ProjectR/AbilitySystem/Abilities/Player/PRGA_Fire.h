@@ -1,5 +1,8 @@
 // Copyright (c) 2026 TeamApoc. All Rights Reserved.
-
+// Author: 김동석 (사격 반동 및 스켈레탈 메시 사격 애니메이션 연동 구현)
+// Author: 배유찬 (기본 사격 투사체 발사 제어 및 VFX/데미지 파이프라인 연동 구현)
+// Author: 손승우 (사격 시 보스 캐스팅 캔슬 연동)
+// Author: 이건주 (사격 시 무기 Mod 및 자원 소모 연동 구현)
 #pragma once
 
 #include "CoreMinimal.h"

@@ -1,6 +1,7 @@
 ﻿// Copyright (c) 2026 TeamApoc. All Rights Reserved.
-
-
+// Author: 김동석 (획득 아이템 목록 동기화 구현)
+// Author: 배유찬 (인벤토리 아이템 탭 전환 및 리스트 렌더링 구현)
+// Author: 이건주 (캐릭터 3D 프리뷰 연동 리스트 UI 구현)
 #include "PRInventoryItemListWidget.h"
 
 #include "Blueprint/WidgetTree.h"

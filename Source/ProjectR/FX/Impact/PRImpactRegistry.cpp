@@ -1,5 +1,5 @@
 // Copyright ProjectR. All Rights Reserved.
-
+// Author: 배유찬 (피격 임팩트 레지스트리 구현)
 #include "PRImpactRegistry.h"
 
 bool UPRImpactRegistry::FindImpactDefinition(FGameplayTag ImpactTag, FPRImpactDefinition& OutDefinition) const

@@ -1,5 +1,6 @@
 // Copyright ProjectR. All Rights Reserved.
-
+// Author: 배유찬 (기본 무기 타입(피스톨, 어설트라이플, 런처) 정의)
+// Author: 이건주 (특수 Mod 장착 가능 무기 타입 정의)
 #pragma once
 
 #include "CoreMinimal.h"

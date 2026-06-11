@@ -1,5 +1,7 @@
 // Copyright ProjectR. All Rights Reserved.
-
+// Author: 김동석 (렌더 프리웜 및 프리로드용 이펙트 캐싱 시스템 구현)
+// Author: 배유찬 (사격 궤적 및 데미지 이펙트 런타임 제어 구현)
+// Author: 손승우 (보스 특수 연출용 FX 캐싱 구현)
 #include "PRFXSubsystem.h"
 
 #include "PRFXCue.h"

@@ -1,5 +1,5 @@
 // Copyright ProjectR. All Rights Reserved.
-
+// Author: 손승우 (Enemy Pattern Selection Utils 정적 유틸리티 함수 구현)
 #pragma once
 
 #include "CoreMinimal.h"

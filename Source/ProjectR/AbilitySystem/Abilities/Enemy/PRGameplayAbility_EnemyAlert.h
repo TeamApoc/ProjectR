@@ -1,5 +1,5 @@
 // Copyright ProjectR. All Rights Reserved.
-
+// Author: 손승우 (적 AI Alert 상태/패턴 어빌리티 구현)
 #pragma once
 
 #include "CoreMinimal.h"

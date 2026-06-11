@@ -1,5 +1,6 @@
 // Copyright ProjectR. All Rights Reserved.
-
+// Author: 김동석 (조준 상태 해제 시 블랙보드 정보 초기화 구현)
+// Author: 손승우 (해머 전투 콤보 초기화용 블랙보드 갱신 구현)
 #pragma once
 
 #include "CoreMinimal.h"

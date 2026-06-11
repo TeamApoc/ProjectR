@@ -1,5 +1,5 @@
 // Copyright ProjectR. All Rights Reserved.
-
+// Author: 손승우 (페어린 보스전 스폰 Pattern Actors 시퀀스 어빌리티 구현)
 #include "PRGameplayAbility_BossSpawnPatternActors.h"
 
 #include "Components/SceneComponent.h"

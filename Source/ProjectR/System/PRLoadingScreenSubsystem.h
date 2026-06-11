@@ -1,5 +1,5 @@
 // Copyright ProjectR. All Rights Reserved.
-
+// Author: 김동석 (Loading Screen 서브시스템 구현)
 #pragma once
 
 #include "CoreMinimal.h"

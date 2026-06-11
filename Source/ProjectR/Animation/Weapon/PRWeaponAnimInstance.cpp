@@ -1,5 +1,6 @@
 // Copyright ProjectR. All Rights Reserved.
-
+// Author: 김동석 (사격 시 총기 슬라이드 작동 및 발사 애니메이션 구현)
+// Author: 배유찬 (재장전 탄창 애니메이션 및 장전 시퀀스 구현)
 #include "PRWeaponAnimInstance.h"
 
 #include "Components/SkeletalMeshComponent.h"

@@ -1,5 +1,7 @@
 // Copyright (c) 2026 TeamApoc. All Rights Reserved.
-
+// Author: 배유찬 (기본 투사체 동기화 및 예측 바운스 연산 타입 정의)
+// Author: 손승우 (보스 전용 투사체 타입 정의)
+// Author: 이건주 (드론/힐링샷 및 Penitent 투사체 타입 정의)
 #pragma once
 
 #include "CoreMinimal.h"

@@ -1,5 +1,5 @@
 // Copyright ProjectR. All Rights Reserved.
-
+// Author: 손승우 (적 AI Prepare 전투 Move 비헤이비어 트리 태스크 구현)
 #include "BTTask_PRPrepareCombatMove.h"
 
 #include "BehaviorTree/BlackboardComponent.h"

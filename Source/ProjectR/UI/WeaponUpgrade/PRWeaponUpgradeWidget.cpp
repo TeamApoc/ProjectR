@@ -1,5 +1,6 @@
 // Copyright ProjectR. All Rights Reserved.
-
+// Author: 김동석 (무기 강화 연출 및 재화/재료 소모 연동 구현)
+// Author: 배유찬 (강화 UI 스택 제어 및 장착 무기 정보 연동 구현)
 #include "PRWeaponUpgradeWidget.h"
 
 #include "Blueprint/WidgetTree.h"

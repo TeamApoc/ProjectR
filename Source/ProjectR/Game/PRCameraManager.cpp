@@ -1,6 +1,6 @@
 // Copyright (c) 2026 TeamApoc. All Rights Reserved.
-
-
+// Author: 김동석 (조준/줌 기능용 카메라 시야각(FOV) 및 거리 제어 구현)
+// Author: 배유찬 (사격 카메라 흔들림 및 상호작용 카메라 연동 구현)
 #include "ProjectR/Game/PRCameraManager.h"
 
 #include "ProjectR/Character/PRPlayerCharacter.h"

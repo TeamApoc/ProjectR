@@ -1,5 +1,6 @@
 // Copyright ProjectR. All Rights Reserved.
-
+// Author: 김동석 (세션 진입 시 로딩화면 연동 구현)
+// Author: 배유찬 (온라인 세션 생성/검색/참여 및 전멸 리셋 제어 구현)
 #include "PRSessionSubsystem.h"
 #include "Engine/Engine.h"
 #include "Engine/World.h"
@@ -155,14 +156,6 @@ void UPRSessionSubsystem::StartHost(const FPRHostSessionParams& Params)
 
 	PendingHostParams = Params;
 	SetState(EPRSessionState::Hosting);
-
-	if (UGameInstance* GameInstance = GetGameInstance())
-	{
-		if (UPRLoadingScreenSubsystem* LoadingScreen = GameInstance->GetSubsystem<UPRLoadingScreenSubsystem>())
-		{
-			LoadingScreen->BeginTravelToMap(TEXT("StartHost"), Params.MapName.ToString());
-		}
-	}
 
 	IOnlineSessionPtr SessionInterface = GetOnlineSessionInterface();
 	if (!SessionInterface.IsValid())

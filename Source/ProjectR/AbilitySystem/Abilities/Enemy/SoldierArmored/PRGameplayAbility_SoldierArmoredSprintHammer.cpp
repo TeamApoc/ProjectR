@@ -1,5 +1,6 @@
 // Copyright ProjectR. All Rights Reserved.
-
+// Author: 김동석 (돌진 중 조준 피격 보정 연동)
+// Author: 손승우 (아머드 솔저 돌진 해머 공격 구현)
 #include "PRGameplayAbility_SoldierArmoredSprintHammer.h"
 
 #include "ProjectR/AI/Data/PRSoldierArmoredCombatDataAsset.h"

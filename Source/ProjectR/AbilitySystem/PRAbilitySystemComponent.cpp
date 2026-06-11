@@ -1,5 +1,6 @@
 // Copyright ProjectR. All Rights Reserved.
-
+// Author: 김동석 (조준 상태 연동 기능 구현)
+// Author: 배유찬 (어빌리티 시스템 컴포넌트 초기 구축 및 태그 이벤트 바인딩 구현)
 #include "PRAbilitySystemComponent.h"
 
 #include "AbilitySystemBlueprintLibrary.h"

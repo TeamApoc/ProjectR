@@ -1,5 +1,5 @@
 // Copyright ProjectR. All Rights Reserved.
-
+// Author: 이건주 (적 AI 전투 Spacing For Duration 비헤이비어 트리 태스크 구현)
 #pragma once
 
 #include "CoreMinimal.h"

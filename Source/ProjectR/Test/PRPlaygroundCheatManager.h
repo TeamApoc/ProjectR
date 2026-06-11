@@ -1,5 +1,5 @@
 // Copyright (c) 2026 TeamApoc. All Rights Reserved.
-
+// Author: 배유찬 (Playground 디버그 치트 매니저 구현)
 #pragma once
 
 #include "CoreMinimal.h"

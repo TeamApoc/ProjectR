@@ -1,6 +1,7 @@
 // Copyright (c) 2026 TeamApoc. All Rights Reserved.
-
-
+// Author: 김동석 (드롭 시스템 연동 탄약 픽업 구현)
+// Author: 배유찬 (탄약 획득 상호작용 및 탄종별 획득 판정 구현)
+// Author: 이건주 (Mod 버프 연동 탄약 회복 보정 구현)
 #include "PRPickableAmmo.h"
 
 #include "AbilitySystemComponent.h"

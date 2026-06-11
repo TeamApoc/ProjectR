@@ -1,5 +1,5 @@
 // Copyright ProjectR. All Rights Reserved.
-
+// Author: 손승우 (적 AI Set 블랙보드 Bool 비헤이비어 트리 태스크 구현)
 #pragma once
 
 #include "CoreMinimal.h"

@@ -1,5 +1,5 @@
 // Copyright ProjectR. All Rights Reserved.
-
+// Author: 배유찬 (Input 설정 데이터 에셋 설정 클래스 정의)
 #pragma once
 
 #include "CoreMinimal.h"

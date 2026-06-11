@@ -1,5 +1,6 @@
 // Copyright ProjectR. All Rights Reserved.
-
+// Author: 김동석 (재료 소모 기반 무기 업그레이드 및 데미지 스탯 강화 구현)
+// Author: 배유찬 (업그레이드 정보 장비 인스턴스 동기화 구현)
 #include "PRWeaponUpgradeComponent.h"
 
 #include "Engine/DataTable.h"

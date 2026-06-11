@@ -1,5 +1,5 @@
 // Copyright ProjectR. All Rights Reserved.
-
+// Author: 배유찬 (애니메이션 Weapon Animation State 윈도우/트리거 노티파이 구현)
 #include "PRAnimNotify_WeaponAnimationState.h"
 
 #include "Components/SkeletalMeshComponent.h"

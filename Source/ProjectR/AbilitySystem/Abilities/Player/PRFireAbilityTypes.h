@@ -1,4 +1,5 @@
-﻿#pragma once
+﻿// Author: 배유찬 (플레이어 Fire 타입 어빌리티 구현)
+#pragma once
 #include "PRFireAbilityTypes.generated.h"
 
 USTRUCT()

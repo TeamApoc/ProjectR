@@ -1,5 +1,6 @@
 // Copyright ProjectR. All Rights Reserved.
-
+// Author: 김동석 (전투 상태 중 스태미나 회복 제어 구현)
+// Author: 배유찬 (보스 조우 시 전투 상태 전환 보정 구현)
 #include "PRGA_PlayerCombatEngaged.h"
 
 #include "GameplayEffect.h"

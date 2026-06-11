@@ -1,5 +1,6 @@
 // Copyright ProjectR. All Rights Reserved.
-
+// Author: 배유찬 (무기별 기본 탄약 소모 공식 구현)
+// Author: 이건주 (Mod 버프 활성화 시 탄약 소모량 감소 계산식 구현)
 #pragma once
 
 #include "CoreMinimal.h"

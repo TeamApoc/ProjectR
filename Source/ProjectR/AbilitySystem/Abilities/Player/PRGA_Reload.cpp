@@ -1,6 +1,7 @@
 // Copyright (c) 2026 TeamApoc. All Rights Reserved.
-
-
+// Author: 김동석 (피격 상태에 따른 재장전 캔슬 연동)
+// Author: 배유찬 (재장전 시퀀스 및 좌수 IK 보정 구현)
+// Author: 이건주 (재장전 시 무기 자원 충전 연동 구현)
 #include "PRGA_Reload.h"
 
 #include "AbilitySystemComponent.h"

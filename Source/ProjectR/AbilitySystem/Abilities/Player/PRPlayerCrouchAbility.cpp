@@ -1,6 +1,5 @@
 // Copyright (c) 2026 TeamApoc. All Rights Reserved.
-
-
+// Author: 김동석 (플레이어 앉기(Crouch) 어빌리티 구현)
 #include "ProjectR/AbilitySystem/Abilities/Player/PRPlayerCrouchAbility.h"
 
 #include "ProjectR/Character/PRPlayerCharacter.h"

@@ -1,5 +1,5 @@
 // Copyright ProjectR. All Rights Reserved.
-
+// Author: 배유찬 (Party Sync 기본 구조 상호작용 액션 실행 로직 구현)
 #pragma once
 
 #include "CoreMinimal.h"

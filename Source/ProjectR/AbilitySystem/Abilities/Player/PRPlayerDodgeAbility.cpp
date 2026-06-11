@@ -1,5 +1,6 @@
 // Copyright (c) 2026 TeamApoc. All Rights Reserved.
-
+// Author: 김동석 (회피 시 스태미나 소모 및 무적 프레임, 구르기 애니메이션 구현)
+// Author: 배유찬 (회피 중 플래시라이트 상태 연동)
 #include "ProjectR/AbilitySystem/Abilities/Player/PRPlayerDodgeAbility.h"
 
 #include "AbilitySystemComponent.h"

@@ -1,5 +1,6 @@
 // Copyright ProjectR. All Rights Reserved.
-
+// Author: 배유찬 (피격 데칼 및 탄착점 이펙트 관련 데이터 구조 정의)
+// Author: 손승우 (보스 시퀀스 관련 이펙트 타입 정의)
 #pragma once
 
 #include "CoreMinimal.h"

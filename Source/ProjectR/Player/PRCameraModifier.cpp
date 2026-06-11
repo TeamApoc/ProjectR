@@ -1,6 +1,5 @@
 // Copyright (c) 2026 TeamApoc. All Rights Reserved.
-
-
+// Author: 김동석 (Camera Modifier 구현)
 #include "ProjectR/Player/PRCameraModifier.h"
 
 #include "ProjectR/Game/PRCameraManager.h"

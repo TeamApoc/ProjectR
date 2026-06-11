@@ -1,5 +1,6 @@
 // Copyright ProjectR. All Rights Reserved.
-
+// Author: 김동석 (재화/아이템 획득 및 픽업 HUD 알림 연동 구현)
+// Author: 배유찬 (보상 획득 상호작용 보정 구현)
 #pragma once
 
 #include "CoreMinimal.h"

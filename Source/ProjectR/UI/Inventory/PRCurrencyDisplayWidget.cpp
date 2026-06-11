@@ -1,5 +1,5 @@
 // Copyright (c) 2026 TeamApoc. All Rights Reserved.
-
+// Author: 김동석 (재화 Display UI 위젯 구현)
 #include "PRCurrencyDisplayWidget.h"
 
 #include "Components/Image.h"

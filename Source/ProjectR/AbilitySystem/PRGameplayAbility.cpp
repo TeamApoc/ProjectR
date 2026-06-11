@@ -1,5 +1,7 @@
 // Copyright ProjectR. All Rights Reserved.
-
+// Author: 김동석 (이동 상태 및 특성 연동 기능 구현)
+// Author: 배유찬 (어빌리티 기본 수명 주기 및 입력 바인딩, 쿨다운 기초 구현)
+// Author: 이건주 (배리어 모드 관련 어빌리티 속성 확장)
 #include "PRGameplayAbility.h"
 #include "AbilitySystemComponent.h"
 #include "Abilities/Mod/PRGA_Mod.h"

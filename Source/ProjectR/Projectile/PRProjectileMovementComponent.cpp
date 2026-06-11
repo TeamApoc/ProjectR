@@ -1,6 +1,6 @@
 // Copyright (c) 2026 TeamApoc. All Rights Reserved.
-
-
+// Author: 배유찬 (반사 궤적 예측 시뮬레이션 및 비행 경로 동기화 연산 구현)
+// Author: 이건주 (서포트 드론 유도 비행 궤적 연산 구현)
 #include "PRProjectileMovementComponent.h"
 
 #include "PRProjectileBase.h"

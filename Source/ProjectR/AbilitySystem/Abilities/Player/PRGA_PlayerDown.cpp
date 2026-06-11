@@ -1,5 +1,5 @@
 // Copyright ProjectR. All Rights Reserved.
-
+// Author: 김동석 (플레이어 다운 어빌리티 구현)
 #include "PRGA_PlayerDown.h"
 
 #include "AbilitySystemComponent.h"

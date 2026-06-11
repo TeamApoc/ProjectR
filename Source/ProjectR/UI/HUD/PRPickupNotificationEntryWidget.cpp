@@ -1,5 +1,5 @@
 // Copyright (c) 2026 TeamApoc. All Rights Reserved.
-
+// Author: 김동석 (픽업 Notification Entry UI 위젯 구현)
 #include "PRPickupNotificationEntryWidget.h"
 
 #include "Animation/WidgetAnimation.h"

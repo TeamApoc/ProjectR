@@ -5,6 +5,8 @@
 #include "CoreMinimal.h"
 #include "Subsystems/GameInstanceSubsystem.h"
 #include "Engine/NetworkDelegates.h"
+#include "Interfaces/OnlineSessionInterface.h"
+#include "OnlineSessionSettings.h"
 #include "PRGameTypes.h"
 #include "PRSessionSubsystem.generated.h"
 
@@ -15,7 +17,7 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnSessionStateChangedSignature, EPR
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnSessionFailedSignature, EPRSessionFailReason, Reason, FString, Detail);
 
 // 세션 Host/Join의 플랫폼별 구현을 격리. 상위는 동일 인터페이스로 호출
-// 현재 구현: IP 직접 접속. 추후 OSS(Steam/EOS) 연동 시 본 클래스의 내부 구현만 교체한다
+// 현재 구현: OnlineSubsystem Null 기반 LAN 세션 검색과 참가
 UCLASS()
 class PROJECTR_API UPRSessionSubsystem : public UGameInstanceSubsystem
 {
@@ -27,11 +29,11 @@ public:
 	virtual void Deinitialize() override;
 
 public:
-	// 호스트 개시. 성공 시 리슨 서버로 OpenLevel, 실패 시 OnSessionFailed 발행
+	// 호스트 개시. 세션 등록 성공 시 리슨 서버로 OpenLevel, 실패 시 OnSessionFailed 발행
 	UFUNCTION(BlueprintCallable)
 	void StartHost(const FPRHostSessionParams& Params);
 
-	// 참가 개시. 주소 파싱 실패/접속 실패 시 OnSessionFailed 발행
+	// 참가 개시. 주소가 비어 있으면 OSS 세션 검색 후 첫 번째 세션 참가
 	UFUNCTION(BlueprintCallable)
 	void StartJoin(const FPRJoinSessionParams& Params);
 
@@ -56,6 +58,30 @@ protected:
 	// 주소 포맷 검증. IPv4(:Port)? 만 허용
 	bool ValidateAddress(const FString& Address) const;
 
+	// OnlineSubsystem 세션 인터페이스 조회
+	IOnlineSessionPtr GetOnlineSessionInterface() const;
+
+	// OSS 세션 생성 완료 처리
+	void HandleCreateSessionComplete(FName SessionName, bool bWasSuccessful);
+
+	// OSS 세션 검색 완료 처리
+	void HandleFindSessionsComplete(bool bWasSuccessful);
+
+	// OSS 세션 참가 완료 처리
+	void HandleJoinSessionComplete(FName SessionName, EOnJoinSessionCompleteResult::Type Result);
+
+	// OSS 세션 종료 완료 처리
+	void HandleDestroySessionComplete(FName SessionName, bool bWasSuccessful);
+
+	// 검색된 세션 결과 참가 요청
+	bool JoinFirstSearchResult();
+
+	// IP 직접 접속 호환 경로
+	void StartDirectJoin(const FString& Address);
+
+	// 메뉴 맵 복귀 실행
+	void TravelToMenuMap();
+
 public:
 	// 세션 상태 변화 이벤트
 	UPROPERTY(BlueprintAssignable)
@@ -71,6 +97,27 @@ protected:
 
 	// 호스트 개시 시 보관된 파라미터. 맵 전이 이후 로직에서 참조
 	FPRHostSessionParams PendingHostParams;
+
+	// 세션 생성 설정 보관. CreateSession 비동기 완료까지 수명 유지
+	TSharedPtr<FOnlineSessionSettings> PendingHostSettings;
+
+	// 세션 검색 결과 보관. JoinSession 비동기 완료까지 수명 유지
+	TSharedPtr<FOnlineSessionSearch> PendingSessionSearch;
+
+	// 세션 생성 완료 델리게이트 핸들
+	FDelegateHandle CreateSessionCompleteDelegateHandle;
+
+	// 세션 검색 완료 델리게이트 핸들
+	FDelegateHandle FindSessionsCompleteDelegateHandle;
+
+	// 세션 참가 완료 델리게이트 핸들
+	FDelegateHandle JoinSessionCompleteDelegateHandle;
+
+	// 세션 종료 완료 델리게이트 핸들
+	FDelegateHandle DestroySessionCompleteDelegateHandle;
+
+	// 기존 세션 제거 후 호스트 재시도 여부
+	bool bCreateSessionAfterDestroy = false;
 
 	// 메뉴 복귀 시 사용할 기본 메뉴 맵
 	FName MenuMapName = TEXT("/Game/1_Maps/L_Menu");

@@ -134,7 +134,7 @@ public:
 
 	// 서버 -> 호스트 클라. 웨이포인트 Travel UI 열기
 	UFUNCTION(Client, Reliable)
-	void ClientOpenWaypointTravelUI();
+	void ClientOpenWaypointTravelUI(bool bShowWorldResetButton);
 
 	// 서버 -> 본인 클라. 상점 구매 결과를 UI에 전달한다
 	UFUNCTION(Client, Reliable)

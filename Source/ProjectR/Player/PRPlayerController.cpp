@@ -646,7 +646,7 @@ void APRPlayerController::ClientOpenShopUI_Implementation(UPRShopComponent* Shop
 	UIControllerComponent->OpenShop(ShopComponent);
 }
 
-void APRPlayerController::ClientOpenWaypointTravelUI_Implementation()
+void APRPlayerController::ClientOpenWaypointTravelUI_Implementation(bool bShowWorldResetButton)
 {
 	if (!IsValid(UIControllerComponent))
 	{
@@ -654,7 +654,7 @@ void APRPlayerController::ClientOpenWaypointTravelUI_Implementation()
 	}
 
 	// 호스트 로컬 UI 표시
-	UIControllerComponent->OpenWaypointTravel();
+	UIControllerComponent->OpenWaypointTravel(bShowWorldResetButton);
 }
 
 void APRPlayerController::ClientNotifyShopBuyResult_Implementation(const FPRShopBuyResult& Result)

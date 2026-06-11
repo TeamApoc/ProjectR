@@ -31,6 +31,9 @@ public:
 	// 목적지 선택 UI 입력 대기 여부 반환
 	bool IsWaitingForWaypointTravelSelection() const { return bWaitingForWaypointTravelSelection; }
 
+	// 이 Waypoint Travel UI의 월드 진행도 리셋 버튼 표시 여부 반환
+	bool ShouldShowWorldResetButton() const { return bShowWorldResetButton; }
+
 protected:
 	virtual bool CanInteract_Implementation(AActor* Interactor) const override;
 	virtual void EndInteraction_Implementation(AActor* Interactor, bool bCanceled) override;
@@ -114,4 +117,8 @@ private:
 	// 호스트 Travel UI 표시 전 FadeOut 시간
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|Interaction|Waypoint", meta = (AllowPrivateAccess = "true", ClampMin = "0.0"))
 	float TravelUIFadeDuration = 1.6f;
+
+	// 이 Waypoint에서 열린 Travel UI의 월드 진행도 리셋 버튼 표시 여부
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|Interaction|Waypoint", meta = (AllowPrivateAccess = "true"))
+	bool bShowWorldResetButton = false;
 };

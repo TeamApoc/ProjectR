@@ -58,10 +58,7 @@ void APRPlayGameMode::InitGameState()
 			GS->InitializeFromWorldSave(HostWorldSave);
 		}
 
-		for (FPRWaypointKey& WaypointKey : DefaultUnlockedWaypoints)
-		{
-			GS->UnlockWaypoint(WaypointKey);
-		}
+		UnlockDefaultWaypoints();
 	}
 }
 
@@ -218,6 +215,17 @@ void APRPlayGameMode::NotifyPlayerSurvivalStateChanged(APRPlayerState* PlayerSta
 	}
 
 	EvaluatePartyWipe();
+}
+
+void APRPlayGameMode::UnlockDefaultWaypoints()
+{
+	if (APRGameStateBase* GS = GetGameState<APRGameStateBase>())
+	{
+		for (FPRWaypointKey& WaypointKey : DefaultUnlockedWaypoints)
+		{
+			GS->UnlockWaypoint(WaypointKey);
+		}
+	}
 }
 
 void APRPlayGameMode::EvaluatePartyWipe()

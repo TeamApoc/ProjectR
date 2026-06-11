@@ -7,6 +7,8 @@
 #include "Engine/Engine.h"
 #include "GameFramework/GameUserSettings.h"
 #include "Kismet/GameplayStatics.h"
+#include "ProjectR/System/PRDeveloperSettings.h"
+#include "ProjectR/World/PRWorldRegistry.h"
 
 namespace
 {
@@ -66,6 +68,66 @@ void UPRGameInstance::LeaveSession()
 	}
 
 	Session->EndSession();
+}
+
+bool UPRGameInstance::RequestHostSession()
+{
+	if (!IsValid(GetSubsystem<UPRSessionSubsystem>()))
+	{
+		return false;
+	}
+
+	const FPRWorldSaveData& LocalWorldSaveData = GetLocalWorldSave();
+
+	FPRHostSessionParams HostParams;
+	// 세션 서브시스템 CreateSession 완료 후 OpenLevel 경로에 전달할 리슨 서버 설정
+	HostParams.MapName = ResolveHostMapNameFromSave(LocalWorldSaveData);
+	HostParams.MaxPlayers = HostMaxPlayers;
+
+	// 인게임 GameMode 초기화 단계에서 복원할 월드 진행 상태 예약
+	SetPendingWorldSaveData(LocalWorldSaveData);
+	if (LocalWorldSaveData.SavedSpawnPoint.IsValid())
+	{
+		// 이어하기 최초 스폰 지점 예약
+		SetPendingTravelSpawnPointId(LocalWorldSaveData.SavedSpawnPoint.SpawnPointId);
+	}
+
+	HostSession(HostParams);
+	return true;
+}
+
+bool UPRGameInstance::RequestJoinFirstSession()
+{
+	if (!IsValid(GetSubsystem<UPRSessionSubsystem>()))
+	{
+		return false;
+	}
+
+	FPRJoinSessionParams JoinParams;
+	// 주소 공백은 PRSessionSubsystem의 OSS Null 세션 검색 경로
+	JoinParams.Address = FString();
+	JoinSession(JoinParams);
+	return true;
+}
+
+bool UPRGameInstance::RequestStartSession(const FString& Address)
+{
+	if (!IsValid(GetSubsystem<UPRSessionSubsystem>()))
+	{
+		return false;
+	}
+
+	const FString TrimmedAddress = Address.TrimStartAndEnd();
+	if (TrimmedAddress.IsEmpty())
+	{
+		return RequestHostSession();
+	}
+
+	FPRJoinSessionParams JoinParams;
+	// 레거시 IP 직접 참가 호환용 주소 전달
+	JoinParams.Address = TrimmedAddress;
+	JoinSession(JoinParams);
+	return true;
 }
 
 bool UPRGameInstance::ApplyGraphicsQualityProfile(EPRGraphicsQualityProfile QualityProfile, bool bSaveSettings)
@@ -426,4 +488,28 @@ void UPRGameInstance::RefreshLocalWorldSaveFromGameState()
 
 	// 저장 직전 서버 GameState의 월드 진행 상태 스냅샷 반영
 	LocalWorldSave = GameState->MakeWorldSaveData();
+}
+
+FName UPRGameInstance::ResolveHostMapNameFromSave(const FPRWorldSaveData& WorldSaveData) const
+{
+	if (!WorldSaveData.SavedSpawnPoint.IsValid())
+	{
+		return HostMapName;
+	}
+
+	const UPRDeveloperSettings* Settings = GetDefault<UPRDeveloperSettings>();
+	const UPRWorldRegistry* WorldRegistry = IsValid(Settings) ? Settings->GetWorldRegistrySync() : nullptr;
+	if (!IsValid(WorldRegistry))
+	{
+		return HostMapName;
+	}
+
+	TSoftObjectPtr<UWorld> MapAsset;
+	if (!WorldRegistry->ResolveMapAsset(WorldSaveData.SavedSpawnPoint.WorldId, MapAsset) || MapAsset.IsNull())
+	{
+		return HostMapName;
+	}
+
+	const FString MapPackageName = MapAsset.GetLongPackageName();
+	return MapPackageName.IsEmpty() ? HostMapName : FName(*MapPackageName);
 }

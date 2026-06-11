@@ -140,7 +140,7 @@ FPRInventoryItemSlotViewData UPRQuickSlotWidget::BuildItemSlotViewData(const FPR
 	}
 	else
 	{
-		ViewData.DisplayName = FText::FromString(TEXT("퀵슬롯 비어 있음"));
+		ViewData.DisplayName = FText::FromString(TEXT("(비어 있음)"));
 	}
 
 	return ViewData;

@@ -33,6 +33,7 @@ void UPRStartMenuWidget::NativeConstruct()
 	CacheWidgetLists();
 	BindSaveSlotButtonEvents();
 	BindStartButtonEvents();
+	BindJoinButtonEvents();
 	BindDeleteSaveSlotButtonEvents();
 	// 세션 델리게이트 초기 상태 반영 전 입력 기본값 선적용
 	ConfigureSessionInputDefaults();
@@ -45,6 +46,7 @@ void UPRStartMenuWidget::NativeDestruct()
 {
 	UnbindSessionEvents();
 	UnbindDeleteSaveSlotButtonEvents();
+	UnbindJoinButtonEvents();
 	UnbindStartButtonEvents();
 	UnbindSaveSlotButtonEvents();
 
@@ -66,31 +68,6 @@ void UPRStartMenuWidget::CacheWidgetLists()
 	SaveSlotTexts.Add(SaveSlotText2);
 	SaveSlotTexts.Add(SaveSlotText3);
 	SaveSlotTexts.Add(SaveSlotText4);
-
-	// 장비 프리뷰 위젯과 저장 데이터 슬롯 타입의 동일 인덱스 계약
-	EquipmentSlotWidgets.Reset();
-	EquipmentSlotTypes.Reset();
-
-	EquipmentSlotWidgets.Add(HeadEquipmentSlotWidget);
-	EquipmentSlotTypes.Add(EPREquipmentSlotType::Head);
-
-	EquipmentSlotWidgets.Add(BodyEquipmentSlotWidget);
-	EquipmentSlotTypes.Add(EPREquipmentSlotType::Body);
-
-	EquipmentSlotWidgets.Add(HandsEquipmentSlotWidget);
-	EquipmentSlotTypes.Add(EPREquipmentSlotType::Hands);
-
-	EquipmentSlotWidgets.Add(LegsEquipmentSlotWidget);
-	EquipmentSlotTypes.Add(EPREquipmentSlotType::Legs);
-
-	EquipmentSlotWidgets.Add(AmuletEquipmentSlotWidget);
-	EquipmentSlotTypes.Add(EPREquipmentSlotType::Amulet);
-
-	EquipmentSlotWidgets.Add(Ring1EquipmentSlotWidget);
-	EquipmentSlotTypes.Add(EPREquipmentSlotType::Ring1);
-
-	EquipmentSlotWidgets.Add(Ring2EquipmentSlotWidget);
-	EquipmentSlotTypes.Add(EPREquipmentSlotType::Ring2);
 }
 
 void UPRStartMenuWidget::BindSaveSlotButtonEvents()
@@ -161,6 +138,24 @@ void UPRStartMenuWidget::UnbindStartButtonEvents()
 	}
 }
 
+void UPRStartMenuWidget::BindJoinButtonEvents()
+{
+	UnbindJoinButtonEvents();
+
+	if (IsValid(JoinButton))
+	{
+		JoinButton->OnClicked.AddDynamic(this, &ThisClass::HandleJoinButtonClicked);
+	}
+}
+
+void UPRStartMenuWidget::UnbindJoinButtonEvents()
+{
+	if (IsValid(JoinButton))
+	{
+		JoinButton->OnClicked.RemoveDynamic(this, &ThisClass::HandleJoinButtonClicked);
+	}
+}
+
 void UPRStartMenuWidget::BindDeleteSaveSlotButtonEvents()
 {
 	UnbindDeleteSaveSlotButtonEvents();
@@ -225,12 +220,19 @@ void UPRStartMenuWidget::ConfigureSessionInputDefaults()
 {
 	if (IsValid(HostAddressTextBox))
 	{
-		// 빈 입력은 Host, 입력값 존재는 Join으로 해석되는 단일 시작 버튼 규칙
+		// 레거시 IP 입력칸 초기화
 		HostAddressTextBox->SetText(FText::GetEmpty());
 		HostAddressTextBox->SetHintText(FText::FromString(TEXT("127.0.0.1")));
 	}
 
+	if (IsValid(PlayerNameTextBox))
+	{
+		// 선택 슬롯 이름이 비어 있을 때 표시할 기본 입력값
+		PlayerNameTextBox->SetHintText(FText::FromString(TEXT("Player")));
+	}
+
 	RefreshStartButtonEnabled(true);
+	RefreshJoinButtonEnabled(true);
 	RefreshDeleteSaveSlotButtonEnabled();
 	RefreshSessionStatusText(FText::GetEmpty());
 }
@@ -265,6 +267,14 @@ void UPRStartMenuWidget::RefreshStartButtonEnabled(bool bEnabled)
 	}
 }
 
+void UPRStartMenuWidget::RefreshJoinButtonEnabled(bool bEnabled)
+{
+	if (IsValid(JoinButton))
+	{
+		JoinButton->SetIsEnabled(bEnabled);
+	}
+}
+
 void UPRStartMenuWidget::RefreshDeleteSaveSlotButtonEnabled()
 {
 	if (IsValid(DeleteSaveSlotButton))
@@ -275,6 +285,11 @@ void UPRStartMenuWidget::RefreshDeleteSaveSlotButtonEnabled()
 
 void UPRStartMenuWidget::RefreshSessionStatusText(const FText& StatusText)
 {
+	if (IsValid(StateText))
+	{
+		StateText->SetText(StatusText);
+	}
+
 	if (IsValid(SessionStatusText))
 	{
 		SessionStatusText->SetText(StatusText);
@@ -297,21 +312,6 @@ void UPRStartMenuWidget::RefreshSelectedSavePreview(const FPRCharacterSaveData& 
 		SecondaryWeaponSlotWidget->SetSlotViewData(BuildSavedWeaponSlotViewData(SaveData, EPRWeaponSlotType::Secondary));
 	}
 
-	for (int32 SlotIndex = 0; SlotIndex < EquipmentSlotWidgets.Num(); ++SlotIndex)
-	{
-		if (!EquipmentSlotTypes.IsValidIndex(SlotIndex))
-		{
-			continue;
-		}
-
-		UPRItemSlotWidget* EquipmentSlotWidget = EquipmentSlotWidgets[SlotIndex];
-		if (IsValid(EquipmentSlotWidget))
-		{
-			// 캐시된 슬롯 타입 기준 저장 장비 데이터 매핑
-			EquipmentSlotWidget->SetSlotViewData(BuildSavedEquipmentSlotViewData(SaveData, EquipmentSlotTypes[SlotIndex]));
-		}
-	}
-
 	if (IsValid(CharacterPreviewWidget))
 	{
 		CharacterPreviewWidget->SetPreviewSources(
@@ -324,6 +324,19 @@ void UPRStartMenuWidget::RefreshSelectedSavePreview(const FPRCharacterSaveData& 
 		// 실제 프리뷰 ASC 기반 성장 스탯 패널 갱신
 		PlayerStatsPanelWidget->SetPlayerStateSource(PreviewPlayerState);
 	}
+}
+
+void UPRStartMenuWidget::RefreshPlayerNameInput(const FPRCharacterSaveData& SaveData)
+{
+	if (!IsValid(PlayerNameTextBox))
+	{
+		return;
+	}
+
+	const FString DisplayName = SaveData.DisplayName.IsEmpty()
+		? TEXT("Player")
+		: SaveData.DisplayName;
+	PlayerNameTextBox->SetText(FText::FromString(DisplayName));
 }
 
 void UPRStartMenuWidget::SelectFirstAvailableSaveSlot()
@@ -344,6 +357,7 @@ void UPRStartMenuWidget::SelectFirstAvailableSaveSlot()
 	SelectedSaveSlotIndex = INDEX_NONE;
 	RefreshSaveSlotButtons();
 	RefreshSelectedSavePreview(FPRCharacterSaveData());
+	RefreshPlayerNameInput(FPRCharacterSaveData());
 }
 
 void UPRStartMenuWidget::SelectSaveSlot(int32 SlotIndex)
@@ -370,6 +384,7 @@ void UPRStartMenuWidget::SelectSaveSlot(int32 SlotIndex)
 	SelectedSaveSlotIndex = SlotIndex;
 	RefreshSaveSlotButtons();
 	RefreshSelectedSavePreview(SaveData);
+	RefreshPlayerNameInput(SaveData);
 }
 
 FPRStartMenuSaveSlotViewData UPRStartMenuWidget::BuildSaveSlotViewData(int32 SlotIndex) const
@@ -503,6 +518,60 @@ bool UPRStartMenuWidget::HasAnyLocalCharacterSave() const
 	return false;
 }
 
+bool UPRStartMenuWidget::ApplyPlayerNameInputToSelectedSave()
+{
+	UPRGameInstance* GameInstance = GetProjectRGameInstance();
+	if (!IsValid(GameInstance) || SelectedSaveSlotIndex == INDEX_NONE)
+	{
+		return false;
+	}
+
+	if (!GameInstance->LoadLocalCharacterSlot(SelectedSaveSlotIndex))
+	{
+		return false;
+	}
+
+	FPRCharacterSaveData SaveData = GameInstance->GetLocalCharacter();
+	SaveData.DisplayName = BuildSanitizedPlayerName();
+	GameInstance->SetLocalCharacterSave(SaveData);
+
+	const bool bSaved = GameInstance->SaveActiveLocalCharacterSlot();
+	if (bSaved)
+	{
+		// 이름 변경 후 슬롯 라벨과 프리뷰 PlayerState 표시명 동기화
+		RefreshSaveSlotButtons();
+		RefreshSelectedSavePreview(SaveData);
+	}
+
+	return bSaved;
+}
+
+FString UPRStartMenuWidget::BuildSanitizedPlayerName() const
+{
+	FString DisplayName;
+	if (IsValid(PlayerNameTextBox))
+	{
+		DisplayName = PlayerNameTextBox->GetText().ToString();
+	}
+	else if (const UPRGameInstance* GameInstance = GetProjectRGameInstance())
+	{
+		DisplayName = GameInstance->GetLocalCharacter().DisplayName;
+	}
+
+	DisplayName = DisplayName.TrimStartAndEnd();
+	if (DisplayName.IsEmpty())
+	{
+		DisplayName = TEXT("Player");
+	}
+
+	if (DisplayName.Len() > MaxPlayerNameLength)
+	{
+		DisplayName.LeftInline(MaxPlayerNameLength);
+	}
+
+	return DisplayName;
+}
+
 void UPRStartMenuWidget::HandleStartButtonClicked()
 {
 	UPRGameInstance* GameInstance = GetProjectRGameInstance();
@@ -524,38 +593,63 @@ void UPRStartMenuWidget::HandleStartButtonClicked()
 		return;
 	}
 
-	const FString Address = IsValid(HostAddressTextBox)
-		? HostAddressTextBox->GetText().ToString().TrimStartAndEnd()
-		: FString();
+	if (!ApplyPlayerNameInputToSelectedSave())
+	{
+		RefreshSessionStatusText(FText::FromString(TEXT("이름 저장 실패")));
+		return;
+	}
 
-	// HostSession과 JoinSession의 즉시 실패 이벤트 전까지 중복 클릭 차단
+	// HostSession의 즉시 실패 이벤트 전까지 중복 클릭 차단
 	RefreshStartButtonEnabled(false);
+	RefreshJoinButtonEnabled(false);
 
-	// 메뉴 월드의 세션 시작 정책 위임
-	APRMenuGameMode* MenuGameMode = GetWorld() ? GetWorld()->GetAuthGameMode<APRMenuGameMode>() : nullptr;
-	if (!IsValid(MenuGameMode))
+	RefreshSessionStatusText(FText::FromString(TEXT("게임 시작 중")));
+	if (!GameInstance->RequestHostSession())
 	{
 		RefreshStartButtonEnabled(true);
-		RefreshSessionStatusText(FText::FromString(TEXT("게임 모드 오류")));
+		RefreshJoinButtonEnabled(true);
+		RefreshSessionStatusText(FText::FromString(TEXT("게임 시작 실패")));
+	}
+}
+
+void UPRStartMenuWidget::HandleJoinButtonClicked()
+{
+	if (SelectedSaveSlotIndex == INDEX_NONE)
+	{
+		// 기본 세이브 자동 생성 이후 선택 상태 누락 보정
+		SelectFirstAvailableSaveSlot();
+	}
+
+	if (SelectedSaveSlotIndex == INDEX_NONE)
+	{
+		RefreshSessionStatusText(FText::FromString(TEXT("선택 가능한 세이브 없음")));
 		return;
 	}
 
-	if (Address.IsEmpty())
+	if (!ApplyPlayerNameInputToSelectedSave())
 	{
-		RefreshSessionStatusText(FText::FromString(TEXT("세션 개설 중")));
-		if (!MenuGameMode->RequestStartSession(GetOwningPlayer(), Address))
-		{
-			RefreshStartButtonEnabled(true);
-			RefreshSessionStatusText(FText::FromString(TEXT("세션 개설 실패")));
-		}
+		RefreshSessionStatusText(FText::FromString(TEXT("이름 저장 실패")));
 		return;
 	}
 
-	RefreshSessionStatusText(FText::FromString(TEXT("세션 참가 중")));
-	if (!MenuGameMode->RequestStartSession(GetOwningPlayer(), Address))
+	RefreshStartButtonEnabled(false);
+	RefreshJoinButtonEnabled(false);
+
+	UPRGameInstance* GameInstance = GetProjectRGameInstance();
+	if (!IsValid(GameInstance))
 	{
 		RefreshStartButtonEnabled(true);
-		RefreshSessionStatusText(FText::FromString(TEXT("세션 참가 실패")));
+		RefreshJoinButtonEnabled(true);
+		RefreshSessionStatusText(FText::FromString(TEXT("게임 인스턴스 오류")));
+		return;
+	}
+
+	RefreshSessionStatusText(FText::FromString(TEXT("세션을 찾는 중")));
+	if (!GameInstance->RequestJoinFirstSession())
+	{
+		RefreshStartButtonEnabled(true);
+		RefreshJoinButtonEnabled(true);
+		RefreshSessionStatusText(FText::FromString(TEXT("세션 검색 실패")));
 	}
 }
 
@@ -592,17 +686,23 @@ void UPRStartMenuWidget::HandleSessionStateChanged(EPRSessionState NewState)
 	// 비동기 맵 이동과 ClientTravel 중복 입력 방지 상태
 	const bool bSessionPending =
 		NewState == EPRSessionState::Hosting
+		|| NewState == EPRSessionState::Finding
 		|| NewState == EPRSessionState::Joining
 		|| NewState == EPRSessionState::Leaving;
 	RefreshStartButtonEnabled(!bSessionPending);
+	RefreshJoinButtonEnabled(!bSessionPending);
 
 	if (NewState == EPRSessionState::Hosting)
 	{
-		RefreshSessionStatusText(FText::FromString(TEXT("세션 개설 중")));
+		RefreshSessionStatusText(FText::FromString(TEXT("게임 시작 중")));
 	}
 	else if (NewState == EPRSessionState::Hosted)
 	{
 		RefreshSessionStatusText(FText::FromString(TEXT("세션 개설 완료")));
+	}
+	else if (NewState == EPRSessionState::Finding)
+	{
+		RefreshSessionStatusText(FText::FromString(TEXT("세션을 찾는 중")));
 	}
 	else if (NewState == EPRSessionState::Joining)
 	{
@@ -615,10 +715,6 @@ void UPRStartMenuWidget::HandleSessionStateChanged(EPRSessionState NewState)
 	else if (NewState == EPRSessionState::Leaving)
 	{
 		RefreshSessionStatusText(FText::FromString(TEXT("세션 종료 중")));
-	}
-	else
-	{
-		RefreshSessionStatusText(FText::GetEmpty());
 	}
 }
 
@@ -648,6 +744,14 @@ void UPRStartMenuWidget::HandleSessionFailed(EPRSessionFailReason Reason, FStrin
 	else if (Reason == EPRSessionFailReason::CharacterRejected)
 	{
 		RefreshSessionStatusText(FText::FromString(TEXT("캐릭터 데이터 거부")));
+	}
+	else if (Reason == EPRSessionFailReason::SessionSearchFailed)
+	{
+		RefreshSessionStatusText(FText::FromString(TEXT("세션 검색 실패")));
+	}
+	else if (Reason == EPRSessionFailReason::NoSessionFound)
+	{
+		RefreshSessionStatusText(FText::FromString(TEXT("참가 가능한 세션 없음")));
 	}
 	else
 	{

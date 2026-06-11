@@ -413,7 +413,7 @@ void UPRUIControllerComponent::OpenShop(UPRShopComponent* ShopComponent)
 	UIManager->PushUIInstance(CreatedShopWidget);
 }
 
-void UPRUIControllerComponent::OpenWaypointTravel()
+void UPRUIControllerComponent::OpenWaypointTravel(bool bShowWorldResetButton)
 {
 	if (!IsLocalPlayer())
 	{
@@ -435,6 +435,7 @@ void UPRUIControllerComponent::OpenWaypointTravel()
 	}
 
 	// Waypoint Travel Overview 갱신
+	CreatedWaypointTravelWidget->SetWorldResetButtonVisible(bShowWorldResetButton);
 	CreatedWaypointTravelWidget->RebuildOverview();
 	UIManager->PushUIInstance(CreatedWaypointTravelWidget);
 }

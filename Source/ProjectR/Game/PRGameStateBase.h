@@ -74,6 +74,9 @@ public:
 	// 서버 전용. 보스 처치 반영
 	void MarkBossDefeated(FName BossId);
 
+	// 서버 전용. 웨이포인트·보스 처치 등 월드 진행 상태 초기화
+	void ResetWorldProgress();
+
 	// 서버 전용. 월드 마커 생성 요청 처리
 	void ServerSubmitWorldMarker(const FPRWorldMarkerRequest& Request);
 

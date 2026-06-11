@@ -193,6 +193,24 @@ void APRGameStateBase::MarkBossDefeated(FName BossId)
 	OnBossDefeated.Broadcast(BossId);
 }
 
+void APRGameStateBase::ResetWorldProgress()
+{
+	if (!HasAuthority())
+	{
+		return;
+	}
+
+	// 월드 진행 상태 기본값 복귀
+	LastVisitedWaypoint = FPRWaypointKey();
+	// SavedSpawnPoint = FPRSpawnPointKey(); -> SpawnPoint는 유지해야 리스폰이 꼬이지 않음
+	UnlockedWaypoints.Reset();
+	DefeatedBosses.Reset();
+	WorldSaveVersion = EPRSaveVersion::V1;
+
+	// 서버 로컬 UI 갱신 이벤트
+	OnLastVisitedWaypointChanged.Broadcast(LastVisitedWaypoint);
+}
+
 void APRGameStateBase::ServerSubmitWorldMarker(const FPRWorldMarkerRequest& Request)
 {
 	// 서버 권위 확인

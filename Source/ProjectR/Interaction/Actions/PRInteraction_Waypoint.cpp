@@ -314,7 +314,7 @@ bool UPRInteraction_Waypoint::OpenWaypointTravelUI()
 	HostController->SetPendingWaypointTravelInteraction(this);
 
 	// 호스트 로컬 클라이언트 UI 열기
-	HostController->ClientOpenWaypointTravelUI();
+	HostController->ClientOpenWaypointTravelUI(ShouldShowWorldResetButton());
 	return true;
 }
 

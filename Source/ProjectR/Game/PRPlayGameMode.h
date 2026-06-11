@@ -47,6 +47,9 @@ public:
 	// 플레이어 생존 상태가 바뀌었음을 알리고 전멸 여부를 평가한다.
 	void NotifyPlayerSurvivalStateChanged(APRPlayerState* PlayerState);
 
+	// 기본 웨이포인트 해금
+	void UnlockDefaultWaypoints();
+
 protected:
 	// 페이로드 검증. 실패 시 OutReason에 사유 기록
 	bool ValidateCharacterPayload(const FPRCharacterSaveData& Payload, FString& OutReason) const;

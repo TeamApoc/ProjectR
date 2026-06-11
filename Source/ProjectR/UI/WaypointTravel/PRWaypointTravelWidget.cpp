@@ -169,56 +169,68 @@ TArray<FPRWaypointTravelWorldOption> UPRWaypointTravelWidget::BuildWorldOptions(
 	}
 
 	UWorld* World = GetWorld();
-	const APRGameStateBase* GameState = IsValid(World) ? World->GetGameState<APRGameStateBase>() : nullptr;
-	for (const TPair<FGameplayTag, TSoftObjectPtr<UPRWorldDataAsset>>& Pair : WorldRegistry->GetWorldDataById())
-	{
-		UPRWorldDataAsset* WorldDataAsset = Pair.Value.LoadSynchronous();
-		if (!IsValid(WorldDataAsset) || !WorldDataAsset->WorldId.MatchesTagExact(Pair.Key))
-		{
-			continue;
-		}
-
-		const bool bHasUnlockedWaypoint = IsValid(GameState) && GameState->HasUnlockedWaypointInWorld(Pair.Key);
-		if (!bHasUnlockedWaypoint)
-		{
-			continue;
-		}
-
-		// 활성 Waypoint 보유 월드 옵션
-		FPRWaypointTravelWorldOption WorldOption;
-		WorldOption.WorldId = Pair.Key;
-		WorldOption.WorldDisplayName = WorldDataAsset->DisplayName;
-		WorldOption.ThumbnailTexture = WorldDataAsset->ThumbnailTexture;
-		WorldOption.bHasUnlockedWaypoint = bHasUnlockedWaypoint;
-		WorldOption.bDevOnly = false;
-		WorldOptions.Add(WorldOption);
-	}
-
-	if (!UPRWorldRegistry::IsDevTravelEnabled())
+	APRGameStateBase* GameState = IsValid(World) ? World->GetGameState<APRGameStateBase>() : nullptr;
+	if (!IsValid(GameState))
 	{
 		return WorldOptions;
 	}
-
-	for (const TPair<FGameplayTag, TSoftObjectPtr<UPRWorldDataAsset>>& Pair : WorldRegistry->GetDevWorldDataById())
+	
+	if (UPRWorldRegistry::IsDevTravelEnabled())
 	{
-		if (WorldRegistry->IsWorldIdRegistered(Pair.Key))
+		for (const TPair<FGameplayTag, TSoftObjectPtr<UPRWorldDataAsset>>& Pair : WorldRegistry->GetDevWorldDataById())
 		{
-			continue;
-		}
+			UPRWorldDataAsset* WorldDataAsset = Pair.Value.LoadSynchronous();
+			if (!IsValid(WorldDataAsset) || !WorldDataAsset->WorldId.MatchesTagExact(Pair.Key))
+			{
+				continue;
+			}
+			
+			for (const FPRWaypointTravelNodeDefinition& Node : WorldDataAsset->WaypointNodes)
+			{
+				FPRWaypointKey Key(WorldDataAsset->WorldId, Node.WaypointId);
+				if (!Key.IsValid())
+				{
+					continue;
+				}
+				
+				GameState->UnlockWaypoint(Key);
+			}
 
-		UPRWorldDataAsset* WorldDataAsset = Pair.Value.LoadSynchronous();
-		if (!IsValid(WorldDataAsset) || !WorldDataAsset->WorldId.MatchesTagExact(Pair.Key))
+			// 개발용 월드 옵션
+			FPRWaypointTravelWorldOption WorldOption;
+			WorldOption.WorldId = Pair.Key;
+			WorldOption.WorldDisplayName = WorldDataAsset->DisplayName;
+			WorldOption.ThumbnailTexture = WorldDataAsset->ThumbnailTexture;
+			WorldOption.bHasUnlockedWaypoint = true;
+			WorldOption.bDevOnly = true;
+			WorldOptions.Add(WorldOption);
+		}
+	}
+	else
+	{
+		for (const TPair<FGameplayTag, TSoftObjectPtr<UPRWorldDataAsset>>& Pair : WorldRegistry->GetWorldDataById())
 		{
-			continue;
-		}
+			UPRWorldDataAsset* WorldDataAsset = Pair.Value.LoadSynchronous();
+			if (!IsValid(WorldDataAsset) || !WorldDataAsset->WorldId.MatchesTagExact(Pair.Key))
+			{
+				continue;
+			}
 
-		// 개발용 월드 옵션
-		FPRWaypointTravelWorldOption WorldOption;
-		WorldOption.WorldId = Pair.Key;
-		WorldOption.WorldDisplayName = WorldDataAsset->DisplayName;
-		WorldOption.bHasUnlockedWaypoint = true;
-		WorldOption.bDevOnly = true;
-		WorldOptions.Add(WorldOption);
+			const bool bHasUnlockedWaypoint = GameState->HasUnlockedWaypointInWorld(Pair.Key);
+			if (!bHasUnlockedWaypoint)
+			{
+				continue;
+			}
+
+			// 활성 Waypoint 보유 월드 옵션
+			FPRWaypointTravelWorldOption WorldOption;
+			WorldOption.WorldId = Pair.Key;
+			WorldOption.WorldDisplayName = WorldDataAsset->DisplayName;
+			WorldOption.ThumbnailTexture = WorldDataAsset->ThumbnailTexture;
+			WorldOption.bHasUnlockedWaypoint = bHasUnlockedWaypoint;
+			WorldOption.bDevOnly = false;
+			WorldOptions.Add(WorldOption);
+		}
 	}
 
 	return WorldOptions;

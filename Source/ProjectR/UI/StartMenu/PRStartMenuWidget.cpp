@@ -499,25 +499,6 @@ UPRGameInstance* UPRStartMenuWidget::GetProjectRGameInstance() const
 	return Cast<UPRGameInstance>(GetGameInstance());
 }
 
-bool UPRStartMenuWidget::HasAnyLocalCharacterSave() const
-{
-	const UPRGameInstance* GameInstance = GetProjectRGameInstance();
-	if (!IsValid(GameInstance))
-	{
-		return false;
-	}
-
-	for (int32 SlotIndex = 1; SlotIndex <= 4; ++SlotIndex)
-	{
-		if (GameInstance->DoesLocalCharacterSaveExist(SlotIndex))
-		{
-			return true;
-		}
-	}
-
-	return false;
-}
-
 bool UPRStartMenuWidget::ApplyPlayerNameInputToSelectedSave()
 {
 	UPRGameInstance* GameInstance = GetProjectRGameInstance();
@@ -669,15 +650,17 @@ void UPRStartMenuWidget::HandleDeleteSaveSlotButtonClicked()
 		return;
 	}
 
-	SelectedSaveSlotIndex = INDEX_NONE;
-	if (!HasAnyLocalCharacterSave())
+	if (!GameInstance->ResetLocalCharacterSaveSlot(SlotIndexToDelete))
 	{
-		// 마지막 저장 파일 삭제 이후 메뉴 시작 흐름 유지를 위한 기본 슬롯 보장
-		GameInstance->EnsureInitialLocalCharacterSave();
+		SelectedSaveSlotIndex = INDEX_NONE;
+		RefreshSaveSlotButtons();
+		SelectFirstAvailableSaveSlot();
+		RefreshSessionStatusText(FText::FromString(TEXT("빈 세이브 생성 실패")));
+		return;
 	}
 
 	RefreshSaveSlotButtons();
-	SelectFirstAvailableSaveSlot();
+	SelectSaveSlot(SlotIndexToDelete);
 	RefreshSessionStatusText(FText::FromString(TEXT("세이브 삭제 완료")));
 }
 

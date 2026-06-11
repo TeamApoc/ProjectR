@@ -119,9 +119,6 @@ private:
 	// 현재 GameInstance를 ProjectR 타입으로 반환함
 	UPRGameInstance* GetProjectRGameInstance() const;
 
-	// 로컬 캐릭터 세이브가 하나 이상 존재하는지 확인함
-	bool HasAnyLocalCharacterSave() const;
-
 	// 세션 진입 전 이름 입력값을 선택 슬롯에 저장함
 	bool ApplyPlayerNameInputToSelectedSave();
 

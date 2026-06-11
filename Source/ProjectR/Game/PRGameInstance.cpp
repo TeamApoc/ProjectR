@@ -341,6 +341,36 @@ bool UPRGameInstance::DeleteLocalCharacterSaveSlot(int32 SlotIndex)
 	return bDeleted;
 }
 
+bool UPRGameInstance::ResetLocalCharacterSaveSlot(int32 SlotIndex)
+{
+	if (!IsValidLocalCharacterSlotIndex(SlotIndex))
+	{
+		return false;
+	}
+
+	const FPRCharacterSaveData PreviousLocalCharacter = LocalCharacterSave;
+	const FPRWorldSaveData PreviousLocalWorldSave = LocalWorldSave;
+	const int32 PreviousActiveLocalCharacterSlotIndex = ActiveLocalCharacterSlotIndex;
+
+	LocalCharacterSave = FPRCharacterSaveData();
+	LocalWorldSave = FPRWorldSaveData();
+
+	const FString SlotName = BuildLocalCharacterSlotName(SlotIndex);
+	const bool bSaved = SaveLocalCharacter(FName(*SlotName));
+	if (bSaved)
+	{
+		// 재생성된 신규 슬롯 즉시 선택 가능 상태
+		ActiveLocalCharacterSlotIndex = SlotIndex;
+		return true;
+	}
+
+	// 저장 실패 시 이전 로컬 캐시 복구
+	LocalCharacterSave = PreviousLocalCharacter;
+	LocalWorldSave = PreviousLocalWorldSave;
+	ActiveLocalCharacterSlotIndex = PreviousActiveLocalCharacterSlotIndex;
+	return false;
+}
+
 bool UPRGameInstance::SaveActiveLocalCharacterSlot()
 {
 	if (!HasActiveLocalCharacterSlot())

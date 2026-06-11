@@ -98,6 +98,10 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "ProjectR|Save")
 	bool DeleteLocalCharacterSaveSlot(int32 SlotIndex);
 
+	// 1~4번 로컬 캐릭터 슬롯 기본 세이브 재생성
+	UFUNCTION(BlueprintCallable, Category = "ProjectR|Save")
+	bool ResetLocalCharacterSaveSlot(int32 SlotIndex);
+
 	// 현재 활성 로컬 캐릭터 슬롯 저장
 	UFUNCTION(BlueprintCallable, Category = "ProjectR|Save")
 	bool SaveActiveLocalCharacterSlot();
@@ -162,11 +166,11 @@ protected:
 
 	// 호스트 시작 시 사용할 기본 맵
 	UPROPERTY(EditDefaultsOnly, Category = "ProjectR|Session")
-	FName HostMapName = TEXT("L_Playground");
+	FName HostMapName = TEXT("L_Sector09");
 
 	// 호스트 시작 시 허용할 최대 인원
 	UPROPERTY(EditDefaultsOnly, Category = "ProjectR|Session", meta = (ClampMin = "1"))
-	int32 HostMaxPlayers = 4;
+	int32 HostMaxPlayers = 3;
 
 	// 현재 플레이어가 들고 다니는 캐릭터 스펙. Join 시 이 데이터가 호스트로 전송됨
 	UPROPERTY(VisibleInstanceOnly, Category = "ProjectR|Save")

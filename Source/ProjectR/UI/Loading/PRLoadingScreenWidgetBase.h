@@ -9,13 +9,6 @@
 
 class UImage;
 
-UENUM(BlueprintType)
-enum class EPRLoadingScreenWidgetPhase : uint8
-{
-	MoviePlayer,
-	Viewport
-};
-
 USTRUCT(BlueprintType)
 struct FPRLoadingScreenImageEntry
 {
@@ -30,11 +23,7 @@ public:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "ProjectR|Loading")
 	FSlateBrush PrimaryImageBrush;
 
-	// MoviePlayer 단계에서 사용할 두 번째 이미지
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "ProjectR|Loading")
-	FSlateBrush MoviePlayerSecondaryImageBrush;
-
-	// Viewport 로딩 단계에서 사용할 두 번째 이미지
+	// 로딩 단계에서 사용할 두 번째 이미지
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "ProjectR|Loading")
 	FSlateBrush ViewportSecondaryImageBrush;
 };
@@ -49,10 +38,6 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "ProjectR|Loading")
 	void SetLoadingDestination(const FString& MapPackageName);
 
-	// 로딩 화면 표시 단계를 설정하고 두 번째 이미지를 갱신
-	UFUNCTION(BlueprintCallable, Category = "ProjectR|Loading")
-	void SetLoadingScreenWidgetPhase(EPRLoadingScreenWidgetPhase NewPhase);
-
 	// 목적지 맵 패키지 이름 반환
 	UFUNCTION(BlueprintPure, Category = "ProjectR|Loading")
 	FString GetDestinationMapPackageName() const { return DestinationMapPackageName; }
@@ -60,10 +45,6 @@ public:
 	// 목적지 맵 짧은 이름 반환
 	UFUNCTION(BlueprintPure, Category = "ProjectR|Loading")
 	FName GetDestinationMapShortName() const { return DestinationMapShortName; }
-
-	// 현재 로딩 화면 표시 단계 반환
-	UFUNCTION(BlueprintPure, Category = "ProjectR|Loading")
-	EPRLoadingScreenWidgetPhase GetLoadingScreenWidgetPhase() const { return LoadingScreenWidgetPhase; }
 
 protected:
 	// 목적지 맵 변경 시 블루프린트 후처리
@@ -88,11 +69,7 @@ protected:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "ProjectR|Loading")
 	FSlateBrush DefaultPrimaryImageBrush;
 
-	// 매핑이 없을 때 MoviePlayer 단계에서 사용할 두 번째 이미지
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "ProjectR|Loading")
-	FSlateBrush DefaultMoviePlayerSecondaryImageBrush;
-
-	// 매핑이 없을 때 Viewport 로딩 단계에서 사용할 두 번째 이미지
+	// 매핑이 없을 때 사용할 두 번째 이미지
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "ProjectR|Loading")
 	FSlateBrush DefaultViewportSecondaryImageBrush;
 
@@ -107,6 +84,4 @@ private:
 	UPROPERTY(Transient)
 	FName DestinationMapShortName = NAME_None;
 
-	UPROPERTY(Transient)
-	EPRLoadingScreenWidgetPhase LoadingScreenWidgetPhase = EPRLoadingScreenWidgetPhase::Viewport;
 };

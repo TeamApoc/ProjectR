@@ -28,7 +28,6 @@ public class ProjectR : ModuleRules
 			"StructUtils",
 			"Niagara",
 			"PhysicsCore",
-			"MoviePlayer",
 			"Slate",
 			"SlateCore",
 			"OnlineSubsystem",

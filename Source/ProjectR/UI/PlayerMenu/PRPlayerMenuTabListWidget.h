@@ -9,6 +9,7 @@
 
 class UHorizontalBox;
 class UCommonActionWidget;
+class UCommonButtonBase;
 /**
  * 
  */
@@ -16,6 +17,10 @@ UCLASS()
 class PROJECTR_API UPRPlayerMenuTabListWidget : public UCommonTabListWidgetBase
 {
 	GENERATED_BODY()
+
+public:
+	// 디자인 미리보기 탭 버튼 재구성
+	void RebuildDesignPreviewTabs(const TArray<FName>& TabNameIDs, TSubclassOf<UCommonButtonBase> ButtonWidgetType);
 	
 protected:
 	virtual void HandleTabCreation_Implementation(FName TabNameID, UCommonButtonBase* TabButton) override;

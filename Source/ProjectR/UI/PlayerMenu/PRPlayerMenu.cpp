@@ -19,6 +19,29 @@ void UPRPlayerMenu::NativePreConstruct()
 {
 	// 부모 미리보기 처리
 	Super::NativePreConstruct();
+
+	if (!IsDesignTime() || !IsValid(TabList))
+	{
+		return;
+	}
+
+	TArray<FName> PreviewTabNames;
+	if (IsValid(WidgetSwitcher))
+	{
+		for (int32 ChildIndex = 0; ChildIndex < WidgetSwitcher->GetChildrenCount(); ++ChildIndex)
+		{
+			UWidget* ChildWidget = WidgetSwitcher->GetChildAt(ChildIndex);
+			if (!IsValid(ChildWidget))
+			{
+				continue;
+			}
+
+			// 디자인 탭 이름
+			PreviewTabNames.Add(ChildWidget->GetFName());
+		}
+	}
+
+	TabList->RebuildDesignPreviewTabs(PreviewTabNames, TabButtonClass);
 }
 
 void UPRPlayerMenu::NativeOnInitialized()
@@ -51,6 +74,7 @@ void UPRPlayerMenu::RegisterSwitcherTabs()
 		return;
 	}
 
+	TabList->RemoveAllTabs();
 	TabList->SetLinkedSwitcher(WidgetSwitcher);
 
 	if (!IsValid(TabButtonClass.Get()))
@@ -58,6 +82,7 @@ void UPRPlayerMenu::RegisterSwitcherTabs()
 		return;
 	}
 
+	FName FirstTabName = NAME_None;
 	for (int32 ChildIndex = 0; ChildIndex < WidgetSwitcher->GetChildrenCount(); ++ChildIndex)
 	{
 		UWidget* ChildWidget = WidgetSwitcher->GetChildAt(ChildIndex);
@@ -67,7 +92,18 @@ void UPRPlayerMenu::RegisterSwitcherTabs()
 		}
 
 		// 스위처 자식 이름 기반 탭 등록
-		const FName ChildName = FName(ChildWidget->GetName());
+		const FName ChildName = ChildWidget->GetFName();
+		if (FirstTabName.IsNone())
+		{
+			FirstTabName = ChildName;
+		}
+
 		TabList->RegisterTab(ChildName, TabButtonClass, ChildWidget, ChildIndex);
+	}
+
+	if (!FirstTabName.IsNone())
+	{
+		// 최초 탭 선택
+		TabList->SelectTabByID(FirstTabName, true);
 	}
 }

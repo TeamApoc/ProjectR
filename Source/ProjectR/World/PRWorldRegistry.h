@@ -1,5 +1,5 @@
 // Copyright ProjectR. All Rights Reserved.
-
+// Author: 배유찬 (월드 배치용 레지스트리 및 관련 시스템 구현)
 #pragma once
 
 #include "CoreMinimal.h"

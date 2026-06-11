@@ -1,5 +1,6 @@
 // Copyright ProjectR. All Rights Reserved.
-
+// Author: 김동석 (보스 페이즈 전환용 BGM 제어 연동)
+// Author: 손승우 (페어린 보스 페이즈 전환 시퀀스 및 AI 연동 구현)
 #pragma once
 
 #include "CoreMinimal.h"

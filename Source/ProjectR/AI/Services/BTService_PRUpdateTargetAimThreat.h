@@ -1,5 +1,5 @@
 // Copyright ProjectR. All Rights Reserved.
-
+// Author: 손승우 (적 AI Update 타겟 조준 위협도 갱신용 비헤이비어 트리 서비스 구현)
 #pragma once
 
 #include "CoreMinimal.h"

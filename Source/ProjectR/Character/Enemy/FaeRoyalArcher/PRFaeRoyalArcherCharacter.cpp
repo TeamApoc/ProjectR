@@ -1,5 +1,5 @@
 // Copyright ProjectR. All Rights Reserved.
-
+// Author: 손승우 (Fae 로열 아처 Character 구현)
 #include "PRFaeRoyalArcherCharacter.h"
 
 #include "BehaviorTree/BlackboardComponent.h"

@@ -1,5 +1,7 @@
 // Copyright ProjectR. All Rights Reserved.
-
+// Author: 김동석 (특성 성장 수치 기반 피해 보정 연동 구현)
+// Author: 배유찬 (무기 피해량 연산, Mod 게이지 획득 및 대미지 팝업 연동)
+// Author: 손승우 (적 AI 상태별 무기 피해 보정 구현)
 #include "PRDamageExecCalc_FromPlayerWeapon.h"
 #include "AbilitySystemComponent.h"
 #include "ProjectR/AbilitySystem/AttributeSets/PRAttributeSet_Common.h"

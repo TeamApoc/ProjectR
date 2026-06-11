@@ -1,5 +1,6 @@
 ﻿// Copyright (c) 2026 TeamApoc. All Rights Reserved.
-
+// Author: 손승우 (로열 아처 공중 투사체 사격 제어 구현)
+// Author: 이건주 (Penitent 원거리 배리어 사격 패턴 구현)
 #pragma once
 
 #include "CoreMinimal.h"

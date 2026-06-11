@@ -1,6 +1,7 @@
 // Copyright (c) 2026 TeamApoc. All Rights Reserved.
-
-
+// Author: 배유찬 (인벤토리 연동 장착 장비 실시간 비주얼 변경 구현)
+// Author: 손승우 (프리뷰 상태 리셋 연동)
+// Author: 이건주 (캐릭터 마우스 조작 회전 및 조명 연동 구현)
 #include "PRCharacterPreviewActor.h"
 
 #include "Components/DirectionalLightComponent.h"

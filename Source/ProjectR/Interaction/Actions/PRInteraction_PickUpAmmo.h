@@ -1,5 +1,6 @@
 // Copyright (c) 2026 TeamApoc. All Rights Reserved.
-
+// Author: 배유찬 (필드 탄약 획득 및 인벤토리 탄약 보관 구현)
+// Author: 이건주 (Mod 버프 연동 탄약 보너스 획득 구현)
 #pragma once
 
 #include "CoreMinimal.h"

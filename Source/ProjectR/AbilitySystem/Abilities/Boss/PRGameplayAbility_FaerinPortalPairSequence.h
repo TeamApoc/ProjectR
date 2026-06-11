@@ -1,5 +1,5 @@
 // Copyright ProjectR. All Rights Reserved.
-
+// Author: 손승우 (페어린 보스전 포털 Pair 시퀀스 어빌리티 구현)
 #pragma once
 
 #include "CoreMinimal.h"

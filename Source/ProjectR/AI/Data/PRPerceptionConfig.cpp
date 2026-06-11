@@ -1,5 +1,5 @@
 // Copyright ProjectR. All Rights Reserved.
-
+// Author: 손승우 (Perception 설정 클래스 정의)
 #include "PRPerceptionConfig.h"
 
 #if WITH_EDITOR

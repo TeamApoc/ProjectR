@@ -1,5 +1,5 @@
 // Copyright ProjectR. All Rights Reserved.
-
+// Author: 배유찬 (Start Menu UI 위젯 구현)
 #include "PRStartMenuWidget.h"
 
 #include "Components/Button.h"

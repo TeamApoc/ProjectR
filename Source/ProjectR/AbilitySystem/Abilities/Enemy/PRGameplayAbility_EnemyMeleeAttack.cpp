@@ -1,5 +1,8 @@
 // Copyright ProjectR. All Rights Reserved.
-
+// Author: 김동석 (근접 피격 반응 연동 구현)
+// Author: 배유찬 (근접 데미지 계산 및 파이프라인 연동)
+// Author: 손승우 (해머 근접 공격 판정 및 모션 워핑 연동 구현)
+// Author: 이건주 (Penitent 몬스터 근접 배리어 패턴 구현)
 #include "PRGameplayAbility_EnemyMeleeAttack.h"
 
 #include "AbilitySystemComponent.h"

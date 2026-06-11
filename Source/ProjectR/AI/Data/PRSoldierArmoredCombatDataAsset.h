@@ -1,5 +1,6 @@
 // Copyright ProjectR. All Rights Reserved.
-
+// Author: 김동석 (조준 피격 관련 반응 범위 데이터 연동)
+// Author: 손승우 (아머드 솔저 해머 공격 및 콤보 관련 전투 파라미터 정의)
 #pragma once
 
 #include "CoreMinimal.h"

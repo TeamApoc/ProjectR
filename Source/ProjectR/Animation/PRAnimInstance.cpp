@@ -1,3 +1,5 @@
+// Author: 김동석 (플레이어 이동(3인칭), 조준 오프셋 및 사망/좌수 IK 애니메이션 블렌딩 구현)
+// Author: 배유찬 (재장전 시퀀스 연동 좌수 IK 보정 구현)
 // Fill out your copyright notice in the Description page of Project Settings.
 
 #include "PRAnimInstance.h"

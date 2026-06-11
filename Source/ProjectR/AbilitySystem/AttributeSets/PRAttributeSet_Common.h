@@ -1,5 +1,7 @@
 // Copyright ProjectR. All Rights Reserved.
-
+// Author: 김동석 (체력 기반 사망/다운 상태 전환 및 UI 연동 구현)
+// Author: 배유찬 (데미지 계산식 적용 및 공용 속성 초기화)
+// Author: 손승우 (적 공격 피해량 산정 공식 연동)
 #pragma once
 
 #include "CoreMinimal.h"

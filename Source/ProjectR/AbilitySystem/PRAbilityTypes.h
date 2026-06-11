@@ -1,5 +1,6 @@
 // Copyright ProjectR. All Rights Reserved.
-
+// Author: 김동석 (조준 상태 관련 데이터 구조 정의)
+// Author: 배유찬 (태그 이벤트 훅 및 어빌리티 기초 데이터 타입 정의)
 #pragma once
 
 #include "CoreMinimal.h"

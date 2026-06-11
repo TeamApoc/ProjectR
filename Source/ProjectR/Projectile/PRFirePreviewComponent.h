@@ -1,5 +1,5 @@
 // Copyright (c) 2026 TeamApoc. All Rights Reserved.
-
+// Author: 배유찬 (Fire 프리뷰 컴포넌트 구현)
 #pragma once
 
 #include "CoreMinimal.h"

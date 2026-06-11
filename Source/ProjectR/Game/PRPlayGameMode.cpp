@@ -1,5 +1,6 @@
 // Copyright ProjectR. All Rights Reserved.
-
+// Author: 김동석 (플레이어 다운/사망 상태 연동 및 게임오버 처리 구현)
+// Author: 배유찬 (세션/멀티플레이 흐름 및 전멸 리스폰, 웨이포인트 이동 룰 구현)
 #include "PRPlayGameMode.h"
 #include "Engine/World.h"
 #include "GameFramework/GameStateBase.h"

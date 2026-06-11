@@ -1,6 +1,5 @@
 // Copyright (c) 2026 TeamApoc. All Rights Reserved.
-
-
+// Author: 배유찬 (플레이어 Swap Weapon 어빌리티 구현)
 #include "PRGA_SwapWeapon.h"
 
 #include "Abilities/Tasks/AbilityTask_PlayMontageAndWait.h"

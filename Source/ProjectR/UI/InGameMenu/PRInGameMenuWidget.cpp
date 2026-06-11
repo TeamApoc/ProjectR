@@ -1,5 +1,5 @@
 // Copyright ProjectR. All Rights Reserved.
-
+// Author: 배유찬 (In Game Menu UI 위젯 구현)
 #include "PRInGameMenuWidget.h"
 
 #include "Components/Button.h"

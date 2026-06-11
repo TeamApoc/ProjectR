@@ -1,5 +1,5 @@
 // Copyright ProjectR. All Rights Reserved.
-
+// Author: 김동석 (Enemy World Health Bar UI 위젯 구현)
 #include "ProjectR/UI/HUD/PREnemyWorldHealthBarWidget.h"
 
 #include "AbilitySystemComponent.h"

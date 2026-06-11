@@ -1,5 +1,6 @@
 // Copyright ProjectR. All Rights Reserved.
-
+// Author: 김동석 (콤보 유효 시간대 조준 판정 연동)
+// Author: 손승우 (해머 및 보스 콤보 시퀀스 연계 윈도우 트리거 구현)
 #include "PRAnimNotify_EnemyComboWindow.h"
 
 #include "AbilitySystemBlueprintLibrary.h"

@@ -1,5 +1,7 @@
 // Copyright ProjectR. All Rights Reserved.
-
+// Author: 김동석 (강화 등급별 무기 공격력 실시간 연산 구현)
+// Author: 배유찬 (무기 런타임 탄약 상태 및 업그레이드 스탯 보존 구현)
+// Author: 이건주 (무기 Mod 슬롯 상태 동기화 및 3D 모델 프리뷰 구현)
 #pragma once
 
 #include "CoreMinimal.h"

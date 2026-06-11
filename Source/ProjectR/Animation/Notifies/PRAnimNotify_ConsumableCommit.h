@@ -1,5 +1,7 @@
 // Copyright (c) 2026 TeamApoc. All Rights Reserved.
-
+// Author: 김동석 (아이템 복용 중 행동 차단 상태 해제 연동)
+// Author: 손승우 (적 AI 소모품 효과 연동)
+// Author: 이건주 (소모품 사용 애니메이션 완료 시점 회복 효과 트리거 구현)
 #pragma once
 
 #include "CoreMinimal.h"

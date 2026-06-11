@@ -1,5 +1,5 @@
 // Copyright (c) 2026 TeamApoc. All Rights Reserved.
-
+// Author: 배유찬 (Flashlight 컴포넌트 구현)
 #include "ProjectR/Player/Components/PRFlashlightComponent.h"
 
 #include "GameFramework/Pawn.h"

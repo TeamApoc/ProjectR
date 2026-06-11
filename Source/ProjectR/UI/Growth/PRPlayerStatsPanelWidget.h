@@ -1,5 +1,5 @@
 // Copyright ProjectR. All Rights Reserved.
-
+// Author: 배유찬 (Player Stats Panel UI 위젯 구현)
 #pragma once
 
 #include "CoreMinimal.h"

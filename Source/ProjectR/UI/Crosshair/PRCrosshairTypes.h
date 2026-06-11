@@ -1,4 +1,6 @@
-﻿#pragma once
+﻿// Author: 김동석 (사격 반동 벌어짐 연동용 크로스헤어 타입 정의)
+// Author: 배유찬 (사격 연동 크로스헤어 상태 타입 정의)
+#pragma once
 #include "ProjectR/System/PREventTypes.h"
 #include "ProjectR/ItemSystem/Types/PRRecoilTypes.h"
 #include "PRCrosshairTypes.generated.h"

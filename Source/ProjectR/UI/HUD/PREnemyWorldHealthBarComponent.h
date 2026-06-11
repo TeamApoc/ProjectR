@@ -1,5 +1,5 @@
 // Copyright ProjectR. All Rights Reserved.
-
+// Author: 김동석 (UI Enemy World Health Bar 컴포넌트 구현)
 #pragma once
 
 #include "CoreMinimal.h"

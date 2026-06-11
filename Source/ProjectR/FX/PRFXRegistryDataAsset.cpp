@@ -1,5 +1,5 @@
 // Copyright ProjectR. All Rights Reserved.
-
+// Author: 배유찬 (이펙트 레지스트리 데이터 에셋 구현)
 #include "PRFXRegistryDataAsset.h"
 
 bool UPRFXRegistryDataAsset::FindEntry(FGameplayTag FXTag, FPRFXRegistryEntry& OutEntry) const

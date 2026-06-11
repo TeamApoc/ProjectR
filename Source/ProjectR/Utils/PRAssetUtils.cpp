@@ -1,5 +1,6 @@
 // Copyright ProjectR. All Rights Reserved.
-
+// Author: 김동석 (렌더 프리웜 및 에셋 비동기 로딩 헬퍼 구현)
+// Author: 배유찬 (리스폰 에셋 메모리 프리로드 헬퍼 구현)
 #include "PRAssetUtils.h"
 
 #include "Blueprint/UserWidget.h"

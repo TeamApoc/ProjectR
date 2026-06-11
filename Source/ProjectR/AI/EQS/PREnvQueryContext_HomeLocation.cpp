@@ -1,5 +1,5 @@
 // Copyright ProjectR. All Rights Reserved.
-
+// Author: 손승우 (Env Query Context Home Location 구현)
 #include "PREnvQueryContext_HomeLocation.h"
 
 #include "AIController.h"

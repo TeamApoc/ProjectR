@@ -1,5 +1,6 @@
 // Copyright ProjectR. All Rights Reserved.
-
+// Author: 김동석 (조준 상태 연동용 AI 타입 정의)
+// Author: 손승우 (일반/보스 AI 순찰 및 전투 상태 타입 정의)
 #pragma once
 
 #include "CoreMinimal.h"

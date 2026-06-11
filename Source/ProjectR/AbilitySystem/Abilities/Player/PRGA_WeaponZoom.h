@@ -1,5 +1,5 @@
 // Copyright (c) 2026 TeamApoc. All Rights Reserved.
-
+// Author: 김동석 (플레이어 Weapon Zoom 어빌리티 구현)
 #pragma once
 
 #include "CoreMinimal.h"

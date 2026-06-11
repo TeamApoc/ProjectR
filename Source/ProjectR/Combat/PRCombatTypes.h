@@ -1,5 +1,7 @@
 // Copyright ProjectR. All Rights Reserved.
-
+// Author: 김동석 (조준 피격 연동용 전투 타입 정의)
+// Author: 배유찬 (약점 및 피해 결과 관련 데이터 타입 정의)
+// Author: 손승우 (적 그로기 상태 관련 전투 타입 정의)
 #pragma once
 
 #include "CoreMinimal.h"

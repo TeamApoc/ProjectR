@@ -1,5 +1,5 @@
 // Copyright ProjectR. All Rights Reserved.
-
+// Author: 배유찬 (Test Fire Shooter 구현)
 #include "PRTestFireShooter.h"
 
 #include "Engine/World.h"

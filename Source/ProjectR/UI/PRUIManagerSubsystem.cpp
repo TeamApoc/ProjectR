@@ -1,5 +1,5 @@
 // Copyright (c) 2026 TeamApoc. All Rights Reserved.
-
+// Author: 배유찬 (UI 매니저 서브시스템 구현)
 #include "PRUIManagerSubsystem.h"
 
 #include "Components/PanelWidget.h"

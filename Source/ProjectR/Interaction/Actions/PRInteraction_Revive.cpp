@@ -1,6 +1,5 @@
 ﻿// Copyright (c) 2026 TeamApoc. All Rights Reserved.
-
-
+// Author: 배유찬 (동료 소생 상호작용 액션 실행 로직 구현)
 #include "PRInteraction_Revive.h"
 
 #include "AbilitySystemBlueprintLibrary.h"

@@ -1,5 +1,5 @@
 // Copyright ProjectR. All Rights Reserved.
-
+// Author: 손승우 (애니메이션 페어린 보스 Character Event 윈도우/트리거 노티파이 구현)
 #include "PRAnimNotify_FaerinCharacterEvent.h"
 
 #include "Components/SkeletalMeshComponent.h"

@@ -1,5 +1,7 @@
 // Copyright ProjectR. All Rights Reserved.
-
+// Author: 김동석 (무기 반동 애니메이션 및 조준 카메라 데이터 정의)
+// Author: 배유찬 (무기 기본 사격/장전 속도 및 탄약 스탯 데이터 정의)
+// Author: 이건주 (Mod 장착 슬롯 및 인벤토리 연동 무기 능력치 정의)
 #pragma once
 
 #include "CoreMinimal.h"

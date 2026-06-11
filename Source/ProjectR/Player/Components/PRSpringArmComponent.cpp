@@ -1,5 +1,5 @@
 // Copyright (c) 2026 TeamApoc. All Rights Reserved.
-
+// Author: 김동석 (Spring Arm 컴포넌트 구현)
 #include "ProjectR/Player/Components/PRSpringArmComponent.h"
 
 #include "ProjectR/Character/PRPlayerCharacter.h"

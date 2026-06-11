@@ -1,5 +1,5 @@
 // Copyright ProjectR. All Rights Reserved.
-
+// Author: 손승우 (페어린 보스 God Fall 데이터 에셋 구현)
 #pragma once
 
 #include "CoreMinimal.h"

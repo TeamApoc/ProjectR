@@ -12,8 +12,10 @@
 #include "ProjectR/ItemSystem/Types/PRWeaponTypes.h"
 #include "ProjectR/UI/HUD/PRHUDMessageTypes.h"
 #include "ProjectR/UI/Inventory/PRInventoryUITypes.h"
+#include "ProjectR/UI/PlayerMenu/PRPlayerMenuTypes.h"
 #include "PRUIControllerComponent.generated.h"
 
+class UPRWidgetBase;
 class APlayerController;
 class APawn;
 class UWidget;
@@ -26,6 +28,7 @@ class UPRInventoryWidget;
 class UPRItemDataAsset;
 class UPRItemTooltipWidget;
 class UPROptionWidget;
+class UPRPlayerMenu;
 class UPRQuickSlotComponent;
 class UPRShopComponent;
 class UPRShopWidget;
@@ -101,6 +104,10 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "ProjectR|UI")
 	void ToggleInGameMenu();
 
+	// 플레이어 메뉴 위젯을 지정 탭으로 열거나 닫는다
+	UFUNCTION(BlueprintCallable, Category = "ProjectR|UI")
+	void TogglePlayerMenu(EPRPlayerMenuTabType TargetTabType);
+
 	// 인벤토리 위젯이 열려 있으면 닫는다
 	UFUNCTION(BlueprintCallable, Category = "ProjectR|UI")
 	void CloseInventory();
@@ -120,6 +127,10 @@ public:
 	// 옵션 위젯을 닫는다
 	UFUNCTION(BlueprintCallable, Category = "ProjectR|UI")
 	void CloseOption();
+
+	// 플레이어 메뉴 위젯이 열려 있으면 닫는다
+	UFUNCTION(BlueprintCallable, Category = "ProjectR|UI")
+	void ClosePlayerMenu();
 
 	// 강화 위젯을 열고 강화 컴포넌트 컨텍스트를 전달한다
 	UFUNCTION(BlueprintCallable, Category = "ProjectR|UI")
@@ -245,6 +256,9 @@ private:
 	// 옵션 위젯 인스턴스 생성 또는 캐시 반환
 	UPROptionWidget* GetOrCreateOptionWidget();
 
+	// 플레이어 메뉴 위젯 인스턴스를 생성하거나 캐시된 인스턴스를 반환한다
+	UPRPlayerMenu* GetOrCreatePlayerMenuWidget();
+
 	// 아이템 툴팁 위젯 인스턴스를 생성하거나 캐시된 인스턴스를 반환한다
 	UPRItemTooltipWidget* GetOrCreateItemTooltipWidget();
 
@@ -315,6 +329,10 @@ protected:
 	// 옵션 위젯 클래스
 	UPROPERTY(EditDefaultsOnly, Category = "ProjectR|Option")
 	TSubclassOf<UPROptionWidget> OptionWidgetClass;
+
+	// 플레이어 메뉴 위젯 클래스
+	UPROPERTY(EditDefaultsOnly, Category = "ProjectR|PlayerMenu")
+	TSubclassOf<UPRPlayerMenu> PlayerMenuWidgetClass;
 
 	// 생성 후 재사용할 상점 위젯
 	UPROPERTY(Transient)
@@ -400,6 +418,10 @@ private:
 	// 생성 후 재사용할 옵션 위젯
 	UPROPERTY(Transient)
 	TObjectPtr<UPROptionWidget> OptionWidget;
+
+	// 생성 후 재사용할 플레이어 메뉴 위젯
+	UPROPERTY(Transient)
+	TObjectPtr<UPRPlayerMenu> PlayerMenuWidget;
 
 	// 현재 바인딩된 무기 매니저
 	UPROPERTY(Transient)

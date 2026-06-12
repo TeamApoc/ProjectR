@@ -35,6 +35,11 @@
 #include "ProjectR/ItemSystem/Items/PRItemInstance_Weapon.h"
 #include "Sound/SoundBase.h"
 
+namespace
+{
+	constexpr float LoadingScreenFadeInAckDelay = 1.0f;
+}
+
 APRPlayerController::APRPlayerController()
 {
 	PlayerCameraManagerClass = APRCameraManager::StaticClass();
@@ -313,19 +318,48 @@ void APRPlayerController::ClientBeginMapLoadingScreen_Implementation(const FStri
 		LoadingScreen->BeginTravelToMap(TEXT("WaypointTravel"), MapName);
 	}
 
-	if (HasAuthority())
+	UWorld* World = GetWorld();
+	if (!IsValid(World) || LoadingScreenFadeInAckDelay <= 0.0f)
 	{
-		LastAcknowledgedLoadingScreenMapName = MapName;
+		if (HasAuthority())
+		{
+			LastAcknowledgedLoadingScreenMapName = MapName;
+		}
+		else
+		{
+			ServerAcknowledgeMapLoadingScreen(MapName);
+		}
+
+		return;
 	}
-	else
+
+	World->GetTimerManager().ClearTimer(LoadingScreenAckTimerHandle);
+	FTimerDelegate AckDelegate = FTimerDelegate::CreateWeakLambda(this, [this, MapName]()
 	{
-		ServerAcknowledgeMapLoadingScreen(MapName);
-	}
+		if (HasAuthority())
+		{
+			LastAcknowledgedLoadingScreenMapName = MapName;
+		}
+		else
+		{
+			ServerAcknowledgeMapLoadingScreen(MapName);
+		}
+	});
+	World->GetTimerManager().SetTimer(LoadingScreenAckTimerHandle, AckDelegate, LoadingScreenFadeInAckDelay, false);
 }
 
 bool APRPlayerController::HasAcknowledgedMapLoadingScreen(const FString& MapName) const
 {
 	return !MapName.IsEmpty() && LastAcknowledgedLoadingScreenMapName == MapName;
+}
+
+void APRPlayerController::ResetAcknowledgedMapLoadingScreen()
+{
+	LastAcknowledgedLoadingScreenMapName.Reset();
+	if (UWorld* World = GetWorld())
+	{
+		World->GetTimerManager().ClearTimer(LoadingScreenAckTimerHandle);
+	}
 }
 
 void APRPlayerController::OnMouseSensitivityActionUp()

@@ -79,6 +79,7 @@ private:
 	void StartShopUIPrewarm(UWorld* LoadedWorld, UPRMapPreloadDataAsset* MapPreloadData);
 	void HandleShopUIPrewarmComplete();
 	void TryReveal();
+	void FinishRevealAfterFadeOut();
 	void SetLoadingState(EPRLoadingState NewState);
 	bool IsLoadedWorldTravelDestination(UWorld* LoadedWorld) const;
 	UPRMapPreloadDataAsset* ResolveMapPreloadData(UWorld* LoadedWorld) const;
@@ -100,10 +101,12 @@ private:
 	bool bInteractionOutlineRenderPrewarmInProgress = false;
 	bool bShopUIPrewarmComplete = true;
 	bool bMinimumDisplayTimeComplete = false;
+	bool bRevealFadeOutInProgress = false;
 	int32 RemainingNiagaraRenderPrewarmFrames = 0;
 	int32 InteractionOutlineRenderPrewarmStep = 0;
 	TWeakObjectPtr<UWorld> CurrentLoadedWorld;
 	FTimerHandle MinimumDisplayTimerHandle;
+	FTimerHandle RevealFadeOutTimerHandle;
 
 	UPROPERTY(Transient)
 	TObjectPtr<UUserWidget> PersistentLoadingWidget;

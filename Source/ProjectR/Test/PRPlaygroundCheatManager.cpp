@@ -1,6 +1,5 @@
 // Copyright (c) 2026 TeamApoc. All Rights Reserved.
-
-
+// Author: 배유찬 (Playground 디버그 치트 매니저 구현)
 #include "PRPlaygroundCheatManager.h"
 
 #include "GameFramework/PlayerController.h"
@@ -62,8 +61,9 @@ void UPRPlaygroundCheatManager::PR_FillAmmo()
 #endif
 }
 
-void UPRPlaygroundCheatManager::PR_InfiniteMode(int32 bEnable)
+void UPRPlaygroundCheatManager::PR_InfiniteMode()
 {
+	bInfiniteMode = !bInfiniteMode;
 #if !UE_BUILD_SHIPPING
 	UPRCheatHandler* Handler = GetCheatHandler();
 	if (!IsValid(Handler))
@@ -72,7 +72,7 @@ void UPRPlaygroundCheatManager::PR_InfiniteMode(int32 bEnable)
 		return;
 	}
 
-	Handler->ServerCheatInfiniteMode(bEnable != 0);
+	Handler->ServerCheatInfiniteMode(bInfiniteMode);
 #endif
 }
 
@@ -104,8 +104,9 @@ void UPRPlaygroundCheatManager::PR_ResetAttackPower()
 #endif
 }
 
-void UPRPlaygroundCheatManager::PR_Fly(int32 bEnable)
+void UPRPlaygroundCheatManager::PR_Fly()
 {
+	bFlyMode = !bFlyMode;
 #if !UE_BUILD_SHIPPING
 	UPRCheatHandler* Handler = GetCheatHandler();
 	if (!IsValid(Handler))
@@ -114,7 +115,7 @@ void UPRPlaygroundCheatManager::PR_Fly(int32 bEnable)
 		return;
 	}
 
-	Handler->ServerCheatFly(bEnable != 0);
+	Handler->ServerCheatFly(bFlyMode);
 #endif
 }
 

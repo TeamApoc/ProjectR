@@ -1,5 +1,7 @@
 // Copyright ProjectR. All Rights Reserved.
-
+// Author: 김동석 (무기별 조준 반동 애니메이션 및 줌 제어 연동 구현)
+// Author: 배유찬 (무기 교체(Swap) 메커니즘, 장전/탄약 관리 및 Mod 게이지 제어 로직 구현)
+// Author: 이건주 (배리어 모드 장착 흐름 및 무기 상태 HUD 실시간 동기화 구현)
 #include "PRWeaponManagerComponent.h"
 
 #include "AbilitySystemComponent.h"

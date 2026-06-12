@@ -1,3 +1,7 @@
+// Author: 김동석 (이동 물리(Sprint/Crouch), 조준 카메라 줌 및 캐릭터 다운/사망 상태 관리 구현)
+// Author: 배유찬 (장비 외형 장착, 플래시라이트 및 HUD/상호작용 연동 등 플레이어 코어 기능 구현)
+// Author: 손승우 (보스 조우 시네마틱 및 보스전 이벤트 연동)
+// Author: 이건주 (인벤토리 기반 무기 장착 연동 및 카메라 감도 설정 구현)
 // Fill out your copyright notice in the Description page of Project Settings.
 
 #pragma once

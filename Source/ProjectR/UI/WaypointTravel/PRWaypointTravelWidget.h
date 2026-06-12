@@ -1,5 +1,5 @@
 // Copyright ProjectR. All Rights Reserved.
-
+// Author: 배유찬 (웨이포인트 Travel UI 위젯 구현)
 #pragma once
 
 #include "CoreMinimal.h"
@@ -35,6 +35,9 @@ public:
 	// 선택한 월드의 지도 Waypoint 목록 표시
 	UFUNCTION(BlueprintCallable, Category = "ProjectR|WaypointTravel")
 	void OpenWorldMap(FGameplayTag WorldId);
+
+	// 월드 진행도 리셋 버튼 표시 상태 설정
+	void SetWorldResetButtonVisible(bool bShouldShow);
 
 	// 마지막 방문 Waypoint 노드 옵션 생성
 	UFUNCTION(BlueprintCallable, Category = "ProjectR|WaypointTravel")
@@ -75,6 +78,9 @@ private:
 	// Travel UI 닫기 처리
 	void CloseTravelWidget(bool bNotifyServerCancel);
 
+	// 월드 진행도 리셋 버튼 표시 갱신
+	void RefreshWorldResetButtonVisibility();
+
 	// 닫기 버튼 클릭 처리
 	UFUNCTION()
 	void HandleCloseButtonClicked();
@@ -82,6 +88,10 @@ private:
 	// 뒤로가기 버튼 클릭 처리
 	UFUNCTION()
 	void HandleBackButtonClicked();
+
+	// 월드 진행도 리셋 버튼 클릭 처리
+	UFUNCTION()
+	void HandleResetWorldButtonClicked();
 
 	// 월드 선택 처리
 	UFUNCTION()
@@ -108,6 +118,10 @@ protected:
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "ProjectR|WaypointTravel")
 	TObjectPtr<UButton> BackButton;
 
+	// UMG에서 바인딩할 월드 진행도 리셋 버튼
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "ProjectR|WaypointTravel")
+	TObjectPtr<UButton> ResetWorldButton;
+
 private:
 	// 현재 지도 화면에서 선택된 월드 ID
 	UPROPERTY(Transient)
@@ -124,4 +138,7 @@ private:
 	// 현재 표시 중인 월드 지도 위젯
 	UPROPERTY(Transient)
 	TObjectPtr<UPRWaypointTravelMapWidget> CurrentMapWidget;
+
+	// 현재 Travel UI의 월드 진행도 리셋 버튼 표시 여부
+	bool bShowWorldResetButton = false;
 };

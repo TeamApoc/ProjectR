@@ -1,5 +1,6 @@
 // Copyright ProjectR. All Rights Reserved.
-
+// Author: 김동석 (플레이어 다운/사망 상태 연동 및 게임오버 처리 구현)
+// Author: 배유찬 (세션/멀티플레이 흐름 및 전멸 리스폰, 웨이포인트 이동 룰 구현)
 #include "PRPlayGameMode.h"
 #include "Engine/World.h"
 #include "GameFramework/GameStateBase.h"
@@ -50,18 +51,16 @@ void APRPlayGameMode::InitGameState()
 	{
 		const bool bHasHostWorldSaveData =
 			HostWorldSave.LastVisitedWaypoint.IsValid()
+			|| HostWorldSave.LastActivatedWaypoint.IsValid()
 			|| HostWorldSave.SavedSpawnPoint.IsValid()
 			|| !HostWorldSave.UnlockedWaypoints.IsEmpty()
 			|| !HostWorldSave.DefeatedBosses.IsEmpty();
-		if (!GS->GetLastVisitedWaypoint().IsValid() && bHasHostWorldSaveData)
+		if (!GS->GetLastVisitedWaypoint().IsValid() && !GS->GetLastActivatedWaypoint().IsValid() && bHasHostWorldSaveData)
 		{
 			GS->InitializeFromWorldSave(HostWorldSave);
 		}
 
-		for (FPRWaypointKey& WaypointKey : DefaultUnlockedWaypoints)
-		{
-			GS->UnlockWaypoint(WaypointKey);
-		}
+		UnlockDefaultWaypoints();
 	}
 }
 
@@ -218,6 +217,17 @@ void APRPlayGameMode::NotifyPlayerSurvivalStateChanged(APRPlayerState* PlayerSta
 	}
 
 	EvaluatePartyWipe();
+}
+
+void APRPlayGameMode::UnlockDefaultWaypoints()
+{
+	if (APRGameStateBase* GS = GetGameState<APRGameStateBase>())
+	{
+		for (FPRWaypointKey& WaypointKey : DefaultUnlockedWaypoints)
+		{
+			GS->UnlockWaypoint(WaypointKey);
+		}
+	}
 }
 
 void APRPlayGameMode::EvaluatePartyWipe()
@@ -383,10 +393,17 @@ FGameplayTag APRPlayGameMode::ResolvePartyRespawnSpawnPointId() const
 {
 	// 전멸 리스폰 지점 우선
 	const APRGameStateBase* PRGameState = Cast<APRGameStateBase>(GameState);
+	if (IsValid(PRGameState) && PRGameState->GetLastActivatedWaypoint().IsValid())
+	{
+		const FGameplayTag RespawnSpawnPointId = PRGameState->GetLastActivatedWaypoint().WaypointId;
+		UE_LOG(LogTemp, Log, TEXT("Party respawn spawn point resolved from LastActivatedWaypoint: %s"), *RespawnSpawnPointId.ToString());
+		return RespawnSpawnPointId;
+	}
+
 	if (IsValid(PRGameState) && PRGameState->GetLastVisitedWaypoint().IsValid())
 	{
 		const FGameplayTag RespawnSpawnPointId = PRGameState->GetLastVisitedWaypoint().WaypointId;
-		UE_LOG(LogTemp, Log, TEXT("Party respawn spawn point resolved from LastVisitedWaypoint: %s"), *RespawnSpawnPointId.ToString());
+		UE_LOG(LogTemp, Log, TEXT("Party respawn spawn point fallback from LastVisitedWaypoint: %s"), *RespawnSpawnPointId.ToString());
 		return RespawnSpawnPointId;
 	}
 

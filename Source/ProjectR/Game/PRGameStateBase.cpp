@@ -1,5 +1,5 @@
 // Copyright ProjectR. All Rights Reserved.
-
+// Author: 배유찬 (Game State 기본 구조 구현)
 #include "PRGameStateBase.h"
 #include "Net/UnrealNetwork.h"
 #include "GameFramework/PlayerState.h"
@@ -15,6 +15,7 @@ void APRGameStateBase::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& Out
 	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
 
 	DOREPLIFETIME(APRGameStateBase, LastVisitedWaypoint);
+	DOREPLIFETIME(APRGameStateBase, LastActivatedWaypoint);
 	DOREPLIFETIME(APRGameStateBase, SavedSpawnPoint);
 	DOREPLIFETIME(APRGameStateBase, UnlockedWaypoints);
 	DOREPLIFETIME(APRGameStateBase, DefeatedBosses);
@@ -85,6 +86,9 @@ void APRGameStateBase::InitializeFromWorldSave(const FPRWorldSaveData& WorldSave
 
 	WorldSaveVersion = WorldSave.Version;
 	LastVisitedWaypoint = WorldSave.LastVisitedWaypoint;
+	LastActivatedWaypoint = WorldSave.LastActivatedWaypoint.IsValid()
+		? WorldSave.LastActivatedWaypoint
+		: WorldSave.LastVisitedWaypoint;
 	SavedSpawnPoint = WorldSave.SavedSpawnPoint;
 	UnlockedWaypoints = WorldSave.UnlockedWaypoints;
 	DefeatedBosses = WorldSave.DefeatedBosses;
@@ -95,6 +99,7 @@ FPRWorldSaveData APRGameStateBase::MakeWorldSaveData() const
 	FPRWorldSaveData SaveData;
 	SaveData.Version = WorldSaveVersion;
 	SaveData.LastVisitedWaypoint = LastVisitedWaypoint;
+	SaveData.LastActivatedWaypoint = LastActivatedWaypoint;
 	SaveData.SavedSpawnPoint = SavedSpawnPoint;
 	SaveData.UnlockedWaypoints = UnlockedWaypoints;
 	SaveData.DefeatedBosses = DefeatedBosses;
@@ -109,8 +114,9 @@ void APRGameStateBase::ActivateWaypoint(const FPRWaypointKey& WaypointKey)
 	}
 
 	UnlockWaypoint(WaypointKey);
+	LastActivatedWaypoint = WaypointKey;
 
-	// 서버 로컬 호스트 UI 갱신 이벤트
+	// 서버 로컬 호스트 활성화 이벤트
 	OnWaypointActivated.Broadcast(WaypointKey);
 	UE_LOG(
 		LogTemp,
@@ -191,6 +197,25 @@ void APRGameStateBase::MarkBossDefeated(FName BossId)
 
 	DefeatedBosses.Add(BossId);
 	OnBossDefeated.Broadcast(BossId);
+}
+
+void APRGameStateBase::ResetWorldProgress()
+{
+	if (!HasAuthority())
+	{
+		return;
+	}
+
+	// 월드 진행 상태 기본값 복귀
+	LastVisitedWaypoint = FPRWaypointKey();
+	LastActivatedWaypoint = FPRWaypointKey();
+	// 실제 시작 위치 유지
+	UnlockedWaypoints.Reset();
+	DefeatedBosses.Reset();
+	WorldSaveVersion = EPRSaveVersion::V1;
+
+	// 서버 로컬 UI 갱신 이벤트
+	OnLastVisitedWaypointChanged.Broadcast(LastVisitedWaypoint);
 }
 
 void APRGameStateBase::ServerSubmitWorldMarker(const FPRWorldMarkerRequest& Request)

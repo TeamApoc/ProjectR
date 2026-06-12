@@ -1,5 +1,5 @@
 // Copyright ProjectR. All Rights Reserved.
-
+// Author: 이건주 (Support Drone Actor 구현)
 #include "PRSupportDroneActor.h"
 
 #include "AbilitySystemComponent.h"

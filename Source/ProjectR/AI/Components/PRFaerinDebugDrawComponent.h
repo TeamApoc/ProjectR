@@ -1,5 +1,5 @@
 // Copyright ProjectR. All Rights Reserved.
-
+// Author: 손승우 (페어린 보스 Debug Draw 컴포넌트 구현)
 #pragma once
 
 #include "CoreMinimal.h"

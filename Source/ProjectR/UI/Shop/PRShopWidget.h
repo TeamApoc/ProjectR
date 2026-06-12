@@ -1,5 +1,6 @@
 ﻿// Copyright ProjectR. All Rights Reserved.
-
+// Author: 김동석 (상점 재화 유효성 검사 및 구매 비용 레이아웃 구현)
+// Author: 배유찬 (상점 UI 스택 관리 및 인벤토리 판매 목록 연동 구현)
 #pragma once
 
 #include "CoreMinimal.h"

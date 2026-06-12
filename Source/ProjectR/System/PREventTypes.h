@@ -1,5 +1,6 @@
 // Copyright (c) 2026 TeamApoc. All Rights Reserved.
-
+// Author: 배유찬 (보스 조우, 게이트 상태 및 Mod 게이지 관련 이벤트 정의)
+// Author: 이건주 (드론 및 힐링샷 상태 관련 이벤트 정의)
 #pragma once
 
 #include "CoreMinimal.h"

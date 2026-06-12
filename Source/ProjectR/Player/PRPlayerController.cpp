@@ -1,5 +1,7 @@
 // Copyright ProjectR. All Rights Reserved.
-
+// Author: 김동석 (로딩 화면 프리웜, 픽업 알림 및 강화/성장 UI 호출 제어 구현)
+// Author: 배유찬 (세션 매치메이킹 UI, 리스폰 흐름 및 패스트 트래블 UI, 플래시라이트 입력 제어 구현)
+// Author: 이건주 (마우스 감도 설정 갱신 및 인벤토리/무기 상태 HUD 호출 제어 구현)
 #include "PRPlayerController.h"
 
 #include "Net/UnrealNetwork.h"
@@ -28,9 +30,16 @@
 #include "ProjectR/Interaction/PRInteractableComponent.h"
 #include "ProjectR/Game/PRGameStateBase.h"
 #include "ProjectR/Shop/Components/PRShopComponent.h"
+#include "ProjectR/System/PRLoadingScreenSubsystem.h"
 #include "ProjectR/ItemSystem/Components/PRWeaponUpgradeComponent.h"
 #include "ProjectR/ItemSystem/Items/PRItemInstance_Weapon.h"
+#include "ProjectR/System/PRWorldTickOptimizerReporterComponent.h"
 #include "Sound/SoundBase.h"
+
+namespace
+{
+	constexpr float LoadingScreenFadeInAckDelay = 1.0f;
+}
 
 APRPlayerController::APRPlayerController()
 {
@@ -47,6 +56,9 @@ APRPlayerController::APRPlayerController()
 	
 	// Player 소유 Client RPC와 owning client의 Server RPC 호출을 위한 FX 네트워크 컴포넌트
 	FXNetworkComponent = CreateDefaultSubobject<UPRFXNetworkComponent>(TEXT("FXNetworkComponent"));
+
+	// WorldTickOptimizer 렌더 상태 변경분을 owning client에서 서버로 전달하는 컴포넌트
+	TickOptimizerReporterComponent = CreateDefaultSubobject<UPRWorldTickOptimizerReporterComponent>(TEXT("TickOptimizerReporterComponent"));
 }
 
 // =====  APlayerController Interface =====
@@ -249,7 +261,14 @@ void APRPlayerController::ClientNotifyMapTransition_Implementation(float Delay, 
 		{
 		case EPRMapTransitionType::MapTravel:
 			// 맵 이동 페이드
-			CM->FadeOut(EPRFadeColorPreset::White, Delay, false);
+			if (Delay <= 0.0f)
+			{
+				CM->FadeIn(EPRFadeColorPreset::White, 0.0f, false);
+			}
+			else
+			{
+				CM->FadeOut(EPRFadeColorPreset::White, Delay, false);
+			}
 			break;
 		case EPRMapTransitionType::WaypointTravelUI:
 			// Waypoint Travel UI 표시 전 페이드
@@ -281,6 +300,68 @@ void APRPlayerController::ClientNotifyMapTransition_Implementation(float Delay, 
 				BGMSubsystem->ResetToLevelBGM(0.0f);
 			}
 		}
+	}
+}
+
+void APRPlayerController::ClientBeginMapLoadingScreen_Implementation(const FString& MapName)
+{
+	if (MapName.IsEmpty())
+	{
+		return;
+	}
+
+	UGameInstance* GameInstance = GetGameInstance();
+	if (!IsValid(GameInstance))
+	{
+		return;
+	}
+
+	if (UPRLoadingScreenSubsystem* LoadingScreen = GameInstance->GetSubsystem<UPRLoadingScreenSubsystem>())
+	{
+		LoadingScreen->BeginTravelToMap(TEXT("WaypointTravel"), MapName);
+	}
+
+	UWorld* World = GetWorld();
+	if (!IsValid(World) || LoadingScreenFadeInAckDelay <= 0.0f)
+	{
+		if (HasAuthority())
+		{
+			LastAcknowledgedLoadingScreenMapName = MapName;
+		}
+		else
+		{
+			ServerAcknowledgeMapLoadingScreen(MapName);
+		}
+
+		return;
+	}
+
+	World->GetTimerManager().ClearTimer(LoadingScreenAckTimerHandle);
+	FTimerDelegate AckDelegate = FTimerDelegate::CreateWeakLambda(this, [this, MapName]()
+	{
+		if (HasAuthority())
+		{
+			LastAcknowledgedLoadingScreenMapName = MapName;
+		}
+		else
+		{
+			ServerAcknowledgeMapLoadingScreen(MapName);
+		}
+	});
+	World->GetTimerManager().SetTimer(LoadingScreenAckTimerHandle, AckDelegate, LoadingScreenFadeInAckDelay, false);
+}
+
+bool APRPlayerController::HasAcknowledgedMapLoadingScreen(const FString& MapName) const
+{
+	return !MapName.IsEmpty() && LastAcknowledgedLoadingScreenMapName == MapName;
+}
+
+void APRPlayerController::ResetAcknowledgedMapLoadingScreen()
+{
+	LastAcknowledgedLoadingScreenMapName.Reset();
+	if (UWorld* World = GetWorld())
+	{
+		World->GetTimerManager().ClearTimer(LoadingScreenAckTimerHandle);
 	}
 }
 
@@ -645,7 +726,7 @@ void APRPlayerController::ClientOpenShopUI_Implementation(UPRShopComponent* Shop
 	UIControllerComponent->OpenShop(ShopComponent);
 }
 
-void APRPlayerController::ClientOpenWaypointTravelUI_Implementation()
+void APRPlayerController::ClientOpenWaypointTravelUI_Implementation(bool bShowWorldResetButton)
 {
 	if (!IsValid(UIControllerComponent))
 	{
@@ -653,7 +734,7 @@ void APRPlayerController::ClientOpenWaypointTravelUI_Implementation()
 	}
 
 	// 호스트 로컬 UI 표시
-	UIControllerComponent->OpenWaypointTravel();
+	UIControllerComponent->OpenWaypointTravel(bShowWorldResetButton);
 }
 
 void APRPlayerController::ClientNotifyShopBuyResult_Implementation(const FPRShopBuyResult& Result)
@@ -871,6 +952,16 @@ void APRPlayerController::ServerRequestCancelWaypointTravel_Implementation()
 
 	// 웨이포인트 상호작용에 취소 위임
 	WaypointInteraction->CancelWaypointTravel(this);
+}
+
+void APRPlayerController::ServerAcknowledgeMapLoadingScreen_Implementation(const FString& MapName)
+{
+	if (MapName.IsEmpty())
+	{
+		return;
+	}
+
+	LastAcknowledgedLoadingScreenMapName = MapName;
 }
 
 void APRPlayerController::ServerRequestConfirmTraitInvestment_Implementation(const FPRTraitInvestmentInfo& DesiredInvestment)

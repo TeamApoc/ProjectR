@@ -1,5 +1,6 @@
 // Copyright (c) 2026 TeamApoc. All Rights Reserved.
-
+// Author: 배유찬 (소모품 사용 시 인벤토리 수량 차감 및 효과 연동 구현)
+// Author: 이건주 (퀵슬롯 연동 및 실시간 HUD 개수 갱신 구현)
 #include "PRItemInstance_Consumable.h"
 #include "AbilitySystemComponent.h"
 #include "GameFramework/Actor.h"

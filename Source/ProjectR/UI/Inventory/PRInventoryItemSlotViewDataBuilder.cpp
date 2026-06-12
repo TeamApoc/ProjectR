@@ -1,5 +1,5 @@
 // Copyright (c) 2026 TeamApoc. All Rights Reserved.
-
+// Author: 배유찬 (UI 인벤토리 Item 슬롯 View 데이터 Builder 구현)
 #include "PRInventoryItemSlotViewDataBuilder.h"
 
 #include "ProjectR/ItemSystem/Data/PRConsumableDataAsset.h"
@@ -192,7 +192,7 @@ FPRInventoryItemSlotViewData UPRInventoryItemSlotViewDataBuilder::BuildQuickSlot
 	}
 	else
 	{
-		ViewData.DisplayName = FText::FromString(TEXT("퀵슬롯 비어 있음"));
+		ViewData.DisplayName = FText::FromString(TEXT("(비어 있음)"));
 	}
 
 	return ViewData;
@@ -204,7 +204,7 @@ FPRInventoryItemSlotViewData UPRInventoryItemSlotViewDataBuilder::BuildEmptyQuic
 	FPRInventoryItemSlotViewData ViewData;
 	ViewData.ItemType = EPRItemType::Consumable;
 	ViewData.ContextIndex = SlotIndex;
-	ViewData.DisplayName = FText::FromString(TEXT("퀵슬롯 비어 있음"));
+	ViewData.DisplayName = FText::FromString(TEXT("(비어 있음)"));
 	return ViewData;
 }
 

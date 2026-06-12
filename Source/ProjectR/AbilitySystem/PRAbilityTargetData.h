@@ -1,5 +1,5 @@
 // Copyright (c) 2026 TeamApoc. All Rights Reserved.
-
+// Author: 배유찬 (어빌리티 타겟 데이터 구현)
 #pragma once
 
 #include "CoreMinimal.h"

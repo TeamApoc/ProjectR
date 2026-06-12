@@ -1,5 +1,5 @@
 // Copyright ProjectR. All Rights Reserved.
-
+// Author: 배유찬 (피격 임팩트 타입 및 구조체 정의)
 #pragma once
 
 #include "CoreMinimal.h"

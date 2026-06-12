@@ -1,5 +1,6 @@
 // Copyright ProjectR. All Rights Reserved.
-
+// Author: 김동석 (조준 피격 판정용 태그 연동)
+// Author: 손승우 (해머 전투 전용 태그 유틸리티 구현)
 #pragma once
 
 #include "GameplayTagContainer.h"

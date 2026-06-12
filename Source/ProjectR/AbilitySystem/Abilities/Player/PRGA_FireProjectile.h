@@ -1,5 +1,6 @@
 // Copyright (c) 2026 TeamApoc. All Rights Reserved.
-
+// Author: 김동석 (특성 기반 투사체 피해 보정 연동 구현)
+// Author: 배유찬 (예측 투사체 발사 경로 프리뷰 및 발사 제어 구현)
 #pragma once
 
 #include "CoreMinimal.h"

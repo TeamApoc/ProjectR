@@ -1,5 +1,5 @@
 // Copyright (c) 2026 TeamApoc. All Rights Reserved.
-
+// Author: 김동석 (UI 사운드 데이터 에셋 구현)
 #pragma once
 
 #include "CoreMinimal.h"

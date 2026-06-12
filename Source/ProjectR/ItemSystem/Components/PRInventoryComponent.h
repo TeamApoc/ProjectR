@@ -1,5 +1,7 @@
 // Copyright ProjectR. All Rights Reserved.
-
+// Author: 김동석 (무기 강화 재료 및 재화 인벤토리 소모 연동 구현)
+// Author: 배유찬 (인벤토리 기초 구조 설계 및 획득 아이템 인벤토리 보관 연동 구현)
+// Author: 이건주 (아이템 퀵슬롯 HUD, 무기 Mod 장착 슬롯 및 3D 프리뷰 연동 구현)
 #pragma once
 
 #include "CoreMinimal.h"

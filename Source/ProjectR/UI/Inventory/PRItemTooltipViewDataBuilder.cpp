@@ -1,5 +1,6 @@
 // Copyright (c) 2026 TeamApoc. All Rights Reserved.
-
+// Author: 김동석 (장비 상세 속성 빌더 구현)
+// Author: 배유찬 (아이템 능력치 수치 뷰 데이터 생성 구현)
 #include "PRItemTooltipViewDataBuilder.h"
 
 #include "ProjectR/ItemSystem/Data/PRConsumableDataAsset.h"

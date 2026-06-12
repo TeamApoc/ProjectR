@@ -1,5 +1,6 @@
 ﻿// Copyright (c) 2026 TeamApoc. All Rights Reserved.
-
+// Author: 배유찬 (Mod 게이지 충전 시 어빌리티 활성화 제어 구현)
+// Author: 이건주 (드론/배리어 관련 액티브 어빌리티 부여 로직 구현)
 #pragma once
 
 #include "CoreMinimal.h"

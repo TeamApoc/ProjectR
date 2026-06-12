@@ -1,5 +1,6 @@
 // Copyright ProjectR. All Rights Reserved.
-
+// Author: 배유찬 (아이템 인스턴스 데이터 구조 및 상태 보존 정보 정의)
+// Author: 이건주 (3D 프리뷰 연동용 인스턴스 렌더링 데이터 정의)
 #include "PRItemInstance.h"
 
 #include "Net/UnrealNetwork.h"

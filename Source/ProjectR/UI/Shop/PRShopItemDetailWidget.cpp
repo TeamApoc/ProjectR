@@ -1,5 +1,5 @@
 // Copyright ProjectR. All Rights Reserved.
-
+// Author: 김동석 (상점 Item Detail UI 위젯 구현)
 #include "PRShopItemDetailWidget.h"
 
 #include "Blueprint/WidgetTree.h"

@@ -1,5 +1,5 @@
 // Copyright (c) 2026 TeamApoc. All Rights Reserved.
-
+// Author: 배유찬 (퀵슬롯 슬롯 UI 위젯 구현)
 #include "PRQuickSlotWidget.h"
 
 #include "ProjectR/ItemSystem/Data/PRConsumableDataAsset.h"
@@ -140,7 +140,7 @@ FPRInventoryItemSlotViewData UPRQuickSlotWidget::BuildItemSlotViewData(const FPR
 	}
 	else
 	{
-		ViewData.DisplayName = FText::FromString(TEXT("퀵슬롯 비어 있음"));
+		ViewData.DisplayName = FText::FromString(TEXT("(비어 있음)"));
 	}
 
 	return ViewData;

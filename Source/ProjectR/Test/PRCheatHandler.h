@@ -1,5 +1,6 @@
 // Copyright (c) 2026 TeamApoc. All Rights Reserved.
-
+// Author: 배유찬 (패스트 트래블 및 테스트 환경 셋업 디버그 치트 구현)
+// Author: 이건주 (무한 탄약 및 Mod 게이지 충전 디버그 치트 구현)
 #pragma once
 
 #include "CoreMinimal.h"

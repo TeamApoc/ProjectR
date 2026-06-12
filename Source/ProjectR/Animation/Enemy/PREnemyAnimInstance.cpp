@@ -1,5 +1,5 @@
 // Copyright ProjectR. All Rights Reserved.
-
+// Author: 손승우 (Enemy 애니메이션 인스턴스 구현)
 #include "PREnemyAnimInstance.h"
 
 #include "GameFramework/CharacterMovementComponent.h"

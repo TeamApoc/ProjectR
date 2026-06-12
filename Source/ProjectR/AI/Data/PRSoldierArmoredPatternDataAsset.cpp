@@ -1,5 +1,6 @@
 // Copyright ProjectR. All Rights Reserved.
-
+// Author: 김동석 (플레이어 조준 대응용 회피/돌진 패턴 데이터 정의)
+// Author: 손승우 (해머 연계 공격 및 EQS 전투 이동 패턴 데이터 구축)
 #include "PRSoldierArmoredPatternDataAsset.h"
 
 UPRSoldierArmoredPatternDataAsset::UPRSoldierArmoredPatternDataAsset()

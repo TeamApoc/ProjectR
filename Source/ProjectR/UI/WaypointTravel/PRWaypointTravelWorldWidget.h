@@ -1,5 +1,5 @@
 // Copyright ProjectR. All Rights Reserved.
-
+// Author: 배유찬 (웨이포인트 Travel World UI 위젯 구현)
 #pragma once
 
 #include "CoreMinimal.h"

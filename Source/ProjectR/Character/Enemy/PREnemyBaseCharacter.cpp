@@ -1,5 +1,8 @@
 // Copyright ProjectR. All Rights Reserved.
-
+// Author: 김동석 (적 체력 UI 및 아이템 drop 연동 구현)
+// Author: 배유찬 (어그로 마커(핑) 연동, 대미지 팝업 및 ASC 태그 이벤트 바인딩 구현)
+// Author: 손승우 (적 AI 상태 제어, 사망 디졸브 연출 및 아머드 솔저 적 캐릭터 구현)
+// Author: 이건주 (Penitent 및 드론/배리어 패턴 지원 적 캐릭터 구현)
 #include "PREnemyBaseCharacter.h"
 
 #include "AbilitySystemBlueprintLibrary.h"
@@ -97,7 +100,6 @@ APREnemyBaseCharacter::APREnemyBaseCharacter()
 	CombatEventRelayComponent = CreateDefaultSubobject<UPREnemyCombatEventRelayComponent>(TEXT("CombatEventRelayComponent"));
 	EnemyWorldHealthBarComponent = CreateDefaultSubobject<UPREnemyWorldHealthBarComponent>(TEXT("EnemyWorldHealthBarComponent"));
 	EnemyWorldHealthBarComponent->SetupAttachment(GetRootComponent());
-
 }
 
 void APREnemyBaseCharacter::BeginPlay()
@@ -108,6 +110,23 @@ void APREnemyBaseCharacter::BeginPlay()
 	
 	InitializeHomeLocation();
 	InitializeEnemyWorldHealthBar();
+
+	if (bUseTickOptimization)
+	{
+		// 렌더 컬링 경계 흔들림 완화 거리
+		constexpr float EnemyCullDistancePad = 500.f;
+
+		// Tick 최적화 대상 전용 렌더 컬링 거리
+		const float RenderCullDistance = FMath::Max(TickOptimizationConfig.TickDeactivationRadius + EnemyCullDistancePad, 0.0f);
+		if (USkeletalMeshComponent* MeshComponent = GetMesh())
+		{
+			MeshComponent->SetCullDistance(RenderCullDistance);
+		}
+		if (IsValid(EnemyWorldHealthBarComponent))
+		{
+			EnemyWorldHealthBarComponent->SetCullDistance(RenderCullDistance);
+		}
+	}
 
 	if (HasAuthority() && bIsRespawnable)
 	{
@@ -121,7 +140,7 @@ void APREnemyBaseCharacter::BeginPlay()
 		}
 	}
 
-	if (HasAuthority() && bUseTickOptimization)
+	if (bUseTickOptimization)
 	{
 		if (UWorld* World = GetWorld())
 		{
@@ -131,23 +150,23 @@ void APREnemyBaseCharacter::BeginPlay()
 			}
 		}
 
-		// CVar 비활성화 상태에서 초기 최적화 적용 방지
-		const bool bCanApplyInitialTickOptimization = UPRWorldTickOptimizerSubsystem::IsOptimizationEnabled();
-		if (bCanApplyInitialTickOptimization && !bStartTickActive)
+		if (!HasAuthority())
 		{
-			SetTickActive(false);
+			return;
 		}
 
-		if (bCanApplyInitialTickOptimization && !bStartVisibilityActive)
+		// CVar 비활성화 상태에서 초기 최적화 적용 방지
+		const bool bCanApplyInitialTickOptimization = UPRWorldTickOptimizerSubsystem::IsOptimizationEnabled();
+		if (bCanApplyInitialTickOptimization && !TickOptimizationConfig.bStartTickActive)
 		{
-			SetVisibilityActive(false);
+			SetTickActive(false);
 		}
 	}
 }
 
 void APREnemyBaseCharacter::EndPlay(const EEndPlayReason::Type EndPlayReason)
 {
-	if (HasAuthority() && bUseTickOptimization)
+	if (bUseTickOptimization)
 	{
 		if (UWorld* World = GetWorld())
 		{
@@ -169,7 +188,6 @@ void APREnemyBaseCharacter::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>
 	DOREPLIFETIME(APREnemyBaseCharacter, bUseCombatMovePose);
 	DOREPLIFETIME(APREnemyBaseCharacter, bUseCombatAimOffset);
 	DOREPLIFETIME(APREnemyBaseCharacter, bUseCombatStrafeState);
-	DOREPLIFETIME(APREnemyBaseCharacter, bVisibilityActive);
 }
 
 void APREnemyBaseCharacter::PossessedBy(AController* NewController)
@@ -842,15 +860,7 @@ bool APREnemyBaseCharacter::ShouldPingMarkerVisible_Implementation() const
 
 FPRTickOptimizationConfig APREnemyBaseCharacter::GetTickConfig() const
 {
-	FPRTickOptimizationConfig Config;
-	Config.TickActivationRadius = TickActivationRadius;
-	Config.TickDeactivationRadius = TickDeactivationRadius;
-	Config.VisibilityActivationRadius = VisibilityActivationRadius;
-	Config.VisibilityDeactivationRadius = VisibilityDeactivationRadius;
-	Config.bStartTickActive = bStartTickActive;
-	Config.bStartVisibilityActive = bStartVisibilityActive;
-	Config.bAllowTargetRuntimeEvaluationGate = true;
-	return Config;
+	return TickOptimizationConfig;
 }
 
 FVector APREnemyBaseCharacter::GetTickLocation() const
@@ -882,27 +892,6 @@ void APREnemyBaseCharacter::SetTickActive(bool bActive)
 
 	bTickActive = bActive;
 	ApplyTickOptimizationState(bActive);
-}
-
-bool APREnemyBaseCharacter::IsVisibilityActive() const
-{
-	return bVisibilityActive;
-}
-
-void APREnemyBaseCharacter::SetVisibilityActive(bool bActive)
-{
-	if (!HasAuthority())
-	{
-		return;
-	}
-
-	if (bVisibilityActive == bActive)
-	{
-		return;
-	}
-
-	bVisibilityActive = bActive;
-	ApplyVisibilityOptimizationState(bActive);
 }
 
 void APREnemyBaseCharacter::HandleGameplayTagUpdated(const FGameplayTag& ChangedTag, bool TagExists)
@@ -987,11 +976,6 @@ void APREnemyBaseCharacter::InitializeEnemyWorldHealthBar()
 
 /*~ Tick 최적화 ~*/
 
-void APREnemyBaseCharacter::OnRep_VisibilityActive()
-{
-	ApplyVisibilityOptimizationState(bVisibilityActive);
-}
-
 void APREnemyBaseCharacter::ApplyTickOptimizationState(bool bActive)
 {
 	if (!HasAuthority())
@@ -1045,29 +1029,6 @@ void APREnemyBaseCharacter::ApplyTickOptimizationState(bool bActive)
 	if (!bActive)
 	{
 		ClearCombatMovePresentationContext();
-	}
-}
-
-void APREnemyBaseCharacter::ApplyVisibilityOptimizationState(bool bActive)
-{
-	if (IsDead())
-	{
-		return;
-	}
-
-	SetActorHiddenInGame(!bActive);
-
-	USkeletalMeshComponent* MeshComponent = GetMesh();
-	if (IsValid(MeshComponent))
-	{
-		MeshComponent->SetVisibility(bActive, true);
-		MeshComponent->SetComponentTickEnabled(bActive);
-	}
-
-	if (IsValid(EnemyWorldHealthBarComponent))
-	{
-		EnemyWorldHealthBarComponent->SetVisibility(bActive && bUseWorldHealthBar, true);
-		EnemyWorldHealthBarComponent->SetComponentTickEnabled(bActive && bUseWorldHealthBar);
 	}
 }
 

@@ -1,5 +1,5 @@
 // Copyright ProjectR. All Rights Reserved.
-
+// Author: 이건주 (Mod Summon Barrier 구현)
 #include "PRGA_Mod_SummonBarrier.h"
 
 #include "AbilitySystemComponent.h"

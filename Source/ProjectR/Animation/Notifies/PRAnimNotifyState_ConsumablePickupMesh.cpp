@@ -1,5 +1,5 @@
 // Copyright ProjectR. All Rights Reserved.
-
+// Author: 김동석 (애니메이션 State 소모품 픽업 Mesh 윈도우/트리거 노티파이 구현)
 #include "PRAnimNotifyState_ConsumablePickupMesh.h"
 
 #include "Components/SkeletalMeshComponent.h"

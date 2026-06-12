@@ -1,5 +1,8 @@
 // Copyright (c) 2026 TeamApoc. All Rights Reserved.
-
+// Author: 김동석 (레벨업, 픽업 알림 및 피격 피플래시 UI 호출 관리 구현)
+// Author: 배유찬 (온라인 세션, 패스트 트래블 지도 및 테스트 UI 호출 관리 구현)
+// Author: 손승우 (보스전 체력바 UI 호출 연동 구현)
+// Author: 이건주 (인벤토리 메인 위젯 및 캐릭터 3D 프리뷰 호출 구현)
 #include "PRUIControllerComponent.h"
 
 #include "Blueprint/UserWidget.h"
@@ -7,6 +10,7 @@
 #include "Engine/LocalPlayer.h"
 #include "GameFramework/PlayerController.h"
 #include "Kismet/GameplayStatics.h"
+#include "TimerManager.h"
 #include "ProjectR/Character/PRPlayerCharacter.h"
 #include "ProjectR/ItemSystem/Components/PREquipmentManagerComponent.h"
 #include "ProjectR/ItemSystem/Components/PRInventoryComponent.h"
@@ -428,10 +432,77 @@ void UPRUIControllerComponent::OpenShop(UPRShopComponent* ShopComponent)
 	}
 
 	CreatedShopWidget->SetShopContext(ShopComponent);
+	CreatedShopWidget->SetVisibility(ESlateVisibility::Visible);
 	UIManager->PushUIInstance(CreatedShopWidget);
 }
 
-void UPRUIControllerComponent::OpenWaypointTravel()
+void UPRUIControllerComponent::PrewarmShopUI(const TArray<UPRShopComponent*>& ShopComponents, bool bRenderPrewarm, FSimpleDelegate OnComplete)
+{
+	if (!IsLocalPlayer())
+	{
+		OnComplete.ExecuteIfBound();
+		return;
+	}
+
+	UPRShopComponent* RepresentativeShopComponent = nullptr;
+	for (UPRShopComponent* ShopComponent : ShopComponents)
+	{
+		if (IsValid(ShopComponent))
+		{
+			RepresentativeShopComponent = ShopComponent;
+			break;
+		}
+	}
+
+	if (!IsValid(RepresentativeShopComponent))
+	{
+		OnComplete.ExecuteIfBound();
+		return;
+	}
+
+	UPRShopWidget* CreatedShopWidget = GetOrCreateShopWidget();
+	if (!IsValid(CreatedShopWidget))
+	{
+		OnComplete.ExecuteIfBound();
+		return;
+	}
+
+	CreatedShopWidget->SetShopContext(RepresentativeShopComponent);
+	if (!bRenderPrewarm)
+	{
+		OnComplete.ExecuteIfBound();
+		return;
+	}
+
+	const ESlateVisibility PreviousVisibility = CreatedShopWidget->GetVisibility();
+	CreatedShopWidget->SetVisibility(ESlateVisibility::HitTestInvisible);
+	CreatedShopWidget->AddToViewport(-1000);
+
+	UWorld* World = GetWorld();
+	if (!IsValid(World))
+	{
+		CreatedShopWidget->RemoveFromParent();
+		CreatedShopWidget->SetVisibility(PreviousVisibility);
+		OnComplete.ExecuteIfBound();
+		return;
+	}
+
+	FTimerDelegate TimerDelegate;
+	TimerDelegate.BindWeakLambda(this, [WeakWidget = TWeakObjectPtr<UPRShopWidget>(CreatedShopWidget), PreviousVisibility, OnComplete]()
+	{
+		if (UPRShopWidget* ShopWidget = WeakWidget.Get())
+		{
+			ShopWidget->RemoveFromParent();
+			ShopWidget->SetVisibility(PreviousVisibility);
+		}
+
+		OnComplete.ExecuteIfBound();
+	});
+
+	World->GetTimerManager().SetTimerForNextTick(TimerDelegate);
+}
+
+void UPRUIControllerComponent::OpenWaypointTravel(bool bShowWorldResetButton)
 {
 	if (!IsLocalPlayer())
 	{
@@ -453,6 +524,7 @@ void UPRUIControllerComponent::OpenWaypointTravel()
 	}
 
 	// Waypoint Travel Overview 갱신
+	CreatedWaypointTravelWidget->SetWorldResetButtonVisible(bShowWorldResetButton);
 	CreatedWaypointTravelWidget->RebuildOverview();
 	UIManager->PushUIInstance(CreatedWaypointTravelWidget);
 }

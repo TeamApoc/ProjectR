@@ -1,4 +1,5 @@
-﻿// Fill out your copyright notice in the Description page of Project Settings.
+﻿// Author: 김동석 (Animation 타입 및 구조체 정의)
+// Fill out your copyright notice in the Description page of Project Settings.
 
 #pragma once
 

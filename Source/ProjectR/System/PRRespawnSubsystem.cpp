@@ -1,5 +1,5 @@
 // Copyright ProjectR. All Rights Reserved.
-
+// Author: 배유찬 (Respawn 서브시스템 구현)
 #include "PRRespawnSubsystem.h"
 
 #include "EngineUtils.h"

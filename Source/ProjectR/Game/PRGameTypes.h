@@ -1,5 +1,6 @@
 // Copyright ProjectR. All Rights Reserved.
-
+// Author: 김동석 (성장 특성 포인트 관련 데이터 타입 정의)
+// Author: 배유찬 (온라인 세션, 패스트 트래블 및 장비 슬롯 데이터 타입 정의)
 #pragma once
 
 #include "CoreMinimal.h"
@@ -209,6 +210,8 @@ enum class EPRSessionState : uint8
 	Hosting,
 	// 호스트 완료(인게임)
 	Hosted,
+	// 세션 검색 진행 중
+	Finding,
 	// 참가 진행 중(접속 시도)
 	Joining,
 	// 참가 완료(인게임)
@@ -233,6 +236,10 @@ enum class EPRSessionFailReason : uint8
 	VersionMismatch,
 	// 캐릭터 페이로드 검증 실패
 	CharacterRejected,
+	// 세션 검색 실패
+	SessionSearchFailed,
+	// 참가 가능한 세션 없음
+	NoSessionFound,
 };
 
 /*~ 월드 오브젝트 상태 ~*/
@@ -674,9 +681,13 @@ struct FPRWorldSaveData
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	EPRSaveVersion Version = EPRSaveVersion::V1;
 
-	// 전멸 리스폰과 Travel UI 빠른 이동에 사용할 마지막 방문 Waypoint
+	// Travel UI 빠른 이동에 표시할 마지막 방문 Waypoint
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	FPRWaypointKey LastVisitedWaypoint;
+
+	// 전멸 리스폰에 사용할 마지막 활성화 Waypoint
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	FPRWaypointKey LastActivatedWaypoint;
 
 	// 시작 메뉴에서 이어하기 시 사용할 마지막 실제 스폰 위치
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
@@ -718,7 +729,7 @@ struct FPRJoinSessionParams
 {
 	GENERATED_BODY()
 
-	// 접속 주소. IP 방식: "192.168.0.10:7777". OSS 단계에서는 세션 Resolve 결과
+	// 접속 주소. 비어 있으면 OSS Null 검색 결과의 첫 번째 세션 사용
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	FString Address;
 };

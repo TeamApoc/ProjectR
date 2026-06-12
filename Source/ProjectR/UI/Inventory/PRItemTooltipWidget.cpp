@@ -1,6 +1,7 @@
 ﻿// Copyright (c) 2026 TeamApoc. All Rights Reserved.
-
-
+// Author: 김동석 (아이템 등급별 툴팁 레이아웃 구현)
+// Author: 배유찬 (아이템 상세 능력치 및 장비 비교 정보 텍스트 구현)
+// Author: 이건주 (무기 Mod 슬롯 설명 연동 구현)
 #include "PRItemTooltipWidget.h"
 
 #include "Components/Image.h"

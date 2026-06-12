@@ -1,6 +1,5 @@
 ﻿// Copyright (c) 2026 TeamApoc. All Rights Reserved.
-
-
+// Author: 배유찬 (Repeat Fire 구현)
 #include "PRAT_RepeatFire.h"
 
 #include "ProjectR/AbilitySystem/Abilities/Player/PRGA_Fire.h"

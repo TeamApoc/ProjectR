@@ -1,5 +1,6 @@
 // Copyright ProjectR. All Rights Reserved.
-
+// Author: 김동석 (BGM/사운드, 로딩 화면 및 성장/특성 밸런스 설정 정의)
+// Author: 배유찬 (패스트 트래블, 핑/마커 및 VFX/어빌리티 설정 정의)
 #pragma once
 
 #include "CoreMinimal.h"
@@ -20,6 +21,9 @@ class APRRewardPickupActor;
 class UPRCrosshairConfig;
 class UPRBGMRegistryDataAsset;
 class UPRUISoundDataAsset;
+class UPRMapPreloadDataAsset;
+class UPRRuntimePreloadDataAsset;
+class UWorld;
 class UPRWorldRegistry;
 
 // 플로팅 텍스트 타입별 위젯 클래스 및 색상 설정
@@ -161,4 +165,32 @@ public:
 	// 거리 텍스트 표시 시작 거리
 	UPROPERTY(EditDefaultsOnly, Config, Category = "UI|WorldMarker", meta = (ClampMin = "0.0", Units = "m"))
 	float WorldMarkerDistanceVisibleMinMeters = 20.0f;
+
+	// 로딩 화면 시스템 사용 여부
+	UPROPERTY(EditDefaultsOnly, Config, Category = "LoadingScreen")
+	bool bEnableLoadingScreenSystem = true;
+
+	// 새 월드 생성 후 Viewport에 표시할 로딩 위젯
+	UPROPERTY(EditDefaultsOnly, Config, Category = "LoadingScreen")
+	TSoftClassPtr<UUserWidget> LoadingScreenWidgetClass;
+
+	// 최소 로딩 화면 표시 시간
+	UPROPERTY(EditDefaultsOnly, Config, Category = "LoadingScreen", meta = (ClampMin = "0.0"))
+	float MinimumLoadingScreenSeconds = 0.25f;
+
+	// Required 큐 기본 타임아웃
+	UPROPERTY(EditDefaultsOnly, Config, Category = "LoadingScreen", meta = (ClampMin = "0.0"))
+	float RequiredPreloadTimeoutSeconds = 15.0f;
+
+	// Soft Gate 기본 타임아웃
+	UPROPERTY(EditDefaultsOnly, Config, Category = "LoadingScreen", meta = (ClampMin = "0.0"))
+	float SoftPreloadTimeoutSeconds = 2.0f;
+
+	// 맵별 프리로드 데이터 매핑
+	UPROPERTY(EditDefaultsOnly, Config, Category = "LoadingScreen")
+	TMap<TSoftObjectPtr<UWorld>, TSoftObjectPtr<UPRMapPreloadDataAsset>> MapPreloadDataAssets;
+
+	// 플레이어와 전역 런타임 공통 프리로드 데이터
+	UPROPERTY(EditDefaultsOnly, Config, Category = "LoadingScreen")
+	TSoftObjectPtr<UPRRuntimePreloadDataAsset> RuntimePreloadDataAsset;
 };

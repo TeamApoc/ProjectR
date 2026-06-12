@@ -1,10 +1,11 @@
 // Copyright ProjectR. All Rights Reserved.
-
+// Author: 배유찬 (Menu HUD 구현)
 #include "PRMenuHUD.h"
 
 #include "Blueprint/UserWidget.h"
 #include "GameFramework/PlayerController.h"
 #include "ProjectR/Player/PRMenuPlayerController.h"
+#include "ProjectR/UI/StartMenu/PRMainTitleWidget.h"
 #include "ProjectR/UI/StartMenu/PRStartMenuWidget.h"
 
 void APRMenuHUD::BeginPlay()
@@ -16,25 +17,89 @@ void APRMenuHUD::BeginPlay()
 		return;
 	}
 
-	if (!IsValid(StartMenuWidgetClass.Get()))
+	ShowMainTitle();
+}
+
+void APRMenuHUD::EndPlay(const EEndPlayReason::Type EndPlayReason)
+{
+	if (IsValid(MainTitleWidget))
 	{
-		UE_LOG(LogTemp, Warning, TEXT("[MenuHUD] 시작 메뉴 위젯 클래스 설정 없음"));
+		MainTitleWidget->GetOnContinueRequested().RemoveAll(this);
+		MainTitleWidget->RemoveFromParent();
+		MainTitleWidget = nullptr;
+	}
+
+	if (IsValid(StartMenuWidget))
+	{
+		StartMenuWidget->RemoveFromParent();
+		StartMenuWidget = nullptr;
+	}
+
+	Super::EndPlay(EndPlayReason);
+}
+
+void APRMenuHUD::ShowMainTitle()
+{
+	if (!IsValid(MainTitleWidgetClass.Get()))
+	{
+		ShowStartMenu();
 		return;
 	}
 
-	// 시작 메뉴 위젯 생성과 뷰포트 추가
-	StartMenuWidget = CreateWidget<UPRStartMenuWidget>(PlayerOwner, StartMenuWidgetClass);
-	if (!IsValid(StartMenuWidget))
+	MainTitleWidget = CreateWidget<UPRMainTitleWidget>(PlayerOwner, MainTitleWidgetClass);
+	if (!IsValid(MainTitleWidget))
 	{
-		UE_LOG(LogTemp, Warning, TEXT("[MenuHUD] 시작 메뉴 위젯 생성 실패"));
+		UE_LOG(LogTemp, Warning, TEXT("[MenuHUD] Main title widget create failed"));
+		ShowStartMenu();
 		return;
 	}
 
-	StartMenuWidget->AddToViewport();
+	MainTitleWidget->GetOnContinueRequested().AddUObject(this, &ThisClass::HandleMainTitleContinueRequested);
+	MainTitleWidget->AddToViewport();
 
 	if (APRMenuPlayerController* MenuPlayerController = Cast<APRMenuPlayerController>(PlayerOwner))
 	{
-		// 생성된 시작 메뉴 위젯 기준 입력 포커스 적용
+		MenuPlayerController->ApplyMenuInputMode(MainTitleWidget);
+	}
+}
+
+void APRMenuHUD::ShowStartMenu()
+{
+	if (IsValid(MainTitleWidget))
+	{
+		MainTitleWidget->GetOnContinueRequested().RemoveAll(this);
+		MainTitleWidget->RemoveFromParent();
+		MainTitleWidget = nullptr;
+	}
+
+	if (!IsValid(StartMenuWidgetClass.Get()))
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[MenuHUD] Start menu widget class is not set"));
+		return;
+	}
+
+	if (!IsValid(StartMenuWidget))
+	{
+		StartMenuWidget = CreateWidget<UPRStartMenuWidget>(PlayerOwner, StartMenuWidgetClass);
+		if (!IsValid(StartMenuWidget))
+		{
+			UE_LOG(LogTemp, Warning, TEXT("[MenuHUD] Start menu widget create failed"));
+			return;
+		}
+	}
+
+	if (!StartMenuWidget->IsInViewport())
+	{
+		StartMenuWidget->AddToViewport();
+	}
+
+	if (APRMenuPlayerController* MenuPlayerController = Cast<APRMenuPlayerController>(PlayerOwner))
+	{
 		MenuPlayerController->ApplyMenuInputMode(StartMenuWidget);
 	}
+}
+
+void APRMenuHUD::HandleMainTitleContinueRequested()
+{
+	ShowStartMenu();
 }

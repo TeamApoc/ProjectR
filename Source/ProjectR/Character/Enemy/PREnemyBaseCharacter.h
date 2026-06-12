@@ -1,5 +1,8 @@
 // Copyright ProjectR. All Rights Reserved.
-
+// Author: 김동석 (적 체력 UI 및 아이템 drop 연동 구현)
+// Author: 배유찬 (어그로 마커(핑) 연동, 대미지 팝업 및 ASC 태그 이벤트 바인딩 구현)
+// Author: 손승우 (적 AI 상태 제어, 사망 디졸브 연출 및 아머드 솔저 적 캐릭터 구현)
+// Author: 이건주 (Penitent 및 드론/배리어 패턴 지원 적 캐릭터 구현)
 #pragma once
 
 #include "CoreMinimal.h"
@@ -73,11 +76,6 @@ public:
 	// 월드 Tick 최적화 시스템이 결정한 AI Tick 비용 상태 적용
 	virtual void SetTickActive(bool bActive) override;
 
-	// 현재 시각 최적화 활성 상태 반환
-	virtual bool IsVisibilityActive() const override;
-
-	// 월드 Tick 최적화 시스템이 결정한 시각 비용 상태 적용
-	virtual void SetVisibilityActive(bool bActive) override;
 public:
 	virtual UPRAbilitySystemComponent* GetEnemyAbilitySystemComponent() const override;
 	virtual UPREnemyThreatComponent* GetEnemyThreatComponent() const override;
@@ -166,15 +164,8 @@ protected:
 	// 월드 HP 바 컴포넌트를 현재 ASC에 연결한다.
 	void InitializeEnemyWorldHealthBar();
 
-	// 복제된 Visibility 활성 상태의 클라이언트 시각 비용 반영
-	UFUNCTION()
-	void OnRep_VisibilityActive();
-
 	// 월드 Tick 최적화 활성 상태에 따른 AIController와 관련 컴포넌트 제어
 	void ApplyTickOptimizationState(bool bActive);
-
-	// 월드 Tick 최적화 Visibility 상태에 따른 시각 컴포넌트 제어
-	void ApplyVisibilityOptimizationState(bool bActive);
 
 	UFUNCTION(NetMulticast, Reliable)
 	void Multicast_RequestDeathDissolveVisual(
@@ -274,30 +265,10 @@ protected:
 	UPROPERTY(EditDefaultsOnly, Category = "ProjectR|AI|Groggy")
 	bool bCanEnterGroggyState = true;
 
-	// 비활성 상태에서 플레이어 접근 시 AI 비용을 다시 활성화하는 반경
-	UPROPERTY(EditDefaultsOnly, Category = "ProjectR|TickOptimization", meta = (ClampMin = "0.0"))
-	float TickActivationRadius = 3000.0f;
+	// 월드 Tick 최적화 거리 평가와 렌더 컬링 설정값
+	UPROPERTY(EditDefaultsOnly, Category = "ProjectR|TickOptimization", meta = (ShowOnlyInnerProperties))
+	FPRTickOptimizationConfig TickOptimizationConfig;
 
-	// 활성 상태에서 모든 플레이어가 멀어졌을 때 AI 비용을 비활성화하는 반경
-	UPROPERTY(EditDefaultsOnly, Category = "ProjectR|TickOptimization", meta = (ClampMin = "0.0"))
-	float TickDeactivationRadius = 3500.0f;
-
-	// 비활성 상태에서 플레이어 접근 시 시각 비용을 다시 활성화하는 반경
-	UPROPERTY(EditDefaultsOnly, Category = "ProjectR|TickOptimization", meta = (ClampMin = "0.0"))
-	float VisibilityActivationRadius = 4500.0f;
-
-	// 활성 상태에서 모든 플레이어가 멀어졌을 때 시각 비용을 비활성화하는 반경
-	UPROPERTY(EditDefaultsOnly, Category = "ProjectR|TickOptimization", meta = (ClampMin = "0.0"))
-	float VisibilityDeactivationRadius = 5000.0f;
-
-	// 첫 거리 평가 전까지 AI 비용을 활성 상태로 유지할지 여부
-	UPROPERTY(EditDefaultsOnly, Category = "ProjectR|TickOptimization")
-	bool bStartTickActive = true;
-
-	// 첫 거리 평가 전까지 시각 비용을 활성 상태로 유지할지 여부
-	UPROPERTY(EditDefaultsOnly, Category = "ProjectR|TickOptimization")
-	bool bStartVisibilityActive = true;
-	
 	// ====== States ======
 	// AI 복귀 기준 위치다. Possess/BeginPlay 중 먼저 도달한 시점의 현재 위치로 저장한다.
 	UPROPERTY(VisibleInstanceOnly, Category = "ProjectR|AI")
@@ -334,10 +305,6 @@ protected:
 
 	// 월드 Tick 최적화 시스템이 마지막으로 적용한 AI 비용 활성 상태
 	bool bTickActive = true;
-
-	// 월드 Tick 최적화 시스템이 마지막으로 적용한 시각 비용 활성 상태
-	UPROPERTY(ReplicatedUsing=OnRep_VisibilityActive)
-	bool bVisibilityActive = true;
 
 	FTimerHandle DeathDissolveStartTimerHandle;
 	FTimerHandle DeathDissolveTickTimerHandle;

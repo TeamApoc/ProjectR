@@ -1,5 +1,5 @@
 // Copyright ProjectR. All Rights Reserved.
-
+// Author: 배유찬 (Test Load Actor 구현)
 #include "PRTestLoadActor.h"
 
 #include "Engine/World.h"

@@ -1,4 +1,5 @@
 // Copyright (c) 2026 TeamApoc. All Rights Reserved.
+// Author: 배유찬 (스폰 Predicted 투사체 구현)
 #include "PRAT_SpawnPredictedProjectile.h"
 #include "AbilitySystemComponent.h"
 #include "ProjectR/AbilitySystem/PRAbilitySystemComponent.h"

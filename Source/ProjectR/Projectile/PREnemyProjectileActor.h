@@ -1,5 +1,6 @@
 ﻿// Copyright (c) 2026 TeamApoc. All Rights Reserved.
-
+// Author: 손승우 (로열 아처 전용 비행 화살 투사체 및 충돌 처리 구현)
+// Author: 이건주 (Penitent 몬스터용 배리어 유도 탄환 투사체 구현)
 #pragma once
 
 #include "CoreMinimal.h"

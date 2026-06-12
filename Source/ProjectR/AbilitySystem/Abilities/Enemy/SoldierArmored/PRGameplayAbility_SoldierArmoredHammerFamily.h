@@ -1,5 +1,6 @@
 // Copyright ProjectR. All Rights Reserved.
-
+// Author: 김동석 (피해 보정 연동 구현)
+// Author: 손승우 (아머드 솔저 해머 콤보 시퀀스 및 모션 워핑 구현)
 #pragma once
 
 #include "CoreMinimal.h"

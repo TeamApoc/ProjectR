@@ -1,5 +1,8 @@
 // Copyright ProjectR. All Rights Reserved.
-
+// Author: 김동석 (조준 상태 및 피격 경직 관련 전투 태그 정의)
+// Author: 배유찬 (사격, 탄약 및 기본 데미지 계산 관련 태그 정의)
+// Author: 손승우 (아머드 솔저 해머 전투 및 그로기 관련 전투 태그 정의)
+// Author: 이건주 (배리어/드론 및 Penitent 몬스터 관련 전투 태그 정의)
 #include "PRCombatGameplayTags.h"
 
 namespace PRCombatGameplayTags

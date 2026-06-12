@@ -1,5 +1,7 @@
 // Copyright ProjectR. All Rights Reserved.
-
+// Author: 김동석 (피격 반응 상태 연동 구현)
+// Author: 배유찬 (데미지 계산 파이프라인 연동 구현)
+// Author: 손승우 (피격/그로기/사망 관련 공용 상태 처리 구현)
 #pragma once
 
 #include "CoreMinimal.h"

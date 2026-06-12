@@ -1,5 +1,7 @@
 // Copyright ProjectR. All Rights Reserved.
-
+// Author: 김동석 (조준 피격 반응 어빌리티 강제 실행 연동)
+// Author: 손승우 (아머드 솔저/페어린 AI 어빌리티 실행 및 그로기/사망 캔슬 제어)
+// Author: 이건주 (Penitent 특수 어빌리티 실행 연동 구현)
 #pragma once
 
 #include "CoreMinimal.h"

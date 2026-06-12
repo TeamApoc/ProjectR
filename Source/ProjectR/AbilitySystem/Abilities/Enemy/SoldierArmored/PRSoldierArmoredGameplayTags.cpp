@@ -1,5 +1,6 @@
 // Copyright ProjectR. All Rights Reserved.
-
+// Author: 김동석 (조준 상태 관련 아머드 솔저 태그 정의)
+// Author: 손승우 (해머 전투 관련 아머드 솔저 태그 정의)
 #include "PRSoldierArmoredGameplayTags.h"
 
 namespace PRSoldierArmoredGameplayTags

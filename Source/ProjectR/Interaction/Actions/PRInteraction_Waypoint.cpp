@@ -1,5 +1,6 @@
 // Copyright ProjectR. All Rights Reserved.
-
+// Author: 김동석 (상호작용 시 로딩화면 프리웜 연동)
+// Author: 배유찬 (웨이포인트 활성화, 리스폰 지점 등록 및 트래블 UI 연동 구현)
 #include "PRInteraction_Waypoint.h"
 
 #include "Engine/Blueprint.h"
@@ -44,6 +45,8 @@ void UPRInteraction_Waypoint::RequestWaypointTravel(APRPlayerController* Request
 		return;
 	}
 
+	NotifyLoadingScreenToAllPlayers(MapAsset.GetLongPackageName());
+
 	UWorld* World = GetWorld();
 	APRGameStateBase* GameState = IsValid(World) ? World->GetGameState<APRGameStateBase>() : nullptr;
 	if (!IsValid(GameState))
@@ -74,7 +77,7 @@ void UPRInteraction_Waypoint::RequestWaypointTravel(APRPlayerController* Request
 	UnlockPlayerInteraction();
 
 	// 선택 노드 목적지 이동
-	StartTravelToSpawnPoint(MapAsset, WaypointKey.WaypointId, TravelUIFadeDuration);
+	StartWaypointTravelWhenLoadingScreenReady(MapAsset, WaypointKey.WaypointId);
 }
 
 void UPRInteraction_Waypoint::CancelWaypointTravel(APRPlayerController* RequestingController)
@@ -314,7 +317,7 @@ bool UPRInteraction_Waypoint::OpenWaypointTravelUI()
 	HostController->SetPendingWaypointTravelInteraction(this);
 
 	// 호스트 로컬 클라이언트 UI 열기
-	HostController->ClientOpenWaypointTravelUI();
+	HostController->ClientOpenWaypointTravelUI(ShouldShowWorldResetButton());
 	return true;
 }
 
@@ -382,6 +385,132 @@ void UPRInteraction_Waypoint::NotifyMapTransitionToAllPlayers(EPRMapTransitionTy
 		// 로컬 맵 전환 페이드 알림
 		Controller->ClientNotifyMapTransition(TravelUIFadeDuration, TransitionType);
 	}
+}
+
+void UPRInteraction_Waypoint::NotifyLoadingScreenToAllPlayers(const FString& MapName) const
+{
+	if (MapName.IsEmpty())
+	{
+		return;
+	}
+
+	for (APlayerState* PlayerState : GetPlayerArray())
+	{
+		if (!IsValid(PlayerState))
+		{
+			continue;
+		}
+
+		APRPlayerController* Controller = Cast<APRPlayerController>(PlayerState->GetOwner());
+		if (!IsValid(Controller) && IsValid(PlayerState->GetPawn()))
+		{
+			Controller = Cast<APRPlayerController>(PlayerState->GetPawn()->GetController());
+		}
+
+		if (!IsValid(Controller))
+		{
+			continue;
+		}
+
+		Controller->ResetAcknowledgedMapLoadingScreen();
+		Controller->ClientBeginMapLoadingScreen(MapName);
+	}
+}
+
+void UPRInteraction_Waypoint::StartWaypointTravelWhenLoadingScreenReady(TSoftObjectPtr<UWorld> MapAsset, FGameplayTag SpawnPointId)
+{
+	UWorld* World = GetWorld();
+	if (MapAsset.IsNull() || !IsValid(World))
+	{
+		return;
+	}
+
+	PendingWaypointTravelMap = MapAsset;
+	PendingWaypointTravelSpawnPointId = SpawnPointId;
+	LoadingScreenReadyWaitStartSeconds = FPlatformTime::Seconds();
+
+	World->GetTimerManager().ClearTimer(LoadingScreenReadyTimerHandle);
+	if (AreLoadingScreensAcknowledged(MapAsset.GetLongPackageName()) || LoadingScreenReadyTimeout <= 0.0f)
+	{
+		ExecutePendingWaypointTravel();
+		return;
+	}
+
+	World->GetTimerManager().SetTimer(
+		LoadingScreenReadyTimerHandle,
+		this,
+		&UPRInteraction_Waypoint::PollWaypointLoadingScreenReady,
+		FMath::Max(0.01f, LoadingScreenReadyPollInterval),
+		true);
+}
+
+void UPRInteraction_Waypoint::PollWaypointLoadingScreenReady()
+{
+	UWorld* World = GetWorld();
+	if (!IsValid(World) || PendingWaypointTravelMap.IsNull())
+	{
+		return;
+	}
+
+	const FString PendingMapName = PendingWaypointTravelMap.GetLongPackageName();
+	const double ElapsedSeconds = FPlatformTime::Seconds() - LoadingScreenReadyWaitStartSeconds;
+	if (AreLoadingScreensAcknowledged(PendingMapName) || ElapsedSeconds >= LoadingScreenReadyTimeout)
+	{
+		ExecutePendingWaypointTravel();
+	}
+}
+
+bool UPRInteraction_Waypoint::AreLoadingScreensAcknowledged(const FString& MapName) const
+{
+	if (MapName.IsEmpty())
+	{
+		return false;
+	}
+
+	bool bFoundController = false;
+	for (APlayerState* PlayerState : GetPlayerArray())
+	{
+		if (!IsValid(PlayerState))
+		{
+			continue;
+		}
+
+		APRPlayerController* Controller = Cast<APRPlayerController>(PlayerState->GetOwner());
+		if (!IsValid(Controller) && IsValid(PlayerState->GetPawn()))
+		{
+			Controller = Cast<APRPlayerController>(PlayerState->GetPawn()->GetController());
+		}
+
+		if (!IsValid(Controller))
+		{
+			continue;
+		}
+
+		bFoundController = true;
+		if (!Controller->HasAcknowledgedMapLoadingScreen(MapName))
+		{
+			return false;
+		}
+	}
+
+	return bFoundController;
+}
+
+void UPRInteraction_Waypoint::ExecutePendingWaypointTravel()
+{
+	UWorld* World = GetWorld();
+	if (IsValid(World))
+	{
+		World->GetTimerManager().ClearTimer(LoadingScreenReadyTimerHandle);
+	}
+
+	TSoftObjectPtr<UWorld> MapToTravel = PendingWaypointTravelMap;
+	const FGameplayTag SpawnPointId = PendingWaypointTravelSpawnPointId;
+	PendingWaypointTravelMap.Reset();
+	PendingWaypointTravelSpawnPointId = FGameplayTag();
+	LoadingScreenReadyWaitStartSeconds = 0.0;
+
+	StartTravelToSpawnPoint(MapToTravel, SpawnPointId, 0.0f);
 }
 
 APRPlayerController* UPRInteraction_Waypoint::FindHostPlayerController() const

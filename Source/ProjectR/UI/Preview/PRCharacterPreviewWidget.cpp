@@ -1,6 +1,6 @@
 // Copyright (c) 2026 TeamApoc. All Rights Reserved.
-
-
+// Author: 배유찬 (프리뷰 조명 제어 및 탭 전환 연동 구현)
+// Author: 이건주 (캐릭터 회전 조작 감도 설정 연동 구현)
 #include "PRCharacterPreviewWidget.h"
 
 #include "Components/Image.h"

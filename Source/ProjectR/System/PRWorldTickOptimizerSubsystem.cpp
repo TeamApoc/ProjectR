@@ -1,5 +1,5 @@
 // Copyright ProjectR. All Rights Reserved.
-
+// Author: 배유찬 (World Tick Optimizer 서브시스템 구현)
 #include "PRWorldTickOptimizerSubsystem.h"
 
 #include "AbilitySystemComponent.h"
@@ -10,6 +10,7 @@
 #include "HAL/IConsoleManager.h"
 #include "ProjectR/Combat/PRCombatStatics.h"
 #include "ProjectR/PRGameplayTags.h"
+#include "ProjectR/System/PRWorldTickOptimizerReporterComponent.h"
 #include "TimerManager.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogPRWorldTickOptimizer, Log, All);
@@ -34,6 +35,15 @@ namespace
 		return CVarPRWorldTickOptimizerShowActors.GetValueOnGameThread() > 0;
 	}
 
+	// AlwaysTick 반경 설정 유효성 확인
+	bool IsAlwaysTickConfigValid(const FPRTickOptimizationConfig& Config)
+	{
+		return Config.TickAlwaysActiveActivationRadius > 0.0f
+			&& Config.TickAlwaysActiveDeactivationRadius >= Config.TickAlwaysActiveActivationRadius
+			&& Config.TickActivationRadius > Config.TickAlwaysActiveActivationRadius
+			&& Config.TickDeactivationRadius > Config.TickAlwaysActiveDeactivationRadius;
+	}
+
 	// 최적화 대상 액터의 Tick 활성 상태 시각화
 	void DrawActorStateBoxes(const UWorld* World, const TArray<FPRTickOptimizationEntry>& ActiveEntries, float DrawDuration)
 	{
@@ -52,7 +62,14 @@ namespace
 				continue;
 			}
 
-			const FColor DebugColor = Entry.IsTickActive() ? FColor::Green : FColor::Red;
+			FColor DebugColor = FColor::Red;
+			if (Entry.IsTickActive())
+			{
+				DebugColor = Entry.DebugState == EPRTickOptimizationDebugState::ActiveByClientRender
+					? FColor::Yellow
+					: FColor::Green;
+			}
+
 			DrawDebugBox(
 				World,
 				TargetActor->GetActorLocation(),
@@ -81,6 +98,8 @@ void UPRWorldTickOptimizerSubsystem::Deinitialize()
 	PendingRegisterTargets.Empty();
 	PendingUnregisterTargets.Empty();
 	CachedSources.Empty();
+	ClientRenderStates.Empty();
+	LastAnyClientRenderedTimeSeconds.Empty();
 
 	Super::Deinitialize();
 }
@@ -90,7 +109,7 @@ void UPRWorldTickOptimizerSubsystem::Deinitialize()
 void UPRWorldTickOptimizerSubsystem::RegisterTarget(AActor* TargetActor)
 {
 	const UWorld* World = GetWorld();
-	if (!IsValid(World) || World->GetNetMode() == NM_Client || !IsValid(TargetActor))
+	if (!IsValid(World) || !IsValid(TargetActor))
 	{
 		return;
 	}
@@ -103,7 +122,7 @@ void UPRWorldTickOptimizerSubsystem::RegisterTarget(AActor* TargetActor)
 void UPRWorldTickOptimizerSubsystem::UnregisterTarget(AActor* TargetActor)
 {
 	const UWorld* World = GetWorld();
-	if (!IsValid(World) || World->GetNetMode() == NM_Client || !IsValid(TargetActor))
+	if (!IsValid(World) || !IsValid(TargetActor))
 	{
 		return;
 	}
@@ -111,6 +130,8 @@ void UPRWorldTickOptimizerSubsystem::UnregisterTarget(AActor* TargetActor)
 	const TWeakObjectPtr<AActor> TargetKey(TargetActor);
 	PendingRegisterTargets.Remove(TargetKey);
 	PendingUnregisterTargets.Add(TargetKey);
+	RemoveServerRenderStateForTarget(TargetActor);
+	RemoveLocalRenderStateForTarget(TargetActor);
 }
 
 // 대상 액터의 강제 활성 고정
@@ -138,7 +159,8 @@ void UPRWorldTickOptimizerSubsystem::ForceActivateTarget(AActor* TargetActor)
 	}
 
 	Entry->bForceActive = true;
-	ApplyEntryActiveState(*Entry, true, true);
+	Entry->DebugState = EPRTickOptimizationDebugState::ActiveByAlwaysTick;
+	ApplyEntryActiveState(*Entry, true);
 }
 
 // 대상 액터의 강제 활성 고정 해제
@@ -164,12 +186,19 @@ void UPRWorldTickOptimizerSubsystem::ClearForceActivateTarget(AActor* TargetActo
 void UPRWorldTickOptimizerSubsystem::ForceEvaluate()
 {
 	const UWorld* World = GetWorld();
-	if (!IsValid(World) || World->GetNetMode() == NM_Client)
+	if (!IsValid(World))
 	{
 		return;
 	}
 
 	FlushPendingChanges();
+	if (World->GetNetMode() == NM_Client)
+	{
+		// 클라는 렌더 상태만 보고
+		EvaluateClientRenderStates();
+		return;
+	}
+
 	if (!IsOptimizationEnabled())
 	{
 		RestoreAllTargetsActive();
@@ -178,7 +207,15 @@ void UPRWorldTickOptimizerSubsystem::ForceEvaluate()
 		return;
 	}
 
+	if (World->GetNetMode() != NM_DedicatedServer)
+	{
+		// 리슨 서버도 렌더 상태 갱신
+		EvaluateClientRenderStates();
+	}
+
+	// Tick 활성화 여부 종합
 	BuildSources();
+	CompactServerRenderStates();
 	EvaluateTargets();
 	DrawActorStateBoxes(World, ActiveEntries, EvaluationInterval);
 }
@@ -188,23 +225,66 @@ bool UPRWorldTickOptimizerSubsystem::IsOptimizationEnabled()
 	return CVarPRWorldTickOptimizerEnabled.GetValueOnAnyThread() > 0;
 }
 
+void UPRWorldTickOptimizerSubsystem::UpdateClientRenderStates(APlayerController* ReportingPlayerController, const TArray<AActor*>& RenderedTargets, const TArray<AActor*>& NotRenderedTargets)
+{
+	UWorld* World = GetWorld();
+	if (!IsValid(World) || World->GetNetMode() == NM_Client || !IsValid(ReportingPlayerController))
+	{
+		return;
+	}
+
+	FlushPendingChanges();
+
+	const double CurrentTimeSeconds = World->GetTimeSeconds();
+	const TWeakObjectPtr<APlayerController> ClientKey(ReportingPlayerController);
+	FPRTickOptimizationClientRenderState& ClientState = ClientRenderStates.FindOrAdd(ClientKey);
+	ClientState.PlayerController = ReportingPlayerController;
+	ClientState.LastReportTimeSeconds = CurrentTimeSeconds;
+
+	for (AActor* TargetActor : RenderedTargets)
+	{
+		if (!IsValid(TargetActor) || FindEntry(TargetActor) == nullptr)
+		{
+			continue;
+		}
+
+		const TWeakObjectPtr<AActor> TargetKey(TargetActor);
+		ClientState.TargetRenderStates.Add(TargetKey, true);
+		LastAnyClientRenderedTimeSeconds.Add(TargetKey, CurrentTimeSeconds);
+	}
+
+	for (AActor* TargetActor : NotRenderedTargets)
+	{
+		if (!IsValid(TargetActor) || FindEntry(TargetActor) == nullptr)
+		{
+			continue;
+		}
+
+		ClientState.TargetRenderStates.Add(TWeakObjectPtr<AActor>(TargetActor), false);
+	}
+}
+
 /*~ 타이머 관리 ~*/
 
 void UPRWorldTickOptimizerSubsystem::StartEvaluationTimer()
 {
 	UWorld* World = GetWorld();
-	if (!IsValid(World) || World->GetNetMode() == NM_Client)
+	if (!IsValid(World))
 	{
 		return;
 	}
+
+	const float TimerInterval = World->GetNetMode() == NM_Client
+		? ClientRenderEvaluationInterval
+		: EvaluationInterval;
 
 	World->GetTimerManager().SetTimer(
 		EvaluationTimerHandle,
 		this,
 		&UPRWorldTickOptimizerSubsystem::ForceEvaluate,
-		EvaluationInterval,
+		TimerInterval,
 		true,
-		EvaluationInterval);
+		TimerInterval);
 }
 
 void UPRWorldTickOptimizerSubsystem::StopEvaluationTimer()
@@ -296,16 +376,17 @@ bool UPRWorldTickOptimizerSubsystem::BuildEntry(AActor* TargetActor, FPRTickOpti
 		return false;
 	}
 
-	if (Config.VisibilityActivationRadius <= 0.0f || Config.VisibilityDeactivationRadius < Config.VisibilityActivationRadius)
+	if (!IsAlwaysTickConfigValid(Config))
 	{
 		UE_LOG(
 			LogPRWorldTickOptimizer,
 			Warning,
-			TEXT("[WorldTickOptimizer] Visibility 반경 설정 오류 Target=%s Activation=%.1f Deactivation=%.1f"),
+			TEXT("[WorldTickOptimizer] Tick 내부 반경 설정 오류 Target=%s InnerActivation=%.1f InnerDeactivation=%.1f OuterActivation=%.1f OuterDeactivation=%.1f"),
 			*GetNameSafe(TargetActor),
-			Config.VisibilityActivationRadius,
-			Config.VisibilityDeactivationRadius);
-		return false;
+			Config.TickAlwaysActiveActivationRadius,
+			Config.TickAlwaysActiveDeactivationRadius,
+			Config.TickActivationRadius,
+			Config.TickDeactivationRadius);
 	}
 
 	OutEntry.TargetActor = TargetActor;
@@ -313,7 +394,10 @@ bool UPRWorldTickOptimizerSubsystem::BuildEntry(AActor* TargetActor, FPRTickOpti
 	OutEntry.TargetInterface.SetInterface(TargetInterface);
 	OutEntry.Config = Config;
 	OutEntry.bIsTickActive = Config.bStartTickActive || TargetInterface->IsTickActive();
-	OutEntry.bIsVisibilityActive = Config.bStartVisibilityActive || TargetInterface->IsVisibilityActive();
+	if (const UWorld* World = GetWorld())
+	{
+		OutEntry.RegisteredWorldTimeSeconds = World->GetTimeSeconds();
+	}
 	return true;
 }
 
@@ -405,18 +489,14 @@ void UPRWorldTickOptimizerSubsystem::RestoreAllTargetsActive()
 			TargetInterface->SetTickActive(true);
 		}
 
-		if (!Entry.bIsVisibilityActive)
-		{
-			Entry.bIsVisibilityActive = true;
-			TargetInterface->SetVisibilityActive(true);
-		}
+		Entry.DebugState = EPRTickOptimizationDebugState::ActiveByAlwaysTick;
 	}
 
 	NextEvaluationIndex = 0;
 }
 
-// 대상 항목의 Tick과 Visibility 활성 상태 적용
-void UPRWorldTickOptimizerSubsystem::ApplyEntryActiveState(FPRTickOptimizationEntry& Entry, bool bTickActive, bool bVisibilityActive)
+// 대상 항목의 Tick 활성 상태 적용
+void UPRWorldTickOptimizerSubsystem::ApplyEntryActiveState(FPRTickOptimizationEntry& Entry, bool bTickActive)
 {
 	AActor* TargetActor = Entry.TargetActor.Get();
 	IPRTickOptimizable* TargetInterface = Entry.TargetInterface.GetInterface();
@@ -430,11 +510,56 @@ void UPRWorldTickOptimizerSubsystem::ApplyEntryActiveState(FPRTickOptimizationEn
 		Entry.bIsTickActive = bTickActive;
 		TargetInterface->SetTickActive(bTickActive);
 	}
+}
 
-	if (Entry.bIsVisibilityActive != bVisibilityActive)
+void UPRWorldTickOptimizerSubsystem::EvaluateClientRenderStates()
+{
+	UWorld* World = GetWorld();
+	if (!IsValid(World))
 	{
-		Entry.bIsVisibilityActive = bVisibilityActive;
-		TargetInterface->SetVisibilityActive(bVisibilityActive);
+		return;
+	}
+
+	APlayerController* LocalPlayerController = nullptr;
+	for (FConstPlayerControllerIterator Iterator = World->GetPlayerControllerIterator(); Iterator; ++Iterator)
+	{
+		APlayerController* PlayerController = Iterator->Get();
+		if (IsValid(PlayerController) && PlayerController->IsLocalController())
+		{
+			LocalPlayerController = PlayerController;
+			break;
+		}
+	}
+
+	if (!IsValid(LocalPlayerController))
+	{
+		return;
+	}
+
+	UPRWorldTickOptimizerReporterComponent* ReporterComponent = LocalPlayerController->FindComponentByClass<UPRWorldTickOptimizerReporterComponent>();
+	if (!IsValid(ReporterComponent))
+	{
+		return;
+	}
+
+	const double CurrentTimeSeconds = World->GetTimeSeconds();
+	for (FPRTickOptimizationEntry& Entry : ActiveEntries)
+	{
+		AActor* TargetActor = Entry.TargetActor.Get();
+		IPRTickOptimizable* TargetInterface = Entry.TargetInterface.GetInterface();
+		if (!IsValid(TargetActor) || TargetInterface == nullptr)
+		{
+			continue;
+		}
+
+		if (Entry.Config.bAllowTargetRuntimeEvaluationGate && !TargetInterface->CanOptimizeTick())
+		{
+			ReporterComponent->RemoveTarget(TargetActor);
+			continue;
+		}
+
+		const bool bRecentlyRendered = TargetActor->WasRecentlyRendered(RenderedToleranceSeconds);
+		ReporterComponent->PushRenderState(TargetActor, bRecentlyRendered, CurrentTimeSeconds);
 	}
 }
 
@@ -455,20 +580,46 @@ void UPRWorldTickOptimizerSubsystem::EvaluateTarget(FPRTickOptimizationEntry& En
 	if (Entry.bForceActive)
 	{
 		// 강제 활성 대상의 거리 기반 비활성화 차단
-		ApplyEntryActiveState(Entry, true, true);
+		Entry.DebugState = EPRTickOptimizationDebugState::ActiveByAlwaysTick;
+		ApplyEntryActiveState(Entry, true);
 		return;
 	}
 
 	const FVector TargetLocation = TargetInterface->GetTickLocation();
-	const bool bShouldTickBeActive = Entry.bIsTickActive
-		? HasSourceInsideRadius(TargetLocation, Entry.Config.TickDeactivationRadius)
-		: HasSourceInsideRadius(TargetLocation, Entry.Config.TickActivationRadius);
+	bool bShouldTickBeActive = false;
+	if (IsAlwaysTickConfigValid(Entry.Config))
+	{
+		const float AlwaysTickRadius = Entry.bIsTickActive
+			? Entry.Config.TickAlwaysActiveDeactivationRadius
+			: Entry.Config.TickAlwaysActiveActivationRadius;
 
-	const bool bShouldVisibilityBeActive = Entry.bIsVisibilityActive
-		? HasSourceInsideRadius(TargetLocation, Entry.Config.VisibilityDeactivationRadius)
-		: HasSourceInsideRadius(TargetLocation, Entry.Config.VisibilityActivationRadius);
+		if (HasSourceInsideRadius(TargetLocation, AlwaysTickRadius))
+		{
+			bShouldTickBeActive = true;
+			Entry.DebugState = EPRTickOptimizationDebugState::ActiveByAlwaysTick;
+		}
+		else if (IsInsideClientRenderRelevantRadius(Entry, TargetLocation) && HasClientRenderActivation(Entry))
+		{
+			bShouldTickBeActive = true;
+			Entry.DebugState = EPRTickOptimizationDebugState::ActiveByClientRender;
+		}
+		else
+		{
+			bShouldTickBeActive = false;
+			Entry.DebugState = EPRTickOptimizationDebugState::OutsideRadius;
+		}
+	}
+	else
+	{
+		bShouldTickBeActive = Entry.bIsTickActive
+			? HasSourceInsideRadius(TargetLocation, Entry.Config.TickDeactivationRadius)
+			: HasSourceInsideRadius(TargetLocation, Entry.Config.TickActivationRadius);
+		Entry.DebugState = bShouldTickBeActive
+			? EPRTickOptimizationDebugState::ActiveByAlwaysTick
+			: EPRTickOptimizationDebugState::OutsideRadius;
+	}
 
-	ApplyEntryActiveState(Entry, bShouldTickBeActive, bShouldVisibilityBeActive);
+	ApplyEntryActiveState(Entry, bShouldTickBeActive);
 }
 
 // 활성 목록의 대상 항목 검색
@@ -498,4 +649,127 @@ bool UPRWorldTickOptimizerSubsystem::HasSourceInsideRadius(const FVector& Target
 	}
 
 	return false;
+}
+
+bool UPRWorldTickOptimizerSubsystem::HasClientRenderActivation(const FPRTickOptimizationEntry& Entry) const
+{
+	const UWorld* World = GetWorld();
+	AActor* TargetActor = Entry.TargetActor.Get();
+	if (!IsValid(World) || !IsValid(TargetActor))
+	{
+		return false;
+	}
+
+	const double CurrentTimeSeconds = World->GetTimeSeconds();
+	const TWeakObjectPtr<AActor> TargetKey(TargetActor);
+	if (const double* LastRenderedTimeSeconds = LastAnyClientRenderedTimeSeconds.Find(TargetKey))
+	{
+		if (CurrentTimeSeconds - *LastRenderedTimeSeconds <= ClientRenderGraceTime)
+		{
+			return true;
+		}
+	}
+
+	bool bHasUnknownClientState = false;
+	for (FConstPlayerControllerIterator Iterator = World->GetPlayerControllerIterator(); Iterator; ++Iterator)
+	{
+		APlayerController* PlayerController = Iterator->Get();
+		if (!IsValid(PlayerController))
+		{
+			continue;
+		}
+
+		const FPRTickOptimizationClientRenderState* ClientState = ClientRenderStates.Find(TWeakObjectPtr<APlayerController>(PlayerController));
+		if (ClientState == nullptr)
+		{
+			bHasUnknownClientState = true;
+			continue;
+		}
+
+		const bool* bClientRendered = ClientState->TargetRenderStates.Find(TargetKey);
+		if (bClientRendered == nullptr)
+		{
+			bHasUnknownClientState = true;
+			continue;
+		}
+
+		if (*bClientRendered)
+		{
+			return true;
+		}
+	}
+
+	return bHasUnknownClientState
+		&& CurrentTimeSeconds - Entry.RegisteredWorldTimeSeconds <= UnknownClientGraceTime;
+}
+
+bool UPRWorldTickOptimizerSubsystem::IsInsideClientRenderRelevantRadius(const FPRTickOptimizationEntry& Entry, const FVector& TargetLocation) const
+{
+	return HasSourceInsideRadius(TargetLocation, Entry.Config.TickDeactivationRadius);
+}
+
+void UPRWorldTickOptimizerSubsystem::RemoveServerRenderStateForTarget(AActor* TargetActor)
+{
+	if (!IsValid(TargetActor))
+	{
+		return;
+	}
+
+	const TWeakObjectPtr<AActor> TargetKey(TargetActor);
+	LastAnyClientRenderedTimeSeconds.Remove(TargetKey);
+	for (TPair<TWeakObjectPtr<APlayerController>, FPRTickOptimizationClientRenderState>& ClientStatePair : ClientRenderStates)
+	{
+		ClientStatePair.Value.TargetRenderStates.Remove(TargetKey);
+	}
+}
+
+void UPRWorldTickOptimizerSubsystem::CompactServerRenderStates()
+{
+	for (auto ClientIterator = ClientRenderStates.CreateIterator(); ClientIterator; ++ClientIterator)
+	{
+		if (!ClientIterator.Key().IsValid())
+		{
+			ClientIterator.RemoveCurrent();
+			continue;
+		}
+
+		for (auto TargetIterator = ClientIterator.Value().TargetRenderStates.CreateIterator(); TargetIterator; ++TargetIterator)
+		{
+			if (!TargetIterator.Key().IsValid())
+			{
+				TargetIterator.RemoveCurrent();
+			}
+		}
+	}
+
+	for (auto RenderTimeIterator = LastAnyClientRenderedTimeSeconds.CreateIterator(); RenderTimeIterator; ++RenderTimeIterator)
+	{
+		if (!RenderTimeIterator.Key().IsValid())
+		{
+			RenderTimeIterator.RemoveCurrent();
+		}
+	}
+}
+
+void UPRWorldTickOptimizerSubsystem::RemoveLocalRenderStateForTarget(AActor* TargetActor) const
+{
+	UWorld* World = GetWorld();
+	if (!IsValid(World) || !IsValid(TargetActor) || World->GetNetMode() == NM_DedicatedServer)
+	{
+		return;
+	}
+
+	for (FConstPlayerControllerIterator Iterator = World->GetPlayerControllerIterator(); Iterator; ++Iterator)
+	{
+		APlayerController* PlayerController = Iterator->Get();
+		if (!IsValid(PlayerController) || !PlayerController->IsLocalController())
+		{
+			continue;
+		}
+
+		if (UPRWorldTickOptimizerReporterComponent* ReporterComponent = PlayerController->FindComponentByClass<UPRWorldTickOptimizerReporterComponent>())
+		{
+			ReporterComponent->RemoveTarget(TargetActor);
+		}
+	}
 }

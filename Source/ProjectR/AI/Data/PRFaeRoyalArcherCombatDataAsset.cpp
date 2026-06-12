@@ -1,5 +1,5 @@
 // Copyright ProjectR. All Rights Reserved.
-
+// Author: 손승우 (Fae 로열 아처 전투 데이터 에셋 구현)
 #include "PRFaeRoyalArcherCombatDataAsset.h"
 
 UPRFaeRoyalArcherCombatDataAsset::UPRFaeRoyalArcherCombatDataAsset()

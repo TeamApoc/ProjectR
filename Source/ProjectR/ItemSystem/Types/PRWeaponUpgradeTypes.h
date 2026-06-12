@@ -1,5 +1,5 @@
 // Copyright ProjectR. All Rights Reserved.
-
+// Author: 김동석 (Weapon 강화/업그레이드 타입 및 구조체 정의)
 #pragma once
 
 #include "CoreMinimal.h"

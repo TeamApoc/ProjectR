@@ -1,5 +1,5 @@
 // Copyright ProjectR. All Rights Reserved.
-
+// Author: 이건주 (Support Drone 데이터 에셋 구현)
 #pragma once
 
 #include "CoreMinimal.h"

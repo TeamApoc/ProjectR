@@ -1,5 +1,7 @@
 // Copyright ProjectR. All Rights Reserved.
-
+// Author: 김동석 (보스 전용 UI 체력 바 및 페이즈 BGM 연동 구현)
+// Author: 배유찬 (보스 조우 및 월드 리셋, 약점 부위 히트 판정 구조 구축)
+// Author: 손승우 (보스 AI 비헤이비어 제어 및 페어린 보스 패턴 연동 구현)
 #include "PRBossBaseCharacter.h"
 
 #include "ProjectR/AbilitySystem/PRAbilitySystemComponent.h"
@@ -14,6 +16,10 @@ APRBossBaseCharacter::APRBossBaseCharacter()
 {
 	// 페이즈 임계값은 보스 BP/데이터에서 설정한다. C++ 기본값을 두면 몬스터별 튜닝이 하드코딩된다.
 	bUseWorldHealthBar = false;
+	TickOptimizationConfig.TickActivationRadius = 15000.f;
+	TickOptimizationConfig.TickDeactivationRadius = 20000.f;
+	TickOptimizationConfig.TickAlwaysActiveActivationRadius = 15000.f;
+	TickOptimizationConfig.TickAlwaysActiveDeactivationRadius = 20000.f;
 }
 
 void APRBossBaseCharacter::BeginPlay()
@@ -308,6 +314,10 @@ void APRBossBaseCharacter::CancelBossPatternActorsForPhaseTransition()
 
 FText APRBossBaseCharacter::GetBossDisplayName() const
 {
+	if (!CharacterDisplayName.IsEmpty())
+	{
+		return CharacterDisplayName;
+	}
 	return FText::FromName(CharacterID);
 }
 

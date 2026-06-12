@@ -1,6 +1,5 @@
 ﻿// Copyright (c) 2026 TeamApoc. All Rights Reserved.
-
-
+// Author: 배유찬 (Interaction Test Pick Up Item 구현)
 #include "PRInteraction_TestPickUpItem.h"
 
 #include "ProjectR/ItemSystem/Components/PRInventoryComponent.h"

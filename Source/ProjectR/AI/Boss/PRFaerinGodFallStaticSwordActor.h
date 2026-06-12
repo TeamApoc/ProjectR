@@ -1,5 +1,5 @@
 // Copyright ProjectR. All Rights Reserved.
-
+// Author: 손승우 (페어린 보스 God Fall Static 검격 Actor 구현)
 #pragma once
 
 #include "CoreMinimal.h"

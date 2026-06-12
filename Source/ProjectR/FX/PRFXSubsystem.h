@@ -1,5 +1,7 @@
 // Copyright ProjectR. All Rights Reserved.
-
+// Author: 김동석 (렌더 프리웜 및 프리로드용 이펙트 캐싱 시스템 구현)
+// Author: 배유찬 (사격 궤적 및 데미지 이펙트 런타임 제어 구현)
+// Author: 손승우 (보스 특수 연출용 FX 캐싱 구현)
 #pragma once
 
 #include "CoreMinimal.h"
@@ -44,6 +46,9 @@ public:
 
 	// Registry에서 FXTag에 해당하는 Entry 조회
 	bool FindRegistryEntry(FGameplayTag FXTag, FPRFXRegistryEntry& OutEntry) const;
+
+	// FXTag 목록에 필요한 Cue 클래스 경로 수집
+	void CollectPreloadAssetPathsForTags(const FGameplayTagContainer& FXTags, TArray<FSoftObjectPath>& OutAssetPaths) const;
 
 protected:
 	// Registry에서 Cue 클래스들을 찾고 Instancing 정책에 맞는 Cue 목록 구성

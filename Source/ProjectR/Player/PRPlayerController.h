@@ -1,10 +1,13 @@
 // Copyright ProjectR. All Rights Reserved.
-
+// Author: 김동석 (로딩 화면 프리웜, 픽업 알림 및 강화/성장 UI 호출 제어 구현)
+// Author: 배유찬 (세션 매치메이킹 UI, 리스폰 흐름 및 패스트 트래블 UI, 플래시라이트 입력 제어 구현)
+// Author: 이건주 (마우스 감도 설정 갱신 및 인벤토리/무기 상태 HUD 호출 제어 구현)
 #pragma once
 
 #include "CoreMinimal.h"
 #include "GameFramework/PlayerController.h"
 #include "GameplayTagContainer.h"
+#include "TimerManager.h"
 #include "ProjectR/Game/PRGameTypes.h"
 #include "ProjectR/ItemSystem/Types/PRDropTypes.h"
 #include "ProjectR/Player/Components/PRPlayerGrowthComponent.h"
@@ -45,6 +48,7 @@ class UPRInteraction_Waypoint;
 class UPRShopComponent;
 class UPRWeaponUpgradeComponent;
 class UPRFXNetworkComponent;
+class UPRWorldTickOptimizerReporterComponent;
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FPRWeaponUpgradeResultSignature, const FPRWeaponUpgradeResult&, Result);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FPRShopBuyResultSignature, const FPRShopBuyResult&, Result);
@@ -112,6 +116,16 @@ public:
 	UFUNCTION(Client, Reliable)
 	void ClientNotifyMapTransition(float Delay, EPRMapTransitionType TransitionType);
 
+	// 맵 로딩 화면 선표시 요청
+	UFUNCTION(Client, Reliable)
+	void ClientBeginMapLoadingScreen(const FString& MapName);
+
+	// 로딩 오버레이 표시 완료 여부
+	bool HasAcknowledgedMapLoadingScreen(const FString& MapName) const;
+
+	// 로딩 오버레이 표시 완료 상태 초기화
+	void ResetAcknowledgedMapLoadingScreen();
+
 	// 전멸 확정 효과음 재생
 	UFUNCTION(Client, Reliable)
 	void ClientPlayPartyWipeSound(USoundBase* Sound);
@@ -134,7 +148,7 @@ public:
 
 	// 서버 -> 호스트 클라. 웨이포인트 Travel UI 열기
 	UFUNCTION(Client, Reliable)
-	void ClientOpenWaypointTravelUI();
+	void ClientOpenWaypointTravelUI(bool bShowWorldResetButton);
 
 	// 서버 -> 본인 클라. 상점 구매 결과를 UI에 전달한다
 	UFUNCTION(Client, Reliable)
@@ -218,6 +232,10 @@ protected:
 	// 클라이언트 -> 서버. 활성 또는 UI 대기 웨이포인트 상호작용 취소 위임
 	UFUNCTION(Server, Reliable)
 	void ServerRequestCancelWaypointTravel();
+
+	// 클라이언트 로딩 오버레이 표시 완료 알림
+	UFUNCTION(Server, Reliable)
+	void ServerAcknowledgeMapLoadingScreen(const FString& MapName);
 
 	// 클라이언트 -> 서버. 성장 컴포넌트에 특성 투자 확정을 위임한다
 	UFUNCTION(Server, Reliable)
@@ -360,9 +378,19 @@ private:
 	UPROPERTY(VisibleAnywhere, Category = "ProjectR|FX")
 	TObjectPtr<UPRFXNetworkComponent> FXNetworkComponent;
 
+	// WorldTickOptimizer 클라이언트 렌더 상태 보고 컴포넌트
+	UPROPERTY(VisibleAnywhere, Category = "ProjectR|TickOptimization")
+	TObjectPtr<UPRWorldTickOptimizerReporterComponent> TickOptimizerReporterComponent;
+
 	UPROPERTY(Transient)
 	TObjectPtr<UUserWidget> PartyWipeWidget;
 
 	// 서버 전용 웨이포인트 Travel UI 요청 대상 상호작용
 	TWeakObjectPtr<UPRInteraction_Waypoint> PendingWaypointTravelInteraction;
+
+	// 서버에서 확인한 마지막 로딩 오버레이 표시 MapName
+	FString LastAcknowledgedLoadingScreenMapName;
+
+	// 로딩 오버레이 FadeIn 이후 ack 전송 타이머
+	FTimerHandle LoadingScreenAckTimerHandle;
 };

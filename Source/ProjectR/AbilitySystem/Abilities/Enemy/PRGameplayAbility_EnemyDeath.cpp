@@ -1,5 +1,7 @@
 // Copyright ProjectR. All Rights Reserved.
-
+// Author: 김동석 (사망 시 아이템/재화 드롭 시퀀스 연동 구현)
+// Author: 배유찬 (보스 사망 시 게이트/장벽 비활성화 제어 구현)
+// Author: 손승우 (몬스터 사망 디졸브 연출 및 사망 판정 공용화 구현)
 #include "PRGameplayAbility_EnemyDeath.h"
 
 #include "Abilities/Tasks/AbilityTask_PlayMontageAndWait.h"

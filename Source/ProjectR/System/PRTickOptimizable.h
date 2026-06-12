@@ -13,37 +13,25 @@ struct PROJECTR_API FPRTickOptimizationConfig
 {
 	GENERATED_BODY()
 
-	// Tick 비활성 상태에서 활성 상태로 전환되는 기준 반경
+	// 클라이언트 렌더 상태를 Tick 활성 근거로 허용하는 외부 활성 기준 반경
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "ProjectR|TickOptimization")
-	float TickActivationRadius = 4500.0f;
+	float TickActivationRadius = 6000.0f;
 
-	// Tick 활성 상태에서 비활성 상태로 전환되는 기준 반경
+	// 클라이언트 렌더 상태를 Tick 활성 근거로 유지하는 외부 비활성 기준 반경
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "ProjectR|TickOptimization")
-	float TickDeactivationRadius = 5000.0f;
+	float TickDeactivationRadius = 6500.0f;
 
-	// Visibility 검사 없이 Tick 활성 상태로 전환되는 내부 기준 반경
+	// 클라이언트 렌더 상태와 무관하게 활성 상태로 전환되는 내부 기준 반경
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "ProjectR|TickOptimization")
 	float TickAlwaysActiveActivationRadius = 3000.0f;
 
-	// Visibility 검사 없이 Tick 활성 상태를 유지하는 내부 기준 반경
+	// 클라이언트 렌더 상태와 무관하게 활성 상태를 유지하는 내부 기준 반경
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "ProjectR|TickOptimization")
 	float TickAlwaysActiveDeactivationRadius = 3500.0f;
-
-	// Visibility 비활성 상태에서 활성 상태로 전환되는 기준 반경
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "ProjectR|TickOptimization")
-	float VisibilityActivationRadius = 5000.0f;
-
-	// Visibility 활성 상태에서 비활성 상태로 전환되는 기준 반경
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "ProjectR|TickOptimization")
-	float VisibilityDeactivationRadius = 5500.0f;
 
 	// 등록 후 첫 거리 평가 전까지 Tick 활성 상태로 유지할지 여부
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "ProjectR|TickOptimization")
 	bool bStartTickActive = true;
-
-	// 등록 후 첫 거리 평가 전까지 Visibility 활성 상태로 유지할지 여부
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "ProjectR|TickOptimization")
-	bool bStartVisibilityActive = true;
 
 	// 대상이 런타임 조건으로 거리 평가 가능 여부를 직접 판단할지 여부
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "ProjectR|TickOptimization")
@@ -76,10 +64,4 @@ public:
 
 	// 거리 조건으로 결정된 Tick 활성 상태 적용
 	virtual void SetTickActive(bool bActive) = 0;
-
-	// 현재 대상의 Visibility 활성 상태 반환
-	virtual bool IsVisibilityActive() const = 0;
-
-	// 거리 조건으로 결정된 Visibility 활성 상태 적용
-	virtual void SetVisibilityActive(bool bActive) = 0;
 };

@@ -47,6 +47,7 @@ class UPRInteraction_Waypoint;
 class UPRShopComponent;
 class UPRWeaponUpgradeComponent;
 class UPRFXNetworkComponent;
+class UPRWorldTickOptimizerReporterComponent;
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FPRWeaponUpgradeResultSignature, const FPRWeaponUpgradeResult&, Result);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FPRShopBuyResultSignature, const FPRShopBuyResult&, Result);
@@ -361,6 +362,10 @@ private:
 	// FX 서버 요청과 Client RPC 수신을 담당하는 Player 소유 컴포넌트
 	UPROPERTY(VisibleAnywhere, Category = "ProjectR|FX")
 	TObjectPtr<UPRFXNetworkComponent> FXNetworkComponent;
+
+	// WorldTickOptimizer 클라이언트 렌더 상태 보고 컴포넌트
+	UPROPERTY(VisibleAnywhere, Category = "ProjectR|TickOptimization")
+	TObjectPtr<UPRWorldTickOptimizerReporterComponent> TickOptimizerReporterComponent;
 
 	UPROPERTY(Transient)
 	TObjectPtr<UUserWidget> PartyWipeWidget;

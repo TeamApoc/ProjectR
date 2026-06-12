@@ -40,6 +40,7 @@ namespace
 	constexpr float NiagaraRenderPrewarmDistance = 250.0f;
 	constexpr float InteractionOutlineRenderPrewarmDistance = 250.0f;
 	constexpr float InteractionOutlineRenderPrewarmScale = 0.5f;
+	constexpr float LoadingOverlayFadeOutDuration = 1.0f;
 	const TCHAR* InteractionOutlineRenderPrewarmMeshPath = TEXT("/Engine/BasicShapes/Cube.Cube");
 }
 
@@ -59,6 +60,11 @@ void UPRLoadingScreenSubsystem::Deinitialize()
 	HidePersistentLoadingOverlay();
 	FinishNiagaraRenderPrewarm();
 	FinishInteractionOutlineRenderPrewarm();
+	if (UWorld* World = GetWorld())
+	{
+		World->GetTimerManager().ClearTimer(RevealFadeOutTimerHandle);
+	}
+	bRevealFadeOutInProgress = false;
 
 	Super::Deinitialize();
 }
@@ -97,8 +103,12 @@ void UPRLoadingScreenSubsystem::BeginTravelToMap(FName TravelReason, const FStri
 	bInteractionOutlineRenderPrewarmInProgress = false;
 	bShopUIPrewarmComplete = true;
 	bMinimumDisplayTimeComplete = Settings->MinimumLoadingScreenSeconds <= 0.0f;
+	bRevealFadeOutInProgress = false;
+	if (UWorld* LoadedWorld = CurrentLoadedWorld.Get())
+	{
+		LoadedWorld->GetTimerManager().ClearTimer(RevealFadeOutTimerHandle);
+	}
 	RemainingNiagaraRenderPrewarmFrames = 0;
-	InteractionOutlineRenderPrewarmStep = 0;
 	PrewarmNiagaraComponents.Reset();
 	FinishInteractionOutlineRenderPrewarm();
 	SetLoadingState(EPRLoadingState::PreTravel);
@@ -205,6 +215,10 @@ void UPRLoadingScreenSubsystem::ShowPersistentLoadingOverlay(const FString& MapN
 	ViewportClient->AddViewportWidgetContent(PersistentLoadingSlateWidget.ToSharedRef(), 100000);
 	bPersistentLoadingOverlayAdded = true;
 	PersistentLoadingWidget->ForceLayoutPrepass();
+	if (UPRLoadingScreenWidgetBase* LoadingScreenWidget = Cast<UPRLoadingScreenWidgetBase>(PersistentLoadingWidget))
+	{
+		LoadingScreenWidget->PlayFadeInAnimation();
+	}
 }
 
 void UPRLoadingScreenSubsystem::HidePersistentLoadingOverlay()
@@ -767,16 +781,56 @@ void UPRLoadingScreenSubsystem::HandleShopUIPrewarmComplete()
 
 void UPRLoadingScreenSubsystem::TryReveal()
 {
+	if (bRevealFadeOutInProgress)
+	{
+		return;
+	}
+
 	if (!bRequiredPreloadComplete || !bCharacterRuntimePreloadComplete || !bNiagaraRenderPrewarmComplete || !bInteractionOutlineRenderPrewarmComplete || !bShopUIPrewarmComplete || !bMinimumDisplayTimeComplete)
 	{
 		return;
 	}
 
 	SetLoadingState(EPRLoadingState::ReadyToReveal);
+	bRevealFadeOutInProgress = true;
+
+	if (UPRLoadingScreenWidgetBase* LoadingScreenWidget = Cast<UPRLoadingScreenWidgetBase>(PersistentLoadingWidget))
+	{
+		LoadingScreenWidget->PlayFadeOutAnimation();
+	}
+
+	UWorld* TimerWorld = CurrentLoadedWorld.Get();
+	if (!IsValid(TimerWorld))
+	{
+		TimerWorld = GetWorld();
+	}
+
+	if (!IsValid(TimerWorld) || LoadingOverlayFadeOutDuration <= 0.0f)
+	{
+		FinishRevealAfterFadeOut();
+		return;
+	}
+
+	TimerWorld->GetTimerManager().ClearTimer(RevealFadeOutTimerHandle);
+	TimerWorld->GetTimerManager().SetTimer(
+		RevealFadeOutTimerHandle,
+		this,
+		&UPRLoadingScreenSubsystem::FinishRevealAfterFadeOut,
+		LoadingOverlayFadeOutDuration,
+		false);
+}
+
+void UPRLoadingScreenSubsystem::FinishRevealAfterFadeOut()
+{
+	if (UWorld* LoadedWorld = CurrentLoadedWorld.Get())
+	{
+		LoadedWorld->GetTimerManager().ClearTimer(RevealFadeOutTimerHandle);
+	}
 	HidePersistentLoadingOverlay();
 	UPRAssetManager::Get().ReleasePreloadGroup(EPRPreloadGroup::MapTransition);
 	CurrentTravelReason = NAME_None;
 	CurrentTravelMapName.Reset();
+	bRevealFadeOutInProgress = false;
 	SetLoadingState(EPRLoadingState::Idle);
 }
 

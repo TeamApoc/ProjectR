@@ -412,6 +412,7 @@ void UPRInteraction_Waypoint::NotifyLoadingScreenToAllPlayers(const FString& Map
 			continue;
 		}
 
+		Controller->ResetAcknowledgedMapLoadingScreen();
 		Controller->ClientBeginMapLoadingScreen(MapName);
 	}
 }

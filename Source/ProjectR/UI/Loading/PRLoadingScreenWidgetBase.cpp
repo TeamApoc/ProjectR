@@ -2,6 +2,7 @@
 // Author: 김동석 (Loading Screen 기본 구조 UI 위젯 구현)
 #include "PRLoadingScreenWidgetBase.h"
 
+#include "Animation/WidgetAnimation.h"
 #include "Components/Image.h"
 #include "Engine/World.h"
 #include "Misc/PackageName.h"
@@ -15,6 +16,22 @@ void UPRLoadingScreenWidgetBase::SetLoadingDestination(const FString& MapPackage
 	const FPRLoadingScreenImageEntry* ImageEntry = FindImageEntry(PackageName, DestinationMapShortName);
 	ApplyImageBrushes(ImageEntry);
 	OnLoadingDestinationChanged(DestinationMapPackageName, DestinationMapShortName);
+}
+
+void UPRLoadingScreenWidgetBase::PlayFadeInAnimation()
+{
+	if (IsValid(FadeIn))
+	{
+		PlayAnimation(FadeIn, 0.0f, 1, EUMGSequencePlayMode::Forward, 1.0f);
+	}
+}
+
+void UPRLoadingScreenWidgetBase::PlayFadeOutAnimation()
+{
+	if (IsValid(FadeOut))
+	{
+		PlayAnimation(FadeOut, 0.0f, 1, EUMGSequencePlayMode::Forward, 1.0f);
+	}
 }
 
 const FPRLoadingScreenImageEntry* UPRLoadingScreenWidgetBase::FindImageEntry(FName MapPackageName, FName MapShortName) const

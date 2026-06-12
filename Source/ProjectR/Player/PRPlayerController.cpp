@@ -33,7 +33,13 @@
 #include "ProjectR/System/PRLoadingScreenSubsystem.h"
 #include "ProjectR/ItemSystem/Components/PRWeaponUpgradeComponent.h"
 #include "ProjectR/ItemSystem/Items/PRItemInstance_Weapon.h"
+#include "ProjectR/System/PRWorldTickOptimizerReporterComponent.h"
 #include "Sound/SoundBase.h"
+
+namespace
+{
+	constexpr float LoadingScreenFadeInAckDelay = 1.0f;
+}
 
 APRPlayerController::APRPlayerController()
 {
@@ -50,6 +56,9 @@ APRPlayerController::APRPlayerController()
 	
 	// Player 소유 Client RPC와 owning client의 Server RPC 호출을 위한 FX 네트워크 컴포넌트
 	FXNetworkComponent = CreateDefaultSubobject<UPRFXNetworkComponent>(TEXT("FXNetworkComponent"));
+
+	// WorldTickOptimizer 렌더 상태 변경분을 owning client에서 서버로 전달하는 컴포넌트
+	TickOptimizerReporterComponent = CreateDefaultSubobject<UPRWorldTickOptimizerReporterComponent>(TEXT("TickOptimizerReporterComponent"));
 }
 
 // =====  APlayerController Interface =====
@@ -164,7 +173,6 @@ void APRPlayerController::SetupInputComponent()
 	{
 		EIC->BindAction(InGameMenuAction.Get(), ETriggerEvent::Started, this, &APRPlayerController::OnInGameMenuInputStarted);
 	}
-
 	
 	for (int32 SlotIndex = 0; SlotIndex < QuickSlotActions.Num(); ++SlotIndex)
 	{
@@ -313,19 +321,48 @@ void APRPlayerController::ClientBeginMapLoadingScreen_Implementation(const FStri
 		LoadingScreen->BeginTravelToMap(TEXT("WaypointTravel"), MapName);
 	}
 
-	if (HasAuthority())
+	UWorld* World = GetWorld();
+	if (!IsValid(World) || LoadingScreenFadeInAckDelay <= 0.0f)
 	{
-		LastAcknowledgedLoadingScreenMapName = MapName;
+		if (HasAuthority())
+		{
+			LastAcknowledgedLoadingScreenMapName = MapName;
+		}
+		else
+		{
+			ServerAcknowledgeMapLoadingScreen(MapName);
+		}
+
+		return;
 	}
-	else
+
+	World->GetTimerManager().ClearTimer(LoadingScreenAckTimerHandle);
+	FTimerDelegate AckDelegate = FTimerDelegate::CreateWeakLambda(this, [this, MapName]()
 	{
-		ServerAcknowledgeMapLoadingScreen(MapName);
-	}
+		if (HasAuthority())
+		{
+			LastAcknowledgedLoadingScreenMapName = MapName;
+		}
+		else
+		{
+			ServerAcknowledgeMapLoadingScreen(MapName);
+		}
+	});
+	World->GetTimerManager().SetTimer(LoadingScreenAckTimerHandle, AckDelegate, LoadingScreenFadeInAckDelay, false);
 }
 
 bool APRPlayerController::HasAcknowledgedMapLoadingScreen(const FString& MapName) const
 {
 	return !MapName.IsEmpty() && LastAcknowledgedLoadingScreenMapName == MapName;
+}
+
+void APRPlayerController::ResetAcknowledgedMapLoadingScreen()
+{
+	LastAcknowledgedLoadingScreenMapName.Reset();
+	if (UWorld* World = GetWorld())
+	{
+		World->GetTimerManager().ClearTimer(LoadingScreenAckTimerHandle);
+	}
 }
 
 void APRPlayerController::OnMouseSensitivityActionUp()

@@ -7,6 +7,7 @@
 #include "CoreMinimal.h"
 #include "GameFramework/PlayerController.h"
 #include "GameplayTagContainer.h"
+#include "TimerManager.h"
 #include "ProjectR/Game/PRGameTypes.h"
 #include "ProjectR/ItemSystem/Types/PRDropTypes.h"
 #include "ProjectR/Player/Components/PRPlayerGrowthComponent.h"
@@ -47,6 +48,7 @@ class UPRInteraction_Waypoint;
 class UPRShopComponent;
 class UPRWeaponUpgradeComponent;
 class UPRFXNetworkComponent;
+class UPRWorldTickOptimizerReporterComponent;
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FPRWeaponUpgradeResultSignature, const FPRWeaponUpgradeResult&, Result);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FPRShopBuyResultSignature, const FPRShopBuyResult&, Result);
@@ -120,6 +122,9 @@ public:
 
 	// 로딩 오버레이 표시 완료 여부
 	bool HasAcknowledgedMapLoadingScreen(const FString& MapName) const;
+
+	// 로딩 오버레이 표시 완료 상태 초기화
+	void ResetAcknowledgedMapLoadingScreen();
 
 	// 전멸 확정 효과음 재생
 	UFUNCTION(Client, Reliable)
@@ -373,6 +378,10 @@ private:
 	UPROPERTY(VisibleAnywhere, Category = "ProjectR|FX")
 	TObjectPtr<UPRFXNetworkComponent> FXNetworkComponent;
 
+	// WorldTickOptimizer 클라이언트 렌더 상태 보고 컴포넌트
+	UPROPERTY(VisibleAnywhere, Category = "ProjectR|TickOptimization")
+	TObjectPtr<UPRWorldTickOptimizerReporterComponent> TickOptimizerReporterComponent;
+
 	UPROPERTY(Transient)
 	TObjectPtr<UUserWidget> PartyWipeWidget;
 
@@ -381,4 +390,7 @@ private:
 
 	// 서버에서 확인한 마지막 로딩 오버레이 표시 MapName
 	FString LastAcknowledgedLoadingScreenMapName;
+
+	// 로딩 오버레이 FadeIn 이후 ack 전송 타이머
+	FTimerHandle LoadingScreenAckTimerHandle;
 };

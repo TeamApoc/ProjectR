@@ -33,6 +33,7 @@
 #include "ProjectR/System/PRLoadingScreenSubsystem.h"
 #include "ProjectR/ItemSystem/Components/PRWeaponUpgradeComponent.h"
 #include "ProjectR/ItemSystem/Items/PRItemInstance_Weapon.h"
+#include "ProjectR/System/PRWorldTickOptimizerReporterComponent.h"
 #include "Sound/SoundBase.h"
 
 namespace
@@ -55,6 +56,9 @@ APRPlayerController::APRPlayerController()
 	
 	// Player 소유 Client RPC와 owning client의 Server RPC 호출을 위한 FX 네트워크 컴포넌트
 	FXNetworkComponent = CreateDefaultSubobject<UPRFXNetworkComponent>(TEXT("FXNetworkComponent"));
+
+	// WorldTickOptimizer 렌더 상태 변경분을 owning client에서 서버로 전달하는 컴포넌트
+	TickOptimizerReporterComponent = CreateDefaultSubobject<UPRWorldTickOptimizerReporterComponent>(TEXT("TickOptimizerReporterComponent"));
 }
 
 // =====  APlayerController Interface =====

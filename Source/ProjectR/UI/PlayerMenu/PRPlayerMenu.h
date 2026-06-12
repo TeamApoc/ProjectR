@@ -3,17 +3,17 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "CommonActivatableWidget.h"
+#include "ProjectR/UI/PRWidgetBase.h"
 #include "PRPlayerMenu.generated.h"
 
 class UCommonButtonBase;
-class UPRPlayerMenuTabListWidget;
+class UCommonTabListWidgetBase;
 class UCommonActivatableWidgetSwitcher;
 /**
  *
  */
 UCLASS()
-class PROJECTR_API UPRPlayerMenu : public UCommonActivatableWidget
+class PROJECTR_API UPRPlayerMenu : public UPRWidgetBase
 {
 	GENERATED_BODY()
 public:
@@ -23,23 +23,17 @@ public:
 	// 디자인 타임 미리보기 처리
 	virtual void NativePreConstruct() override;
 
-	// 탭 목록 초기 등록
-	virtual void NativeOnInitialized() override;
-
-	// 플레이어 메뉴 닫기 입력 처리
-	virtual FReply NativeOnKeyDown(const FGeometry& InGeometry, const FKeyEvent& InKeyEvent) override;
+	// 런타임 탭 목록 갱신
+	bool RefreshRuntimeTabs();
 
 protected:
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "ProjectR|PlayerMenu")
 	TObjectPtr<UCommonActivatableWidgetSwitcher> WidgetSwitcher;
 
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "ProjectR|PlayerMenu")
-	TObjectPtr<UPRPlayerMenuTabListWidget> TabList;
+	TObjectPtr<UCommonTabListWidgetBase> TabList;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "ProjectR|PlayerMenu")
 	TSubclassOf<UCommonButtonBase> TabButtonClass;
 
-private:
-	// 스위처 자식 위젯을 탭 목록에 등록
-	void RegisterSwitcherTabs();
 };

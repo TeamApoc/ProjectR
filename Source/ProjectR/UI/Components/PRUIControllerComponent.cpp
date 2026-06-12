@@ -63,7 +63,6 @@ namespace
 	const FName DamageFXForceRemoveParameterName(TEXT("ForceRemove"));
 	const FName DamageFXPulseLoopParameterName(TEXT("PulseLoop"));
 	const FName DamageFXPulseOpacityMinMaxParameterName(TEXT("PulseOpacityMinMax"));
-	constexpr int32 PlayerMenuZOrder = 100;
 
 	FProperty* FindDamageFXParameter(UFunction* Function, FName ParameterName)
 	{
@@ -347,9 +346,15 @@ void UPRUIControllerComponent::TogglePlayerMenu()
 		return;
 	}
 
+	UPRUIManagerSubsystem* UIManager = GetUIManager();
+	if (!IsValid(UIManager))
+	{
+		return;
+	}
+
 	if (IsValid(PlayerMenuWidget) && PlayerMenuWidget->IsInViewport())
 	{
-		HidePlayerMenuWidget();
+		UIManager->PopUI(PlayerMenuWidget);
 		return;
 	}
 
@@ -359,7 +364,10 @@ void UPRUIControllerComponent::TogglePlayerMenu()
 		return;
 	}
 
-	ShowPlayerMenuWidget(CreatedPlayerMenuWidget);
+	UIManager->PushUIInstance(CreatedPlayerMenuWidget);
+
+	// 메뉴 재표시 탭 복구
+	CreatedPlayerMenuWidget->RefreshRuntimeTabs();
 }
 
 void UPRUIControllerComponent::CloseInGameMenu()
@@ -397,7 +405,11 @@ void UPRUIControllerComponent::ClosePlayerMenu()
 		return;
 	}
 
-	HidePlayerMenuWidget();
+	UPRUIManagerSubsystem* UIManager = GetUIManager();
+	if (IsValid(UIManager))
+	{
+		UIManager->PopUI(PlayerMenuWidget);
+	}
 }
 
 void UPRUIControllerComponent::OpenWeaponUpgrade(UPRWeaponUpgradeComponent* UpgradeComponent)
@@ -776,7 +788,7 @@ void UPRUIControllerComponent::RemoveAllWidget()
 	}
 	if (PlayerMenuWidget)
 	{
-		HidePlayerMenuWidget();
+		ClosePlayerMenu();
 	}
 	if (WaypointTravelWidget)
 	{
@@ -1039,53 +1051,6 @@ UPRPlayerMenu* UPRUIControllerComponent::GetOrCreatePlayerMenuWidget()
 
 	PlayerMenuWidget = CreateWidget<UPRPlayerMenu>(PlayerController, PlayerMenuWidgetClass);
 	return PlayerMenuWidget;
-}
-
-void UPRUIControllerComponent::ShowPlayerMenuWidget(UPRPlayerMenu* InPlayerMenuWidget)
-{
-	APlayerController* PlayerController = GetOwningPlayerController();
-	if (!IsValid(PlayerController) || !IsValid(InPlayerMenuWidget))
-	{
-		return;
-	}
-
-	if (!InPlayerMenuWidget->IsInViewport())
-	{
-		InPlayerMenuWidget->AddToViewport(PlayerMenuZOrder);
-	}
-
-	// CommonUI 탭 입력 라우팅용 활성화
-	InPlayerMenuWidget->ActivateWidget();
-
-	FInputModeUIOnly InputMode;
-	InputMode.SetWidgetToFocus(InPlayerMenuWidget->TakeWidget());
-	InputMode.SetLockMouseToViewportBehavior(EMouseLockMode::LockAlways);
-
-	// 메뉴 전환 직후 잔여 입력 제거
-	PlayerController->FlushPressedKeys();
-	PlayerController->SetInputMode(InputMode);
-	PlayerController->bShowMouseCursor = true;
-}
-
-void UPRUIControllerComponent::HidePlayerMenuWidget()
-{
-	APlayerController* PlayerController = GetOwningPlayerController();
-	if (!IsValid(PlayerController) || !IsValid(PlayerMenuWidget))
-	{
-		return;
-	}
-
-	// CommonUI 탭 입력 라우팅 비활성화
-	PlayerMenuWidget->DeactivateWidget();
-
-	if (PlayerMenuWidget->IsInViewport())
-	{
-		PlayerMenuWidget->RemoveFromParent();
-	}
-
-	FInputModeGameOnly InputMode;
-	PlayerController->SetInputMode(InputMode);
-	PlayerController->bShowMouseCursor = false;
 }
 
 UPRItemTooltipWidget* UPRUIControllerComponent::GetOrCreateItemTooltipWidget()

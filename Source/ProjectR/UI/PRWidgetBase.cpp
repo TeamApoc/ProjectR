@@ -3,6 +3,7 @@
 #include "PRWidgetBase.h"
 
 #include "Blueprint/WidgetTree.h"
+#include "CommonTabListWidgetBase.h"
 #include "Components/Button.h"
 #include "Engine/LocalPlayer.h"
 #include "Kismet/GameplayStatics.h"
@@ -101,6 +102,61 @@ FReply UPRWidgetBase::NativeOnKeyDown(const FGeometry& InGeometry, const FKeyEve
 	}
 
 	const EPRUIInputAction UIInputAction = GetUIInputAction(InKeyEvent.GetKey());
+	if (UIInputAction == EPRUIInputAction::TabLeft || UIInputAction == EPRUIInputAction::TabRight)
+	{
+		UCommonTabListWidgetBase* FoundTabList = nullptr;
+		if (IsValid(WidgetTree))
+		{
+			WidgetTree->ForEachWidget([&FoundTabList](UWidget* Widget)
+			{
+				if (IsValid(FoundTabList))
+				{
+					return;
+				}
+
+				FoundTabList = Cast<UCommonTabListWidgetBase>(Widget);
+			});
+		}
+
+		if (IsValid(FoundTabList) && FoundTabList->GetTabCount() >= 2)
+		{
+			const FName SelectedTabID = FoundTabList->GetSelectedTabId();
+			int32 SelectedTabIndex = INDEX_NONE;
+			for (int32 TabIndex = 0; TabIndex < FoundTabList->GetTabCount(); ++TabIndex)
+			{
+				if (FoundTabList->GetTabIdAtIndex(TabIndex) == SelectedTabID)
+				{
+					SelectedTabIndex = TabIndex;
+					break;
+				}
+			}
+
+			// 선택 탭이 없으면 입력 방향 기준으로 첫 선택 지점 결정
+			if (SelectedTabIndex == INDEX_NONE)
+			{
+				SelectedTabIndex = UIInputAction == EPRUIInputAction::TabRight ? 0 : FoundTabList->GetTabCount() - 1;
+			}
+			else if (UIInputAction == EPRUIInputAction::TabRight)
+			{
+				// 다음 탭 순환
+				SelectedTabIndex = (SelectedTabIndex + 1) % FoundTabList->GetTabCount();
+			}
+			else
+			{
+				// 이전 탭 순환
+				SelectedTabIndex = (SelectedTabIndex + FoundTabList->GetTabCount() - 1) % FoundTabList->GetTabCount();
+			}
+
+			const FName TargetTabID = FoundTabList->GetTabIdAtIndex(SelectedTabIndex);
+			if (!TargetTabID.IsNone())
+			{
+				// 공통 UI 입력 기반 탭 선택
+				FoundTabList->SelectTabByID(TargetTabID);
+				return FReply::Handled();
+			}
+		}
+	}
+
 	if (UIInputAction == EPRUIInputAction::Cancel)
 	{
 		if (ULocalPlayer* OwningLocalPlayer = GetOwningLocalPlayer())

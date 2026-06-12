@@ -4,17 +4,11 @@
 #include "PRPlayerMenuTabListWidget.h"
 
 #include "Blueprint/WidgetTree.h"
-#include "CommonActionWidget.h"
+#include "CommonActivatableWidgetSwitcher.h"
 #include "CommonButtonBase.h"
 #include "Components/HorizontalBox.h"
+#include "Components/Widget.h"
 #include "ProjectR/UI/TextButton/PRTextButton.h"
-
-void UPRPlayerMenuTabListWidget::NativeOnInitialized()
-{
-	Super::NativeOnInitialized();
-
-	SynchronizeTabActionWidgets();
-}
 
 void UPRPlayerMenuTabListWidget::RebuildDesignPreviewTabs(const TArray<FName>& TabNameIDs, TSubclassOf<UCommonButtonBase> ButtonWidgetType)
 {
@@ -48,6 +42,50 @@ void UPRPlayerMenuTabListWidget::RebuildDesignPreviewTabs(const TArray<FName>& T
 		PreviewTextButton->SetText(FText::FromName(TabNameID));
 		TabButtonContainer->AddChild(PreviewTextButton);
 	}
+}
+
+bool UPRPlayerMenuTabListWidget::RegisterRuntimeTabs(UCommonActivatableWidgetSwitcher* InWidgetSwitcher, TSubclassOf<UCommonButtonBase> ButtonWidgetType)
+{
+	if (!IsValid(InWidgetSwitcher) || !IsValid(TabButtonContainer) || !IsValid(ButtonWidgetType.Get()))
+	{
+		return false;
+	}
+
+	// 기존 탭 정리
+	RemoveAllTabs();
+
+	// 스위처 연결
+	SetLinkedSwitcher(InWidgetSwitcher);
+
+	FName FirstTabName = NAME_None;
+	for (int32 ChildIndex = 0; ChildIndex < InWidgetSwitcher->GetChildrenCount(); ++ChildIndex)
+	{
+		UWidget* ChildWidget = InWidgetSwitcher->GetChildAt(ChildIndex);
+		if (!IsValid(ChildWidget))
+		{
+			continue;
+		}
+
+		const FName ChildName = ChildWidget->GetFName();
+		if (FirstTabName.IsNone())
+		{
+			FirstTabName = ChildName;
+		}
+
+		// 스위처 자식 기반 탭 등록
+		RegisterTab(ChildName, ButtonWidgetType, ChildWidget, ChildIndex);
+	}
+
+	if (!FirstTabName.IsNone())
+	{
+		// 첫 탭 선택
+		SelectTabByID(FirstTabName, true);
+	}
+
+	// 탭 입력 수신
+	SetListeningForInput(true);
+
+	return true;
 }
 
 void UPRPlayerMenuTabListWidget::HandleTabCreation_Implementation(FName TabNameID, UCommonButtonBase* TabButton)
@@ -85,19 +123,4 @@ void UPRPlayerMenuTabListWidget::HandleTabRemoval_Implementation(FName TabNameID
 	}
 
 	TabButtonContainer->RemoveChild(TabButton);
-}
-
-void UPRPlayerMenuTabListWidget::SynchronizeTabActionWidgets()
-{
-	if (IsValid(TabLeft))
-	{
-		// 이전 탭 입력 표시용 액션 행 연결
-		TabLeft->SetInputAction(PreviousTabInputActionData);
-	}
-
-	if (IsValid(TabRight))
-	{
-		// 다음 탭 입력 표시용 액션 행 연결
-		TabRight->SetInputAction(NextTabInputActionData);
-	}
 }

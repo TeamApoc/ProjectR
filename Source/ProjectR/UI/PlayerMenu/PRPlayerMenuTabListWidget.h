@@ -8,8 +8,8 @@
 #include "PRPlayerMenuTabListWidget.generated.h"
 
 class UHorizontalBox;
-class UCommonActionWidget;
 class UCommonButtonBase;
+class UCommonActivatableWidgetSwitcher;
 /**
  * 
  */
@@ -21,26 +21,17 @@ class PROJECTR_API UPRPlayerMenuTabListWidget : public UCommonTabListWidgetBase
 public:
 	// 디자인 미리보기 탭 버튼 재구성
 	void RebuildDesignPreviewTabs(const TArray<FName>& TabNameIDs, TSubclassOf<UCommonButtonBase> ButtonWidgetType);
+
+	// 런타임 탭 목록 재등록
+	bool RegisterRuntimeTabs(UCommonActivatableWidgetSwitcher* InWidgetSwitcher, TSubclassOf<UCommonButtonBase> ButtonWidgetType);
 	
 protected:
-	/*~ UUserWidget Interface ~*/
-	virtual void NativeOnInitialized() override;
-
 	/*~ UCommonTabListWidgetBase Interface ~*/
 	virtual void HandleTabCreation_Implementation(FName TabNameID, UCommonButtonBase* TabButton) override;
 	
 	virtual void HandleTabRemoval_Implementation(FName TabNameID, UCommonButtonBase* TabButton) override;
-
-	// 탭 이동 액션 아이콘 동기화
-	void SynchronizeTabActionWidgets();
 	
 protected:
-	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "ProjectR|TabList")
-	TObjectPtr<UCommonActionWidget> TabLeft;
-	
-	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "ProjectR|TabList")
-	TObjectPtr<UCommonActionWidget> TabRight;
-	
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "ProjectR|TabList")
 	TObjectPtr<UHorizontalBox> TabButtonContainer;
 };

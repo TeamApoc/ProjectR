@@ -5,15 +5,15 @@
 
 #include "CommonActivatableWidgetSwitcher.h"
 #include "CommonButtonBase.h"
+#include "CommonTabListWidgetBase.h"
 #include "Components/Widget.h"
-#include "GameFramework/PlayerController.h"
-#include "InputCoreTypes.h"
-#include "ProjectR/UI/Components/PRUIControllerComponent.h"
 #include "PRPlayerMenuTabListWidget.h"
 
 UPRPlayerMenu::UPRPlayerMenu()
 {
-	SetIsFocusable(true);
+	Layer = EPRUILayer::Menu;
+	InputMode = EPBUIInputMode::UIOnly;
+	bShowMouseCursor = true;
 }
 
 void UPRPlayerMenu::NativePreConstruct()
@@ -42,88 +42,28 @@ void UPRPlayerMenu::NativePreConstruct()
 		}
 	}
 
-	TabList->RebuildDesignPreviewTabs(PreviewTabNames, TabButtonClass);
-}
-
-void UPRPlayerMenu::NativeOnInitialized()
-{
-	Super::NativeOnInitialized();
-
-	RegisterSwitcherTabs();
-}
-
-FReply UPRPlayerMenu::NativeOnKeyDown(const FGeometry& InGeometry, const FKeyEvent& InKeyEvent)
-{
-	const FKey Key = InKeyEvent.GetKey();
-	if (Key == EKeys::Tab
-		|| Key == EKeys::Escape
-		|| Key == EKeys::Virtual_Back
-		|| Key == EKeys::Gamepad_FaceButton_Right)
+	if (UPRPlayerMenuTabListWidget* PlayerMenuTabList = Cast<UPRPlayerMenuTabListWidget>(TabList))
 	{
-		if (APlayerController* OwningPlayerController = GetOwningPlayer())
-		{
-			if (UPRUIControllerComponent* UIController = OwningPlayerController->FindComponentByClass<UPRUIControllerComponent>())
-			{
-				// 메뉴 닫기 입력을 전용 표시 경로로 위임
-				UIController->ClosePlayerMenu();
-				return FReply::Handled();
-			}
-		}
-
-		// 전용 컨트롤러 경로가 없을 때 최소 정리
-		DeactivateWidget();
-		RemoveFromParent();
-		return FReply::Handled();
+		PlayerMenuTabList->RebuildDesignPreviewTabs(PreviewTabNames, TabButtonClass);
 	}
-
-	return Super::NativeOnKeyDown(InGeometry, InKeyEvent);
 }
 
-void UPRPlayerMenu::RegisterSwitcherTabs()
+bool UPRPlayerMenu::RefreshRuntimeTabs()
 {
 	if (!IsValid(WidgetSwitcher))
 	{
-		return;
+		return false;
 	}
 
 	if (!IsValid(TabList))
 	{
-		return;
+		return false;
 	}
 
-	TabList->RemoveAllTabs();
-	TabList->SetLinkedSwitcher(WidgetSwitcher);
-
-	if (!IsValid(TabButtonClass.Get()))
+	if (UPRPlayerMenuTabListWidget* PlayerMenuTabList = Cast<UPRPlayerMenuTabListWidget>(TabList))
 	{
-		return;
+		return PlayerMenuTabList->RegisterRuntimeTabs(WidgetSwitcher, TabButtonClass);
 	}
 
-	FName FirstTabName = NAME_None;
-	for (int32 ChildIndex = 0; ChildIndex < WidgetSwitcher->GetChildrenCount(); ++ChildIndex)
-	{
-		UWidget* ChildWidget = WidgetSwitcher->GetChildAt(ChildIndex);
-		if (!IsValid(ChildWidget))
-		{
-			continue;
-		}
-
-		// 스위처 자식 이름 기반 탭 등록
-		const FName ChildName = ChildWidget->GetFName();
-		if (FirstTabName.IsNone())
-		{
-			FirstTabName = ChildName;
-		}
-
-		TabList->RegisterTab(ChildName, TabButtonClass, ChildWidget, ChildIndex);
-	}
-
-	if (!FirstTabName.IsNone())
-	{
-		// 최초 탭 선택
-		TabList->SelectTabByID(FirstTabName, true);
-	}
-
-	// CommonUI 표준 탭 입력 등록
-	TabList->SetListeningForInput(true);
+	return false;
 }

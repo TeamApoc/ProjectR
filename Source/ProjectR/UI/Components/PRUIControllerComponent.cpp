@@ -190,41 +190,8 @@ UPRUIControllerComponent::UPRUIControllerComponent()
 
 void UPRUIControllerComponent::ToggleInventory()
 {
-	if (!IsLocalPlayer())
-	{
-		return;
-	}
-
-	UPRUIManagerSubsystem* UIManager = GetUIManager();
-	if (!IsValid(UIManager))
-	{
-		return;
-	}
-
-	if (IsValid(InventoryWidget) && InventoryWidget->IsInViewport())
-	{
-		HideItemTooltip();
-		UIManager->PopUI(InventoryWidget);
-		return;
-	}
-
-	UPRInventoryWidget* CreatedInventoryWidget = GetOrCreateInventoryWidget();
-	if (!IsValid(CreatedInventoryWidget))
-	{
-		return;
-	}
-
-	UPRInventoryComponent* InventoryComponent = GetInventoryComponent();
-	UPRWeaponManagerComponent* WeaponManagerComponent = GetWeaponManagerComponent();
-	UPRQuickSlotComponent* QuickSlotComponent = GetQuickSlotComponent();
-	UPREquipmentManagerComponent* EquipmentManagerComponent = GetEquipmentManagerComponent();
-	if (!IsValid(InventoryComponent) || !IsValid(WeaponManagerComponent) || !IsValid(QuickSlotComponent) || !IsValid(EquipmentManagerComponent))
-	{
-		return;
-	}
-
-	CreatedInventoryWidget->SetInventorySources(InventoryComponent, WeaponManagerComponent, QuickSlotComponent, EquipmentManagerComponent);
-	UIManager->PushUIInstance(CreatedInventoryWidget);
+	// 플레이어 메뉴 인벤토리 탭 위임
+	TogglePlayerMenu(EPRPlayerMenuTabType::Inventory);
 }
 
 void UPRUIControllerComponent::CloseInventory()
@@ -235,6 +202,13 @@ void UPRUIControllerComponent::CloseInventory()
 	}
 
 	HideItemTooltip();
+
+	if (IsValid(PlayerMenuWidget) && PlayerMenuWidget->IsInViewport()
+		&& PlayerMenuWidget->GetSelectedRuntimeTabType() == EPRPlayerMenuTabType::Inventory)
+	{
+		// 플레이어 메뉴 인벤토리 탭 닫기
+		ClosePlayerMenu();
+	}
 
 	if (!IsValid(InventoryWidget) || !InventoryWidget->IsInViewport())
 	{
@@ -254,38 +228,8 @@ void UPRUIControllerComponent::CloseInventory()
 
 void UPRUIControllerComponent::ToggleTraitWindow()
 {
-	if (!IsLocalPlayer())
-	{
-		return;
-	}
-
-	UPRUIManagerSubsystem* UIManager = GetUIManager();
-	if (!IsValid(UIManager))
-	{
-		return;
-	}
-
-	if (IsValid(TraitWindowWidget) && TraitWindowWidget->IsInViewport())
-	{
-		UIManager->PopUI(TraitWindowWidget);
-		return;
-	}
-
-	UPRTraitWindowWidget* CreatedTraitWindowWidget = GetOrCreateTraitWindowWidget();
-	if (!IsValid(CreatedTraitWindowWidget))
-	{
-		return;
-	}
-
-	APlayerController* PlayerController = GetOwningPlayerController();
-	APRPlayerState* PlayerState = IsValid(PlayerController) ? PlayerController->GetPlayerState<APRPlayerState>() : nullptr;
-	if (!IsValid(PlayerState))
-	{
-		return;
-	}
-
-	CreatedTraitWindowWidget->SetGrowthSource(PlayerState);
-	UIManager->PushUIInstance(CreatedTraitWindowWidget);
+	// 플레이어 메뉴 특성 탭 위임
+	TogglePlayerMenu(EPRPlayerMenuTabType::Trait);
 }
 
 void UPRUIControllerComponent::CloseTraitWindow()
@@ -293,6 +237,13 @@ void UPRUIControllerComponent::CloseTraitWindow()
 	if (!IsLocalPlayer())
 	{
 		return;
+	}
+
+	if (IsValid(PlayerMenuWidget) && PlayerMenuWidget->IsInViewport()
+		&& PlayerMenuWidget->GetSelectedRuntimeTabType() == EPRPlayerMenuTabType::Trait)
+	{
+		// 플레이어 메뉴 특성 탭 닫기
+		ClosePlayerMenu();
 	}
 
 	if (!IsValid(TraitWindowWidget) || !TraitWindowWidget->IsInViewport())
@@ -313,33 +264,11 @@ void UPRUIControllerComponent::CloseTraitWindow()
 
 void UPRUIControllerComponent::ToggleInGameMenu()
 {
-	if (!IsLocalPlayer())
-	{
-		return;
-	}
-
-	UPRUIManagerSubsystem* UIManager = GetUIManager();
-	if (!IsValid(UIManager))
-	{
-		return;
-	}
-
-	if (IsValid(InGameMenuWidget) && InGameMenuWidget->IsInViewport())
-	{
-		UIManager->PopUI(InGameMenuWidget);
-		return;
-	}
-
-	UPRInGameMenuWidget* CreatedInGameMenuWidget = GetOrCreateInGameMenuWidget();
-	if (!IsValid(CreatedInGameMenuWidget))
-	{
-		return;
-	}
-
-	UIManager->PushUIInstance(CreatedInGameMenuWidget);
+	// 플레이어 메뉴 인게임 메뉴 탭 위임
+	TogglePlayerMenu(EPRPlayerMenuTabType::InGameMenu);
 }
 
-void UPRUIControllerComponent::TogglePlayerMenu()
+void UPRUIControllerComponent::TogglePlayerMenu(EPRPlayerMenuTabType TargetTabType)
 {
 	if (!IsLocalPlayer())
 	{
@@ -354,7 +283,15 @@ void UPRUIControllerComponent::TogglePlayerMenu()
 
 	if (IsValid(PlayerMenuWidget) && PlayerMenuWidget->IsInViewport())
 	{
-		UIManager->PopUI(PlayerMenuWidget);
+		if (PlayerMenuWidget->GetSelectedRuntimeTabType() == TargetTabType)
+		{
+			// 동일 탭 토글 닫기
+			UIManager->PopUI(PlayerMenuWidget);
+			return;
+		}
+
+		// 요청 탭 전환
+		PlayerMenuWidget->SelectRuntimeTab(TargetTabType);
 		return;
 	}
 
@@ -364,10 +301,33 @@ void UPRUIControllerComponent::TogglePlayerMenu()
 		return;
 	}
 
-	UIManager->PushUIInstance(CreatedPlayerMenuWidget);
+	UPRInventoryComponent* InventoryComponent = GetInventoryComponent();
+	UPRWeaponManagerComponent* WeaponManagerComponent = GetWeaponManagerComponent();
+	UPRQuickSlotComponent* QuickSlotComponent = GetQuickSlotComponent();
+	UPREquipmentManagerComponent* EquipmentManagerComponent = GetEquipmentManagerComponent();
+	APlayerController* PlayerController = GetOwningPlayerController();
+	APRPlayerState* PlayerState = IsValid(PlayerController) ? PlayerController->GetPlayerState<APRPlayerState>() : nullptr;
+	if (TargetTabType == EPRPlayerMenuTabType::Inventory
+		&& (!IsValid(InventoryComponent) || !IsValid(WeaponManagerComponent) || !IsValid(QuickSlotComponent) || !IsValid(EquipmentManagerComponent)))
+	{
+		// 인벤토리 탭 소스 검증
+		return;
+	}
 
-	// 메뉴 재표시 탭 복구
-	CreatedPlayerMenuWidget->RefreshRuntimeTabs();
+	if (TargetTabType == EPRPlayerMenuTabType::Trait && !IsValid(PlayerState))
+	{
+		// 특성 탭 소스 검증
+		return;
+	}
+
+	// 플레이어 메뉴 소스 전달
+	CreatedPlayerMenuWidget->SetMenuSources(InventoryComponent, WeaponManagerComponent, QuickSlotComponent, EquipmentManagerComponent, PlayerState);
+	if (!CreatedPlayerMenuWidget->RefreshRuntimeTabs(TargetTabType))
+	{
+		return;
+	}
+
+	UIManager->PushUIInstance(CreatedPlayerMenuWidget);
 }
 
 void UPRUIControllerComponent::CloseInGameMenu()
@@ -375,6 +335,13 @@ void UPRUIControllerComponent::CloseInGameMenu()
 	if (!IsLocalPlayer())
 	{
 		return;
+	}
+
+	if (IsValid(PlayerMenuWidget) && PlayerMenuWidget->IsInViewport()
+		&& PlayerMenuWidget->GetSelectedRuntimeTabType() == EPRPlayerMenuTabType::InGameMenu)
+	{
+		// 플레이어 메뉴 인게임 메뉴 탭 닫기
+		ClosePlayerMenu();
 	}
 
 	if (!IsValid(InGameMenuWidget) || !InGameMenuWidget->IsInViewport())

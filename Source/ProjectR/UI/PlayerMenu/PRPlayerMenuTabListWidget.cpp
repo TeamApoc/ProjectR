@@ -44,7 +44,7 @@ void UPRPlayerMenuTabListWidget::RebuildDesignPreviewTabs(const TArray<FName>& T
 	}
 }
 
-bool UPRPlayerMenuTabListWidget::RegisterRuntimeTabs(UCommonActivatableWidgetSwitcher* InWidgetSwitcher, TSubclassOf<UCommonButtonBase> ButtonWidgetType)
+bool UPRPlayerMenuTabListWidget::RegisterRuntimeTabs(UCommonActivatableWidgetSwitcher* InWidgetSwitcher, TSubclassOf<UCommonButtonBase> ButtonWidgetType, int32 DesiredTabIndex)
 {
 	if (!IsValid(InWidgetSwitcher) || !IsValid(TabButtonContainer) || !IsValid(ButtonWidgetType.Get()))
 	{
@@ -57,7 +57,8 @@ bool UPRPlayerMenuTabListWidget::RegisterRuntimeTabs(UCommonActivatableWidgetSwi
 	// 스위처 연결
 	SetLinkedSwitcher(InWidgetSwitcher);
 
-	FName FirstTabName = NAME_None;
+	FName FallbackTabName = NAME_None;
+	FName DesiredTabName = NAME_None;
 	for (int32 ChildIndex = 0; ChildIndex < InWidgetSwitcher->GetChildrenCount(); ++ChildIndex)
 	{
 		UWidget* ChildWidget = InWidgetSwitcher->GetChildAt(ChildIndex);
@@ -67,19 +68,25 @@ bool UPRPlayerMenuTabListWidget::RegisterRuntimeTabs(UCommonActivatableWidgetSwi
 		}
 
 		const FName ChildName = ChildWidget->GetFName();
-		if (FirstTabName.IsNone())
+		if (FallbackTabName.IsNone())
 		{
-			FirstTabName = ChildName;
+			FallbackTabName = ChildName;
+		}
+
+		if (ChildIndex == DesiredTabIndex)
+		{
+			DesiredTabName = ChildName;
 		}
 
 		// 스위처 자식 기반 탭 등록
 		RegisterTab(ChildName, ButtonWidgetType, ChildWidget, ChildIndex);
 	}
 
-	if (!FirstTabName.IsNone())
+	const FName SelectTabName = DesiredTabName.IsNone() ? FallbackTabName : DesiredTabName;
+	if (!SelectTabName.IsNone())
 	{
-		// 첫 탭 선택
-		SelectTabByID(FirstTabName, true);
+		// 요청 탭 선택
+		SelectTabByID(SelectTabName, true);
 	}
 
 	// 탭 입력 수신

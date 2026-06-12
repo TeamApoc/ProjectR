@@ -23,7 +23,7 @@ public:
 	void RebuildDesignPreviewTabs(const TArray<FName>& TabNameIDs, TSubclassOf<UCommonButtonBase> ButtonWidgetType);
 
 	// 런타임 탭 목록 재등록
-	bool RegisterRuntimeTabs(UCommonActivatableWidgetSwitcher* InWidgetSwitcher, TSubclassOf<UCommonButtonBase> ButtonWidgetType);
+	bool RegisterRuntimeTabs(UCommonActivatableWidgetSwitcher* InWidgetSwitcher, TSubclassOf<UCommonButtonBase> ButtonWidgetType, int32 DesiredTabIndex);
 	
 protected:
 	/*~ UCommonTabListWidgetBase Interface ~*/

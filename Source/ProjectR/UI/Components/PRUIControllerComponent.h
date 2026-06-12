@@ -9,6 +9,7 @@
 #include "ProjectR/ItemSystem/Types/PRWeaponTypes.h"
 #include "ProjectR/UI/HUD/PRHUDMessageTypes.h"
 #include "ProjectR/UI/Inventory/PRInventoryUITypes.h"
+#include "ProjectR/UI/PlayerMenu/PRPlayerMenuTypes.h"
 #include "PRUIControllerComponent.generated.h"
 
 class UPRWidgetBase;
@@ -99,9 +100,9 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "ProjectR|UI")
 	void ToggleInGameMenu();
 
-	// 플레이어 메뉴 위젯을 열거나 닫는다
+	// 플레이어 메뉴 위젯을 지정 탭으로 열거나 닫는다
 	UFUNCTION(BlueprintCallable, Category = "ProjectR|UI")
-	void TogglePlayerMenu();
+	void TogglePlayerMenu(EPRPlayerMenuTabType TargetTabType);
 
 	// 인벤토리 위젯이 열려 있으면 닫는다
 	UFUNCTION(BlueprintCallable, Category = "ProjectR|UI")

@@ -248,8 +248,6 @@ protected:
 	// 인게임 메뉴 입력 시작을 처리
 	void OnInGameMenuInputStarted();
 	
-	void OnPlayerMenuInputStarted();
-	
 	// 퀵슬롯 입력 시작을 처리
 	void OnQuickSlotInputStarted(int32 SlotIndex);
 
@@ -312,10 +310,6 @@ protected:
 	// 인게임 메뉴 열기 입력 액션
 	UPROPERTY(EditDefaultsOnly, Category = "ProjectR|Input")
 	TObjectPtr<const UInputAction> InGameMenuAction;
-	
-	// 인게임 메뉴 열기 입력 액션
-	UPROPERTY(EditDefaultsOnly, Category = "ProjectR|Input")
-	TObjectPtr<const UInputAction> PlayerMenuAction;
 
 	// 퀵슬롯 입력 액션 목록. 배열 인덱스가 퀵슬롯 인덱스와 일치한다
 	UPROPERTY(EditDefaultsOnly, Category = "ProjectR|Input")

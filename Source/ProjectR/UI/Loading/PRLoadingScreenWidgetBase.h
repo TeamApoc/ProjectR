@@ -8,6 +8,7 @@
 #include "PRLoadingScreenWidgetBase.generated.h"
 
 class UImage;
+class UWidgetAnimation;
 
 USTRUCT(BlueprintType)
 struct FPRLoadingScreenImageEntry
@@ -46,6 +47,14 @@ public:
 	UFUNCTION(BlueprintPure, Category = "ProjectR|Loading")
 	FName GetDestinationMapShortName() const { return DestinationMapShortName; }
 
+	// 로딩 화면 등장 애니메이션 재생
+	UFUNCTION(BlueprintCallable, Category = "ProjectR|Loading")
+	void PlayFadeInAnimation();
+
+	// 로딩 화면 퇴장 애니메이션 재생
+	UFUNCTION(BlueprintCallable, Category = "ProjectR|Loading")
+	void PlayFadeOutAnimation();
+
 protected:
 	// 목적지 맵 변경 시 블루프린트 후처리
 	UFUNCTION(BlueprintImplementableEvent, Category = "ProjectR|Loading")
@@ -64,6 +73,14 @@ protected:
 	// 두 번째 이미지 위젯
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "ProjectR|Loading")
 	TObjectPtr<UImage> SecondaryImage;
+
+	// 로딩 화면 등장 애니메이션
+	UPROPERTY(Transient, meta = (BindWidgetAnimOptional))
+	TObjectPtr<UWidgetAnimation> FadeIn;
+
+	// 로딩 화면 퇴장 애니메이션
+	UPROPERTY(Transient, meta = (BindWidgetAnimOptional))
+	TObjectPtr<UWidgetAnimation> FadeOut;
 
 	// 매핑이 없을 때 사용할 첫 번째 이미지
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "ProjectR|Loading")

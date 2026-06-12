@@ -7,6 +7,7 @@
 #include "CoreMinimal.h"
 #include "GameFramework/PlayerController.h"
 #include "GameplayTagContainer.h"
+#include "TimerManager.h"
 #include "ProjectR/Game/PRGameTypes.h"
 #include "ProjectR/ItemSystem/Types/PRDropTypes.h"
 #include "ProjectR/Player/Components/PRPlayerGrowthComponent.h"
@@ -120,6 +121,9 @@ public:
 
 	// 로딩 오버레이 표시 완료 여부
 	bool HasAcknowledgedMapLoadingScreen(const FString& MapName) const;
+
+	// 로딩 오버레이 표시 완료 상태 초기화
+	void ResetAcknowledgedMapLoadingScreen();
 
 	// 전멸 확정 효과음 재생
 	UFUNCTION(Client, Reliable)
@@ -381,4 +385,7 @@ private:
 
 	// 서버에서 확인한 마지막 로딩 오버레이 표시 MapName
 	FString LastAcknowledgedLoadingScreenMapName;
+
+	// 로딩 오버레이 FadeIn 이후 ack 전송 타이머
+	FTimerHandle LoadingScreenAckTimerHandle;
 };

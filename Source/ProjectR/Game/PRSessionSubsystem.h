@@ -18,7 +18,7 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnSessionStateChangedSignature, EPR
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnSessionFailedSignature, EPRSessionFailReason, Reason, FString, Detail);
 
 // 세션 Host/Join의 플랫폼별 구현을 격리. 상위는 동일 인터페이스로 호출
-// 현재 구현: Steam OSS 로비 기반 세션 검색과 참가
+// 현재 구현: OnlineSubsystem Null 기반 LAN 세션 검색과 참가
 UCLASS()
 class PROJECTR_API UPRSessionSubsystem : public UGameInstanceSubsystem
 {

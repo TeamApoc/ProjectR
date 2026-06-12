@@ -45,6 +45,11 @@ void UPRInGameMenuWidget::BindButtonEvents()
 		ExitToMenuButton->OnClicked.AddDynamic(this, &ThisClass::HandleExitToMenuButtonClicked);
 	}
 
+	if (IsValid(OptionButton))
+	{
+		OptionButton->OnClicked.AddDynamic(this, &ThisClass::HandleOptionButtonClicked);
+	}
+
 	if (IsValid(CloseButton))
 	{
 		CloseButton->OnClicked.AddDynamic(this, &ThisClass::HandleCloseButtonClicked);
@@ -61,6 +66,11 @@ void UPRInGameMenuWidget::UnbindButtonEvents()
 	if (IsValid(ExitToMenuButton))
 	{
 		ExitToMenuButton->OnClicked.RemoveDynamic(this, &ThisClass::HandleExitToMenuButtonClicked);
+	}
+
+	if (IsValid(OptionButton))
+	{
+		OptionButton->OnClicked.RemoveDynamic(this, &ThisClass::HandleOptionButtonClicked);
 	}
 
 	if (IsValid(CloseButton))
@@ -148,6 +158,14 @@ void UPRInGameMenuWidget::HandleExitToMenuButtonClicked()
 	}
 
 	RefreshStatusText(FText::FromString(TEXT("게임 인스턴스 오류")));
+}
+
+void UPRInGameMenuWidget::HandleOptionButtonClicked()
+{
+	if (UPRUIControllerComponent* UIControllerComponent = GetUIControllerComponent())
+	{
+		UIControllerComponent->OpenOption();
+	}
 }
 
 void UPRInGameMenuWidget::HandleCloseButtonClicked()

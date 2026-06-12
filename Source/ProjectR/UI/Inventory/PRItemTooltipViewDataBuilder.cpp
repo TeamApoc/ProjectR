@@ -26,7 +26,7 @@ namespace
 			return FText::FromString(TEXT("무기"));
 
 		case EPRItemType::Mod:
-			return FText::FromString(TEXT("Mod"));
+			return FText::FromString(TEXT("모드"));
 
 		case EPRItemType::Consumable:
 			return FText::FromString(TEXT("소비"));

@@ -24,6 +24,7 @@
 #include "ProjectR/UI/Inventory/PRItemTooltipViewDataBuilder.h"
 #include "ProjectR/UI/PlayerMenu/PRPlayerMenu.h"
 #include "ProjectR/UI/Growth/PRTraitWindowWidget.h"
+#include "ProjectR/UI/Option/PROptionWidget.h"
 #include "ProjectR/UI/PRUIManagerSubsystem.h"
 #include "ProjectR/UI/Shop/PRShopWidget.h"
 #include "ProjectR/UI/WaypointTravel/PRWaypointTravelWidget.h"
@@ -361,6 +362,56 @@ void UPRUIControllerComponent::CloseInGameMenu()
 	else
 	{
 		InGameMenuWidget->RemoveFromParent();
+	}
+}
+
+void UPRUIControllerComponent::OpenOption()
+{
+	if (!IsLocalPlayer())
+	{
+		return;
+	}
+
+	UPRUIManagerSubsystem* UIManager = GetUIManager();
+	if (!IsValid(UIManager))
+	{
+		return;
+	}
+
+	if (IsValid(OptionWidget) && OptionWidget->IsInViewport())
+	{
+		return;
+	}
+
+	UPROptionWidget* CreatedOptionWidget = GetOrCreateOptionWidget();
+	if (!IsValid(CreatedOptionWidget))
+	{
+		return;
+	}
+
+	UIManager->PushUIInstance(CreatedOptionWidget);
+}
+
+void UPRUIControllerComponent::CloseOption()
+{
+	if (!IsLocalPlayer())
+	{
+		return;
+	}
+
+	if (!IsValid(OptionWidget) || !OptionWidget->IsInViewport())
+	{
+		return;
+	}
+
+	UPRUIManagerSubsystem* UIManager = GetUIManager();
+	if (IsValid(UIManager))
+	{
+		UIManager->PopUI(OptionWidget);
+	}
+	else
+	{
+		OptionWidget->RemoveFromParent();
 	}
 }
 
@@ -759,6 +810,8 @@ void UPRUIControllerComponent::EndPlay(const EEndPlayReason::Type EndPlayReason)
 	ShopWidget = nullptr;
 	CloseWaypointTravel();
 	WaypointTravelWidget = nullptr;
+	CloseOption();
+	OptionWidget = nullptr;
 	CloseInGameMenu();
 	InGameMenuWidget = nullptr;
 	ClosePlayerMenu();
@@ -824,6 +877,10 @@ void UPRUIControllerComponent::RemoveAllWidget()
 	if (InGameMenuWidget)
 	{
 		InGameMenuWidget->RemoveFromParent();
+	}
+	if (OptionWidget)
+	{
+		OptionWidget->RemoveFromParent();
 	}
 	if (PlayerMenuWidget)
 	{
@@ -1073,6 +1130,23 @@ UPRInGameMenuWidget* UPRUIControllerComponent::GetOrCreateInGameMenuWidget()
 
 	InGameMenuWidget = CreateWidget<UPRInGameMenuWidget>(PlayerController, InGameMenuWidgetClass);
 	return InGameMenuWidget;
+}
+
+UPROptionWidget* UPRUIControllerComponent::GetOrCreateOptionWidget()
+{
+	if (IsValid(OptionWidget))
+	{
+		return OptionWidget;
+	}
+
+	APlayerController* PlayerController = GetOwningPlayerController();
+	if (!IsValid(PlayerController) || !IsValid(OptionWidgetClass.Get()))
+	{
+		return nullptr;
+	}
+
+	OptionWidget = CreateWidget<UPROptionWidget>(PlayerController, OptionWidgetClass);
+	return OptionWidget;
 }
 
 UPRPlayerMenu* UPRUIControllerComponent::GetOrCreatePlayerMenuWidget()

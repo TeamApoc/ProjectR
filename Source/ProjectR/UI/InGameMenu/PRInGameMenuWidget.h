@@ -50,6 +50,10 @@ private:
 	UFUNCTION()
 	void HandleExitToMenuButtonClicked();
 
+	// 옵션 버튼 클릭 처리
+	UFUNCTION()
+	void HandleOptionButtonClicked();
+
 	// 닫기 버튼 클릭 처리
 	UFUNCTION()
 	void HandleCloseButtonClicked();
@@ -62,6 +66,10 @@ protected:
 	// UMG에서 바인딩할 메뉴 복귀 버튼
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "ProjectR|InGameMenu")
 	TObjectPtr<UButton> ExitToMenuButton;
+
+	// UMG에서 바인딩할 옵션 버튼
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "ProjectR|InGameMenu")
+	TObjectPtr<UButton> OptionButton;
 
 	// UMG에서 바인딩할 닫기 버튼
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "ProjectR|InGameMenu")

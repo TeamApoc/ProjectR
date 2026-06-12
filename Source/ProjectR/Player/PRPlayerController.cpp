@@ -173,7 +173,6 @@ void APRPlayerController::SetupInputComponent()
 	{
 		EIC->BindAction(InGameMenuAction.Get(), ETriggerEvent::Started, this, &APRPlayerController::OnInGameMenuInputStarted);
 	}
-
 	
 	for (int32 SlotIndex = 0; SlotIndex < QuickSlotActions.Num(); ++SlotIndex)
 	{

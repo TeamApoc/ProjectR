@@ -88,15 +88,6 @@ void UPRInventoryWidget::NativeDestruct()
 	Super::NativeDestruct();
 }
 
-EPRUIInputAction UPRInventoryWidget::GetUIInputAction(const FKey& Key) const
-{
-	if (Key == EKeys::Tab)
-	{
-		return EPRUIInputAction::Cancel;
-	}
-	return Super::GetUIInputAction(Key);
-}
-
 void UPRInventoryWidget::CacheChildWidgetLists()
 {
 	// UMG 슬롯 이름은 Blueprint 배치와 맞추기 위한 고정 지점

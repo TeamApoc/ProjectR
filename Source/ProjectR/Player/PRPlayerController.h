@@ -114,6 +114,13 @@ public:
 	UFUNCTION(Client, Reliable)
 	void ClientNotifyMapTransition(float Delay, EPRMapTransitionType TransitionType);
 
+	// 맵 로딩 화면 선표시 요청
+	UFUNCTION(Client, Reliable)
+	void ClientBeginMapLoadingScreen(const FString& MapName);
+
+	// 로딩 오버레이 표시 완료 여부
+	bool HasAcknowledgedMapLoadingScreen(const FString& MapName) const;
+
 	// 전멸 확정 효과음 재생
 	UFUNCTION(Client, Reliable)
 	void ClientPlayPartyWipeSound(USoundBase* Sound);
@@ -220,6 +227,10 @@ protected:
 	// 클라이언트 -> 서버. 활성 또는 UI 대기 웨이포인트 상호작용 취소 위임
 	UFUNCTION(Server, Reliable)
 	void ServerRequestCancelWaypointTravel();
+
+	// 클라이언트 로딩 오버레이 표시 완료 알림
+	UFUNCTION(Server, Reliable)
+	void ServerAcknowledgeMapLoadingScreen(const FString& MapName);
 
 	// 클라이언트 -> 서버. 성장 컴포넌트에 특성 투자 확정을 위임한다
 	UFUNCTION(Server, Reliable)
@@ -367,4 +378,7 @@ private:
 
 	// 서버 전용 웨이포인트 Travel UI 요청 대상 상호작용
 	TWeakObjectPtr<UPRInteraction_Waypoint> PendingWaypointTravelInteraction;
+
+	// 서버에서 확인한 마지막 로딩 오버레이 표시 MapName
+	FString LastAcknowledgedLoadingScreenMapName;
 };

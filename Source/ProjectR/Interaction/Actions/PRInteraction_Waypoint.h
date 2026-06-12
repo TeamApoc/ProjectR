@@ -83,6 +83,21 @@ private:
 	// 모든 플레이어 맵 전환 연출 알림
 	void NotifyMapTransitionToAllPlayers(EPRMapTransitionType TransitionType) const;
 
+	// 모든 플레이어 로딩 화면 선표시 요청
+	void NotifyLoadingScreenToAllPlayers(const FString& MapName) const;
+
+	// 로딩 오버레이 준비 후 목적지 이동 예약
+	void StartWaypointTravelWhenLoadingScreenReady(TSoftObjectPtr<UWorld> MapAsset, FGameplayTag SpawnPointId);
+
+	// 로딩 오버레이 준비 대기 갱신
+	void PollWaypointLoadingScreenReady();
+
+	// 모든 플레이어 로딩 오버레이 표시 완료 여부
+	bool AreLoadingScreensAcknowledged(const FString& MapName) const;
+
+	// 대기 중인 목적지 이동 실행
+	void ExecutePendingWaypointTravel();
+
 	// 서버 월드에서 호스트 컨트롤러 조회
 	APRPlayerController* FindHostPlayerController() const;
 
@@ -111,6 +126,18 @@ private:
 	// 호스트 Travel UI 표시 예약 타이머
 	FTimerHandle WaypointActivateTimerHandle;
 
+	// 로딩 오버레이 준비 확인 타이머
+	FTimerHandle LoadingScreenReadyTimerHandle;
+
+	// 로딩 오버레이 준비 대기 시작 시간
+	double LoadingScreenReadyWaitStartSeconds = 0.0;
+
+	// 로딩 오버레이 준비 이후 이동할 맵
+	TSoftObjectPtr<UWorld> PendingWaypointTravelMap;
+
+	// 로딩 오버레이 준비 이후 이동할 SpawnPoint 태그
+	FGameplayTag PendingWaypointTravelSpawnPointId;
+
 	// Waypoint 이동 직전 자원 충전 또는 회복 GameplayEffect
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|Interaction|Waypoint", meta = (AllowPrivateAccess = "true"))
 	TSubclassOf<UGameplayEffect> WaypointGameplayEffect;
@@ -118,6 +145,14 @@ private:
 	// 호스트 Travel UI 표시 전 FadeOut 시간
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|Interaction|Waypoint", meta = (AllowPrivateAccess = "true", ClampMin = "0.0"))
 	float TravelUIFadeDuration = 1.6f;
+
+	// 로딩 오버레이 표시 ack 최대 대기 시간
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|Interaction|Waypoint", meta = (AllowPrivateAccess = "true", ClampMin = "0.0"))
+	float LoadingScreenReadyTimeout = 0.35f;
+
+	// 로딩 오버레이 표시 ack 확인 간격
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|Interaction|Waypoint", meta = (AllowPrivateAccess = "true", ClampMin = "0.01"))
+	float LoadingScreenReadyPollInterval = 0.05f;
 
 	// 이 Waypoint에서 열린 Travel UI의 월드 진행도 리셋 버튼 표시 여부
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|Interaction|Waypoint", meta = (AllowPrivateAccess = "true"))

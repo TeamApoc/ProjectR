@@ -8,6 +8,7 @@
 #include "Engine/NetworkDelegates.h"
 #include "Interfaces/OnlineSessionInterface.h"
 #include "OnlineSessionSettings.h"
+#include "TimerManager.h"
 #include "PRGameTypes.h"
 #include "PRSessionSubsystem.generated.h"
 
@@ -83,6 +84,9 @@ protected:
 	// 메뉴 맵 복귀 실행
 	void TravelToMenuMap();
 
+	// 로딩 오버레이 표시 이후 Travel 실행 예약
+	void RunTravelAfterLoadingOverlay(FName TravelReason, const FString& MapName, TFunction<void()> TravelAction);
+
 public:
 	// 세션 상태 변화 이벤트
 	UPROPERTY(BlueprintAssignable)
@@ -119,6 +123,9 @@ protected:
 
 	// 기존 세션 제거 후 호스트 재시도 여부
 	bool bCreateSessionAfterDestroy = false;
+
+	// 로딩 오버레이 표시 후 Travel 실행 타이머
+	FTimerHandle LoadingOverlayTravelTimerHandle;
 
 	// 메뉴 복귀 시 사용할 기본 메뉴 맵
 	FName MenuMapName = TEXT("/Game/1_Maps/L_Menu");

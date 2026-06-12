@@ -30,10 +30,16 @@
 #include "ProjectR/Interaction/PRInteractableComponent.h"
 #include "ProjectR/Game/PRGameStateBase.h"
 #include "ProjectR/Shop/Components/PRShopComponent.h"
+#include "ProjectR/System/PRLoadingScreenSubsystem.h"
 #include "ProjectR/ItemSystem/Components/PRWeaponUpgradeComponent.h"
 #include "ProjectR/ItemSystem/Items/PRItemInstance_Weapon.h"
 #include "ProjectR/System/PRWorldTickOptimizerReporterComponent.h"
 #include "Sound/SoundBase.h"
+
+namespace
+{
+	constexpr float LoadingScreenFadeInAckDelay = 1.0f;
+}
 
 APRPlayerController::APRPlayerController()
 {
@@ -295,6 +301,68 @@ void APRPlayerController::ClientNotifyMapTransition_Implementation(float Delay, 
 				BGMSubsystem->ResetToLevelBGM(0.0f);
 			}
 		}
+	}
+}
+
+void APRPlayerController::ClientBeginMapLoadingScreen_Implementation(const FString& MapName)
+{
+	if (MapName.IsEmpty())
+	{
+		return;
+	}
+
+	UGameInstance* GameInstance = GetGameInstance();
+	if (!IsValid(GameInstance))
+	{
+		return;
+	}
+
+	if (UPRLoadingScreenSubsystem* LoadingScreen = GameInstance->GetSubsystem<UPRLoadingScreenSubsystem>())
+	{
+		LoadingScreen->BeginTravelToMap(TEXT("WaypointTravel"), MapName);
+	}
+
+	UWorld* World = GetWorld();
+	if (!IsValid(World) || LoadingScreenFadeInAckDelay <= 0.0f)
+	{
+		if (HasAuthority())
+		{
+			LastAcknowledgedLoadingScreenMapName = MapName;
+		}
+		else
+		{
+			ServerAcknowledgeMapLoadingScreen(MapName);
+		}
+
+		return;
+	}
+
+	World->GetTimerManager().ClearTimer(LoadingScreenAckTimerHandle);
+	FTimerDelegate AckDelegate = FTimerDelegate::CreateWeakLambda(this, [this, MapName]()
+	{
+		if (HasAuthority())
+		{
+			LastAcknowledgedLoadingScreenMapName = MapName;
+		}
+		else
+		{
+			ServerAcknowledgeMapLoadingScreen(MapName);
+		}
+	});
+	World->GetTimerManager().SetTimer(LoadingScreenAckTimerHandle, AckDelegate, LoadingScreenFadeInAckDelay, false);
+}
+
+bool APRPlayerController::HasAcknowledgedMapLoadingScreen(const FString& MapName) const
+{
+	return !MapName.IsEmpty() && LastAcknowledgedLoadingScreenMapName == MapName;
+}
+
+void APRPlayerController::ResetAcknowledgedMapLoadingScreen()
+{
+	LastAcknowledgedLoadingScreenMapName.Reset();
+	if (UWorld* World = GetWorld())
+	{
+		World->GetTimerManager().ClearTimer(LoadingScreenAckTimerHandle);
 	}
 }
 
@@ -885,6 +953,16 @@ void APRPlayerController::ServerRequestCancelWaypointTravel_Implementation()
 
 	// 웨이포인트 상호작용에 취소 위임
 	WaypointInteraction->CancelWaypointTravel(this);
+}
+
+void APRPlayerController::ServerAcknowledgeMapLoadingScreen_Implementation(const FString& MapName)
+{
+	if (MapName.IsEmpty())
+	{
+		return;
+	}
+
+	LastAcknowledgedLoadingScreenMapName = MapName;
 }
 
 void APRPlayerController::ServerRequestConfirmTraitInvestment_Implementation(const FPRTraitInvestmentInfo& DesiredInvestment)

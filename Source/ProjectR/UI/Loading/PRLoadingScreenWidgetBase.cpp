@@ -2,6 +2,7 @@
 // Author: 김동석 (Loading Screen 기본 구조 UI 위젯 구현)
 #include "PRLoadingScreenWidgetBase.h"
 
+#include "Animation/WidgetAnimation.h"
 #include "Components/Image.h"
 #include "Engine/World.h"
 #include "Misc/PackageName.h"
@@ -17,13 +18,20 @@ void UPRLoadingScreenWidgetBase::SetLoadingDestination(const FString& MapPackage
 	OnLoadingDestinationChanged(DestinationMapPackageName, DestinationMapShortName);
 }
 
-void UPRLoadingScreenWidgetBase::SetLoadingScreenWidgetPhase(EPRLoadingScreenWidgetPhase NewPhase)
+void UPRLoadingScreenWidgetBase::PlayFadeInAnimation()
 {
-	LoadingScreenWidgetPhase = NewPhase;
+	if (IsValid(FadeIn))
+	{
+		PlayAnimation(FadeIn, 0.0f, 1, EUMGSequencePlayMode::Forward, 1.0f);
+	}
+}
 
-	const FName PackageName(*DestinationMapPackageName);
-	const FPRLoadingScreenImageEntry* ImageEntry = FindImageEntry(PackageName, DestinationMapShortName);
-	ApplyImageBrushes(ImageEntry);
+void UPRLoadingScreenWidgetBase::PlayFadeOutAnimation()
+{
+	if (IsValid(FadeOut))
+	{
+		PlayAnimation(FadeOut, 0.0f, 1, EUMGSequencePlayMode::Forward, 1.0f);
+	}
 }
 
 const FPRLoadingScreenImageEntry* UPRLoadingScreenWidgetBase::FindImageEntry(FName MapPackageName, FName MapShortName) const
@@ -42,10 +50,9 @@ const FPRLoadingScreenImageEntry* UPRLoadingScreenWidgetBase::FindImageEntry(FNa
 void UPRLoadingScreenWidgetBase::ApplyImageBrushes(const FPRLoadingScreenImageEntry* ImageEntry)
 {
 	const FSlateBrush& PrimaryBrush = ImageEntry ? ImageEntry->PrimaryImageBrush : DefaultPrimaryImageBrush;
-	const bool bMoviePlayerPhase = LoadingScreenWidgetPhase == EPRLoadingScreenWidgetPhase::MoviePlayer;
 	const FSlateBrush& SecondaryBrush = ImageEntry
-		? (bMoviePlayerPhase ? ImageEntry->MoviePlayerSecondaryImageBrush : ImageEntry->ViewportSecondaryImageBrush)
-		: (bMoviePlayerPhase ? DefaultMoviePlayerSecondaryImageBrush : DefaultViewportSecondaryImageBrush);
+		? ImageEntry->ViewportSecondaryImageBrush
+		: DefaultViewportSecondaryImageBrush;
 
 	if (IsValid(PrimaryImage))
 	{

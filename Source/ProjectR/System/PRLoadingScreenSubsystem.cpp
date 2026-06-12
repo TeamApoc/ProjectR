@@ -109,7 +109,6 @@ void UPRLoadingScreenSubsystem::BeginTravelToMap(FName TravelReason, const FStri
 		LoadedWorld->GetTimerManager().ClearTimer(RevealFadeOutTimerHandle);
 	}
 	RemainingNiagaraRenderPrewarmFrames = 0;
-	InteractionOutlineRenderPrewarmStep = 0;
 	PrewarmNiagaraComponents.Reset();
 	FinishInteractionOutlineRenderPrewarm();
 	SetLoadingState(EPRLoadingState::PreTravel);

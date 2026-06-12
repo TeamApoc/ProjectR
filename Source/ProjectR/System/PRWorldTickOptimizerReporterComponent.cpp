@@ -157,17 +157,6 @@ void UPRWorldTickOptimizerReporterComponent::FlushPendingRenderReports()
 
 	if (!RenderedTargets.IsEmpty() || !NotRenderedTargets.IsEmpty())
 	{
-		const int32 FlushedReportCount = RenderedTargets.Num() + NotRenderedTargets.Num();
-		const int32 RemainingReportCount = FMath::Max(PendingRenderStateReports.Num() - FlushedTargets.Num(), 0);
-		UE_LOG(
-			LogPRWorldTickOptimizerReporter,
-			Log,
-			TEXT("[WorldTickOptimizerReporter] Flush Rendered=%d NotRendered=%d Total=%d Remaining=%d"),
-			RenderedTargets.Num(),
-			NotRenderedTargets.Num(),
-			FlushedReportCount,
-			RemainingReportCount);
-
 		ServerReportRenderState(RenderedTargets, NotRenderedTargets);
 	}
 

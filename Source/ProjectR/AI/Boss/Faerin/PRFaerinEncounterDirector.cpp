@@ -48,6 +48,11 @@ void APRFaerinEncounterDirector::EndPlay(const EEndPlayReason::Type EndPlayReaso
 {
 	if (HasAuthority())
 	{
+		CloseChoiceUIForInstigator();
+	}
+
+	if (HasAuthority())
+	{
 		if (APRPlayGameMode* GameMode = GetWorld()->GetAuthGameMode<APRPlayGameMode>())
 		{
 			GameMode->OnPartyWipeConfirmed.RemoveDynamic(this, &ThisClass::HandlePartyWipeConfirmed);
@@ -156,6 +161,7 @@ void APRFaerinEncounterDirector::StartChoiceDialogue(APRPlayerCharacter* Player)
 
 	ChoiceInstigator = Player;
 	SetEncounterState(EFaerinEncounterState::ChoiceDialogue);
+	OpenChoiceUIForPlayer(Player);
 }
 
 void APRFaerinEncounterDirector::ChooseFight(APRPlayerCharacter* Player)
@@ -175,6 +181,7 @@ void APRFaerinEncounterDirector::ChooseFight(APRPlayerCharacter* Player)
 		return;
 	}
 
+	CloseChoiceUIForInstigator();
 	SnapshotCombatStartParticipants(Player);
 
 	TArray<APRPlayerCharacter*> Participants;
@@ -207,6 +214,7 @@ void APRFaerinEncounterDirector::ChooseDecline(APRPlayerCharacter* Player)
 	}
 
 	ChoiceInstigator = Player;
+	CloseChoiceUIForInstigator();
 
 	TArray<APRPlayerCharacter*> Participants;
 	GetPlayersFromSet(CombatStartParticipants, Participants);
@@ -233,6 +241,7 @@ void APRFaerinEncounterDirector::HandlePartyWipeConfirmed()
 		return;
 	}
 
+	CloseChoiceUIForInstigator();
 	SetEncounterState(EFaerinEncounterState::WipeReset);
 	ResetCombatBoss();
 }
@@ -261,6 +270,7 @@ void APRFaerinEncounterDirector::MarkDefeated()
 
 	bCombatBossDefeated = true;
 	UnbindCombatBossDefeat();
+	CloseChoiceUIForInstigator();
 	SetEncounterState(EFaerinEncounterState::Defeated);
 
 	if (IsValid(BoundaryActor))
@@ -570,6 +580,7 @@ void APRFaerinEncounterDirector::ResetCombatBoss()
 void APRFaerinEncounterDirector::RestoreNegotiationAfterWipe()
 {
 	ResetCombatBoss();
+	CloseChoiceUIForInstigator();
 	MulticastSetPresentationActorsHidden(false);
 
 	TArray<APRPlayerCharacter*> Participants;
@@ -591,6 +602,7 @@ void APRFaerinEncounterDirector::RecoverFightStartFailure()
 {
 	TArray<APRPlayerCharacter*> Participants;
 	GetPlayersFromSet(CombatStartParticipants, Participants);
+	CloseChoiceUIForInstigator();
 	SetInputLockedForPlayers(Participants, false);
 	MulticastSetPresentationActorsHidden(false);
 
@@ -890,4 +902,37 @@ void APRFaerinEncounterDirector::StopLocalSequences()
 		}
 	}
 	ActiveSequenceActors.Reset();
+}
+
+void APRFaerinEncounterDirector::OpenChoiceUIForPlayer(APRPlayerCharacter* Player)
+{
+	if (!IsValid(Player))
+	{
+		return;
+	}
+
+	APRPlayerController* PlayerController = Cast<APRPlayerController>(Player->GetController());
+	if (!IsValid(PlayerController))
+	{
+		return;
+	}
+
+	PlayerController->ClientOpenFaerinEncounterChoice(this);
+}
+
+void APRFaerinEncounterDirector::CloseChoiceUIForInstigator()
+{
+	APRPlayerCharacter* Player = ChoiceInstigator.Get();
+	if (!IsValid(Player))
+	{
+		return;
+	}
+
+	APRPlayerController* PlayerController = Cast<APRPlayerController>(Player->GetController());
+	if (!IsValid(PlayerController))
+	{
+		return;
+	}
+
+	PlayerController->ClientCloseFaerinEncounterChoice();
 }

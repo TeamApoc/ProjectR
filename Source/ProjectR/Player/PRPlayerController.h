@@ -47,6 +47,7 @@ class UPRInteraction_Waypoint;
 class UPRShopComponent;
 class UPRWeaponUpgradeComponent;
 class UPRFXNetworkComponent;
+class APRFaerinEncounterDirector;
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FPRWeaponUpgradeResultSignature, const FPRWeaponUpgradeResult&, Result);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FPRShopBuyResultSignature, const FPRShopBuyResult&, Result);
@@ -148,6 +149,22 @@ public:
 	// 서버 -> 호스트 클라. 웨이포인트 Travel UI 열기
 	UFUNCTION(Client, Reliable)
 	void ClientOpenWaypointTravelUI(bool bShowWorldResetButton);
+
+	// 서버 -> 본인 클라. Faerin 인카운터 선택 UI를 연다
+	UFUNCTION(Client, Reliable)
+	void ClientOpenFaerinEncounterChoice(APRFaerinEncounterDirector* Director);
+
+	// 서버 -> 본인 클라. Faerin 인카운터 선택 UI를 닫는다
+	UFUNCTION(Client, Reliable)
+	void ClientCloseFaerinEncounterChoice();
+
+	// Faerin 인카운터 전투 선택을 서버에 전달한다
+	UFUNCTION(Server, Reliable)
+	void ServerChooseFaerinEncounterFight(APRFaerinEncounterDirector* Director);
+
+	// Faerin 인카운터 거절 선택을 서버에 전달한다
+	UFUNCTION(Server, Reliable)
+	void ServerChooseFaerinEncounterDecline(APRFaerinEncounterDirector* Director);
 
 	// 서버 -> 본인 클라. 상점 구매 결과를 UI에 전달한다
 	UFUNCTION(Client, Reliable)

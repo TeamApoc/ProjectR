@@ -12,7 +12,7 @@ UPRInteraction_FaerinEncounterChoice::UPRInteraction_FaerinEncounterChoice()
 	bRequiresRange = true;
 	bShowHint = true;
 	ActionName = NSLOCTEXT("ProjectR", "FaerinEncounterChoiceActionName", "Faerin");
-	ActionHintText = NSLOCTEXT("ProjectR", "FaerinEncounterChoiceActionHint", "Talk");
+	ActionHintText = NSLOCTEXT("ProjectR", "FaerinEncounterChoiceActionHint", "대화하기");
 }
 
 bool UPRInteraction_FaerinEncounterChoice::CanInteract_Implementation(AActor* Interactor) const

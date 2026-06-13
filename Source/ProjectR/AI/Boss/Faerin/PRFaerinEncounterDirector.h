@@ -135,6 +135,8 @@ private:
 	float GetSequenceDurationSeconds(ULevelSequence* Sequence, float FallbackSeconds) const;
 	void PlaySequenceLocal(EFaerinEncounterSequence SequenceType);
 	void StopLocalSequences();
+	void OpenChoiceUIForPlayer(APRPlayerCharacter* Player);
+	void CloseChoiceUIForInstigator();
 
 public:
 	// 실제 전투 보스를 생성하는 스포너 Actor. IPRBossSpawnProviderInterface 구현체여야 한다.

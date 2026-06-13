@@ -11,6 +11,7 @@
 #include "GameFramework/PlayerController.h"
 #include "Kismet/GameplayStatics.h"
 #include "TimerManager.h"
+#include "ProjectR/AI/Boss/Faerin/PRFaerinEncounterDirector.h"
 #include "ProjectR/Character/PRPlayerCharacter.h"
 #include "ProjectR/ItemSystem/Components/PREquipmentManagerComponent.h"
 #include "ProjectR/ItemSystem/Components/PRInventoryComponent.h"
@@ -22,6 +23,7 @@
 #include "ProjectR/UI/Inventory/PRInventoryWidget.h"
 #include "ProjectR/UI/Inventory/PRItemTooltipWidget.h"
 #include "ProjectR/UI/Inventory/PRItemTooltipViewDataBuilder.h"
+#include "ProjectR/UI/Faerin/PRFaerinEncounterChoiceWidget.h"
 #include "ProjectR/UI/Growth/PRTraitWindowWidget.h"
 #include "ProjectR/UI/PRUIManagerSubsystem.h"
 #include "ProjectR/UI/Shop/PRShopWidget.h"
@@ -511,6 +513,37 @@ void UPRUIControllerComponent::OpenWaypointTravel(bool bShowWorldResetButton)
 	UIManager->PushUIInstance(CreatedWaypointTravelWidget);
 }
 
+void UPRUIControllerComponent::OpenFaerinEncounterChoice(APRFaerinEncounterDirector* Director)
+{
+	if (!IsLocalPlayer() || !IsValid(Director))
+	{
+		return;
+	}
+
+	HideItemTooltip();
+	CloseInventory();
+	CloseTraitWindow();
+	CloseInGameMenu();
+	CloseWeaponUpgrade();
+	CloseShop();
+	CloseWaypointTravel();
+
+	UPRUIManagerSubsystem* UIManager = GetUIManager();
+	if (!IsValid(UIManager))
+	{
+		return;
+	}
+
+	UPRFaerinEncounterChoiceWidget* CreatedChoiceWidget = GetOrCreateFaerinEncounterChoiceWidget();
+	if (!IsValid(CreatedChoiceWidget))
+	{
+		return;
+	}
+
+	CreatedChoiceWidget->InitializeChoice(Director);
+	UIManager->PushUIInstance(CreatedChoiceWidget);
+}
+
 void UPRUIControllerComponent::CloseWeaponUpgrade()
 {
 	if (!IsLocalPlayer())
@@ -582,6 +615,29 @@ void UPRUIControllerComponent::CloseWaypointTravel()
 	else
 	{
 		WaypointTravelWidget->RemoveFromParent();
+	}
+}
+
+void UPRUIControllerComponent::CloseFaerinEncounterChoice()
+{
+	if (!IsLocalPlayer())
+	{
+		return;
+	}
+
+	if (!IsValid(FaerinEncounterChoiceWidget) || !FaerinEncounterChoiceWidget->IsInViewport())
+	{
+		return;
+	}
+
+	UPRUIManagerSubsystem* UIManager = GetUIManager();
+	if (IsValid(UIManager))
+	{
+		UIManager->PopUI(FaerinEncounterChoiceWidget);
+	}
+	else
+	{
+		FaerinEncounterChoiceWidget->RemoveFromParent();
 	}
 }
 
@@ -743,6 +799,8 @@ void UPRUIControllerComponent::EndPlay(const EEndPlayReason::Type EndPlayReason)
 	WaypointTravelWidget = nullptr;
 	CloseInGameMenu();
 	InGameMenuWidget = nullptr;
+	CloseFaerinEncounterChoice();
+	FaerinEncounterChoiceWidget = nullptr;
 
 	UnbindWeaponManager();
 	RemoveWeaponScopeWidget();
@@ -808,6 +866,10 @@ void UPRUIControllerComponent::RemoveAllWidget()
 	if (WaypointTravelWidget)
 	{
 		WaypointTravelWidget->RemoveFromParent();
+	}
+	if (FaerinEncounterChoiceWidget)
+	{
+		FaerinEncounterChoiceWidget->RemoveFromParent();
 	}
 	if (UPRUIManagerSubsystem* UIManager = GetUIManager())
 	{
@@ -1015,6 +1077,23 @@ UPRWaypointTravelWidget* UPRUIControllerComponent::GetOrCreateWaypointTravelWidg
 	// Travel UI 인스턴스 생성
 	WaypointTravelWidget = CreateWidget<UPRWaypointTravelWidget>(PlayerController, WaypointTravelWidgetClass);
 	return WaypointTravelWidget;
+}
+
+UPRFaerinEncounterChoiceWidget* UPRUIControllerComponent::GetOrCreateFaerinEncounterChoiceWidget()
+{
+	if (IsValid(FaerinEncounterChoiceWidget))
+	{
+		return FaerinEncounterChoiceWidget;
+	}
+
+	APlayerController* PlayerController = GetOwningPlayerController();
+	if (!IsValid(PlayerController) || !IsValid(FaerinEncounterChoiceWidgetClass.Get()))
+	{
+		return nullptr;
+	}
+
+	FaerinEncounterChoiceWidget = CreateWidget<UPRFaerinEncounterChoiceWidget>(PlayerController, FaerinEncounterChoiceWidgetClass);
+	return FaerinEncounterChoiceWidget;
 }
 
 UPRTraitWindowWidget* UPRUIControllerComponent::GetOrCreateTraitWindowWidget()

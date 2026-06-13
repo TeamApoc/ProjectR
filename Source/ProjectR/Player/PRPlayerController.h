@@ -128,6 +128,10 @@ public:
 	// 전멸 확정 위젯 표시
 	UFUNCTION(Client, Reliable)
 	void ClientShowPartyWipeWidget(TSubclassOf<UUserWidget> WidgetClass);
+
+	// 서버 권위 인카운터 연출 중 소유 클라이언트의 이동/시야 입력 잠금을 적용한다.
+	UFUNCTION(Client, Reliable)
+	void ClientSetEncounterInputLock(bool bLock);
 	
 	// 서버 -> 본인 클라. 무기 강화 결과를 UI에 전달한다
 	UFUNCTION(Client, Reliable)

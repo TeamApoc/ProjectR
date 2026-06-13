@@ -66,6 +66,25 @@ APRBossBaseCharacter* APRBossSpawner::SpawnBossCharacter()
 	return SpawnedCharacter.Get();
 }
 
+AActor* APRBossSpawner::SpawnBossForEncounter_Implementation()
+{
+	return SpawnBossCharacter();
+}
+
+void APRBossSpawner::ResetBossForEncounter_Implementation(AActor* SpawnedBoss)
+{
+	AActor* ActorToDestroy = IsValid(SpawnedBoss) ? SpawnedBoss : SpawnedCharacter.Get();
+	if (IsValid(ActorToDestroy))
+	{
+		ActorToDestroy->Destroy();
+	}
+
+	if (!SpawnedCharacter.IsValid() || SpawnedCharacter.Get() == ActorToDestroy)
+	{
+		SpawnedCharacter = nullptr;
+	}
+}
+
 void APRBossSpawner::BeginPlay()
 {
 	Super::BeginPlay();
@@ -74,12 +93,15 @@ void APRBossSpawner::BeginPlay()
 	
 	if (HasAuthority())
 	{
-		if (UPREventManagerSubsystem* EventMgr = GetWorld()->GetSubsystem<UPREventManagerSubsystem>())
+		if (bListenForGlobalBossSpawnEvent)
 		{
-			// 서버 월드의 보스 스폰 요청 수신
-			BossSpawnEventHandle = EventMgr->Listen(
-				PRGameplayTags::Event_Boss_Spawn,
-				FPREventMulticast::FDelegate::CreateUObject(this, &APRBossSpawner::HandleBossSpawnEvent));
+			if (UPREventManagerSubsystem* EventMgr = GetWorld()->GetSubsystem<UPREventManagerSubsystem>())
+			{
+				// 서버 월드의 보스 스폰 요청 수신
+				BossSpawnEventHandle = EventMgr->Listen(
+					PRGameplayTags::Event_Boss_Spawn,
+					FPREventMulticast::FDelegate::CreateUObject(this, &APRBossSpawner::HandleBossSpawnEvent));
+			}
 		}
 		
 		if (bAutoSpawn)

@@ -280,6 +280,7 @@ void APRPlayGameMode::ConfirmPartyWipe()
 	}
 
 	bPartyWipeInProgress = true;
+	OnPartyWipeConfirmed.Broadcast();
 	for (APlayerState* PlayerState : CurrentGameState->PlayerArray)
 	{
 		APRPlayerState* PRPlayerState = Cast<APRPlayerState>(PlayerState);
@@ -343,6 +344,7 @@ void APRPlayGameMode::RespawnParty()
 	if (!IsValid(World))
 	{
 		bPartyWipeInProgress = false;
+		OnPartyRespawned.Broadcast();
 		return;
 	}
 
@@ -364,6 +366,7 @@ void APRPlayGameMode::RespawnParty()
 	}
 
 	bPartyWipeInProgress = false;
+	OnPartyRespawned.Broadcast();
 }
 
 FGameplayTag APRPlayGameMode::ResolvePlayerStartSpawnPointId() const

@@ -20,8 +20,10 @@
 #include "ProjectR/AI/Components/PRFaerinGodFallComponent.h"
 #include "ProjectR/AI/Components/PRFaerinPatternVFXComponent.h"
 #include "ProjectR/AI/Components/PRFaerinTeleportVFXComponent.h"
+#include "ProjectR/AI/Components/PREnemyThreatComponent.h"
 #include "ProjectR/AbilitySystem/AttributeSets/PRAttributeSet_Common.h"
 #include "ProjectR/AbilitySystem/PRAbilitySystemComponent.h"
+#include "ProjectR/Character/PRPlayerCharacter.h"
 #include "ProjectR/PRGameplayTags.h"
 #include "ProjectR/System/PREventManagerSubsystem.h"
 #include "Net/UnrealNetwork.h"
@@ -99,6 +101,47 @@ void APRFaerinCharacter::CustomizeEnemyTargetingConfig(FPREnemyTargetingConfig& 
 	InOutTargetingConfig.bKeepCurrentTargetDuringPhaseTransition = true;
 	InOutTargetingConfig.bRestoreCurrentTargetFromCandidates = true;
 	InOutTargetingConfig.bIgnoreEngagementRetainRadiusForPlayerCandidates = true;
+}
+
+void APRFaerinCharacter::SeedEncounterTargets(
+	const TArray<APRPlayerCharacter*>& Participants,
+	APRPlayerCharacter* PrimaryTarget,
+	const float ThreatAmount)
+{
+	if (!HasAuthority() || !IsValid(ThreatComponent))
+	{
+		return;
+	}
+
+	APRPlayerCharacter* ResolvedPrimaryTarget = IsValid(PrimaryTarget) ? PrimaryTarget : nullptr;
+	const float ResolvedThreatAmount = FMath::Max(ThreatAmount, 0.0f);
+	for (APRPlayerCharacter* Participant : Participants)
+	{
+		if (!IsValid(Participant))
+		{
+			continue;
+		}
+
+		if (ResolvedThreatAmount > UE_SMALL_NUMBER)
+		{
+			ThreatComponent->AddThreat(Participant, ResolvedThreatAmount);
+		}
+
+		if (!IsValid(ResolvedPrimaryTarget))
+		{
+			ResolvedPrimaryTarget = Participant;
+		}
+	}
+
+	if (IsValid(PrimaryTarget) && !Participants.Contains(PrimaryTarget) && ResolvedThreatAmount > UE_SMALL_NUMBER)
+	{
+		ThreatComponent->AddThreat(PrimaryTarget, ResolvedThreatAmount);
+	}
+
+	if (IsValid(ResolvedPrimaryTarget))
+	{
+		ThreatComponent->ForceCurrentTarget(ResolvedPrimaryTarget);
+	}
 }
 
 void APRFaerinCharacter::Multicast_SpawnNearTeleportBodyNiagara_Implementation(

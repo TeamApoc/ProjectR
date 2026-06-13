@@ -31,6 +31,9 @@ public class ProjectR : ModuleRules
 			"Slate",
 			"SlateCore",
 			"OnlineSubsystem",
+			"LevelSequence",
+			"MovieScene",
+			"MovieSceneTracks",
 		});
 
 		PrivateDependencyModuleNames.AddRange(new string[] { "AnimGraphRuntime", "OnlineSubsystemUtils" });

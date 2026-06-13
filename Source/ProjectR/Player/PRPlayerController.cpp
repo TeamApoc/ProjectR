@@ -664,6 +664,12 @@ void APRPlayerController::ClientShowPartyWipeWidget_Implementation(TSubclassOf<U
 	}
 }
 
+void APRPlayerController::ClientSetEncounterInputLock_Implementation(bool bLock)
+{
+	SetIgnoreMoveInput(bLock);
+	SetIgnoreLookInput(bLock);
+}
+
 void APRPlayerController::ClientNotifyWeaponUpgradeResult_Implementation(const FPRWeaponUpgradeResult& Result)
 {
 	OnWeaponUpgradeResult.Broadcast(Result);

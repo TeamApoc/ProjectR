@@ -20,6 +20,7 @@ class UMaterialInstanceDynamic;
 class UNiagaraComponent;
 class UNiagaraSystem;
 class UTexture;
+class APRPlayerCharacter;
 struct FPREnemyTargetingConfig;
 
 // Faerin 보스 본체 클래스다.
@@ -57,6 +58,13 @@ public:
 
 	UFUNCTION(BlueprintPure, Category = "ProjectR|AI|Boss|Faerin")
 	bool IsBossEncounterActive() const { return bBossEncounterActive; }
+
+	// 인카운터 전투 시작 시 참가자와 주 대상자를 ThreatComponent에 주입한다.
+	UFUNCTION(BlueprintCallable, Category = "ProjectR|AI|Boss|Faerin|Encounter")
+	void SeedEncounterTargets(
+		const TArray<APRPlayerCharacter*>& Participants,
+		APRPlayerCharacter* PrimaryTarget,
+		float ThreatAmount = 1000.0f);
 
 	// 근거리 텔레포트 순간 보스 몸 위치의 Niagara를 모든 클라이언트에 재생한다.
 	UFUNCTION(NetMulticast, Reliable)

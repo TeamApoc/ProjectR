@@ -52,10 +52,10 @@ protected:
 	void TryCommitPhase2GodFallTransition();
 
 	// God Fall 전용 연출 중 BT 이동이 보스 위치를 덮어쓰지 못하도록 AI 로직을 멈춘다.
-	void PauseOwnerBrainForGodFall(APRFaerinCharacter* FaerinCharacter);
+	void PauseOwnerBrainForPhaseTransition(APRFaerinCharacter* FaerinCharacter);
 
 	// God Fall 전용 연출이 끝나면 멈춘 AI 로직을 재개한다.
-	void ResumeOwnerBrainForGodFall();
+	void ResumeOwnerBrainForPhaseTransition();
 
 	// PhaseTransition 실패 또는 취소 시 기존 phase로 되돌리고 transition 상태를 정리한다.
 	void RollbackPhaseTransition();
@@ -74,6 +74,27 @@ protected:
 	UFUNCTION()
 	void HandleBodyMontageInterrupted();
 
+	// Phase2->3, Phase3->4 전환용 단독 몽타주를 시작한다.
+	bool TryStartStandardPhaseTransitionMontage(APRFaerinCharacter* FaerinCharacter);
+
+	// 목표 phase에 맞는 전환 몽타주 슬롯을 반환한다.
+	UAnimMontage* ResolveStandardPhaseTransitionMontage() const;
+
+	// 대기 중인 phase 전환을 확정하고 후속 phase 스케일링을 반영한다.
+	bool CommitPendingPhaseTransition();
+
+	// Phase2에서 Phase3으로 넘어갈 때 재생할 별도 전환 몽타주 슬롯이다.
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Faerin|PhaseTransition|Animation")
+	TObjectPtr<UAnimMontage> Phase2To3TransitionMontage;
+
+	// Phase3에서 Phase4로 넘어갈 때 재생할 별도 전환 몽타주 슬롯이다.
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Faerin|PhaseTransition|Animation")
+	TObjectPtr<UAnimMontage> Phase3To4TransitionMontage;
+
+	// Phase2->3, Phase3->4 전환 몽타주 공통 재생 속도다.
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Faerin|PhaseTransition|Animation", meta = (ClampMin = "0.01"))
+	float StandardTransitionMontagePlayRate = 1.0f;
+
 private:
 	UPROPERTY(Transient)
 	TObjectPtr<UPRFaerinGodFallComponent> ActiveGodFallComponent;
@@ -91,7 +112,8 @@ private:
 	bool bGodFallCastStarted = false;
 	bool bGodFallEntrySucceeded = false;
 	bool bBodyMontageSequenceFinished = false;
-	bool bPausedBrainLogicForGodFall = false;
+	bool bPausedBrainLogicForPhaseTransition = false;
 	bool bSuppressBodyMontageCallbacks = false;
 	bool bBGMPhasePreviewed = false;
+	bool bStandardPhaseTransitionMontageActive = false;
 };

@@ -43,6 +43,17 @@ namespace
 		return EnemyInterface->GetEnemyThreatComponent();
 	}
 
+	FVector ResolveCombatTraceLocation(const AActor* Actor)
+	{
+		const APawn* Pawn = Cast<APawn>(Actor);
+		if (IsValid(Pawn))
+		{
+			return Pawn->GetPawnViewLocation();
+		}
+
+		return IsValid(Actor) ? Actor->GetActorLocation() : FVector::ZeroVector;
+	}
+
 	bool IsEnemyDisabled(const APawn* ControlledPawn)
 	{
 		const IPREnemyInterface* EnemyInterface = Cast<IPREnemyInterface>(ControlledPawn);
@@ -177,6 +188,8 @@ namespace
 
 		const FVector OwnerLocation = ControlledPawn->GetActorLocation();
 		const FVector TargetLocation = CurrentTarget->GetActorLocation();
+		const FVector OwnerTraceLocation = ResolveCombatTraceLocation(ControlledPawn);
+		const FVector TargetTraceLocation = ResolveCombatTraceLocation(CurrentTarget);
 		const float DistanceToTarget = FVector::Dist(OwnerLocation, TargetLocation);
 
 		BlackboardComponent->SetValueAsVector(TargetLocationKey, TargetLocation);
@@ -202,8 +215,8 @@ namespace
 		FHitResult LOSHitResult;
 		const bool bLOSBlocked = ControlledPawn->GetWorld()->LineTraceSingleByChannel(
 			LOSHitResult,
-			OwnerLocation,
-			TargetLocation,
+			OwnerTraceLocation,
+			TargetTraceLocation,
 			LOSCheckTraceChannel,
 			LOSQueryParams);
 
@@ -246,6 +259,13 @@ void UBTService_PRUpdateEnemyCombatBlackboard::TickNode(UBehaviorTreeComponent& 
 	if (UPREnemyThreatComponent* ThreatComponent = ResolveEnemyThreatComponent(ControlledPawn))
 	{
 		ThreatComponent->RefreshTargetCandidates();
+		if (ThreatComponent->GetTargetingConfig().bRestoreCurrentTargetFromCandidates)
+		{
+			if (AActor* ThreatTarget = ThreatComponent->GetAttackTarget())
+			{
+				BlackboardComponent->SetValueAsObject(CurrentTargetKey, ThreatTarget);
+			}
+		}
 	}
 
 	AActor* CurrentTarget = Cast<AActor>(BlackboardComponent->GetValueAsObject(CurrentTargetKey));

@@ -96,6 +96,10 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "ProjectR|UI")
 	void ToggleInventory();
 
+	// 가방 탭을 열거나 닫음
+	UFUNCTION(BlueprintCallable, Category = "ProjectR|UI")
+	void ToggleBag();
+
 	// 특성 창 위젯을 열거나 닫는다
 	UFUNCTION(BlueprintCallable, Category = "ProjectR|UI")
 	void ToggleTraitWindow();
@@ -111,6 +115,10 @@ public:
 	// 인벤토리 위젯이 열려 있으면 닫는다
 	UFUNCTION(BlueprintCallable, Category = "ProjectR|UI")
 	void CloseInventory();
+
+	// 가방 탭이 열려 있으면 닫음
+	UFUNCTION(BlueprintCallable, Category = "ProjectR|UI")
+	void CloseBag();
 
 	// 특성 창 위젯이 열려 있으면 닫는다
 	UFUNCTION(BlueprintCallable, Category = "ProjectR|UI")

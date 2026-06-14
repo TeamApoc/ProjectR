@@ -11,5 +11,6 @@ enum class EPRPlayerMenuTabType : uint8
 {
 	Inventory = 0,
 	Trait = 1,
-	InGameMenu = 2
+	Bag = 2,
+	InGameMenu = 3
 };

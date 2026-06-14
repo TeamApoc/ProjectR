@@ -14,6 +14,7 @@ class UPRPerceptionConfig;
 class UPREnemyThreatComponent;
 class UBlackboardComponent;
 struct FPREnemyMovePresentationConfig;
+struct FPREnemyTargetingConfig;
 
 // AIController와 BT Task가 구체 Pawn 클래스에 직접 의존하지 않도록 만드는 공용 인터페이스다.
 UINTERFACE(MinimalAPI)
@@ -41,6 +42,9 @@ public:
 
 	// AI Perception 설정값을 담은 데이터 자산이다.
 	virtual UPRPerceptionConfig* GetPerceptionConfig() const = 0;
+
+	// AIController가 CombatDataAsset의 타겟팅 설정을 적용하기 전에 몬스터별 보정값을 주입한다.
+	virtual void CustomizeEnemyTargetingConfig(FPREnemyTargetingConfig& InOutTargetingConfig) const {}
 
 	// Possess 시 실행할 BehaviorTree 자산이다.
 	virtual UBehaviorTree* GetBehaviorTreeAsset() const = 0;

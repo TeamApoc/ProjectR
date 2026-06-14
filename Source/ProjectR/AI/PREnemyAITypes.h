@@ -200,6 +200,22 @@ struct PROJECTR_API FPREnemyTargetingConfig
 	// 갱신되지 않은 후보를 잊어버리는 시간이다.
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "ProjectR|AI", meta = (ClampMin = "0.0"))
 	float CandidateForgetTime = 10.0f;
+
+	// 한 번 후보에 들어온 플레이어를 시야/인지 손실만으로 제거하지 않을지 여부다.
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "ProjectR|AI")
+	bool bNeverForgetPlayerCandidates = false;
+
+	// 페이즈 전환 중에는 현재 타겟과 후보 목록을 유지할지 여부다.
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "ProjectR|AI")
+	bool bKeepCurrentTargetDuringPhaseTransition = false;
+
+	// current target이 비었을 때 남아 있는 후보에서 즉시 복구할지 여부다.
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "ProjectR|AI")
+	bool bRestoreCurrentTargetFromCandidates = false;
+
+	// 플레이어 후보에는 전투 유지 반경 제거 규칙을 적용하지 않을지 여부다.
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "ProjectR|AI")
+	bool bIgnoreEngagementRetainRadiusForPlayerCandidates = false;
 };
 
 // 공격 하나가 시작된 뒤 타겟이 중간에 바뀌지 않도록 잠그는 런타임 상태다.

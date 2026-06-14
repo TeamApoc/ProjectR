@@ -136,6 +136,9 @@ protected:
 	const FPREnemyTargetCandidate* FindTargetCandidate(AActor* Target) const;
 	FPREnemyTargetCandidate& FindOrAddTargetCandidate(AActor* Target, float CurrentTime);
 	bool ShouldRemoveTargetCandidate(const FPREnemyTargetCandidate& Candidate, float CurrentTime) const;
+	bool ShouldRetainPlayerCandidate(const FPREnemyTargetCandidate& Candidate) const;
+	bool ShouldRetainPlayerTargetOnExplicitLoss(AActor* Target) const;
+	bool IsOwnerPhaseTransitioning() const;
 	void QueuePendingTarget(AActor* NewTarget, float CandidateScore);
 	void ClearPendingTarget();
 	// 타겟 후보/현재 타겟/커밋 상태를 로그로 출력한다.

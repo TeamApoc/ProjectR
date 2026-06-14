@@ -196,6 +196,11 @@ private:
 	float ResolveEntryOrbitSpinElapsedFromTotal(float TotalElapsedSeconds) const;
 	float ResolveEntryOrbitTimelineDuration() const;
 	FRotator ResolveEntryOrbitTiltRotation(float ElapsedSeconds) const;
+	EPRFaerinGodFallStaticSwordState ResolveCurrentVisualState() const;
+	bool IsEntryOrbitCenterFacingVisualState(EPRFaerinGodFallStaticSwordState VisualState) const;
+	FVector ResolveCurrentEntryOrbitPresentationLocationForRotation() const;
+	FQuat ResolveEntryOrbitCenterFacingConeWorldQuat(const FVector& PresentationLocation, float EffectiveSpinElapsedSeconds) const;
+	FQuat ResolveEntryOrbitCenterFacingConeRelativeQuat() const;
 	void ApplySwordPresentationLocation(const FVector& Location);
 	void SpawnNiagaraAtLocationLocal(UNiagaraSystem* NiagaraSystem,
 		const FVector& Location,

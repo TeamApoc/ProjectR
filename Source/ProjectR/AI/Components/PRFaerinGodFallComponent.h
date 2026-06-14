@@ -140,6 +140,8 @@ private:
 	void SetClientBossPresentationTransform(const FVector& Location, const FRotator& Rotation, bool bKeepHolding);
 	void StopClientBossPresentation(const FVector& Location, const FRotator& Rotation);
 	void ClearInvalidStaticSwordRefs();
+	void ApplyGodFallInvulnerability();
+	void ClearGodFallInvulnerability();
 
 	// God Fall 본체 이동 연출 구간을 클라이언트가 로컬 보간하도록 시작시킨다.
 	UFUNCTION(NetMulticast, Reliable)
@@ -245,6 +247,7 @@ private:
 	bool bBodyDropMontageStarted = false;
 	bool bBodyMontageSequenceFinished = false;
 	bool bGodFallEntryRunning = false;
+	bool bGodFallInvulnerabilityApplied = false;
 	bool bGodFallConvertedToStaticSwords = false;
 	bool bSavedBossReplicateMovement = true;
 	bool bHasSavedBossReplicateMovement = false;

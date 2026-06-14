@@ -78,6 +78,7 @@ namespace PRGameplayTags
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Ability_Boss_Faerin_CrashSequence); // Faerin Crash 패턴 어빌리티
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Ability_Boss_Faerin_CrashDropSequence); // Faerin CrashDrop 패턴 어빌리티
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Ability_Boss_Faerin_ThrowSequence); // Faerin Throw 패턴 어빌리티
+	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Ability_Boss_Faerin_CloneSequence); // Faerin 분신 소환 패턴 어빌리티
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Ability_Boss_Faerin_ApproachSprint); // Faerin 스프린트 접근 액션
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Ability_Boss_Faerin_TeleportDash); // Faerin 텔레포트 대시
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Ability_Boss_Faerin_EnergyRain); // Faerin 범위 압박
@@ -92,6 +93,7 @@ namespace PRGameplayTags
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Pattern_Boss_Faerin_Sword); // Faerin 검 근접 계열 패턴
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Pattern_Boss_Faerin_Crash); // Faerin Crash 계열 패턴
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Pattern_Boss_Faerin_Throw); // Faerin Throw 계열 패턴
+	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Pattern_Boss_Faerin_Clone); // Faerin 분신 계열 패턴
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Pattern_Boss_Faerin_Fallback); // Faerin 패턴 실패 시 보조 이동 식별
 
 	// ===== State.* — 캐릭터 상태 =====

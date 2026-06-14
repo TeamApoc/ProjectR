@@ -4,6 +4,7 @@
 
 #include "AbilitySystemBlueprintLibrary.h"
 #include "AbilitySystemComponent.h"
+#include "Components/SceneComponent.h"
 #include "Components/StaticMeshComponent.h"
 #include "DrawDebugHelpers.h"
 #include "Engine/OverlapResult.h"
@@ -24,6 +25,79 @@
 #include "ProjectR/System/PRAssetManager.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogPRFaerinGodFallSword, Log, All);
+
+namespace
+{
+	FVector ResolveGodFallLocalAxisVector(const EPRFaerinGodFallLocalAxis Axis)
+	{
+		switch (Axis)
+		{
+		case EPRFaerinGodFallLocalAxis::PlusX:
+			return FVector::ForwardVector;
+		case EPRFaerinGodFallLocalAxis::MinusX:
+			return -FVector::ForwardVector;
+		case EPRFaerinGodFallLocalAxis::PlusY:
+			return FVector::RightVector;
+		case EPRFaerinGodFallLocalAxis::MinusY:
+			return -FVector::RightVector;
+		case EPRFaerinGodFallLocalAxis::PlusZ:
+			return FVector::UpVector;
+		case EPRFaerinGodFallLocalAxis::MinusZ:
+			return -FVector::UpVector;
+		default:
+			return FVector::UpVector;
+		}
+	}
+
+	FVector ProjectDirectionOnPlaneSafe(const FVector& Direction, const FVector& PlaneNormal, const FVector& Fallback)
+	{
+		const FVector Normal = PlaneNormal.GetSafeNormal();
+		FVector Projected = Direction - FVector::DotProduct(Direction, Normal) * Normal;
+		if (!Projected.Normalize())
+		{
+			Projected = Fallback - FVector::DotProduct(Fallback, Normal) * Normal;
+			if (!Projected.Normalize())
+			{
+				return FVector::ForwardVector;
+			}
+		}
+
+		return Projected;
+	}
+
+	FQuat MakeQuatMappingLocalAxesToWorldAxes(
+		FVector LocalBladeAxis,
+		FVector LocalFaceAxis,
+		FVector DesiredBladeWorld,
+		FVector DesiredFaceWorld)
+	{
+		LocalBladeAxis = LocalBladeAxis.GetSafeNormal();
+		LocalFaceAxis = ProjectDirectionOnPlaneSafe(LocalFaceAxis, LocalBladeAxis, FVector::RightVector);
+		DesiredBladeWorld = DesiredBladeWorld.GetSafeNormal();
+		DesiredFaceWorld = ProjectDirectionOnPlaneSafe(DesiredFaceWorld, DesiredBladeWorld, FVector::RightVector);
+
+		FQuat Result = FQuat::FindBetweenNormals(LocalBladeAxis, DesiredBladeWorld);
+		const FVector RotatedFaceAxis = Result.RotateVector(LocalFaceAxis).GetSafeNormal();
+		const float TwistSin = FVector::DotProduct(FVector::CrossProduct(RotatedFaceAxis, DesiredFaceWorld), DesiredBladeWorld);
+		const float TwistCos = FVector::DotProduct(RotatedFaceAxis, DesiredFaceWorld);
+		const float TwistRadians = FMath::Atan2(TwistSin, TwistCos);
+		Result = FQuat(DesiredBladeWorld, TwistRadians) * Result;
+		Result.Normalize();
+
+#if DO_CHECK
+		const FVector TestBlade = Result.RotateVector(LocalBladeAxis).GetSafeNormal();
+		const FVector TestFace = Result.RotateVector(LocalFaceAxis).GetSafeNormal();
+		ensureMsgf(
+			FVector::DotProduct(TestBlade, DesiredBladeWorld) > 0.98f,
+			TEXT("GodFall EntryOrbit cone rotation blade axis mapping failed."));
+		ensureMsgf(
+			FVector::DotProduct(TestFace, DesiredFaceWorld) > 0.98f,
+			TEXT("GodFall EntryOrbit cone rotation face axis mapping failed."));
+#endif
+
+		return Result;
+	}
+}
 
 // ===== 생성 =====
 
@@ -1356,6 +1430,169 @@ FRotator APRFaerinGodFallStaticSwordActor::ResolveEntryOrbitTiltRotation(const f
 	return FRotator(-TiltDegrees, OutwardYaw, 0.0f);
 }
 
+EPRFaerinGodFallStaticSwordState APRFaerinGodFallStaticSwordActor::ResolveCurrentVisualState() const
+{
+	if (bClientSwordEntryOrbitActive || bClientSwordEntryStraighteningActive || bClientSwordPresentationActive)
+	{
+		return ClientPresentationState;
+	}
+
+	return SwordState;
+}
+
+bool APRFaerinGodFallStaticSwordActor::IsEntryOrbitCenterFacingVisualState(
+	const EPRFaerinGodFallStaticSwordState VisualState) const
+{
+	if (!IsValid(GodFallData) || !GodFallData->bUseEntryOrbitCenterFacingConeRotation)
+	{
+		return false;
+	}
+
+	switch (VisualState)
+	{
+	case EPRFaerinGodFallStaticSwordState::EntryOrbitStartDelay:
+	case EPRFaerinGodFallStaticSwordState::EntryOrbitGathering:
+	case EPRFaerinGodFallStaticSwordState::EntryOrbitPreSpinHold:
+	case EPRFaerinGodFallStaticSwordState::EntryOrbiting:
+	case EPRFaerinGodFallStaticSwordState::EntryOrbitPostSpinHold:
+	case EPRFaerinGodFallStaticSwordState::EntryStraightening:
+		return true;
+	case EPRFaerinGodFallStaticSwordState::EntryDiving:
+	case EPRFaerinGodFallStaticSwordState::EntryImpact:
+		return GodFallData->bKeepEntryOrbitCenterFacingDuringImpactDrop;
+	default:
+		return false;
+	}
+}
+
+FVector APRFaerinGodFallStaticSwordActor::ResolveCurrentEntryOrbitPresentationLocationForRotation() const
+{
+	const EPRFaerinGodFallStaticSwordState VisualState = ResolveCurrentVisualState();
+	switch (VisualState)
+	{
+	case EPRFaerinGodFallStaticSwordState::EntryOrbitStartDelay:
+		return EntryOrbitGatherStartLocation;
+	case EPRFaerinGodFallStaticSwordState::EntryOrbitGathering:
+	{
+		const float TotalElapsedSeconds = bClientSwordEntryOrbitActive
+			? ClientEntryOrbitElapsedSeconds
+			: EntryOrbitElapsedSeconds;
+		const float GatherElapsedSeconds = FMath::Max(TotalElapsedSeconds - EntryOrbitStartDelaySeconds, 0.0f);
+		return ResolveEntryOrbitGatherLocation(GatherElapsedSeconds);
+	}
+	case EPRFaerinGodFallStaticSwordState::EntryOrbitPreSpinHold:
+		return ResolveEntryOrbitLocation(0.0f);
+	case EPRFaerinGodFallStaticSwordState::EntryOrbiting:
+	{
+		const float TotalElapsedSeconds = bClientSwordEntryOrbitActive
+			? ClientEntryOrbitElapsedSeconds
+			: EntryOrbitElapsedSeconds;
+		return ResolveEntryOrbitLocation(ResolveEntryOrbitSpinElapsedFromTotal(TotalElapsedSeconds));
+	}
+	case EPRFaerinGodFallStaticSwordState::EntryOrbitPostSpinHold:
+		return ResolveEntryOrbitLocation(EntryOrbitDurationSeconds);
+	case EPRFaerinGodFallStaticSwordState::EntryDiving:
+	case EPRFaerinGodFallStaticSwordState::EntryImpact:
+	case EPRFaerinGodFallStaticSwordState::EntryStraightening:
+		return GetActorLocation();
+	default:
+		return GetActorLocation();
+	}
+}
+
+FQuat APRFaerinGodFallStaticSwordActor::ResolveEntryOrbitCenterFacingConeWorldQuat(
+	const FVector& PresentationLocation,
+	const float EffectiveSpinElapsedSeconds) const
+{
+	if (!IsValid(GodFallData))
+	{
+		return GetActorQuat();
+	}
+
+	FVector RadialOut = PresentationLocation - EntryOrbitCenterLocation;
+	RadialOut.Z = 0.0f;
+	if (!RadialOut.Normalize())
+	{
+		const int32 SwordCount = 10;
+		const float BaseAngleDegrees = SwordCount > 0
+			? (360.0f / static_cast<float>(SwordCount)) * static_cast<float>(FMath::Max(SwordIndex, 0))
+			: 0.0f;
+		const float AngleRadians = FMath::DegreesToRadians(BaseAngleDegrees + ResolveEntryOrbitAngleDegrees(EffectiveSpinElapsedSeconds));
+		RadialOut = FVector(FMath::Cos(AngleRadians), FMath::Sin(AngleRadians), 0.0f);
+	}
+
+	const float Duration = FMath::Max(EntryOrbitDurationSeconds, UE_SMALL_NUMBER);
+	const float NormalizedTime = FMath::Clamp(EffectiveSpinElapsedSeconds / Duration, 0.0f, 1.0f);
+	const float TiltAlpha = ResolveEntryOrbitRangedAlpha(
+		NormalizedTime,
+		GodFallData->EntryOrbitTiltStartAlpha,
+		GodFallData->EntryOrbitTiltEndAlpha,
+		GodFallData->EntryOrbitTiltExponent);
+	const float TiltDegrees = FMath::Clamp(GodFallData->EntryOrbitMaxOutwardTiltDegrees, 0.0f, 89.0f) * TiltAlpha;
+	const float TiltRadians = FMath::DegreesToRadians(TiltDegrees);
+	const float ConeTiltDirectionSign = GodFallData->bInvertEntryOrbitCenterFacingConeTiltDirection ? -1.0f : 1.0f;
+	const FVector DesiredBladeWorld = (FVector::UpVector * FMath::Cos(TiltRadians)
+		+ RadialOut * ConeTiltDirectionSign * FMath::Sin(TiltRadians)).GetSafeNormal();
+	const FVector DesiredFaceWorld = ProjectDirectionOnPlaneSafe(-RadialOut, DesiredBladeWorld, -RadialOut);
+
+	const FVector LocalBladeAxis = ResolveGodFallLocalAxisVector(GodFallData->EntryOrbitConeLocalBladeAxis);
+	const FVector LocalFaceAxis = ResolveGodFallLocalAxisVector(GodFallData->EntryOrbitCenterFacingLocalFaceAxis);
+	FQuat WorldQuat = MakeQuatMappingLocalAxesToWorldAxes(
+		LocalBladeAxis,
+		LocalFaceAxis,
+		DesiredBladeWorld,
+		DesiredFaceWorld);
+	WorldQuat = WorldQuat * GodFallData->EntryOrbitCenterFacingRotationOffset.Quaternion();
+	return WorldQuat.GetNormalized();
+}
+
+FQuat APRFaerinGodFallStaticSwordActor::ResolveEntryOrbitCenterFacingConeRelativeQuat() const
+{
+	if (!IsValid(GodFallData)
+		|| !GodFallData->bUseEntryOrbitCenterFacingConeRotation
+		|| !IsValid(StaticSwordMeshComponent)
+		|| !IsEntryOrbitCenterFacingVisualState(ResolveCurrentVisualState()))
+	{
+		return MeshBaselineRelativeTransform.GetRotation();
+	}
+
+	const EPRFaerinGodFallStaticSwordState VisualState = ResolveCurrentVisualState();
+	const float TotalEntryOrbitElapsedSeconds = bClientSwordEntryOrbitActive
+		? ClientEntryOrbitElapsedSeconds
+		: EntryOrbitElapsedSeconds;
+	const float EffectiveSpinElapsedSeconds =
+		(VisualState == EPRFaerinGodFallStaticSwordState::EntryDiving
+			|| VisualState == EPRFaerinGodFallStaticSwordState::EntryImpact
+			|| VisualState == EPRFaerinGodFallStaticSwordState::EntryStraightening)
+			? EntryOrbitDurationSeconds
+			: ResolveEntryOrbitSpinElapsedFromTotal(TotalEntryOrbitElapsedSeconds);
+	const FVector PresentationLocation = ResolveCurrentEntryOrbitPresentationLocationForRotation();
+	const FQuat DesiredWorldQuat = ResolveEntryOrbitCenterFacingConeWorldQuat(PresentationLocation, EffectiveSpinElapsedSeconds);
+	const USceneComponent* AttachParentComponent = StaticSwordMeshComponent->GetAttachParent();
+	const FQuat ParentWorldQuat = IsValid(AttachParentComponent)
+		? AttachParentComponent->GetComponentQuat()
+		: FQuat::Identity;
+	const FQuat DesiredRelativeQuat = (ParentWorldQuat.Inverse() * DesiredWorldQuat).GetNormalized();
+
+	if (VisualState == EPRFaerinGodFallStaticSwordState::EntryStraightening)
+	{
+		const float StraightenElapsed = bClientSwordEntryStraighteningActive
+			? ClientEntryStraightenElapsedSeconds
+			: EntryStraightenElapsedSeconds;
+		const float StraightenDuration = bClientSwordEntryStraighteningActive
+			? ClientEntryStraightenDurationSeconds
+			: EntryStraightenDurationSeconds;
+		const float EaseExponent = bClientSwordEntryStraighteningActive
+			? ClientEntryStraightenEaseExponent
+			: EntryStraightenEaseExponent;
+		const float RawAlpha = FMath::Clamp(StraightenElapsed / FMath::Max(StraightenDuration, UE_SMALL_NUMBER), 0.0f, 1.0f);
+		const float Alpha = FMath::Pow(RawAlpha, FMath::Max(EaseExponent, 0.1f));
+		return FQuat::Slerp(DesiredRelativeQuat, MeshBaselineRelativeTransform.GetRotation(), Alpha).GetNormalized();
+	}
+
+	return DesiredRelativeQuat;
+}
+
 // ===== 피해 =====
 
 void APRFaerinGodFallStaticSwordActor::ApplySwordPresentationLocation(const FVector& Location)
@@ -1456,7 +1693,7 @@ void APRFaerinGodFallStaticSwordActor::UpdateSwordVisualPresentation(const float
 	VisualElapsedSeconds += DeltaSeconds;
 	VisualStateElapsedSeconds += DeltaSeconds;
 
-	// 적용 순서: Baseline -> HoverLocationDelta -> ChargeShakeLocation/RotationDelta -> ImpactSlantRotationDelta -> FinalRelativeTransform.
+	// 적용 순서: Baseline -> HoverLocationDelta -> ChargeShakeLocation/RotationDelta -> EntryOrbitRotation/CenterFacing -> ImpactSlantRotationDelta -> FinalRelativeTransform.
 	FVector FinalLocation = MeshBaselineRelativeTransform.GetLocation();
 	FQuat FinalRotation = MeshBaselineRelativeTransform.GetRotation();
 	const FVector FinalScale = MeshBaselineRelativeTransform.GetScale3D();
@@ -1469,7 +1706,15 @@ void APRFaerinGodFallStaticSwordActor::UpdateSwordVisualPresentation(const float
 	FinalLocation += ChargeShakeLocationDelta;
 	FinalRotation = FinalRotation * ChargeShakeRotationDelta.Quaternion();
 
-	FinalRotation = FinalRotation * ResolveEntryOrbitRotationDelta().Quaternion();
+	const EPRFaerinGodFallStaticSwordState VisualState = ResolveCurrentVisualState();
+	if (IsEntryOrbitCenterFacingVisualState(VisualState))
+	{
+		FinalRotation = ResolveEntryOrbitCenterFacingConeRelativeQuat();
+	}
+	else
+	{
+		FinalRotation = FinalRotation * ResolveEntryOrbitRotationDelta().Quaternion();
+	}
 	FinalRotation = FinalRotation * ResolveImpactSlantRotationDelta().Quaternion();
 
 	StaticSwordMeshComponent->SetRelativeTransform(FTransform(FinalRotation, FinalLocation, FinalScale));
@@ -1482,9 +1727,7 @@ bool APRFaerinGodFallStaticSwordActor::ShouldTickSwordVisual() const
 		return false;
 	}
 
-	const EPRFaerinGodFallStaticSwordState VisualState = bClientSwordPresentationActive
-		? ClientPresentationState
-		: SwordState;
+	const EPRFaerinGodFallStaticSwordState VisualState = ResolveCurrentVisualState();
 
 	const bool bCanHover = GodFallData->bEnableStaticSwordHoverVisual
 		&& (VisualState == EPRFaerinGodFallStaticSwordState::Charging
@@ -1541,9 +1784,7 @@ FVector APRFaerinGodFallStaticSwordActor::ResolveHoverLocationDelta() const
 		return FVector::ZeroVector;
 	}
 
-	const EPRFaerinGodFallStaticSwordState VisualState = bClientSwordPresentationActive
-		? ClientPresentationState
-		: SwordState;
+	const EPRFaerinGodFallStaticSwordState VisualState = ResolveCurrentVisualState();
 	if (VisualState != EPRFaerinGodFallStaticSwordState::Charging
 		&& VisualState != EPRFaerinGodFallStaticSwordState::Charged
 		&& VisualState != EPRFaerinGodFallStaticSwordState::MovingToTargetOverhead
@@ -1565,9 +1806,7 @@ void APRFaerinGodFallStaticSwordActor::ResolveChargeShakeDelta(FVector& OutLocat
 	OutLocationDelta = FVector::ZeroVector;
 	OutRotationDelta = FRotator::ZeroRotator;
 
-	const EPRFaerinGodFallStaticSwordState VisualState = bClientSwordPresentationActive
-		? ClientPresentationState
-		: SwordState;
+	const EPRFaerinGodFallStaticSwordState VisualState = ResolveCurrentVisualState();
 	if (!IsValid(GodFallData)
 		|| !GodFallData->bEnableChargeShakeVisual
 		|| VisualState != EPRFaerinGodFallStaticSwordState::Charging)
@@ -1593,9 +1832,7 @@ void APRFaerinGodFallStaticSwordActor::ResolveChargeShakeDelta(FVector& OutLocat
 
 FRotator APRFaerinGodFallStaticSwordActor::ResolveEntryOrbitRotationDelta() const
 {
-	const EPRFaerinGodFallStaticSwordState VisualState = bClientSwordPresentationActive
-		? ClientPresentationState
-		: SwordState;
+	const EPRFaerinGodFallStaticSwordState VisualState = ResolveCurrentVisualState();
 	if (!IsValid(GodFallData)
 		|| !GodFallData->bUseEntryOrbitBeforeImpact
 		|| (VisualState != EPRFaerinGodFallStaticSwordState::EntryOrbitStartDelay
@@ -1666,9 +1903,7 @@ FRotator APRFaerinGodFallStaticSwordActor::ResolveImpactSlantRotationDelta() con
 
 float APRFaerinGodFallStaticSwordActor::ResolveImpactSlantAlpha() const
 {
-	const EPRFaerinGodFallStaticSwordState VisualState = bClientSwordPresentationActive
-		? ClientPresentationState
-		: SwordState;
+	const EPRFaerinGodFallStaticSwordState VisualState = ResolveCurrentVisualState();
 
 	if (VisualState == EPRFaerinGodFallStaticSwordState::Dropping)
 	{

@@ -20,6 +20,8 @@ class UMaterialInstanceDynamic;
 class UNiagaraComponent;
 class UNiagaraSystem;
 class UTexture;
+class APRPlayerCharacter;
+struct FPREnemyTargetingConfig;
 
 // Faerin 보스 본체 클래스다.
 // 패턴 분기와 포털/검 생성 로직은 넣지 않고, 보스 공통 베이스에 Faerin 기본 데이터만 얹는다.
@@ -37,6 +39,9 @@ public:
 	/*~ APRBossBaseCharacter Interface ~*/
 	// 보스와 플레이어의 실제 교전 확인 후 HUD 조우 시작 요청
 	virtual void RequestBossEncounterBegin() override;
+
+	/*~ IPREnemyInterface ~*/
+	virtual void CustomizeEnemyTargetingConfig(FPREnemyTargetingConfig& InOutTargetingConfig) const override;
 	
 	/*~ APRFaerinCharacter Interface ~*/ 
 	// God Fall 맵 배치 Rig 전환과 지속 검 hazard를 담당하는 component를 반환한다.
@@ -53,6 +58,13 @@ public:
 
 	UFUNCTION(BlueprintPure, Category = "ProjectR|AI|Boss|Faerin")
 	bool IsBossEncounterActive() const { return bBossEncounterActive; }
+
+	// 인카운터 전투 시작 시 참가자와 주 대상자를 ThreatComponent에 주입한다.
+	UFUNCTION(BlueprintCallable, Category = "ProjectR|AI|Boss|Faerin|Encounter")
+	void SeedEncounterTargets(
+		const TArray<APRPlayerCharacter*>& Participants,
+		APRPlayerCharacter* PrimaryTarget,
+		float ThreatAmount = 1000.0f);
 
 	// 근거리 텔레포트 순간 보스 몸 위치의 Niagara를 모든 클라이언트에 재생한다.
 	UFUNCTION(NetMulticast, Reliable)
@@ -117,6 +129,27 @@ public:
 	// 근거리 텔레포트 사라짐/재등장 상태를 모든 클라이언트에 맞춘다.
 	UFUNCTION(NetMulticast, Reliable)
 	void Multicast_SetNearTeleportHidden(bool bShouldHide);
+
+	// 분신이 본체에 복귀했을 때 서버에서 페어린 체력을 회복하고 회복 VFX를 전파한다.
+	void ApplyFaerinCloneMergeHeal(
+		float HealAmount,
+		float HealMaxHealthRatio,
+		UNiagaraSystem* HealNiagaraSystem,
+		FName AttachSocketName,
+		FVector LocationOffset,
+		FRotator RotationOffset,
+		FVector Scale,
+		float LifeSeconds);
+
+	// 분신 복귀 회복 Niagara를 모든 클라이언트에서 재생한다.
+	UFUNCTION(NetMulticast, Reliable)
+	void Multicast_SpawnFaerinCloneHealNiagara(
+		UNiagaraSystem* HealNiagaraSystem,
+		FName AttachSocketName,
+		FVector LocationOffset,
+		FRotator RotationOffset,
+		FVector Scale,
+		float LifeSeconds);
 
 protected:
 	/*~ AActor Interface ~*/

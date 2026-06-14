@@ -31,7 +31,7 @@ UPRGA_SwapWeapon::UPRGA_SwapWeapon()
 	// SetCurrentWeaponSlot이 내부에서 클라→서버 RPC를 처리하므로 어빌리티는 서버에서만 실행
 	ReplicationPolicy = EGameplayAbilityReplicationPolicy::ReplicateYes;
 	InstancingPolicy = EGameplayAbilityInstancingPolicy::InstancedPerActor;
-	NetExecutionPolicy = EGameplayAbilityNetExecutionPolicy::ServerOnly;
+	NetExecutionPolicy = EGameplayAbilityNetExecutionPolicy::LocalPredicted;
 	ActivationPolicy = EPRAbilityActivationPolicy::OnInputTriggered;
 }
 

@@ -148,7 +148,7 @@ private:
 
 	// 로딩 오버레이 표시 ack 최대 대기 시간
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|Interaction|Waypoint", meta = (AllowPrivateAccess = "true", ClampMin = "0.0"))
-	float LoadingScreenReadyTimeout = 0.35f;
+	float LoadingScreenReadyTimeout = 1.25f;
 
 	// 로딩 오버레이 표시 ack 확인 간격
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|Interaction|Waypoint", meta = (AllowPrivateAccess = "true", ClampMin = "0.01"))

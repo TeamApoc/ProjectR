@@ -20,7 +20,7 @@ namespace
 {
 	const FName ProjectRSessionName(TEXT("ProjectRSession"));
 	constexpr int32 LocalUserNum = 0;
-	constexpr float LoadingOverlayTravelDelay = 0.05f;
+	constexpr float LoadingOverlayTravelDelay = 1.0f;
 
 	FString NormalizeMapPackageName(const FString& MapPackageName)
 	{

@@ -16,6 +16,10 @@ APRBossBaseCharacter::APRBossBaseCharacter()
 {
 	// 페이즈 임계값은 보스 BP/데이터에서 설정한다. C++ 기본값을 두면 몬스터별 튜닝이 하드코딩된다.
 	bUseWorldHealthBar = false;
+	TickOptimizationConfig.TickActivationRadius = 15000.f;
+	TickOptimizationConfig.TickDeactivationRadius = 20000.f;
+	TickOptimizationConfig.TickAlwaysActiveActivationRadius = 15000.f;
+	TickOptimizationConfig.TickAlwaysActiveDeactivationRadius = 20000.f;
 }
 
 void APRBossBaseCharacter::BeginPlay()

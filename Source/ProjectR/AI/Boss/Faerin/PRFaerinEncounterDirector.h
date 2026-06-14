@@ -2,6 +2,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Camera/PlayerCameraManager.h"
 #include "GameFramework/Actor.h"
 #include "ProjectR/AI/Boss/Faerin/PREncounterDialogueData.h"
 #include "TimerManager.h"
@@ -12,8 +13,10 @@ class APRFaerinEncounterBoundaryActor;
 class APRPlayerCharacter;
 class UAnimationAsset;
 class UAnimSequenceBase;
+class UAudioComponent;
 class ULevelSequence;
 class ULevelSequencePlayer;
+class USceneComponent;
 
 UENUM(BlueprintType)
 enum class EFaerinEncounterState : uint8
@@ -59,7 +62,7 @@ struct PROJECTR_API FPRFaerinPresentationIdleBinding
 
 // 원작 StageShot ID와 실제 카메라 Actor를 연결하기 위한 편집용 매핑이다.
 USTRUCT(BlueprintType)
-struct PROJECTR_API FPRFaerinDialogueCameraShotBinding
+struct PROJECTR_API FPRFaerinDialogueStageShotCameraBinding
 {
 	GENERATED_BODY()
 
@@ -70,6 +73,22 @@ struct PROJECTR_API FPRFaerinDialogueCameraShotBinding
 	// StageShot 전환에 사용할 카메라 Actor
 	UPROPERTY(EditInstanceOnly, BlueprintReadWrite, Category = "ProjectR|AI|Boss|Faerin|Dialogue|Camera")
 	TObjectPtr<AActor> CameraActor = nullptr;
+
+	// StageShot 카메라 전환 블렌드 시간
+	UPROPERTY(EditInstanceOnly, BlueprintReadWrite, Category = "ProjectR|AI|Boss|Faerin|Dialogue|Camera", meta = (ClampMin = "0.0"))
+	float BlendTime = 0.15f;
+
+	// StageShot 카메라 전환 블렌드 함수
+	UPROPERTY(EditInstanceOnly, BlueprintReadWrite, Category = "ProjectR|AI|Boss|Faerin|Dialogue|Camera")
+	TEnumAsByte<EViewTargetBlendFunction> BlendFunc = VTBlend_Cubic;
+
+	// StageShot 카메라 전환 블렌드 지수
+	UPROPERTY(EditInstanceOnly, BlueprintReadWrite, Category = "ProjectR|AI|Boss|Faerin|Dialogue|Camera", meta = (ClampMin = "0.0"))
+	float BlendExp = 2.0f;
+
+	// StageShot 카메라 전환 시 기존 카메라를 잠글지 여부
+	UPROPERTY(EditInstanceOnly, BlueprintReadWrite, Category = "ProjectR|AI|Boss|Faerin|Dialogue|Camera")
+	bool bLockOutgoing = false;
 };
 
 // Intro 종료 뒤 마지막 연출 애니메이션을 그대로 loop하기 위한 Actor별 바인딩이다.
@@ -97,6 +116,33 @@ struct PROJECTR_API FPRFaerinPresentationTailLoopBinding
 	// 애니메이션 적용 후 Actor/Mesh transform을 적용 전 값으로 되돌릴지 여부
 	UPROPERTY(EditInstanceOnly, BlueprintReadWrite, Category = "ProjectR|AI|Boss|Faerin|Presentation")
 	bool bPreserveActorTransform = true;
+};
+
+// Intro/FightStart LevelSequence와 별도로 런타임에서 재생할 음성 cue 설정이다.
+USTRUCT(BlueprintType)
+struct PROJECTR_API FPRFaerinSequenceVoiceCue
+{
+	GENERATED_BODY()
+
+	// 음성을 재생할 인카운터 시퀀스
+	UPROPERTY(EditInstanceOnly, BlueprintReadWrite, Category = "ProjectR|AI|Boss|Faerin|Sequence|Voice")
+	EFaerinEncounterSequence SequenceType = EFaerinEncounterSequence::Intro;
+
+	// 현재 프로젝트 SoundWave/SoundCue 경로
+	UPROPERTY(EditInstanceOnly, BlueprintReadWrite, Category = "ProjectR|AI|Boss|Faerin|Sequence|Voice")
+	FSoftObjectPath SoundPath;
+
+	// 시퀀스 시작 후 재생할 시간
+	UPROPERTY(EditInstanceOnly, BlueprintReadWrite, Category = "ProjectR|AI|Boss|Faerin|Sequence|Voice", meta = (ClampMin = "0.0"))
+	float StartTimeSeconds = 0.0f;
+
+	// 로그와 식별용 cue 이름
+	UPROPERTY(EditInstanceOnly, BlueprintReadWrite, Category = "ProjectR|AI|Boss|Faerin|Sequence|Voice")
+	FName CueId = NAME_None;
+
+	// true면 DialogueVoiceActor/Cine_Faerin에 부착하고, false면 해당 위치에서 재생한다.
+	UPROPERTY(EditInstanceOnly, BlueprintReadWrite, Category = "ProjectR|AI|Boss|Faerin|Sequence|Voice")
+	bool bAttachToVoiceActor = true;
 };
 
 UCLASS(Blueprintable)
@@ -165,6 +211,15 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "ProjectR|AI|Boss|Faerin|Dialogue|Presentation")
 	void HandleDialogueNodePresentedLocal(const FPRFaerinDialogueNode& Node);
 
+	// 대화 StageShot ID에 대응하는 카메라 설정을 찾는다.
+	const FPRFaerinDialogueStageShotCameraBinding* FindDialogueStageShotCameraBinding(FName CameraShotId) const;
+
+	// 로컬 대화 이모트 재생 타이머를 정리하고 필요하면 기본 idle/tail loop로 복귀한다.
+	void ClearDialogueEmotePlaybackLocal(bool bRestoreIdle);
+
+	// 로컬 대화 음성 재생을 중지한다.
+	void StopDialogueVoiceLocal();
+
 protected:
 	UFUNCTION()
 	void OnRep_CurrentState(EFaerinEncounterState PreviousState);
@@ -186,6 +241,9 @@ protected:
 
 	UFUNCTION(NetMulticast, Reliable)
 	void MulticastApplyIntroStartLoopAnimations();
+
+	UFUNCTION(NetMulticast, Reliable)
+	void MulticastStopSequenceVoiceCues(FName Reason);
 
 	UFUNCTION(BlueprintImplementableEvent, Category = "ProjectR|AI|Boss|Faerin|Encounter")
 	void ReceiveEncounterStateChanged(EFaerinEncounterState PreviousState, EFaerinEncounterState NewState);
@@ -220,6 +278,7 @@ private:
 	void RecoverFightStartFailure();
 	void GetPlayersFromSet(const TSet<TWeakObjectPtr<APRPlayerCharacter>>& Players, TArray<APRPlayerCharacter*>& OutPlayers) const;
 	void SetInputLockedForPlayers(const TArray<APRPlayerCharacter*>& Players, bool bLock) const;
+	void RestoreViewTargetForPlayers(const TArray<APRPlayerCharacter*>& Players, float BlendTime, const TCHAR* Reason) const;
 	void AlignCombatStartParticipants();
 	void ApplySlotTransform(APRPlayerCharacter* Player, const FTransform& SlotTransform) const;
 	FTransform ResolveSlotTransform(AActor* SlotActor, const FTransform& FallbackTransform) const;
@@ -234,6 +293,21 @@ private:
 	void ApplyIntroStartLoopAnimationsLocal();
 	void ApplyIntroTailAnimationLoopsLocal();
 	void PrimeIntroStartPoseLocal();
+	void HandleDialogueVoiceEventLocal(const FSoftObjectPath& VoiceEventPath, FName NodeId);
+	void HandleDialogueEmoteChangedLocal(FName EmoteId, const FString& EmoteObjectPath);
+	void RestoreDialogueEmoteIdleLocal();
+	void ClearDialogueEmoteReturnTimerLocal();
+	AActor* ResolveDialogueEmoteActor() const;
+	void ForceDetachFightStartFaerinPresentationActorLocal(FName Reason);
+	AActor* ResolveDialogueVoiceActor() const;
+	USceneComponent* ResolveDialogueVoiceAttachComponent(AActor* VoiceActor) const;
+	void ScheduleSequenceVoiceCuesLocal(EFaerinEncounterSequence SequenceType);
+	void StopSequenceVoiceCuesLocal(FName Reason);
+	void PlaySequenceVoiceCueLocal(
+		EFaerinEncounterSequence SequenceType,
+		FName CueId,
+		FSoftObjectPath SoundPath,
+		bool bAttachToVoiceActor);
 	void PlayIdleAnimationOnPresentationActor(AActor* Actor, UAnimSequenceBase* Animation, bool bLoop) const;
 	void PlaySingleNodeAnimationOnPresentationActor(
 		AActor* Actor,
@@ -271,9 +345,33 @@ public:
 	UPROPERTY(EditInstanceOnly, BlueprintReadWrite, Category = "ProjectR|AI|Boss|Faerin|Encounter|Sequence")
 	TObjectPtr<ULevelSequence> FightStartSequence = nullptr;
 
+	// Intro/FightStart 종료 후 플레이어 카메라로 복귀할 때 사용하는 블렌드 시간
+	UPROPERTY(EditInstanceOnly, BlueprintReadWrite, Category = "ProjectR|AI|Boss|Faerin|Encounter|Camera", meta = (ClampMin = "0.0"))
+	float IntroCameraRestoreBlendTime = 0.35f;
+
+	// FightStart 종료 후 플레이어 카메라로 복귀할 때 사용하는 블렌드 시간
+	UPROPERTY(EditInstanceOnly, BlueprintReadWrite, Category = "ProjectR|AI|Boss|Faerin|Encounter|Camera", meta = (ClampMin = "0.0"))
+	float FightStartCameraRestoreBlendTime = 0.35f;
+
+	// FightStart 첫 평가에서 Faerin 초기 attach/pose를 받은 뒤 분리하기까지의 지연 시간
+	UPROPERTY(EditInstanceOnly, BlueprintReadWrite, Category = "ProjectR|AI|Boss|Faerin|Encounter|Sequence", meta = (ClampMin = "0.0"))
+	float FightStartFaerinDetachDelaySeconds = 0.08f;
+
 	// 컷신/선택지 대사 DataAsset
 	UPROPERTY(EditInstanceOnly, BlueprintReadWrite, Category = "ProjectR|AI|Boss|Faerin|Encounter|Dialogue")
 	TObjectPtr<UPRFaerinEncounterDialogueData> DialogueData = nullptr;
+
+	// 대화 이모트 AnimSequence를 1회 재생할 Faerin 연출 Actor. 비어 있으면 Cine_Faerin 이름을 가진 PresentationActor를 찾는다.
+	UPROPERTY(EditInstanceOnly, BlueprintReadWrite, Category = "ProjectR|AI|Boss|Faerin|Dialogue|Emote")
+	TObjectPtr<AActor> DialogueEmoteActor = nullptr;
+
+	// 대화 음성을 재생할 Faerin 연출 Actor. 비어 있으면 DialogueEmoteActor 또는 Cine_Faerin PresentationActor를 사용한다.
+	UPROPERTY(EditInstanceOnly, BlueprintReadWrite, Category = "ProjectR|AI|Boss|Faerin|Dialogue|Voice")
+	TObjectPtr<AActor> DialogueVoiceActor = nullptr;
+
+	// Intro/FightStart 시퀀스에 맞춰 런타임에서 재생할 음성 cue 목록
+	UPROPERTY(EditInstanceOnly, BlueprintReadWrite, Category = "ProjectR|AI|Boss|Faerin|Encounter|Sequence|Voice")
+	TArray<FPRFaerinSequenceVoiceCue> SequenceVoiceCues;
 
 	// BeginPlay 시점에 Intro 첫 프레임 pose/transform을 미리 평가할지 여부
 	UPROPERTY(EditInstanceOnly, BlueprintReadWrite, Category = "ProjectR|AI|Boss|Faerin|Presentation|Intro")
@@ -309,7 +407,7 @@ public:
 
 	// 원작 StageShot ID와 실제 카메라 Actor 편집용 매핑
 	UPROPERTY(EditInstanceOnly, BlueprintReadWrite, Category = "ProjectR|AI|Boss|Faerin|Dialogue|Camera")
-	TArray<FPRFaerinDialogueCameraShotBinding> DialogueCameraShotBindings;
+	TArray<FPRFaerinDialogueStageShotCameraBinding> DialogueStageShotCameraBindings;
 
 	// 선택 플레이어 기준 왼쪽 배치 슬롯 Actor
 	UPROPERTY(EditInstanceOnly, BlueprintReadWrite, Category = "ProjectR|AI|Boss|Faerin|Encounter|Slots")
@@ -367,13 +465,22 @@ private:
 	UPROPERTY(Transient)
 	TArray<TObjectPtr<ALevelSequenceActor>> ActiveSequenceActors;
 
+	UPROPERTY(Transient)
+	TObjectPtr<UAudioComponent> ActiveDialogueVoiceAudioComponent = nullptr;
+
+	UPROPERTY(Transient)
+	TArray<TObjectPtr<UAudioComponent>> ActiveSequenceVoiceAudioComponents;
+
 	TSet<TWeakObjectPtr<APRPlayerCharacter>> IntroRequiredPlayers;
 	TSet<TWeakObjectPtr<APRPlayerCharacter>> IntroEnteredPlayers;
 	TSet<TWeakObjectPtr<APRPlayerCharacter>> CombatStartParticipants;
 
 	FTimerHandle IntroSequenceTimerHandle;
 	FTimerHandle FightStartSequenceTimerHandle;
+	FTimerHandle DialogueEmoteReturnTimerHandle;
+	TArray<FTimerHandle> SequenceVoiceTimerHandles;
 
 	bool bResettingCombatBoss = false;
 	bool bCombatBossDefeated = false;
+	bool bDialogueEmotePlaying = false;
 };

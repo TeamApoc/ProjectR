@@ -6,6 +6,7 @@
 #include "ProjectR/UI/PRWidgetBase.h"
 #include "PRFaerinEncounterChoiceWidget.generated.h"
 
+class AActor;
 class APRFaerinEncounterDirector;
 class UButton;
 class UPRFaerinEncounterDialogueData;
@@ -82,6 +83,9 @@ private:
 	void ExecuteDialogueAction(EPRFaerinDialogueOptionAction Action);
 	bool ShouldAutoAdvanceNode(const FPRFaerinDialogueNode& Node) const;
 	bool IsTerminalActionNode(const FPRFaerinDialogueNode& Node) const;
+	void CaptureDialogueCameraRestoreTarget();
+	void ApplyDialogueStageShotCamera(FName CameraShotId);
+	void RestoreDialogueCamera();
 
 	UFUNCTION()
 	void HandleContinueClicked();
@@ -251,5 +255,11 @@ private:
 	UPROPERTY(Transient)
 	FName CurrentDialogueNodeId = NAME_None;
 
+	UPROPERTY(Transient)
+	TWeakObjectPtr<AActor> PreviousDialogueViewTarget;
+
 	TMap<FName, int32> DialogueNodeIndexById;
+
+	bool bHasDialogueCameraRestoreTarget = false;
+	bool bSuppressDialogueCameraRestore = false;
 };

@@ -5,6 +5,7 @@
 #include "Components/Button.h"
 #include "Components/TextBlock.h"
 #include "Components/Widget.h"
+#include "GameFramework/PlayerController.h"
 #include "ProjectR/AI/Boss/Faerin/PRFaerinEncounterDirector.h"
 #include "ProjectR/Player/PRPlayerController.h"
 
@@ -24,6 +25,12 @@ void UPRFaerinEncounterChoiceWidget::NativeConstruct()
 
 void UPRFaerinEncounterChoiceWidget::NativeDestruct()
 {
+	if (IsValid(EncounterDirector))
+	{
+		EncounterDirector->ClearDialogueEmotePlaybackLocal(!bSuppressDialogueCameraRestore);
+		EncounterDirector->StopDialogueVoiceLocal();
+	}
+	RestoreDialogueCamera();
 	UnbindNativeDialogueButtons();
 	Super::NativeDestruct();
 }
@@ -33,7 +40,9 @@ void UPRFaerinEncounterChoiceWidget::InitializeChoice(APRFaerinEncounterDirector
 	EncounterDirector = InDirector;
 	ActiveDialogueData = IsValid(InDirector) ? InDirector->GetDialogueData() : nullptr;
 	CurrentDialogueNodeId = NAME_None;
+	bSuppressDialogueCameraRestore = false;
 	RebuildDialogueLookup();
+	CaptureDialogueCameraRestoreTarget();
 
 	BP_OnChoiceInitialized(InDirector);
 
@@ -127,6 +136,9 @@ void UPRFaerinEncounterChoiceWidget::RequestFight()
 		return;
 	}
 
+	bSuppressDialogueCameraRestore = true;
+	EncounterDirector->ClearDialogueEmotePlaybackLocal(false);
+	EncounterDirector->StopDialogueVoiceLocal();
 	PlayerController->ServerChooseFaerinEncounterFight(EncounterDirector);
 }
 
@@ -138,6 +150,9 @@ void UPRFaerinEncounterChoiceWidget::RequestDecline()
 		return;
 	}
 
+	EncounterDirector->ClearDialogueEmotePlaybackLocal(true);
+	EncounterDirector->StopDialogueVoiceLocal();
+	RestoreDialogueCamera();
 	PlayerController->ServerChooseFaerinEncounterDecline(EncounterDirector);
 }
 
@@ -165,6 +180,87 @@ TArray<FPRFaerinDialogueOption> UPRFaerinEncounterChoiceWidget::GetCurrentDialog
 }
 
 // ===== 대화 그래프 탐색 =====
+
+void UPRFaerinEncounterChoiceWidget::CaptureDialogueCameraRestoreTarget()
+{
+	PreviousDialogueViewTarget.Reset();
+	bHasDialogueCameraRestoreTarget = false;
+
+	const APlayerController* PlayerController = GetOwningPlayer();
+	if (!IsValid(PlayerController))
+	{
+		return;
+	}
+
+	AActor* ViewTarget = PlayerController->GetViewTarget();
+	if (!IsValid(ViewTarget))
+	{
+		return;
+	}
+
+	PreviousDialogueViewTarget = ViewTarget;
+	bHasDialogueCameraRestoreTarget = true;
+}
+
+void UPRFaerinEncounterChoiceWidget::ApplyDialogueStageShotCamera(FName CameraShotId)
+{
+	if (CameraShotId.IsNone())
+	{
+		return;
+	}
+
+	UE_LOG(LogTemp, Log, TEXT("[FaerinDialogueCamera] Apply StageShotId=%s"), *CameraShotId.ToString());
+
+	APRPlayerController* PlayerController = Cast<APRPlayerController>(GetOwningPlayer());
+	if (!IsValid(PlayerController) || !IsValid(EncounterDirector.Get()))
+	{
+		return;
+	}
+
+	const FPRFaerinDialogueStageShotCameraBinding* Binding =
+		EncounterDirector->FindDialogueStageShotCameraBinding(CameraShotId);
+	if (Binding == nullptr)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[FaerinDialogueCamera] Missing binding. StageShotId=%s"), *CameraShotId.ToString());
+		return;
+	}
+
+	if (!IsValid(Binding->CameraActor))
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[FaerinDialogueCamera] Missing camera actor. StageShotId=%s"), *CameraShotId.ToString());
+		return;
+	}
+
+	PlayerController->SetViewTargetWithBlend(
+		Binding->CameraActor,
+		Binding->BlendTime,
+		Binding->BlendFunc.GetValue(),
+		Binding->BlendExp,
+		Binding->bLockOutgoing);
+}
+
+void UPRFaerinEncounterChoiceWidget::RestoreDialogueCamera()
+{
+	if (bSuppressDialogueCameraRestore)
+	{
+		return;
+	}
+
+	if (!bHasDialogueCameraRestoreTarget)
+	{
+		return;
+	}
+
+	APRPlayerController* PlayerController = Cast<APRPlayerController>(GetOwningPlayer());
+	AActor* ViewTarget = PreviousDialogueViewTarget.Get();
+	if (IsValid(PlayerController) && IsValid(ViewTarget))
+	{
+		PlayerController->SetViewTargetWithBlend(ViewTarget, 0.15f, VTBlend_Cubic, 2.0f, false);
+	}
+
+	PreviousDialogueViewTarget.Reset();
+	bHasDialogueCameraRestoreTarget = false;
+}
 
 void UPRFaerinEncounterChoiceWidget::BindNativeDialogueButtons()
 {
@@ -460,6 +556,7 @@ bool UPRFaerinEncounterChoiceWidget::SetCurrentDialogueNode(FName NodeId)
 
 		if (Node->NodeType == EPRFaerinDialogueNodeType::StageShot && !Node->CameraShotId.IsNone())
 		{
+			ApplyDialogueStageShotCamera(Node->CameraShotId);
 			BP_OnDialogueStageShotChanged(Node->CameraShotId);
 		}
 

@@ -708,6 +708,22 @@ void APRPlayerController::ClientSetEncounterInputLock_Implementation(bool bLock)
 	SetIgnoreLookInput(bLock);
 }
 
+void APRPlayerController::ClientRestoreFaerinEncounterViewTarget_Implementation(float BlendTime)
+{
+	if (!IsLocalController())
+	{
+		return;
+	}
+
+	APawn* LocalPawn = GetPawn();
+	if (!IsValid(LocalPawn))
+	{
+		return;
+	}
+
+	SetViewTargetWithBlend(LocalPawn, FMath::Max(BlendTime, 0.0f), VTBlend_Cubic, 2.0f, false);
+}
+
 void APRPlayerController::ClientNotifyWeaponUpgradeResult_Implementation(const FPRWeaponUpgradeResult& Result)
 {
 	OnWeaponUpgradeResult.Broadcast(Result);

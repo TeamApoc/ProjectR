@@ -138,6 +138,10 @@ public:
 	// 서버 권위 인카운터 연출 중 소유 클라이언트의 이동/시야 입력 잠금을 적용한다.
 	UFUNCTION(Client, Reliable)
 	void ClientSetEncounterInputLock(bool bLock);
+
+	// 서버 권위 인카운터 연출 종료 후 소유 클라이언트의 카메라를 현재 Pawn으로 복구한다.
+	UFUNCTION(Client, Reliable)
+	void ClientRestoreFaerinEncounterViewTarget(float BlendTime);
 	
 	// 서버 -> 본인 클라. 무기 강화 결과를 UI에 전달한다
 	UFUNCTION(Client, Reliable)

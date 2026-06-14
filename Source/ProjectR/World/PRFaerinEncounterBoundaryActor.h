@@ -60,6 +60,10 @@ public:
 	UFUNCTION(BlueprintPure, Category = "ProjectR|AI|Boss|Faerin|Encounter")
 	bool IsPlayerInsideArena(APRPlayerCharacter* Player) const;
 
+	// 서버 전용 추적 목록 대신 ArenaVolume의 실제 위치와 크기로 플레이어 포함 여부를 판정한다.
+	UFUNCTION(BlueprintPure, Category = "ProjectR|AI|Boss|Faerin|Encounter")
+	bool IsPlayerPhysicallyInsideArena(APRPlayerCharacter* Player) const;
+
 protected:
 	UFUNCTION()
 	void HandleArenaBeginOverlap(

@@ -144,7 +144,32 @@ bool APRFaerinEncounterDirector::CanOpenChoiceDialogue(APRPlayerCharacter* Playe
 		return false;
 	}
 
-	if (IsValid(BoundaryActor) && !BoundaryActor->IsPlayerInsideArena(Player))
+	if (IsValid(BoundaryActor)
+		&& !BoundaryActor->IsPlayerInsideArena(Player)
+		&& !BoundaryActor->IsPlayerPhysicallyInsideArena(Player))
+	{
+		return false;
+	}
+
+	return true;
+}
+
+bool APRFaerinEncounterDirector::CanShowChoiceDialoguePrompt(APRPlayerCharacter* Player) const
+{
+	if (!IsEligibleEncounterPlayer(Player))
+	{
+		return false;
+	}
+
+	const bool bChoiceState =
+		CurrentState == EFaerinEncounterState::NegotiationIdle ||
+		CurrentState == EFaerinEncounterState::Declined;
+	if (!bChoiceState)
+	{
+		return false;
+	}
+
+	if (IsValid(BoundaryActor) && !BoundaryActor->IsPlayerPhysicallyInsideArena(Player))
 	{
 		return false;
 	}

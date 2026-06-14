@@ -4,9 +4,11 @@
 #include "PRInteractableComponent.h"
 #include "PRInteractionAction.h"
 #include "PRInteractionInterface.h"
+#include "Components/PrimitiveComponent.h"
 #include "GameFramework/Controller.h"
 #include "GameFramework/Pawn.h"
 #include "Net/UnrealNetwork.h"
+#include "ProjectR/ProjectR.h"
 #include "ProjectR/PRGameplayTags.h"
 #include "ProjectR/System/PREventManagerSubsystem.h"
 
@@ -413,7 +415,29 @@ bool UPRInteractorComponent::IsWithinRange(const UPRInteractableComponent* Targe
 		return false;
 	}
 	
-	const float DistSq = FVector::DistSquared(Pawn->GetActorLocation(), TargetComponent->GetActorLocation());
+	const FVector PawnLocation = Pawn->GetActorLocation();
+	float DistSq = FVector::DistSquared(PawnLocation, TargetComponent->GetActorLocation());
+
+	if (const AActor* TargetOwner = TargetComponent->GetOwner())
+	{
+		TArray<UPrimitiveComponent*> PrimitiveComponents;
+		TargetOwner->GetComponents<UPrimitiveComponent>(PrimitiveComponents);
+
+		for (const UPrimitiveComponent* PrimitiveComponent : PrimitiveComponents)
+		{
+			if (!IsValid(PrimitiveComponent)
+				|| PrimitiveComponent->GetCollisionEnabled() == ECollisionEnabled::NoCollision
+				|| PrimitiveComponent->GetCollisionObjectType() != PRCollisionChannels::ECC_Interactable)
+			{
+				continue;
+			}
+
+			// 포커스 후보를 만든 상호작용 콜리전의 실제 범위 기준으로 거리 판정을 보정한다.
+			const FVector ClosestPoint = PrimitiveComponent->Bounds.GetBox().GetClosestPointTo(PawnLocation);
+			DistSq = FMath::Min(DistSq, FVector::DistSquared(PawnLocation, ClosestPoint));
+		}
+	}
+
 	return DistSq <= FMath::Square(MaxInteractionDistance * TargetComponent->InteractionRangeScale);
 }
 

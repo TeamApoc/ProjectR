@@ -114,6 +114,22 @@ bool APRFaerinEncounterBoundaryActor::IsPlayerInsideArena(APRPlayerCharacter* Pl
 	return ContainsPlayer(ArenaInsidePlayers, Player);
 }
 
+bool APRFaerinEncounterBoundaryActor::IsPlayerPhysicallyInsideArena(APRPlayerCharacter* Player) const
+{
+	if (!IsValid(Player) || !IsValid(ArenaVolume))
+	{
+		return false;
+	}
+
+	const FTransform VolumeTransform = ArenaVolume->GetComponentTransform();
+	const FVector LocalPoint = VolumeTransform.InverseTransformPosition(Player->GetActorLocation());
+	const FVector Extent = ArenaVolume->GetScaledBoxExtent();
+
+	return FMath::Abs(LocalPoint.X) <= Extent.X
+		&& FMath::Abs(LocalPoint.Y) <= Extent.Y
+		&& FMath::Abs(LocalPoint.Z) <= Extent.Z;
+}
+
 void APRFaerinEncounterBoundaryActor::HandleArenaBeginOverlap(
 	UPrimitiveComponent* OverlappedComponent,
 	AActor* OtherActor,

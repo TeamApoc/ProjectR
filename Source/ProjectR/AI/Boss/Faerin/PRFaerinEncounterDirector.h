@@ -62,6 +62,10 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "ProjectR|AI|Boss|Faerin|Encounter")
 	bool CanOpenChoiceDialogue(APRPlayerCharacter* Player) const;
 
+	// 클라이언트 상호작용 힌트 표시용 예측 조건을 확인한다. 서버 최종 검증은 CanOpenChoiceDialogue가 담당한다.
+	UFUNCTION(BlueprintCallable, Category = "ProjectR|AI|Boss|Faerin|Encounter")
+	bool CanShowChoiceDialoguePrompt(APRPlayerCharacter* Player) const;
+
 	// 선택 대화 상태로 진입하고 선택권자를 기록한다.
 	UFUNCTION(BlueprintCallable, Category = "ProjectR|AI|Boss|Faerin|Encounter")
 	void StartChoiceDialogue(APRPlayerCharacter* Player);

@@ -18,7 +18,17 @@ UPRInteraction_FaerinEncounterChoice::UPRInteraction_FaerinEncounterChoice()
 bool UPRInteraction_FaerinEncounterChoice::CanInteract_Implementation(AActor* Interactor) const
 {
 	APRPlayerCharacter* Player = Cast<APRPlayerCharacter>(GetPawn(Interactor));
-	return IsValid(Player) && IsValid(EncounterDirector) && EncounterDirector->CanOpenChoiceDialogue(Player);
+	if (!IsValid(Player) || !IsValid(EncounterDirector))
+	{
+		return false;
+	}
+
+	if (EncounterDirector->HasAuthority())
+	{
+		return EncounterDirector->CanOpenChoiceDialogue(Player);
+	}
+
+	return EncounterDirector->CanShowChoiceDialoguePrompt(Player);
 }
 
 void UPRInteraction_FaerinEncounterChoice::Execute_Implementation(AActor* Interactor)

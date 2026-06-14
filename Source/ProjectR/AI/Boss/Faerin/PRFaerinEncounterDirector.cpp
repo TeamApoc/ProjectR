@@ -2,11 +2,16 @@
 
 #include "PRFaerinEncounterDirector.h"
 
+#include "Animation/AnimSingleNodeInstance.h"
+#include "Animation/AnimSequenceBase.h"
+#include "Components/SkeletalMeshComponent.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "LevelSequence.h"
 #include "LevelSequenceActor.h"
 #include "LevelSequencePlayer.h"
 #include "MovieScene.h"
+#include "MovieSceneSequencePlaybackSettings.h"
+#include "MovieSceneSequencePlayer.h"
 #include "Net/UnrealNetwork.h"
 #include "ProjectR/AI/Boss/PRBossSpawnProviderInterface.h"
 #include "ProjectR/AI/Components/PREnemyThreatComponent.h"
@@ -31,6 +36,16 @@ APRFaerinEncounterDirector::APRFaerinEncounterDirector()
 void APRFaerinEncounterDirector::BeginPlay()
 {
 	Super::BeginPlay();
+
+	if (bPrimeIntroStartPoseOnBeginPlay)
+	{
+		PrimeIntroStartPoseLocal();
+	}
+
+	if (bApplyIntroStartLoopBeforeIntro)
+	{
+		ApplyIntroStartLoopAnimationsLocal();
+	}
 
 	if (!HasAuthority())
 	{
@@ -245,6 +260,7 @@ void APRFaerinEncounterDirector::ChooseDecline(APRPlayerCharacter* Player)
 	GetPlayersFromSet(CombatStartParticipants, Participants);
 	SetInputLockedForPlayers(Participants, false);
 	MulticastSetPresentationActorsHidden(false);
+	MulticastApplyNegotiationPresentationIdle();
 	if (IsValid(BoundaryActor))
 	{
 		BoundaryActor->SetBoundaryMode(EFaerinBoundaryMode::Negotiation);
@@ -309,6 +325,29 @@ void APRFaerinEncounterDirector::MarkDefeated()
 
 // ===== 복제/멀티캐스트 =====
 
+void APRFaerinEncounterDirector::HandleDialogueNodePresentedLocal(const FPRFaerinDialogueNode& Node)
+{
+	if (Node.NodeType == EPRFaerinDialogueNodeType::StageShot && !Node.CameraShotId.IsNone())
+	{
+		ReceiveDialogueStageShotChanged(Node.CameraShotId);
+	}
+
+	if (Node.NodeType == EPRFaerinDialogueNodeType::Dialog)
+	{
+		if (Node.VoiceEventPath.IsValid())
+		{
+			ReceiveDialogueVoiceEvent(Node.VoiceEventPath);
+		}
+
+		if (!Node.EmoteId.IsNone() || !Node.EmoteObjectPath.IsEmpty())
+		{
+			ReceiveDialogueEmoteChanged(Node.EmoteId, Node.EmoteObjectPath);
+		}
+	}
+
+	ReceiveDialogueNodePresented(Node);
+}
+
 void APRFaerinEncounterDirector::OnRep_CurrentState(EFaerinEncounterState PreviousState)
 {
 	ReceiveEncounterStateChanged(PreviousState, CurrentState);
@@ -352,6 +391,21 @@ void APRFaerinEncounterDirector::MulticastSetPresentationActorsHidden_Implementa
 }
 
 // ===== 상태/플레이어 관리 =====
+
+void APRFaerinEncounterDirector::MulticastApplyNegotiationPresentationIdle_Implementation()
+{
+	ApplyNegotiationPresentationIdleLocal();
+}
+
+void APRFaerinEncounterDirector::MulticastPrimeIntroStartPose_Implementation()
+{
+	PrimeIntroStartPoseLocal();
+}
+
+void APRFaerinEncounterDirector::MulticastApplyIntroStartLoopAnimations_Implementation()
+{
+	ApplyIntroStartLoopAnimationsLocal();
+}
 
 bool APRFaerinEncounterDirector::IsEligibleEncounterPlayer(APRPlayerCharacter* Player) const
 {
@@ -488,6 +542,16 @@ void APRFaerinEncounterDirector::StartIntroSequence()
 		BoundaryActor->SetBoundaryMode(EFaerinBoundaryMode::Intro);
 	}
 
+	if (bPrimeIntroStartPoseBeforeIntro)
+	{
+		MulticastPrimeIntroStartPose();
+	}
+
+	if (bApplyIntroStartLoopBeforeIntro)
+	{
+		MulticastApplyIntroStartLoopAnimations();
+	}
+
 	SetEncounterState(EFaerinEncounterState::IntroCutsceneDialogue);
 	MulticastPlayEncounterSequence(EFaerinEncounterSequence::Intro);
 
@@ -521,6 +585,8 @@ void APRFaerinEncounterDirector::FinishIntroSequence()
 		BoundaryActor->SetBoundaryMode(EFaerinBoundaryMode::Negotiation);
 	}
 
+	MulticastSetPresentationActorsHidden(false);
+	MulticastApplyNegotiationPresentationIdle();
 	SetEncounterState(EFaerinEncounterState::NegotiationIdle);
 }
 
@@ -607,6 +673,7 @@ void APRFaerinEncounterDirector::RestoreNegotiationAfterWipe()
 	ResetCombatBoss();
 	CloseChoiceUIForInstigator();
 	MulticastSetPresentationActorsHidden(false);
+	MulticastApplyNegotiationPresentationIdle();
 
 	TArray<APRPlayerCharacter*> Participants;
 	GetPlayersFromSet(CombatStartParticipants, Participants);
@@ -630,6 +697,7 @@ void APRFaerinEncounterDirector::RecoverFightStartFailure()
 	CloseChoiceUIForInstigator();
 	SetInputLockedForPlayers(Participants, false);
 	MulticastSetPresentationActorsHidden(false);
+	MulticastApplyNegotiationPresentationIdle();
 
 	if (IsValid(BoundaryActor))
 	{
@@ -871,6 +939,155 @@ float APRFaerinEncounterDirector::GetSequenceDurationSeconds(ULevelSequence* Seq
 	return FMath::Max(static_cast<float>(static_cast<double>(FrameCount) / TickResolutionDecimal), 0.0f);
 }
 
+void APRFaerinEncounterDirector::ApplyNegotiationPresentationIdleLocal()
+{
+	if (bUseIntroTailLoopAfterIntro && IntroTailLoopBindings.Num() > 0)
+	{
+		ApplyIntroTailAnimationLoopsLocal();
+		return;
+	}
+
+	ApplyConfiguredNegotiationIdleLocal();
+}
+
+void APRFaerinEncounterDirector::ApplyConfiguredNegotiationIdleLocal()
+{
+	if (!bApplyNegotiationIdleAfterIntro)
+	{
+		return;
+	}
+
+	for (const FPRFaerinPresentationIdleBinding& Binding : NegotiationIdleBindings)
+	{
+		PlayIdleAnimationOnPresentationActor(Binding.Actor, Binding.IdleAnimation, Binding.bLoop);
+	}
+}
+
+void APRFaerinEncounterDirector::ApplyIntroStartLoopAnimationsLocal()
+{
+	for (const FPRFaerinPresentationTailLoopBinding& Binding : IntroStartLoopBindings)
+	{
+		PlaySingleNodeAnimationOnPresentationActor(
+			Binding.Actor,
+			Binding.LoopAnimation,
+			Binding.StartPositionSeconds,
+			Binding.bLoop,
+			Binding.bPreserveActorTransform);
+	}
+}
+
+void APRFaerinEncounterDirector::ApplyIntroTailAnimationLoopsLocal()
+{
+	for (const FPRFaerinPresentationTailLoopBinding& Binding : IntroTailLoopBindings)
+	{
+		PlaySingleNodeAnimationOnPresentationActor(
+			Binding.Actor,
+			Binding.LoopAnimation,
+			Binding.StartPositionSeconds,
+			Binding.bLoop,
+			Binding.bPreserveActorTransform);
+	}
+}
+
+void APRFaerinEncounterDirector::PrimeIntroStartPoseLocal()
+{
+	if (!IsValid(IntroSequence))
+	{
+		return;
+	}
+
+	UWorld* World = GetWorld();
+	if (!IsValid(World))
+	{
+		return;
+	}
+
+	UMovieScene* MovieScene = IntroSequence->GetMovieScene();
+	if (!IsValid(MovieScene))
+	{
+		return;
+	}
+
+	const TRange<FFrameNumber> PlaybackRange = MovieScene->GetPlaybackRange();
+	if (!PlaybackRange.HasLowerBound())
+	{
+		return;
+	}
+
+	FMovieSceneSequencePlaybackSettings PlaybackSettings;
+	PlaybackSettings.bDisableCameraCuts = true;
+	PlaybackSettings.FinishCompletionStateOverride = EMovieSceneCompletionModeOverride::ForceKeepState;
+
+	ALevelSequenceActor* SequenceActor = nullptr;
+	ULevelSequencePlayer* SequencePlayer = ULevelSequencePlayer::CreateLevelSequencePlayer(
+		World,
+		IntroSequence,
+		PlaybackSettings,
+		SequenceActor);
+	if (!IsValid(SequencePlayer))
+	{
+		return;
+	}
+
+	const FFrameTime StartFrameTime(PlaybackRange.GetLowerBoundValue());
+	SequencePlayer->SetPlaybackPosition(FMovieSceneSequencePlaybackParams(StartFrameTime, EUpdatePositionMethod::Jump));
+
+	if (IsValid(SequenceActor))
+	{
+		SequenceActor->Destroy();
+	}
+}
+
+void APRFaerinEncounterDirector::PlayIdleAnimationOnPresentationActor(
+	AActor* Actor,
+	UAnimSequenceBase* Animation,
+	bool bLoop) const
+{
+	PlaySingleNodeAnimationOnPresentationActor(Actor, Animation, 0.0f, bLoop, true);
+}
+
+void APRFaerinEncounterDirector::PlaySingleNodeAnimationOnPresentationActor(
+	AActor* Actor,
+	UAnimationAsset* Animation,
+	float StartPositionSeconds,
+	bool bLoop,
+	bool bPreserveActorTransform) const
+{
+	if (!IsValid(Actor) || !IsValid(Animation))
+	{
+		return;
+	}
+
+	USkeletalMeshComponent* MeshComponent = Actor->FindComponentByClass<USkeletalMeshComponent>();
+	if (!IsValid(MeshComponent))
+	{
+		UE_LOG(
+			LogTemp,
+			Warning,
+			TEXT("FaerinEncounterDirector presentation actor has no SkeletalMeshComponent. Actor=%s"),
+			*Actor->GetName());
+		return;
+	}
+
+	const FTransform SavedActorTransform = Actor->GetActorTransform();
+	const FTransform SavedMeshRelativeTransform = MeshComponent->GetRelativeTransform();
+	const float ClampedStartPosition = FMath::Max(StartPositionSeconds, 0.0f);
+
+	MeshComponent->PlayAnimation(Animation, bLoop);
+	if (UAnimSingleNodeInstance* SingleNodeInstance = Cast<UAnimSingleNodeInstance>(MeshComponent->GetAnimInstance()))
+	{
+		SingleNodeInstance->SetLooping(bLoop);
+		SingleNodeInstance->SetPosition(ClampedStartPosition, false);
+		SingleNodeInstance->SetPlaying(true);
+	}
+
+	if (bPreserveActorTransform)
+	{
+		Actor->SetActorTransform(SavedActorTransform, false, nullptr, ETeleportType::TeleportPhysics);
+		MeshComponent->SetRelativeTransform(SavedMeshRelativeTransform);
+	}
+}
+
 void APRFaerinEncounterDirector::PlaySequenceLocal(EFaerinEncounterSequence SequenceType)
 {
 	ULevelSequence* Sequence = SequenceType == EFaerinEncounterSequence::Intro
@@ -888,6 +1105,11 @@ void APRFaerinEncounterDirector::PlaySequenceLocal(EFaerinEncounterSequence Sequ
 	}
 
 	FMovieSceneSequencePlaybackSettings PlaybackSettings;
+	if (SequenceType == EFaerinEncounterSequence::Intro)
+	{
+		PlaybackSettings.FinishCompletionStateOverride = EMovieSceneCompletionModeOverride::ForceKeepState;
+	}
+
 	ALevelSequenceActor* SequenceActor = nullptr;
 	ULevelSequencePlayer* SequencePlayer = ULevelSequencePlayer::CreateLevelSequencePlayer(
 		World,

@@ -26,6 +26,7 @@
 #include "ProjectR/UI/FloatingText/PRFloatingTextManager.h"
 #include "ProjectR/Interaction/PRInteractionSensor.h"
 #include "ProjectR/Interaction/PRInteractorComponent.h"
+#include "ProjectR/AI/Boss/Faerin/PRFaerinEncounterDirector.h"
 #include "ProjectR/Character/PRPlayerCharacter.h"
 #include "ProjectR/Interaction/PRInteractableComponent.h"
 #include "ProjectR/Game/PRGameStateBase.h"
@@ -701,6 +702,12 @@ void APRPlayerController::ClientShowPartyWipeWidget_Implementation(TSubclassOf<U
 	}
 }
 
+void APRPlayerController::ClientSetEncounterInputLock_Implementation(bool bLock)
+{
+	SetIgnoreMoveInput(bLock);
+	SetIgnoreLookInput(bLock);
+}
+
 void APRPlayerController::ClientNotifyWeaponUpgradeResult_Implementation(const FPRWeaponUpgradeResult& Result)
 {
 	OnWeaponUpgradeResult.Broadcast(Result);
@@ -735,6 +742,26 @@ void APRPlayerController::ClientOpenWaypointTravelUI_Implementation(bool bShowWo
 
 	// 호스트 로컬 UI 표시
 	UIControllerComponent->OpenWaypointTravel(bShowWorldResetButton);
+}
+
+void APRPlayerController::ClientOpenFaerinEncounterChoice_Implementation(APRFaerinEncounterDirector* Director)
+{
+	if (!IsLocalController() || !IsValid(UIControllerComponent))
+	{
+		return;
+	}
+
+	UIControllerComponent->OpenFaerinEncounterChoice(Director);
+}
+
+void APRPlayerController::ClientCloseFaerinEncounterChoice_Implementation()
+{
+	if (!IsLocalController() || !IsValid(UIControllerComponent))
+	{
+		return;
+	}
+
+	UIControllerComponent->CloseFaerinEncounterChoice();
 }
 
 void APRPlayerController::ClientNotifyShopBuyResult_Implementation(const FPRShopBuyResult& Result)
@@ -863,6 +890,28 @@ void APRPlayerController::RequestConfirmTraitInvestment(const FPRTraitInvestment
 void APRPlayerController::RequestResetTraitInvestment()
 {
 	ServerRequestResetTraitInvestment();
+}
+
+void APRPlayerController::ServerChooseFaerinEncounterFight_Implementation(APRFaerinEncounterDirector* Director)
+{
+	APRPlayerCharacter* RequestingPlayer = Cast<APRPlayerCharacter>(GetPawn());
+	if (!IsValid(Director) || !IsValid(RequestingPlayer))
+	{
+		return;
+	}
+
+	Director->ChooseFight(RequestingPlayer);
+}
+
+void APRPlayerController::ServerChooseFaerinEncounterDecline_Implementation(APRFaerinEncounterDirector* Director)
+{
+	APRPlayerCharacter* RequestingPlayer = Cast<APRPlayerCharacter>(GetPawn());
+	if (!IsValid(Director) || !IsValid(RequestingPlayer))
+	{
+		return;
+	}
+
+	Director->ChooseDecline(RequestingPlayer);
 }
 
 void APRPlayerController::ServerRequestUpgradeWeapon_Implementation(UPRWeaponUpgradeComponent* UpgradeComponent, UPRItemInstance_Weapon* WeaponItem)

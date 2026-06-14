@@ -15,6 +15,9 @@ class APRPlayerState;
 class USoundBase;
 class UUserWidget;
 
+DECLARE_DYNAMIC_MULTICAST_DELEGATE(FPRPartyWipeConfirmedSignature);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE(FPRPartyRespawnedSignature);
+
 // 인게임 GameMode. 호스트 프로세스에만 존재
 // 로그인 승인, 게스트 캐릭터 페이로드 검증, 월드 상태 주입, 이탈 시 보상 커밋을 담당
 UCLASS()
@@ -50,6 +53,15 @@ public:
 
 	// 기본 웨이포인트 해금
 	void UnlockDefaultWaypoints();
+
+public:
+	// 파티 전멸이 확정되어 리스폰 대기 상태로 들어갈 때 발행된다.
+	UPROPERTY(BlueprintAssignable, Category = "ProjectR|Survival")
+	FPRPartyWipeConfirmedSignature OnPartyWipeConfirmed;
+
+	// 파티 리스폰 처리가 끝나고 전멸 진행 플래그가 해제된 뒤 발행된다.
+	UPROPERTY(BlueprintAssignable, Category = "ProjectR|Survival")
+	FPRPartyRespawnedSignature OnPartyRespawned;
 
 protected:
 	// 페이로드 검증. 실패 시 OutReason에 사유 기록

@@ -391,6 +391,30 @@ void UPREnemyThreatComponent::ReleaseCurrentTargetForSearch(AActor* LostTarget)
 		return;
 	}
 
+	const bool bShouldRetainTarget = ShouldRetainPlayerTargetOnExplicitLoss(LostTarget);
+	if (bShouldRetainTarget)
+	{
+		if (CurrentTarget == LostTarget)
+		{
+			ForceCurrentTarget(LostTarget);
+		}
+
+		for (FPREnemyTargetCandidate& Entry : TargetCandidates)
+		{
+			if (Entry.Target == LostTarget)
+			{
+				Entry.bCurrentlyPerceived = false;
+				Entry.bHasLOS = false;
+				Entry.LastKnownLocation = LostTarget->GetActorLocation();
+				break;
+			}
+		}
+
+		LogTargetDebugState(TEXT("ReleaseCurrentTargetForSearch-Retained"));
+		DrawTargetDebugState(TEXT("ReleaseCurrentTargetForSearch-Retained"));
+		return;
+	}
+
 	if (CurrentTarget == LostTarget)
 	{
 		// Threat 기록은 남겨두되 현재 타겟만 비워 마지막 위치 수색 브랜치가 실행되도록 한다.
@@ -417,6 +441,15 @@ void UPREnemyThreatComponent::OnTargetLost(AActor* LostTarget)
 {
 	if (!GetOwner() || !GetOwner()->HasAuthority() || !IsValid(LostTarget))
 	{
+		return;
+	}
+
+	if (ShouldRetainPlayerTargetOnExplicitLoss(LostTarget))
+	{
+		MarkTargetPerceptionLost(LostTarget, LostTarget->GetActorLocation());
+		ForceCurrentTarget(LostTarget);
+		LogTargetDebugState(TEXT("OnTargetLost-Retained"));
+		DrawTargetDebugState(TEXT("OnTargetLost-Retained"));
 		return;
 	}
 
@@ -821,19 +854,60 @@ bool UPREnemyThreatComponent::ShouldRemoveTargetCandidate(const FPREnemyTargetCa
 		return true;
 	}
 
+	if (ShouldRetainPlayerCandidate(Candidate))
+	{
+		return false;
+	}
+
 	if (Candidate.bCurrentlyPerceived)
 	{
 		return false;
 	}
 
 	const AActor* OwnerActor = GetOwner();
-	if (IsValid(OwnerActor) && TargetingConfig.EngagementRetainRadius > 0.0f)
+	const bool bIgnoreRetainRadius = TargetingConfig.bIgnoreEngagementRetainRadiusForPlayerCandidates
+		&& UPRCombatStatics::GetActorTeam(Candidate.Target.Get()) == EPRTeam::Player;
+	if (!bIgnoreRetainRadius && IsValid(OwnerActor) && TargetingConfig.EngagementRetainRadius > 0.0f)
 	{
 		const float DistanceToTarget = FVector::Dist(OwnerActor->GetActorLocation(), Candidate.Target->GetActorLocation());
 		return DistanceToTarget > TargetingConfig.EngagementRetainRadius;
 	}
 
 	return (CurrentTime - Candidate.LastUpdatedTime) > TargetingConfig.CandidateForgetTime;
+}
+
+bool UPREnemyThreatComponent::ShouldRetainPlayerCandidate(const FPREnemyTargetCandidate& Candidate) const
+{
+	if (!IsValidThreatTarget(Candidate.Target)
+		|| UPRCombatStatics::GetActorTeam(Candidate.Target.Get()) != EPRTeam::Player)
+	{
+		return false;
+	}
+
+	if (TargetingConfig.bNeverForgetPlayerCandidates)
+	{
+		return true;
+	}
+
+	return TargetingConfig.bKeepCurrentTargetDuringPhaseTransition && IsOwnerPhaseTransitioning();
+}
+
+bool UPREnemyThreatComponent::ShouldRetainPlayerTargetOnExplicitLoss(AActor* Target) const
+{
+	if (!IsValidThreatTarget(Target) || UPRCombatStatics::GetActorTeam(Target) != EPRTeam::Player)
+	{
+		return false;
+	}
+
+	return TargetingConfig.bNeverForgetPlayerCandidates
+		|| (TargetingConfig.bKeepCurrentTargetDuringPhaseTransition && IsOwnerPhaseTransitioning());
+}
+
+bool UPREnemyThreatComponent::IsOwnerPhaseTransitioning() const
+{
+	const UAbilitySystemComponent* OwnerAbilitySystem = UPRCombatStatics::FindAbilitySystemComponent(GetOwner());
+	return IsValid(OwnerAbilitySystem)
+		&& OwnerAbilitySystem->HasMatchingGameplayTag(PRGameplayTags::State_PhaseTransitioning);
 }
 
 void UPREnemyThreatComponent::QueuePendingTarget(AActor* NewTarget, float CandidateScore)

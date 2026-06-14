@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "GameFramework/Actor.h"
+#include "ProjectR/AI/Boss/PRBossSpawnProviderInterface.h"
 #include "PRBossSpawner.generated.h"
 
 class UCapsuleComponent;
@@ -20,7 +21,7 @@ struct FInstancedStruct;
  * 3. EventManager가 Event.Boss.Spawn을 BroadcastEmpty로 발행한 경우 등록된 APRBossSpawner가 수신 후 스폰
  */
 UCLASS()
-class PROJECTR_API APRBossSpawner : public AActor
+class PROJECTR_API APRBossSpawner : public AActor, public IPRBossSpawnProviderInterface
 {
 	GENERATED_BODY()
 
@@ -35,6 +36,13 @@ public:
 	// 보스 캐릭터 스폰 실행
 	UFUNCTION(BlueprintCallable)
 	APRBossBaseCharacter* SpawnBossCharacter();
+
+	/*~ IPRBossSpawnProviderInterface ~*/
+	// 인카운터 디렉터가 전투 시작 시 실제 보스를 스폰하도록 요청한다.
+	virtual AActor* SpawnBossForEncounter_Implementation() override;
+
+	// 인카운터 리셋 시 스폰된 보스를 정리한다.
+	virtual void ResetBossForEncounter_Implementation(AActor* SpawnedBoss) override;
 	
 private:
 	// 보스 스폰 이벤트 수신 처리
@@ -46,6 +54,10 @@ public:
 	
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "PR|Spawn")
 	bool bAutoSpawn = true;
+
+	// 전역 Event.Boss.Spawn 요청을 구독할지 여부. 인카운터 전용 스포너는 Director가 직접 호출하므로 끈다.
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "PR|Spawn")
+	bool bListenForGlobalBossSpawnEvent = true;
 	
 private:
 	UPROPERTY(VisibleAnywhere)

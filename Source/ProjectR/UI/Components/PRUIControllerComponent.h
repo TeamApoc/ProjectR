@@ -18,6 +18,7 @@
 class UPRWidgetBase;
 class APlayerController;
 class APawn;
+class APRFaerinEncounterDirector;
 class UWidget;
 class UUserWidget;
 class UPREquipmentManagerComponent;
@@ -27,6 +28,7 @@ class UPRInventoryComponent;
 class UPRInventoryWidget;
 class UPRItemDataAsset;
 class UPRItemTooltipWidget;
+class UPRFaerinEncounterChoiceWidget;
 class UPROptionWidget;
 class UPRPlayerMenu;
 class UPRQuickSlotComponent;
@@ -147,6 +149,10 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "ProjectR|UI")
 	void OpenWaypointTravel(bool bShowWorldResetButton = false);
 
+	// Faerin 인카운터 선택 UI를 열고 Director 컨텍스트를 전달한다
+	UFUNCTION(BlueprintCallable, Category = "ProjectR|UI")
+	void OpenFaerinEncounterChoice(APRFaerinEncounterDirector* Director);
+
 	// 강화 위젯이 열려 있으면 닫는다
 	UFUNCTION(BlueprintCallable, Category = "ProjectR|UI")
 	void CloseWeaponUpgrade();
@@ -158,6 +164,10 @@ public:
 	// 웨이포인트 Travel UI 닫기
 	UFUNCTION(BlueprintCallable, Category = "ProjectR|UI")
 	void CloseWaypointTravel();
+
+	// Faerin 인카운터 선택 UI가 열려 있으면 닫는다
+	UFUNCTION(BlueprintCallable, Category = "ProjectR|UI")
+	void CloseFaerinEncounterChoice();
 
 	// 현재 캐시된 인벤토리 위젯을 반환한다
 	UFUNCTION(BlueprintPure, Category = "ProjectR|UI")
@@ -247,6 +257,9 @@ private:
 	// 웨이포인트 Travel UI 인스턴스 생성 또는 캐시 반환
 	UPRWaypointTravelWidget* GetOrCreateWaypointTravelWidget();
 
+	// Faerin 인카운터 선택 UI 인스턴스를 생성하거나 캐시된 인스턴스를 반환한다
+	UPRFaerinEncounterChoiceWidget* GetOrCreateFaerinEncounterChoiceWidget();
+
 	// 특성 창 위젯 인스턴스를 생성하거나 캐시된 인스턴스를 반환한다
 	UPRTraitWindowWidget* GetOrCreateTraitWindowWidget();
 
@@ -318,6 +331,10 @@ protected:
 	UPROPERTY(EditDefaultsOnly, Category = "ProjectR|WaypointTravel")
 	TSubclassOf<UPRWaypointTravelWidget> WaypointTravelWidgetClass;
 
+	// Faerin 인카운터 선택 UI 위젯 클래스
+	UPROPERTY(EditDefaultsOnly, Category = "ProjectR|Faerin|Encounter")
+	TSubclassOf<UPRFaerinEncounterChoiceWidget> FaerinEncounterChoiceWidgetClass;
+
 	// 특성 창 위젯 클래스
 	UPROPERTY(EditDefaultsOnly, Category = "ProjectR|Growth")
 	TSubclassOf<UPRTraitWindowWidget> TraitWindowWidgetClass;
@@ -341,6 +358,10 @@ protected:
 	// 생성 후 재사용할 웨이포인트 Travel UI 위젯
 	UPROPERTY(Transient)
 	TObjectPtr<UPRWaypointTravelWidget> WaypointTravelWidget;
+
+	// 생성 후 재사용할 Faerin 인카운터 선택 UI 위젯
+	UPROPERTY(Transient)
+	TObjectPtr<UPRFaerinEncounterChoiceWidget> FaerinEncounterChoiceWidget;
 
 	// HUD 위젯 클래스
 	UPROPERTY(EditDefaultsOnly, Category = "ProjectR|HUD")

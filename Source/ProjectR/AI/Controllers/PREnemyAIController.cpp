@@ -125,7 +125,9 @@ void APREnemyAIController::OnPossess(APawn* InPawn)
 		const UPREnemyCombatDataAsset* EnemyCombatDataAsset = Cast<UPREnemyCombatDataAsset>(EnemyInterface->GetCombatDataAsset());
 		if (IsValid(EnemyCombatDataAsset))
 		{
-			CachedThreatComponent->SetTargetingConfig(EnemyCombatDataAsset->TargetingConfig);
+			FPREnemyTargetingConfig TargetingConfig = EnemyCombatDataAsset->TargetingConfig;
+			EnemyInterface->CustomizeEnemyTargetingConfig(TargetingConfig);
+			CachedThreatComponent->SetTargetingConfig(TargetingConfig);
 		}
 
 		CachedThreatComponent->OnTargetChanged.AddDynamic(this, &APREnemyAIController::HandleThreatTargetChanged);

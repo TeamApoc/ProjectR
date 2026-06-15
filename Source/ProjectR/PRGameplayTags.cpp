@@ -76,6 +76,7 @@ namespace PRGameplayTags
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Ability_Boss_Faerin_CrashSequence, "Ability.Boss.Faerin.CrashSequence", "Faerin Crash 패턴 어빌리티");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Ability_Boss_Faerin_CrashDropSequence, "Ability.Boss.Faerin.CrashDropSequence", "Faerin CrashDrop 패턴 어빌리티");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Ability_Boss_Faerin_ThrowSequence, "Ability.Boss.Faerin.ThrowSequence", "Faerin Throw 패턴 어빌리티");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Ability_Boss_Faerin_CloneSequence, "Ability.Boss.Faerin.CloneSequence", "Faerin 분신 소환 패턴 어빌리티");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Ability_Boss_Faerin_ApproachSprint, "Ability.Boss.Faerin.ApproachSprint", "Faerin 스프린트 접근 액션");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Ability_Boss_Faerin_TeleportDash, "Ability.Boss.Faerin.TeleportDash", "Faerin 텔레포트 대시");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Ability_Boss_Faerin_EnergyRain, "Ability.Boss.Faerin.EnergyRain", "Faerin 범위 압박");
@@ -91,6 +92,7 @@ namespace PRGameplayTags
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Pattern_Boss_Faerin_Sword, "Pattern.Boss.Faerin.Sword", "Faerin 검 근접 계열 패턴");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Pattern_Boss_Faerin_Crash, "Pattern.Boss.Faerin.Crash", "Faerin Crash 계열 패턴");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Pattern_Boss_Faerin_Throw, "Pattern.Boss.Faerin.Throw", "Faerin Throw 계열 패턴");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Pattern_Boss_Faerin_Clone, "Pattern.Boss.Faerin.Clone", "Faerin 분신 계열 패턴");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Pattern_Boss_Faerin_Fallback, "Pattern.Boss.Faerin.Fallback", "Faerin 패턴 실패 시 보조 이동 식별");
 
 	// ===== State.* ====

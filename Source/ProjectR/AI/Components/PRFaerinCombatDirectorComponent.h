@@ -245,6 +245,12 @@ protected:
 	// 선택된 패턴이 포털 계열인지 확인한다.
 	bool IsPortalPatternPlan(const FPRFaerinPatternPlan& PatternPlan) const;
 
+	// Phase3/4 진입 직후 첫 본공격 전에는 보조 포털을 억제해야 하는지 확인한다.
+	bool ShouldSuppressPortalAssistForCurrentPhase() const;
+
+	// 첫 본공격 억제 규칙을 적용할 페이즈인지 확인한다.
+	bool IsFirstMainPatternPortalSuppressionPhase(EPRBossPhase Phase) const;
+
 	// 페이즈가 바뀌었으면 주기 보조 패턴 스케줄을 초기화한다.
 	void RefreshPeriodicSidePatternPhase(EPRBossPhase CurrentPhase);
 
@@ -460,5 +466,6 @@ private:
 	bool bHasLoggedInitializationError = false;
 	bool bHasPendingMainPatternPlan = false;
 	bool bHasPeriodicSidePatternPhase = false;
+	bool bHasStartedMainPatternInCurrentPhase = false;
 	bool bHasLoopTargetCommit = false;
 };

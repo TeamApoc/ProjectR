@@ -171,19 +171,23 @@ bool UPRFaerinGodFallComponent::StartGodFallEntry(AActor* InPatternTarget)
 	EntryRuntimeState = EPRFaerinGodFallEntryRuntimeState::Idle;
 	CurrentGodFallPhase = EPRBossPhase::Phase2;
 
+	ApplyGodFallInvulnerability();
 	StartMovingToCastLocation();
 	return true;
 }
 
 void UPRFaerinGodFallComponent::CancelGodFallEntry()
 {
-	if (!bGodFallEntryRunning && EntryRuntimeState == EPRFaerinGodFallEntryRuntimeState::Idle)
+	if (!bGodFallEntryRunning
+		&& EntryRuntimeState == EPRFaerinGodFallEntryRuntimeState::Idle
+		&& !bGodFallInvulnerabilityApplied)
 	{
 		return;
 	}
 
 	ClearRigTimers();
 	CancelSwordRisePoiseDamage();
+	ClearGodFallInvulnerability();
 	MulticastCleanupGodFallBodyNiagara();
 	bGodFallEntryRunning = false;
 	PendingEntryOrbitImpactSwordCount = 0;
@@ -204,6 +208,51 @@ void UPRFaerinGodFallComponent::CancelGodFallEntry()
 			SetPlacedRigHidden(true);
 		}
 	}
+}
+
+void UPRFaerinGodFallComponent::ApplyGodFallInvulnerability()
+{
+	if (bGodFallInvulnerabilityApplied)
+	{
+		return;
+	}
+
+	APRBossBaseCharacter* OwnerBoss = GetOwnerBoss();
+	if (!IsValid(OwnerBoss) || !OwnerBoss->HasAuthority())
+	{
+		return;
+	}
+
+	UAbilitySystemComponent* OwnerASC = UAbilitySystemBlueprintLibrary::GetAbilitySystemComponent(OwnerBoss);
+	if (!IsValid(OwnerASC))
+	{
+		return;
+	}
+
+	OwnerASC->AddLooseGameplayTag(PRGameplayTags::State_Invulnerable);
+	OwnerASC->AddReplicatedLooseGameplayTag(PRGameplayTags::State_Invulnerable);
+	bGodFallInvulnerabilityApplied = true;
+}
+
+void UPRFaerinGodFallComponent::ClearGodFallInvulnerability()
+{
+	if (!bGodFallInvulnerabilityApplied)
+	{
+		return;
+	}
+
+	APRBossBaseCharacter* OwnerBoss = GetOwnerBoss();
+	if (IsValid(OwnerBoss) && OwnerBoss->HasAuthority())
+	{
+		UAbilitySystemComponent* OwnerASC = UAbilitySystemBlueprintLibrary::GetAbilitySystemComponent(OwnerBoss);
+		if (IsValid(OwnerASC))
+		{
+			OwnerASC->RemoveLooseGameplayTag(PRGameplayTags::State_Invulnerable);
+			OwnerASC->RemoveReplicatedLooseGameplayTag(PRGameplayTags::State_Invulnerable);
+		}
+	}
+
+	bGodFallInvulnerabilityApplied = false;
 }
 
 void UPRFaerinGodFallComponent::CancelGodFallHazards()
@@ -1172,6 +1221,7 @@ float UPRFaerinGodFallComponent::ResolvePhaseTimingScale() const
 void UPRFaerinGodFallComponent::BroadcastEntryFinished(const bool bSucceeded)
 {
 	ClearRigTimers();
+	ClearGodFallInvulnerability();
 	bGodFallEntryRunning = false;
 	if (!bSucceeded)
 	{

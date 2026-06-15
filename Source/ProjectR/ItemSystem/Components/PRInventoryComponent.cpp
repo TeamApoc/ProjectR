@@ -377,6 +377,23 @@ void UPRInventoryComponent::RequestDeactivateItem(UPRItemInstance* ItemInstance,
 	Server_RequestDeactivateItem(ItemInstance, ActivationContext);
 }
 
+void UPRInventoryComponent::RequestUseConsumableItem(UPRItemInstance_Consumable* ConsumableItem)
+{
+	// 잘못된 소비 Item 사용 요청 제외
+	if (!IsValid(ConsumableItem))
+	{
+		return;
+	}
+
+	if (IsValid(GetOwner()) && GetOwner()->HasAuthority())
+	{
+		UseConsumableItemInternal(ConsumableItem);
+		return;
+	}
+
+	Server_RequestUseConsumableItem(ConsumableItem);
+}
+
 bool UPRInventoryComponent::ActivateItemInternal(UPRItemInstance* ItemInstance, const FPRItemActivationContext& ActivationContext)
 {
 	// Item 활성화 소유권 검증
@@ -413,6 +430,17 @@ bool UPRInventoryComponent::DeactivateItemInternal(UPRItemInstance* ItemInstance
 	RuntimeContext.InventoryComponent = this;
 
 	return ItemInstance->DeactivateItem(RuntimeContext);
+}
+
+bool UPRInventoryComponent::UseConsumableItemInternal(UPRItemInstance_Consumable* ConsumableItem)
+{
+	// 소비 Item 사용 소유권 검증
+	if (!IsValid(GetOwner()) || !GetOwner()->HasAuthority() || !IsValid(ConsumableItem) || !OwnsItem(ConsumableItem))
+	{
+		return false;
+	}
+
+	return ConsumableItem->UseItem(GetOwner());
 }
 
 void UPRInventoryComponent::RequestEquipModItemToWeapon(UPRItemInstance_Mod* ModItem, UPRItemInstance_Weapon* TargetWeaponItem)
@@ -1089,6 +1117,11 @@ void UPRInventoryComponent::Server_RequestActivateItem_Implementation(UPRItemIns
 void UPRInventoryComponent::Server_RequestDeactivateItem_Implementation(UPRItemInstance* ItemInstance, const FPRItemActivationContext& ActivationContext)
 {
 	DeactivateItemInternal(ItemInstance, ActivationContext);
+}
+
+void UPRInventoryComponent::Server_RequestUseConsumableItem_Implementation(UPRItemInstance_Consumable* ConsumableItem)
+{
+	UseConsumableItemInternal(ConsumableItem);
 }
 
 void UPRInventoryComponent::Server_RequestEquipModItemToWeapon_Implementation(UPRItemInstance_Mod* ModItem, UPRItemInstance_Weapon* TargetWeaponItem)

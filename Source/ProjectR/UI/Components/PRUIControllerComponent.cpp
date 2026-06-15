@@ -201,6 +201,12 @@ void UPRUIControllerComponent::ToggleInventory()
 	TogglePlayerMenu(EPRPlayerMenuTabType::Inventory);
 }
 
+void UPRUIControllerComponent::ToggleBag()
+{
+	// 플레이어 메뉴 가방 탭 토글
+	TogglePlayerMenu(EPRPlayerMenuTabType::Bag);
+}
+
 void UPRUIControllerComponent::CloseInventory()
 {
 	if (!IsLocalPlayer())
@@ -230,6 +236,23 @@ void UPRUIControllerComponent::CloseInventory()
 	else
 	{
 		InventoryWidget->RemoveFromParent();
+	}
+}
+
+void UPRUIControllerComponent::CloseBag()
+{
+	if (!IsLocalPlayer())
+	{
+		return;
+	}
+
+	HideItemTooltip();
+
+	if (IsValid(PlayerMenuWidget) && PlayerMenuWidget->IsInViewport()
+		&& PlayerMenuWidget->GetSelectedRuntimeTabType() == EPRPlayerMenuTabType::Bag)
+	{
+		// 플레이어 메뉴 가방 탭 닫기
+		ClosePlayerMenu();
 	}
 }
 
@@ -314,10 +337,17 @@ void UPRUIControllerComponent::TogglePlayerMenu(EPRPlayerMenuTabType TargetTabTy
 	UPREquipmentManagerComponent* EquipmentManagerComponent = GetEquipmentManagerComponent();
 	APlayerController* PlayerController = GetOwningPlayerController();
 	APRPlayerState* PlayerState = IsValid(PlayerController) ? PlayerController->GetPlayerState<APRPlayerState>() : nullptr;
-	if (TargetTabType == EPRPlayerMenuTabType::Inventory
-		&& (!IsValid(InventoryComponent) || !IsValid(WeaponManagerComponent) || !IsValid(QuickSlotComponent) || !IsValid(EquipmentManagerComponent)))
+	if ((TargetTabType == EPRPlayerMenuTabType::Inventory || TargetTabType == EPRPlayerMenuTabType::Bag)
+		&& (!IsValid(InventoryComponent) || !IsValid(QuickSlotComponent)))
 	{
-		// 인벤토리 탭 소스 검증
+		// 인벤토리와 가방 공통 소스 검증
+		return;
+	}
+
+	if (TargetTabType == EPRPlayerMenuTabType::Inventory
+		&& (!IsValid(WeaponManagerComponent) || !IsValid(EquipmentManagerComponent)))
+	{
+		// 인벤토리 장비 편성 소스 검증
 		return;
 	}
 
@@ -858,6 +888,7 @@ void UPRUIControllerComponent::EndPlay(const EEndPlayReason::Type EndPlayReason)
 {
 	CloseInventory();
 	InventoryWidget = nullptr;
+	CloseBag();
 	CloseTraitWindow();
 	TraitWindowWidget = nullptr;
 	CloseWeaponUpgrade();

@@ -4,6 +4,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Components/CanvasPanelSlot.h"
 #include "ProjectR/UI/WeaponStatusHUD/FPRWeaponStatusViewData.h"
 #include "ProjectR/UI/PRWidgetBase.h"
 #include "PRWeaponHUDWidget.generated.h"
@@ -12,6 +13,28 @@ class UPRAttributeSet_Weapon;
 class UPRWeaponManagerComponent;
 class UPRWeaponStatusWidget;
 struct FOnAttributeChangeData;
+
+// 무기 슬롯 위젯 에디터 배치와 렌더 강조 설정
+struct FPRWeaponHUDSlotPresentation
+{
+	// 캔버스 슬롯 배치값
+	FAnchorData LayoutData;
+
+	// 콘텐츠 크기 자동 맞춤 여부
+	bool bAutoSize = false;
+
+	// 캔버스 렌더 순서
+	int32 ZOrder = 0;
+
+	// 렌더 스케일
+	FVector2D RenderScale = FVector2D(1.0f, 1.0f);
+
+	// 렌더 투명도
+	float RenderOpacity = 1.0f;
+
+	// 캐시 성공 여부
+	bool bValid = false;
+};
 
 // 주무기와 보조무기 상태 표시 위젯을 묶는 HUD 전용 컨테이너다
 UCLASS(Abstract, BlueprintType)
@@ -40,6 +63,10 @@ public:
 	UFUNCTION(BlueprintPure, Category = "ProjectR|HUD|Weapon")
 	FPRWeaponStatusViewData BuildWeaponStatusViewData(EPRWeaponSlotType SlotType) const;
 
+	// 현재 사용 무기 기준 슬롯 강조 및 배치 갱신
+	UFUNCTION(BlueprintCallable, Category = "ProjectR|HUD|Weapon")
+	void RefreshWeaponSlotHighlight();
+
 protected:
 	/*~ UUserWidget Interface ~*/
 	
@@ -52,6 +79,21 @@ private:
 	// WeaponManager 장착 변경 신호를 받아 해당 슬롯을 갱신한다
 	UFUNCTION()
 	void HandleWeaponEquipmentChanged(UPRWeaponManagerComponent* ChangedWeaponManagerComponent, EPRWeaponSlotType ChangedSlot);
+
+	// 슬롯 타입 대응 상태 위젯 반환
+	UPRWeaponStatusWidget* GetWeaponStatusWidgetBySlot(EPRWeaponSlotType SlotType) const;
+
+	// 대상 슬롯 위젯 강조 렌더 상태 적용
+	void ApplyWeaponSlotHighlight(EPRWeaponSlotType SlotType, bool bHighlighted) const;
+
+	// 에디터 배치와 렌더 강조 설정 캐시
+	void CacheWeaponSlotPresentations();
+
+	// 대상 슬롯 위젯의 현재 설정 캡처
+	bool CaptureWeaponSlotPresentation(UPRWeaponStatusWidget* StatusWidget, FPRWeaponHUDSlotPresentation& OutPresentation) const;
+
+	// 대상 슬롯 위젯에 캐시된 배치와 렌더 설정 적용
+	void ApplyWeaponSlotPresentation(EPRWeaponSlotType SlotType, const FPRWeaponHUDSlotPresentation& LayoutPresentation, const FPRWeaponHUDSlotPresentation& RenderPresentation) const;
 
 	// 주무기 자원 Attribute 변화 신호를 받아 주무기 슬롯을 갱신한다
 	void HandlePrimaryWeaponAttributeChanged(const FOnAttributeChangeData& ChangeData);
@@ -80,4 +122,10 @@ private:
 
 	// ASC Attribute 변화 이벤트를 해제하기 위한 핸들 묶음
 	TArray<FDelegateHandle> AttributeChangeHandles;
+
+	// 활성 슬롯 기준 설정 캐시
+	FPRWeaponHUDSlotPresentation ActiveSlotPresentation;
+
+	// 비활성 슬롯 기준 설정 캐시
+	FPRWeaponHUDSlotPresentation InactiveSlotPresentation;
 };

@@ -41,7 +41,8 @@ EPRUIInputAction UPRWidgetBase::GetUIInputAction(const FKey& Key) const
 		return EPRUIInputAction::Confirm;
 	}
 
-	if (Key == EKeys::Escape
+	if (Key == EKeys::Escape 
+		|| Key == EKeys::Tab
 		|| Key == EKeys::Virtual_Back
 		|| Key == EKeys::Gamepad_FaceButton_Right)
 	{

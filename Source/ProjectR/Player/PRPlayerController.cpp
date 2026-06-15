@@ -702,10 +702,36 @@ void APRPlayerController::ClientShowPartyWipeWidget_Implementation(TSubclassOf<U
 	}
 }
 
-void APRPlayerController::ClientSetEncounterInputLock_Implementation(bool bLock)
+void APRPlayerController::SetEncounterInputLockLocal(bool bLock)
 {
 	SetIgnoreMoveInput(bLock);
 	SetIgnoreLookInput(bLock);
+}
+
+void APRPlayerController::ClientSetEncounterInputLock_Implementation(bool bLock)
+{
+	SetEncounterInputLockLocal(bLock);
+}
+
+void APRPlayerController::RestoreFaerinEncounterViewTargetLocal(float BlendTime)
+{
+	if (!IsLocalController())
+	{
+		return;
+	}
+
+	APawn* LocalPawn = GetPawn();
+	if (!IsValid(LocalPawn))
+	{
+		return;
+	}
+
+	SetViewTargetWithBlend(LocalPawn, FMath::Max(BlendTime, 0.0f), VTBlend_Cubic, 2.0f, false);
+}
+
+void APRPlayerController::ClientRestoreFaerinEncounterViewTarget_Implementation(float BlendTime)
+{
+	RestoreFaerinEncounterViewTargetLocal(BlendTime);
 }
 
 void APRPlayerController::ClientNotifyWeaponUpgradeResult_Implementation(const FPRWeaponUpgradeResult& Result)
@@ -762,6 +788,106 @@ void APRPlayerController::ClientCloseFaerinEncounterChoice_Implementation()
 	}
 
 	UIControllerComponent->CloseFaerinEncounterChoice();
+}
+
+void APRPlayerController::ShowFaerinSubtitleLocal(APRFaerinEncounterDirector* Director, FName DialogueNodeId)
+{
+	if (!IsLocalController() || !IsValid(UIControllerComponent) || !IsValid(Director))
+	{
+		return;
+	}
+
+	FText SpeakerText;
+	FText BodyText;
+	if (!Director->ResolveDialogueSubtitleText(DialogueNodeId, SpeakerText, BodyText))
+	{
+		UE_LOG(LogTemp, Log, TEXT("[FaerinSubtitle] Client resolve failed node=%s -> hide"), *DialogueNodeId.ToString());
+		UIControllerComponent->HideFaerinEncounterSubtitle();
+		return;
+	}
+
+	UE_LOG(LogTemp, Log, TEXT("[FaerinSubtitle] Client show node=%s body=%s"), *DialogueNodeId.ToString(), *BodyText.ToString());
+	UIControllerComponent->ShowFaerinEncounterSubtitle(SpeakerText, BodyText);
+}
+
+void APRPlayerController::ShowFaerinSubtitleTextLocal(const FText& SpeakerText, const FText& BodyText)
+{
+	if (!IsLocalController() || !IsValid(UIControllerComponent))
+	{
+		return;
+	}
+
+	if (BodyText.IsEmpty())
+	{
+		UIControllerComponent->HideFaerinEncounterSubtitle();
+		return;
+	}
+
+	UE_LOG(LogTemp, Log, TEXT("[FaerinSubtitle] Client show direct body=%s"), *BodyText.ToString());
+	UIControllerComponent->ShowFaerinEncounterSubtitle(SpeakerText, BodyText);
+}
+
+void APRPlayerController::ClientShowFaerinSubtitle_Implementation(APRFaerinEncounterDirector* Director, FName DialogueNodeId)
+{
+	ShowFaerinSubtitleLocal(Director, DialogueNodeId);
+}
+
+void APRPlayerController::HideFaerinSubtitleLocal()
+{
+	if (!IsLocalController() || !IsValid(UIControllerComponent))
+	{
+		return;
+	}
+
+	UIControllerComponent->HideFaerinEncounterSubtitle();
+}
+
+void APRPlayerController::ClientHideFaerinSubtitle_Implementation()
+{
+	HideFaerinSubtitleLocal();
+}
+
+void APRPlayerController::PlayFaerinEncounterSequenceLocal(APRFaerinEncounterDirector* Director, EFaerinEncounterSequence SequenceType)
+{
+	if (!IsLocalController() || !IsValid(Director))
+	{
+		return;
+	}
+
+	Director->PlayEncounterSequenceForLocalAudience(SequenceType);
+}
+
+void APRPlayerController::ClientPlayFaerinEncounterSequence_Implementation(APRFaerinEncounterDirector* Director, EFaerinEncounterSequence SequenceType)
+{
+	PlayFaerinEncounterSequenceLocal(Director, SequenceType);
+}
+
+void APRPlayerController::StopFaerinEncounterSequenceLocal(APRFaerinEncounterDirector* Director, FName Reason)
+{
+	if (!IsLocalController() || !IsValid(Director))
+	{
+		return;
+	}
+
+	Director->StopEncounterSequenceForLocalAudience(Reason);
+	RestoreFaerinEncounterViewTargetLocal(0.0f);
+	SetEncounterInputLockLocal(false);
+	HideFaerinSubtitleLocal();
+}
+
+void APRPlayerController::ClientStopFaerinEncounterSequence_Implementation(APRFaerinEncounterDirector* Director, FName Reason)
+{
+	StopFaerinEncounterSequenceLocal(Director, Reason);
+}
+
+void APRPlayerController::ServerNotifyFaerinDialogueNodePresented_Implementation(APRFaerinEncounterDirector* Director, FName DialogueNodeId)
+{
+	if (!IsValid(Director))
+	{
+		return;
+	}
+
+	Director->NotifyDialogueNodePresentedFromClient(this, DialogueNodeId);
 }
 
 void APRPlayerController::ClientNotifyShopBuyResult_Implementation(const FPRShopBuyResult& Result)

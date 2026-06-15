@@ -24,6 +24,7 @@
 #include "ProjectR/UI/Inventory/PRItemTooltipWidget.h"
 #include "ProjectR/UI/Inventory/PRItemTooltipViewDataBuilder.h"
 #include "ProjectR/UI/Faerin/PRFaerinEncounterChoiceWidget.h"
+#include "ProjectR/UI/Faerin/PRFaerinEncounterSubtitleWidget.h"
 #include "ProjectR/UI/PlayerMenu/PRPlayerMenu.h"
 #include "ProjectR/UI/Growth/PRTraitWindowWidget.h"
 #include "ProjectR/UI/Option/PROptionWidget.h"
@@ -740,6 +741,40 @@ void UPRUIControllerComponent::CloseFaerinEncounterChoice()
 	}
 }
 
+void UPRUIControllerComponent::ShowFaerinEncounterSubtitle(const FText& SpeakerText, const FText& BodyText)
+{
+	if (!IsLocalPlayer())
+	{
+		return;
+	}
+
+	UPRFaerinEncounterSubtitleWidget* Widget = GetOrCreateFaerinEncounterSubtitleWidget();
+	if (!IsValid(Widget))
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[FaerinSubtitle] Subtitle widget not created. Is FaerinEncounterSubtitleWidgetClass assigned on the PlayerController's UIControllerComponent?"));
+		return;
+	}
+
+	// 선택 UI(UIManager 스택)와 달리 자막은 입력을 막으면 안 되므로 AddToViewport + 높은 ZOrder.
+	if (!Widget->IsInViewport())
+	{
+		Widget->AddToViewport(9000);
+	}
+
+	Widget->SetSubtitle(SpeakerText, BodyText);
+}
+
+void UPRUIControllerComponent::HideFaerinEncounterSubtitle()
+{
+	if (!IsValid(FaerinEncounterSubtitleWidget))
+	{
+		return;
+	}
+
+	FaerinEncounterSubtitleWidget->ClearSubtitle();
+	FaerinEncounterSubtitleWidget->RemoveFromParent();
+}
+
 void UPRUIControllerComponent::ShowWeaponScope()
 {
 	if (!IsLocalPlayer())
@@ -903,6 +938,8 @@ void UPRUIControllerComponent::EndPlay(const EEndPlayReason::Type EndPlayReason)
 	InGameMenuWidget = nullptr;
 	CloseFaerinEncounterChoice();
 	FaerinEncounterChoiceWidget = nullptr;
+	HideFaerinEncounterSubtitle();
+	FaerinEncounterSubtitleWidget = nullptr;
 	ClosePlayerMenu();
 	PlayerMenuWidget = nullptr;
 
@@ -982,6 +1019,10 @@ void UPRUIControllerComponent::RemoveAllWidget()
 	if (FaerinEncounterChoiceWidget)
 	{
 		FaerinEncounterChoiceWidget->RemoveFromParent();
+	}
+	if (FaerinEncounterSubtitleWidget)
+	{
+		FaerinEncounterSubtitleWidget->RemoveFromParent();
 	}
 	if (UPRUIManagerSubsystem* UIManager = GetUIManager())
 	{
@@ -1206,6 +1247,23 @@ UPRFaerinEncounterChoiceWidget* UPRUIControllerComponent::GetOrCreateFaerinEncou
 
 	FaerinEncounterChoiceWidget = CreateWidget<UPRFaerinEncounterChoiceWidget>(PlayerController, FaerinEncounterChoiceWidgetClass);
 	return FaerinEncounterChoiceWidget;
+}
+
+UPRFaerinEncounterSubtitleWidget* UPRUIControllerComponent::GetOrCreateFaerinEncounterSubtitleWidget()
+{
+	if (IsValid(FaerinEncounterSubtitleWidget))
+	{
+		return FaerinEncounterSubtitleWidget;
+	}
+
+	APlayerController* PlayerController = GetOwningPlayerController();
+	if (!IsValid(PlayerController) || !IsValid(FaerinEncounterSubtitleWidgetClass.Get()))
+	{
+		return nullptr;
+	}
+
+	FaerinEncounterSubtitleWidget = CreateWidget<UPRFaerinEncounterSubtitleWidget>(PlayerController, FaerinEncounterSubtitleWidgetClass);
+	return FaerinEncounterSubtitleWidget;
 }
 
 UPRTraitWindowWidget* UPRUIControllerComponent::GetOrCreateTraitWindowWidget()

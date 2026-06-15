@@ -40,6 +40,50 @@
 namespace
 {
 	constexpr float LoadingScreenFadeInAckDelay = 1.0f;
+
+	void SetLocalBGMState(const UObject* WorldContextObject, EPRBGMState BGMState)
+	{
+		if (!IsValid(WorldContextObject))
+		{
+			return;
+		}
+
+		UWorld* World = WorldContextObject->GetWorld();
+		if (!IsValid(World))
+		{
+			return;
+		}
+
+		UPRBGMSubsystem* BGMSubsystem = World->GetSubsystem<UPRBGMSubsystem>();
+		if (!IsValid(BGMSubsystem))
+		{
+			return;
+		}
+
+		BGMSubsystem->SetBGMState(BGMState);
+	}
+
+	void RestoreLocalDefaultBGM(const UObject* WorldContextObject)
+	{
+		if (!IsValid(WorldContextObject))
+		{
+			return;
+		}
+
+		UWorld* World = WorldContextObject->GetWorld();
+		if (!IsValid(World))
+		{
+			return;
+		}
+
+		UPRBGMSubsystem* BGMSubsystem = World->GetSubsystem<UPRBGMSubsystem>();
+		if (!IsValid(BGMSubsystem))
+		{
+			return;
+		}
+
+		BGMSubsystem->RestoreDefaultLevelBGM();
+	}
 }
 
 APRPlayerController::APRPlayerController()
@@ -777,10 +821,11 @@ void APRPlayerController::ClientOpenFaerinEncounterChoice_Implementation(APRFaer
 		return;
 	}
 
+	SetLocalBGMState(this, EPRBGMState::BossDialogue);
 	UIControllerComponent->OpenFaerinEncounterChoice(Director);
 }
 
-void APRPlayerController::ClientCloseFaerinEncounterChoice_Implementation()
+void APRPlayerController::ClientCloseFaerinEncounterChoice_Implementation(bool bRestoreDefaultBGM)
 {
 	if (!IsLocalController() || !IsValid(UIControllerComponent))
 	{
@@ -788,6 +833,10 @@ void APRPlayerController::ClientCloseFaerinEncounterChoice_Implementation()
 	}
 
 	UIControllerComponent->CloseFaerinEncounterChoice();
+	if (bRestoreDefaultBGM)
+	{
+		RestoreLocalDefaultBGM(this);
+	}
 }
 
 void APRPlayerController::ShowFaerinSubtitleLocal(APRFaerinEncounterDirector* Director, FName DialogueNodeId)
@@ -854,6 +903,18 @@ void APRPlayerController::PlayFaerinEncounterSequenceLocal(APRFaerinEncounterDir
 		return;
 	}
 
+	switch (SequenceType)
+	{
+	case EFaerinEncounterSequence::Intro:
+		SetLocalBGMState(this, EPRBGMState::BossIntroCutscene);
+		break;
+	case EFaerinEncounterSequence::FightStart:
+		SetLocalBGMState(this, EPRBGMState::BossFightStartCutscene);
+		break;
+	default:
+		break;
+	}
+
 	Director->PlayEncounterSequenceForLocalAudience(SequenceType);
 }
 
@@ -873,6 +934,7 @@ void APRPlayerController::StopFaerinEncounterSequenceLocal(APRFaerinEncounterDir
 	RestoreFaerinEncounterViewTargetLocal(0.0f);
 	SetEncounterInputLockLocal(false);
 	HideFaerinSubtitleLocal();
+	RestoreLocalDefaultBGM(this);
 }
 
 void APRPlayerController::ClientStopFaerinEncounterSequence_Implementation(APRFaerinEncounterDirector* Director, FName Reason)

@@ -195,6 +195,7 @@ namespace PRGameplayTags
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Event_Boss_Spawn); // 보스 스폰 요청
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Event_Boss_Encounter_Begin); // 보스 조우 시작 (FPRBossEncounterEventPayload 동반)
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Event_Boss_Encounter_End); // 보스 조우 종료
+	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Event_Boss_Defeated); // 보스 처치 확정
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Event_Boss_PhaseChanged); // 보스 페이즈 변경
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Event_Boss_BGMPhasePreview); // 보스 BGM 페이즈 예고
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Event_Boss_BGMPatternCue); // 보스 BGM 특수패턴 Cue

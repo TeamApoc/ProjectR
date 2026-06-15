@@ -124,6 +124,13 @@ public:
 	UFUNCTION(NetMulticast, Reliable)
 	void Multicast_BroadcastBossBGMPatternCue(FGameplayTag CueTag);
 
+	// 서버 기준 보스 처치 확정 이벤트 멀티캐스트
+	void BroadcastBossDefeated();
+
+	// 각 머신 EventManager 보스 처치 확정 이벤트 발행
+	UFUNCTION(NetMulticast, Reliable)
+	void Multicast_BroadcastBossDefeated();
+
 	// 보스가 생성한 지속형 패턴 Actor를 활성 목록에 등록한다.
 	UFUNCTION(BlueprintCallable, Category = "ProjectR|AI|Boss")
 	void RegisterBossPatternActor(APRBossPatternActor* Actor);
@@ -164,6 +171,9 @@ protected:
 
 	// EventManager로 보스 BGM 특수패턴 Cue 발행
 	void BroadcastBossBGMPatternCueEvent(FGameplayTag CueTag);
+
+	// EventManager로 보스 처치 확정 이벤트 발행
+	void BroadcastBossDefeatedEvent();
 
 	UFUNCTION()
 	void OnRep_CurrentPhase(EPRBossPhase OldPhase);

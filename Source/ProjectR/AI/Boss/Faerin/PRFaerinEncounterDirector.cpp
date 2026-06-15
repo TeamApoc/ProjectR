@@ -1139,7 +1139,7 @@ void APRFaerinEncounterDirector::RestoreNegotiationAfterWipe()
 	GetGatherPlayers(RetryGatherPlayers);
 
 	// 2) Gather 범위 안 플레이어만 PlayerPoint/슬롯으로 이동(Intro는 재생하지 않음).
-	AlignRetryGatherPlayersToPlayerPoints(RetryGatherPlayers);
+	// AlignRetryGatherPlayersToPlayerPoints(RetryGatherPlayers);
 
 	// 3) 입력/카메라/자막 정리는 snapshot 대상 기준으로 수행.
 	SetInputLockedForPlayers(RetryGatherPlayers, false);

@@ -272,6 +272,19 @@ void UPREquipmentManagerComponent::ApplySaveData(const FPREquipmentSaveData& InS
 
 void UPREquipmentManagerComponent::ResetSystem()
 {
+	if (IsValid(GetOwner()) && GetOwner()->HasAuthority())
+	{
+		for (const FPREquippedItemEntry& Entry : EquippedList.GetEntries())
+		{
+			if (IsValid(Entry.EquipmentItem))
+			{
+				// ASC 런타임 정리 이후 장비가 부여한 GA/GE 재동기화
+				Entry.EquipmentItem->OnUnequipped(GetOwner());
+				Entry.EquipmentItem->OnEquipped(GetOwner());
+			}
+		}
+	}
+
 	// 장착 데이터 유지와 외형 재적용 알림
 	OnEquipmentVisualInfosChanged.Broadcast(this);
 }

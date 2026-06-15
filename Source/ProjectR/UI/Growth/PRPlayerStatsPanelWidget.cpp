@@ -2,9 +2,11 @@
 // Author: 배유찬 (Player Stats Panel UI 위젯 구현)
 #include "PRPlayerStatsPanelWidget.h"
 
+#include "AbilitySystemComponent.h"
 #include "Components/TextBlock.h"
 #include "Engine/DataTable.h"
 #include "GameFramework/PlayerController.h"
+#include "GameplayEffectTypes.h"
 #include "ProjectR/AbilitySystem/AttributeSets/PRAttributeSet_Growth.h"
 #include "ProjectR/AbilitySystem/PRAbilitySystemComponent.h"
 #include "ProjectR/Player/Components/PRPlayerGrowthComponent.h"
@@ -27,11 +29,15 @@ void UPRPlayerStatsPanelWidget::NativeConstruct()
 	}
 
 	BindGrowthComponent();
+	BindAttributeChanges();
 	RefreshStatsPanelView();
 }
 
 void UPRPlayerStatsPanelWidget::NativeDestruct()
 {
+	// ASC Attribute 변경 이벤트 정리
+	UnbindAttributeChanges();
+
 	// 성장 컴포넌트 이벤트 정리
 	UnbindGrowthComponent();
 
@@ -43,12 +49,14 @@ void UPRPlayerStatsPanelWidget::NativeDestruct()
 void UPRPlayerStatsPanelWidget::SetPlayerStateSource(APRPlayerState* InPlayerState)
 {
 	// 기존 런타임 소스 바인딩 해제
+	UnbindAttributeChanges();
 	UnbindGrowthComponent();
 
 	BoundPlayerState = InPlayerState;
 	BoundGrowthComponent = IsValid(InPlayerState) ? InPlayerState->GetGrowthComponent() : nullptr;
 
 	BindGrowthComponent();
+	BindAttributeChanges();
 	RefreshStatsPanelView();
 }
 
@@ -63,6 +71,13 @@ void UPRPlayerStatsPanelWidget::HandleTraitInvestmentChanged(const FPRTraitInves
 {
 	// 특성 변경 후 Attribute 반영값 재조회
 	static_cast<void>(InvestmentInfo);
+	RefreshStatsPanelView();
+}
+
+void UPRPlayerStatsPanelWidget::HandleObservedAttributeChanged(const FOnAttributeChangeData& ChangeData)
+{
+	// 장비 GE와 특성 GE가 반영한 최종 Attribute 값 재조회
+	static_cast<void>(ChangeData);
 	RefreshStatsPanelView();
 }
 
@@ -83,6 +98,80 @@ void UPRPlayerStatsPanelWidget::UnbindGrowthComponent()
 	{
 		GrowthComponent->OnTraitInvestmentChanged.RemoveDynamic(this, &ThisClass::HandleTraitInvestmentChanged);
 	}
+}
+
+void UPRPlayerStatsPanelWidget::BindAttributeChanges()
+{
+	UPRAbilitySystemComponent* AbilitySystemComponent = BoundPlayerState.IsValid()
+		? BoundPlayerState->GetPRAbilitySystemComponent()
+		: nullptr;
+	if (!IsValid(AbilitySystemComponent))
+	{
+		return;
+	}
+
+	if (BoundAbilitySystemComponent.Get() == AbilitySystemComponent && AttributeChangeHandles.Num() > 0)
+	{
+		return;
+	}
+
+	UnbindAttributeChanges();
+
+	TArray<FGameplayAttribute> ObservedAttributes;
+	const auto AddObservedAttribute = [&ObservedAttributes](const FGameplayAttribute& Attribute)
+	{
+		if (Attribute.IsValid() && !ObservedAttributes.Contains(Attribute))
+		{
+			ObservedAttributes.Add(Attribute);
+		}
+	};
+
+	// 상단 레벨 표시값 변경 감시
+	AddObservedAttribute(UPRAttributeSet_Growth::GetLevelAttribute());
+
+	// 특성 규칙 테이블의 TargetAttribute 기준 표시값 변경 감시
+	for (EPRTraitStatType TraitType : GetDisplayTraitTypes())
+	{
+		FPRTraitStatRuleRow Rule;
+		if (FindTraitRule(TraitType, Rule))
+		{
+			AddObservedAttribute(Rule.TargetAttribute);
+		}
+	}
+
+	BoundAbilitySystemComponent = AbilitySystemComponent;
+	BoundAttributeChangeAttributes.Reserve(ObservedAttributes.Num());
+	AttributeChangeHandles.Reserve(ObservedAttributes.Num());
+
+	for (const FGameplayAttribute& Attribute : ObservedAttributes)
+	{
+		BoundAttributeChangeAttributes.Add(Attribute);
+		AttributeChangeHandles.Add(AbilitySystemComponent->GetGameplayAttributeValueChangeDelegate(Attribute).AddUObject(
+			this,
+			&ThisClass::HandleObservedAttributeChanged));
+	}
+}
+
+void UPRPlayerStatsPanelWidget::UnbindAttributeChanges()
+{
+	UPRAbilitySystemComponent* AbilitySystemComponent = BoundAbilitySystemComponent.Get();
+	if (IsValid(AbilitySystemComponent))
+	{
+		const int32 BindingCount = FMath::Min(BoundAttributeChangeAttributes.Num(), AttributeChangeHandles.Num());
+		for (int32 Index = 0; Index < BindingCount; ++Index)
+		{
+			const FGameplayAttribute& Attribute = BoundAttributeChangeAttributes[Index];
+			FDelegateHandle& DelegateHandle = AttributeChangeHandles[Index];
+			if (Attribute.IsValid() && DelegateHandle.IsValid())
+			{
+				AbilitySystemComponent->GetGameplayAttributeValueChangeDelegate(Attribute).Remove(DelegateHandle);
+			}
+		}
+	}
+
+	BoundAbilitySystemComponent.Reset();
+	BoundAttributeChangeAttributes.Reset();
+	AttributeChangeHandles.Reset();
 }
 
 void UPRPlayerStatsPanelWidget::CacheTextBindings()

@@ -45,6 +45,9 @@ public:
 	// 프로젝트 ASC 타입으로 반환
 	virtual UPRAbilitySystemComponent* GetPRAbilitySystemComponent() const;
 
+	// 캐릭터 데이터 식별자 반환
+	FName GetCharacterID() const { return CharacterID; }
+
 	// 무기 미장착 상태에서 사용할 기본 애니메이션 레이어 클래스 반환
 	TSubclassOf<UAnimInstance> GetDefaultAnimLayerClass() const { return DefaultAnimLayerClass; }
 

@@ -83,6 +83,7 @@ void UPRWeaponHUDWidget::SetWeaponHUDSources(UPRWeaponManagerComponent* InWeapon
 	}
 
 	RefreshAllWeaponStatus();
+	RefreshWeaponSlotHighlight();
 }
 
 void UPRWeaponHUDWidget::RefreshAllWeaponStatus()
@@ -156,9 +157,50 @@ FPRWeaponStatusViewData UPRWeaponHUDWidget::BuildWeaponStatusViewData(EPRWeaponS
 	return ViewData;
 }
 
+void UPRWeaponHUDWidget::RefreshWeaponSlotHighlight()
+{
+	if (!ActiveSlotPresentation.bValid || !InactiveSlotPresentation.bValid)
+	{
+		CacheWeaponSlotPresentations();
+	}
+
+	const UPRWeaponManagerComponent* WeaponManager = WeaponManagerComponent.Get();
+	const EPRWeaponSlotType CurrentWeaponSlot = IsValid(WeaponManager)
+		? WeaponManager->GetCurrentWeaponSlot()
+		: EPRWeaponSlotType::None;
+	UPRWeaponStatusWidget* PrimaryStatusWidget = GetWeaponStatusWidgetBySlot(EPRWeaponSlotType::Primary);
+	UPRWeaponStatusWidget* SecondaryStatusWidget = GetWeaponStatusWidgetBySlot(EPRWeaponSlotType::Secondary);
+	const bool bHasCachedPresentation = IsValid(PrimaryStatusWidget)
+		&& IsValid(SecondaryStatusWidget)
+		&& ActiveSlotPresentation.bValid
+		&& InactiveSlotPresentation.bValid;
+
+	if (!bHasCachedPresentation)
+	{
+		return;
+	}
+
+	if (CurrentWeaponSlot != EPRWeaponSlotType::Primary && CurrentWeaponSlot != EPRWeaponSlotType::Secondary)
+	{
+		// 비강조 기본값
+		ApplyWeaponSlotPresentation(EPRWeaponSlotType::Primary, ActiveSlotPresentation, InactiveSlotPresentation);
+		ApplyWeaponSlotPresentation(EPRWeaponSlotType::Secondary, InactiveSlotPresentation, InactiveSlotPresentation);
+		return;
+	}
+
+	const EPRWeaponSlotType InactiveWeaponSlot = CurrentWeaponSlot == EPRWeaponSlotType::Primary
+		? EPRWeaponSlotType::Secondary
+		: EPRWeaponSlotType::Primary;
+
+	// 강조 상태 적용
+	ApplyWeaponSlotHighlight(CurrentWeaponSlot, true);
+	ApplyWeaponSlotHighlight(InactiveWeaponSlot, false);
+}
+
 void UPRWeaponHUDWidget::NativeConstruct()
 {
 	Super::NativeConstruct();
+	CacheWeaponSlotPresentations();
 }
 
 void UPRWeaponHUDWidget::NativeDestruct()
@@ -177,10 +219,109 @@ void UPRWeaponHUDWidget::HandleWeaponEquipmentChanged(UPRWeaponManagerComponent*
 	if (ChangedSlot == EPRWeaponSlotType::None)
 	{
 		RefreshAllWeaponStatus();
+		RefreshWeaponSlotHighlight();
 		return;
 	}
 
-	RefreshWeaponStatus(ChangedSlot);
+	RefreshAllWeaponStatus();
+	RefreshWeaponSlotHighlight();
+}
+
+UPRWeaponStatusWidget* UPRWeaponHUDWidget::GetWeaponStatusWidgetBySlot(EPRWeaponSlotType SlotType) const
+{
+	if (SlotType == EPRWeaponSlotType::Primary)
+	{
+		return PrimaryWeaponStatusWidget;
+	}
+
+	if (SlotType == EPRWeaponSlotType::Secondary)
+	{
+		return SecondaryWeaponStatusWidget;
+	}
+
+	return nullptr;
+}
+
+void UPRWeaponHUDWidget::ApplyWeaponSlotHighlight(EPRWeaponSlotType SlotType, bool bHighlighted) const
+{
+	const FPRWeaponHUDSlotPresentation& Presentation = bHighlighted
+		? ActiveSlotPresentation
+		: InactiveSlotPresentation;
+
+	ApplyWeaponSlotPresentation(SlotType, Presentation, Presentation);
+}
+
+void UPRWeaponHUDWidget::CacheWeaponSlotPresentations()
+{
+	if (ActiveSlotPresentation.bValid && InactiveSlotPresentation.bValid)
+	{
+		return;
+	}
+
+	FPRWeaponHUDSlotPresentation NewActiveSlotPresentation;
+	FPRWeaponHUDSlotPresentation NewInactiveSlotPresentation;
+	const bool bCapturedActive = CaptureWeaponSlotPresentation(PrimaryWeaponStatusWidget, NewActiveSlotPresentation);
+	const bool bCapturedInactive = CaptureWeaponSlotPresentation(SecondaryWeaponStatusWidget, NewInactiveSlotPresentation);
+
+	if (!bCapturedActive || !bCapturedInactive)
+	{
+		return;
+	}
+
+	// 주무기 위젯 기준 활성값
+	ActiveSlotPresentation = NewActiveSlotPresentation;
+
+	// 보조무기 위젯 기준 비활성값
+	InactiveSlotPresentation = NewInactiveSlotPresentation;
+}
+
+bool UPRWeaponHUDWidget::CaptureWeaponSlotPresentation(UPRWeaponStatusWidget* StatusWidget, FPRWeaponHUDSlotPresentation& OutPresentation) const
+{
+	if (!IsValid(StatusWidget))
+	{
+		return false;
+	}
+
+	const UCanvasPanelSlot* CanvasSlot = Cast<UCanvasPanelSlot>(StatusWidget->Slot);
+	if (!IsValid(CanvasSlot))
+	{
+		return false;
+	}
+
+	OutPresentation.LayoutData = CanvasSlot->GetLayout();
+	OutPresentation.bAutoSize = CanvasSlot->GetAutoSize();
+	OutPresentation.ZOrder = CanvasSlot->GetZOrder();
+	OutPresentation.RenderScale = StatusWidget->GetRenderTransform().Scale;
+	OutPresentation.RenderOpacity = StatusWidget->GetRenderOpacity();
+	OutPresentation.bValid = true;
+	return true;
+}
+
+void UPRWeaponHUDWidget::ApplyWeaponSlotPresentation(EPRWeaponSlotType SlotType, const FPRWeaponHUDSlotPresentation& LayoutPresentation, const FPRWeaponHUDSlotPresentation& RenderPresentation) const
+{
+	if (!LayoutPresentation.bValid || !RenderPresentation.bValid)
+	{
+		return;
+	}
+
+	UPRWeaponStatusWidget* StatusWidget = GetWeaponStatusWidgetBySlot(SlotType);
+	if (!IsValid(StatusWidget))
+	{
+		return;
+	}
+
+	UCanvasPanelSlot* CanvasSlot = Cast<UCanvasPanelSlot>(StatusWidget->Slot);
+	if (!IsValid(CanvasSlot))
+	{
+		return;
+	}
+
+	// 에디터 설정 적용
+	CanvasSlot->SetLayout(LayoutPresentation.LayoutData);
+	CanvasSlot->SetAutoSize(LayoutPresentation.bAutoSize);
+	CanvasSlot->SetZOrder(LayoutPresentation.ZOrder);
+	StatusWidget->SetRenderScale(RenderPresentation.RenderScale);
+	StatusWidget->SetRenderOpacity(RenderPresentation.RenderOpacity);
 }
 
 void UPRWeaponHUDWidget::HandlePrimaryWeaponAttributeChanged(const FOnAttributeChangeData& ChangeData)

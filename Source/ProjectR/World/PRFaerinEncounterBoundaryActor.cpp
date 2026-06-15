@@ -72,6 +72,12 @@ void APRFaerinEncounterBoundaryActor::RegisterArenaExit(APRPlayerCharacter* Play
 
 	CleanupInvalidPlayers();
 	RemovePlayer(ArenaInsidePlayers, Player);
+
+	// 진행 중 Gather 이탈 시 해당 플레이어의 자막/시퀀스/입력/카메라를 Director가 정리한다.
+	if (IsValid(EncounterDirector))
+	{
+		EncounterDirector->NotifyPlayerExitedGather(Player);
+	}
 }
 
 void APRFaerinEncounterBoundaryActor::GetArenaInsidePlayers(TArray<APRPlayerCharacter*>& OutPlayers) const

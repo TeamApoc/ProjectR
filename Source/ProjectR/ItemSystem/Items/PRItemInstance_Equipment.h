@@ -3,6 +3,8 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "ActiveGameplayEffectHandle.h"
+#include "ProjectR/AbilitySystem/Data/PRAbilitySet.h"
 #include "ProjectR/ItemSystem/Items/PRItemInstance.h"
 #include "ProjectR/ItemSystem/Types/PREquipmentTypes.h"
 #include "ProjectR/Game/PRGameTypes.h"
@@ -44,4 +46,30 @@ public:
 
 	// 세이브 데이터에서 상태 복원 (현재는 특별히 복원할 내부 상태 없음)
 	void ApplySaveEntry(const FPREquipmentSlotSaveEntry& InEntry);
+
+protected:
+	// 장비 장착 시 공용 수치 GE와 추가 GA/GE를 부여
+	void GrantEquippedEffects(AActor* OwnerActor);
+
+	// 장비 해제 시 장착으로 부여한 공용 수치 GE와 추가 GA/GE를 회수
+	void ClearEquippedEffects(AActor* OwnerActor);
+
+	// 공용 장비 수치 GE를 적용
+	void ApplyCommonStatEffect(AActor* OwnerActor);
+
+	// 공용 장비 수치 GE를 회수
+	void RemoveCommonStatEffect(AActor* OwnerActor);
+
+public:
+	// 장비 추가 GA/GE로 부여한 핸들
+	UPROPERTY(Transient)
+	FPRAbilitySetHandles EquipmentAbilityHandles;
+
+	// 장비 공용 수치 GE 핸들
+	UPROPERTY(Transient)
+	FActiveGameplayEffectHandle CommonStatEffectHandle;
+
+	// 장비 슬롯 장착 여부
+	UPROPERTY(Transient)
+	bool bIsEquippedEquipmentSlot = false;
 };

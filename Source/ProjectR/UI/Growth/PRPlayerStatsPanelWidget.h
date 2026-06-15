@@ -3,14 +3,17 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "AttributeSet.h"
 #include "ProjectR/Game/PRGameTypes.h"
 #include "ProjectR/UI/PRWidgetBase.h"
 #include "PRPlayerStatsPanelWidget.generated.h"
 
 class APRPlayerState;
 class UDataTable;
+class UPRAbilitySystemComponent;
 class UPRPlayerGrowthComponent;
 class UTextBlock;
+struct FOnAttributeChangeData;
 
 USTRUCT(BlueprintType)
 struct FPRPlayerStatsPanelRowViewData
@@ -73,6 +76,9 @@ public:
 protected:
 	UFUNCTION()
 	void HandleTraitInvestmentChanged(const FPRTraitInvestmentInfo& InvestmentInfo);
+
+	// 표시 대상 Attribute 변경 후 패널 표시값 갱신
+	void HandleObservedAttributeChanged(const FOnAttributeChangeData& ChangeData);
 
 protected:
 	// UMG에서 바인딩할 플레이어 레벨 텍스트
@@ -145,6 +151,8 @@ private:
 
 	void BindGrowthComponent();
 	void UnbindGrowthComponent();
+	void BindAttributeChanges();
+	void UnbindAttributeChanges();
 	void CacheTextBindings();
 	void ApplyViewDataToWidgets();
 	void BuildPlayerStateViewData(APRPlayerState* InPlayerState, FPRPlayerStatsPanelViewData& OutViewData) const;
@@ -167,4 +175,11 @@ private:
 
 	UPROPERTY(Transient)
 	TWeakObjectPtr<UPRPlayerGrowthComponent> BoundGrowthComponent;
+
+	UPROPERTY(Transient)
+	TWeakObjectPtr<UPRAbilitySystemComponent> BoundAbilitySystemComponent;
+
+	TArray<FGameplayAttribute> BoundAttributeChangeAttributes;
+
+	TArray<FDelegateHandle> AttributeChangeHandles;
 };

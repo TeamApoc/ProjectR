@@ -4,12 +4,16 @@
 
 #include "CoreMinimal.h"
 #include "GameFramework/Actor.h"
+#include "GameplayTagContainer.h"
 #include "ProjectR/ItemSystem/Types/PRDropTypes.h"
 #include "PRItemSpawnerActor.generated.h"
 
 class APRRewardPickupActor;
 class UBoxComponent;
 class UPRAmmoDataAsset;
+class UPREventManagerSubsystem;
+class UPRRespawnSubsystem;
+struct FInstancedStruct;
 
 // 지정 영역의 NavMesh 위에 보상 픽업을 주기적으로 생성하는 스포너
 UCLASS(Blueprintable)
@@ -39,6 +43,24 @@ public:
 	bool SpawnItemOnce();
 
 protected:
+	// 활성 이벤트 태그 구독 등록
+	void BindActivateEvents();
+
+	// 활성 이벤트 태그 구독 해제
+	void UnbindActivateEvents();
+
+	// 리스폰 준비 이벤트 구독 등록
+	void BindPrepareRespawnEvent();
+
+	// 리스폰 준비 이벤트 구독 해제
+	void UnbindPrepareRespawnEvent();
+
+	// 활성 이벤트 수신 시 스폰 타이머 시작
+	void HandleActivateEvent(FGameplayTag EventTag, const FInstancedStruct& Payload);
+
+	// 리스폰 준비 시점 스포너 비활성화
+	void HandlePrepareRespawn();
+
 	// 타이머 기반 스폰 처리
 	void HandleSpawnTimerElapsed();
 
@@ -72,6 +94,10 @@ protected:
 	// 스포너 동작 활성화 여부
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|ItemSpawner")
 	bool bSpawnEnabled = true;
+
+	// 수신 시 스폰 타이머를 시작할 월드 이벤트 태그 목록
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|ItemSpawner|Event", meta = (Categories = "Event"))
+	TArray<FGameplayTag> ActivateEventTags;
 
 	// 첫 스폰까지 대기 시간
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|ItemSpawner", meta = (ClampMin = "0.0"))
@@ -108,6 +134,12 @@ protected:
 private:
 	// 반복 스폰 타이머 핸들
 	FTimerHandle SpawnTimerHandle;
+
+	// EventManager에 등록한 활성 이벤트 수신 핸들 목록
+	TMap<FGameplayTag, FDelegateHandle> ActivateEventHandles;
+
+	// RespawnSubsystem 리스폰 준비 이벤트 수신 핸들
+	FDelegateHandle PrepareRespawnHandle;
 
 	// 현재 스포너가 생성한 살아있는 픽업 목록
 	UPROPERTY(Transient)

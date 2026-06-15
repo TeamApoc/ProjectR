@@ -54,6 +54,10 @@ struct PROJECTR_API FPRDamageAppliedContext
 	// Effect Source
 	UPROPERTY(BlueprintReadOnly, Category = "ProjectR|Combat")
 	TWeakObjectPtr<UObject> SourceObject;
+
+	// 피해를 발생시킨 캐릭터 식별자
+	UPROPERTY(BlueprintReadOnly, Category = "ProjectR|Combat")
+	FName SourceCharacterID = NAME_None;
 	
 	// 공격을 발생시킨 액터 (소스 액터, 플레이어 어빌리티에서 발생한 경우 PlayerState가 되는 경우가 많음)
 	UPROPERTY(BlueprintReadOnly, Category = "ProjectR|Combat")

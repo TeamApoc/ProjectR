@@ -143,6 +143,11 @@ public:
 	// 서버 권위 인카운터 연출 종료 후 소유 클라이언트의 카메라를 현재 Pawn으로 복구한다.
 	UFUNCTION(Client, Reliable)
 	void ClientRestoreFaerinEncounterViewTarget(float BlendTime);
+	// Faerin 인카운터 입력 잠금 상태를 로컬 PlayerController에 즉시 적용한다.
+	void SetEncounterInputLockLocal(bool bLock);
+
+	// Faerin 인카운터 카메라를 로컬 Pawn으로 즉시 복귀시킨다.
+	void RestoreFaerinEncounterViewTargetLocal(float BlendTime);
 	
 	// 서버 -> 본인 클라. 무기 강화 결과를 UI에 전달한다
 	UFUNCTION(Client, Reliable)
@@ -191,6 +196,20 @@ public:
 	// 서버 -> 본인 클라. 로컬 시퀀스 재생을 중단하고 입력/카메라/자막을 복구한다.
 	UFUNCTION(Client, Reliable)
 	void ClientStopFaerinEncounterSequence(APRFaerinEncounterDirector* Director, FName Reason);
+	// Faerin 하단 자막을 로컬 화면에 즉시 표시한다.
+	void ShowFaerinSubtitleLocal(APRFaerinEncounterDirector* Director, FName DialogueNodeId);
+
+	// Faerin 하단 자막을 로컬 화면에 직접 표시한다. Sequence cue처럼 DialogueNodeId가 없는 경우 사용한다.
+	void ShowFaerinSubtitleTextLocal(const FText& SpeakerText, const FText& BodyText);
+
+	// Faerin 하단 자막을 로컬 화면에서 즉시 숨긴다.
+	void HideFaerinSubtitleLocal();
+
+	// Faerin 인카운터 시퀀스를 로컬 화면에서 즉시 재생한다.
+	void PlayFaerinEncounterSequenceLocal(APRFaerinEncounterDirector* Director, EFaerinEncounterSequence SequenceType);
+
+	// Faerin 인카운터 시퀀스를 로컬 화면에서 즉시 중단하고 입력/카메라/자막을 복구한다.
+	void StopFaerinEncounterSequenceLocal(APRFaerinEncounterDirector* Director, FName Reason);
 
 	// 본인 클라 -> 서버. 상호작용자가 표시한 현재 대화 노드를 서버에 알려 Gather 자막 송출을 트리거한다.
 	UFUNCTION(Server, Reliable)

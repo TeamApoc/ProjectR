@@ -349,6 +349,8 @@ private:
 	USceneComponent* ResolveDialogueVoiceAttachComponent(AActor* VoiceActor) const;
 	void ScheduleSequenceVoiceCuesLocal(EFaerinEncounterSequence SequenceType);
 	void StopSequenceVoiceCuesLocal(FName Reason);
+	bool ResolveSequenceSubtitleText(EFaerinEncounterSequence SequenceType, FName CueId, FText& OutSpeakerText, FText& OutBodyText) const;
+	void ShowSequenceSubtitleCueLocal(EFaerinEncounterSequence SequenceType, FName CueId);
 	void PlaySequenceVoiceCueLocal(
 		EFaerinEncounterSequence SequenceType,
 		FName CueId,

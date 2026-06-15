@@ -713,7 +713,7 @@ void APRFaerinEncounterDirector::PlayEncounterSequenceForPlayers(
 		{
 			if (PC->IsLocalController())
 			{
-				PlayEncounterSequenceForLocalAudience(SequenceType);
+				PC->PlayFaerinEncounterSequenceLocal(this, SequenceType);
 			}
 			else
 			{
@@ -825,11 +825,25 @@ void APRFaerinEncounterDirector::BroadcastFaerinSubtitleForDialogueNode(const FP
 		if (bFaerinNode)
 		{
 			// 본문/화자는 NodeId로 클라에서 resolve한다(FText RPC 금지).
-			PC->ClientShowFaerinSubtitle(this, Node.NodeId);
+			if (PC->IsLocalController())
+			{
+				PC->ShowFaerinSubtitleLocal(this, Node.NodeId);
+			}
+			else
+			{
+				PC->ClientShowFaerinSubtitle(this, Node.NodeId);
+			}
 		}
 		else
 		{
-			PC->ClientHideFaerinSubtitle();
+			if (PC->IsLocalController())
+			{
+				PC->HideFaerinSubtitleLocal();
+			}
+			else
+			{
+				PC->ClientHideFaerinSubtitle();
+			}
 		}
 	}
 }
@@ -842,7 +856,14 @@ void APRFaerinEncounterDirector::HideFaerinSubtitleForGatherPlayers()
 	{
 		if (IsValid(PC))
 		{
-			PC->ClientHideFaerinSubtitle();
+			if (PC->IsLocalController())
+			{
+				PC->HideFaerinSubtitleLocal();
+			}
+			else
+			{
+				PC->ClientHideFaerinSubtitle();
+			}
 		}
 	}
 }
@@ -858,7 +879,14 @@ void APRFaerinEncounterDirector::HideFaerinSubtitleForPlayers(const TArray<APRPl
 
 		if (APRPlayerController* PC = Cast<APRPlayerController>(Player->GetController()))
 		{
-			PC->ClientHideFaerinSubtitle();
+			if (PC->IsLocalController())
+			{
+				PC->HideFaerinSubtitleLocal();
+			}
+			else
+			{
+				PC->ClientHideFaerinSubtitle();
+			}
 		}
 	}
 }
@@ -878,17 +906,39 @@ void APRFaerinEncounterDirector::NotifyPlayerExitedGather(APRPlayerCharacter* Pl
 		return;
 	}
 
-	PC->ClientHideFaerinSubtitle();
+	if (PC->IsLocalController())
+	{
+		PC->HideFaerinSubtitleLocal();
+	}
+	else
+	{
+		PC->ClientHideFaerinSubtitle();
+	}
 
 	// 연출 중 이탈이면 해당 클라의 로컬 시퀀스/입력/카메라까지 복구한다.
 	if (CurrentState == EFaerinEncounterState::IntroCutsceneDialogue
 		|| CurrentState == EFaerinEncounterState::PreFightCutscene)
 	{
-		PC->ClientStopFaerinEncounterSequence(this, TEXT("LeftGather"));
+		if (PC->IsLocalController())
+		{
+			PC->StopFaerinEncounterSequenceLocal(this, TEXT("LeftGather"));
+		}
+		else
+		{
+			PC->ClientStopFaerinEncounterSequence(this, TEXT("LeftGather"));
+		}
 	}
 
-	PC->ClientSetEncounterInputLock(false);
-	PC->ClientRestoreFaerinEncounterViewTarget(0.0f);
+	if (PC->IsLocalController())
+	{
+		PC->SetEncounterInputLockLocal(false);
+		PC->RestoreFaerinEncounterViewTargetLocal(0.0f);
+	}
+	else
+	{
+		PC->ClientSetEncounterInputLock(false);
+		PC->ClientRestoreFaerinEncounterViewTarget(0.0f);
+	}
 }
 
 // ===== 인트로/전투 시작 흐름 =====
@@ -966,7 +1016,14 @@ void APRFaerinEncounterDirector::FinishIntroSequence()
 
 		if (APRPlayerController* PlayerController = Cast<APRPlayerController>(Player->GetController()))
 		{
-			PlayerController->ClientStopFaerinEncounterSequence(this, TEXT("IntroFinished"));
+			if (PlayerController->IsLocalController())
+			{
+				PlayerController->StopFaerinEncounterSequenceLocal(this, TEXT("IntroFinished"));
+			}
+			else
+			{
+				PlayerController->ClientStopFaerinEncounterSequence(this, TEXT("IntroFinished"));
+			}
 		}
 	}
 
@@ -1169,7 +1226,14 @@ void APRFaerinEncounterDirector::SetInputLockedForPlayers(const TArray<APRPlayer
 		APRPlayerController* PlayerController = Cast<APRPlayerController>(Player->GetController());
 		if (IsValid(PlayerController))
 		{
-			PlayerController->ClientSetEncounterInputLock(bLock);
+			if (PlayerController->IsLocalController())
+			{
+				PlayerController->SetEncounterInputLockLocal(bLock);
+			}
+			else
+			{
+				PlayerController->ClientSetEncounterInputLock(bLock);
+			}
 		}
 	}
 }
@@ -1200,7 +1264,14 @@ void APRFaerinEncounterDirector::RestoreViewTargetForPlayers(
 			*Player->GetName(),
 			ClampedBlendTime,
 			Reason != nullptr ? Reason : TEXT("None"));
-		PlayerController->ClientRestoreFaerinEncounterViewTarget(ClampedBlendTime);
+		if (PlayerController->IsLocalController())
+		{
+			PlayerController->RestoreFaerinEncounterViewTargetLocal(ClampedBlendTime);
+		}
+		else
+		{
+			PlayerController->ClientRestoreFaerinEncounterViewTarget(ClampedBlendTime);
+		}
 	}
 }
 
@@ -1920,6 +1991,84 @@ void APRFaerinEncounterDirector::StopSequenceVoiceCuesLocal(FName Reason)
 			TEXT("[FaerinSequenceVoice] StopAll reason=%s"),
 			*Reason.ToString());
 	}
+
+	if (UWorld* World = GetWorld())
+	{
+		if (APRPlayerController* LocalPC = Cast<APRPlayerController>(UGameplayStatics::GetPlayerController(World, 0)))
+		{
+			LocalPC->HideFaerinSubtitleLocal();
+		}
+	}
+}
+
+bool APRFaerinEncounterDirector::ResolveSequenceSubtitleText(
+	EFaerinEncounterSequence SequenceType,
+	FName CueId,
+	FText& OutSpeakerText,
+	FText& OutBodyText) const
+{
+	if (SequenceType != EFaerinEncounterSequence::Intro)
+	{
+		return false;
+	}
+
+	static const FName FirstIntroCueId(TEXT("VO_ET_Faerin_5F79_Faerin"));
+	static const FName SecondIntroCueId(TEXT("VO_ET_Faerin_E35F_Faerin"));
+	static const FName ThirdIntroCueId(TEXT("VO_ET_Faerin_0AF7_Faerin"));
+
+	OutSpeakerText = FText::FromString(TEXT("페어린"));
+
+	if (CueId == FirstIntroCueId)
+	{
+		OutBodyText = FText::FromString(TEXT("조심하라, 피조물이여. 너는 전능한 페어린의 앞에 서 있다."));
+		return true;
+	}
+
+	if (CueId == SecondIntroCueId)
+	{
+		OutBodyText = FText::FromString(TEXT("우리는 유일한 참된 왕을 쓰러뜨린 자, 우리가 바라보는 모든 것을 정복한 자다. 우리 앞에서는 모두가 떨며 무릎 꿇어야 한다."));
+		return true;
+	}
+
+	if (CueId == ThirdIntroCueId)
+	{
+		OutBodyText = FText::FromString(TEXT("그런데 너는? 참으로 기묘하고 가련한 작은 피조물이로군. 유감이지만 문을 잘못 찾아온 것 같구나, 작은 쥐야."));
+		return true;
+	}
+
+	return false;
+}
+
+void APRFaerinEncounterDirector::ShowSequenceSubtitleCueLocal(EFaerinEncounterSequence SequenceType, FName CueId)
+{
+	FText SpeakerText;
+	FText BodyText;
+	if (!ResolveSequenceSubtitleText(SequenceType, CueId, SpeakerText, BodyText))
+	{
+		return;
+	}
+
+	UWorld* World = GetWorld();
+	if (!IsValid(World))
+	{
+		return;
+	}
+
+	APRPlayerController* LocalPC = Cast<APRPlayerController>(UGameplayStatics::GetPlayerController(World, 0));
+	if (!IsValid(LocalPC))
+	{
+		return;
+	}
+
+	UE_LOG(
+		LogTemp,
+		Log,
+		TEXT("[FaerinSequenceSubtitle] Show sequence=%d cue=%s body=%s"),
+		static_cast<int32>(SequenceType),
+		*CueId.ToString(),
+		*BodyText.ToString());
+
+	LocalPC->ShowFaerinSubtitleTextLocal(SpeakerText, BodyText);
 }
 
 void APRFaerinEncounterDirector::PlaySequenceVoiceCueLocal(
@@ -2010,6 +2159,8 @@ void APRFaerinEncounterDirector::PlaySequenceVoiceCueLocal(
 		static_cast<int32>(SequenceType),
 		*CueId.ToString(),
 		*Sound->GetName());
+
+	ShowSequenceSubtitleCueLocal(SequenceType, CueId);
 }
 
 void APRFaerinEncounterDirector::PlayIdleAnimationOnPresentationActor(

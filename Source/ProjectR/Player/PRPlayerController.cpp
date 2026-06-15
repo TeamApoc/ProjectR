@@ -702,13 +702,18 @@ void APRPlayerController::ClientShowPartyWipeWidget_Implementation(TSubclassOf<U
 	}
 }
 
-void APRPlayerController::ClientSetEncounterInputLock_Implementation(bool bLock)
+void APRPlayerController::SetEncounterInputLockLocal(bool bLock)
 {
 	SetIgnoreMoveInput(bLock);
 	SetIgnoreLookInput(bLock);
 }
 
-void APRPlayerController::ClientRestoreFaerinEncounterViewTarget_Implementation(float BlendTime)
+void APRPlayerController::ClientSetEncounterInputLock_Implementation(bool bLock)
+{
+	SetEncounterInputLockLocal(bLock);
+}
+
+void APRPlayerController::RestoreFaerinEncounterViewTargetLocal(float BlendTime)
 {
 	if (!IsLocalController())
 	{
@@ -722,6 +727,11 @@ void APRPlayerController::ClientRestoreFaerinEncounterViewTarget_Implementation(
 	}
 
 	SetViewTargetWithBlend(LocalPawn, FMath::Max(BlendTime, 0.0f), VTBlend_Cubic, 2.0f, false);
+}
+
+void APRPlayerController::ClientRestoreFaerinEncounterViewTarget_Implementation(float BlendTime)
+{
+	RestoreFaerinEncounterViewTargetLocal(BlendTime);
 }
 
 void APRPlayerController::ClientNotifyWeaponUpgradeResult_Implementation(const FPRWeaponUpgradeResult& Result)
@@ -780,7 +790,7 @@ void APRPlayerController::ClientCloseFaerinEncounterChoice_Implementation()
 	UIControllerComponent->CloseFaerinEncounterChoice();
 }
 
-void APRPlayerController::ClientShowFaerinSubtitle_Implementation(APRFaerinEncounterDirector* Director, FName DialogueNodeId)
+void APRPlayerController::ShowFaerinSubtitleLocal(APRFaerinEncounterDirector* Director, FName DialogueNodeId)
 {
 	if (!IsLocalController() || !IsValid(UIControllerComponent) || !IsValid(Director))
 	{
@@ -800,7 +810,29 @@ void APRPlayerController::ClientShowFaerinSubtitle_Implementation(APRFaerinEncou
 	UIControllerComponent->ShowFaerinEncounterSubtitle(SpeakerText, BodyText);
 }
 
-void APRPlayerController::ClientHideFaerinSubtitle_Implementation()
+void APRPlayerController::ShowFaerinSubtitleTextLocal(const FText& SpeakerText, const FText& BodyText)
+{
+	if (!IsLocalController() || !IsValid(UIControllerComponent))
+	{
+		return;
+	}
+
+	if (BodyText.IsEmpty())
+	{
+		UIControllerComponent->HideFaerinEncounterSubtitle();
+		return;
+	}
+
+	UE_LOG(LogTemp, Log, TEXT("[FaerinSubtitle] Client show direct body=%s"), *BodyText.ToString());
+	UIControllerComponent->ShowFaerinEncounterSubtitle(SpeakerText, BodyText);
+}
+
+void APRPlayerController::ClientShowFaerinSubtitle_Implementation(APRFaerinEncounterDirector* Director, FName DialogueNodeId)
+{
+	ShowFaerinSubtitleLocal(Director, DialogueNodeId);
+}
+
+void APRPlayerController::HideFaerinSubtitleLocal()
 {
 	if (!IsLocalController() || !IsValid(UIControllerComponent))
 	{
@@ -810,7 +842,12 @@ void APRPlayerController::ClientHideFaerinSubtitle_Implementation()
 	UIControllerComponent->HideFaerinEncounterSubtitle();
 }
 
-void APRPlayerController::ClientPlayFaerinEncounterSequence_Implementation(APRFaerinEncounterDirector* Director, EFaerinEncounterSequence SequenceType)
+void APRPlayerController::ClientHideFaerinSubtitle_Implementation()
+{
+	HideFaerinSubtitleLocal();
+}
+
+void APRPlayerController::PlayFaerinEncounterSequenceLocal(APRFaerinEncounterDirector* Director, EFaerinEncounterSequence SequenceType)
 {
 	if (!IsLocalController() || !IsValid(Director))
 	{
@@ -820,7 +857,12 @@ void APRPlayerController::ClientPlayFaerinEncounterSequence_Implementation(APRFa
 	Director->PlayEncounterSequenceForLocalAudience(SequenceType);
 }
 
-void APRPlayerController::ClientStopFaerinEncounterSequence_Implementation(APRFaerinEncounterDirector* Director, FName Reason)
+void APRPlayerController::ClientPlayFaerinEncounterSequence_Implementation(APRFaerinEncounterDirector* Director, EFaerinEncounterSequence SequenceType)
+{
+	PlayFaerinEncounterSequenceLocal(Director, SequenceType);
+}
+
+void APRPlayerController::StopFaerinEncounterSequenceLocal(APRFaerinEncounterDirector* Director, FName Reason)
 {
 	if (!IsLocalController() || !IsValid(Director))
 	{
@@ -828,9 +870,14 @@ void APRPlayerController::ClientStopFaerinEncounterSequence_Implementation(APRFa
 	}
 
 	Director->StopEncounterSequenceForLocalAudience(Reason);
-	ClientRestoreFaerinEncounterViewTarget(0.0f);
-	ClientSetEncounterInputLock(false);
-	ClientHideFaerinSubtitle();
+	RestoreFaerinEncounterViewTargetLocal(0.0f);
+	SetEncounterInputLockLocal(false);
+	HideFaerinSubtitleLocal();
+}
+
+void APRPlayerController::ClientStopFaerinEncounterSequence_Implementation(APRFaerinEncounterDirector* Director, FName Reason)
+{
+	StopFaerinEncounterSequenceLocal(Director, Reason);
 }
 
 void APRPlayerController::ServerNotifyFaerinDialogueNodePresented_Implementation(APRFaerinEncounterDirector* Director, FName DialogueNodeId)

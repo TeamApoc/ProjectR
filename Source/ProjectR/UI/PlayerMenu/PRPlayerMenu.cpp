@@ -8,6 +8,7 @@
 #include "CommonTabListWidgetBase.h"
 #include "Components/Widget.h"
 #include "ProjectR/UI/Growth/PRTraitWindowWidget.h"
+#include "ProjectR/UI/Inventory/PRBagWidget.h"
 #include "ProjectR/UI/Inventory/PRInventoryWidget.h"
 #include "PRPlayerMenuTabListWidget.h"
 
@@ -129,6 +130,13 @@ void UPRPlayerMenu::SetMenuSources(UPRInventoryComponent* InInventoryComponent, 
 			continue;
 		}
 
+		if (UPRBagWidget* BagTabWidget = Cast<UPRBagWidget>(ChildWidget))
+		{
+			// 가방 소스 전달
+			BagTabWidget->SetBagSources(InInventoryComponent, InQuickSlotComponent);
+			continue;
+		}
+
 		if (UPRTraitWindowWidget* TraitTabWidget = Cast<UPRTraitWindowWidget>(ChildWidget))
 		{
 			// 특성 소스 전달
@@ -162,6 +170,8 @@ EPRPlayerMenuTabType UPRPlayerMenu::ResolveRuntimeTabTypeByIndex(int32 TabIndex)
 	case 1:
 		return EPRPlayerMenuTabType::Trait;
 	case 2:
+		return EPRPlayerMenuTabType::Bag;
+	case 3:
 		return EPRPlayerMenuTabType::InGameMenu;
 	default:
 		return EPRPlayerMenuTabType::Inventory;

@@ -29,6 +29,9 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "ProjectR|Inventory")
 	void SetItemList(EPRItemType InListType, const TArray<FPRInventoryItemSlotViewData>& InItems);
 
+	UFUNCTION(BlueprintCallable, Category = "ProjectR|Inventory")
+	void SetListText(FText InText);
+
 	// 현재 리스트 타입을 반환한다
 	UFUNCTION(BlueprintPure, Category = "ProjectR|Inventory")
 	EPRItemType GetListType() const {return ListType;}
@@ -73,6 +76,10 @@ public:
 	// 아이템 선택 이벤트
 	UPROPERTY(BlueprintAssignable, Category = "ProjectR|Inventory")
 	FPRInventoryItemSelectedSignature OnItemSelected;
+
+	// 아이템 우클릭 이벤트
+	UPROPERTY(BlueprintAssignable, Category = "ProjectR|Inventory")
+	FPRInventoryItemSelectedSignature OnItemRightClicked;
 
 protected:
 	// 동적 슬롯이 추가될 UMG 패널

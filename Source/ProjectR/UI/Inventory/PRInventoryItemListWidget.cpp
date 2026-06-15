@@ -63,6 +63,14 @@ void UPRInventoryItemListWidget::SetItemList(EPRItemType InListType, const TArra
 	RebuildNativeItemList();
 }
 
+void UPRInventoryItemListWidget::SetListText(FText InText)
+{
+	if (IsValid(ItemListTypeText))
+	{
+		ItemListTypeText->SetText(InText);
+	}
+}
+
 /*~ UUserWidget Interface ~*/
 
 void UPRInventoryItemListWidget::NativePreConstruct()
@@ -232,6 +240,6 @@ void UPRInventoryItemListWidget::HandleItemSlotRightClicked(const FPRInventoryIt
 		return;
 	}
 
-	// 아이템 선택 이벤트를 발생시킨다
-	OnItemSelected.Broadcast(ViewData);
+	// 아이템 우클릭 이벤트를 발생시킨다
+	OnItemRightClicked.Broadcast(ViewData);
 }

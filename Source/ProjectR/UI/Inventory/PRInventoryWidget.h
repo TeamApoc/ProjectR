@@ -75,9 +75,6 @@ protected:
 	// 화면에서 제거될 때 표시 상태와 하위 위젯 이벤트 바인딩을 정리한다
 	virtual void NativeDestruct() override;
 
-	/*~ UPRWidgetBase Interface ~*/
-	virtual EPRUIInputAction GetUIInputAction(const FKey& Key) const override;
-
 private:
 	// BindWidgetOptional 슬롯들을 반복 처리용 배열로 캐싱한다
 	void CacheChildWidgetLists();

@@ -216,6 +216,12 @@ namespace PRGameplayTags
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(SetByCaller_Trait_CriticalHitChance, "SetByCaller.Trait.CriticalHitChance", "특성 치명타 확률 보너스");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(SetByCaller_Trait_CriticalDamageMultiplier, "SetByCaller.Trait.CriticalDamageMultiplier", "특성 치명타 피해 배율 보너스");
 
+	// ===== SetByCaller.Equipment.* =====
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(SetByCaller_Equipment_MaxHealth, "SetByCaller.Equipment.MaxHealth", "장비 최대 체력 보너스");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(SetByCaller_Equipment_Armor, "SetByCaller.Equipment.Armor", "장비 방어력 보너스");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(SetByCaller_Equipment_PlayerAttackPower, "SetByCaller.Equipment.PlayerAttackPower", "장비 플레이어 공격력 보너스");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(SetByCaller_Equipment_MaxStamina, "SetByCaller.Equipment.MaxStamina", "장비 최대 스태미너 보너스");
+
 	// ===== Input.Ability.* =====
 
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Input_Ability_Fire_Primary, "Input.Ability.Fire.Primary", "기본 발사 입력 태그 (모드 스킬의 발사가 아닌 무기의 기본 발사)");

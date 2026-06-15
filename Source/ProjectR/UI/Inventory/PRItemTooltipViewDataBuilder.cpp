@@ -3,6 +3,8 @@
 // Author: 배유찬 (아이템 능력치 수치 뷰 데이터 생성 구현)
 #include "PRItemTooltipViewDataBuilder.h"
 
+#include "GameplayEffect.h"
+#include "ProjectR/AbilitySystem/PRGameplayEffectUIDescriptionComponent.h"
 #include "ProjectR/ItemSystem/Data/PRConsumableDataAsset.h"
 #include "ProjectR/ItemSystem/Data/PREquipmentDataAsset.h"
 #include "ProjectR/ItemSystem/Data/PRItemDataAsset.h"
@@ -49,6 +51,52 @@ namespace
 		DetailLine.Label = Label;
 		DetailLine.Value = Value;
 		ViewData.DetailLines.Add(DetailLine);
+	}
+
+	FText BuildSignedFloatText(float Value, int32 MaximumFractionalDigits = 0)
+	{
+		const FText ValueText = UPRUserInterfaceStatics::ConvertFloatToText(FMath::Abs(Value), MaximumFractionalDigits);
+		const TCHAR* SignFormat = Value >= 0.0f ? TEXT("+{0}") : TEXT("-{0}");
+		return FText::Format(FText::FromString(SignFormat), ValueText);
+	}
+
+	void AddEquipmentStatLine(FPRItemTooltipViewData& ViewData, const FText& Label, float Value, int32 MaximumFractionalDigits = 0)
+	{
+		if (FMath::IsNearlyZero(Value))
+		{
+			return;
+		}
+
+		AddDetailLine(ViewData, Label, BuildSignedFloatText(Value, MaximumFractionalDigits));
+	}
+
+	void AppendGameplayEffectDescriptionLines(FPRItemTooltipViewData& ViewData, const TArray<FPREffectEntry>& EffectEntries)
+	{
+		for (const FPREffectEntry& EffectEntry : EffectEntries)
+		{
+			if (!IsValid(EffectEntry.EffectClass))
+			{
+				continue;
+			}
+
+			const UGameplayEffect* EffectCDO = EffectEntry.EffectClass->GetDefaultObject<UGameplayEffect>();
+			if (!IsValid(EffectCDO))
+			{
+				continue;
+			}
+
+			const UPRGameplayEffectUIDescriptionComponent* DescriptionComponent =
+				EffectCDO->FindComponent<UPRGameplayEffectUIDescriptionComponent>();
+			if (!IsValid(DescriptionComponent))
+			{
+				continue;
+			}
+
+			for (const FPRGameplayEffectUIDescriptionLine& DescriptionLine : DescriptionComponent->GetDescriptionLines())
+			{
+				AddDetailLine(ViewData, DescriptionLine.Label, DescriptionLine.Value);
+			}
+		}
 	}
 
 	FText BuildWeaponDisplayName(const UPRWeaponDataAsset* WeaponData, const UPRItemInstance_Weapon* WeaponItem)
@@ -127,6 +175,11 @@ FPRItemTooltipViewData UPRItemTooltipViewDataBuilder::BuildTooltipViewData(const
 			ViewData,
 			FText::FromString(TEXT("장비 슬롯")),
 			UPRInventoryItemSlotViewDataBuilder::GetEquipmentSlotDisplayName(EquipmentData->GetSlotType()));
+		AddEquipmentStatLine(ViewData, FText::FromString(TEXT("최대 체력")), EquipmentData->GetMaxHealthBonus());
+		AddEquipmentStatLine(ViewData, FText::FromString(TEXT("방어력")), EquipmentData->GetArmorBonus());
+		AddEquipmentStatLine(ViewData, FText::FromString(TEXT("공격력")), EquipmentData->GetAttackPowerBonus());
+		AddEquipmentStatLine(ViewData, FText::FromString(TEXT("최대 스태미너")), EquipmentData->GetMaxStaminaBonus());
+		AppendGameplayEffectDescriptionLines(ViewData, EquipmentData->GetEquippedEffects());
 		return ViewData;
 	}
 

@@ -39,6 +39,7 @@ APRFaerinCharacter::APRFaerinCharacter()
 	TeleportVFXComponent = CreateDefaultSubobject<UPRFaerinTeleportVFXComponent>(TEXT("TeleportVFXComponent"));
 	MotionWarpingComponent = CreateDefaultSubobject<UMotionWarpingComponent>(TEXT("MotionWarpingComponent"));
 
+	bIsRespawnable = false;
 	bCanEnterGroggyState = false;
 
 	PhaseThresholdRatios.Add(EPRBossPhase::Phase2, 0.87f);

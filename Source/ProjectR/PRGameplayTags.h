@@ -212,6 +212,12 @@ namespace PRGameplayTags
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(SetByCaller_Trait_CriticalHitChance); // 특성 치명타 확률 보너스
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(SetByCaller_Trait_CriticalDamageMultiplier); // 특성 치명타 피해 배율 보너스
 
+	// ===== SetByCaller.Equipment.* — 장비 보너스 GameplayEffect 전달 값 =====
+	UE_DECLARE_GAMEPLAY_TAG_EXTERN(SetByCaller_Equipment_MaxHealth); // 장비 최대 체력 보너스
+	UE_DECLARE_GAMEPLAY_TAG_EXTERN(SetByCaller_Equipment_Armor); // 장비 방어력 보너스
+	UE_DECLARE_GAMEPLAY_TAG_EXTERN(SetByCaller_Equipment_PlayerAttackPower); // 장비 플레이어 공격력 보너스
+	UE_DECLARE_GAMEPLAY_TAG_EXTERN(SetByCaller_Equipment_MaxStamina); // 장비 최대 스태미너 보너스
+
 	// ===== Input.Ability.* — 플레이어 InputTag (AbilitySpec DynamicTags 매칭 키) =====
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Input_Ability_Fire_Primary); // 기본 발사 입력 태그 (모드 스킬의 발사가 아닌 무기의 기본 발사)
 	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Input_Ability_Dodge); // 구르기 입력 태그

@@ -106,6 +106,10 @@ public:
 	UPROPERTY(EditAnywhere, Category = "Registry|EquipGE")
 	TSubclassOf<UGameplayEffect>  EquipGE_Override_SecondaryModResource;
 
+	// 장비 공통 수치 보너스 GE
+	UPROPERTY(EditAnywhere, Category = "Registry|EquipGE")
+	TSubclassOf<UGameplayEffect> EquipGE_EquipmentCommonStats;
+
 	// ==== 쿨다운 GE ====
 	// 사격 어빌리티 공통 쿨다운 GE. SetByCaller.Cooldown으로 Duration 주입. Cooldown.Ability.Fire.Primary를 Granted Tag로 부여
 	UPROPERTY(EditAnywhere, Category = "Registry|Cooldown")

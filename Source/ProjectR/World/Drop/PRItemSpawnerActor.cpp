@@ -6,6 +6,8 @@
 #include "NavigationSystem.h"
 #include "TimerManager.h"
 #include "ProjectR/ItemSystem/Data/PRAmmoDataAsset.h"
+#include "ProjectR/System/PREventManagerSubsystem.h"
+#include "ProjectR/System/PRRespawnSubsystem.h"
 #include "ProjectR/World/Drop/PRItemDropManagerSubsystem.h"
 #include "ProjectR/World/Pickable/PRRewardPickupActor.h"
 
@@ -25,10 +27,16 @@ void APRItemSpawnerActor::BeginPlay()
 {
 	Super::BeginPlay();
 
-	if (HasAuthority() && bAutoStart)
+	if (HasAuthority())
 	{
-		// 서버 자동 스폰 타이머 시작
-		StartSpawning();
+		BindActivateEvents();
+		BindPrepareRespawnEvent();
+
+		if (bAutoStart)
+		{
+			// 서버 자동 스폰 타이머 시작
+			StartSpawning();
+		}
 	}
 }
 
@@ -38,6 +46,8 @@ void APRItemSpawnerActor::EndPlay(const EEndPlayReason::Type EndPlayReason)
 	{
 		// 서버 스폰 타이머 정리
 		StopSpawning();
+		UnbindActivateEvents();
+		UnbindPrepareRespawnEvent();
 	}
 
 	Super::EndPlay(EndPlayReason);
@@ -128,6 +138,117 @@ bool APRItemSpawnerActor::SpawnItemOnce()
 
 	AlivePickups.Add(PickupActor);
 	return true;
+}
+
+void APRItemSpawnerActor::BindActivateEvents()
+{
+	if (!HasAuthority() || ActivateEventTags.IsEmpty())
+	{
+		return;
+	}
+
+	UWorld* World = GetWorld();
+	UPREventManagerSubsystem* EventManager = IsValid(World) ? World->GetSubsystem<UPREventManagerSubsystem>() : nullptr;
+	if (!IsValid(EventManager))
+	{
+		return;
+	}
+
+	TSet<FGameplayTag> UniqueTags;
+	for (const FGameplayTag& ActivateEventTag : ActivateEventTags)
+	{
+		if (!ActivateEventTag.IsValid() || UniqueTags.Contains(ActivateEventTag) || ActivateEventHandles.Contains(ActivateEventTag))
+		{
+			continue;
+		}
+
+		// 동일 태그 중복 등록 방지
+		UniqueTags.Add(ActivateEventTag);
+
+		FDelegateHandle EventHandle = EventManager->Listen(
+			ActivateEventTag,
+			FPREventMulticast::FDelegate::CreateUObject(this, &ThisClass::HandleActivateEvent));
+		if (EventHandle.IsValid())
+		{
+			// EndPlay와 리스폰 준비 단계 정리를 위한 핸들 보관
+			ActivateEventHandles.Add(ActivateEventTag, EventHandle);
+		}
+	}
+}
+
+void APRItemSpawnerActor::UnbindActivateEvents()
+{
+	UWorld* World = GetWorld();
+	UPREventManagerSubsystem* EventManager = IsValid(World) ? World->GetSubsystem<UPREventManagerSubsystem>() : nullptr;
+	if (IsValid(EventManager))
+	{
+		for (TPair<FGameplayTag, FDelegateHandle>& EventHandlePair : ActivateEventHandles)
+		{
+			// EventManager 태그별 수신 핸들 해제
+			EventManager->Unlisten(EventHandlePair.Key, EventHandlePair.Value);
+		}
+	}
+
+	ActivateEventHandles.Reset();
+}
+
+void APRItemSpawnerActor::BindPrepareRespawnEvent()
+{
+	if (!HasAuthority() || PrepareRespawnHandle.IsValid())
+	{
+		return;
+	}
+
+	UWorld* World = GetWorld();
+	UPRRespawnSubsystem* RespawnSubsystem = IsValid(World) ? World->GetSubsystem<UPRRespawnSubsystem>() : nullptr;
+	if (!IsValid(RespawnSubsystem))
+	{
+		return;
+	}
+
+	// 리스폰 준비 단계의 스포너 상태 정리 예약
+	PrepareRespawnHandle = RespawnSubsystem->OnPrepareRespawn.AddUObject(this, &ThisClass::HandlePrepareRespawn);
+}
+
+void APRItemSpawnerActor::UnbindPrepareRespawnEvent()
+{
+	if (!PrepareRespawnHandle.IsValid())
+	{
+		return;
+	}
+
+	UWorld* World = GetWorld();
+	UPRRespawnSubsystem* RespawnSubsystem = IsValid(World) ? World->GetSubsystem<UPRRespawnSubsystem>() : nullptr;
+	if (IsValid(RespawnSubsystem))
+	{
+		// RespawnSubsystem 리스폰 준비 이벤트 수신 핸들 해제
+		RespawnSubsystem->OnPrepareRespawn.Remove(PrepareRespawnHandle);
+	}
+
+	PrepareRespawnHandle.Reset();
+}
+
+void APRItemSpawnerActor::HandleActivateEvent(FGameplayTag EventTag, const FInstancedStruct& Payload)
+{
+	if (!HasAuthority())
+	{
+		return;
+	}
+
+	// 이벤트 페이로드와 태그 내용은 스포너별 필터 없이 구독 태그 자체로만 판정
+	StartSpawning();
+}
+
+void APRItemSpawnerActor::HandlePrepareRespawn()
+{
+	if (!HasAuthority())
+	{
+		return;
+	}
+
+	// 리스폰 준비 단계에서 기존 이벤트 수신 경로와 반복 스폰 정리
+	StopSpawning();
+	bSpawnEnabled = false;
 }
 
 void APRItemSpawnerActor::HandleSpawnTimerElapsed()

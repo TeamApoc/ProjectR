@@ -239,6 +239,8 @@ void APRFaerinEncounterDirector::ChooseFight(APRPlayerCharacter* Player)
 		return;
 	}
 
+	HideFaerinSubtitleForPlayers(Participants);
+
 	if (IsValid(BoundaryActor))
 	{
 		BoundaryActor->SetBoundaryMode(EFaerinBoundaryMode::PreFight);
@@ -602,6 +604,293 @@ void APRFaerinEncounterDirector::GetPlayersFromSet(
 	}
 }
 
+// ===== Gather 대상 단일화 =====
+
+void APRFaerinEncounterDirector::GetGatherPlayers(TArray<APRPlayerCharacter*>& OutPlayers) const
+{
+	OutPlayers.Reset();
+
+	if (!IsValid(BoundaryActor))
+	{
+		return;
+	}
+
+	TArray<APRPlayerCharacter*> Candidates;
+	BoundaryActor->GetArenaInsidePlayers(Candidates);
+
+	for (APRPlayerCharacter* Player : Candidates)
+	{
+		if (!IsEligibleEncounterPlayer(Player))
+		{
+			continue;
+		}
+
+		// 추적 set과 물리 위치가 어긋난 경우를 방어한다.
+		if (!BoundaryActor->IsPlayerPhysicallyInsideArena(Player))
+		{
+			continue;
+		}
+
+		OutPlayers.AddUnique(Player);
+	}
+
+	const UWorld* World = GetWorld();
+	const APRGameStateBase* GameState = IsValid(World) ? World->GetGameState<APRGameStateBase>() : nullptr;
+	if (!IsValid(GameState))
+	{
+		return;
+	}
+
+	for (APRPlayerCharacter* Player : GameState->GetPlayerCharacters())
+	{
+		if (!IsEligibleEncounterPlayer(Player))
+		{
+			continue;
+		}
+
+		if (!BoundaryActor->IsPlayerPhysicallyInsideArena(Player))
+		{
+			continue;
+		}
+
+		OutPlayers.AddUnique(Player);
+	}
+}
+
+void APRFaerinEncounterDirector::GetGatherPlayerControllers(TArray<APRPlayerController*>& OutControllers) const
+{
+	OutControllers.Reset();
+
+	TArray<APRPlayerCharacter*> Players;
+	GetGatherPlayers(Players);
+	for (APRPlayerCharacter* Player : Players)
+	{
+		if (APRPlayerController* PC = Cast<APRPlayerController>(Player->GetController()))
+		{
+			OutControllers.AddUnique(PC);
+		}
+	}
+}
+
+// ===== Intro/FightStart 시퀀스 (Gather 대상 로컬 재생) =====
+
+void APRFaerinEncounterDirector::PlayEncounterSequenceForLocalAudience(EFaerinEncounterSequence SequenceType)
+{
+	PlaySequenceLocal(SequenceType);
+}
+
+void APRFaerinEncounterDirector::StopEncounterSequenceForLocalAudience(FName Reason)
+{
+	StopSequenceVoiceCuesLocal(Reason);
+	StopLocalSequences();
+}
+
+void APRFaerinEncounterDirector::PlayEncounterSequenceForGatherPlayers(EFaerinEncounterSequence SequenceType)
+{
+	TArray<APRPlayerCharacter*> GatherPlayers;
+	GetGatherPlayers(GatherPlayers);
+	PlayEncounterSequenceForPlayers(GatherPlayers, SequenceType);
+}
+
+void APRFaerinEncounterDirector::PlayEncounterSequenceForPlayers(
+	const TArray<APRPlayerCharacter*>& Players,
+	EFaerinEncounterSequence SequenceType)
+{
+	if (!HasAuthority())
+	{
+		return;
+	}
+
+	int32 AudienceCount = 0;
+	for (APRPlayerCharacter* Player : Players)
+	{
+		if (!IsValid(Player))
+		{
+			continue;
+		}
+
+		if (APRPlayerController* PC = Cast<APRPlayerController>(Player->GetController()))
+		{
+			if (PC->IsLocalController())
+			{
+				PlayEncounterSequenceForLocalAudience(SequenceType);
+			}
+			else
+			{
+				PC->ClientPlayFaerinEncounterSequence(this, SequenceType);
+			}
+			++AudienceCount;
+		}
+	}
+
+	UE_LOG(
+		LogTemp,
+		Log,
+		TEXT("[FaerinSequenceAudience] Play sequence=%d audience=%d"),
+		static_cast<int32>(SequenceType),
+		AudienceCount);
+}
+
+// ===== Faerin 하단 자막 =====
+
+bool APRFaerinEncounterDirector::IsFaerinSpokenDialogueNode(const FPRFaerinDialogueNode& Node) const
+{
+	if (Node.NodeType != EPRFaerinDialogueNodeType::Dialog || Node.Text.IsEmpty())
+	{
+		return false;
+	}
+
+	// SpeakerName만으로는 로컬라이즈 문자열에 흔들릴 수 있고,
+	// VoiceEventPath만으로는 음성 없는 Faerin 라인을 놓칠 수 있어 병행 판정한다.
+	const FString Speaker = Node.SpeakerName.ToString();
+	const FString VoicePath = Node.VoiceEventPath.ToString();
+
+	return Speaker.Contains(TEXT("Faerin"))
+		|| Speaker.Contains(TEXT("페어린"))
+		|| VoicePath.Contains(TEXT("VO_ET_Faerin_"));
+}
+
+bool APRFaerinEncounterDirector::ResolveDialogueSubtitleText(
+	FName DialogueNodeId,
+	FText& OutSpeakerText,
+	FText& OutBodyText) const
+{
+	const FPRFaerinDialogueNode* Node = IsValid(DialogueData) ? DialogueData->FindDialogueNodePtr(DialogueNodeId) : nullptr;
+	if (Node == nullptr || !IsFaerinSpokenDialogueNode(*Node))
+	{
+		return false;
+	}
+
+	OutSpeakerText = Node->SpeakerName;
+	OutBodyText = Node->Text;
+	return !OutBodyText.IsEmpty();
+}
+
+void APRFaerinEncounterDirector::NotifyDialogueNodePresentedFromClient(
+	APRPlayerController* SourceController,
+	FName DialogueNodeId)
+{
+	if (!HasAuthority() || CurrentState != EFaerinEncounterState::ChoiceDialogue)
+	{
+		UE_LOG(LogTemp, Log, TEXT("[FaerinSubtitle] NotifyFromClient rejected auth=%d state=%d node=%s"),
+			HasAuthority() ? 1 : 0, static_cast<int32>(CurrentState), *DialogueNodeId.ToString());
+		return;
+	}
+
+	// 보고자는 반드시 선택권자(상호작용자)여야 한다.
+	APRPlayerCharacter* SourcePlayer = IsValid(SourceController) ? Cast<APRPlayerCharacter>(SourceController->GetPawn()) : nullptr;
+	if (!IsValid(SourcePlayer) || ChoiceInstigator.Get() != SourcePlayer)
+	{
+		UE_LOG(LogTemp, Log, TEXT("[FaerinSubtitle] NotifyFromClient rejected: not instigator (src=%s instigator=%s)"),
+			*GetNameSafe(SourcePlayer), *GetNameSafe(ChoiceInstigator.Get()));
+		return;
+	}
+
+	const FPRFaerinDialogueNode* Node = IsValid(DialogueData) ? DialogueData->FindDialogueNodePtr(DialogueNodeId) : nullptr;
+	if (Node == nullptr)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[FaerinSubtitle] NotifyFromClient node not found id=%s (DialogueData=%s)"),
+			*DialogueNodeId.ToString(), *GetNameSafe(DialogueData));
+		return;
+	}
+
+	BroadcastFaerinSubtitleForDialogueNode(*Node);
+}
+
+void APRFaerinEncounterDirector::BroadcastFaerinSubtitleForDialogueNode(const FPRFaerinDialogueNode& Node)
+{
+	TArray<APRPlayerController*> Audience;
+	GetGatherPlayerControllers(Audience);
+
+	// 상호작용자는 Gather 물리 판정과 무관하게 반드시 자막을 받아야 한다(요구 6.1).
+	if (APRPlayerCharacter* InstigatorPlayer = ChoiceInstigator.Get())
+	{
+		if (APRPlayerController* InstigatorPC = Cast<APRPlayerController>(InstigatorPlayer->GetController()))
+		{
+			Audience.AddUnique(InstigatorPC);
+		}
+	}
+
+	const bool bFaerinNode = IsFaerinSpokenDialogueNode(Node);
+	UE_LOG(LogTemp, Log, TEXT("[FaerinSubtitle] Broadcast node=%s faerin=%d audience=%d speaker=%s"),
+		*Node.NodeId.ToString(), bFaerinNode ? 1 : 0, Audience.Num(), *Node.SpeakerName.ToString());
+
+	for (APRPlayerController* PC : Audience)
+	{
+		if (!IsValid(PC))
+		{
+			continue;
+		}
+
+		if (bFaerinNode)
+		{
+			// 본문/화자는 NodeId로 클라에서 resolve한다(FText RPC 금지).
+			PC->ClientShowFaerinSubtitle(this, Node.NodeId);
+		}
+		else
+		{
+			PC->ClientHideFaerinSubtitle();
+		}
+	}
+}
+
+void APRFaerinEncounterDirector::HideFaerinSubtitleForGatherPlayers()
+{
+	TArray<APRPlayerController*> Audience;
+	GetGatherPlayerControllers(Audience);
+	for (APRPlayerController* PC : Audience)
+	{
+		if (IsValid(PC))
+		{
+			PC->ClientHideFaerinSubtitle();
+		}
+	}
+}
+
+void APRFaerinEncounterDirector::HideFaerinSubtitleForPlayers(const TArray<APRPlayerCharacter*>& Players)
+{
+	for (APRPlayerCharacter* Player : Players)
+	{
+		if (!IsValid(Player))
+		{
+			continue;
+		}
+
+		if (APRPlayerController* PC = Cast<APRPlayerController>(Player->GetController()))
+		{
+			PC->ClientHideFaerinSubtitle();
+		}
+	}
+}
+
+// ===== Gather 이탈 정리 =====
+
+void APRFaerinEncounterDirector::NotifyPlayerExitedGather(APRPlayerCharacter* Player)
+{
+	if (!HasAuthority() || !IsValid(Player))
+	{
+		return;
+	}
+
+	APRPlayerController* PC = Cast<APRPlayerController>(Player->GetController());
+	if (!IsValid(PC))
+	{
+		return;
+	}
+
+	PC->ClientHideFaerinSubtitle();
+
+	// 연출 중 이탈이면 해당 클라의 로컬 시퀀스/입력/카메라까지 복구한다.
+	if (CurrentState == EFaerinEncounterState::IntroCutsceneDialogue
+		|| CurrentState == EFaerinEncounterState::PreFightCutscene)
+	{
+		PC->ClientStopFaerinEncounterSequence(this, TEXT("LeftGather"));
+	}
+
+	PC->ClientSetEncounterInputLock(false);
+	PC->ClientRestoreFaerinEncounterViewTarget(0.0f);
+}
+
 // ===== 인트로/전투 시작 흐름 =====
 
 void APRFaerinEncounterDirector::StartIntroSequence()
@@ -627,7 +916,9 @@ void APRFaerinEncounterDirector::StartIntroSequence()
 	}
 
 	SetEncounterState(EFaerinEncounterState::IntroCutsceneDialogue);
-	MulticastPlayEncounterSequence(EFaerinEncounterSequence::Intro);
+	// 입력을 잠근 대상(IntroPlayers)과 시퀀스 재생 대상을 동일하게 유지한다.
+	// 이 시점에는 arena 물리 판정이 아직 동기화되지 않을 수 있어 Gather를 재계산하지 않는다.
+	PlayEncounterSequenceForPlayers(IntroPlayers, EFaerinEncounterSequence::Intro);
 
 	const float Duration = GetSequenceDurationSeconds(IntroSequence, IntroSequenceFallbackSeconds);
 	if (Duration <= UE_SMALL_NUMBER)
@@ -666,8 +957,32 @@ void APRFaerinEncounterDirector::FinishIntroSequence()
 
 	TArray<APRPlayerCharacter*> IntroPlayers;
 	GetPlayersFromSet(IntroEnteredPlayers, IntroPlayers);
+	for (APRPlayerCharacter* Player : IntroPlayers)
+	{
+		if (!IsValid(Player))
+		{
+			continue;
+		}
+
+		if (APRPlayerController* PlayerController = Cast<APRPlayerController>(Player->GetController()))
+		{
+			PlayerController->ClientStopFaerinEncounterSequence(this, TEXT("IntroFinished"));
+		}
+	}
+
 	RestoreViewTargetForPlayers(IntroPlayers, IntroCameraRestoreBlendTime, TEXT("IntroFinished"));
 	SetInputLockedForPlayers(IntroPlayers, false);
+
+	// 재도전 복원 참조용: Intro 최초 정상 종료 시점의 Faerin 연출 액터 월드 transform 캡처.
+	if (!bCapturedPostIntroFaerinTransform)
+	{
+		if (AActor* FaerinActor = ResolveDialogueEmoteActor())
+		{
+			CapturedPostIntroFaerinTransform = FaerinActor->GetActorTransform();
+			bCapturedPostIntroFaerinTransform = true;
+		}
+	}
+
 	SetEncounterState(EFaerinEncounterState::NegotiationIdle);
 }
 
@@ -676,7 +991,10 @@ void APRFaerinEncounterDirector::StartFightSequence()
 	ClearDialogueEmotePlaybackLocal(false);
 	StopDialogueVoiceLocal();
 	SetEncounterState(EFaerinEncounterState::PreFightCutscene);
-	MulticastPlayEncounterSequence(EFaerinEncounterSequence::FightStart);
+	// 입력을 잠근 대상(CombatStartParticipants)과 시퀀스 재생 대상을 동일하게 유지한다.
+	TArray<APRPlayerCharacter*> Participants;
+	GetPlayersFromSet(CombatStartParticipants, Participants);
+	PlayEncounterSequenceForPlayers(Participants, EFaerinEncounterSequence::FightStart);
 
 	const float Duration = GetSequenceDurationSeconds(FightStartSequence, FightStartSequenceFallbackSeconds);
 	if (Duration <= UE_SMALL_NUMBER)
@@ -757,12 +1075,32 @@ void APRFaerinEncounterDirector::RestoreNegotiationAfterWipe()
 {
 	ResetCombatBoss();
 	CloseChoiceUIForInstigator();
+
+	// 1) BoundaryActor->ClearEncounterState()는 arena tracking set을 비우므로,
+	//    Gather 대상 산출은 반드시 그 전에 snapshot 한다.
+	TArray<APRPlayerCharacter*> RetryGatherPlayers;
+	GetGatherPlayers(RetryGatherPlayers);
+
+	// 2) Gather 범위 안 플레이어만 PlayerPoint/슬롯으로 이동(Intro는 재생하지 않음).
+	AlignRetryGatherPlayersToPlayerPoints(RetryGatherPlayers);
+
+	// 3) 입력/카메라/자막 정리는 snapshot 대상 기준으로 수행.
+	SetInputLockedForPlayers(RetryGatherPlayers, false);
+	RestoreViewTargetForPlayers(RetryGatherPlayers, IntroCameraRestoreBlendTime, TEXT("RetryReady"));
+	HideFaerinSubtitleForPlayers(RetryGatherPlayers);
+
+	// 4) 연출 Actor 복구(Intro 종료 후 협상 idle 상태로 복귀).
 	MulticastSetPresentationActorsHidden(false);
 	MulticastApplyNegotiationPresentationIdle();
 
-	TArray<APRPlayerCharacter*> Participants;
-	GetPlayersFromSet(CombatStartParticipants, Participants);
-	SetInputLockedForPlayers(Participants, false);
+	// 4b) (옵션) 캡처한 PostIntro transform 강제 복원. 사용자 attach/detach와 충돌 확인 후 켠다.
+	if (bRestoreCapturedPostIntroTransformAfterWipe && bCapturedPostIntroFaerinTransform)
+	{
+		if (AActor* FaerinActor = ResolveDialogueEmoteActor())
+		{
+			FaerinActor->SetActorTransform(CapturedPostIntroFaerinTransform, false, nullptr, ETeleportType::TeleportPhysics);
+		}
+	}
 
 	if (IsValid(BoundaryActor))
 	{
@@ -801,10 +1139,7 @@ void APRFaerinEncounterDirector::SnapshotCombatStartParticipants(APRPlayerCharac
 	CombatStartParticipants.Reset();
 
 	TArray<APRPlayerCharacter*> InsidePlayers;
-	if (IsValid(BoundaryActor))
-	{
-		BoundaryActor->GetArenaInsidePlayers(InsidePlayers);
-	}
+	GetGatherPlayers(InsidePlayers);
 
 	for (APRPlayerCharacter* Player : InsidePlayers)
 	{
@@ -814,7 +1149,7 @@ void APRFaerinEncounterDirector::SnapshotCombatStartParticipants(APRPlayerCharac
 		}
 	}
 
-	if (CombatStartParticipants.Num() == 0 && IsEligibleEncounterPlayer(FallbackPlayer))
+	if (IsEligibleEncounterPlayer(FallbackPlayer))
 	{
 		AddPlayer(CombatStartParticipants, FallbackPlayer);
 	}
@@ -898,6 +1233,50 @@ void APRFaerinEncounterDirector::AlignCombatStartParticipants()
 	if (Participants.Num() >= 2)
 	{
 		ApplySlotTransform(Participants[1], ResolveSlotTransform(SlotRightActor, PlayerSlotRight));
+	}
+}
+
+void APRFaerinEncounterDirector::AlignRetryGatherPlayersToPlayerPoints(const TArray<APRPlayerCharacter*>& GatherPlayers)
+{
+	TArray<APRPlayerCharacter*> Players = GatherPlayers;
+	Players.RemoveAll([](APRPlayerCharacter* Player)
+	{
+		return !IsValid(Player);
+	});
+
+	if (Players.Num() == 0)
+	{
+		return;
+	}
+
+	// 재도전 시점에는 ChoiceInstigator가 없을 수 있으므로 PlayerId로 안정 정렬한다.
+	// (TArray<T*>::Sort는 포인터 배열일 때 역참조 객체를 비교 콜백에 전달한다.)
+	Players.Sort([](const APRPlayerCharacter& A, const APRPlayerCharacter& B)
+	{
+		const APRPlayerState* StateA = A.GetPlayerState<APRPlayerState>();
+		const APRPlayerState* StateB = B.GetPlayerState<APRPlayerState>();
+		const int32 IdA = IsValid(StateA) ? StateA->GetPlayerId() : MAX_int32;
+		const int32 IdB = IsValid(StateB) ? StateB->GetPlayerId() : MAX_int32;
+		return IdA < IdB;
+	});
+
+	// 1명: Center / 2명: Center+Left / 3명: Center+Left+Right
+	ApplySlotTransform(Players[0], ResolveSlotTransform(SlotCenterActor, PlayerSlotCenter));
+
+	if (Players.Num() >= 2)
+	{
+		ApplySlotTransform(Players[1], ResolveSlotTransform(SlotLeftActor, PlayerSlotLeft));
+	}
+
+	if (Players.Num() >= 3)
+	{
+		ApplySlotTransform(Players[2], ResolveSlotTransform(SlotRightActor, PlayerSlotRight));
+	}
+
+	// 슬롯이 3개뿐이므로 4명 이상은 추가 이동하지 않는다.
+	for (const APRPlayerCharacter* Player : Players)
+	{
+		UE_LOG(LogTemp, Log, TEXT("[FaerinRetry] Gather player=%s aligned to player point."), *GetNameSafe(Player));
 	}
 }
 

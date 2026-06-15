@@ -50,6 +50,7 @@ class UPRWeaponUpgradeComponent;
 class UPRFXNetworkComponent;
 class APRFaerinEncounterDirector;
 class UPRWorldTickOptimizerReporterComponent;
+enum class EFaerinEncounterSequence : uint8;
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FPRWeaponUpgradeResultSignature, const FPRWeaponUpgradeResult&, Result);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FPRShopBuyResultSignature, const FPRShopBuyResult&, Result);
@@ -174,6 +175,26 @@ public:
 	// Faerin 인카운터 거절 선택을 서버에 전달한다
 	UFUNCTION(Server, Reliable)
 	void ServerChooseFaerinEncounterDecline(APRFaerinEncounterDirector* Director);
+
+	// 서버 -> 본인 클라. Gather 범위 안 플레이어에게 Faerin 하단 자막을 표시한다. 본문은 NodeId로 로컬 해석한다.
+	UFUNCTION(Client, Reliable)
+	void ClientShowFaerinSubtitle(APRFaerinEncounterDirector* Director, FName DialogueNodeId);
+
+	// 서버 -> 본인 클라. Faerin 하단 자막을 숨긴다.
+	UFUNCTION(Client, Reliable)
+	void ClientHideFaerinSubtitle();
+
+	// 서버 -> 본인 클라. Gather 범위 안 플레이어 로컬 화면에 Intro/FightStart 시퀀스를 재생한다.
+	UFUNCTION(Client, Reliable)
+	void ClientPlayFaerinEncounterSequence(APRFaerinEncounterDirector* Director, EFaerinEncounterSequence SequenceType);
+
+	// 서버 -> 본인 클라. 로컬 시퀀스 재생을 중단하고 입력/카메라/자막을 복구한다.
+	UFUNCTION(Client, Reliable)
+	void ClientStopFaerinEncounterSequence(APRFaerinEncounterDirector* Director, FName Reason);
+
+	// 본인 클라 -> 서버. 상호작용자가 표시한 현재 대화 노드를 서버에 알려 Gather 자막 송출을 트리거한다.
+	UFUNCTION(Server, Reliable)
+	void ServerNotifyFaerinDialogueNodePresented(APRFaerinEncounterDirector* Director, FName DialogueNodeId);
 
 	// 서버 -> 본인 클라. 상점 구매 결과를 UI에 전달한다
 	UFUNCTION(Client, Reliable)

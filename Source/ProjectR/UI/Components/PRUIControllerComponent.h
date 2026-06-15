@@ -29,6 +29,7 @@ class UPRInventoryWidget;
 class UPRItemDataAsset;
 class UPRItemTooltipWidget;
 class UPRFaerinEncounterChoiceWidget;
+class UPRFaerinEncounterSubtitleWidget;
 class UPROptionWidget;
 class UPRPlayerMenu;
 class UPRQuickSlotComponent;
@@ -169,6 +170,14 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "ProjectR|UI")
 	void CloseFaerinEncounterChoice();
 
+	// Faerin 하단 자막을 표시/갱신한다. 선택 UI와 분리된 비입력 위젯이다.
+	UFUNCTION(BlueprintCallable, Category = "ProjectR|UI")
+	void ShowFaerinEncounterSubtitle(const FText& SpeakerText, const FText& BodyText);
+
+	// Faerin 하단 자막을 숨긴다.
+	UFUNCTION(BlueprintCallable, Category = "ProjectR|UI")
+	void HideFaerinEncounterSubtitle();
+
 	// 현재 캐시된 인벤토리 위젯을 반환한다
 	UFUNCTION(BlueprintPure, Category = "ProjectR|UI")
 	UPRInventoryWidget* GetInventoryWidget() const { return InventoryWidget; }
@@ -260,6 +269,9 @@ private:
 	// Faerin 인카운터 선택 UI 인스턴스를 생성하거나 캐시된 인스턴스를 반환한다
 	UPRFaerinEncounterChoiceWidget* GetOrCreateFaerinEncounterChoiceWidget();
 
+	// Faerin 하단 자막 위젯 인스턴스를 생성하거나 캐시된 인스턴스를 반환한다
+	UPRFaerinEncounterSubtitleWidget* GetOrCreateFaerinEncounterSubtitleWidget();
+
 	// 특성 창 위젯 인스턴스를 생성하거나 캐시된 인스턴스를 반환한다
 	UPRTraitWindowWidget* GetOrCreateTraitWindowWidget();
 
@@ -335,6 +347,10 @@ protected:
 	UPROPERTY(EditDefaultsOnly, Category = "ProjectR|Faerin|Encounter")
 	TSubclassOf<UPRFaerinEncounterChoiceWidget> FaerinEncounterChoiceWidgetClass;
 
+	// Faerin 하단 자막 위젯 클래스 (WBP_FaerinEncounterSubtitle 지정)
+	UPROPERTY(EditDefaultsOnly, Category = "ProjectR|Faerin|Encounter")
+	TSubclassOf<UPRFaerinEncounterSubtitleWidget> FaerinEncounterSubtitleWidgetClass;
+
 	// 특성 창 위젯 클래스
 	UPROPERTY(EditDefaultsOnly, Category = "ProjectR|Growth")
 	TSubclassOf<UPRTraitWindowWidget> TraitWindowWidgetClass;
@@ -362,6 +378,10 @@ protected:
 	// 생성 후 재사용할 Faerin 인카운터 선택 UI 위젯
 	UPROPERTY(Transient)
 	TObjectPtr<UPRFaerinEncounterChoiceWidget> FaerinEncounterChoiceWidget;
+
+	// 생성 후 재사용할 Faerin 하단 자막 위젯
+	UPROPERTY(Transient)
+	TObjectPtr<UPRFaerinEncounterSubtitleWidget> FaerinEncounterSubtitleWidget;
 
 	// HUD 위젯 클래스
 	UPROPERTY(EditDefaultsOnly, Category = "ProjectR|HUD")

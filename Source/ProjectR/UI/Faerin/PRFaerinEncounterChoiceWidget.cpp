@@ -568,6 +568,26 @@ bool UPRFaerinEncounterChoiceWidget::SetCurrentDialogueNode(FName NodeId)
 
 		RefreshNativeDialogueView(*Node);
 		BP_OnDialogueNodeChanged(*Node);
+
+		// 실제로 표시되는 최종 노드만 서버에 보고하여 Gather 전체 하단 자막 송출을 트리거한다.
+		// (상호작용자 외 플레이어는 선택 UI 없이 하단 자막만 받는다.)
+		if (IsValid(EncounterDirector))
+		{
+			if (APRPlayerController* PRPC = GetOwningPlayer<APRPlayerController>())
+			{
+				UE_LOG(LogTemp, Log, TEXT("[FaerinSubtitle] ChoiceWidget -> server notify node=%s"), *Node->NodeId.ToString());
+				PRPC->ServerNotifyFaerinDialogueNodePresented(EncounterDirector, Node->NodeId);
+			}
+			else
+			{
+				UE_LOG(LogTemp, Warning, TEXT("[FaerinSubtitle] ChoiceWidget owning PC null; cannot notify server node=%s"), *Node->NodeId.ToString());
+			}
+		}
+		else
+		{
+			UE_LOG(LogTemp, Warning, TEXT("[FaerinSubtitle] ChoiceWidget EncounterDirector null; cannot notify server."));
+		}
+
 		return true;
 	}
 

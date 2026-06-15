@@ -780,6 +780,69 @@ void APRPlayerController::ClientCloseFaerinEncounterChoice_Implementation()
 	UIControllerComponent->CloseFaerinEncounterChoice();
 }
 
+void APRPlayerController::ClientShowFaerinSubtitle_Implementation(APRFaerinEncounterDirector* Director, FName DialogueNodeId)
+{
+	if (!IsLocalController() || !IsValid(UIControllerComponent) || !IsValid(Director))
+	{
+		return;
+	}
+
+	FText SpeakerText;
+	FText BodyText;
+	if (!Director->ResolveDialogueSubtitleText(DialogueNodeId, SpeakerText, BodyText))
+	{
+		UE_LOG(LogTemp, Log, TEXT("[FaerinSubtitle] Client resolve failed node=%s -> hide"), *DialogueNodeId.ToString());
+		UIControllerComponent->HideFaerinEncounterSubtitle();
+		return;
+	}
+
+	UE_LOG(LogTemp, Log, TEXT("[FaerinSubtitle] Client show node=%s body=%s"), *DialogueNodeId.ToString(), *BodyText.ToString());
+	UIControllerComponent->ShowFaerinEncounterSubtitle(SpeakerText, BodyText);
+}
+
+void APRPlayerController::ClientHideFaerinSubtitle_Implementation()
+{
+	if (!IsLocalController() || !IsValid(UIControllerComponent))
+	{
+		return;
+	}
+
+	UIControllerComponent->HideFaerinEncounterSubtitle();
+}
+
+void APRPlayerController::ClientPlayFaerinEncounterSequence_Implementation(APRFaerinEncounterDirector* Director, EFaerinEncounterSequence SequenceType)
+{
+	if (!IsLocalController() || !IsValid(Director))
+	{
+		return;
+	}
+
+	Director->PlayEncounterSequenceForLocalAudience(SequenceType);
+}
+
+void APRPlayerController::ClientStopFaerinEncounterSequence_Implementation(APRFaerinEncounterDirector* Director, FName Reason)
+{
+	if (!IsLocalController() || !IsValid(Director))
+	{
+		return;
+	}
+
+	Director->StopEncounterSequenceForLocalAudience(Reason);
+	ClientRestoreFaerinEncounterViewTarget(0.0f);
+	ClientSetEncounterInputLock(false);
+	ClientHideFaerinSubtitle();
+}
+
+void APRPlayerController::ServerNotifyFaerinDialogueNodePresented_Implementation(APRFaerinEncounterDirector* Director, FName DialogueNodeId)
+{
+	if (!IsValid(Director))
+	{
+		return;
+	}
+
+	Director->NotifyDialogueNodePresentedFromClient(this, DialogueNodeId);
+}
+
 void APRPlayerController::ClientNotifyShopBuyResult_Implementation(const FPRShopBuyResult& Result)
 {
 	OnShopBuyResult.Broadcast(Result);

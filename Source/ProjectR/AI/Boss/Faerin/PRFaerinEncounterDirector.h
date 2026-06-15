@@ -11,6 +11,7 @@
 class ALevelSequenceActor;
 class APRFaerinEncounterBoundaryActor;
 class APRPlayerCharacter;
+class APRPlayerController;
 class UAnimationAsset;
 class UAnimSequenceBase;
 class UAudioComponent;
@@ -220,6 +221,50 @@ public:
 	// 로컬 대화 음성 재생을 중지한다.
 	void StopDialogueVoiceLocal();
 
+	// === Gather 대상 단일화 (자막/시퀀스/재도전 이동이 공통으로 사용) ===
+	// 현재 Gather(arena) 안에 있는 유효 플레이어 목록을 반환한다.
+	void GetGatherPlayers(TArray<APRPlayerCharacter*>& OutPlayers) const;
+
+	// Gather 플레이어의 PlayerController 목록을 반환한다(중복 제거).
+	void GetGatherPlayerControllers(TArray<APRPlayerController*>& OutControllers) const;
+
+	// === Intro/FightStart 시퀀스 ===
+	// PlayerController Client RPC에서 호출되는 로컬 시퀀스 재생 wrapper.
+	void PlayEncounterSequenceForLocalAudience(EFaerinEncounterSequence SequenceType);
+
+	// PlayerController Client RPC에서 호출되는 로컬 시퀀스 중단 wrapper.
+	void StopEncounterSequenceForLocalAudience(FName Reason);
+
+	// 서버에서 Gather 대상 PlayerController에만 시퀀스 재생 Client RPC를 보낸다.
+	void PlayEncounterSequenceForGatherPlayers(EFaerinEncounterSequence SequenceType);
+
+	// 명시한 플레이어 목록(입력 잠금 대상과 동일)에게만 시퀀스 재생 Client RPC를 보낸다.
+	// Intro/FightStart는 잠금 대상과 재생 대상이 반드시 같아야 하므로 Gather를 재계산하지 않고 이 함수를 쓴다.
+	void PlayEncounterSequenceForPlayers(const TArray<APRPlayerCharacter*>& Players, EFaerinEncounterSequence SequenceType);
+
+	// === Faerin 하단 자막 ===
+	// 해당 노드가 Faerin(NPC) 발화 노드인지 판정한다.
+	bool IsFaerinSpokenDialogueNode(const FPRFaerinDialogueNode& Node) const;
+
+	// NodeId로 자막 화자/본문을 해석한다. Faerin 발화가 아니면 false.
+	bool ResolveDialogueSubtitleText(FName DialogueNodeId, FText& OutSpeakerText, FText& OutBodyText) const;
+
+	// 상호작용자 클라가 보고한 현재 노드를 검증하고 Gather 자막을 송출한다.
+	void NotifyDialogueNodePresentedFromClient(APRPlayerController* SourceController, FName DialogueNodeId);
+
+	// Gather 플레이어에게 현재 노드 자막을 표시하거나(Faerin) 숨긴다(그 외).
+	void BroadcastFaerinSubtitleForDialogueNode(const FPRFaerinDialogueNode& Node);
+
+	// Gather 플레이어 전체의 하단 자막을 숨긴다.
+	void HideFaerinSubtitleForGatherPlayers();
+
+	// 지정한 플레이어들의 하단 자막을 숨긴다.
+	void HideFaerinSubtitleForPlayers(const TArray<APRPlayerCharacter*>& Players);
+
+	// === Gather 이탈 정리 ===
+	// BoundaryActor가 Gather 이탈을 알리면 해당 플레이어의 자막/시퀀스/입력/카메라를 정리한다.
+	void NotifyPlayerExitedGather(APRPlayerCharacter* Player);
+
 protected:
 	UFUNCTION()
 	void OnRep_CurrentState(EFaerinEncounterState PreviousState);
@@ -280,6 +325,7 @@ private:
 	void SetInputLockedForPlayers(const TArray<APRPlayerCharacter*>& Players, bool bLock) const;
 	void RestoreViewTargetForPlayers(const TArray<APRPlayerCharacter*>& Players, float BlendTime, const TCHAR* Reason) const;
 	void AlignCombatStartParticipants();
+	void AlignRetryGatherPlayersToPlayerPoints(const TArray<APRPlayerCharacter*>& GatherPlayers);
 	void ApplySlotTransform(APRPlayerCharacter* Player, const FTransform& SlotTransform) const;
 	FTransform ResolveSlotTransform(AActor* SlotActor, const FTransform& FallbackTransform) const;
 	AActor* SpawnCombatBossFromSpawner();
@@ -483,4 +529,18 @@ private:
 	bool bResettingCombatBoss = false;
 	bool bCombatBossDefeated = false;
 	bool bDialogueEmotePlaying = false;
+
+	// Intro 최초 정상 종료 시점에 캡처한 Faerin 연출 액터의 월드 transform(재도전 복원 참조용).
+	UPROPERTY(Transient)
+	FTransform CapturedPostIntroFaerinTransform = FTransform::Identity;
+
+	// PostIntro transform 캡처 완료 여부.
+	UPROPERTY(Transient)
+	bool bCapturedPostIntroFaerinTransform = false;
+
+public:
+	// 재도전 복원 시 캡처한 PostIntro transform을 강제 적용할지 여부.
+	// 사용자가 attach/detach를 직접 처리 중이므로 기본 false. 충돌 확인 후 켠다.
+	UPROPERTY(EditDefaultsOnly, Category = "ProjectR|AI|Boss|Faerin|Encounter|Retry")
+	bool bRestoreCapturedPostIntroTransformAfterWipe = false;
 };

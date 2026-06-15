@@ -113,8 +113,8 @@ protected:
 	// 보스 조우 시작 이벤트 처리
 	void HandleBossEncounterBeginEvent(FGameplayTag EventTag, const FInstancedStruct& Payload);
 
-	// 보스 조우 종료 이벤트 처리
-	void HandleBossEncounterEndEvent(FGameplayTag EventTag, const FInstancedStruct& Payload);
+	// 보스 처치 확정 이벤트 처리
+	void HandleBossDefeatedEvent(FGameplayTag EventTag, const FInstancedStruct& Payload);
 
 	// 보스 페이즈 변경 이벤트 처리
 	void HandleBossPhaseChangedEvent(FGameplayTag EventTag, const FInstancedStruct& Payload);
@@ -149,7 +149,7 @@ private:
 
 	FDelegateHandle BossEncounterBeginDelegateHandle;
 
-	FDelegateHandle BossEncounterEndDelegateHandle;
+	FDelegateHandle BossDefeatedDelegateHandle;
 
 	FDelegateHandle BossPhaseChangedDelegateHandle;
 

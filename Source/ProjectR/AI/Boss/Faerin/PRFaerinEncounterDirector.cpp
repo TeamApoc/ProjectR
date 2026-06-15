@@ -229,7 +229,7 @@ void APRFaerinEncounterDirector::ChooseFight(APRPlayerCharacter* Player)
 		return;
 	}
 
-	CloseChoiceUIForInstigator();
+	CloseChoiceUIForInstigator(false);
 	SnapshotCombatStartParticipants(Player);
 
 	TArray<APRPlayerCharacter*> Participants;
@@ -2324,7 +2324,7 @@ void APRFaerinEncounterDirector::OpenChoiceUIForPlayer(APRPlayerCharacter* Playe
 	PlayerController->ClientOpenFaerinEncounterChoice(this);
 }
 
-void APRFaerinEncounterDirector::CloseChoiceUIForInstigator()
+void APRFaerinEncounterDirector::CloseChoiceUIForInstigator(bool bRestoreDefaultBGM)
 {
 	APRPlayerCharacter* Player = ChoiceInstigator.Get();
 	if (!IsValid(Player))
@@ -2338,5 +2338,5 @@ void APRFaerinEncounterDirector::CloseChoiceUIForInstigator()
 		return;
 	}
 
-	PlayerController->ClientCloseFaerinEncounterChoice();
+	PlayerController->ClientCloseFaerinEncounterChoice(bRestoreDefaultBGM);
 }

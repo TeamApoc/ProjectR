@@ -10,6 +10,8 @@
 #include "PRBagWidget.generated.h"
 
 class UPRConsumableDataAsset;
+class UPRCurrencyComponent;
+class UPRCurrencyDisplayWidget;
 class UPRInventoryItemListWidget;
 class UPRQuickSlotComponent;
 
@@ -42,12 +44,22 @@ private:
 	// 전체 목록 갱신
 	void RefreshBagLists();
 
+	// 고철 보유량 표시 갱신
+	void RefreshCurrencyText();
+
 	// 퀵슬롯 등록 대기 상태 초기화
 	void ClearPendingQuickSlotRegistration();
+
+	// 현재 인벤토리 소유자의 재화 컴포넌트 조회
+	UPRCurrencyComponent* ResolveCurrencyComponent() const;
 
 	// 소비 아이템 선택 처리
 	UFUNCTION()
 	void HandleConsumableItemSelected(const FPRInventoryItemSlotViewData& ViewData);
+
+	// 소비 아이템 사용 처리
+	UFUNCTION()
+	void HandleConsumableItemUseRequested(const FPRInventoryItemSlotViewData& ViewData);
 
 	// 퀵슬롯 선택 처리
 	UFUNCTION()
@@ -60,6 +72,10 @@ private:
 	// 퀵슬롯 변경 처리
 	UFUNCTION()
 	void HandleQuickSlotChanged(UPRQuickSlotComponent* ChangedQuickSlotComponent, int32 ChangedSlotIndex);
+
+	// 고철 수량 변경 처리
+	UFUNCTION()
+	void HandleScrapChanged(int32 NewScrap);
 
 protected:
 	// UMG에서 바인딩할 소비 아이템 리스트
@@ -74,6 +90,10 @@ protected:
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "ProjectR|Bag")
 	TObjectPtr<UPRInventoryItemListWidget> QuickSlotItemListWidget;
 
+	// UMG에서 바인딩할 고철 표시 위젯
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "ProjectR|Bag")
+	TObjectPtr<UPRCurrencyDisplayWidget> ScrapDisplayWidget;
+
 private:
 	// 보유 아이템 조회 소스
 	UPROPERTY(BlueprintReadOnly, Category = "ProjectR|Bag", meta = (AllowPrivateAccess = "true"))
@@ -86,4 +106,8 @@ private:
 	// 퀵슬롯 등록 대기 소비 아이템 데이터
 	UPROPERTY(BlueprintReadOnly, Category = "ProjectR|Bag", meta = (AllowPrivateAccess = "true"))
 	TObjectPtr<UPRConsumableDataAsset> PendingQuickSlotConsumableData;
+
+	// 고철 보유량 제공 소스
+	UPROPERTY(BlueprintReadOnly, Category = "ProjectR|Bag", meta = (AllowPrivateAccess = "true"))
+	TObjectPtr<UPRCurrencyComponent> CurrencyComponent;
 };

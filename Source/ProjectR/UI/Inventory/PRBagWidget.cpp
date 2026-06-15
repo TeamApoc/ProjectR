@@ -9,6 +9,11 @@
 #include "ProjectR/ItemSystem/Items/PRItemInstance_Consumable.h"
 #include "ProjectR/ItemSystem/Items/PRItemInstance_Material.h"
 #include "ProjectR/ItemSystem/Types/PRQuickSlotTypes.h"
+#include "ProjectR/Player/PRPlayerController.h"
+#include "ProjectR/Player/Components/PRCurrencyComponent.h"
+#include "ProjectR/Player/PRPlayerState.h"
+#include "ProjectR/UI/Components/PRUIControllerComponent.h"
+#include "ProjectR/UI/Inventory/PRCurrencyDisplayWidget.h"
 #include "ProjectR/UI/Inventory/PRInventoryItemListWidget.h"
 #include "ProjectR/UI/Inventory/PRInventoryItemSlotViewDataBuilder.h"
 
@@ -28,9 +33,16 @@ void UPRBagWidget::SetBagSources(UPRInventoryComponent* InInventoryComponent, UP
 		QuickSlotComponent->GetOnQuickSlotChanged().RemoveDynamic(this, &UPRBagWidget::HandleQuickSlotChanged);
 	}
 
+	if (IsValid(CurrencyComponent))
+	{
+		// 이전 고철 변경 알림 정리
+		CurrencyComponent->OnScrapChanged.RemoveDynamic(this, &UPRBagWidget::HandleScrapChanged);
+	}
+
 	// 새 데이터 소스 보관
 	InventoryComponent = InInventoryComponent;
 	QuickSlotComponent = InQuickSlotComponent;
+	CurrencyComponent = ResolveCurrencyComponent();
 
 	if (IsValid(InventoryComponent))
 	{
@@ -46,8 +58,16 @@ void UPRBagWidget::SetBagSources(UPRInventoryComponent* InInventoryComponent, UP
 		QuickSlotComponent->GetOnQuickSlotChanged().AddDynamic(this, &UPRBagWidget::HandleQuickSlotChanged);
 	}
 
+	if (IsValid(CurrencyComponent))
+	{
+		// 새 고철 변경 알림 연결
+		CurrencyComponent->OnScrapChanged.RemoveDynamic(this, &UPRBagWidget::HandleScrapChanged);
+		CurrencyComponent->OnScrapChanged.AddDynamic(this, &UPRBagWidget::HandleScrapChanged);
+	}
+
 	// 소스 교체 후 표시 동기화
 	RefreshBagLists();
+	RefreshCurrencyText();
 }
 
 /*~ UUserWidget Interface ~*/
@@ -61,6 +81,9 @@ void UPRBagWidget::NativeConstruct()
 		// 소비 아이템 선택 알림 연결
 		ConsumableItemListWidget->OnItemSelected.RemoveDynamic(this, &UPRBagWidget::HandleConsumableItemSelected);
 		ConsumableItemListWidget->OnItemSelected.AddDynamic(this, &UPRBagWidget::HandleConsumableItemSelected);
+		// 소비 아이템 사용 알림 연결
+		ConsumableItemListWidget->OnItemRightClicked.RemoveDynamic(this, &UPRBagWidget::HandleConsumableItemUseRequested);
+		ConsumableItemListWidget->OnItemRightClicked.AddDynamic(this, &UPRBagWidget::HandleConsumableItemUseRequested);
 	}
 
 	if (IsValid(QuickSlotItemListWidget))
@@ -84,8 +107,17 @@ void UPRBagWidget::NativeConstruct()
 		QuickSlotComponent->GetOnQuickSlotChanged().AddDynamic(this, &UPRBagWidget::HandleQuickSlotChanged);
 	}
 
+	CurrencyComponent = ResolveCurrencyComponent();
+	if (IsValid(CurrencyComponent))
+	{
+		// 고철 변경 알림 연결
+		CurrencyComponent->OnScrapChanged.RemoveDynamic(this, &UPRBagWidget::HandleScrapChanged);
+		CurrencyComponent->OnScrapChanged.AddDynamic(this, &UPRBagWidget::HandleScrapChanged);
+	}
+
 	// 위젯 생성 후 표시 동기화
 	RefreshBagLists();
+	RefreshCurrencyText();
 }
 
 void UPRBagWidget::NativeDestruct()
@@ -94,6 +126,8 @@ void UPRBagWidget::NativeDestruct()
 	{
 		// 소비 아이템 선택 알림 해제
 		ConsumableItemListWidget->OnItemSelected.RemoveDynamic(this, &UPRBagWidget::HandleConsumableItemSelected);
+		// 소비 아이템 사용 알림 해제
+		ConsumableItemListWidget->OnItemRightClicked.RemoveDynamic(this, &UPRBagWidget::HandleConsumableItemUseRequested);
 	}
 
 	if (IsValid(QuickSlotItemListWidget))
@@ -113,6 +147,13 @@ void UPRBagWidget::NativeDestruct()
 		// 퀵슬롯 변경 알림 해제
 		QuickSlotComponent->GetOnQuickSlotChanged().RemoveDynamic(this, &UPRBagWidget::HandleQuickSlotChanged);
 	}
+
+	if (IsValid(CurrencyComponent))
+	{
+		// 고철 변경 알림 해제
+		CurrencyComponent->OnScrapChanged.RemoveDynamic(this, &UPRBagWidget::HandleScrapChanged);
+	}
+	CurrencyComponent = nullptr;
 
 	// 퀵슬롯 등록 대기 상태 정리
 	ClearPendingQuickSlotRegistration();
@@ -165,6 +206,22 @@ void UPRBagWidget::RefreshItemList(EPRItemType ItemType, UPRInventoryItemListWid
 	TargetListWidget->SetItemList(ItemType, ListItems);
 }
 
+void UPRBagWidget::RefreshCurrencyText()
+{
+	if (!IsValid(ScrapDisplayWidget))
+	{
+		return;
+	}
+
+	if (!IsValid(CurrencyComponent))
+	{
+		CurrencyComponent = ResolveCurrencyComponent();
+	}
+
+	const int32 ScrapAmount = IsValid(CurrencyComponent) ? CurrencyComponent->GetScrap() : 0;
+	ScrapDisplayWidget->SetScrapAmount(ScrapAmount);
+}
+
 void UPRBagWidget::RefreshQuickSlotItemList()
 {
 	if (!IsValid(QuickSlotItemListWidget))
@@ -187,6 +244,7 @@ void UPRBagWidget::RefreshQuickSlotItemList()
 
 	// 퀵슬롯 선택 목록 표시 갱신
 	QuickSlotItemListWidget->SetItemList(EPRItemType::Consumable, QuickSlotItems);
+	QuickSlotItemListWidget->SetListText(FText::FromString(TEXT("퀵슬롯 등록")));
 
 	const ESlateVisibility QuickSlotListVisibility = IsValid(PendingQuickSlotConsumableData)
 		? ESlateVisibility::Visible
@@ -210,6 +268,24 @@ void UPRBagWidget::ClearPendingQuickSlotRegistration()
 	PendingQuickSlotConsumableData = nullptr;
 }
 
+UPRCurrencyComponent* UPRBagWidget::ResolveCurrencyComponent() const
+{
+	if (!IsValid(InventoryComponent))
+	{
+		// 인벤토리 소스 부재
+		return nullptr;
+	}
+
+	const APRPlayerState* PlayerState = Cast<APRPlayerState>(InventoryComponent->GetOwner());
+	if (!IsValid(PlayerState))
+	{
+		// 플레이어 상태 부재
+		return nullptr;
+	}
+
+	return PlayerState->GetCurrencyComponent();
+}
+
 /*~ 입력 처리 ~*/
 
 void UPRBagWidget::HandleConsumableItemSelected(const FPRInventoryItemSlotViewData& ViewData)
@@ -228,6 +304,36 @@ void UPRBagWidget::HandleConsumableItemSelected(const FPRInventoryItemSlotViewDa
 
 	// 등록 대상 기준 퀵슬롯 선택 목록 표시
 	RefreshQuickSlotItemList();
+}
+
+void UPRBagWidget::HandleConsumableItemUseRequested(const FPRInventoryItemSlotViewData& ViewData)
+{
+	if (!IsValid(InventoryComponent) || ViewData.ItemType != EPRItemType::Consumable)
+	{
+		// 소비 아이템 사용 조건 미충족
+		return;
+	}
+
+	UPRItemInstance_Consumable* ConsumableItem = Cast<UPRItemInstance_Consumable>(ViewData.ItemInstance.Get());
+	if (!IsValid(ConsumableItem) || !ConsumableItem->HasAnyStack())
+	{
+		// 소비 아이템 인스턴스 검증 실패
+		return;
+	}
+
+	// 소비 아이템 사용 요청
+	InventoryComponent->RequestUseConsumableItem(ConsumableItem);
+	
+	// 아이템 사용 후 위젯 닫기
+	APRPlayerController* PlayerController = Cast<APRPlayerController>(GetOwningPlayer());
+	if (!IsValid(PlayerController) || !IsValid(PlayerController->GetUIController()))
+	{
+		// UI 컨트롤러 조회 실패
+		return;
+	}
+
+	// 플레이어 메뉴 닫기
+	PlayerController->GetUIController()->ClosePlayerMenu();
 }
 
 void UPRBagWidget::HandleQuickSlotSelected(const FPRInventoryItemSlotViewData& ViewData)
@@ -282,4 +388,12 @@ void UPRBagWidget::HandleQuickSlotChanged(UPRQuickSlotComponent* ChangedQuickSlo
 
 	// 퀵슬롯 표시 상태 반영
 	RefreshQuickSlotItemList();
+}
+
+void UPRBagWidget::HandleScrapChanged(int32 NewScrap)
+{
+	static_cast<void>(NewScrap);
+
+	// 고철 표시 상태 반영
+	RefreshCurrencyText();
 }

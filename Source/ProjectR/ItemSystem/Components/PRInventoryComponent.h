@@ -156,6 +156,10 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "ProjectR|Inventory")
 	void RequestDeactivateItem(UPRItemInstance* ItemInstance, const FPRItemActivationContext& ActivationContext);
 
+	// 소비 Item 사용을 서버 권위 경로로 요청
+	UFUNCTION(BlueprintCallable, Category = "ProjectR|Inventory")
+	void RequestUseConsumableItem(UPRItemInstance_Consumable* ConsumableItem);
+
 	// Mod Item을 지정 무기 Item에 장착하도록 서버 권위 경로로 요청
 	UFUNCTION(BlueprintCallable, Category = "ProjectR|Inventory")
 	void RequestEquipModItemToWeapon(UPRItemInstance_Mod* ModItem, UPRItemInstance_Weapon* TargetWeaponItem);
@@ -228,6 +232,9 @@ protected:
 	// Item 비활성화
 	bool DeactivateItemInternal(UPRItemInstance* ItemInstance, const FPRItemActivationContext& ActivationContext);
 
+	// 소비 Item 사용
+	bool UseConsumableItemInternal(UPRItemInstance_Consumable* ConsumableItem);
+
 	// 클라이언트 요청을 서버의 Item 추가 처리로 전달
 	UFUNCTION(Server, Reliable)
 	void Server_RequestAddItem(UPRItemDataAsset* InItemData, int32 Amount);
@@ -247,6 +254,10 @@ protected:
 	// 클라이언트 요청을 서버의 Item 비활성화 처리로 전달
 	UFUNCTION(Server, Reliable)
 	void Server_RequestDeactivateItem(UPRItemInstance* ItemInstance, const FPRItemActivationContext& ActivationContext);
+
+	// 클라이언트 요청을 서버의 소비 Item 사용 처리로 전달
+	UFUNCTION(Server, Reliable)
+	void Server_RequestUseConsumableItem(UPRItemInstance_Consumable* ConsumableItem);
 
 	// 클라이언트 Mod 장착 요청을 서버의 인벤토리 장착 처리로 전달
 	UFUNCTION(Server, Reliable)

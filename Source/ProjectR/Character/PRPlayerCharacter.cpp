@@ -18,9 +18,11 @@
 #include "Components/SphereComponent.h"
 #include "Components/StaticMeshComponent.h"
 #include "Kismet/KismetMathLibrary.h"
+#include "Kismet/GameplayStatics.h"
 #include "ProjectR/ProjectR.h"
 #include "ProjectR/AbilitySystem/PRAbilitySystemComponent.h"
 #include "ProjectR/AbilitySystem/Data/PRAbilitySystemRegistry.h"
+#include "ProjectR/Audio/PRPlayerHitSoundDataAsset.h"
 #include "ProjectR/Player/PRPlayerState.h"
 #include "ProjectR/System/PRAssetManager.h"
 #include "ProjectR/PRGameplayTags.h"
@@ -37,6 +39,7 @@
 #include "ProjectR/Projectile/PRFirePreviewComponent.h"
 #include "ProjectR/System/PREventManagerSubsystem.h"
 #include "ProjectR/ItemSystem/Actors/PRWeaponActor.h"
+#include "Sound/SoundBase.h"
 #include "TimerManager.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogPRPathPreviewCharacter, Log, All);
@@ -172,6 +175,48 @@ UPREquipmentManagerComponent* APRPlayerCharacter::GetEquipmentManager() const
 		return PRPlayerState->GetEquipmentManagerComponent();
 	}
 	return nullptr;
+}
+
+void APRPlayerCharacter::OnPostDamageApplied(const FPRDamageAppliedContext& Context)
+{
+	Super::OnPostDamageApplied(Context);
+
+	if (Context.FinalDamage <= 0.0f || !HasAuthority() || !IsValid(HitSoundData))
+	{
+		return;
+	}
+
+	const UWorld* World = GetWorld();
+	if (!IsValid(World))
+	{
+		return;
+	}
+
+	const float Cooldown = FMath::Max(HitSoundData->PlaybackCooldown, 0.0f);
+	const float CurrentTime = World->GetTimeSeconds();
+	if (Cooldown > 0.0f && CurrentTime - LastHealthDamageHitSoundTime < Cooldown)
+	{
+		return;
+	}
+
+	USoundBase* HitSound = HitSoundData->ResolveHealthDamageSound(Context.SourceCharacterID);
+	if (!IsValid(HitSound))
+	{
+		return;
+	}
+
+	LastHealthDamageHitSoundTime = CurrentTime;
+	ClientPlayHealthDamageHitSound(HitSound);
+}
+
+void APRPlayerCharacter::ClientPlayHealthDamageHitSound_Implementation(USoundBase* Sound)
+{
+	if (!IsLocallyControlled() || !IsValid(Sound))
+	{
+		return;
+	}
+
+	UGameplayStatics::PlaySound2D(this, Sound, 1.0f, 1.0f, 0.0f, nullptr, nullptr, true);
 }
 
 void APRPlayerCharacter::InitCharacter(AController* SourceController)

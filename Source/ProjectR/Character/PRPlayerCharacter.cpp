@@ -341,6 +341,23 @@ void APRPlayerCharacter::ClientStartExternalForcedMove_Implementation(
 	StartExternalForcedMoveLocal(Destination, Rotation, Duration, TickInterval, EaseExponent, bSweep, bStopMovement);
 }
 
+void APRPlayerCharacter::SetExternalForcedMoveCameraLagOverride(bool bEnabled)
+{
+	if (!IsLocallyControlled() || !IsValid(CameraBoom))
+	{
+		return;
+	}
+
+	if (bEnabled)
+	{
+		CameraBoom->ApplyExternalForcedMoveLagOverride();
+	}
+	else
+	{
+		CameraBoom->ClearExternalForcedMoveLagOverride();
+	}
+}
+
 float APRPlayerCharacter::GetMovementSpeedMultiplier() const
 {
 	if (const UPRAbilitySystemComponent* ASC = GetPRAbilitySystemComponent())
@@ -780,6 +797,7 @@ void APRPlayerCharacter::StartExternalForcedMoveLocal(
 	bExternalForcedMoveSweep = bSweep;
 	bExternalForcedMoveStopMovement = bStopMovement;
 	bExternalForcedMoveActive = true;
+	SetExternalForcedMoveCameraLagOverride(true);
 
 	if (bExternalForcedMoveStopMovement)
 	{
@@ -890,6 +908,7 @@ void APRPlayerCharacter::CompleteExternalForcedMove(bool bWasCancelled)
 	bExternalForcedMoveActive = false;
 	ExternalForcedMoveElapsedSeconds = 0.0f;
 	ExternalForcedMoveLastUpdateTime = 0.0f;
+	SetExternalForcedMoveCameraLagOverride(false);
 }
 
 void APRPlayerCharacter::BindMovementSpeedAttributeChange()

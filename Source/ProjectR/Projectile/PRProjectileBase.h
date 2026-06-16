@@ -17,6 +17,28 @@ class USceneComponent;
 class USphereComponent;
 class USoundBase;
 
+struct FPRPredictedProjectileBounceRecord
+{
+	// 예측 바운스 순서 번호
+	uint8 BounceIndex = 0;
+
+	// 예측 바운스 직후 위치
+	FVector Location = FVector::ZeroVector;
+
+	// 예측 바운스 직후 회전
+	FRotator Rotation = FRotator::ZeroRotator;
+
+	// 예측 바운스 직후 속도
+	FVector Velocity = FVector::ZeroVector;
+};
+
+enum class EPRPredictedBounceMatchResult : uint8
+{
+	Missing,
+	ExactIndex,
+	LocationFallback,
+};
+
 UENUM()
 enum class EPRProjectileRole : uint8
 {
@@ -81,6 +103,9 @@ public:
 
 	// 서버에서 이벤트 발생 시 RepMovement를 Push. HasAuthority()인 경우만 실행
 	void PushRepMovement(EPRRepMovementEvent Event);
+
+	// 투사체 이동 컴포넌트가 실제 바운스 처리 직후 호출하는 동기화 기록 지점
+	void NotifyProjectileBounce();
 	
 	// 식별자 접근
 	uint32 GetProjectileId() const { return ProjectileId; }
@@ -167,6 +192,25 @@ protected:
 private:
 	// Predicted-Auth 양방향 링크
 	void LinkCounterpart(APRProjectileBase* InCounterpart);
+
+	// 예측 투사체 바운스 기록을 서버 Bounce 이벤트와 비교하여 필요한 경우 보정
+	bool ReconcilePredictedBounceFromServer(const FPRProjectileRepMovement& ServerMovement);
+
+	// 예측 투사체의 현재 바운스 이동 상태를 큐에 기록
+	void RecordPredictedBounce();
+
+	// 예측 바운스 기록 중 서버 BounceIndex 또는 위치 허용치와 일치하는 항목을 찾아 소모
+	EPRPredictedBounceMatchResult ConsumePredictedBounceRecord(
+		uint8 ServerBounceIndex,
+		const FVector& ServerLocation,
+		float LocationTolerance,
+		FPRPredictedProjectileBounceRecord& OutRecord);
+
+	// 서버 Bounce 이벤트 기준으로 위치와 선택적 속도 보정
+	void ApplyServerBounceCorrection(const FPRProjectileRepMovement& ServerMovement, bool bCorrectLocation, bool bCorrectVelocity);
+
+	// 숨겨진 소유 클라이언트 Auth 투사체를 예측 투사체의 현재 상태와 동기화
+	void SyncAuthPresentationToPredicted(APRProjectileBase* PredictedProjectile);
 	
 	// 소유 클라이언트에서 Auth 액터 도착 시 매니저의 Predicted와 매칭하여 링크
 	void TryLinkToPredictedOnClient();
@@ -237,6 +281,18 @@ protected:
 	UPROPERTY(EditDefaultsOnly, Category = "ProjectR|Projectile|Prediction", meta = (ClampMin = "0.0"))
 	float SyncInterpSpeedSlowDown = 10.f;
 
+	// 서버 바운스와 예측 바운스가 같은 것으로 간주되는 위치 오차 허용 거리
+	UPROPERTY(EditDefaultsOnly, Category = "ProjectR|Projectile|Prediction", meta = (ClampMin = "0.0"))
+	float BounceCorrectionToleranceDistance = 50.0f;
+
+	// 서버 바운스와 예측 바운스가 같은 것으로 간주되는 속도 오차 허용 크기
+	UPROPERTY(EditDefaultsOnly, Category = "ProjectR|Projectile|Prediction", meta = (ClampMin = "0.0"))
+	float BounceCorrectionToleranceVelocity = 100.0f;
+
+	// 바운스 보정 시 서버 속도를 예측 투사체에 반영할지 여부
+	UPROPERTY(EditDefaultsOnly, Category = "ProjectR|Projectile|Prediction")
+	bool bUseBounceVelocityCorrection = true;
+
 	// 최종 충돌 처리 방식
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "ProjectR|Projectile|Impact")
 	EPRProjectileFinalImpactPolicy FinalImpactPolicy = EPRProjectileFinalImpactPolicy::Destroy;
@@ -300,6 +356,18 @@ private:
 	bool bHasPendingClientHomingPresentation = false;
 	bool bClientProjectilePresentationActive = false;
 	bool bClientProjectileHomingStarted = false;
+
+	// 현재 투사체 인스턴스의 바운스 순서 번호
+	uint8 CurrentBounceIndex = 0;
+
+	// 마지막으로 보정 처리한 서버 바운스 존재 여부
+	bool bHasLastReconciledServerBounceIndex = false;
+
+	// 마지막으로 보정 처리한 서버 바운스 순서 번호
+	uint8 LastReconciledServerBounceIndex = 0;
+
+	// 소유 클라이언트 예측 투사체의 최근 바운스 이동 기록
+	TArray<FPRPredictedProjectileBounceRecord> PredictedBounceRecords;
 	
 	TSet<TWeakObjectPtr<AActor>> HitActors;
 	

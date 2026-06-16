@@ -68,6 +68,16 @@ public:
 	/** 현재 카메라 모드의 목표 보간 값을 반환한다. */
 	const FPRSpringArmCameraModeSettings& GetCameraModeSettings() const;
 
+	/** 외부 강제 이동 중 사용할 카메라 Lag 설정 갱신 */
+	UFUNCTION(BlueprintCallable, Category = "PR|Camera|Lag")
+	void SetExternalForcedMoveLagSettings(bool bInUseOverride, bool bInEnableCameraLag, float InCameraLagSpeed, float InCameraLagMaxDistance);
+
+	/** 외부 강제 이동 카메라 Lag override 적용 */
+	void ApplyExternalForcedMoveLagOverride();
+
+	/** 외부 강제 이동 카메라 Lag override 복구 */
+	void ClearExternalForcedMoveLagOverride();
+
 protected:
 	/** 카메라 암 길이 보간 속도 */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "PR|Camera")
@@ -81,10 +91,31 @@ protected:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "PR|Camera|Mode")
 	FPRSpringArmCameraModeSettings DefaultCameraSettings;
 
+	/** 외부 강제 이동 중 별도 Lag 설정 사용 여부 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "PR|Camera|Lag")
+	bool bUseExternalForcedMoveLagOverride = true;
+
+	/** 외부 강제 이동 중 카메라 Lag 활성 여부 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "PR|Camera|Lag", meta = (EditCondition = "bUseExternalForcedMoveLagOverride"))
+	bool bExternalForcedMoveEnableCameraLag = true;
+
+	/** 외부 강제 이동 중 카메라 Lag 속도. 값이 클수록 추적 지연 감소 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "PR|Camera|Lag", meta = (ClampMin = "0.0", EditCondition = "bUseExternalForcedMoveLagOverride"))
+	float ExternalForcedMoveCameraLagSpeed = 60.0f;
+
+	/** 외부 강제 이동 중 카메라 Lag 최대 거리. 0이면 제한 없음 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "PR|Camera|Lag", meta = (ClampMin = "0.0", EditCondition = "bUseExternalForcedMoveLagOverride"))
+	float ExternalForcedMoveCameraLagMaxDistance = 30.0f;
+
 private:
 	const FPRSpringArmCameraModeSettings& GetCurrentCameraModeSettings() const;
 
 private:
 	EPRCameraMode CurrentCameraMode = EPRCameraMode::Default;
 	FPRSpringArmCameraModeSettings CurrentCameraModeSettings;
+
+	bool bExternalForcedMoveLagOverrideActive = false;
+	bool bCachedCameraLagEnabled = true;
+	float CachedCameraLagSpeed = 0.0f;
+	float CachedCameraLagMaxDistance = 0.0f;
 };

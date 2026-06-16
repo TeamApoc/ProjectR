@@ -194,6 +194,10 @@ public:
 	UFUNCTION(BlueprintPure, Category = "ProjectR|UI")
 	UPRHUDWidget* GetHUDWidget() const { return HUDWidget; }
 
+	// 현재 HUD 위젯 표시 상태 변경
+	UFUNCTION(BlueprintCallable, Category = "ProjectR|UI")
+	void SetHUDVisible(bool bVisible);
+
 	// 레벨업 팝업 표시를 요청한다
 	UFUNCTION(BlueprintCallable, Category = "ProjectR|UI")
 	void ShowLevelUpPopup(int32 PreviousLevel, int32 CurrentLevel);
@@ -480,5 +484,6 @@ private:
 	UPROPERTY(Transient)
 	TSubclassOf<UUserWidget> CurrentScopeWidgetClass;
 
+	bool bWantsHUDVisible = true;
 	bool bWantsWeaponScopeVisible = false;
 };

@@ -34,6 +34,8 @@ UPRGA_PlayerDeath::UPRGA_PlayerDeath()
 	CancelAbilitiesWithTag.AddTag(PRGameplayTags::Ability_Player_Reload);
 	CancelAbilitiesWithTag.AddTag(PRGameplayTags::Ability_Player_Interaction);
 	CancelAbilitiesWithTag.AddTag(PRGameplayTags::Ability_Player_HitReact);
+	CancelAbilitiesWithTag.AddTag(PRGameplayTags::Ability_Player_UseConsumable);
+	CancelAbilitiesWithTag.AddTag(PRGameplayTags::Ability_Player_GetUp);
 	
 	BlockAbilitiesWithTag.AddTag(PRGameplayTags::Ability_Player_Weapon_Fire_Primary);
 	BlockAbilitiesWithTag.AddTag(PRGameplayTags::Ability_Player_Aim);
@@ -43,6 +45,8 @@ UPRGA_PlayerDeath::UPRGA_PlayerDeath()
 	BlockAbilitiesWithTag.AddTag(PRGameplayTags::Ability_Player_Reload);
 	BlockAbilitiesWithTag.AddTag(PRGameplayTags::Ability_Player_Interaction);
 	BlockAbilitiesWithTag.AddTag(PRGameplayTags::Ability_Player_HitReact);
+	BlockAbilitiesWithTag.AddTag(PRGameplayTags::Ability_Player_UseConsumable);
+
 
 	ActivationOwnedTags.AddTag(PRGameplayTags::State_Dead);
 	ActivationOwnedTags.AddTag(PRGameplayTags::State_PlayerInputLocked);

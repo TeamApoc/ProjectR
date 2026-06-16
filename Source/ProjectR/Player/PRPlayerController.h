@@ -143,11 +143,19 @@ public:
 	// 서버 권위 인카운터 연출 종료 후 소유 클라이언트의 카메라를 현재 Pawn으로 복구한다.
 	UFUNCTION(Client, Reliable)
 	void ClientRestoreFaerinEncounterViewTarget(float BlendTime);
+
+	// 서버 권위 인카운터 연출 중 소유 클라이언트의 HUD 표시 상태 변경
+	UFUNCTION(Client, Reliable)
+	void ClientSetFaerinEncounterHUDVisible(bool bVisible);
+
 	// Faerin 인카운터 입력 잠금 상태를 로컬 PlayerController에 즉시 적용한다.
 	void SetEncounterInputLockLocal(bool bLock);
 
 	// Faerin 인카운터 카메라를 로컬 Pawn으로 즉시 복귀시킨다.
 	void RestoreFaerinEncounterViewTargetLocal(float BlendTime);
+
+	// Faerin 인카운터 HUD 표시 상태를 로컬 화면에 즉시 적용
+	void SetFaerinEncounterHUDVisibleLocal(bool bVisible);
 	
 	// 서버 -> 본인 클라. 무기 강화 결과를 UI에 전달한다
 	UFUNCTION(Client, Reliable)

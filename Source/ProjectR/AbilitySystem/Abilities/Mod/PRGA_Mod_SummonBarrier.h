@@ -55,7 +55,10 @@ protected:
 	bool HasActiveBarrier() const;
 
 	// 발사 입력 가능 여부 확인
-	bool HasLaunchActivationWindow() const;
+	bool HasLaunchActivationWindow(const FGameplayAbilityActorInfo* ActorInfo) const;
+
+	// 복제 지속 상태 확인
+	bool HasReplicatedDurationCostState(const FGameplayAbilityActorInfo* ActorInfo) const;
 
 	// 서버 배리어 생성
 	APRGroundBoxProjectileBase* SpawnBarrier(const FGameplayAbilityActorInfo* ActorInfo);

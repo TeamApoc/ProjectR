@@ -7,6 +7,7 @@
 #include "Engine/World.h"
 #include "GameFramework/Pawn.h"
 #include "ProjectR/AbilitySystem/Data/PRBarrierAbilityDataAsset.h"
+#include "ProjectR/ItemSystem/Data/PRWeaponDataAsset.h"
 #include "ProjectR/PRGameplayTags.h"
 #include "ProjectR/Projectile/PRBarrierAnchorActor.h"
 #include "ProjectR/Projectile/PRGroundBoxProjectileBase.h"
@@ -23,7 +24,7 @@ bool UPRGA_Mod_SummonBarrier::CheckCost(const FGameplayAbilitySpecHandle Handle,
 	const FGameplayAbilityActorInfo* ActorInfo,
 	FGameplayTagContainer* OptionalRelevantTags) const
 {
-	if (HasLaunchActivationWindow())
+	if (HasLaunchActivationWindow(ActorInfo))
 	{
 		// 발사 비용 우회
 		return UGameplayAbility::CheckCost(Handle, ActorInfo, OptionalRelevantTags);
@@ -36,7 +37,7 @@ void UPRGA_Mod_SummonBarrier::ApplyCost(const FGameplayAbilitySpecHandle Handle,
 	const FGameplayAbilityActorInfo* ActorInfo,
 	const FGameplayAbilityActivationInfo ActivationInfo) const
 {
-	if (HasLaunchActivationWindow())
+	if (HasLaunchActivationWindow(ActorInfo))
 	{
 		// 발사 추가 비용 없음
 		return;
@@ -50,7 +51,7 @@ void UPRGA_Mod_SummonBarrier::ActivateAbility(const FGameplayAbilitySpecHandle H
 	const FGameplayAbilityActivationInfo ActivationInfo,
 	const FGameplayEventData* TriggerEventData)
 {
-	if (HasLaunchActivationWindow())
+	if (HasLaunchActivationWindow(ActorInfo))
 	{
 		// 발사 경로
 		UPRGA_Mod::ActivateAbility(Handle, ActorInfo, ActivationInfo, TriggerEventData);
@@ -113,9 +114,45 @@ bool UPRGA_Mod_SummonBarrier::HasActiveBarrier() const
 	return IsValid(ActiveBarrier) && !bLaunchRequested;
 }
 
-bool UPRGA_Mod_SummonBarrier::HasLaunchActivationWindow() const
+bool UPRGA_Mod_SummonBarrier::HasLaunchActivationWindow(const FGameplayAbilityActorInfo* ActorInfo) const
 {
-	return !bLaunchRequested && (HasActiveBarrier() || ActiveDurationCostHandle.IsValid());
+	return !bLaunchRequested
+		&& (HasActiveBarrier() || ActiveDurationCostHandle.IsValid() || HasReplicatedDurationCostState(ActorInfo));
+}
+
+bool UPRGA_Mod_SummonBarrier::HasReplicatedDurationCostState(const FGameplayAbilityActorInfo* ActorInfo) const
+{
+	// 액터 정보 확인
+	if (ActorInfo == nullptr)
+	{
+		return false;
+	}
+
+	// ASC 확인
+	const UAbilitySystemComponent* ASC = ActorInfo->AbilitySystemComponent.Get();
+	if (!IsValid(ASC))
+	{
+		return false;
+	}
+
+	// 무기 데이터 확인
+	const UPRWeaponDataAsset* WeaponData = GetCurrentWeaponData();
+	if (!IsValid(WeaponData))
+	{
+		return false;
+	}
+
+	if (WeaponData->SlotType == EPRWeaponSlotType::Primary)
+	{
+		return ASC->HasMatchingGameplayTag(PRGameplayTags::State_Mod_Primary_GaugeLocked);
+	}
+
+	if (WeaponData->SlotType == EPRWeaponSlotType::Secondary)
+	{
+		return ASC->HasMatchingGameplayTag(PRGameplayTags::State_Mod_Secondary_GaugeLocked);
+	}
+
+	return false;
 }
 
 APRGroundBoxProjectileBase* UPRGA_Mod_SummonBarrier::SpawnBarrier(const FGameplayAbilityActorInfo* ActorInfo)
@@ -377,6 +414,12 @@ void UPRGA_Mod_SummonBarrier::HandleDurationCostRemoved(const FGameplayEffectRem
 	// 비용 종료
 	DurationCostRemovedDelegateHandle.Reset();
 	ActiveDurationCostHandle.Invalidate();
+
+	// 클라이언트 예측 GE 교체
+	if (!HasAuthority(&CurrentActivationInfo) && HasReplicatedDurationCostState(GetCurrentActorInfo()))
+	{
+		return;
+	}
 
 	if (!bLaunchRequested)
 	{

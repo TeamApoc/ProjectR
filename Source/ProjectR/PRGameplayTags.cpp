@@ -201,6 +201,7 @@ namespace PRGameplayTags
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Event_Boss_Spawn, "Event.Boss.Spawn", "보스 스폰 요청");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Event_Boss_Encounter_Begin, "Event.Boss.Encounter.Begin", "보스 조우 시작 (FPRBossEncounterEventPayload 동반)");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Event_Boss_Encounter_End, "Event.Boss.Encounter.End", "보스 조우 종료");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Event_Boss_Defeated, "Event.Boss.Defeated", "보스 처치 확정");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Event_Boss_PhaseChanged, "Event.Boss.PhaseChanged", "보스 페이즈 변경");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Event_Boss_BGMPhasePreview, "Event.Boss.BGMPhasePreview", "보스 BGM 페이즈 예고");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Event_Boss_BGMPatternCue, "Event.Boss.BGMPatternCue", "보스 BGM 특수패턴 Cue");
@@ -218,6 +219,12 @@ namespace PRGameplayTags
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(SetByCaller_Trait_MaxStamina, "SetByCaller.Trait.MaxStamina", "특성 최대 스태미너 보너스");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(SetByCaller_Trait_CriticalHitChance, "SetByCaller.Trait.CriticalHitChance", "특성 치명타 확률 보너스");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(SetByCaller_Trait_CriticalDamageMultiplier, "SetByCaller.Trait.CriticalDamageMultiplier", "특성 치명타 피해 배율 보너스");
+
+	// ===== SetByCaller.Equipment.* =====
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(SetByCaller_Equipment_MaxHealth, "SetByCaller.Equipment.MaxHealth", "장비 최대 체력 보너스");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(SetByCaller_Equipment_Armor, "SetByCaller.Equipment.Armor", "장비 방어력 보너스");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(SetByCaller_Equipment_PlayerAttackPower, "SetByCaller.Equipment.PlayerAttackPower", "장비 플레이어 공격력 보너스");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(SetByCaller_Equipment_MaxStamina, "SetByCaller.Equipment.MaxStamina", "장비 최대 스태미너 보너스");
 
 	// ===== Input.Ability.* =====
 

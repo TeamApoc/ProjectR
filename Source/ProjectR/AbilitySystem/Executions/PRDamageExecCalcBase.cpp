@@ -2,9 +2,11 @@
 // Author: 배유찬 (Damage Exec Calc 기본 구조 구현)
 #include "PRDamageExecCalcBase.h"
 
+#include "AbilitySystemComponent.h"
 #include "GameFramework/Pawn.h"
 #include "GameFramework/PlayerController.h"
 #include "GameFramework/PlayerState.h"
+#include "ProjectR/Character/PRCharacterBase.h"
 #include "ProjectR/Combat/PRCombatInterface.h"
 #include "ProjectR/Combat/PRCombatTypes.h"
 
@@ -36,6 +38,32 @@ namespace
 
 		return nullptr;
 	}
+
+	FName ResolveSourceCharacterID(const FGameplayEffectContextHandle& ContextHandle)
+	{
+		if (const UAbilitySystemComponent* SourceASC = ContextHandle.GetInstigatorAbilitySystemComponent())
+		{
+			if (const APRCharacterBase* SourceCharacter = Cast<APRCharacterBase>(SourceASC->GetAvatarActor()))
+			{
+				return SourceCharacter->GetCharacterID();
+			}
+		}
+
+		if (const APRCharacterBase* SourceCharacter = Cast<APRCharacterBase>(ContextHandle.GetOriginalInstigator()))
+		{
+			return SourceCharacter->GetCharacterID();
+		}
+
+		if (const UObject* SourceObject = ContextHandle.GetSourceObject())
+		{
+			if (const APRCharacterBase* SourceCharacter = Cast<APRCharacterBase>(SourceObject))
+			{
+				return SourceCharacter->GetCharacterID();
+			}
+		}
+
+		return NAME_None;
+	}
 }
 
 /*~ 후처리 디스패치 ~*/
@@ -65,6 +93,7 @@ void UPRDamageExecCalcBase::DispatchPostDamageApplied(
 	Context.MaxHealth = MaxHealth;
 	Context.Region = Outputs.Region;
 	Context.SourceObject = OwningSpec.GetEffectContext().GetSourceObject();
+	Context.SourceCharacterID = ResolveSourceCharacterID(ContextHandle);
 	Context.Instigator = ContextHandle.GetOriginalInstigator();
 	Context.InstigatorController = ResolveInstigatorPlayerController(ContextHandle);
 	Context.HitResult = HitResult;

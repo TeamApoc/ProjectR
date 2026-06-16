@@ -864,6 +864,12 @@ bool UPREnemyThreatComponent::ShouldRemoveTargetCandidate(const FPREnemyTargetCa
 		return false;
 	}
 
+	const bool bHasRecentThreat = (CurrentTime - Candidate.LastThreatTime) <= TargetingConfig.CandidateForgetTime;
+	if (bHasRecentThreat)
+	{
+		return false;
+	}
+
 	const AActor* OwnerActor = GetOwner();
 	const bool bIgnoreRetainRadius = TargetingConfig.bIgnoreEngagementRetainRadiusForPlayerCandidates
 		&& UPRCombatStatics::GetActorTeam(Candidate.Target.Get()) == EPRTeam::Player;

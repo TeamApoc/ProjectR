@@ -1,11 +1,32 @@
 // Copyright ProjectR. All Rights Reserved.
 // Author: 배유찬 (Item 인스턴스 Equipment 구현)
 #include "PRItemInstance_Equipment.h"
+
+#include "AbilitySystemInterface.h"
+#include "GameplayEffect.h"
 #include "ProjectR/ItemSystem/Data/PREquipmentDataAsset.h"
 #include "ProjectR/ItemSystem/Components/PREquipmentManagerComponent.h"
 #include "GameFramework/Actor.h"
 #include "Engine/Engine.h"
+#include "ProjectR/AbilitySystem/PRAbilitySystemComponent.h"
+#include "ProjectR/AbilitySystem/Data/PRAbilitySystemRegistry.h"
+#include "ProjectR/Character/PRCharacterBase.h"
+#include "ProjectR/PRGameplayTags.h"
+#include "ProjectR/System/PRAssetManager.h"
 #include "ProjectR/Utils/PRGameplayStatics.h"
+
+namespace
+{
+	// 0이 아닌 장비 보너스 존재 여부
+	bool HasAnyCommonStatBonus(const UPREquipmentDataAsset* EquipmentData)
+	{
+		return IsValid(EquipmentData)
+			&& (!FMath::IsNearlyZero(EquipmentData->GetMaxHealthBonus())
+				|| !FMath::IsNearlyZero(EquipmentData->GetArmorBonus())
+				|| !FMath::IsNearlyZero(EquipmentData->GetAttackPowerBonus())
+				|| !FMath::IsNearlyZero(EquipmentData->GetMaxStaminaBonus()));
+	}
+}
 
 void UPRItemInstance_Equipment::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const
 {
@@ -70,8 +91,17 @@ void UPRItemInstance_Equipment::OnEquipped(AActor* OwnerActor)
 		return;
 	}
 
+	if (bIsEquippedEquipmentSlot)
+	{
+		return;
+	}
+
+	// 장비 슬롯 장착 상태 기록
+	bIsEquippedEquipmentSlot = true;
+	GrantEquippedEffects(OwnerActor);
+
 	// EquipmentManager 장착 확정 이후의 장비별 후처리 지점
-	// 현재는 로그만 남기며 추후 캐릭터 ChildMesh 교체나 스탯 적용 위치
+	// 캐릭터 파츠 교체와 장비 수치 적용 이후 추적 로그
 	UE_LOG(LogTemp, Log, TEXT("[Equipment] 장착: %s | 슬롯: %d | Owner: %s"), 
 		*GetNameSafe(GetEquipmentData()), 
 		(int32)GetSlotType(), 
@@ -80,13 +110,18 @@ void UPRItemInstance_Equipment::OnEquipped(AActor* OwnerActor)
 
 void UPRItemInstance_Equipment::OnUnequipped(AActor* OwnerActor)
 {
+	// 장비 슬롯 장착 상태 해제
+	bIsEquippedEquipmentSlot = false;
+
 	if (!IsValid(OwnerActor))
 	{
 		return;
 	}
 
+	ClearEquippedEffects(OwnerActor);
+
 	// EquipmentManager 해제 확정 이후의 장비별 후처리 지점
-	// 현재는 로그만 남기며 추후 캐릭터 ChildMesh 복원이나 스탯 제거 위치
+	// 캐릭터 파츠 복원과 장비 수치 회수 이후 추적 로그
 	UE_LOG(LogTemp, Log, TEXT("[Equipment] 해제: %s | 슬롯: %d | Owner: %s"), 
 		*GetNameSafe(GetEquipmentData()), 
 		(int32)GetSlotType(), 
@@ -103,4 +138,98 @@ void UPRItemInstance_Equipment::FillSaveEntry(FPREquipmentSlotSaveEntry& OutEntr
 void UPRItemInstance_Equipment::ApplySaveEntry(const FPREquipmentSlotSaveEntry& InEntry)
 {
 	// 인스턴스의 내부 상태가 필요해지면 복원
+}
+
+void UPRItemInstance_Equipment::GrantEquippedEffects(AActor* OwnerActor)
+{
+	if (!IsValid(OwnerActor))
+	{
+		return;
+	}
+
+	UPRAbilitySystemComponent* ASC = Cast<UPRAbilitySystemComponent>(UPRGameplayStatics::GetAbilitySystemComponent(OwnerActor));
+	if (!IsValid(ASC) || !ASC->IsOwnerActorAuthoritative())
+	{
+		return;
+	}
+
+	ApplyCommonStatEffect(OwnerActor);
+
+	if (const UPREquipmentDataAsset* EquipmentData = GetEquipmentData())
+	{
+		EquipmentData->GiveAdditionalEffectsToAbilitySystem(ASC, EquipmentAbilityHandles, this);
+	}
+}
+
+void UPRItemInstance_Equipment::ClearEquippedEffects(AActor* OwnerActor)
+{
+	if (!IsValid(OwnerActor))
+	{
+		return;
+	}
+
+	UPRAbilitySystemComponent* ASC = Cast<UPRAbilitySystemComponent>(UPRGameplayStatics::GetAbilitySystemComponent(OwnerActor));
+	if (!IsValid(ASC) || !ASC->IsOwnerActorAuthoritative())
+	{
+		return;
+	}
+
+	RemoveCommonStatEffect(OwnerActor);
+	ASC->ClearAbilitySetByHandles(EquipmentAbilityHandles);
+}
+
+void UPRItemInstance_Equipment::ApplyCommonStatEffect(AActor* OwnerActor)
+{
+	UPRAbilitySystemComponent* ASC = Cast<UPRAbilitySystemComponent>(UPRGameplayStatics::GetAbilitySystemComponent(OwnerActor));
+	const UPREquipmentDataAsset* EquipmentData = GetEquipmentData();
+	if (!IsValid(ASC) || !IsValid(EquipmentData) || !ASC->IsOwnerActorAuthoritative())
+	{
+		return;
+	}
+
+	RemoveCommonStatEffect(OwnerActor);
+
+	if (!HasAnyCommonStatBonus(EquipmentData))
+	{
+		return;
+	}
+
+	const UPRAbilitySystemRegistry* Registry = UPRAssetManager::Get().GetAbilitySystemRegistry();
+	TSubclassOf<UGameplayEffect> CommonStatGE;
+	if (IsValid(Registry))
+	{
+		CommonStatGE = Registry->EquipGE_EquipmentCommonStats;
+	}
+
+	FGameplayEffectContextHandle Context = ASC->MakeEffectContext();
+	Context.AddSourceObject(this);
+
+	const FGameplayEffectSpecHandle SpecHandle = ASC->MakeOutgoingSpec(CommonStatGE, 1.0f, Context);
+	if (!SpecHandle.IsValid())
+	{
+		return;
+	}
+
+	SpecHandle.Data->SetSetByCallerMagnitude(PRGameplayTags::SetByCaller_Equipment_MaxHealth, EquipmentData->GetMaxHealthBonus());
+	SpecHandle.Data->SetSetByCallerMagnitude(PRGameplayTags::SetByCaller_Equipment_Armor, EquipmentData->GetArmorBonus());
+	SpecHandle.Data->SetSetByCallerMagnitude(PRGameplayTags::SetByCaller_Equipment_PlayerAttackPower, EquipmentData->GetAttackPowerBonus());
+	SpecHandle.Data->SetSetByCallerMagnitude(PRGameplayTags::SetByCaller_Equipment_MaxStamina, EquipmentData->GetMaxStaminaBonus());
+
+	CommonStatEffectHandle = ASC->ApplyGameplayEffectSpecToSelf(*SpecHandle.Data.Get());
+}
+
+void UPRItemInstance_Equipment::RemoveCommonStatEffect(AActor* OwnerActor)
+{
+	if (!CommonStatEffectHandle.IsValid())
+	{
+		return;
+	}
+
+	UPRAbilitySystemComponent* ASC = Cast<UPRAbilitySystemComponent>(UPRGameplayStatics::GetAbilitySystemComponent(OwnerActor));
+	if (IsValid(ASC) && ASC->IsOwnerActorAuthoritative())
+	{
+		ASC->RemoveActiveGameplayEffect(CommonStatEffectHandle);
+	}
+
+	CommonStatEffectHandle.Invalidate();
 }

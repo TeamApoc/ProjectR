@@ -33,6 +33,8 @@ class UPRFirePreviewComponent;
 class UPRFlashlightComponent;
 class UPRConsumableDataAsset;
 class UStaticMeshComponent;
+class UPRPlayerHitSoundDataAsset;
+class USoundBase;
 struct FInputActionValue;
 struct FOnAttributeChangeData;
 //무기 테스트용
@@ -62,6 +64,8 @@ public:
 
 	/*~ IPRCombatInterface ~*/
 	virtual EPRTeam GetTeam() const override { return EPRTeam::Player; }
+	// 체력 피해 적용 후 피드백 처리
+	virtual void OnPostDamageApplied(const FPRDamageAppliedContext& Context) override;
 
 	/*~ IPRInteractionInterface ~*/
 	virtual UPRInteractableComponent* GetInteractableComponent() const override { return InteractableComponent; }
@@ -150,6 +154,10 @@ protected:
 	void UpdateMaxWalkSpeed();
 	
 private:
+	// 체력 피해 피드백 사운드 소유 클라이언트 재생
+	UFUNCTION(Client, Unreliable)
+	void ClientPlayHealthDamageHitSound(USoundBase* Sound);
+
 	/** 상태 태그 기준으로 이동 입력이 차단되는지 반환한다 */
 	bool IsMoveInputLockedByState() const;
 
@@ -313,6 +321,10 @@ protected:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "PR|Camera")
 	float CachedCameraSensitivity = 0.5f;
 
+	// 체력 피해 피드백 사운드 설정
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "PR|Audio|Hit")
+	TObjectPtr<UPRPlayerHitSoundDataAsset> HitSoundData;
+
 	/** 플래시 라이트 위치 설정 */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "PR|Flashlight")
 	FVector FlashlightStandingLocation = FVector(50.0f, 0.0f, 55.0f);
@@ -343,6 +355,9 @@ private:
 	bool bIsDodging = false;
 	
 	bool bBlockMove = false;
+
+	// 마지막 체력 피해 사운드 재생 시각
+	float LastHealthDamageHitSoundTime = -FLT_MAX;
 
 	// 기본 머리 메시 캐시 완료 여부
 	bool bDefaultHeadMeshCached = false;

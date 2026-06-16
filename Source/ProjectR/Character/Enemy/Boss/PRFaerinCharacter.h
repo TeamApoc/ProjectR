@@ -19,6 +19,7 @@ class UMotionWarpingComponent;
 class UMaterialInstanceDynamic;
 class UNiagaraComponent;
 class UNiagaraSystem;
+class USoundBase;
 class UTexture;
 class APRPlayerCharacter;
 struct FPREnemyTargetingConfig;
@@ -91,6 +92,10 @@ public:
 		FRotator Rotation,
 		FVector Scale,
 		float LifeSeconds);
+
+	// 서버가 지정한 월드 위치에 Faerin SFX를 모든 클라이언트에서 재생한다.
+	UFUNCTION(NetMulticast, Unreliable)
+	void Multicast_PlayFaerinSoundAtLocation(USoundBase* Sound, FVector_NetQuantize Location);
 
 	// 서버가 확정한 월드 위치에 Faerin 패턴용 Niagara를 key 기반으로 재생한다. 이후 같은 key로 즉시 정리할 수 있다.
 	UFUNCTION(NetMulticast, Reliable)

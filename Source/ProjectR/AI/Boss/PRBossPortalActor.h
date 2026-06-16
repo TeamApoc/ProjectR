@@ -14,6 +14,7 @@
 class APRProjectileBase;
 class APRFaerinRainProjectileManager;
 class UGameplayEffect;
+class USoundBase;
 class USphereComponent;
 
 // 포털 하나의 내부 생명주기 상태다.
@@ -285,6 +286,18 @@ protected:
 	// Pause 중에도 발사를 허용할지 여부다.
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Portal|Fire")
 	bool bCanFireWhilePaused = false;
+
+	// 포털이 생성(텔레그래프 시작)될 때 포털 위치에 재생할 사운드 큐다. 모든 클라이언트에서 재생된다.
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Portal|SFX")
+	TObjectPtr<USoundBase> PortalSpawnSoundCue;
+
+	// 포털이 만료되어 사라질 때 포털 위치에 재생할 사운드 큐다.
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Portal|SFX")
+	TObjectPtr<USoundBase> PortalExpireSoundCue;
+
+	// 포털이 플레이어 피해로 파괴될 때 피격 위치에 재생할 사운드 큐다.
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Portal|SFX")
+	TObjectPtr<USoundBase> PortalDestroyedSoundCue;
 
 	// 포털이 발사할 투사체 클래스다.
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Portal|Projectile")

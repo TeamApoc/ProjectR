@@ -9,6 +9,7 @@
 #include "Engine/World.h"
 #include "EngineUtils.h"
 #include "GameplayEffect.h"
+#include "Kismet/GameplayStatics.h"
 #include "Net/UnrealNetwork.h"
 #include "TimerManager.h"
 #include "ProjectR/AbilitySystem/Data/PRAbilitySystemRegistry.h"
@@ -684,6 +685,12 @@ void APRBossPortalActor::OnRep_CurrentPortalHealth(float PreviousHealth)
 
 void APRBossPortalActor::MulticastPortalTelegraphStarted_Implementation()
 {
+	// 포털 생성(텔레그래프 시작) 위치에 SFX 재생. 모든 클라이언트에서 실행되며, 데디케이티드 서버에선 사운드가 무시된다.
+	if (IsValid(PortalSpawnSoundCue))
+	{
+		UGameplayStatics::SpawnSoundAtLocation(this, PortalSpawnSoundCue, GetActorLocation());
+	}
+
 	BP_OnPortalTelegraphStarted();
 }
 
@@ -694,6 +701,12 @@ void APRBossPortalActor::MulticastPortalActivated_Implementation()
 
 void APRBossPortalActor::MulticastPortalExpired_Implementation()
 {
+	// 포털 만료(사라짐) SFX를 포털 위치에 재생한다. (모든 클라이언트)
+	if (IsValid(PortalExpireSoundCue))
+	{
+		UGameplayStatics::SpawnSoundAtLocation(this, PortalExpireSoundCue, GetActorLocation());
+	}
+
 	BP_OnPortalExpired();
 }
 
@@ -733,6 +746,12 @@ void APRBossPortalActor::MulticastPortalDamaged_Implementation(
 
 void APRBossPortalActor::MulticastPortalDestroyedByDamage_Implementation(FVector_NetQuantize HitLocation)
 {
+	// 포털 파괴(피해 소진) SFX를 피격 위치에 재생한다. (모든 클라이언트)
+	if (IsValid(PortalDestroyedSoundCue))
+	{
+		UGameplayStatics::SpawnSoundAtLocation(this, PortalDestroyedSoundCue, HitLocation);
+	}
+
 	BP_OnPortalDestroyedByDamage(HitLocation);
 }
 

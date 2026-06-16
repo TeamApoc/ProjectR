@@ -859,6 +859,20 @@ void APRProjectileBase::BeginPlay()
 	// 투사체 궤적은 RepMovement 이벤트와 로컬 시뮬레이션으로 맞춘다.
 	SetReplicatingMovement(false);
 
+	// 비행 사운드: 루트에 attach해 투사체를 따라 재생한다. (각 머신에서 로컬 재생, 데디케이티드 서버에선 무시)
+	// bStopWhenAttachedToDestroyed=true: 투사체가 파괴/소멸되면 사운드도 함께 정지·정리된다. (루프 큐 잔류 방지)
+	if (IsValid(FlightSoundCue) && IsValid(SphereComponent))
+	{
+		UGameplayStatics::SpawnSoundAttached(
+			FlightSoundCue,
+			SphereComponent,
+			NAME_None,
+			FVector(ForceInit),
+			FRotator::ZeroRotator,
+			EAttachLocation::KeepRelativeOffset,
+			/*bStopWhenAttachedToDestroyed=*/true);
+	}
+
 	// 발사자 충돌 제외
 	AActor* IgnoredInstigator = GetInstigator();
 	if (!IsValid(IgnoredInstigator))

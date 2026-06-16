@@ -11,6 +11,7 @@
 #include "Engine/World.h"
 #include "GameFramework/GameStateBase.h"
 #include "GameplayEffect.h"
+#include "Kismet/GameplayStatics.h"
 #include "Net/UnrealNetwork.h"
 #include "NiagaraComponent.h"
 #include "NiagaraFunctionLibrary.h"
@@ -630,6 +631,7 @@ void APRFaerinGodFallStaticSwordActor::ClearSwordTimers()
 		World->GetTimerManager().ClearTimer(ImpactHoldTimerHandle);
 		World->GetTimerManager().ClearTimer(ImpactWarningTimerHandle);
 		World->GetTimerManager().ClearTimer(EntryReturnChargeDelayTimerHandle);
+		World->GetTimerManager().ClearTimer(StrikeSoundTimerHandle);
 	}
 }
 
@@ -1929,8 +1931,15 @@ void APRFaerinGodFallStaticSwordActor::ScheduleImpactWarning()
 	if (!HasAuthority()
 		|| bImpactWarningSpawned
 		|| !bHasAssignedAttackLocation
-		|| !IsValid(GodFallData)
-		|| !IsValid(GodFallData->ImpactWarningNiagaraSystem))
+		|| !IsValid(GodFallData))
+	{
+		return;
+	}
+
+	// 강타 사운드는 warning Niagara 유무와 독립적으로 예약한다.
+	ScheduleStrikeSound();
+
+	if (!IsValid(GodFallData->ImpactWarningNiagaraSystem))
 	{
 		return;
 	}
@@ -1949,6 +1958,53 @@ void APRFaerinGodFallStaticSwordActor::ScheduleImpactWarning()
 		GodFallData->ImpactWarningNiagaraLifeSeconds,
 		SpawnServerWorldTimeSeconds);
 	ForceNetUpdate();
+}
+
+void APRFaerinGodFallStaticSwordActor::ScheduleStrikeSound()
+{
+	if (!HasAuthority()
+		|| !bHasAssignedAttackLocation
+		|| !IsValid(GodFallData)
+		|| !IsValid(GodFallData->SwordStrikeSoundCue))
+	{
+		return;
+	}
+
+	UWorld* World = GetWorld();
+	if (!IsValid(World) || World->GetTimerManager().IsTimerActive(StrikeSoundTimerHandle))
+	{
+		return;
+	}
+
+	// 충돌까지 남은 시간 = (머리 위 경고 시간) + (낙하 시간). 강타 사운드는 그보다 LeadSeconds 앞서 재생한다.
+	const float TimeUntilImpact = FMath::Max(AssignedWarningSeconds, 0.0f) + FMath::Max(GodFallData->DropSeconds, 0.0f);
+	const float SoundDelay = FMath::Max(TimeUntilImpact - FMath::Max(GodFallData->SwordStrikeSoundLeadSeconds, 0.0f), 0.0f);
+	const FVector StrikeLocation = AssignedImpactLocation;
+	USoundBase* StrikeSound = GodFallData->SwordStrikeSoundCue;
+
+	if (SoundDelay <= UE_SMALL_NUMBER)
+	{
+		MulticastPlayGodFallSwordStrikeSound(StrikeLocation, StrikeSound);
+		return;
+	}
+
+	World->GetTimerManager().SetTimer(
+		StrikeSoundTimerHandle,
+		FTimerDelegate::CreateWeakLambda(this, [this, StrikeLocation, StrikeSound]()
+		{
+			MulticastPlayGodFallSwordStrikeSound(StrikeLocation, StrikeSound);
+		}),
+		SoundDelay,
+		false);
+}
+
+void APRFaerinGodFallStaticSwordActor::MulticastPlayGodFallSwordStrikeSound_Implementation(FVector_NetQuantize StrikeLocation, USoundBase* StrikeSound)
+{
+	// 모든 클라이언트에서 충돌 위치에 강타 사운드를 재생한다. (데디케이티드 서버에선 무시)
+	if (IsValid(StrikeSound))
+	{
+		UGameplayStatics::SpawnSoundAtLocation(this, StrikeSound, StrikeLocation);
+	}
 }
 
 void APRFaerinGodFallStaticSwordActor::ScheduleImpactWarningLocal(

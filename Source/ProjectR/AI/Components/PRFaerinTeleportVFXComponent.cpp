@@ -13,6 +13,7 @@
 #include "Engine/Texture.h"
 #include "Engine/World.h"
 #include "GameplayEffect.h"
+#include "Kismet/GameplayStatics.h"
 #include "Materials/MaterialInstanceDynamic.h"
 #include "Materials/MaterialInterface.h"
 #include "NavigationSystem.h"
@@ -753,6 +754,35 @@ void UPRFaerinTeleportVFXComponent::BeginHiddenPresentationLocal(
 	CleanupTeleportVFXLocal();
 	LeftTeleportVFXComponent = SpawnTeleportVFXLocal(LeftStartLocation);
 	RightTeleportVFXComponent = SpawnTeleportVFXLocal(RightStartLocation);
+
+	// 두 텔레포트 VFX 프로젝타일에 비행 사운드를 attach해 이동 동안 따라 재생한다. (각 머신 로컬 재생)
+	// bStopWhenAttachedToDestroyed=true: VFX가 정리/소멸되면 사운드도 함께 정지·정리된다. (루프 큐 잔류 방지)
+	if (IsValid(TeleportVFXProjectileSoundCue))
+	{
+		if (IsValid(LeftTeleportVFXComponent))
+		{
+			UGameplayStatics::SpawnSoundAttached(
+				TeleportVFXProjectileSoundCue,
+				LeftTeleportVFXComponent,
+				NAME_None,
+				FVector(ForceInit),
+				FRotator::ZeroRotator,
+				EAttachLocation::KeepRelativeOffset,
+				/*bStopWhenAttachedToDestroyed=*/true);
+		}
+		if (IsValid(RightTeleportVFXComponent))
+		{
+			UGameplayStatics::SpawnSoundAttached(
+				TeleportVFXProjectileSoundCue,
+				RightTeleportVFXComponent,
+				NAME_None,
+				FVector(ForceInit),
+				FRotator::ZeroRotator,
+				EAttachLocation::KeepRelativeOffset,
+				/*bStopWhenAttachedToDestroyed=*/true);
+		}
+	}
+
 	SetTeleportVFXPairLocation(LeftStartLocation, RightStartLocation);
 
 	SetComponentTickEnabled(true);

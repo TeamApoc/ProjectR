@@ -12,6 +12,7 @@ class UAnimMontage;
 class UAnimSequenceBase;
 class UGameplayEffect;
 class UNiagaraSystem;
+class USoundBase;
 
 // God Fall 본체 시전 중 지정 시각에 몸에 붙여 재생할 Niagara cue다.
 USTRUCT(BlueprintType)
@@ -423,6 +424,18 @@ public:
 	// 0보다 크면 충돌 Niagara를 해당 시간 뒤 강제로 정리한다.
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Faerin|GodFall|VFX|SwordImpact", meta = (ClampMin = "0.0"))
 	float SwordImpactNiagaraLifeSeconds = 2.0f;
+
+	// God Fall 검이 플레이어를 내려쳐 충돌할 때 충돌 위치에 재생할 사운드 큐다. 비어 있으면 재생하지 않는다.
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Faerin|GodFall|SFX|SwordStrike")
+	TObjectPtr<USoundBase> SwordStrikeSoundCue;
+
+	// 강타 사운드를 충돌 몇 초 전에 재생할지 정한다. 0이면 충돌 순간에 재생한다.
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Faerin|GodFall|SFX|SwordStrike", meta = (ClampMin = "0.0"))
+	float SwordStrikeSoundLeadSeconds = 0.2f;
+
+	// God Fall 시전 시작(보스가 검을 들고 위로 상승)할 때 보스 몸에 attach해 재생할 사운드 큐다. 비어 있으면 재생하지 않는다.
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Faerin|GodFall|SFX|Rise")
+	TObjectPtr<USoundBase> GodFallRiseSoundCue;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Faerin|GodFall|VFX|SwordWarning")
 	TObjectPtr<UNiagaraSystem> ImpactWarningNiagaraSystem;

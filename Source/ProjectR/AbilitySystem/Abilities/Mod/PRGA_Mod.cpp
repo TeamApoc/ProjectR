@@ -46,16 +46,19 @@ void UPRGA_Mod::ActivateAbility(const FGameplayAbilitySpecHandle Handle, const F
 	}
 	
 	// 모드 UI 하이라이트용 이벤트 전송
-	if (UPREventManagerSubsystem* EventManager = GetWorld()->GetSubsystem<UPREventManagerSubsystem>())
+	if (IsLocallyControlled())
 	{
-		FPRModActivationPayload Payload;
-		Payload.bActivated = true;
-		if (UPRWeaponDataAsset* WeaponData = GetCurrentWeaponData())
+		if (UPREventManagerSubsystem* EventManager = GetWorld()->GetSubsystem<UPREventManagerSubsystem>())
 		{
-			Payload.SlotType = WeaponData->SlotType;	
-		}
+			FPRModActivationPayload Payload;
+			Payload.bActivated = true;
+			if (UPRWeaponDataAsset* WeaponData = GetCurrentWeaponData())
+			{
+				Payload.SlotType = WeaponData->SlotType;	
+			}
 		
-		EventManager->BroadcastTyped(PRGameplayTags::Event_Player_ModActivation, Payload);
+			EventManager->BroadcastTyped(PRGameplayTags::Event_Player_ModActivation, Payload);
+		}
 	}
 	
 	Super::ActivateAbility(Handle, ActorInfo, ActivationInfo, TriggerEventData);
@@ -64,17 +67,20 @@ void UPRGA_Mod::ActivateAbility(const FGameplayAbilitySpecHandle Handle, const F
 void UPRGA_Mod::EndAbility(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo,
 	const FGameplayAbilityActivationInfo ActivationInfo, bool bReplicateEndAbility, bool bWasCancelled)
 {
-	// 모드 UI 하이라이트 끄기용 이벤트 전송
-	if (UPREventManagerSubsystem* EventManager = GetWorld()->GetSubsystem<UPREventManagerSubsystem>())
+	if (IsLocallyControlled())
 	{
-		FPRModActivationPayload Payload;
-		Payload.bActivated = false;
-		if (UPRWeaponDataAsset* WeaponData = GetCurrentWeaponData())
+		// 모드 UI 하이라이트 끄기용 이벤트 전송
+		if (UPREventManagerSubsystem* EventManager = GetWorld()->GetSubsystem<UPREventManagerSubsystem>())
 		{
-			Payload.SlotType = WeaponData->SlotType;	
-		}
+			FPRModActivationPayload Payload;
+			Payload.bActivated = false;
+			if (UPRWeaponDataAsset* WeaponData = GetCurrentWeaponData())
+			{
+				Payload.SlotType = WeaponData->SlotType;	
+			}
 		
-		EventManager->BroadcastTyped(PRGameplayTags::Event_Player_ModActivation, Payload);
+			EventManager->BroadcastTyped(PRGameplayTags::Event_Player_ModActivation, Payload);
+		}
 	}
 	
 	Super::EndAbility(Handle, ActorInfo, ActivationInfo, bReplicateEndAbility, bWasCancelled);

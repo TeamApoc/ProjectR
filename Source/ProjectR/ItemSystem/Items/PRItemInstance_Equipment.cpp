@@ -17,27 +17,6 @@
 
 namespace
 {
-	// 소유 액터 기준 프로젝트 ASC 조회
-	UPRAbilitySystemComponent* 
-		ResolveOwnerAbilitySystem(AActor* OwnerActor)
-	{
-		if (IAbilitySystemInterface* ASI = Cast<IAbilitySystemInterface>(OwnerActor))
-		{
-			if (UAbilitySystemComponent* ASC = ASI->GetAbilitySystemComponent())
-			{
-				return Cast<UPRAbilitySystemComponent>(ASC);
-			}
-		}
-
-		APRCharacterBase* OwnerCharacter = Cast<APRCharacterBase>(OwnerActor);
-		if (IsValid(OwnerCharacter))
-		{
-			return OwnerCharacter->GetPRAbilitySystemComponent();
-		}
-
-		return nullptr;
-	}
-
 	// 0이 아닌 장비 보너스 존재 여부
 	bool HasAnyCommonStatBonus(const UPREquipmentDataAsset* EquipmentData)
 	{
@@ -168,7 +147,7 @@ void UPRItemInstance_Equipment::GrantEquippedEffects(AActor* OwnerActor)
 		return;
 	}
 
-	UPRAbilitySystemComponent* ASC = ResolveOwnerAbilitySystem(OwnerActor);
+	UPRAbilitySystemComponent* ASC = Cast<UPRAbilitySystemComponent>(UPRGameplayStatics::GetAbilitySystemComponent(OwnerActor));
 	if (!IsValid(ASC) || !ASC->IsOwnerActorAuthoritative())
 	{
 		return;
@@ -189,7 +168,7 @@ void UPRItemInstance_Equipment::ClearEquippedEffects(AActor* OwnerActor)
 		return;
 	}
 
-	UPRAbilitySystemComponent* ASC = ResolveOwnerAbilitySystem(OwnerActor);
+	UPRAbilitySystemComponent* ASC = Cast<UPRAbilitySystemComponent>(UPRGameplayStatics::GetAbilitySystemComponent(OwnerActor));
 	if (!IsValid(ASC) || !ASC->IsOwnerActorAuthoritative())
 	{
 		return;
@@ -201,7 +180,7 @@ void UPRItemInstance_Equipment::ClearEquippedEffects(AActor* OwnerActor)
 
 void UPRItemInstance_Equipment::ApplyCommonStatEffect(AActor* OwnerActor)
 {
-	UPRAbilitySystemComponent* ASC = ResolveOwnerAbilitySystem(OwnerActor);
+	UPRAbilitySystemComponent* ASC = Cast<UPRAbilitySystemComponent>(UPRGameplayStatics::GetAbilitySystemComponent(OwnerActor));
 	const UPREquipmentDataAsset* EquipmentData = GetEquipmentData();
 	if (!IsValid(ASC) || !IsValid(EquipmentData) || !ASC->IsOwnerActorAuthoritative())
 	{
@@ -246,7 +225,7 @@ void UPRItemInstance_Equipment::RemoveCommonStatEffect(AActor* OwnerActor)
 		return;
 	}
 
-	UPRAbilitySystemComponent* ASC = ResolveOwnerAbilitySystem(OwnerActor);
+	UPRAbilitySystemComponent* ASC = Cast<UPRAbilitySystemComponent>(UPRGameplayStatics::GetAbilitySystemComponent(OwnerActor));
 	if (IsValid(ASC) && ASC->IsOwnerActorAuthoritative())
 	{
 		ASC->RemoveActiveGameplayEffect(CommonStatEffectHandle);

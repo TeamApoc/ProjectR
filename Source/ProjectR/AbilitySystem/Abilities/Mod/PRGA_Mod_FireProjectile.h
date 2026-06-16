@@ -36,6 +36,9 @@ protected:
 	/*~ UPRGA_Fire Interface ~*/
 	virtual void OnProjectileSpawnSuccess(APRProjectileBase* SpawnedProjectile) override;
 	virtual void OnProjectileSpawnFailed(APRProjectileBase* SpawnedProjectile) override;
+
+	/*~ UPRGA_FireProjectile Interface ~*/
+	virtual EPRFirePreviewMode GetPreviewFireMode() const override;
 	
 protected:
 	// 총구 이펙트 (Optional)

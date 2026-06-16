@@ -75,6 +75,12 @@ EBTNodeResult::Type UBTTask_PRActivateEnemyAbility::ExecuteTask(UBehaviorTreeCom
 		return EBTNodeResult::Failed;
 	}
 
+	if (ShouldSkipAlertAbilityForSharedAlert(OwnerComp, ResolvedAbilityTag))
+	{
+		ApplySharedAlertSkippedState(OwnerComp);
+		return EBTNodeResult::Succeeded;
+	}
+
 	const AAIController* AIController = OwnerComp.GetAIOwner();
 	APawn* ControlledPawn = IsValid(AIController) ? AIController->GetPawn() : nullptr;
 	IPREnemyInterface* EnemyInterface = Cast<IPREnemyInterface>(ControlledPawn);
@@ -260,6 +266,54 @@ bool UBTTask_PRActivateEnemyAbility::IsObservedAbilityActive() const
 
 	const FGameplayAbilitySpec* ActiveSpec = ActiveAbilitySystemComponent->FindAbilitySpecFromHandle(ActiveAbilityHandle);
 	return ActiveSpec != nullptr && ActiveSpec->IsActive();
+}
+
+bool UBTTask_PRActivateEnemyAbility::ShouldSkipAlertAbilityForSharedAlert(
+	UBehaviorTreeComponent& OwnerComp,
+	const FGameplayTag& ResolvedAbilityTag) const
+{
+	if (!ResolvedAbilityTag.MatchesTagExact(PRGameplayTags::Ability_Enemy_Alert))
+	{
+		return false;
+	}
+
+	const UBlackboardComponent* BlackboardComponent = OwnerComp.GetBlackboardComponent();
+	if (!HasActivateAbilityBlackboardKey(BlackboardComponent, NearbyAIAlertedKey))
+	{
+		return false;
+	}
+
+	return BlackboardComponent->GetValueAsBool(NearbyAIAlertedKey);
+}
+
+void UBTTask_PRActivateEnemyAbility::ApplySharedAlertSkippedState(UBehaviorTreeComponent& OwnerComp)
+{
+	UBlackboardComponent* BlackboardComponent = OwnerComp.GetBlackboardComponent();
+	if (!IsValid(BlackboardComponent))
+	{
+		return;
+	}
+
+	AActor* FocusTarget = nullptr;
+	if (HasActivateAbilityBlackboardKey(BlackboardComponent, CurrentTargetKey))
+	{
+		FocusTarget = Cast<AActor>(BlackboardComponent->GetValueAsObject(CurrentTargetKey));
+	}
+
+	const EPRTacticalMode NextTacticalMode = bSetTacticalModeAfterAbilityEnds
+		? TacticalModeAfterAbilityEnds
+		: EPRTacticalMode::FastApproach;
+
+	if (APREnemyAIController* EnemyAIController = Cast<APREnemyAIController>(OwnerComp.GetAIOwner()))
+	{
+		EnemyAIController->ApplyTacticalModeState(NextTacticalMode, FocusTarget);
+		return;
+	}
+
+	if (HasActivateAbilityBlackboardKey(BlackboardComponent, TacticalModeKey))
+	{
+		BlackboardComponent->SetValueAsEnum(TacticalModeKey, static_cast<uint8>(NextTacticalMode));
+	}
 }
 
 void UBTTask_PRActivateEnemyAbility::FinishObservedAbilityWait(UBehaviorTreeComponent& OwnerComp, EBTNodeResult::Type TaskResult)
@@ -460,7 +514,7 @@ void UBTTask_PRActivateEnemyAbility::HandleObservedAbilityEnded(const FAbilityEn
 
 FString UBTTask_PRActivateEnemyAbility::GetStaticDescription() const
 {
-	return FString::Printf(TEXT("%s\nAbilityTag: %s\nActivated Mode: %s\nWait: %s\nPost Mode: %s\nPost Delay: %.2f\nWrite Activated Tag: %s"),
+	return FString::Printf(TEXT("%s\nAbilityTag: %s\nActivated Mode: %s\nWait: %s\nPost Mode: %s\nPost Delay: %.2f\nWrite Activated Tag: %s\nShared Alert Skip Key: %s"),
 		*Super::GetStaticDescription(),
 		AbilityTag.IsValid() ? *AbilityTag.ToString() : *FString::Printf(TEXT("BB:%s"), *AbilityTagBlackboardKey.ToString()),
 		bSetTacticalModeOnAbilityActivated
@@ -471,5 +525,6 @@ FString UBTTask_PRActivateEnemyAbility::GetStaticDescription() const
 			? *StaticEnum<EPRTacticalMode>()->GetNameStringByValue(static_cast<int64>(TacticalModeAfterAbilityEnds))
 			: TEXT("None"),
 		PostAbilityEndDelay,
-		bWriteActivatedAbilityTagToBlackboard ? *ActivatedAbilityTagWriteKey.ToString() : TEXT("false"));
+		bWriteActivatedAbilityTagToBlackboard ? *ActivatedAbilityTagWriteKey.ToString() : TEXT("false"),
+		*NearbyAIAlertedKey.ToString());
 }

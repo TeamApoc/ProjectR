@@ -2,6 +2,8 @@
 // Author: 배유찬 (Fire 프리뷰 컴포넌트 구현)
 #include "PRFirePreviewComponent.h"
 #include "ProjectR/Combat/PRCombatInterface.h"
+#include "AbilitySystemBlueprintLibrary.h"
+#include "AbilitySystemComponent.h"
 #include "Components/InstancedStaticMeshComponent.h"
 #include "DrawDebugHelpers.h"
 #include "Engine/Engine.h"
@@ -16,6 +18,7 @@
 #include "ProjectR/ItemSystem/Actors/PRWeaponActor.h"
 #include "ProjectR/ItemSystem/Components/PRWeaponManagerComponent.h"
 #include "ProjectR/ItemSystem/Data/PRWeaponDataAsset.h"
+#include "ProjectR/Projectile/PRProjectileBase.h"
 #include "ProjectR/System/PREventManagerSubsystem.h"
 #include "ProjectR/UI/Crosshair/PRCrosshairTypes.h"
 #include "ProjectR/Utils/PRGameplayStatics.h"
@@ -97,12 +100,135 @@ void UPRFirePreviewComponent::SetTrajectoryPreviewEnabled(bool bInEnabled)
 
 /*~ Public API ~*/
 
-void UPRFirePreviewComponent::SetFireParams(const FPRProjectilePreviewParams& InParams)
+void UPRFirePreviewComponent::RegisterProjectilePreviewParams(
+	const FPRFirePreviewKey& Key,
+	const FPRFirePreviewEntry& Entry)
+{
+	if (!Key.IsValid() || !Entry.AbilitySpecHandle.IsValid() || Entry.Params.InitialSpeed <= KINDA_SMALL_NUMBER)
+	{
+		UE_LOG(LogPRPathPreviewComponent, Warning,
+			TEXT("Preview 등록 중단. Owner=%s, Slot=%s, Mode=%s, AbilityHandle=%s, InitialSpeed=%.2f"),
+			*GetNameSafe(GetOwner()),
+			*UEnum::GetValueAsString(Key.WeaponSlot),
+			*UEnum::GetValueAsString(Key.FireMode),
+			*Entry.AbilitySpecHandle.ToString(),
+			Entry.Params.InitialSpeed);
+		return;
+	}
+
+	if (const FPRFirePreviewEntry* ExistingEntry = PreviewEntries.Find(Key))
+	{
+		if (ExistingEntry->AbilitySpecHandle != Entry.AbilitySpecHandle)
+		{
+			UE_LOG(LogPRPathPreviewComponent, Warning,
+				TEXT("Preview 등록 덮어쓰기. Owner=%s, Slot=%s, Mode=%s, OldHandle=%s, NewHandle=%s, OldSource=%s, NewSource=%s"),
+				*GetNameSafe(GetOwner()),
+				*UEnum::GetValueAsString(Key.WeaponSlot),
+				*UEnum::GetValueAsString(Key.FireMode),
+				*ExistingEntry->AbilitySpecHandle.ToString(),
+				*Entry.AbilitySpecHandle.ToString(),
+				*GetNameSafe(ExistingEntry->SourceObject.Get()),
+				*GetNameSafe(Entry.SourceObject.Get()));
+		}
+	}
+
+	PreviewEntries.Add(Key, Entry);
+
+	UE_LOG(LogPRPathPreviewComponent, Log,
+		TEXT("Preview 등록 완료. Owner=%s, Slot=%s, Mode=%s, AbilityHandle=%s, Source=%s, ProjectileClass=%s"),
+		*GetNameSafe(GetOwner()),
+		*UEnum::GetValueAsString(Key.WeaponSlot),
+		*UEnum::GetValueAsString(Key.FireMode),
+		*Entry.AbilitySpecHandle.ToString(),
+		*GetNameSafe(Entry.SourceObject.Get()),
+		*GetNameSafe(Entry.ProjectileClass.Get()));
+
+	if (bIsShowing)
+	{
+		RefreshActivePreviewParams();
+	}
+}
+
+void UPRFirePreviewComponent::UnregisterProjectilePreviewParams(
+	const FPRFirePreviewKey& Key,
+	FGameplayAbilitySpecHandle AbilitySpecHandle)
+{
+	FPRFirePreviewEntry* ExistingEntry = PreviewEntries.Find(Key);
+	if (ExistingEntry == nullptr)
+	{
+		return;
+	}
+
+	if (ExistingEntry->AbilitySpecHandle != AbilitySpecHandle)
+	{
+		UE_LOG(LogPRPathPreviewComponent, Verbose,
+			TEXT("Preview 해제 생략. Owner=%s, Slot=%s, Mode=%s, RegisteredHandle=%s, RemoveHandle=%s"),
+			*GetNameSafe(GetOwner()),
+			*UEnum::GetValueAsString(Key.WeaponSlot),
+			*UEnum::GetValueAsString(Key.FireMode),
+			*ExistingEntry->AbilitySpecHandle.ToString(),
+			*AbilitySpecHandle.ToString());
+		return;
+	}
+
+	PreviewEntries.Remove(Key);
+
+	UE_LOG(LogPRPathPreviewComponent, Log,
+		TEXT("Preview 해제 완료. Owner=%s, Slot=%s, Mode=%s, AbilityHandle=%s"),
+		*GetNameSafe(GetOwner()),
+		*UEnum::GetValueAsString(Key.WeaponSlot),
+		*UEnum::GetValueAsString(Key.FireMode),
+		*AbilitySpecHandle.ToString());
+
+	if (ActivePreviewKey.IsSet() && ActivePreviewKey.GetValue() == Key)
+	{
+		ActivePreviewKey.Reset();
+		RefreshActivePreviewParams();
+	}
+}
+
+void UPRFirePreviewComponent::RefreshActivePreviewParams()
+{
+	FPRFirePreviewKey ResolvedKey;
+	if (!TryResolveActivePreviewKey(ResolvedKey))
+	{
+		ActivePreviewKey.Reset();
+		SetTrajectoryPreviewEnabled(false);
+		return;
+	}
+
+	const FPRFirePreviewEntry* Entry = PreviewEntries.Find(ResolvedKey);
+	if (Entry == nullptr || Entry->Params.InitialSpeed <= KINDA_SMALL_NUMBER)
+	{
+		ActivePreviewKey.Reset();
+		SetTrajectoryPreviewEnabled(false);
+		return;
+	}
+
+	const bool bKeyChanged = !ActivePreviewKey.IsSet() || !(ActivePreviewKey.GetValue() == ResolvedKey);
+	ActivePreviewKey = ResolvedKey;
+	ApplyFireParams(Entry->Params);
+	SetTrajectoryPreviewEnabled(true);
+
+	if (bKeyChanged)
+	{
+		ClearTrajectory();
+		UE_LOG(LogPRPathPreviewComponent, Log,
+			TEXT("Active Preview 갱신. Owner=%s, Slot=%s, Mode=%s, Source=%s, ProjectileClass=%s"),
+			*GetNameSafe(GetOwner()),
+			*UEnum::GetValueAsString(ResolvedKey.WeaponSlot),
+			*UEnum::GetValueAsString(ResolvedKey.FireMode),
+			*GetNameSafe(Entry->SourceObject.Get()),
+			*GetNameSafe(Entry->ProjectileClass.Get()));
+	}
+}
+
+void UPRFirePreviewComponent::ApplyFireParams(const FPRProjectilePreviewParams& InParams)
 {
 	FireParams = InParams;
 
-	UE_LOG(LogPRPathPreviewComponent, Log,
-		TEXT("SetFireParams 호출. Owner=%s, InitialSpeed=%.2f, GravityScale=%.2f, CollisionRadius=%.2f, MaxSimTime=%.2f, SimFrequency=%.2f, SampleSpacing=%.2f, MaxSamplePoints=%d"),
+	UE_LOG(LogPRPathPreviewComponent, Verbose,
+		TEXT("Preview 파라미터 적용. Owner=%s, InitialSpeed=%.2f, GravityScale=%.2f, CollisionRadius=%.2f, MaxSimTime=%.2f, SimFrequency=%.2f, SampleSpacing=%.2f, MaxSamplePoints=%d"),
 		*GetNameSafe(GetOwner()),
 		FireParams.InitialSpeed,
 		FireParams.GravityScale,
@@ -135,6 +261,7 @@ void UPRFirePreviewComponent::SetWeaponActor(APRWeaponActor* InWeaponActor)
 void UPRFirePreviewComponent::Show()
 {
 	GetWeaponManager();
+	RefreshActivePreviewParams();
 
 	if (bIsShowing)
 	{
@@ -395,6 +522,11 @@ void UPRFirePreviewComponent::TickComponent(float DeltaTime, ELevelTick TickType
 	{
 		WeaponActor = WeaponManager->GetActiveWeaponActor();	
 	}
+
+	if (bIsShowing)
+	{
+		RefreshActivePreviewParams();
+	}
 	
 	// WeaponActor 유효성 재확인. 무기 교체 등으로 사라졌을 수 있음
 	if (!WeaponActor.IsValid())
@@ -431,6 +563,43 @@ void UPRFirePreviewComponent::TickComponent(float DeltaTime, ELevelTick TickType
 
 /*~ Internal ~*/
 
+bool UPRFirePreviewComponent::TryResolveActivePreviewKey(FPRFirePreviewKey& OutKey)
+{
+	UPRWeaponManagerComponent* WeaponManager = GetWeaponManager();
+	const EPRWeaponSlotType CurrentSlot = IsValid(WeaponManager)
+		? WeaponManager->GetCurrentWeaponSlot()
+		: EPRWeaponSlotType::None;
+	if (CurrentSlot != EPRWeaponSlotType::Primary && CurrentSlot != EPRWeaponSlotType::Secondary)
+	{
+		return false;
+	}
+
+	OutKey.WeaponSlot = CurrentSlot;
+	OutKey.FireMode = EPRFirePreviewMode::BaseFire;
+
+	const UAbilitySystemComponent* ASC = GetOwnerAbilitySystemComponent();
+	if (IsValid(ASC))
+	{
+		if (CurrentSlot == EPRWeaponSlotType::Primary
+			&& ASC->HasMatchingGameplayTag(PRGameplayTags::State_CurrentWeaponSlot_Primary_Mod))
+		{
+			OutKey.FireMode = EPRFirePreviewMode::ModFire;
+		}
+		else if (CurrentSlot == EPRWeaponSlotType::Secondary
+			&& ASC->HasMatchingGameplayTag(PRGameplayTags::State_CurrentWeaponSlot_Secondary_Mod))
+		{
+			OutKey.FireMode = EPRFirePreviewMode::ModFire;
+		}
+	}
+
+	return OutKey.IsValid();
+}
+
+bool UPRFirePreviewComponent::HasProjectilePreviewForKey(const FPRFirePreviewKey& Key) const
+{
+	return PreviewEntries.Contains(Key);
+}
+
 UPRWeaponManagerComponent* UPRFirePreviewComponent::GetWeaponManager()
 {
 	if (CachedWeaponManager.IsValid())
@@ -460,6 +629,11 @@ UPRWeaponManagerComponent* UPRFirePreviewComponent::GetWeaponManager()
 	}
 
 	return CachedWeaponManager.Get();
+}
+
+UAbilitySystemComponent* UPRFirePreviewComponent::GetOwnerAbilitySystemComponent() const
+{
+	return UAbilitySystemBlueprintLibrary::GetAbilitySystemComponent(GetOwner());
 }
 
 /*~ Path Build ~*/

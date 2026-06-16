@@ -41,6 +41,12 @@ EDataValidationResult UPRPerceptionConfig::IsDataValid(FDataValidationContext& C
 		Result = EDataValidationResult::Invalid;
 	}
 
+	if (bPropagateAlertToNearbyEnemies && AlertPropagationRadius <= 0.0f)
+	{
+		Context.AddError(FText::FromString(TEXT("AlertPropagationRadius는 Alert 전파를 사용할 때 0보다 커야 합니다.")));
+		Result = EDataValidationResult::Invalid;
+	}
+
 	return Result;
 }
 #endif

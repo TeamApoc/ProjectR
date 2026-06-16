@@ -10,6 +10,7 @@
 #include "ProjectR/ItemSystem/Types/PRWeaponTypes.h"
 #include "PRItemInstance_Weapon.generated.h"
 
+class UPRAbilitySystemComponent;
 class AActor;
 class UPRItemInstance_Mod;
 class UPRWeaponDataAsset;
@@ -104,6 +105,9 @@ protected:
 	// 무기 비활성화 시 임시 런타임 상태를 정리한다
 	void ResetTransientRuntimeOnDeactivate();
 
+	FGameplayTagContainer BuildCurrentSlotFireModeBlockTags(const UPRWeaponDataAsset* WeaponData, EPRWeaponFireModeState BlockedFireModeState);
+	
+	FGameplayTagContainer BuildOppositeSlotBlockTags(const UPRWeaponDataAsset* WeaponData);
 private:
 	// 장착 Mod 데이터 복제 완료 시 인벤토리 UI 갱신 신호를 발행한다
 	UFUNCTION()

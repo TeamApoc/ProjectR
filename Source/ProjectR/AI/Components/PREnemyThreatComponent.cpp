@@ -558,6 +558,10 @@ void UPREnemyThreatComponent::ReevaluateTarget(bool bResetScoreWindow)
 	float BestThreat = 0.0f;
 	if (!SelectWeightedTarget(BestTarget, BestThreat))
 	{
+		if (IsValid(CurrentTarget))
+		{
+			LogThreatTargetInvalidReason(CurrentTarget, TEXT("ReevaluateTarget-NoSelectable"));
+		}
 		SetCurrentTarget(nullptr);
 		return;
 	}
@@ -625,6 +629,53 @@ bool UPREnemyThreatComponent::IsValidThreatTarget(const AActor* Target) const
 		&& !TargetAbilitySystem->HasMatchingGameplayTag(PRGameplayTags::State_Dead);
 }
 
+bool UPREnemyThreatComponent::IsTrackablePlayerCandidate(const AActor* Target) const
+{
+	// 후보 풀에 유지할 수 있는 '살아있는 플레이어 객체'인지만 검사한다.
+	// IsValidThreatTarget과 달리 다운/사망 같은 일시 전투 상태는 보지 않는다.
+	// (공격 대상 자격은 IsValidThreatTarget이, 후보 풀 유지는 이 함수가 담당하도록 분리한다)
+	if (!IsValid(Target) || Target == GetOwner())
+	{
+		return false;
+	}
+
+	if (UPRCombatStatics::GetActorTeam(Target) != EPRTeam::Player)
+	{
+		return false;
+	}
+
+	return IsValid(UPRCombatStatics::FindAbilitySystemComponent(Target));
+}
+
+void UPREnemyThreatComponent::LogThreatTargetInvalidReason(const AActor* Target, const TCHAR* Context) const
+{
+	if (!PREnemyAIDebug::IsTargetingLogEnabled() || !IsValid(Target))
+	{
+		return;
+	}
+
+	const EPRTeam Team = UPRCombatStatics::GetActorTeam(Target);
+	const UAbilitySystemComponent* TargetAbilitySystem = UPRCombatStatics::FindAbilitySystemComponent(Target);
+	const bool bHasASC = IsValid(TargetAbilitySystem);
+	const bool bDown = bHasASC && TargetAbilitySystem->HasMatchingGameplayTag(PRGameplayTags::State_Down);
+	const bool bDead = bHasASC && TargetAbilitySystem->HasMatchingGameplayTag(PRGameplayTags::State_Dead);
+	const AActor* OwnerActor = GetOwner();
+	const float Distance = IsValid(OwnerActor)
+		? FVector::Dist(OwnerActor->GetActorLocation(), Target->GetActorLocation())
+		: -1.0f;
+
+	UE_LOG(LogPREnemyAI, Warning,
+		TEXT("[Targeting][InvalidReason][%s] Target=%s Team=%d(Player=%d) HasASC=%s Down=%s Dead=%s Dist=%.1f"),
+		Context,
+		*GetNameSafe(Target),
+		static_cast<int32>(Team),
+		static_cast<int32>(EPRTeam::Player),
+		bHasASC ? TEXT("true") : TEXT("false"),
+		bDown ? TEXT("true") : TEXT("false"),
+		bDead ? TEXT("true") : TEXT("false"),
+		Distance);
+}
+
 void UPREnemyThreatComponent::SetCurrentTarget(AActor* NewTarget, float CandidateScore)
 {
 	if (CurrentTarget == NewTarget)
@@ -674,6 +725,7 @@ void UPREnemyThreatComponent::CleanupInvalidEntries()
 
 	if (IsValid(CurrentTarget) && !IsValidThreatTarget(CurrentTarget))
 	{
+		LogThreatTargetInvalidReason(CurrentTarget, TEXT("CleanupInvalidEntries"));
 		SetCurrentTarget(nullptr);
 	}
 
@@ -849,14 +901,17 @@ FPREnemyTargetCandidate& UPREnemyThreatComponent::FindOrAddTargetCandidate(AActo
 
 bool UPREnemyThreatComponent::ShouldRemoveTargetCandidate(const FPREnemyTargetCandidate& Candidate, float CurrentTime) const
 {
-	if (!IsValidThreatTarget(Candidate.Target))
-	{
-		return true;
-	}
-
+	// 유지 정책에 해당하는 살아있는 플레이어 후보는 다운/사망/거리/시야와 무관하게 남긴다.
+	// IsValidThreatTarget보다 먼저 검사해, 일시 상태(다운/사망 등)로 후보가 제거되는 것을 막는다.
 	if (ShouldRetainPlayerCandidate(Candidate))
 	{
 		return false;
+	}
+
+	// 파괴/비플레이어/ASC 없음처럼 객체 자체가 무효인 경우만 진짜 제거한다.
+	if (!IsValidThreatTarget(Candidate.Target))
+	{
+		return true;
 	}
 
 	if (Candidate.bCurrentlyPerceived)
@@ -884,8 +939,8 @@ bool UPREnemyThreatComponent::ShouldRemoveTargetCandidate(const FPREnemyTargetCa
 
 bool UPREnemyThreatComponent::ShouldRetainPlayerCandidate(const FPREnemyTargetCandidate& Candidate) const
 {
-	if (!IsValidThreatTarget(Candidate.Target)
-		|| UPRCombatStatics::GetActorTeam(Candidate.Target.Get()) != EPRTeam::Player)
+	// 후보 유지 여부는 다운/사망 같은 일시 상태가 아니라 '살아있는 플레이어 객체인지'로만 판단한다.
+	if (!IsTrackablePlayerCandidate(Candidate.Target.Get()))
 	{
 		return false;
 	}
@@ -900,7 +955,8 @@ bool UPREnemyThreatComponent::ShouldRetainPlayerCandidate(const FPREnemyTargetCa
 
 bool UPREnemyThreatComponent::ShouldRetainPlayerTargetOnExplicitLoss(AActor* Target) const
 {
-	if (!IsValidThreatTarget(Target) || UPRCombatStatics::GetActorTeam(Target) != EPRTeam::Player)
+	// 명시적 타겟 상실(인지 손실) 시에도 다운/사망 같은 일시 상태로 후보를 버리지 않도록 동일 기준을 쓴다.
+	if (!IsTrackablePlayerCandidate(Target))
 	{
 		return false;
 	}

@@ -13,6 +13,7 @@ class UGameplayEffect;
 class UMaterialInstanceDynamic;
 class UNiagaraComponent;
 class UNiagaraSystem;
+class USoundBase;
 class UTexture;
 
 DECLARE_MULTICAST_DELEGATE_OneParam(FPRFaerinTeleportVFXFinishedSignature, bool);
@@ -210,6 +211,10 @@ protected:
 	// 공중에서 이동하며 집결하는 두 개의 Niagara다.
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Faerin|TeleportVFX")
 	TObjectPtr<UNiagaraSystem> TeleportVFXNiagaraSystem;
+
+	// 두 텔레포트 VFX 프로젝타일에 attach해 이동 동안 재생할 사운드 큐다. (각 프로젝타일에서 재생, 비어 있으면 미재생)
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Faerin|TeleportVFX|SFX")
+	TObjectPtr<USoundBase> TeleportVFXProjectileSoundCue;
 
 	// Teleport In 등장 시 본체 위치에 재생할 Niagara다.
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Faerin|TeleportVFX")

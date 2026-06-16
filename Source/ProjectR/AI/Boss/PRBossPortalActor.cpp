@@ -9,10 +9,12 @@
 #include "Engine/World.h"
 #include "EngineUtils.h"
 #include "GameplayEffect.h"
+#include "Kismet/GameplayStatics.h"
 #include "Net/UnrealNetwork.h"
 #include "TimerManager.h"
 #include "ProjectR/AbilitySystem/Data/PRAbilitySystemRegistry.h"
 #include "ProjectR/AbilitySystem/PRAbilitySystemComponent.h"
+#include "ProjectR/AI/Boss/Faerin/PRFaerinRainProjectileManager.h"
 #include "ProjectR/Character/Enemy/PREnemyBaseCharacter.h"
 #include "ProjectR/Character/Enemy/PRBossBaseCharacter.h"
 #include "ProjectR/Combat/PRCombatGameplayTags.h"
@@ -383,6 +385,37 @@ void APRBossPortalActor::FirePortalProjectile()
 		return;
 	}
 
+	// 경량 rain 투사체 경로: 액터/PMC/복제 없이 매니저에 등록한다. (토글 OFF면 이 분기는 건너뜀)
+	if (bUseLightweightRainProjectile && RainProjectileManager.IsValid())
+	{
+		const float ResolvedSpeed = ProjectileSpeedOverride > 0.0f ? ProjectileSpeedOverride : 3500.0f;
+		const FVector LaunchVelocity = LaunchDirection * ResolvedSpeed;
+		const FGameplayEffectSpecHandle LightweightEffectSpec = ProjectileEffectSpecHandle.IsValid()
+			? ProjectileEffectSpecHandle
+			: BuildProjectileEffectSpec();
+
+		PortalState = EPRBossPortalState::Firing;
+		MulticastPortalFireStarted();
+
+		RainProjectileManager->ServerEmitRainProjectile(
+			ProjectileSpawnTransform.GetLocation(),
+			LaunchVelocity,
+			LightweightProjectileLifetime,
+			LightweightEffectSpec,
+			IsValid(OwnerBoss) ? static_cast<AActor*>(OwnerBoss) : static_cast<AActor*>(this));
+
+		++CurrentProjectileFireCount;
+		if (CurrentProjectileFireCount >= MaxProjectilesToFire)
+		{
+			CompletePortalFireSequence();
+			return;
+		}
+
+		PortalState = EPRBossPortalState::Active;
+		ScheduleNextPortalFire();
+		return;
+	}
+
 	UWorld* World = GetWorld();
 	if (!IsValid(World))
 	{
@@ -465,6 +498,16 @@ void APRBossPortalActor::ClearPortalFireTimer()
 	if (UWorld* World = GetWorld())
 	{
 		World->GetTimerManager().ClearTimer(PortalFireTimerHandle);
+	}
+}
+
+void APRBossPortalActor::SetLightweightRainProjectile(bool bEnable, APRFaerinRainProjectileManager* InManager, float InLifetime)
+{
+	bUseLightweightRainProjectile = bEnable;
+	RainProjectileManager = InManager;
+	if (InLifetime > 0.0f)
+	{
+		LightweightProjectileLifetime = InLifetime;
 	}
 }
 
@@ -642,6 +685,12 @@ void APRBossPortalActor::OnRep_CurrentPortalHealth(float PreviousHealth)
 
 void APRBossPortalActor::MulticastPortalTelegraphStarted_Implementation()
 {
+	// 포털 생성(텔레그래프 시작) 위치에 SFX 재생. 모든 클라이언트에서 실행되며, 데디케이티드 서버에선 사운드가 무시된다.
+	if (IsValid(PortalSpawnSoundCue))
+	{
+		UGameplayStatics::SpawnSoundAtLocation(this, PortalSpawnSoundCue, GetActorLocation());
+	}
+
 	BP_OnPortalTelegraphStarted();
 }
 
@@ -652,6 +701,12 @@ void APRBossPortalActor::MulticastPortalActivated_Implementation()
 
 void APRBossPortalActor::MulticastPortalExpired_Implementation()
 {
+	// 포털 만료(사라짐) SFX를 포털 위치에 재생한다. (모든 클라이언트)
+	if (IsValid(PortalExpireSoundCue))
+	{
+		UGameplayStatics::SpawnSoundAtLocation(this, PortalExpireSoundCue, GetActorLocation());
+	}
+
 	BP_OnPortalExpired();
 }
 
@@ -691,6 +746,12 @@ void APRBossPortalActor::MulticastPortalDamaged_Implementation(
 
 void APRBossPortalActor::MulticastPortalDestroyedByDamage_Implementation(FVector_NetQuantize HitLocation)
 {
+	// 포털 파괴(피해 소진) SFX를 피격 위치에 재생한다. (모든 클라이언트)
+	if (IsValid(PortalDestroyedSoundCue))
+	{
+		UGameplayStatics::SpawnSoundAtLocation(this, PortalDestroyedSoundCue, HitLocation);
+	}
+
 	BP_OnPortalDestroyedByDamage(HitLocation);
 }
 

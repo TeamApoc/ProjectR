@@ -270,6 +270,7 @@ bool UPRGameplayAbility_PenitentBarrierSummon::ExecuteBarrierSummon()
 	FPRGroundBoxLaunchParams LaunchParams;
 	LaunchParams.SourceActor = PenitentCharacter;
 	LaunchParams.OverrideMaxHealth = BarrierData->BarrierMaxHealth;
+	LaunchParams.bUseGroundSnap = BarrierData->bUseGroundSnap;
 	BarrierActor->InitializeAttachedGroundBox(LaunchParams);
 	BarrierActor->AttachToComponent(
 		BarrierAttachComponent,

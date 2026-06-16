@@ -175,11 +175,11 @@ APRGroundBoxProjectileBase* UPRGA_Mod_SummonBarrier::SpawnBarrier(const FGamepla
 		DestroyActiveBarrierAnchor();
 		return nullptr;
 	}
-
 	FPRGroundBoxLaunchParams LaunchParams;
 	LaunchParams.SourceActor = PlayerPawn;
 	LaunchParams.DamageEffectSpec = MakeModEffectSpec(BarrierData->BarrierDamage, BarrierData->BarrierGroggyDamage);
 	LaunchParams.OverrideMaxHealth = BarrierData->BarrierMaxHealth;
+	LaunchParams.bUseGroundSnap = BarrierData->bUseGroundSnap;
 	SpawnedBarrier->InitializeAttachedGroundBox(LaunchParams);
 	SpawnedBarrier->AttachToComponent(
 		AttachComponent,

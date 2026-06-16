@@ -22,6 +22,7 @@ UPRPlayerDodgeAbility::UPRPlayerDodgeAbility()
 	// 회피 Ability가 활성화되는 동안 GAS 태그로 다른 플레이어 액션을 취소하고 차단한다.
 	AbilityTags.AddTag(PRGameplayTags::Ability_Player_Dodge);
 	ActivationOwnedTags.AddTag(PRGameplayTags::State_Dodging);
+	ActivationOwnedTags.AddTag(PRGameplayTags::State_StaminaDepleted);
 	ActivationBlockedTags.AddTag(PRGameplayTags::State_Dodging);
 	InputTag = PRGameplayTags::Input_Ability_Dodge;
 
@@ -29,6 +30,8 @@ UPRPlayerDodgeAbility::UPRPlayerDodgeAbility()
 	CancelAbilitiesWithTag.AddTag(PRGameplayTags::Ability_Player_Aim);
 	CancelAbilitiesWithTag.AddTag(PRGameplayTags::Ability_Player_Crouch);
 	CancelAbilitiesWithTag.AddTag(PRGameplayTags::Ability_Player_Sprint);
+	CancelAbilitiesWithTag.AddTag(PRGameplayTags::Ability_Player_Interaction);
+	CancelAbilitiesWithTag.AddTag(PRGameplayTags::Ability_Player_UseConsumable);
 
 	BlockAbilitiesWithTag.AddTag(PRGameplayTags::Ability_Player_Weapon_Fire_Primary);
 	BlockAbilitiesWithTag.AddTag(PRGameplayTags::Ability_Player_Aim);

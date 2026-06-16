@@ -778,6 +778,21 @@ void APRPlayerController::ClientRestoreFaerinEncounterViewTarget_Implementation(
 	RestoreFaerinEncounterViewTargetLocal(BlendTime);
 }
 
+void APRPlayerController::SetFaerinEncounterHUDVisibleLocal(bool bVisible)
+{
+	if (!IsLocalController() || !IsValid(UIControllerComponent))
+	{
+		return;
+	}
+
+	UIControllerComponent->SetHUDVisible(bVisible);
+}
+
+void APRPlayerController::ClientSetFaerinEncounterHUDVisible_Implementation(bool bVisible)
+{
+	SetFaerinEncounterHUDVisibleLocal(bVisible);
+}
+
 void APRPlayerController::ClientNotifyWeaponUpgradeResult_Implementation(const FPRWeaponUpgradeResult& Result)
 {
 	OnWeaponUpgradeResult.Broadcast(Result);
@@ -822,6 +837,7 @@ void APRPlayerController::ClientOpenFaerinEncounterChoice_Implementation(APRFaer
 	}
 
 	SetLocalBGMState(this, EPRBGMState::BossDialogue);
+	SetFaerinEncounterHUDVisibleLocal(false);
 	UIControllerComponent->OpenFaerinEncounterChoice(Director);
 }
 
@@ -835,6 +851,7 @@ void APRPlayerController::ClientCloseFaerinEncounterChoice_Implementation(bool b
 	UIControllerComponent->CloseFaerinEncounterChoice();
 	if (bRestoreDefaultBGM)
 	{
+		SetFaerinEncounterHUDVisibleLocal(true);
 		RestoreLocalDefaultBGM(this);
 	}
 }
@@ -915,6 +932,7 @@ void APRPlayerController::PlayFaerinEncounterSequenceLocal(APRFaerinEncounterDir
 		break;
 	}
 
+	SetFaerinEncounterHUDVisibleLocal(false);
 	Director->PlayEncounterSequenceForLocalAudience(SequenceType);
 }
 
@@ -933,6 +951,7 @@ void APRPlayerController::StopFaerinEncounterSequenceLocal(APRFaerinEncounterDir
 	Director->StopEncounterSequenceForLocalAudience(Reason);
 	RestoreFaerinEncounterViewTargetLocal(0.0f);
 	SetEncounterInputLockLocal(false);
+	SetFaerinEncounterHUDVisibleLocal(true);
 	HideFaerinSubtitleLocal();
 	RestoreLocalDefaultBGM(this);
 }

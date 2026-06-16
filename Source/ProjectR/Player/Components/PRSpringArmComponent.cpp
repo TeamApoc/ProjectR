@@ -39,6 +39,64 @@ const FPRSpringArmCameraModeSettings& UPRSpringArmComponent::GetCameraModeSettin
 	return GetCurrentCameraModeSettings();
 }
 
+void UPRSpringArmComponent::SetExternalForcedMoveLagSettings(
+	bool bInUseOverride,
+	bool bInEnableCameraLag,
+	float InCameraLagSpeed,
+	float InCameraLagMaxDistance)
+{
+	bUseExternalForcedMoveLagOverride = bInUseOverride;
+	bExternalForcedMoveEnableCameraLag = bInEnableCameraLag;
+	ExternalForcedMoveCameraLagSpeed = FMath::Max(InCameraLagSpeed, 0.0f);
+	ExternalForcedMoveCameraLagMaxDistance = FMath::Max(InCameraLagMaxDistance, 0.0f);
+
+	if (!bUseExternalForcedMoveLagOverride)
+	{
+		ClearExternalForcedMoveLagOverride();
+		return;
+	}
+
+	if (bExternalForcedMoveLagOverrideActive)
+	{
+		bEnableCameraLag = bExternalForcedMoveEnableCameraLag;
+		CameraLagSpeed = ExternalForcedMoveCameraLagSpeed;
+		CameraLagMaxDistance = ExternalForcedMoveCameraLagMaxDistance;
+	}
+}
+
+void UPRSpringArmComponent::ApplyExternalForcedMoveLagOverride()
+{
+	if (!bUseExternalForcedMoveLagOverride)
+	{
+		return;
+	}
+
+	if (!bExternalForcedMoveLagOverrideActive)
+	{
+		bCachedCameraLagEnabled = bEnableCameraLag;
+		CachedCameraLagSpeed = CameraLagSpeed;
+		CachedCameraLagMaxDistance = CameraLagMaxDistance;
+		bExternalForcedMoveLagOverrideActive = true;
+	}
+
+	bEnableCameraLag = bExternalForcedMoveEnableCameraLag;
+	CameraLagSpeed = ExternalForcedMoveCameraLagSpeed;
+	CameraLagMaxDistance = ExternalForcedMoveCameraLagMaxDistance;
+}
+
+void UPRSpringArmComponent::ClearExternalForcedMoveLagOverride()
+{
+	if (!bExternalForcedMoveLagOverrideActive)
+	{
+		return;
+	}
+
+	bEnableCameraLag = bCachedCameraLagEnabled;
+	CameraLagSpeed = CachedCameraLagSpeed;
+	CameraLagMaxDistance = CachedCameraLagMaxDistance;
+	bExternalForcedMoveLagOverrideActive = false;
+}
+
 void UPRSpringArmComponent::TickComponent(float DeltaTime, enum ELevelTick TickType,
                                           FActorComponentTickFunction* ThisTickFunction)
 {

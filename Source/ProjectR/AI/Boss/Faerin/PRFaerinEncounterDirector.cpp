@@ -933,11 +933,13 @@ void APRFaerinEncounterDirector::NotifyPlayerExitedGather(APRPlayerCharacter* Pl
 	{
 		PC->SetEncounterInputLockLocal(false);
 		PC->RestoreFaerinEncounterViewTargetLocal(0.0f);
+		PC->SetFaerinEncounterHUDVisibleLocal(true);
 	}
 	else
 	{
 		PC->ClientSetEncounterInputLock(false);
 		PC->ClientRestoreFaerinEncounterViewTarget(0.0f);
+		PC->ClientSetFaerinEncounterHUDVisible(true);
 	}
 }
 
@@ -1027,6 +1029,7 @@ void APRFaerinEncounterDirector::FinishIntroSequence()
 		}
 	}
 
+	SetHUDVisibleForPlayers(IntroPlayers, true);
 	RestoreViewTargetForPlayers(IntroPlayers, IntroCameraRestoreBlendTime, TEXT("IntroFinished"));
 	SetInputLockedForPlayers(IntroPlayers, false);
 
@@ -1105,6 +1108,7 @@ void APRFaerinEncounterDirector::FinishFightSequence()
 
 	TArray<APRPlayerCharacter*> Participants;
 	GetPlayersFromSet(CombatStartParticipants, Participants);
+	SetHUDVisibleForPlayers(Participants, true);
 	RestoreViewTargetForPlayers(Participants, FightStartCameraRestoreBlendTime, TEXT("FightStartFinished"));
 	SetInputLockedForPlayers(Participants, false);
 	SetEncounterState(EFaerinEncounterState::Combat);
@@ -1144,6 +1148,7 @@ void APRFaerinEncounterDirector::RestoreNegotiationAfterWipe()
 	// 3) 입력/카메라/자막 정리는 snapshot 대상 기준으로 수행.
 	SetInputLockedForPlayers(RetryGatherPlayers, false);
 	RestoreViewTargetForPlayers(RetryGatherPlayers, IntroCameraRestoreBlendTime, TEXT("RetryReady"));
+	SetHUDVisibleForPlayers(RetryGatherPlayers, true);
 	HideFaerinSubtitleForPlayers(RetryGatherPlayers);
 
 	// 4) 연출 Actor 복구(Intro 종료 후 협상 idle 상태로 복귀).
@@ -1178,6 +1183,7 @@ void APRFaerinEncounterDirector::RecoverFightStartFailure()
 	CloseChoiceUIForInstigator();
 	RestoreViewTargetForPlayers(Participants, FightStartCameraRestoreBlendTime, TEXT("FightStartFailure"));
 	SetInputLockedForPlayers(Participants, false);
+	SetHUDVisibleForPlayers(Participants, true);
 	MulticastSetPresentationActorsHidden(false);
 	MulticastApplyNegotiationPresentationIdle();
 
@@ -1233,6 +1239,30 @@ void APRFaerinEncounterDirector::SetInputLockedForPlayers(const TArray<APRPlayer
 			else
 			{
 				PlayerController->ClientSetEncounterInputLock(bLock);
+			}
+		}
+	}
+}
+
+void APRFaerinEncounterDirector::SetHUDVisibleForPlayers(const TArray<APRPlayerCharacter*>& Players, bool bVisible) const
+{
+	for (APRPlayerCharacter* Player : Players)
+	{
+		if (!IsValid(Player))
+		{
+			continue;
+		}
+
+		APRPlayerController* PlayerController = Cast<APRPlayerController>(Player->GetController());
+		if (IsValid(PlayerController))
+		{
+			if (PlayerController->IsLocalController())
+			{
+				PlayerController->SetFaerinEncounterHUDVisibleLocal(bVisible);
+			}
+			else
+			{
+				PlayerController->ClientSetFaerinEncounterHUDVisible(bVisible);
 			}
 		}
 	}

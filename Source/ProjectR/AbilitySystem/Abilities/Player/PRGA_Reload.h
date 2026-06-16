@@ -41,6 +41,13 @@ public:
 	                             const FGameplayAbilityActivationInfo ActivationInfo,
 	                             const FGameplayEventData* TriggerEventData) override;
 
+	// 취소 종료 시 무기 재장전 애니메이션 정리
+	virtual void EndAbility(const FGameplayAbilitySpecHandle Handle,
+	                        const FGameplayAbilityActorInfo* ActorInfo,
+	                        const FGameplayAbilityActivationInfo ActivationInfo,
+	                        bool bReplicateEndAbility,
+	                        bool bWasCancelled) override;
+
 protected:
 	// 재장전 노티파이 이벤트 수신 시 자원 이동을 트리거한다 (서버 권위에서만 실제 적용)
 	UFUNCTION()

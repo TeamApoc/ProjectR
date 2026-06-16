@@ -775,6 +775,20 @@ void UPRUIControllerComponent::HideFaerinEncounterSubtitle()
 	FaerinEncounterSubtitleWidget->RemoveFromParent();
 }
 
+void UPRUIControllerComponent::SetHUDVisible(bool bVisible)
+{
+	if (!IsLocalPlayer())
+	{
+		return;
+	}
+
+	bWantsHUDVisible = bVisible;
+	if (IsValid(HUDWidget))
+	{
+		HUDWidget->SetVisibility(bWantsHUDVisible ? ESlateVisibility::HitTestInvisible : ESlateVisibility::Collapsed);
+	}
+}
+
 void UPRUIControllerComponent::ShowWeaponScope()
 {
 	if (!IsLocalPlayer())
@@ -1404,6 +1418,8 @@ void UPRUIControllerComponent::CreateHUDWidget()
 		// UIManager가 없는 예외 케이스에 대한 폴백
 		HUDWidget->AddToViewport();
 	}
+
+	HUDWidget->SetVisibility(bWantsHUDVisible ? ESlateVisibility::HitTestInvisible : ESlateVisibility::Collapsed);
 }
 
 void UPRUIControllerComponent::RefreshWeaponScopeWidget()

@@ -30,6 +30,16 @@
 #include "ProjectR/World/PRFaerinEncounterBoundaryActor.h"
 #include "Sound/SoundBase.h"
 
+namespace
+{
+FText MakeFaerinDisplayText(const FText& SourceText)
+{
+	FString DisplayString = SourceText.ToString();
+	DisplayString.ReplaceInline(TEXT("페어린"), TEXT("파에린"));
+	return FText::FromString(DisplayString);
+}
+}
+
 APRFaerinEncounterDirector::APRFaerinEncounterDirector()
 {
 	PrimaryActorTick.bCanEverTick = false;
@@ -747,6 +757,7 @@ bool APRFaerinEncounterDirector::IsFaerinSpokenDialogueNode(const FPRFaerinDialo
 
 	return Speaker.Contains(TEXT("Faerin"))
 		|| Speaker.Contains(TEXT("페어린"))
+		|| Speaker.Contains(TEXT("파에린"))
 		|| VoicePath.Contains(TEXT("VO_ET_Faerin_"));
 }
 
@@ -761,8 +772,8 @@ bool APRFaerinEncounterDirector::ResolveDialogueSubtitleText(
 		return false;
 	}
 
-	OutSpeakerText = Node->SpeakerName;
-	OutBodyText = Node->Text;
+	OutSpeakerText = MakeFaerinDisplayText(Node->SpeakerName);
+	OutBodyText = MakeFaerinDisplayText(Node->Text);
 	return !OutBodyText.IsEmpty();
 }
 
@@ -2016,17 +2027,17 @@ bool APRFaerinEncounterDirector::ResolveSequenceSubtitleText(
 	static const FName SecondIntroCueId(TEXT("VO_ET_Faerin_E35F_Faerin"));
 	static const FName ThirdIntroCueId(TEXT("VO_ET_Faerin_0AF7_Faerin"));
 
-	OutSpeakerText = FText::FromString(TEXT("페어린"));
+	OutSpeakerText = FText::FromString(TEXT("파에린"));
 
 	if (CueId == FirstIntroCueId)
 	{
-		OutBodyText = FText::FromString(TEXT("조심하라, 피조물이여. 너는 전능한 페어린의 앞에 서 있다."));
+		OutBodyText = FText::FromString(TEXT("조심하라, 피조물이여. 너는 전능한 파에린의 앞에 서 있다."));
 		return true;
 	}
 
 	if (CueId == SecondIntroCueId)
 	{
-		OutBodyText = FText::FromString(TEXT("우리는 유일한 참된 왕을 쓰러뜨린 자, 우리가 바라보는 모든 것을 정복한 자다. 우리 앞에서는 모두가 떨며 무릎 꿇어야 한다."));
+		OutBodyText = FText::FromString(TEXT("우리는 유일한 참칭왕을 쓰러뜨린 자, 우리가 바라보는 모든 것을 정복한 자다. 우리 앞에서는 모두가 떨며 무릎 꿇어야 한다."));
 		return true;
 	}
 

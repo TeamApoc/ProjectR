@@ -17,49 +17,6 @@
 #include "ProjectR/ItemSystem/Components/PRWeaponManagerComponent.h"
 #include "ProjectR/Utils/PRGameplayStatics.h"
 
-namespace
-{
-	// 소유 캐릭터 기준 프로젝트 ASC를 조회한다
-	UPRAbilitySystemComponent* ResolveOwnerAbilitySystem(AActor* OwnerActor)
-	{
-		if (IAbilitySystemInterface* ASI = Cast<IAbilitySystemInterface>(OwnerActor))
-		{
-			if (UAbilitySystemComponent* ASC = ASI->GetAbilitySystemComponent())
-			{
-				return Cast<UPRAbilitySystemComponent>(ASC);
-			}
-		}
-
-		APRCharacterBase* OwnerCharacter = Cast<APRCharacterBase>(OwnerActor);
-		if (IsValid(OwnerCharacter))
-		{
-			return OwnerCharacter->GetPRAbilitySystemComponent();
-		}
-
-		return nullptr;
-	}
-
-	// 슬롯 반대 차단 태그 구성
-	FGameplayTagContainer BuildOppositeSlotBlockTags(const UPRWeaponDataAsset* WeaponData)
-	{
-		FGameplayTagContainer BlockTags;
-		if (!IsValid(WeaponData))
-		{
-			return BlockTags;
-		}
-
-		if (WeaponData->SlotType == EPRWeaponSlotType::Primary)
-		{
-			BlockTags.AddTag(PRGameplayTags::State_CurrentWeaponSlot_Secondary);
-		}
-		else if (WeaponData->SlotType == EPRWeaponSlotType::Secondary)
-		{
-			BlockTags.AddTag(PRGameplayTags::State_CurrentWeaponSlot_Primary);
-		}
-
-		return BlockTags;
-	}
-}
 
 void UPRItemInstance_Weapon::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const
 {
@@ -226,7 +183,7 @@ void UPRItemInstance_Weapon::GrantEquippedAbilitySets(AActor* OwnerActor)
 		return;
 	}
 
-	UPRAbilitySystemComponent* ASC = ResolveOwnerAbilitySystem(OwnerActor);
+	UPRAbilitySystemComponent* ASC = Cast<UPRAbilitySystemComponent>(UPRGameplayStatics::GetAbilitySystemComponent(OwnerActor));
 	if (!IsValid(ASC) || !ASC->IsOwnerActorAuthoritative())
 	{
 		return;
@@ -267,7 +224,7 @@ void UPRItemInstance_Weapon::ClearEquippedAbilitySets(AActor* OwnerActor)
 		return;
 	}
 
-	UPRAbilitySystemComponent* ASC = ResolveOwnerAbilitySystem(OwnerActor);
+	UPRAbilitySystemComponent* ASC = Cast<UPRAbilitySystemComponent>(UPRGameplayStatics::GetAbilitySystemComponent(OwnerActor));
 	if (!IsValid(ASC) || !ASC->IsOwnerActorAuthoritative())
 	{
 		return;
@@ -292,7 +249,7 @@ void UPRItemInstance_Weapon::RebuildModAbility(AActor* OwnerActor, UPRWeaponModD
 		return;
 	}
 
-	UPRAbilitySystemComponent* ASC = ResolveOwnerAbilitySystem(OwnerActor);
+	UPRAbilitySystemComponent* ASC = Cast<UPRAbilitySystemComponent>(UPRGameplayStatics::GetAbilitySystemComponent(OwnerActor));
 	if (!IsValid(ASC) || !ASC->IsOwnerActorAuthoritative())
 	{
 		SetModData(NewModData);
@@ -350,6 +307,26 @@ void UPRItemInstance_Weapon::ResetTransientRuntimeOnDeactivate()
 
 	LastWeaponFailReason = EPRWeaponActionFailReason::None;
 	LastModFailReason = EPRWeaponModFailReason::None;
+}
+
+FGameplayTagContainer UPRItemInstance_Weapon::BuildOppositeSlotBlockTags(const UPRWeaponDataAsset* WeaponData)
+{
+	FGameplayTagContainer BlockTags;
+	if (!IsValid(WeaponData))
+	{
+		return BlockTags;
+	}
+
+	if (WeaponData->SlotType == EPRWeaponSlotType::Primary)
+	{
+		BlockTags.AddTag(PRGameplayTags::State_CurrentWeaponSlot_Secondary);
+	}
+	else if (WeaponData->SlotType == EPRWeaponSlotType::Secondary)
+	{
+		BlockTags.AddTag(PRGameplayTags::State_CurrentWeaponSlot_Primary);
+	}
+
+	return BlockTags;
 }
 
 float UPRItemInstance_Weapon::GetRemainingModDurationSeconds(float ServerWorldTimeSeconds) const

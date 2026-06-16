@@ -51,6 +51,10 @@ protected:
 	UPROPERTY(EditAnywhere, Category = "ProjectR|Ability")
 	FName AttackPressureKey = TEXT("attack_pressure");
 
+	// 주변 Alert 전파로 깨어난 몬스터가 공용 Alert Ability를 건너뛰기 위해 확인하는 키다.
+	UPROPERTY(EditAnywhere, Category = "ProjectR|Ability")
+	FName NearbyAIAlertedKey = TEXT("nearby_ai_alerted");
+
 	// true면 실제 Ability 활성화 성공 시점에 전술 모드를 공격 상태로 전환한다.
 	UPROPERTY(EditAnywhere, Category = "ProjectR|Ability")
 	bool bSetTacticalModeOnAbilityActivated = true;
@@ -89,6 +93,8 @@ protected:
 	float PostAbilityEndDelay = 0.0f;
 
 private:
+	bool ShouldSkipAlertAbilityForSharedAlert(UBehaviorTreeComponent& OwnerComp, const FGameplayTag& ResolvedAbilityTag) const;
+	void ApplySharedAlertSkippedState(UBehaviorTreeComponent& OwnerComp);
 	void ApplyTacticalModeOnAbilityActivated(UBehaviorTreeComponent& OwnerComp);
 	void ApplyPostAbilityCombatStateUpdates(UBehaviorTreeComponent& OwnerComp);
 	void BindAbilityEndDelegate(UBehaviorTreeComponent& OwnerComp, UPRAbilitySystemComponent* ASC);

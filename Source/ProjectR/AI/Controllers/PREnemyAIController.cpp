@@ -12,8 +12,11 @@
 #include "ProjectR/AI/Components/PREnemyThreatComponent.h"
 #include "ProjectR/AI/Data/PREnemyCombatDataAsset.h"
 #include "ProjectR/AI/Data/PRPerceptionConfig.h"
+#include "ProjectR/Character/Enemy/PREnemyBaseCharacter.h"
 #include "ProjectR/Character/Enemy/PREnemyInterface.h"
 #include "ProjectR/Combat/PRCombatStatics.h"
+#include "Engine/OverlapResult.h"
+#include "Engine/World.h"
 
 namespace
 {
@@ -48,6 +51,19 @@ namespace
 		return IsValid(ThreatComponent)
 			&& IsValid(Actor)
 			&& ThreatComponent->GetCurrentTarget() == Actor;
+	}
+
+	bool IsGeneralEnemyPawn(const AActor* Actor)
+	{
+		const APREnemyBaseCharacter* EnemyCharacter = Cast<APREnemyBaseCharacter>(Actor);
+		return IsValid(EnemyCharacter) && EnemyCharacter->GetCharacterRole() == EPRCharacterRole::Enemy;
+	}
+
+	bool HasBlackboardKey(const UBlackboardComponent* BlackboardComponent, const FName KeyName)
+	{
+		return IsValid(BlackboardComponent)
+			&& KeyName != NAME_None
+			&& BlackboardComponent->GetKeyID(KeyName) != FBlackboard::InvalidKey;
 	}
 
 	void WriteCurrentTargetTrackingToBlackboard(
@@ -117,7 +133,8 @@ void APREnemyAIController::OnPossess(APawn* InPawn)
 		return;
 	}
 
-	ApplyPerceptionConfig(EnemyInterface->GetPerceptionConfig());
+	CachedPerceptionConfig = EnemyInterface->GetPerceptionConfig();
+	ApplyPerceptionConfig(CachedPerceptionConfig);
 
 	CachedThreatComponent = EnemyInterface->GetEnemyThreatComponent();
 	if (IsValid(CachedThreatComponent))
@@ -139,6 +156,7 @@ void APREnemyAIController::OnPossess(APawn* InPawn)
 	if (IsValid(CachedBlackboardComponent))
 	{
 		CachedBlackboardComponent->SetValueAsVector(HomeLocationKey, EnemyInterface->GetHomeLocation());
+		WriteNearbyAlertBlackboardState(false, nullptr);
 		EnemyInterface->InitializeEnemyBlackboard(CachedBlackboardComponent);
 		ApplyTacticalModeState(EPRTacticalMode::Idle);
 	}
@@ -156,7 +174,10 @@ void APREnemyAIController::OnUnPossess()
 	ClearCombatMovePresentationContext(true);
 	ClearThreatBinding();
 	CachedBlackboardComponent = nullptr;
+	CachedPerceptionConfig = nullptr;
 	bPreserveAlertOnNextTargetClear = false;
+	bSuppressAlertPropagationForSharedAlert = false;
+	bHandlingSharedAlertTargetChange = false;
 
 	Super::OnUnPossess();
 }
@@ -311,8 +332,16 @@ void APREnemyAIController::HandleThreatTargetChanged(AActor* OldTarget, AActor* 
 			bHasLOS);
 		if (!bHasPreviousTarget)
 		{
-			ApplyTacticalModeState(EPRTacticalMode::Alert, NewTarget);
+			const EPRTacticalMode InitialCombatMode = bHandlingSharedAlertTargetChange
+				? EPRTacticalMode::FastApproach
+				: EPRTacticalMode::Alert;
+			ApplyTacticalModeState(InitialCombatMode, NewTarget);
 			ApplyInitialAttackPressureOnAlert();
+
+			if (!bSuppressAlertPropagationForSharedAlert)
+			{
+				PropagateAlertToNearbyEnemies(NewTarget);
+			}
 		}
 		else
 		{
@@ -325,10 +354,140 @@ void APREnemyAIController::HandleThreatTargetChanged(AActor* OldTarget, AActor* 
 	{
 		CachedBlackboardComponent->ClearValue(CurrentTargetKey);
 		CachedBlackboardComponent->SetValueAsBool(HasLOSKey, false);
+		WriteNearbyAlertBlackboardState(false, nullptr);
 
 		const bool bShouldInvestigate = bPreserveAlertOnNextTargetClear && HasLastKnownTargetLocation();
 		ApplyTacticalModeState(bShouldInvestigate ? EPRTacticalMode::Alert : EPRTacticalMode::Return);
 		bPreserveAlertOnNextTargetClear = false;
+	}
+}
+
+void APREnemyAIController::PropagateAlertToNearbyEnemies(AActor* AlertTarget)
+{
+	if (!HasAuthority()
+		|| !IsValid(CachedPerceptionConfig)
+		|| !CachedPerceptionConfig->bPropagateAlertToNearbyEnemies
+		|| CachedPerceptionConfig->AlertPropagationRadius <= 0.0f
+		|| UPRCombatStatics::GetActorTeam(AlertTarget) != EPRTeam::Player)
+	{
+		return;
+	}
+
+	APawn* SourcePawn = GetPawn();
+	UWorld* World = GetWorld();
+	if (!IsValid(SourcePawn) || !IsValid(World) || !IsGeneralEnemyPawn(SourcePawn))
+	{
+		return;
+	}
+
+	TArray<FOverlapResult> OverlapResults;
+	FCollisionQueryParams QueryParams(SCENE_QUERY_STAT(PREnemyAlertPropagation), false, SourcePawn);
+	QueryParams.AddIgnoredActor(SourcePawn);
+
+	const FCollisionObjectQueryParams ObjectQueryParams(ECC_Pawn);
+	const FCollisionShape CollisionShape = FCollisionShape::MakeSphere(CachedPerceptionConfig->AlertPropagationRadius);
+	const bool bHasOverlap = World->OverlapMultiByObjectType(
+		OverlapResults,
+		SourcePawn->GetActorLocation(),
+		FQuat::Identity,
+		ObjectQueryParams,
+		CollisionShape,
+		QueryParams);
+
+	if (!bHasOverlap)
+	{
+		return;
+	}
+
+	for (const FOverlapResult& OverlapResult : OverlapResults)
+	{
+		APawn* NearbyPawn = Cast<APawn>(OverlapResult.GetActor());
+		if (!IsValid(NearbyPawn)
+			|| NearbyPawn == SourcePawn
+			|| !IsGeneralEnemyPawn(NearbyPawn)
+			|| UPRCombatStatics::GetActorTeam(NearbyPawn) != EPRTeam::Enemy)
+		{
+			continue;
+		}
+
+		APREnemyAIController* NearbyEnemyController = Cast<APREnemyAIController>(NearbyPawn->GetController());
+		if (!IsValid(NearbyEnemyController))
+		{
+			continue;
+		}
+
+		NearbyEnemyController->ReceiveSharedAlert(this, AlertTarget);
+	}
+}
+
+bool APREnemyAIController::ReceiveSharedAlert(APREnemyAIController* AlertSourceController, AActor* AlertTarget)
+{
+	if (!HasAuthority()
+		|| !IsValid(AlertSourceController)
+		|| AlertSourceController == this
+		|| !CanReceiveSharedAlert(AlertTarget))
+	{
+		return false;
+	}
+
+	AActor* AlertSourceActor = AlertSourceController->GetPawn();
+	WriteNearbyAlertBlackboardState(true, AlertSourceActor);
+
+	const bool bPreviousSuppressAlertPropagation = bSuppressAlertPropagationForSharedAlert;
+	const bool bPreviousHandlingSharedAlertTargetChange = bHandlingSharedAlertTargetChange;
+	bSuppressAlertPropagationForSharedAlert = !CachedPerceptionConfig->bRelayReceivedAlert;
+	bHandlingSharedAlertTargetChange = true;
+	CachedThreatComponent->ForceCurrentTarget(AlertTarget);
+	bSuppressAlertPropagationForSharedAlert = bPreviousSuppressAlertPropagation;
+	bHandlingSharedAlertTargetChange = bPreviousHandlingSharedAlertTargetChange;
+
+	return CachedThreatComponent->GetCurrentTarget() == AlertTarget;
+}
+
+bool APREnemyAIController::CanReceiveSharedAlert(AActor* AlertTarget) const
+{
+	const APawn* ControlledPawn = GetPawn();
+	if (!IsValid(CachedPerceptionConfig)
+		|| !CachedPerceptionConfig->bPropagateAlertToNearbyEnemies
+		|| !IsValid(CachedThreatComponent)
+		|| !IsValid(CachedBlackboardComponent)
+		|| !IsValid(ControlledPawn)
+		|| !IsGeneralEnemyPawn(ControlledPawn)
+		|| UPRCombatStatics::GetActorTeam(AlertTarget) != EPRTeam::Player)
+	{
+		return false;
+	}
+
+	if (IsValid(CachedThreatComponent->GetCurrentTarget()))
+	{
+		return false;
+	}
+
+	return true;
+}
+
+void APREnemyAIController::WriteNearbyAlertBlackboardState(bool bNearbyAlerted, AActor* AlertSourceActor)
+{
+	if (!IsValid(CachedBlackboardComponent))
+	{
+		return;
+	}
+
+	if (HasBlackboardKey(CachedBlackboardComponent, NearbyAIAlertedKey))
+	{
+		CachedBlackboardComponent->SetValueAsBool(NearbyAIAlertedKey, bNearbyAlerted);
+	}
+
+	if (HasBlackboardKey(CachedBlackboardComponent, NearbyAIAlertSourceKey))
+	{
+		if (bNearbyAlerted && IsValid(AlertSourceActor))
+		{
+			CachedBlackboardComponent->SetValueAsObject(NearbyAIAlertSourceKey, AlertSourceActor);
+		}
+		else
+		{
+			CachedBlackboardComponent->ClearValue(NearbyAIAlertSourceKey);
+		}
 	}
 }
 

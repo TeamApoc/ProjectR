@@ -5,7 +5,10 @@
 
 #include "CoreMinimal.h"
 #include "PRGA_Mod.h"
+#include "ProjectR/ItemSystem/Types/PRWeaponTypes.h"
 #include "PRGA_Mod_GrantAbility.generated.h"
+
+class UPRWeaponManagerComponent;
 
 /**
  * 
@@ -21,6 +24,7 @@ public:
 	virtual void ApplyCost(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilityActivationInfo ActivationInfo) const override;
 	virtual void ActivateAbility(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilityActivationInfo ActivationInfo, const FGameplayEventData* TriggerEventData) override;
 	virtual void EndAbility(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilityActivationInfo ActivationInfo, bool bReplicateEndAbility, bool bWasCancelled) override;
+
 protected:
 	// 어빌리티 회수 시 부여 어빌리티 런타임 정리
 	virtual void CleanupRuntimeOnAbilityRemoved(const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilitySpec& Spec) override;
@@ -29,6 +33,16 @@ protected:
 
 	// 부여 어빌리티와 비용 감시 정리
 	void CleanupGrantedAbilityRuntime(const FGameplayAbilityActorInfo* ActorInfo);
+
+	// 무기 변경 이벤트 바인딩
+	void BindWeaponEquipmentChanged();
+
+	// 무기 변경 이벤트 해제
+	void UnbindWeaponEquipmentChanged();
+
+	// 무기 변경 이벤트 처리
+	UFUNCTION()
+	void HandleWeaponEquipmentChanged(UPRWeaponManagerComponent* WeaponManagerComponent, EPRWeaponSlotType ChangedSlot);
 	
 	UFUNCTION()
 	void OnInputPressed(float TimeWaited);
@@ -41,4 +55,6 @@ private:
 	FGameplayAbilitySpecHandle GrantedSpecHandle;
 	FGameplayAttribute CostAttribute;
 	FDelegateHandle CostExhaustedHandle;
+	EPRWeaponSlotType SourceWeaponSlot = EPRWeaponSlotType::None;
+	TWeakObjectPtr<UPRWeaponManagerComponent> BoundWeaponManager;
 };

@@ -43,4 +43,16 @@ public:
 	// LOS 확인에 사용할 Trace 채널이다.
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|AI|Perception")
 	TEnumAsByte<ECollisionChannel> LOSCheckTraceChannel = ECC_Visibility;
+
+	// true면 이 몬스터가 최초 Alert에 들어갈 때 주변 일반 몬스터도 같은 타겟으로 Alert시킨다.
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|AI|AlertPropagation")
+	bool bPropagateAlertToNearbyEnemies = false;
+
+	// 주변 Alert 전파를 받을 일반 몬스터 탐색 반경이다.
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|AI|AlertPropagation", meta = (ClampMin = "0.0", EditCondition = "bPropagateAlertToNearbyEnemies"))
+	float AlertPropagationRadius = 1200.0f;
+
+	// true면 주변 Alert를 받아 Alert된 몬스터도 다시 주변에 Alert를 전달한다.
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|AI|AlertPropagation", meta = (EditCondition = "bPropagateAlertToNearbyEnemies"))
+	bool bRelayReceivedAlert = false;
 };

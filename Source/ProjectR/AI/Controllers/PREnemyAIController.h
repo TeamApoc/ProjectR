@@ -79,6 +79,18 @@ protected:
 	// 탐지 직후 시작 attack_pressure 적용
 	void ApplyInitialAttackPressureOnAlert();
 
+	// 최초 Alert를 주변 일반 몬스터에게 전파한다.
+	void PropagateAlertToNearbyEnemies(AActor* AlertTarget);
+
+	// 주변 일반 몬스터의 Alert 전파를 받아 같은 공격 대상을 설정한다.
+	bool ReceiveSharedAlert(APREnemyAIController* AlertSourceController, AActor* AlertTarget);
+
+	// 주변 Alert를 받을 수 있는 상태인지 확인한다.
+	bool CanReceiveSharedAlert(AActor* AlertTarget) const;
+
+	// 주변 Alert 관련 Blackboard 값을 기록하거나 초기화한다.
+	void WriteNearbyAlertBlackboardState(bool bNearbyAlerted, AActor* AlertSourceActor);
+
 	// BehaviorTree에서 Blackboard를 준비하고 캐시
 	void CacheBlackboardFromBehaviorTree(UBehaviorTree* BehaviorTreeAsset);
 
@@ -98,6 +110,9 @@ protected:
 
 	UPROPERTY(Transient)
 	TObjectPtr<UBlackboardComponent> CachedBlackboardComponent;
+
+	UPROPERTY(Transient)
+	TObjectPtr<UPRPerceptionConfig> CachedPerceptionConfig;
 
 	UPROPERTY(Transient)
 	TObjectPtr<UPREnemyThreatComponent> CachedThreatComponent;
@@ -130,6 +145,14 @@ protected:
 	UPROPERTY(EditDefaultsOnly, Category = "ProjectR|AI|Blackboard")
 	FName AttackPressureKey = TEXT("attack_pressure");
 
+	// 주변 AI Alert 전파를 받아 Alert된 상태인지 기록하는 Blackboard 키 이름
+	UPROPERTY(EditDefaultsOnly, Category = "ProjectR|AI|Blackboard")
+	FName NearbyAIAlertedKey = TEXT("nearby_ai_alerted");
+
+	// 이 AI를 Alert시킨 주변 몬스터를 기록하는 Blackboard 키 이름
+	UPROPERTY(EditDefaultsOnly, Category = "ProjectR|AI|Blackboard")
+	FName NearbyAIAlertSourceKey = TEXT("nearby_ai_alert_source");
+
 	// 타겟 상실 시 처리 정책
 	UPROPERTY(EditDefaultsOnly, Category = "ProjectR|AI|Perception")
 	EPRTargetLostPolicy TargetLostPolicy = EPRTargetLostPolicy::ClearCurrentTarget;
@@ -137,4 +160,12 @@ protected:
 	// 다음 타겟 해제 시 Investigate로 이어가기 위한 Alert 유지 플래그
 	UPROPERTY(Transient)
 	bool bPreserveAlertOnNextTargetClear = false;
+
+	// 주변 Alert 수신으로 발생한 타겟 변경을 다시 전파하지 않기 위한 플래그
+	UPROPERTY(Transient)
+	bool bSuppressAlertPropagationForSharedAlert = false;
+
+	// 주변 Alert 수신으로 발생한 타겟 변경인지 구분하기 위한 플래그
+	UPROPERTY(Transient)
+	bool bHandlingSharedAlertTargetChange = false;
 };

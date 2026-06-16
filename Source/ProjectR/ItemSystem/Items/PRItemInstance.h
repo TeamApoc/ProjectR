@@ -7,6 +7,7 @@
 #include "UObject/Object.h"
 #include "PRItemInstance.generated.h"
 
+class UPRAbilitySystemComponent;
 class AActor;
 class UPRInventoryComponent;
 class UPRItemDataAsset;

@@ -92,10 +92,29 @@ bool UPRGameplayAbility::HasDynamicActivationBlockedTag(const UAbilitySystemComp
 
 	const FGameplayTagContainer& DynamicTags = InAbilitySpec->GetDynamicSpecSourceTags();
 	const bool bBlocksPrimarySlot = DynamicTags.HasTagExact(PRGameplayTags::State_CurrentWeaponSlot_Primary);
+	const bool bBlocksPrimaryBase = DynamicTags.HasTagExact(PRGameplayTags::State_CurrentWeaponSlot_Primary_Base);
+	const bool bBlocksPrimaryMod = DynamicTags.HasTagExact(PRGameplayTags::State_CurrentWeaponSlot_Primary_Mod);
 	const bool bBlocksSecondarySlot = DynamicTags.HasTagExact(PRGameplayTags::State_CurrentWeaponSlot_Secondary);
-	if (!bBlocksPrimarySlot && !bBlocksSecondarySlot)
+	const bool bBlocksSecondaryBase = DynamicTags.HasTagExact(PRGameplayTags::State_CurrentWeaponSlot_Secondary_Base);
+	const bool bBlocksSecondaryMod = DynamicTags.HasTagExact(PRGameplayTags::State_CurrentWeaponSlot_Secondary_Mod);
+	if (!bBlocksPrimarySlot
+		&& !bBlocksPrimaryBase
+		&& !bBlocksPrimaryMod
+		&& !bBlocksSecondarySlot
+		&& !bBlocksSecondaryBase
+		&& !bBlocksSecondaryMod)
 	{
 		return false;
+	}
+
+	FGameplayTagContainer OwnedTags;
+	InOwnerASC->GetOwnedGameplayTags(OwnedTags);
+	if ((bBlocksPrimaryBase && OwnedTags.HasTagExact(PRGameplayTags::State_CurrentWeaponSlot_Primary_Base))
+		|| (bBlocksPrimaryMod && OwnedTags.HasTagExact(PRGameplayTags::State_CurrentWeaponSlot_Primary_Mod))
+		|| (bBlocksSecondaryBase && OwnedTags.HasTagExact(PRGameplayTags::State_CurrentWeaponSlot_Secondary_Base))
+		|| (bBlocksSecondaryMod && OwnedTags.HasTagExact(PRGameplayTags::State_CurrentWeaponSlot_Secondary_Mod)))
+	{
+		return true;
 	}
 
 	const FGameplayAbilityActorInfo* ActorInfo = InOwnerASC->AbilityActorInfo.Get();
@@ -105,13 +124,33 @@ bool UPRGameplayAbility::HasDynamicActivationBlockedTag(const UAbilitySystemComp
 		const EPRWeaponSlotType CurrentSlot = WeaponManager->GetCurrentWeaponSlot();
 		if (CurrentSlot == EPRWeaponSlotType::Primary || CurrentSlot == EPRWeaponSlotType::Secondary)
 		{
-			return (bBlocksPrimarySlot && CurrentSlot == EPRWeaponSlotType::Primary)
-				|| (bBlocksSecondarySlot && CurrentSlot == EPRWeaponSlotType::Secondary);
+			if ((bBlocksPrimarySlot && CurrentSlot == EPRWeaponSlotType::Primary)
+				|| (bBlocksSecondarySlot && CurrentSlot == EPRWeaponSlotType::Secondary))
+			{
+				return true;
+			}
+
+			const AActor* OwnerActor = InOwnerASC->GetOwnerActor();
+			if (!IsValid(OwnerActor) || !OwnerActor->HasAuthority())
+			{
+				return false;
+			}
+
+			const UPRItemInstance_Weapon* CurrentWeapon = WeaponManager->GetWeaponInstanceBySlotType(CurrentSlot);
+			const EPRWeaponFireModeState CurrentFireModeState = IsValid(CurrentWeapon)
+				? CurrentWeapon->FireModeState
+				: EPRWeaponFireModeState::BaseFire;
+			if (CurrentSlot == EPRWeaponSlotType::Primary)
+			{
+				return (bBlocksPrimaryBase && CurrentFireModeState == EPRWeaponFireModeState::BaseFire)
+					|| (bBlocksPrimaryMod && CurrentFireModeState == EPRWeaponFireModeState::ModFire);
+			}
+
+			return (bBlocksSecondaryBase && CurrentFireModeState == EPRWeaponFireModeState::BaseFire)
+				|| (bBlocksSecondaryMod && CurrentFireModeState == EPRWeaponFireModeState::ModFire);
 		}
 	}
 
-	FGameplayTagContainer OwnedTags;
-	InOwnerASC->GetOwnedGameplayTags(OwnedTags);
 	return (bBlocksPrimarySlot && OwnedTags.HasTagExact(PRGameplayTags::State_CurrentWeaponSlot_Primary))
 		|| (bBlocksSecondarySlot && OwnedTags.HasTagExact(PRGameplayTags::State_CurrentWeaponSlot_Secondary));
 }
@@ -270,14 +309,6 @@ FGameplayEffectSpecHandle UPRGameplayAbility::MakeModEffectSpec(float Damage, fl
 	}
 
 	return SpecHandle;
-}
-
-void UPRGameplayAbility::ApplySourceModCost() const
-{
-	if (UPRGA_Mod* SourceMod = Cast<UPRGA_Mod>(GetCurrentSourceObject()))
-	{
-		SourceMod->ApplyModCost(GetCurrentActorInfo());
-	}
 }
 
 void UPRGameplayAbility::OnFailActivateAbility(const UAbilitySystemComponent* InOwnerASC,

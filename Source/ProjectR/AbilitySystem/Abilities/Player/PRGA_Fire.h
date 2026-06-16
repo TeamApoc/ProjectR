@@ -139,8 +139,7 @@ protected:
 	// 발사 시점에 재생할 발사 FX Cue 태그
 	UPROPERTY(EditDefaultsOnly, Category = "ProjectR|FX")
 	FGameplayTag SimpleFireCueTag;
-
-
+	
 	// 카메라 트레이스(1차, 시안색) 디버그 표시 여부
 	UPROPERTY(EditDefaultsOnly, Category = "ProjectR|Fire|Debug")
 	bool bDrawCameraTrace = true;

@@ -18,7 +18,8 @@
 namespace
 {
 	// 소유 액터 기준 프로젝트 ASC 조회
-	UPRAbilitySystemComponent* ResolveOwnerAbilitySystem(AActor* OwnerActor)
+	UPRAbilitySystemComponent* 
+		ResolveOwnerAbilitySystem(AActor* OwnerActor)
 	{
 		if (IAbilitySystemInterface* ASI = Cast<IAbilitySystemInterface>(OwnerActor))
 		{

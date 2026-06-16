@@ -98,6 +98,10 @@ struct FPRProjectileRepMovement
 	UPROPERTY()
 	EPRRepMovementEvent Event = EPRRepMovementEvent::Spawn;
 
+	// Bounce 이벤트 식별 번호. 서버/예측 투사체의 같은 순서 바운스를 비교하기 위한 값
+	UPROPERTY()
+	uint8 BounceIndex = 0;
+
 	// Spawn 이벤트와 함께 전달할 homing 프레젠테이션 스케줄
 	UPROPERTY()
 	FPRProjectileRepHomingSchedule HomingSchedule;

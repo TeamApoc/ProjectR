@@ -19,7 +19,7 @@ UPRGA_Reload::UPRGA_Reload()
 	DefaultAbilityTags.AddTag(PRGameplayTags::Ability_Player_Reload);
 	SetAssetTags(DefaultAbilityTags);
 	InputTag = PRGameplayTags::Input_Ability_Reload;
-
+	
 	FAbilityTriggerData TriggerData;
 	TriggerData.TriggerSource = EGameplayAbilityTriggerSource::GameplayEvent;
 	TriggerData.TriggerTag = PRGameplayTags::Event_Ability_Reload;
@@ -124,6 +124,23 @@ void UPRGA_Reload::ActivateAbility(const FGameplayAbilitySpecHandle Handle,
 		ActiveCommitEventTask->EventReceived.AddDynamic(this, &UPRGA_Reload::OnReloadCommitEvent);
 		ActiveCommitEventTask->ReadyForActivation();
 	}
+}
+
+void UPRGA_Reload::EndAbility(const FGameplayAbilitySpecHandle Handle,
+                              const FGameplayAbilityActorInfo* ActorInfo,
+                              const FGameplayAbilityActivationInfo ActivationInfo,
+                              bool bReplicateEndAbility,
+                              bool bWasCancelled)
+{
+	if (bWasCancelled)
+	{
+		if (UPRWeaponManagerComponent* WeaponManager = GetWeaponManager(ActorInfo))
+		{
+			WeaponManager->RequestWeaponAnimation(EPRWeaponAnimationState::Idle);
+		}
+	}
+
+	Super::EndAbility(Handle, ActorInfo, ActivationInfo, bReplicateEndAbility, bWasCancelled);
 }
 
 void UPRGA_Reload::OnReloadCommitEvent(FGameplayEventData EventData)

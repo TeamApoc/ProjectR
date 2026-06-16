@@ -16,6 +16,8 @@ UPRGA_PlayerAim::UPRGA_PlayerAim()
 	FGameplayTagContainer DefaultAbilityTags;
 	DefaultAbilityTags.AddTag(PRGameplayTags::Ability_Player_Aim);
 	SetAssetTags(DefaultAbilityTags);
+	
+	ActivationPolicy = EPRAbilityActivationPolicy::WhileInputHeld;
 
 	InputTag = PRGameplayTags::Input_Ability_Aim;
 	CancelAbilitiesWithTag.AddTag(PRGameplayTags::Ability_Player_Sprint);

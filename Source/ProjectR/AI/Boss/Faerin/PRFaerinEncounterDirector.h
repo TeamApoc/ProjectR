@@ -323,6 +323,7 @@ private:
 	void RecoverFightStartFailure();
 	void GetPlayersFromSet(const TSet<TWeakObjectPtr<APRPlayerCharacter>>& Players, TArray<APRPlayerCharacter*>& OutPlayers) const;
 	void SetInputLockedForPlayers(const TArray<APRPlayerCharacter*>& Players, bool bLock) const;
+	void SetHUDVisibleForPlayers(const TArray<APRPlayerCharacter*>& Players, bool bVisible) const;
 	void RestoreViewTargetForPlayers(const TArray<APRPlayerCharacter*>& Players, float BlendTime, const TCHAR* Reason) const;
 	void AlignCombatStartParticipants();
 	void AlignRetryGatherPlayersToPlayerPoints(const TArray<APRPlayerCharacter*>& GatherPlayers);

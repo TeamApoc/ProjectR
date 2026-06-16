@@ -93,6 +93,9 @@ public:
 	UFUNCTION(Client, Reliable)
 	void ClientStartExternalForcedMove(FVector_NetQuantize Destination, FRotator Rotation, float Duration, float TickInterval, float EaseExponent, bool bSweep, bool bStopMovement);
 
+	/** 외부 강제 이동 카메라 Lag override 상태 갱신 */
+	void SetExternalForcedMoveCameraLagOverride(bool bEnabled);
+
 	
 	
 	void SetFlashlightEnabled(bool bEnabled) const;

@@ -95,16 +95,56 @@ void UPRRespawnSubsystem::UnregisterDisposableActor(AActor* InActor)
 
 bool UPRRespawnSubsystem::RespawnWorldObjects()
 {
-	if (!IsServerWorld())
+	if (!BeginRespawn())
 	{
 		return false;
 	}
 
+	const bool bRespawned = RespawnWorldObjectsInternal();
+	EndRespawn();
+	return bRespawned;
+}
+
+bool UPRRespawnSubsystem::RespawnPlayers(FGameplayTag SpawnPointId)
+{
+	if (!BeginRespawn())
+	{
+		return false;
+	}
+
+	const bool bRespawned = RespawnPlayersInternal(SpawnPointId);
+	EndRespawn();
+	return bRespawned;
+}
+
+bool UPRRespawnSubsystem::RespawnWorldAndPlayers(FGameplayTag SpawnPointId)
+{
+	if (!BeginRespawn())
+	{
+		return false;
+	}
+
+	const bool bWorldRespawned = RespawnWorldObjectsInternal();
+	const bool bPlayersRespawned = RespawnPlayersInternal(SpawnPointId);
+	EndRespawn();
+	return bWorldRespawned || bPlayersRespawned;
+}
+
+void UPRRespawnSubsystem::ClearRegisteredActors()
+{
+	RegisteredActors.Empty();
+	DisposableActors.Empty();
+}
+
+bool UPRRespawnSubsystem::RespawnWorldObjectsInternal()
+{
 	UWorld* World = GetWorld();
 	if (!IsValid(World))
 	{
 		return false;
 	}
+
+	SetRespawnSystemState(EPRRespawnSystemState::RespawningWorldObjects);
 
 	// 등록 목록 격리
 	TArray<FPRRespawnActorInfo> RespawnInfos = RegisteredActors;
@@ -156,13 +196,8 @@ bool UPRRespawnSubsystem::RespawnWorldObjects()
 	return bProcessedAny;
 }
 
-bool UPRRespawnSubsystem::RespawnPlayers(FGameplayTag SpawnPointId)
+bool UPRRespawnSubsystem::RespawnPlayersInternal(FGameplayTag SpawnPointId)
 {
-	if (!IsServerWorld())
-	{
-		return false;
-	}
-
 	UWorld* World = GetWorld();
 	AGameModeBase* GameMode = IsValid(World) ? World->GetAuthGameMode() : nullptr;
 	AGameStateBase* GameState = IsValid(World) ? World->GetGameState() : nullptr;
@@ -170,6 +205,8 @@ bool UPRRespawnSubsystem::RespawnPlayers(FGameplayTag SpawnPointId)
 	{
 		return false;
 	}
+
+	SetRespawnSystemState(EPRRespawnSystemState::RespawningPlayers);
 
 	bool bProcessedAny = false;
 	for (APlayerState* PlayerState : GameState->PlayerArray)
@@ -212,19 +249,6 @@ bool UPRRespawnSubsystem::RespawnPlayers(FGameplayTag SpawnPointId)
 	}
 
 	return bProcessedAny;
-}
-
-bool UPRRespawnSubsystem::RespawnWorldAndPlayers(FGameplayTag SpawnPointId)
-{
-	const bool bWorldRespawned = RespawnWorldObjects();
-	const bool bPlayersRespawned = RespawnPlayers(SpawnPointId);
-	return bWorldRespawned || bPlayersRespawned;
-}
-
-void UPRRespawnSubsystem::ClearRegisteredActors()
-{
-	RegisteredActors.Empty();
-	DisposableActors.Empty();
 }
 
 /*~ SpawnPoint 조회 ~*/
@@ -324,6 +348,29 @@ bool UPRRespawnSubsystem::ResolvePlayerRespawnTransform(AController* Controller,
 }
 
 /*~ 내부 헬퍼 ~*/
+
+bool UPRRespawnSubsystem::BeginRespawn()
+{
+	if (!IsServerWorld() || RespawnSystemState != EPRRespawnSystemState::Idle)
+	{
+		return false;
+	}
+
+	// 리스폰 대상 정리와 플레이어 재시작 전에 외부 시스템 정리 기회 제공
+	SetRespawnSystemState(EPRRespawnSystemState::PrepareRespawn);
+	OnPrepareRespawn.Broadcast();
+	return true;
+}
+
+void UPRRespawnSubsystem::EndRespawn()
+{
+	SetRespawnSystemState(EPRRespawnSystemState::Idle);
+}
+
+void UPRRespawnSubsystem::SetRespawnSystemState(EPRRespawnSystemState NewState)
+{
+	RespawnSystemState = NewState;
+}
 
 bool UPRRespawnSubsystem::IsServerWorld() const
 {

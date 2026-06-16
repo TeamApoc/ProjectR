@@ -12,6 +12,18 @@ class AController;
 class APlayerState;
 class APRSpawnPoint;
 
+DECLARE_MULTICAST_DELEGATE(FPROnPrepareRespawnSignature);
+
+// 리스폰 서브시스템의 현재 처리 단계
+UENUM(BlueprintType)
+enum class EPRRespawnSystemState : uint8
+{
+	Idle,
+	PrepareRespawn,
+	RespawningWorldObjects,
+	RespawningPlayers
+};
+
 // 현재 월드에서 재생성할 액터의 등록 시점 정보
 USTRUCT(BlueprintType)
 struct FPRRespawnActorInfo
@@ -36,6 +48,10 @@ UCLASS()
 class PROJECTR_API UPRRespawnSubsystem : public UWorldSubsystem
 {
 	GENERATED_BODY()
+
+public:
+	// 월드 오브젝트 또는 플레이어 리스폰 준비 단계 알림
+	FPROnPrepareRespawnSignature OnPrepareRespawn;
 
 public:
 	// 현재 액터를 월드 오브젝트 리스폰 대상 목록에 등록
@@ -83,6 +99,21 @@ public:
 	bool ResolvePlayerRespawnTransform(AController* Controller, FGameplayTag SpawnPointId, FTransform& OutTransform) const;
 
 protected:
+	// 루트 리스폰 처리 시작과 준비 단계 알림 발행
+	bool BeginRespawn();
+
+	// 루트 리스폰 처리 종료
+	void EndRespawn();
+
+	// 등록된 월드 오브젝트 재생성 실제 처리
+	bool RespawnWorldObjectsInternal();
+
+	// 플레이어 Pawn 복구 실제 처리
+	bool RespawnPlayersInternal(FGameplayTag SpawnPointId);
+
+	// 리스폰 서브시스템 상태 변경
+	void SetRespawnSystemState(EPRRespawnSystemState NewState);
+
 	// 서버 또는 Standalone 월드 여부 확인
 	bool IsServerWorld() const;
 
@@ -102,4 +133,7 @@ private:
 
 	// 월드 오브젝트 리스폰 시 파괴할 일회성 액터 목록
 	TSet<TWeakObjectPtr<AActor>> DisposableActors;
+
+	// 현재 리스폰 처리 단계
+	EPRRespawnSystemState RespawnSystemState = EPRRespawnSystemState::Idle;
 };

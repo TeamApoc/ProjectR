@@ -19,7 +19,10 @@ enum class EPRBGMState : uint8
 	BossPhase2 UMETA(DisplayName = "Boss Phase 2"),
 	BossPhase3 UMETA(DisplayName = "Boss Phase 3"),
 	BossPhase4 UMETA(DisplayName = "Boss Phase 4"),
-	Victory
+	Victory,
+	BossIntroCutscene UMETA(DisplayName = "Boss Intro Cutscene"),
+	BossDialogue UMETA(DisplayName = "Boss Dialogue"),
+	BossFightStartCutscene UMETA(DisplayName = "Boss Fight Start Cutscene")
 };
 
 UENUM(BlueprintType)
@@ -122,6 +125,18 @@ struct PROJECTR_API FPRLevelBGMEntry
 	// 일반 전투 BGM
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|Audio|BGM")
 	FPRBGMTrack CombatTrack;
+
+	// 보스 최초 조우 컷신 BGM
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|Audio|BGM")
+	FPRBGMTrack BossIntroCutsceneTrack;
+
+	// 보스 대화 상호작용 BGM
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|Audio|BGM")
+	FPRBGMTrack BossDialogueTrack;
+
+	// 보스 전투 시작 컷신 BGM
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|Audio|BGM")
+	FPRBGMTrack BossFightStartCutsceneTrack;
 
 	// 보스 1페이즈 BGM
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|Audio|BGM")

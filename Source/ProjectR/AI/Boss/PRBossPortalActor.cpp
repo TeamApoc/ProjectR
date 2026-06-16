@@ -13,6 +13,7 @@
 #include "TimerManager.h"
 #include "ProjectR/AbilitySystem/Data/PRAbilitySystemRegistry.h"
 #include "ProjectR/AbilitySystem/PRAbilitySystemComponent.h"
+#include "ProjectR/AI/Boss/Faerin/PRFaerinRainProjectileManager.h"
 #include "ProjectR/Character/Enemy/PREnemyBaseCharacter.h"
 #include "ProjectR/Character/Enemy/PRBossBaseCharacter.h"
 #include "ProjectR/Combat/PRCombatGameplayTags.h"
@@ -383,6 +384,37 @@ void APRBossPortalActor::FirePortalProjectile()
 		return;
 	}
 
+	// 경량 rain 투사체 경로: 액터/PMC/복제 없이 매니저에 등록한다. (토글 OFF면 이 분기는 건너뜀)
+	if (bUseLightweightRainProjectile && RainProjectileManager.IsValid())
+	{
+		const float ResolvedSpeed = ProjectileSpeedOverride > 0.0f ? ProjectileSpeedOverride : 3500.0f;
+		const FVector LaunchVelocity = LaunchDirection * ResolvedSpeed;
+		const FGameplayEffectSpecHandle LightweightEffectSpec = ProjectileEffectSpecHandle.IsValid()
+			? ProjectileEffectSpecHandle
+			: BuildProjectileEffectSpec();
+
+		PortalState = EPRBossPortalState::Firing;
+		MulticastPortalFireStarted();
+
+		RainProjectileManager->ServerEmitRainProjectile(
+			ProjectileSpawnTransform.GetLocation(),
+			LaunchVelocity,
+			LightweightProjectileLifetime,
+			LightweightEffectSpec,
+			IsValid(OwnerBoss) ? static_cast<AActor*>(OwnerBoss) : static_cast<AActor*>(this));
+
+		++CurrentProjectileFireCount;
+		if (CurrentProjectileFireCount >= MaxProjectilesToFire)
+		{
+			CompletePortalFireSequence();
+			return;
+		}
+
+		PortalState = EPRBossPortalState::Active;
+		ScheduleNextPortalFire();
+		return;
+	}
+
 	UWorld* World = GetWorld();
 	if (!IsValid(World))
 	{
@@ -465,6 +497,16 @@ void APRBossPortalActor::ClearPortalFireTimer()
 	if (UWorld* World = GetWorld())
 	{
 		World->GetTimerManager().ClearTimer(PortalFireTimerHandle);
+	}
+}
+
+void APRBossPortalActor::SetLightweightRainProjectile(bool bEnable, APRFaerinRainProjectileManager* InManager, float InLifetime)
+{
+	bUseLightweightRainProjectile = bEnable;
+	RainProjectileManager = InManager;
+	if (InLifetime > 0.0f)
+	{
+		LightweightProjectileLifetime = InLifetime;
 	}
 }
 

@@ -228,6 +228,21 @@ void APRBossBaseCharacter::Multicast_BroadcastBossBGMPatternCue_Implementation(F
 	BroadcastBossBGMPatternCueEvent(CueTag);
 }
 
+void APRBossBaseCharacter::BroadcastBossDefeated()
+{
+	if (!HasAuthority())
+	{
+		return;
+	}
+
+	Multicast_BroadcastBossDefeated();
+}
+
+void APRBossBaseCharacter::Multicast_BroadcastBossDefeated_Implementation()
+{
+	BroadcastBossDefeatedEvent();
+}
+
 void APRBossBaseCharacter::RegisterBossPatternActor(APRBossPatternActor* Actor)
 {
 	if (!HasAuthority() || !IsValid(Actor))
@@ -365,6 +380,8 @@ void APRBossBaseCharacter::HandleGameplayTagUpdated(const FGameplayTag& ChangedT
 			{
 				PlayGameMode->ReportBossDefeated(GetMonsterId());
 			}
+
+			BroadcastBossDefeated();
 		}
 	}
 	
@@ -445,6 +462,25 @@ void APRBossBaseCharacter::BroadcastBossBGMPatternCueEvent(FGameplayTag CueTag)
 	Payload.Boss = this;
 	Payload.CueTag = CueTag;
 	EventMgr->BroadcastTyped(PRGameplayTags::Event_Boss_BGMPatternCue, Payload);
+}
+
+void APRBossBaseCharacter::BroadcastBossDefeatedEvent()
+{
+	UWorld* World = GetWorld();
+	if (!IsValid(World))
+	{
+		return;
+	}
+
+	UPREventManagerSubsystem* EventMgr = World->GetSubsystem<UPREventManagerSubsystem>();
+	if (!IsValid(EventMgr))
+	{
+		return;
+	}
+
+	FPRBossEncounterEventPayload Payload;
+	Payload.Boss = this;
+	EventMgr->BroadcastTyped(PRGameplayTags::Event_Boss_Defeated, Payload);
 }
 
 void APRBossBaseCharacter::OnRep_CurrentPhase(EPRBossPhase OldPhase)

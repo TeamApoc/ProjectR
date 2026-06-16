@@ -34,6 +34,15 @@ bool UPRBGMRegistryDataAsset::TryGetTrackForState(const FPRLevelBGMEntry& Entry,
 	case EPRBGMState::Combat:
 		OutTrack = Entry.CombatTrack;
 		return true;
+	case EPRBGMState::BossIntroCutscene:
+		OutTrack = Entry.BossIntroCutsceneTrack;
+		return true;
+	case EPRBGMState::BossDialogue:
+		OutTrack = Entry.BossDialogueTrack;
+		return true;
+	case EPRBGMState::BossFightStartCutscene:
+		OutTrack = Entry.BossFightStartCutsceneTrack;
+		return true;
 	case EPRBGMState::BossPhase1:
 		OutTrack = Entry.BossPhase1Track;
 		return true;

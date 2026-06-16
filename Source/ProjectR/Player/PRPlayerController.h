@@ -171,7 +171,7 @@ public:
 
 	// 서버 -> 본인 클라. Faerin 인카운터 선택 UI를 닫는다
 	UFUNCTION(Client, Reliable)
-	void ClientCloseFaerinEncounterChoice();
+	void ClientCloseFaerinEncounterChoice(bool bRestoreDefaultBGM);
 
 	// Faerin 인카운터 전투 선택을 서버에 전달한다
 	UFUNCTION(Server, Reliable)

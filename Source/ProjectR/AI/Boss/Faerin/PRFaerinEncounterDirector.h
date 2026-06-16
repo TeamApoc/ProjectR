@@ -366,7 +366,7 @@ private:
 	void PlaySequenceLocal(EFaerinEncounterSequence SequenceType);
 	void StopLocalSequences();
 	void OpenChoiceUIForPlayer(APRPlayerCharacter* Player);
-	void CloseChoiceUIForInstigator();
+	void CloseChoiceUIForInstigator(bool bRestoreDefaultBGM = true);
 
 public:
 	// 실제 전투 보스를 생성하는 스포너 Actor. IPRBossSpawnProviderInterface 구현체여야 한다.

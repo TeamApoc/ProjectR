@@ -181,7 +181,6 @@ void APRPlayerState::InitializePrimaryInfoFromSaveData(const FPRCharacterSaveDat
 		GrowthComponent->ApplyGrowthSaveData(InSaveData.Experience, InSaveData.Level, InSaveData.Stats);
 	}
 	bPendingSaveDataApply = true;
-	bPendingStartUpItemsMerge = false;
 
 	ForceNetUpdate();
 }
@@ -194,7 +193,6 @@ void APRPlayerState::QueueSaveDataApply(const FPRCharacterSaveData& InSaveData, 
 	}
 
 	InitializePrimaryInfoFromSaveData(InSaveData);
-	bPendingStartUpItemsMerge = bMergeStartUpItems;
 }
 
 void APRPlayerState::MarkCharacterPayloadAccepted()
@@ -214,15 +212,15 @@ void APRPlayerState::ApplyPendingSaveData()
 		return;
 	}
 
-	ApplySaveDataInternal(CurrentSaveData, bPendingStartUpItemsMerge);
+	ApplySaveDataInternal(CurrentSaveData);
 }
 
 void APRPlayerState::ApplySaveData(const FPRCharacterSaveData& InSaveData)
 {
-	ApplySaveDataInternal(InSaveData, false);
+	ApplySaveDataInternal(InSaveData);
 }
 
-void APRPlayerState::ApplySaveDataInternal(const FPRCharacterSaveData& InSaveData, bool bMergeStartUpItems)
+void APRPlayerState::ApplySaveDataInternal(const FPRCharacterSaveData& InSaveData)
 {
 	if (!HasAuthority())
 	{
@@ -268,14 +266,10 @@ void APRPlayerState::ApplySaveDataInternal(const FPRCharacterSaveData& InSaveDat
 		GrowthComponent->ApplyGrowthSaveData(InSaveData.Experience, InSaveData.Level, InSaveData.Stats);
 	}
 
-	if (bMergeStartUpItems)
-	{
-		// 신규 또는 빈 세이브의 기본 지급 아이템 보강
-		GiveStartUpItems();
-	}
+	// 신규 또는 빈 세이브의 기본 지급 아이템 보강
+	GiveStartUpItems();
 
 	bPendingSaveDataApply = false;
-	bPendingStartUpItemsMerge = false;
 
 	ForceNetUpdate();
 }

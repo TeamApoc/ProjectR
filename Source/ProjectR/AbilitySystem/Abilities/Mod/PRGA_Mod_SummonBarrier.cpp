@@ -5,7 +5,6 @@
 #include "AbilitySystemComponent.h"
 #include "Components/SceneComponent.h"
 #include "Engine/World.h"
-#include "GameFramework/Controller.h"
 #include "GameFramework/Pawn.h"
 #include "ProjectR/AbilitySystem/Data/PRBarrierAbilityDataAsset.h"
 #include "ProjectR/PRGameplayTags.h"
@@ -65,7 +64,7 @@ void UPRGA_Mod_SummonBarrier::ActivateAbility(const FGameplayAbilitySpecHandle H
 			return;
 		}
 
-		const bool bLaunched = LaunchActiveBarrier(ActorInfo);
+		const bool bLaunched = LaunchActiveBarrier();
 		EndAbility(Handle, ActorInfo, ActivationInfo, true, !bLaunched);
 		return;
 	}
@@ -223,20 +222,20 @@ APRBarrierAnchorActor* UPRGA_Mod_SummonBarrier::SpawnBarrierAnchor(APawn* Player
 	return SpawnedAnchor;
 }
 
-bool UPRGA_Mod_SummonBarrier::LaunchActiveBarrier(const FGameplayAbilityActorInfo* ActorInfo)
+bool UPRGA_Mod_SummonBarrier::LaunchActiveBarrier()
 {
 	if (!HasActiveBarrier())
 	{
 		return false;
 	}
 
-	const FVector LaunchDirection = ResolveLaunchDirection(ActorInfo);
+	APRGroundBoxProjectileBase* BarrierToLaunch = ActiveBarrier;
+	const FVector LaunchDirection = BarrierToLaunch->GetActorForwardVector();
 	if (!IsValid(BarrierData) || LaunchDirection.IsNearlyZero() || BarrierData->LaunchSpeed <= 0.0f)
 	{
 		return false;
 	}
 
-	APRGroundBoxProjectileBase* BarrierToLaunch = ActiveBarrier;
 	bLaunchRequested = true;
 	UnbindDurationCostRemovalEvent();
 	UnbindSurvivalTagEvents();
@@ -372,34 +371,6 @@ void UPRGA_Mod_SummonBarrier::UnbindSurvivalTagEvents()
 }
 
 /*~ 이벤트 처리 ~*/
-
-FVector UPRGA_Mod_SummonBarrier::ResolveLaunchDirection(const FGameplayAbilityActorInfo* ActorInfo) const
-{
-	if (ActorInfo == nullptr)
-	{
-		return FVector::ZeroVector;
-	}
-
-	const APawn* PlayerPawn = Cast<APawn>(ActorInfo->AvatarActor.Get());
-	if (!IsValid(PlayerPawn))
-	{
-		return FVector::ZeroVector;
-	}
-
-	if (const AController* Controller = PlayerPawn->GetController())
-	{
-		const FRotator ControlRotation = Controller->GetControlRotation();
-		const FVector ControlDirection = FRotator(0.0f, ControlRotation.Yaw, 0.0f).Vector();
-		if (!ControlDirection.IsNearlyZero())
-		{
-			return ControlDirection.GetSafeNormal();
-		}
-	}
-
-	FVector ActorDirection = PlayerPawn->GetActorForwardVector();
-	ActorDirection.Z = 0.0f;
-	return ActorDirection.GetSafeNormal();
-}
 
 void UPRGA_Mod_SummonBarrier::HandleDurationCostRemoved(const FGameplayEffectRemovalInfo& RemovalInfo)
 {

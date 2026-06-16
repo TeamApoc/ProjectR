@@ -64,7 +64,7 @@ protected:
 	APRBarrierAnchorActor* SpawnBarrierAnchor(APawn* PlayerPawn);
 
 	// 활성 배리어 발사
-	bool LaunchActiveBarrier(const FGameplayAbilityActorInfo* ActorInfo);
+	bool LaunchActiveBarrier();
 
 	// 배리어 제거 요청
 	void RequestActiveBarrierEnd();
@@ -86,9 +86,6 @@ protected:
 
 	// 생존 태그 이벤트 해제
 	void UnbindSurvivalTagEvents();
-
-	// 발사 방향 계산
-	FVector ResolveLaunchDirection(const FGameplayAbilityActorInfo* ActorInfo) const;
 
 	// 비용 GE 제거 처리
 	void HandleDurationCostRemoved(const FGameplayEffectRemovalInfo& RemovalInfo);

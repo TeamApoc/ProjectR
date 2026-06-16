@@ -51,7 +51,6 @@ public:
 		return nullptr;
 	}
 	
-	
 	// ActivationPolicy 조회. ASC OnGiveAbility 및 입력 라우터에서 사용
 	EPRAbilityActivationPolicy GetActivationPolicy() const { return ActivationPolicy; }
 
@@ -63,7 +62,6 @@ public:
 	
 	// Instance된 어빌리티의 SourceObject(ItemInstance)로부터 WeaponData를 반환
 	UPRWeaponDataAsset* GetCurrentWeaponData() const;
-	
 	
 	// PlayerCharacter의 WeaponManager 반환
 	UPRWeaponManagerComponent* GetWeaponManager(const FGameplayAbilityActorInfo* ActorInfo) const;
@@ -81,10 +79,6 @@ public:
 	// 기본 구현은 Registry의 DamageGE_FromMod 사용. 파생 클래스에서 다른 GE로 교체 가능
 	virtual FGameplayEffectSpecHandle MakeModEffectSpec(float Damage, float GroggyDamage = 0.0f, const FHitResult* HitResult = nullptr) const;
 
-
-	UFUNCTION(BlueprintCallable)
-	virtual void ApplySourceModCost() const;
-	
 	virtual void OnFailActivateAbility(const UAbilitySystemComponent* InOwnerASC, const FGameplayAbilitySpec* InAbilitySpec) const;
 	
 protected:

@@ -757,27 +757,6 @@ void UPRWeaponManagerComponent::RefreshCurrentWeaponUpgradeState(UPRItemInstance
 	OnWeaponEquipmentChanged.Broadcast(this, CurrentWeaponSlot);
 }
 
-void UPRWeaponManagerComponent::PlayWeaponNiagaraEffect(EPRWeaponEffectType EffectType, UNiagaraSystem* InNiagaraSystem)
-{
-	APRWeaponActor* ActiveWeaponActor = CurrentWeaponSlot == EPRWeaponSlotType::Primary ? PrimaryWeaponActor : SecondaryWeaponActor;
-	if (IsValid(ActiveWeaponActor))
-	{
-		ActiveWeaponActor->PlayNiagaraEffect(EffectType, InNiagaraSystem);
-	}
-}
-
-void UPRWeaponManagerComponent::Multicast_PlayWeaponNiagaraEffect_Implementation(EPRWeaponEffectType EffectType,UNiagaraSystem* InNiagaraSystem)
-{
-	if (APawn* OwnerPawn = GetPawnOwner())
-	{
-		// LocallyControlled인 경우 Multicast가 아닌 직접 PlayWeaponNiagaraEffect 호출
-		if (!OwnerPawn->IsLocallyControlled())
-		{
-			PlayWeaponNiagaraEffect(EffectType, InNiagaraSystem);
-		}
-	}
-}
-
 void UPRWeaponManagerComponent::RequestWeaponAnimation(EPRWeaponAnimationState AnimationState)
 {
 	APRWeaponActor* ActiveWeaponActor = (CurrentWeaponSlot == EPRWeaponSlotType::Primary)

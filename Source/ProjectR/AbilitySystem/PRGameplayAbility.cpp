@@ -311,14 +311,6 @@ FGameplayEffectSpecHandle UPRGameplayAbility::MakeModEffectSpec(float Damage, fl
 	return SpecHandle;
 }
 
-void UPRGameplayAbility::ApplySourceModCost() const
-{
-	if (UPRGA_Mod* SourceMod = Cast<UPRGA_Mod>(GetCurrentSourceObject()))
-	{
-		SourceMod->ApplyModCost(GetCurrentActorInfo());
-	}
-}
-
 void UPRGameplayAbility::OnFailActivateAbility(const UAbilitySystemComponent* InOwnerASC,
 	const FGameplayAbilitySpec* InAbilitySpec) const
 {

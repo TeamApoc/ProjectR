@@ -44,7 +44,8 @@ public:
 	void GiveToAbilitySystem(UAbilitySystemComponent* TargetASC,
 		FPRAbilitySetHandles& OutHandles,
 		UObject* InSourceObject,
-		const FGameplayTagContainer* AdditionalDynamicTags = nullptr);
+		const FGameplayTagContainer* AdditionalDynamicTags = nullptr,
+		const FGameplayTagContainer* BaseFireAdditionalDynamicTags = nullptr);
 	
 public:
 	// 무기 타입 분류

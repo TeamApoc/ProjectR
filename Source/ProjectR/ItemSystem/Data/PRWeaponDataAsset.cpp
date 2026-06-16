@@ -4,6 +4,7 @@
 // Author: 이건주 (Mod 장착 슬롯 및 인벤토리 연동 무기 능력치 정의)
 #include "PRWeaponDataAsset.h"
 
+#include "ProjectR/AbilitySystem/Abilities/Player/PRGA_Fire.h"
 #include "ProjectR/ItemSystem/Items/PRItemInstance_Weapon.h"
 #include "ProjectR/System/PRDeveloperSettings.h"
 #include "ProjectR/UI/Crosshair/PRCrosshairConfig.h"
@@ -34,7 +35,8 @@ const UPRCrosshairConfig* UPRWeaponDataAsset::GetCrosshairConfig() const
 void UPRWeaponDataAsset::GiveToAbilitySystem(UAbilitySystemComponent* TargetASC,
 	FPRAbilitySetHandles& OutHandles,
 	UObject* InSourceObject,
-	const FGameplayTagContainer* AdditionalDynamicTags)
+	const FGameplayTagContainer* AdditionalDynamicTags,
+	const FGameplayTagContainer* BaseFireAdditionalDynamicTags)
 {
 	for (const FPRAbilityEntry& Entry :EquippedAbilities)
 	{
@@ -43,7 +45,25 @@ void UPRWeaponDataAsset::GiveToAbilitySystem(UAbilitySystemComponent* TargetASC,
 			continue;
 		}
 
-		Entry.GiveToAbilitySystem(TargetASC, OutHandles, InSourceObject, AdditionalDynamicTags);
+		FGameplayTagContainer EntryAdditionalDynamicTags;
+		if (AdditionalDynamicTags != nullptr)
+		{
+			// 슬롯 차단 태그
+			EntryAdditionalDynamicTags.AppendTags(*AdditionalDynamicTags);
+		}
+
+		if (BaseFireAdditionalDynamicTags != nullptr
+			&& Entry.AbilityClass->IsChildOf(UPRGA_Fire::StaticClass()))
+		{
+			// 기본 사격 모드 차단 태그
+			EntryAdditionalDynamicTags.AppendTags(*BaseFireAdditionalDynamicTags);
+		}
+
+		Entry.GiveToAbilitySystem(
+			TargetASC,
+			OutHandles,
+			InSourceObject,
+			EntryAdditionalDynamicTags.IsEmpty() ? nullptr : &EntryAdditionalDynamicTags);
 	}
 
 	for (const FPREffectEntry& Entry :EquippedEffects)

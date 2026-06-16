@@ -79,6 +79,14 @@ void UPRGA_Mod_FireProjectile::OnProjectileSpawnFailed(APRProjectileBase* Spawne
 	K2_OnProjectileSpawnFailed(SpawnedProjectile);
 	K2_EndAbility();
 }
+
+/*~ 프리뷰 ~*/
+
+EPRFirePreviewMode UPRGA_Mod_FireProjectile::GetPreviewFireMode() const
+{
+	return EPRFirePreviewMode::ModFire;
+}
+
 /*~ EffectSpec 오버라이드 ~*/
 
 FGameplayEffectSpecHandle UPRGA_Mod_FireProjectile::MakeModEffectSpec(float InDamage, float InGroggyDamage, const FHitResult* HitResult) const

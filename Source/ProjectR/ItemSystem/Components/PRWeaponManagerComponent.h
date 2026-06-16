@@ -126,6 +126,9 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "ProjectR|Weapon")
 	void SetWeaponArmedState(EPRArmedState NewArmedState);
 
+	// 현재 슬롯의 사격 모드 태그를 갱신한다
+	void RefreshCurrentWeaponFireModeTags();
+
 	// 현재 활성 슬롯에 대응하는 로컬 무기 Actor를 반환한다
 	UFUNCTION(BlueprintPure, Category = "ProjectR|Weapon")
 	APRWeaponActor* GetActiveWeaponActor() const;

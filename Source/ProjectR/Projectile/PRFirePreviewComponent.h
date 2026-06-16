@@ -4,6 +4,8 @@
 
 #include "CoreMinimal.h"
 #include "Components/ActorComponent.h"
+#include "Misc/Optional.h"
+#include "PRFirePreviewTypes.h"
 #include "PRProjectileTypes.h"
 #include "PRFirePreviewComponent.generated.h"
 
@@ -31,10 +33,15 @@ public:
     /*~ UPRFirePreviewComponent Interface ~*/
     UFUNCTION(BlueprintCallable, Category = "ProjectR|Projectile|Preview")
     void SetTrajectoryPreviewEnabled(bool bInEnabled);
-    
-    // 발사 파라미터 일괄 갱신. 런타임 호출 가능
-    UFUNCTION(BlueprintCallable, Category = "ProjectR|Projectile|Preview")
-    void SetFireParams(const FPRProjectilePreviewParams& InParams);
+
+    // 투사체 경로 프리뷰 파라미터 등록
+    void RegisterProjectilePreviewParams(const FPRFirePreviewKey& Key, const FPRFirePreviewEntry& Entry);
+
+    // 투사체 경로 프리뷰 파라미터 등록 해제
+    void UnregisterProjectilePreviewParams(const FPRFirePreviewKey& Key, FGameplayAbilitySpecHandle AbilitySpecHandle);
+
+    // 현재 슬롯과 발사 모드 기준 프리뷰 파라미터 갱신
+    void RefreshActivePreviewParams();
 
     // 궤적 기점 무기 액터 주입. nullptr 주입 시 표시 강제 OFF
     UFUNCTION(BlueprintCallable, Category = "ProjectR|Projectile|Preview")
@@ -54,10 +61,6 @@ public:
 
     // 직전 틱 산출 결과 조회. UI/에임 어시스트 등 외부 시스템이 착탄 위치 참조 시 사용
     const FPRProjectilePreviewResult& GetLastResult() const { return LastResult; }
-
-    void BindObject(UObject* InObject) {BoundObject = InObject;}
-
-    UObject* GetBoundObject() const { return BoundObject; }
 
 protected:
     /*~ UActorComponent Interface ~*/
@@ -81,6 +84,15 @@ protected:
     virtual void ClearTrajectoryISMC();
 
 private:
+    // 현재 슬롯과 발사 모드 기준 프리뷰 키 산출
+    bool TryResolveActivePreviewKey(FPRFirePreviewKey& OutKey);
+
+    // 지정 키의 투사체 프리뷰 등록 여부
+    bool HasProjectilePreviewForKey(const FPRFirePreviewKey& Key) const;
+
+    // 발사 파라미터 일괄 반영
+    void ApplyFireParams(const FPRProjectilePreviewParams& InParams);
+
     // PredictProjectilePath 1회 호출 + 결과를 SampleSpacing 기준으로 다운샘플링하여 LastResult 갱신
     void RebuildPath();
 
@@ -98,6 +110,9 @@ private:
 
     // PlayerState 복제 지연 이후 무기 매니저 재조회 캐시
     UPRWeaponManagerComponent* GetWeaponManager();
+
+    // 사격 모드 태그 조회용 ASC 캐시
+    class UAbilitySystemComponent* GetOwnerAbilitySystemComponent() const;
 
 protected:
     // 발사 파라미터 묶음. 무기/탄종 변경 시 일괄 교체
@@ -145,6 +160,12 @@ private:
     // 직전 틱 산출 결과 캐시
     FPRProjectilePreviewResult LastResult;
 
+    // 키별 투사체 경로 프리뷰 등록 목록
+    TMap<FPRFirePreviewKey, FPRFirePreviewEntry> PreviewEntries;
+
+    // 현재 적용 중인 프리뷰 키
+    TOptional<FPRFirePreviewKey> ActivePreviewKey;
+
     // 크로스헤어에 마지막으로 전파한 히트스캔 미리보기 상태 존재 여부
     bool bHasPreviewHitState = false;
 
@@ -152,7 +173,4 @@ private:
     bool bLastPreviewHit = false;
     
     TWeakObjectPtr<UPRWeaponManagerComponent> CachedWeaponManager;
-    
-    UPROPERTY()
-    TObjectPtr<UObject> BoundObject;
 };

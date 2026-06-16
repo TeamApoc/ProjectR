@@ -83,6 +83,84 @@ namespace
 		}
 	}
 
+	// ASC 상태 태그 추가
+	void AddASCStateTag(UPRAbilitySystemComponent* ASC, AActor* OwnerActor, const FGameplayTag& Tag)
+	{
+		if (!IsValid(ASC) || !Tag.IsValid())
+		{
+			return;
+		}
+
+		ASC->AddLooseGameplayTag(Tag);
+		if (IsValid(OwnerActor) && OwnerActor->HasAuthority())
+		{
+			ASC->AddReplicatedLooseGameplayTag(Tag);
+		}
+	}
+
+	// ASC 상태 태그 제거
+	void RemoveASCStateTag(UPRAbilitySystemComponent* ASC, AActor* OwnerActor, const FGameplayTag& Tag)
+	{
+		if (!IsValid(ASC) || !Tag.IsValid())
+		{
+			return;
+		}
+
+		ASC->RemoveLooseGameplayTag(Tag);
+		if (IsValid(OwnerActor) && OwnerActor->HasAuthority())
+		{
+			ASC->RemoveReplicatedLooseGameplayTag(Tag);
+		}
+	}
+
+	// 슬롯 태그 조회
+	FGameplayTag ResolveCurrentSlotTag(EPRWeaponSlotType SlotType)
+	{
+		if (SlotType == EPRWeaponSlotType::Primary)
+		{
+			return PRGameplayTags::State_CurrentWeaponSlot_Primary;
+		}
+
+		if (SlotType == EPRWeaponSlotType::Secondary)
+		{
+			return PRGameplayTags::State_CurrentWeaponSlot_Secondary;
+		}
+
+		return FGameplayTag();
+	}
+
+	// 기본 사격 태그 조회
+	FGameplayTag ResolveCurrentSlotBaseFireTag(EPRWeaponSlotType SlotType)
+	{
+		if (SlotType == EPRWeaponSlotType::Primary)
+		{
+			return PRGameplayTags::State_CurrentWeaponSlot_Primary_Base;
+		}
+
+		if (SlotType == EPRWeaponSlotType::Secondary)
+		{
+			return PRGameplayTags::State_CurrentWeaponSlot_Secondary_Base;
+		}
+
+		return FGameplayTag();
+	}
+
+	// Mod 사격 태그 조회
+	FGameplayTag ResolveCurrentSlotModFireTag(EPRWeaponSlotType SlotType)
+	{
+		if (SlotType == EPRWeaponSlotType::Primary)
+		{
+			return PRGameplayTags::State_CurrentWeaponSlot_Primary_Mod;
+		}
+
+		if (SlotType == EPRWeaponSlotType::Secondary)
+		{
+			return PRGameplayTags::State_CurrentWeaponSlot_Secondary_Mod;
+		}
+
+		return FGameplayTag();
+	}
+
 }
 
 UPRWeaponManagerComponent::UPRWeaponManagerComponent()
@@ -543,6 +621,39 @@ void UPRWeaponManagerComponent::SetWeaponArmedState(EPRArmedState NewArmedState)
 
 	// 서버 권위에서 무장 상태를 변경하도록 RPC 전송
 	Server_SetWeaponArmedState(NewArmedState);
+}
+
+void UPRWeaponManagerComponent::RefreshCurrentWeaponFireModeTags()
+{
+	UPRAbilitySystemComponent* ASC = CachedASC.IsValid() ? CachedASC.Get() : nullptr;
+	if (!IsValid(ASC))
+	{
+		if (APRPlayerState* PlayerState = GetOwnerPlayerState())
+		{
+			ASC = PlayerState->GetPRAbilitySystemComponent();
+		}
+	}
+
+	if (!IsValid(ASC) || !IsSupportedSlot(CurrentWeaponSlot))
+	{
+		return;
+	}
+
+	const FGameplayTag BaseFireTag = ResolveCurrentSlotBaseFireTag(CurrentWeaponSlot);
+	const FGameplayTag ModFireTag = ResolveCurrentSlotModFireTag(CurrentWeaponSlot);
+	AActor* OwnerActor = GetOwner();
+
+	// 기존 사격 모드 태그 제거
+	RemoveASCStateTag(ASC, OwnerActor, BaseFireTag);
+	RemoveASCStateTag(ASC, OwnerActor, ModFireTag);
+
+	const UPRItemInstance_Weapon* CurrentWeapon = GetWeaponInstanceBySlotType(CurrentWeaponSlot);
+	const FGameplayTag NewFireModeTag = IsValid(CurrentWeapon) && CurrentWeapon->FireModeState == EPRWeaponFireModeState::ModFire
+		? ModFireTag
+		: BaseFireTag;
+
+	// 현재 사격 모드 태그 추가
+	AddASCStateTag(ASC, OwnerActor, NewFireModeTag);
 }
 
 APRWeaponActor* UPRWeaponManagerComponent::GetActiveWeaponActor() const
@@ -1778,41 +1889,23 @@ void UPRWeaponManagerComponent::UpdateCurrentWeaponSlotTags(EPRWeaponSlotType Ol
 		return;
 	}
 
-	auto ResolveSlotTag = [](EPRWeaponSlotType SlotType) -> FGameplayTag
-	{
-		if (SlotType == EPRWeaponSlotType::Primary)
-		{
-			return PRGameplayTags::State_CurrentWeaponSlot_Primary;
-		}
+	AActor* OwnerActor = GetOwner();
 
-		if (SlotType == EPRWeaponSlotType::Secondary)
-		{
-			return PRGameplayTags::State_CurrentWeaponSlot_Secondary;
-		}
-
-		return FGameplayTag();
-	};
-
-	const FGameplayTag OldTag = ResolveSlotTag(OldSlot);
+	const FGameplayTag OldTag = ResolveCurrentSlotTag(OldSlot);
 	if (OldTag.IsValid())
 	{
 		// 이전 슬롯 태그 제거
-		ASC->RemoveLooseGameplayTag(OldTag);
-		if (IsValid(GetOwner()) && GetOwner()->HasAuthority())
-		{
-			ASC->RemoveReplicatedLooseGameplayTag(OldTag);
-		}
+		RemoveASCStateTag(ASC, OwnerActor, OldTag);
+		RemoveASCStateTag(ASC, OwnerActor, ResolveCurrentSlotBaseFireTag(OldSlot));
+		RemoveASCStateTag(ASC, OwnerActor, ResolveCurrentSlotModFireTag(OldSlot));
 	}
 
-	const FGameplayTag NewTag = ResolveSlotTag(NewSlot);
+	const FGameplayTag NewTag = ResolveCurrentSlotTag(NewSlot);
 	if (NewTag.IsValid())
 	{
 		// 현재 슬롯 태그 추가
-		ASC->AddLooseGameplayTag(NewTag);
-		if (IsValid(GetOwner()) && GetOwner()->HasAuthority())
-		{
-			ASC->AddReplicatedLooseGameplayTag(NewTag);
-		}
+		AddASCStateTag(ASC, OwnerActor, NewTag);
+		RefreshCurrentWeaponFireModeTags();
 	}
 }
 

@@ -105,6 +105,7 @@ protected:
 	// 무기 비활성화 시 임시 런타임 상태를 정리한다
 	void ResetTransientRuntimeOnDeactivate();
 
+	FGameplayTagContainer BuildCurrentSlotFireModeBlockTags(const UPRWeaponDataAsset* WeaponData, EPRWeaponFireModeState BlockedFireModeState);
 	
 	FGameplayTagContainer BuildOppositeSlotBlockTags(const UPRWeaponDataAsset* WeaponData);
 private:

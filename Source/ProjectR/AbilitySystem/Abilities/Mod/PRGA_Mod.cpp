@@ -5,6 +5,7 @@
 #include "AbilitySystemComponent.h"
 #include "AbilitySystemBlueprintLibrary.h"
 #include "DrawDebugHelpers.h"
+#include "GameFramework/GameStateBase.h"
 #include "ProjectR/AbilitySystem/AttributeSets/PRAttributeSet_Weapon.h"
 #include "ProjectR/AbilitySystem/Data/PRAbilitySystemRegistry.h"
 #include "ProjectR/AbilitySystem/Effects/PRGE_ModCost_GaugeDuration.h"
@@ -46,16 +47,21 @@ void UPRGA_Mod::ActivateAbility(const FGameplayAbilitySpecHandle Handle, const F
 	}
 	
 	// 모드 UI 하이라이트용 이벤트 전송
-	if (UPREventManagerSubsystem* EventManager = GetWorld()->GetSubsystem<UPREventManagerSubsystem>())
+	if (IsLocallyControlled())
 	{
-		FPRModActivationPayload Payload;
-		Payload.bActivated = true;
-		if (UPRWeaponDataAsset* WeaponData = GetCurrentWeaponData())
+		if (UPREventManagerSubsystem* EventManager = GetWorld()->GetSubsystem<UPREventManagerSubsystem>())
 		{
-			Payload.SlotType = WeaponData->SlotType;	
-		}
+			FPRModActivationPayload Payload;
+			Payload.bActivated = true;
+			Payload.bUsesModDuration = ModCostPolicy == EPRModCostPolicy::GaugeDuration;
+			Payload.ModDurationSeconds = Payload.bUsesModDuration ? ModDuration : 0.0f;
+			if (UPRWeaponDataAsset* WeaponData = GetCurrentWeaponData())
+			{
+				Payload.SlotType = WeaponData->SlotType;	
+			}
 		
-		EventManager->BroadcastTyped(PRGameplayTags::Event_Player_ModActivation, Payload);
+			EventManager->BroadcastTyped(PRGameplayTags::Event_Player_ModActivation, Payload);
+		}
 	}
 	
 	Super::ActivateAbility(Handle, ActorInfo, ActivationInfo, TriggerEventData);
@@ -64,17 +70,22 @@ void UPRGA_Mod::ActivateAbility(const FGameplayAbilitySpecHandle Handle, const F
 void UPRGA_Mod::EndAbility(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo,
 	const FGameplayAbilityActivationInfo ActivationInfo, bool bReplicateEndAbility, bool bWasCancelled)
 {
-	// 모드 UI 하이라이트 끄기용 이벤트 전송
-	if (UPREventManagerSubsystem* EventManager = GetWorld()->GetSubsystem<UPREventManagerSubsystem>())
+	if (IsLocallyControlled())
 	{
-		FPRModActivationPayload Payload;
-		Payload.bActivated = false;
-		if (UPRWeaponDataAsset* WeaponData = GetCurrentWeaponData())
+		// 모드 UI 하이라이트 끄기용 이벤트 전송
+		if (UPREventManagerSubsystem* EventManager = GetWorld()->GetSubsystem<UPREventManagerSubsystem>())
 		{
-			Payload.SlotType = WeaponData->SlotType;	
-		}
+			FPRModActivationPayload Payload;
+			Payload.bActivated = false;
+			Payload.bWasCancelled = bWasCancelled;
+			Payload.bUsesModDuration = ModCostPolicy == EPRModCostPolicy::GaugeDuration;
+			if (UPRWeaponDataAsset* WeaponData = GetCurrentWeaponData())
+			{
+				Payload.SlotType = WeaponData->SlotType;	
+			}
 		
-		EventManager->BroadcastTyped(PRGameplayTags::Event_Player_ModActivation, Payload);
+			EventManager->BroadcastTyped(PRGameplayTags::Event_Player_ModActivation, Payload);
+		}
 	}
 	
 	Super::EndAbility(Handle, ActorInfo, ActivationInfo, bReplicateEndAbility, bWasCancelled);
@@ -129,34 +140,42 @@ bool UPRGA_Mod::CheckCost(const FGameplayAbilitySpecHandle Handle, const FGamepl
 	return bHasCost;
 }
 
-FActiveGameplayEffectHandle UPRGA_Mod::ApplyModCost(const FGameplayAbilityActorInfo* ActorInfo) const
+FActiveGameplayEffectHandle UPRGA_Mod::ApplyModCost(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo,
+						  const FGameplayAbilityActivationInfo ActivationInfo) const
 {
+	UPRGA_Mod* AbilityInstance = GetAbilityInstance<UPRGA_Mod>(Handle, ActorInfo);
+	if (!AbilityInstance)
+	{
+		// InstancingPolicy가 Instance를 생성하지 않음
+		return FActiveGameplayEffectHandle();
+	}
+	
 	// 비용 핸들 초기화
-	LastAppliedModCostHandle.Invalidate();
+	AbilityInstance->LastAppliedModCostHandle.Invalidate();
 
 	if (ModCostPolicy == EPRModCostPolicy::Stack)
 	{
-		LastAppliedModCostHandle = ApplyModStackCost(ActorInfo);
+		AbilityInstance->LastAppliedModCostHandle = ApplyModStackCost(Handle, ActorInfo, ActivationInfo);
 	}
 	else if (ModCostPolicy == EPRModCostPolicy::GaugeDuration)
 	{
-		LastAppliedModCostHandle = ApplyModGaugeDurationCost(ActorInfo);
+		AbilityInstance->LastAppliedModCostHandle = ApplyModGaugeDurationCost(Handle, ActorInfo, ActivationInfo);
 	}
 
-	if (LastAppliedModCostHandle.IsValid())
+	if (AbilityInstance->LastAppliedModCostHandle.IsValid())
 	{
 		// 비용 핸들 캐싱
-		ActiveModCostHandles.AddUnique(LastAppliedModCostHandle);
+		AbilityInstance->ActiveModCostHandles.AddUnique(AbilityInstance->LastAppliedModCostHandle);
 	}
 
-	return LastAppliedModCostHandle;
+	return AbilityInstance->LastAppliedModCostHandle;
 }
 
 void UPRGA_Mod::ApplyCost(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo,
                           const FGameplayAbilityActivationInfo ActivationInfo) const
 {
 	Super::ApplyCost(Handle, ActorInfo, ActivationInfo);
-	ApplyModCost(ActorInfo);
+	ApplyModCost(Handle, ActorInfo, ActivationInfo);
 }
 
 UPRWeaponModDataAsset* UPRGA_Mod::GetCurrentModData() const
@@ -356,7 +375,8 @@ bool UPRGA_Mod::HasActiveModGaugeLock(const FGameplayAbilityActorInfo* ActorInfo
 	return false;
 }
 
-FActiveGameplayEffectHandle UPRGA_Mod::ApplyModStackCost(const FGameplayAbilityActorInfo* ActorInfo) const
+FActiveGameplayEffectHandle UPRGA_Mod::ApplyModStackCost(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo,
+						  const FGameplayAbilityActivationInfo ActivationInfo) const
 {
 	TSubclassOf<UGameplayEffect> CostGE;
 	
@@ -378,10 +398,11 @@ FActiveGameplayEffectHandle UPRGA_Mod::ApplyModStackCost(const FGameplayAbilityA
 	}
 
 	FGameplayEffectSpecHandle GEHandle = MakeOutgoingGameplayEffectSpec(CostGE, 1);
-	return ApplyGameplayEffectSpecToOwner(GetCurrentAbilitySpecHandle(),GetCurrentActorInfo(),GetCurrentActivationInfo(),GEHandle);
+	return ApplyGameplayEffectSpecToOwner(Handle,ActorInfo,ActivationInfo,GEHandle);
 }
 
-FActiveGameplayEffectHandle UPRGA_Mod::ApplyModGaugeDurationCost(const FGameplayAbilityActorInfo* ActorInfo) const
+FActiveGameplayEffectHandle UPRGA_Mod::ApplyModGaugeDurationCost(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo,
+						  const FGameplayAbilityActivationInfo ActivationInfo) const
 {
 	EPRWeaponSlotType SlotType = EPRWeaponSlotType::None;
 	UAbilitySystemComponent* ASC = nullptr;
@@ -397,11 +418,7 @@ FActiveGameplayEffectHandle UPRGA_Mod::ApplyModGaugeDurationCost(const FGameplay
 		return FActiveGameplayEffectHandle();
 	}
 
-	const FGameplayEffectSpecHandle SpecHandle = MakeOutgoingGameplayEffectSpec(
-		GetCurrentAbilitySpecHandle(),
-		GetCurrentActorInfo(),
-		GetCurrentActivationInfo(),
-		UPRGE_ModCost_GaugeDuration::StaticClass());
+	const FGameplayEffectSpecHandle SpecHandle = MakeOutgoingGameplayEffectSpec(Handle,	ActorInfo,ActivationInfo,UPRGE_ModCost_GaugeDuration::StaticClass());
 	if (!SpecHandle.IsValid())
 	{
 		return FActiveGameplayEffectHandle();
@@ -426,7 +443,9 @@ FActiveGameplayEffectHandle UPRGA_Mod::ApplyModGaugeDurationCost(const FGameplay
 
 	if (UWorld* World = GetWorld())
 	{
-		WeaponInstance->ModEffectEndServerWorldTimeSeconds = World->GetTimeSeconds() + ModDuration;
+		const AGameStateBase* GameState = World->GetGameState();
+		const float ServerWorldTimeSeconds = IsValid(GameState) ? GameState->GetServerWorldTimeSeconds() : World->GetTimeSeconds();
+		WeaponInstance->ModEffectEndServerWorldTimeSeconds = ServerWorldTimeSeconds + ModDuration;
 	}
 
 	return CostHandle;

@@ -150,6 +150,10 @@ void UPRGameplayAbility_FaerinShiftSequence::EndAbility(
 	bShiftMoveInProgress = false;
 	bFinishWhenShiftMoveCompletes = false;
 	bShiftSequenceFinished = false;
+	if (APRPlayerCharacter* PlayerCharacter = Cast<APRPlayerCharacter>(ActiveShiftTarget.Get()))
+	{
+		PlayerCharacter->SetExternalForcedMoveCameraLagOverride(false);
+	}
 	ActiveShiftTarget = nullptr;
 	ActiveShiftWarningVFXKey = NAME_None;
 	SmoothShiftElapsedSeconds = 0.0f;
@@ -598,6 +602,10 @@ bool UPRGameplayAbility_FaerinShiftSequence::StartSmoothTargetShift(const FVecto
 	World->GetTimerManager().ClearTimer(SmoothShiftTimerHandle);
 
 	ActiveShiftTarget = TargetActor;
+	if (APRPlayerCharacter* PlayerCharacter = Cast<APRPlayerCharacter>(TargetActor))
+	{
+		PlayerCharacter->SetExternalForcedMoveCameraLagOverride(true);
+	}
 	SmoothShiftStartLocation = TargetActor->GetActorLocation();
 	SmoothShiftEndLocation = Destination;
 	SmoothShiftStartRotation = TargetActor->GetActorRotation();
@@ -697,6 +705,10 @@ void UPRGameplayAbility_FaerinShiftSequence::CompleteSmoothTargetShift(bool bWas
 			bSweepTargetMove,
 			bSweepTargetMove ? &SweepHit : nullptr,
 			ETeleportType::TeleportPhysics);
+	}
+	if (APRPlayerCharacter* PlayerCharacter = Cast<APRPlayerCharacter>(TargetActor))
+	{
+		PlayerCharacter->SetExternalForcedMoveCameraLagOverride(false);
 	}
 
 	bShiftMoveInProgress = false;

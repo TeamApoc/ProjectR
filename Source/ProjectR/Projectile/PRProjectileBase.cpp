@@ -14,6 +14,7 @@
 #include "GameFramework/Controller.h"
 #include "GameFramework/Pawn.h"
 #include "GameFramework/PlayerController.h"
+#include "HAL/IConsoleManager.h"
 #include "PRProjectileMovementComponent.h"
 #include "PRProjectileManagerComponent.h"
 #include "Kismet/GameplayStatics.h"
@@ -24,6 +25,183 @@
 #include "ProjectR/Combat/PRDestructableInterface.h"
 #include "ProjectR/System/PRRespawnSubsystem.h"
 #include "ProjectR/Combat/PRDirectDamageReceiverInterface.h"
+
+DEFINE_LOG_CATEGORY_STATIC(LogPRProjectileCorrection, Log, All);
+
+namespace PRProjectileBasePrivate
+{
+	TAutoConsoleVariable<int32> CVarProjectileDebugCorrection(
+		TEXT("pr.Projectile.DebugCorrection"),
+		0,
+		TEXT("Draws projectile RepMovement correction debug spheres and delta text. 0: off, 1: on."),
+		ECVF_Default);
+
+	bool ShouldShowProjectileCorrectionDebug()
+	{
+		return CVarProjectileDebugCorrection.GetValueOnGameThread() != 0;
+	}
+
+	FVector GetProjectileVelocity(const APRProjectileBase* Projectile)
+	{
+		if (!IsValid(Projectile))
+		{
+			return FVector::ZeroVector;
+		}
+
+		const UPRProjectileMovementComponent* MovementComponent =
+			Projectile->FindComponentByClass<UPRProjectileMovementComponent>();
+		return IsValid(MovementComponent) ? MovementComponent->Velocity : FVector::ZeroVector;
+	}
+
+	float GetProjectileVelocityDelta(const APRProjectileBase* Projectile, const FVector& RepVelocity)
+	{
+		return (GetProjectileVelocity(Projectile) - RepVelocity).Size();
+	}
+
+	void DrawProjectileVelocityArrow(
+		UWorld* World,
+		const FVector& Location,
+		const FVector& Velocity,
+		const FColor& Color,
+		float ArrowLength,
+		float ArrowSize,
+		float ArrowThickness,
+		float DrawLifeTime)
+	{
+		if (!IsValid(World) || Velocity.IsNearlyZero())
+		{
+			return;
+		}
+
+		DrawDebugDirectionalArrow(
+			World,
+			Location,
+			Location + Velocity.GetSafeNormal() * ArrowLength,
+			ArrowSize,
+			Color,
+			false,
+			DrawLifeTime,
+			0,
+			ArrowThickness);
+	}
+
+	void DrawPredictedProjectileEventDebug(const APRProjectileBase* Projectile)
+	{
+		if (!ShouldShowProjectileCorrectionDebug() || !IsValid(Projectile))
+		{
+			return;
+		}
+
+		UWorld* World = Projectile->GetWorld();
+		if (!IsValid(World))
+		{
+			return;
+		}
+
+		const FVector CurrentLocation = Projectile->GetActorLocation();
+		const FVector CurrentVelocity = GetProjectileVelocity(Projectile);
+		constexpr float SphereRadius = 16.0f;
+		constexpr int32 SphereSegments = 12;
+		constexpr float DrawLifeTime = 4.0f;
+		constexpr float ArrowLength = 120.0f;
+		constexpr float ArrowSize = 20.0f;
+		constexpr float ArrowThickness = 2.0f;
+
+		DrawDebugSphere(
+			World,
+			CurrentLocation,
+			SphereRadius,
+			SphereSegments,
+			FColor::Red,
+			false,
+			DrawLifeTime);
+
+		DrawProjectileVelocityArrow(
+			World,
+			CurrentLocation,
+			CurrentVelocity,
+			FColor::Red,
+			ArrowLength,
+			ArrowSize,
+			ArrowThickness,
+			DrawLifeTime);
+	}
+
+	void DrawProjectileCorrectionRepDebug(
+		const APRProjectileBase* Projectile,
+		const FPRProjectileRepMovement& Movement,
+		const FString& CorrectionLabel,
+		const float LocationDelta,
+		const float VelocityDelta)
+	{
+		if (!ShouldShowProjectileCorrectionDebug() || !IsValid(Projectile))
+		{
+			return;
+		}
+
+		UWorld* World = Projectile->GetWorld();
+		if (!IsValid(World))
+		{
+			return;
+		}
+
+		constexpr float SphereRadius = 16.0f;
+		constexpr int32 SphereSegments = 12;
+		constexpr float DrawLifeTime = 4.0f;
+		constexpr float TextOffsetZ = 32.0f;
+		constexpr float ArrowLength = 120.0f;
+		constexpr float ArrowSize = 20.0f;
+		constexpr float ArrowThickness = 2.0f;
+
+		DrawDebugSphere(
+			World,
+			Movement.Location,
+			SphereRadius,
+			SphereSegments,
+			FColor::Green,
+			false,
+			DrawLifeTime);
+
+		DrawProjectileVelocityArrow(
+			World,
+			Movement.Location,
+			Movement.Velocity,
+			FColor::Green,
+			ArrowLength,
+			ArrowSize,
+			ArrowThickness,
+			DrawLifeTime);
+
+		const FString DebugText = FString::Printf(
+			TEXT("%s\nLocDelta=%.1f VelDelta=%.1f"),
+			*CorrectionLabel,
+			LocationDelta,
+			VelocityDelta);
+
+		DrawDebugString(
+			World,
+			Movement.Location + FVector(0.0f, 0.0f, TextOffsetZ),
+			DebugText,
+			nullptr,
+			FColor::White,
+			DrawLifeTime,
+			true);
+
+		const FVector CurrentLocation = Projectile->GetActorLocation();
+		const FVector CurrentVelocity = GetProjectileVelocity(Projectile);
+		UE_LOG(
+			LogPRProjectileCorrection,
+			Log,
+			TEXT("%s LocDelta=%.1f VelDelta=%.1f RepLoc=%s RepVel=%s LocalLoc=%s LocalVel=%s"),
+			*CorrectionLabel,
+			LocationDelta,
+			VelocityDelta,
+			*Movement.Location.ToCompactString(),
+			*Movement.Velocity.ToCompactString(),
+			*CurrentLocation.ToCompactString(),
+			*CurrentVelocity.ToCompactString());
+	}
+}
 
 APRProjectileBase::APRProjectileBase()
 {
@@ -62,6 +240,10 @@ void APRProjectileBase::InitializeProjectile(EPRProjectileRole InRole, uint32 In
 {
 	ProjectileRole = InRole;
 	ProjectileId = InProjectileId;
+	CurrentBounceIndex = 0;
+	bHasLastReconciledServerBounceIndex = false;
+	LastReconciledServerBounceIndex = 0;
+	PredictedBounceRecords.Reset();
 }
 
 void APRProjectileBase::InitGameplayEffectSpec(const FGameplayEffectSpecHandle& InEffectSpec)
@@ -196,6 +378,7 @@ void APRProjectileBase::PushRepMovement(EPRRepMovementEvent Event)
 	RepMovement.Velocity = IsValid(ProjectileMovementComponent)
 		? ProjectileMovementComponent->Velocity
 		: FVector::ZeroVector;
+	RepMovement.BounceIndex = Event == EPRRepMovementEvent::Bounce ? CurrentBounceIndex : 0;
 	if (Event == EPRRepMovementEvent::Spawn)
 	{
 		RepMovement.HomingSchedule = PendingHomingSchedule;
@@ -220,6 +403,22 @@ void APRProjectileBase::PushRepMovement(EPRRepMovementEvent Event)
 				RepMovement.HomingSchedule.Duration,
 				RepMovement.HomingSchedule.Revision);
 		}
+	}
+}
+
+void APRProjectileBase::NotifyProjectileBounce()
+{
+	// 바운스 이벤트 순서 번호
+	++CurrentBounceIndex;
+	if (CurrentBounceIndex == 0)
+	{
+		CurrentBounceIndex = 1;
+	}
+
+	if (ProjectileRole == EPRProjectileRole::Predicted)
+	{
+		RecordPredictedBounce();
+		PRProjectileBasePrivate::DrawPredictedProjectileEventDebug(this);
 	}
 }
 
@@ -471,10 +670,19 @@ void APRProjectileBase::MulticastStartProjectileHomingPresentation_Implementatio
 void APRProjectileBase::HandleRepSpawn()
 {
 	bIsRemoteProjectile = IsRemoteAuthProjectilePresentation();
+	const float LocationDelta = FVector::Dist(GetActorLocation(), RepMovement.Location);
+	const float VelocityDelta = PRProjectileBasePrivate::GetProjectileVelocityDelta(this, RepMovement.Velocity);
 	if (!bIsRemoteProjectile)
 	{
 		return;
 	}
+
+	PRProjectileBasePrivate::DrawProjectileCorrectionRepDebug(
+		this,
+		RepMovement,
+		TEXT("Spawn Correction"),
+		LocationDelta,
+		VelocityDelta);
 	
 	SetActorLocation(RepMovement.Location);
 	SetActorRotation(RepMovement.Rotation);
@@ -517,6 +725,30 @@ void APRProjectileBase::HandleRepCorrection()
 	{
 		HandleRepSpawn();
 	}
+
+	if (RepMovement.Event == EPRRepMovementEvent::Bounce && LinkedCounterpart.IsValid())
+	{
+		APRProjectileBase* PredictedProjectile = LinkedCounterpart.Get();
+		if (IsValid(PredictedProjectile)
+			&& PredictedProjectile->GetProjectileRole() == EPRProjectileRole::Predicted)
+		{
+			// 소유 클라이언트의 예측 투사체 기준 바운스 보정
+			PredictedProjectile->ReconcilePredictedBounceFromServer(RepMovement);
+			SyncAuthPresentationToPredicted(PredictedProjectile);
+			return;
+		}
+	}
+
+	const float LocationDelta = FVector::Dist(GetActorLocation(), RepMovement.Location);
+	const float VelocityDelta = PRProjectileBasePrivate::GetProjectileVelocityDelta(this, RepMovement.Velocity);
+	PRProjectileBasePrivate::DrawProjectileCorrectionRepDebug(
+		this,
+		RepMovement,
+		RepMovement.Event == EPRRepMovementEvent::Bounce
+			? TEXT("Bounce Correction")
+			: TEXT("Detonation Correction"),
+		LocationDelta,
+		VelocityDelta);
 	
 	// Location, Rotation, Velocity를 서버 기준으로 동기화
 	SetActorLocation(RepMovement.Location);
@@ -544,6 +776,194 @@ void APRProjectileBase::HandleRepCorrection()
 	}
 }
 
+bool APRProjectileBase::ReconcilePredictedBounceFromServer(const FPRProjectileRepMovement& ServerMovement)
+{
+	if (ProjectileRole != EPRProjectileRole::Predicted || ServerMovement.Event != EPRRepMovementEvent::Bounce)
+	{
+		return false;
+	}
+
+	if (bHasLastReconciledServerBounceIndex && LastReconciledServerBounceIndex == ServerMovement.BounceIndex)
+	{
+		const float LocationDelta = FVector::Dist(GetActorLocation(), ServerMovement.Location);
+		const float VelocityDelta = PRProjectileBasePrivate::GetProjectileVelocityDelta(this, ServerMovement.Velocity);
+		PRProjectileBasePrivate::DrawProjectileCorrectionRepDebug(
+			this,
+			ServerMovement,
+			TEXT("Bounce Duplicate Ignored"),
+			LocationDelta,
+			VelocityDelta);
+		return true;
+	}
+
+	FPRPredictedProjectileBounceRecord PredictedRecord;
+	const EPRPredictedBounceMatchResult MatchResult = ConsumePredictedBounceRecord(
+		ServerMovement.BounceIndex,
+		ServerMovement.Location,
+		BounceCorrectionToleranceDistance,
+		PredictedRecord);
+	if (MatchResult == EPRPredictedBounceMatchResult::Missing)
+	{
+		const float LocationDelta = FVector::Dist(GetActorLocation(), ServerMovement.Location);
+		const float VelocityDelta = PRProjectileBasePrivate::GetProjectileVelocityDelta(this, ServerMovement.Velocity);
+		PRProjectileBasePrivate::DrawProjectileCorrectionRepDebug(
+			this,
+			ServerMovement,
+			TEXT("Bounce Missing Prediction"),
+			LocationDelta,
+			VelocityDelta);
+
+		// 예측 기록 누락 시 서버 바운스 기준 보정
+		ApplyServerBounceCorrection(ServerMovement, true, bUseBounceVelocityCorrection);
+		bHasLastReconciledServerBounceIndex = true;
+		LastReconciledServerBounceIndex = ServerMovement.BounceIndex;
+		return true;
+	}
+
+	const float LocationDelta = FVector::Dist(PredictedRecord.Location, ServerMovement.Location);
+	const float VelocityDelta = (PredictedRecord.Velocity - ServerMovement.Velocity).Size();
+	const bool bNeedsLocationCorrection = LocationDelta > BounceCorrectionToleranceDistance;
+	const bool bNeedsVelocityCorrection = bUseBounceVelocityCorrection
+		&& VelocityDelta > BounceCorrectionToleranceVelocity;
+	const bool bIndexMismatch = MatchResult == EPRPredictedBounceMatchResult::LocationFallback;
+
+	if (!bNeedsLocationCorrection && !bNeedsVelocityCorrection)
+	{
+		PRProjectileBasePrivate::DrawProjectileCorrectionRepDebug(
+			this,
+			ServerMovement,
+			bIndexMismatch
+				? TEXT("Bounce Index Mismatch Within Tolerance")
+				: TEXT("Bounce Within Tolerance"),
+			LocationDelta,
+			VelocityDelta);
+
+		// 허용 오차 이내 예측 유지
+		bHasLastReconciledServerBounceIndex = true;
+		LastReconciledServerBounceIndex = ServerMovement.BounceIndex;
+		return true;
+	}
+
+	const FString CorrectionLabel = bIndexMismatch
+		? (bNeedsLocationCorrection && bNeedsVelocityCorrection
+			? TEXT("Bounce Index Mismatch Location/Velocity Correction")
+			: (bNeedsLocationCorrection
+				? TEXT("Bounce Index Mismatch Location Correction")
+				: TEXT("Bounce Index Mismatch Velocity Correction")))
+		: (bNeedsLocationCorrection && bNeedsVelocityCorrection
+			? TEXT("Bounce Location/Velocity Correction")
+			: (bNeedsLocationCorrection ? TEXT("Bounce Location Correction") : TEXT("Bounce Velocity Correction")));
+	PRProjectileBasePrivate::DrawProjectileCorrectionRepDebug(
+		this,
+		ServerMovement,
+		CorrectionLabel,
+		LocationDelta,
+		VelocityDelta);
+
+	ApplyServerBounceCorrection(ServerMovement, bNeedsLocationCorrection, bNeedsVelocityCorrection);
+	bHasLastReconciledServerBounceIndex = true;
+	LastReconciledServerBounceIndex = ServerMovement.BounceIndex;
+	return true;
+}
+
+void APRProjectileBase::RecordPredictedBounce()
+{
+	FPRPredictedProjectileBounceRecord NewRecord;
+	NewRecord.BounceIndex = CurrentBounceIndex;
+	NewRecord.Location = GetActorLocation();
+	NewRecord.Rotation = GetActorRotation();
+	NewRecord.Velocity = IsValid(ProjectileMovementComponent)
+		? ProjectileMovementComponent->Velocity
+		: FVector::ZeroVector;
+
+	// 최근 바운스 기록 보관
+	constexpr int32 MaxPredictedBounceRecordCount = 8;
+	PredictedBounceRecords.Add(NewRecord);
+	while (PredictedBounceRecords.Num() > MaxPredictedBounceRecordCount)
+	{
+		PredictedBounceRecords.RemoveAt(0, 1, EAllowShrinking::No);
+	}
+}
+
+EPRPredictedBounceMatchResult APRProjectileBase::ConsumePredictedBounceRecord(
+	const uint8 ServerBounceIndex,
+	const FVector& ServerLocation,
+	const float LocationTolerance,
+	FPRPredictedProjectileBounceRecord& OutRecord)
+{
+	const int32 FoundIndex = PredictedBounceRecords.IndexOfByPredicate(
+		[ServerBounceIndex](const FPRPredictedProjectileBounceRecord& Record)
+		{
+			return Record.BounceIndex == ServerBounceIndex;
+		});
+
+	if (FoundIndex == INDEX_NONE)
+	{
+		const int32 LocationFallbackIndex = PredictedBounceRecords.IndexOfByPredicate(
+			[&ServerLocation, LocationTolerance](const FPRPredictedProjectileBounceRecord& Record)
+			{
+				return FVector::Dist(Record.Location, ServerLocation) <= LocationTolerance;
+			});
+
+		if (LocationFallbackIndex == INDEX_NONE)
+		{
+			return EPRPredictedBounceMatchResult::Missing;
+		}
+
+		OutRecord = PredictedBounceRecords[LocationFallbackIndex];
+		PredictedBounceRecords.RemoveAt(0, LocationFallbackIndex + 1, EAllowShrinking::No);
+		return EPRPredictedBounceMatchResult::LocationFallback;
+	}
+
+	OutRecord = PredictedBounceRecords[FoundIndex];
+	PredictedBounceRecords.RemoveAt(0, FoundIndex + 1, EAllowShrinking::No);
+	return EPRPredictedBounceMatchResult::ExactIndex;
+}
+
+void APRProjectileBase::ApplyServerBounceCorrection(
+	const FPRProjectileRepMovement& ServerMovement,
+	const bool bCorrectLocation,
+	const bool bCorrectVelocity)
+{
+	if (bCorrectLocation)
+	{
+		// 서버 바운스 위치 기준 보정
+		SetActorLocationAndRotation(
+			ServerMovement.Location,
+			ServerMovement.Rotation,
+			false,
+			nullptr,
+			ETeleportType::TeleportPhysics);
+	}
+
+	if (bCorrectVelocity && IsValid(ProjectileMovementComponent))
+	{
+		// 서버 바운스 속도 기준 보정
+		ProjectileMovementComponent->Velocity = ServerMovement.Velocity;
+	}
+}
+
+void APRProjectileBase::SyncAuthPresentationToPredicted(APRProjectileBase* PredictedProjectile)
+{
+	if (!IsValid(PredictedProjectile))
+	{
+		return;
+	}
+
+	// 숨겨진 Auth 투사체가 예측 투사체를 다시 끌어당기지 않도록 상태 동기화
+	SetActorLocation(PredictedProjectile->GetActorLocation());
+	SetActorRotation(PredictedProjectile->GetActorRotation());
+
+	if (IsValid(ProjectileMovementComponent))
+	{
+		if (const UPRProjectileMovementComponent* PredictedMovement =
+			PredictedProjectile->FindComponentByClass<UPRProjectileMovementComponent>())
+		{
+			ProjectileMovementComponent->Velocity = PredictedMovement->Velocity;
+		}
+	}
+}
+
 void APRProjectileBase::HandleRepStop()
 {
 	// Spawn 선처리
@@ -551,6 +971,15 @@ void APRProjectileBase::HandleRepStop()
 	{
 		HandleRepSpawn();
 	}
+
+	const float LocationDelta = FVector::Dist(GetActorLocation(), RepMovement.Location);
+	const float VelocityDelta = PRProjectileBasePrivate::GetProjectileVelocityDelta(this, RepMovement.Velocity);
+	PRProjectileBasePrivate::DrawProjectileCorrectionRepDebug(
+		this,
+		RepMovement,
+		TEXT("Stop Correction"),
+		LocationDelta,
+		VelocityDelta);
 
 	// 서버 최종 위치 보정
 	SetActorLocation(RepMovement.Location);
@@ -578,6 +1007,15 @@ void APRProjectileBase::HandleRepFall()
 	{
 		HandleRepSpawn();
 	}
+
+	const float LocationDelta = FVector::Dist(GetActorLocation(), RepMovement.Location);
+	const float VelocityDelta = PRProjectileBasePrivate::GetProjectileVelocityDelta(this, RepMovement.Velocity);
+	PRProjectileBasePrivate::DrawProjectileCorrectionRepDebug(
+		this,
+		RepMovement,
+		TEXT("Fall Correction"),
+		LocationDelta,
+		VelocityDelta);
 
 	// 서버 낙하 시작 위치 보정
 	SetActorLocation(RepMovement.Location);
@@ -795,6 +1233,11 @@ void APRProjectileBase::ApplyFinalImpactStayLifeSpan()
 
 void APRProjectileBase::DestroyProjectile(EPRProjectileDestroyReason DestroyReason)
 {
+	if (ProjectileRole == EPRProjectileRole::Predicted)
+	{
+		PRProjectileBasePrivate::DrawPredictedProjectileEventDebug(this);
+	}
+
 	ClearProjectileHomingScheduleTimers();
 	StopClientProjectileHomingPresentation();
 	ConfigureProjectileHoming(nullptr, 0.0f);
@@ -925,6 +1368,11 @@ void APRProjectileBase::BeginPlay()
 			SetLifeSpan(0.3f);
 		}
 		return;
+	}
+
+	if (ProjectileRole == EPRProjectileRole::Predicted)
+	{
+		PRProjectileBasePrivate::DrawPredictedProjectileEventDebug(this);
 	}
 
 	if (HasProjectileAuthority())
@@ -1203,6 +1651,7 @@ void APRProjectileBase::OnSphereHit(UPrimitiveComponent* HitComponent, AActor* O
 			if (LinkedCounterpart.IsValid())
 			{
 				//LinkedCounterpart->SetActorHiddenInGame(false);
+				PRProjectileBasePrivate::DrawPredictedProjectileEventDebug(this);
 				Destroy();
 			}
 		}

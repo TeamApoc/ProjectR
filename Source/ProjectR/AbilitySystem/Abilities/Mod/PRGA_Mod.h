@@ -49,7 +49,8 @@ public:
 	virtual bool CheckCost(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo, FGameplayTagContainer* OptionalRelevantTags = nullptr) const override;
 
 	// 모드 공통 비용을 적용하고 적용된 GE 핸들을 반환
-	FActiveGameplayEffectHandle ApplyModCost(const FGameplayAbilityActorInfo* ActorInfo) const;
+	FActiveGameplayEffectHandle ApplyModCost(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo,
+						  const FGameplayAbilityActivationInfo ActivationInfo) const;
 
 	// 모드 공통 비용을 적용한다
 	virtual void ApplyCost(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilityActivationInfo ActivationInfo) const override;
@@ -81,28 +82,6 @@ protected:
 	// 어빌리티 회수 시 런타임 상태 정리
 	virtual void CleanupRuntimeOnAbilityRemoved(const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilitySpec& Spec);
 
-protected:
-	// 모드 비용 처리 방식
-	UPROPERTY(EditDefaultsOnly, Category = "ProjectR|Mod")
-	EPRModCostPolicy ModCostPolicy = EPRModCostPolicy::None;
-	
-	// 활성 무기 캐시
-	TWeakObjectPtr<APRWeaponActor> CurrentWeapon;
-	
-	// 무기 매니저 캐시
-	TWeakObjectPtr<UPRWeaponManagerComponent> CachedWeaponManager;
-
-	// ========= Mod Base  =============
-	// 지속시간형 모드 효과의 유지 시간
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "ProjectR|Mod|Cost", meta = (ClampMin = "0.0"))
-	float ModDuration = 0.0f;
-
-	// 마지막으로 적용된 모드 비용 GE 핸들
-	mutable FActiveGameplayEffectHandle LastAppliedModCostHandle;
-
-	// 적용된 모드 비용 GE 핸들 목록
-	mutable TArray<FActiveGameplayEffectHandle> ActiveModCostHandles;
-
 private:
 	// ========= Mod Base  =============
 	bool TryGetCurrentModCostContext(const FGameplayAbilityActorInfo* ActorInfo, EPRWeaponSlotType& OutSlotType, UAbilitySystemComponent*& OutASC, UPRItemInstance_Weapon*& OutWeaponInstance) const;
@@ -113,12 +92,33 @@ private:
 	// 현재 슬롯의 지속시간형 Mod 게이지 비용이 적용 중인지 확인
 	bool HasActiveModGaugeLock(const FGameplayAbilityActorInfo* ActorInfo) const;
 	// 스택 소모 코스트 적용
-	FActiveGameplayEffectHandle ApplyModStackCost(const FGameplayAbilityActorInfo* ActorInfo) const;
-	FActiveGameplayEffectHandle ApplyModGaugeDurationCost(const FGameplayAbilityActorInfo* ActorInfo) const;
+	FActiveGameplayEffectHandle ApplyModStackCost(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo,
+						  const FGameplayAbilityActivationInfo ActivationInfo) const;
+	FActiveGameplayEffectHandle ApplyModGaugeDurationCost(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo,
+						  const FGameplayAbilityActivationInfo ActivationInfo) const;
 	FGameplayAttribute GetModGaugeAttribute(EPRWeaponSlotType SlotType) const;
 	FGameplayAttribute GetMaxModGaugeAttribute(EPRWeaponSlotType SlotType) const;
 	FGameplayAttribute GetModStackAttribute(EPRWeaponSlotType SlotType) const;
 	FGameplayAttribute GetMaxModStackAttribute(EPRWeaponSlotType SlotType) const;
+	
+protected:
+	// 모드 비용 처리 방식
+	UPROPERTY(EditDefaultsOnly, Category = "ProjectR|Mod")
+	EPRModCostPolicy ModCostPolicy = EPRModCostPolicy::None;
+	
+	// 지속시간형 모드 효과의 유지 시간
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "ProjectR|Mod|Cost", meta = (ClampMin = "0.0"))
+	float ModDuration = 0.0f;
+	
+	// 활성 무기 캐시
+	TWeakObjectPtr<APRWeaponActor> CurrentWeapon;
+	
+	// 무기 매니저 캐시
+	TWeakObjectPtr<UPRWeaponManagerComponent> CachedWeaponManager;
 
+	// 마지막으로 적용된 모드 비용 GE 핸들
+	FActiveGameplayEffectHandle LastAppliedModCostHandle;
 
+	// 적용된 모드 비용 GE 핸들 목록
+	TArray<FActiveGameplayEffectHandle> ActiveModCostHandles;
 };

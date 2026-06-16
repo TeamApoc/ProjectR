@@ -41,6 +41,8 @@ bool FPRProjectileRepMovement::NetSerialize(FArchive& Ar, UPackageMap* Map, bool
 	Location.NetSerialize(Ar, Map, bLocationSuccess);
 	Velocity.NetSerialize(Ar, Map, bVelocitySuccess);
 	Rotation.NetSerialize(Ar, Map, bRotationSuccess);
+	// Bounce 이벤트 비교 식별자
+	Ar.SerializeBits(&BounceIndex, 8);
 
 	uint8 bHasHomingSchedule = Event == EPRRepMovementEvent::Spawn && HomingSchedule.IsEnabled() ? 1 : 0;
 	Ar.SerializeBits(&bHasHomingSchedule, 1);

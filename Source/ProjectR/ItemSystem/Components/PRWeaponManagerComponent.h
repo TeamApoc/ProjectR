@@ -126,6 +126,9 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "ProjectR|Weapon")
 	void SetWeaponArmedState(EPRArmedState NewArmedState);
 
+	// 현재 슬롯의 사격 모드 태그를 갱신한다
+	void RefreshCurrentWeaponFireModeTags();
+
 	// 현재 활성 슬롯에 대응하는 로컬 무기 Actor를 반환한다
 	UFUNCTION(BlueprintPure, Category = "ProjectR|Weapon")
 	APRWeaponActor* GetActiveWeaponActor() const;
@@ -143,13 +146,6 @@ public:
 
 	// 강화된 무기가 현재 활성 무기라면 전투 스탯 GE를 즉시 갱신한다
 	void RefreshCurrentWeaponUpgradeState(UPRItemInstance_Weapon* WeaponItem);
-
-	// 26.05.04, Yuchan, rpc 이펙트 재생 추가 (AnimNotify에서 호출)
-	void PlayWeaponNiagaraEffect(EPRWeaponEffectType EffectType, UNiagaraSystem* InNiagaraSystem = nullptr);
-
-	// Multicast 이펙트 재생 함수는 특수한 케이스에서 예외적으로 사용하고, 가급적 각자의 AnimNotify에서 로컬 버전 PlayWeaponNiagaraEffect 함수 호출
-	UFUNCTION(NetMulticast, Unreliable)
-	void Multicast_PlayWeaponNiagaraEffect(EPRWeaponEffectType EffectType, UNiagaraSystem* InNiagaraSystem = nullptr);
 
 	// 무기 장착 변경 델리게이트를 반환한다
 	FPRWeaponEquipmentChangedSignature& GetOnWeaponEquipmentChanged() { return OnWeaponEquipmentChanged; }

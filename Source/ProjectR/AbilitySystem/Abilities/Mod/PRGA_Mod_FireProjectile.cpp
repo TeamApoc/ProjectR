@@ -26,18 +26,6 @@ void UPRGA_Mod_FireProjectile::ActivateAbility(const FGameplayAbilitySpecHandle 
 		EndAbility(Handle, ActorInfo, ActivationInfo, /*bReplicateEndAbility=*/true, /*bWasCancelled=*/true);
 		return;
 	}
-	
-	// 총구 이펙트 스폰. unreliable multicast
-	UPRWeaponManagerComponent* WeaponManager = GetWeaponManager(ActorInfo);
-	if (IsValid(MuzzleVFX) && IsValid(WeaponManager))
-	{
-		WeaponManager->PlayWeaponNiagaraEffect(EPRWeaponEffectType::ProjectileLaunch,MuzzleVFX);
-		
-		if (HasAuthority(&ActivationInfo))
-		{
-			WeaponManager->Multicast_PlayWeaponNiagaraEffect(EPRWeaponEffectType::ProjectileLaunch,MuzzleVFX);
-		}
-	}
 
 	FTransform LaunchTransform = GetProjectileLaunchTransform();
 	FireProjectile(ProjectileClass, LaunchTransform.GetLocation(), LaunchTransform.Rotator());
@@ -46,8 +34,15 @@ void UPRGA_Mod_FireProjectile::ActivateAbility(const FGameplayAbilitySpecHandle 
 void UPRGA_Mod_FireProjectile::ApplyCost(const FGameplayAbilitySpecHandle Handle,
 	const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilityActivationInfo ActivationInfo) const
 {
-	Super::ApplyCost(Handle, ActorInfo, ActivationInfo);
-	ApplySourceModCost();
+	if (UPRGA_Mod* SourceMod = Cast<UPRGA_Mod>(GetCurrentSourceObject()))
+	{
+		SourceMod->ApplyModCost(Handle,ActorInfo,ActivationInfo);
+	}
+	
+	if (CheckCost(Handle,ActorInfo))
+	{
+		Super::ApplyCost(Handle, ActorInfo, ActivationInfo);	
+	}
 }
 
 /*~ 투사체 발사 ~*/
@@ -79,6 +74,14 @@ void UPRGA_Mod_FireProjectile::OnProjectileSpawnFailed(APRProjectileBase* Spawne
 	K2_OnProjectileSpawnFailed(SpawnedProjectile);
 	K2_EndAbility();
 }
+
+/*~ 프리뷰 ~*/
+
+EPRFirePreviewMode UPRGA_Mod_FireProjectile::GetPreviewFireMode() const
+{
+	return EPRFirePreviewMode::ModFire;
+}
+
 /*~ EffectSpec 오버라이드 ~*/
 
 FGameplayEffectSpecHandle UPRGA_Mod_FireProjectile::MakeModEffectSpec(float InDamage, float InGroggyDamage, const FHitResult* HitResult) const

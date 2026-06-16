@@ -7,6 +7,7 @@
 #include "Components/PanelWidget.h"
 #include "Components/ProgressBar.h"
 #include "Components/TextBlock.h"
+#include "GameFramework/GameStateBase.h"
 #include "ProjectR/PRGameplayTags.h"
 #include "ProjectR/System/PREventManagerSubsystem.h"
 #include "ProjectR/UI/PRUserInterfaceStatics.h"
@@ -19,6 +20,14 @@ void UPRWeaponStatusWidget::NativeConstruct()
 	{
 		HighlightBorder->SetVisibility(ESlateVisibility::Collapsed);
 	}
+
+	StopModDurationText();
+}
+
+void UPRWeaponStatusWidget::NativeDestruct()
+{
+	StopModDurationText();
+	Super::NativeDestruct();
 }
 
 void UPRWeaponStatusWidget::SetSlotType(EPRWeaponSlotType InSlotType)
@@ -48,7 +57,16 @@ void UPRWeaponStatusWidget::SetWeaponStatus(const FPRWeaponStatusViewData& ViewD
 	{
 		SetModIcon(ViewData.ModIcon);
 		SetModGaugePercent(ViewData.ModGaugePercent);
-		SetModStackText(ViewData.ModStackCount);
+		if (ViewData.bUsesModDuration)
+		{
+			HideModStackText();
+			StartModDurationText(ViewData.ModRemainingDurationSeconds);
+		}
+		else
+		{
+			StopModDurationText();
+			SetModStackText(ViewData.ModStackCount);
+		}
 	}
 	else
 	{
@@ -166,6 +184,8 @@ void UPRWeaponStatusWidget::ClearModStatus()
 		ModStackText->SetText(UPRUserInterfaceStatics::ConvertFloatToText(0.0f));
 		ModStackText->SetVisibility(ESlateVisibility::Hidden);
 	}
+
+	StopModDurationText();
 }
 
 void UPRWeaponStatusWidget::BindHighlightEvent()
@@ -176,6 +196,99 @@ void UPRWeaponStatusWidget::BindHighlightEvent()
 		HighlightEventDelegateHandle = EventManager->Listen(PRGameplayTags::Event_Player_ModActivation,
 			FPREventMulticast::FDelegate::CreateUObject(this, &ThisClass::HandleModActivation));
 	}
+}
+
+void UPRWeaponStatusWidget::StartModDurationText(float RemainingDurationSeconds)
+{
+	if (!IsValid(ModDurationText))
+	{
+		return;
+	}
+
+	ModDurationEndServerWorldTimeSeconds = ResolveServerWorldTimeSeconds() + FMath::Max(RemainingDurationSeconds, 0.0f);
+	RefreshModDurationText();
+
+	if (RemainingDurationSeconds <= 0.0f)
+	{
+		return;
+	}
+
+	UWorld* World = GetWorld();
+	if (!IsValid(World))
+	{
+		return;
+	}
+
+	World->GetTimerManager().SetTimer(
+		ModDurationTimerHandle,
+		this,
+		&UPRWeaponStatusWidget::RefreshModDurationText,
+		0.1f,
+		true);
+}
+
+void UPRWeaponStatusWidget::StopModDurationText()
+{
+	if (UWorld* World = GetWorld())
+	{
+		World->GetTimerManager().ClearTimer(ModDurationTimerHandle);
+	}
+
+	ModDurationEndServerWorldTimeSeconds = 0.0f;
+
+	if (IsValid(ModDurationText))
+	{
+		ModDurationText->SetText(FText::GetEmpty());
+		ModDurationText->SetVisibility(ESlateVisibility::Hidden);
+	}
+}
+
+void UPRWeaponStatusWidget::RefreshModDurationText()
+{
+	if (!IsValid(ModDurationText))
+	{
+		StopModDurationText();
+		return;
+	}
+
+	const float RemainingDurationSeconds = FMath::Max(ModDurationEndServerWorldTimeSeconds - ResolveServerWorldTimeSeconds(), 0.0f);
+	if (RemainingDurationSeconds <= 0.0f)
+	{
+		StopModDurationText();
+		return;
+	}
+
+	ModDurationText->SetText(MakeModDurationText(RemainingDurationSeconds));
+	ModDurationText->SetVisibility(ESlateVisibility::HitTestInvisible);
+}
+
+FText UPRWeaponStatusWidget::MakeModDurationText(float RemainingDurationSeconds) const
+{
+	const int32 MaximumFractionalDigits = RemainingDurationSeconds >= 1.0f ? 0 : 1;
+	return UPRUserInterfaceStatics::ConvertFloatToText(RemainingDurationSeconds, MaximumFractionalDigits);
+}
+
+float UPRWeaponStatusWidget::ResolveServerWorldTimeSeconds() const
+{
+	const UWorld* World = GetWorld();
+	if (!IsValid(World))
+	{
+		return 0.0f;
+	}
+
+	const AGameStateBase* GameState = World->GetGameState();
+	return IsValid(GameState) ? GameState->GetServerWorldTimeSeconds() : World->GetTimeSeconds();
+}
+
+void UPRWeaponStatusWidget::HideModStackText()
+{
+	if (!IsValid(ModStackText))
+	{
+		return;
+	}
+
+	ModStackText->SetText(UPRUserInterfaceStatics::ConvertFloatToText(0.0f));
+	ModStackText->SetVisibility(ESlateVisibility::Hidden);
 }
 
 void UPRWeaponStatusWidget::UnbindHighlightEvent()
@@ -204,6 +317,12 @@ void UPRWeaponStatusWidget::HandleModActivation(FGameplayTag EventTag, const FIn
 	
 	if (EventData->bActivated)
 	{
+		if (EventData->bUsesModDuration)
+		{
+			HideModStackText();
+			StartModDurationText(EventData->ModDurationSeconds);
+		}
+
 		if (HighlightBorder)
 		{
 			HighlightBorder->SetVisibility(ESlateVisibility::HitTestInvisible);
@@ -215,6 +334,11 @@ void UPRWeaponStatusWidget::HandleModActivation(FGameplayTag EventTag, const FIn
 	}
 	else
 	{
+		if (EventData->bUsesModDuration && EventData->bWasCancelled)
+		{
+			StopModDurationText();
+		}
+
 		if (HighlightBorder)
 		{
 			HighlightBorder->SetVisibility(ESlateVisibility::Hidden);

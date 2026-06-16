@@ -11,6 +11,7 @@
 
 class UPRAttributeSet_Weapon;
 class UPRWeaponManagerComponent;
+class UPRWeaponModDataAsset;
 class UPRWeaponStatusWidget;
 struct FOnAttributeChangeData;
 
@@ -94,6 +95,12 @@ private:
 
 	// 대상 슬롯 위젯에 캐시된 배치와 렌더 설정 적용
 	void ApplyWeaponSlotPresentation(EPRWeaponSlotType SlotType, const FPRWeaponHUDSlotPresentation& LayoutPresentation, const FPRWeaponHUDSlotPresentation& RenderPresentation) const;
+
+	// Mod 데이터가 지속시간형 어빌리티를 사용하는지 확인
+	bool DoesModUseDuration(const UPRWeaponModDataAsset* ModData) const;
+
+	// 현재 서버 기준 월드 시간을 반환
+	float ResolveServerWorldTimeSeconds() const;
 
 	// 주무기 자원 Attribute 변화 신호를 받아 주무기 슬롯을 갱신한다
 	void HandlePrimaryWeaponAttributeChanged(const FOnAttributeChangeData& ChangeData);

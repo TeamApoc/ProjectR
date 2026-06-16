@@ -36,12 +36,11 @@ protected:
 	/*~ UPRGA_Fire Interface ~*/
 	virtual void OnProjectileSpawnSuccess(APRProjectileBase* SpawnedProjectile) override;
 	virtual void OnProjectileSpawnFailed(APRProjectileBase* SpawnedProjectile) override;
+
+	/*~ UPRGA_FireProjectile Interface ~*/
+	virtual EPRFirePreviewMode GetPreviewFireMode() const override;
 	
 protected:
-	// 총구 이펙트 (Optional)
-	UPROPERTY(EditDefaultsOnly, Category = "ProjectR|Mod|Projectile")
-	TObjectPtr<UNiagaraSystem> MuzzleVFX;
-	
 	// 모드 스킬 기본 데미지. SetByCaller로 GE Spec에 전달
 	UPROPERTY(EditDefaultsOnly, Category = "ProjectR|Mod|Projectile", meta = (ClampMin = "0.0"))
 	float Damage = 0.f;

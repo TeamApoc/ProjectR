@@ -59,6 +59,8 @@ UPRGA_PlayerHitReact::UPRGA_PlayerHitReact()
 	// 사격 취소
 	CancelAbilitiesWithTag.AddTag(PRGameplayTags::Ability_Player_Weapon_Fire_Primary);
 	CancelAbilitiesWithTag.AddTag(PRGameplayTags::Ability_Player_Weapon_Zoom);
+	CancelAbilitiesWithTag.AddTag(PRGameplayTags::Ability_Player_Revive);
+	CancelAbilitiesWithTag.AddTag(PRGameplayTags::Ability_Player_UseConsumable);
 	
 	// 피격 리액션 중 새 액션이 끼어들지 않도록 기본 차단 태그를 둔다.
 	BlockAbilitiesWithTag.AddTag(PRGameplayTags::Ability_Player_Weapon_Fire_Primary);
@@ -68,6 +70,8 @@ UPRGA_PlayerHitReact::UPRGA_PlayerHitReact()
 	BlockAbilitiesWithTag.AddTag(PRGameplayTags::Ability_Player_Sprint);
 	BlockAbilitiesWithTag.AddTag(PRGameplayTags::Ability_Player_Reload);
 	BlockAbilitiesWithTag.AddTag(PRGameplayTags::Ability_Player_Interaction);
+	BlockAbilitiesWithTag.AddTag(PRGameplayTags::Ability_Player_HitReact);
+	BlockAbilitiesWithTag.AddTag(PRGameplayTags::Ability_Player_UseConsumable);
 
 	FAbilityTriggerData WeakTriggerData;
 	WeakTriggerData.TriggerSource = EGameplayAbilityTriggerSource::GameplayEvent;

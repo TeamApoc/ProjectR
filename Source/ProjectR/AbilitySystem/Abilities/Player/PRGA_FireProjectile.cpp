@@ -4,7 +4,10 @@
 #include "PRGA_FireProjectile.h"
 #include "Components/SphereComponent.h"
 #include "GameFramework/ProjectileMovementComponent.h"
+#include "ProjectR/PRGameplayTags.h"
 #include "ProjectR/Character/PRPlayerCharacter.h"
+#include "ProjectR/ItemSystem/Data/PRWeaponDataAsset.h"
+#include "ProjectR/ItemSystem/Items/PRItemInstance_Weapon.h"
 #include "ProjectR/Projectile/PRProjectileBase.h"
 #include "ProjectR/Projectile/PRFirePreviewComponent.h"
 
@@ -28,9 +31,16 @@ void UPRGA_FireProjectile::OnGiveAbility(const FGameplayAbilityActorInfo* ActorI
 		ActorInfo->IsLocallyControlledPlayer(),
 		*GetNameSafe(ActorInfo->AvatarActor.Get()));
 	
-	// 어빌리티 부여는 서버/소유 클라이언트 모두에서 호출되지만 예측 경로 표시는 로컬 시각 효과이므로 로컬 컨트롤된 폰에서만 의미가 있음
+	// 로컬 전용 프리뷰 등록
 	if (bShouldPreviewPath && ActorInfo->IsLocallyControlledPlayer())
 	{
+		if (!IsValid(ProjectileClass))
+		{
+			UE_LOG(LogPRPathPreviewAbility, Warning, TEXT("OnGiveAbility 중단. ProjectileClass 없음, Ability=%s"),
+				*GetNameSafe(this));
+			return;
+		}
+
 		APRPlayerCharacter* PlayerChar = Cast<APRPlayerCharacter>(ActorInfo->AvatarActor.Get());
 		if (!IsValid(PlayerChar))
 		{
@@ -46,43 +56,36 @@ void UPRGA_FireProjectile::OnGiveAbility(const FGameplayAbilityActorInfo* ActorI
 				*GetNameSafe(PlayerChar));
 			return;
 		}
-		
-		Preview->BindObject(this);
 
-		// 디자이너가 어빌리티에 작성한 템플릿을 기반으로 작업
-		FPRProjectilePreviewParams Params = PreviewParams;
-
-		// ProjectileClass CDO의 PMC/Sphere 컴포넌트 기본값을 추출하여 시각/실제 비행 정합성 확보
-		if (IsValid(ProjectileClass))
+		FPRFirePreviewKey PreviewKey;
+		if (!TryBuildPreviewKey(Spec, PreviewKey))
 		{
-			const APRProjectileBase* ProjectileCDO = ProjectileClass->GetDefaultObject<APRProjectileBase>();
-			if (IsValid(ProjectileCDO))
-			{
-				if (const UProjectileMovementComponent* PMC = ProjectileCDO->FindComponentByClass<UProjectileMovementComponent>())
-				{
-					Params.InitialSpeed = PMC->InitialSpeed;
-					Params.GravityScale = PMC->ProjectileGravityScale;
-				}
-				if (const USphereComponent* Sphere = ProjectileCDO->FindComponentByClass<USphereComponent>())
-				{
-					Params.CollisionRadius = Sphere->GetUnscaledSphereRadius();
-				}
-			}
+			UE_LOG(LogPRPathPreviewAbility, Warning,
+				TEXT("OnGiveAbility 중단. PreviewKey 생성 실패, Ability=%s, SourceObject=%s"),
+				*GetNameSafe(this),
+				*GetNameSafe(Spec.SourceObject.Get()));
+			return;
 		}
 
-		// 무기 액터 바인딩은 별도 경로(PlayerCharacter의 State.Armed 태그 토글)에서 수행하므로 본 함수에서는 다루지 않음
-		Preview->SetFireParams(Params);
-		Preview->SetTrajectoryPreviewEnabled(true);
+		FPRFirePreviewEntry PreviewEntry;
+		PreviewEntry.Params = BuildResolvedPreviewParams();
+		PreviewEntry.AbilitySpecHandle = Spec.Handle;
+		PreviewEntry.SourceObject = Spec.SourceObject.Get();
+		PreviewEntry.ProjectileClass = ProjectileClass;
+		Preview->RegisterProjectilePreviewParams(PreviewKey, PreviewEntry);
+		RegisteredPreviewKey = PreviewKey;
 
 		UE_LOG(LogPRPathPreviewAbility, Log,
-			TEXT("Preview 활성화 요청 완료. Ability=%s, Player=%s, Preview=%s, ProjectileClass=%s, InitialSpeed=%.2f, GravityScale=%.2f, CollisionRadius=%.2f"),
+			TEXT("Preview 등록 요청 완료. Ability=%s, Player=%s, Preview=%s, Slot=%s, Mode=%s, ProjectileClass=%s, InitialSpeed=%.2f, GravityScale=%.2f, CollisionRadius=%.2f"),
 			*GetNameSafe(this),
 			*GetNameSafe(PlayerChar),
 			*GetNameSafe(Preview),
+			*UEnum::GetValueAsString(PreviewKey.WeaponSlot),
+			*UEnum::GetValueAsString(PreviewKey.FireMode),
 			*GetNameSafe(ProjectileClass.Get()),
-			Params.InitialSpeed,
-			Params.GravityScale,
-			Params.CollisionRadius);
+			PreviewEntry.Params.InitialSpeed,
+			PreviewEntry.Params.GravityScale,
+			PreviewEntry.Params.CollisionRadius);
 	}
 	else
 	{
@@ -112,7 +115,7 @@ void UPRGA_FireProjectile::OnRemoveAbility(const FGameplayAbilityActorInfo* Acto
 		ActorInfo->IsLocallyControlledPlayer(),
 		*GetNameSafe(ActorInfo->AvatarActor.Get()));
 	
-	// 어빌리티 부여는 서버/소유 클라이언트 모두에서 호출되지만 예측 경로 표시는 로컬 시각 효과이므로 로컬 컨트롤된 폰에서만 의미가 있음
+	// 로컬 전용 프리뷰 해제
 	if (bShouldPreviewPath && ActorInfo->IsLocallyControlledPlayer())
 	{
 		APRPlayerCharacter* PlayerChar = Cast<APRPlayerCharacter>(ActorInfo->AvatarActor.Get());
@@ -124,20 +127,34 @@ void UPRGA_FireProjectile::OnRemoveAbility(const FGameplayAbilityActorInfo* Acto
 		}
 
 		UPRFirePreviewComponent* Preview = PlayerChar->FindComponentByClass<UPRFirePreviewComponent>();
-		if (!IsValid(Preview) || Preview->GetBoundObject() != this)
+		if (!IsValid(Preview))
 		{
 			UE_LOG(LogPRPathPreviewAbility, Warning,
-				TEXT("OnRemoveAbility 중단. PreviewComponent 불일치, Player=%s, Preview=%s, BoundObject=%s, Ability=%s"),
+				TEXT("OnRemoveAbility 중단. PreviewComponent 없음, Player=%s, Ability=%s"),
 				*GetNameSafe(PlayerChar),
-				*GetNameSafe(Preview),
-				IsValid(Preview) ? *GetNameSafe(Preview->GetBoundObject()) : TEXT("None"),
 				*GetNameSafe(this));
 			return;
 		}
-		
-		Preview->SetTrajectoryPreviewEnabled(false);
 
-		UE_LOG(LogPRPathPreviewAbility, Log, TEXT("Preview 비활성화 요청 완료. Ability=%s, Player=%s, Preview=%s"),
+		FPRFirePreviewKey PreviewKey;
+		if (!TryBuildPreviewKey(Spec, PreviewKey))
+		{
+			if (!RegisteredPreviewKey.IsSet())
+			{
+				UE_LOG(LogPRPathPreviewAbility, Warning,
+					TEXT("OnRemoveAbility 중단. PreviewKey 생성 실패, Ability=%s, SourceObject=%s"),
+					*GetNameSafe(this),
+					*GetNameSafe(Spec.SourceObject.Get()));
+				return;
+			}
+
+			PreviewKey = RegisteredPreviewKey.GetValue();
+		}
+
+		Preview->UnregisterProjectilePreviewParams(PreviewKey, Spec.Handle);
+		RegisteredPreviewKey.Reset();
+
+		UE_LOG(LogPRPathPreviewAbility, Log, TEXT("Preview 해제 요청 완료. Ability=%s, Player=%s, Preview=%s"),
 			*GetNameSafe(this),
 			*GetNameSafe(PlayerChar),
 			*GetNameSafe(Preview));
@@ -150,6 +167,85 @@ void UPRGA_FireProjectile::OnRemoveAbility(const FGameplayAbilityActorInfo* Acto
 			bShouldPreviewPath,
 			ActorInfo->IsLocallyControlledPlayer());
 	}
+}
+
+/*~ 프리뷰 ~*/
+
+EPRFirePreviewMode UPRGA_FireProjectile::GetPreviewFireMode() const
+{
+	return EPRFirePreviewMode::BaseFire;
+}
+
+bool UPRGA_FireProjectile::TryBuildPreviewKey(const FGameplayAbilitySpec& Spec, FPRFirePreviewKey& OutKey) const
+{
+	UObject* SourceObject = Spec.SourceObject.Get();
+	UPRWeaponDataAsset* WeaponData = nullptr;
+
+	if (UPRItemInstance_Weapon* WeaponItem = Cast<UPRItemInstance_Weapon>(SourceObject))
+	{
+		WeaponData = WeaponItem->GetWeaponData();
+	}
+	else if (UPRGameplayAbility* SourceAbility = Cast<UPRGameplayAbility>(SourceObject))
+	{
+		WeaponData = SourceAbility->GetCurrentWeaponData();
+	}
+	else
+	{
+		WeaponData = Cast<UPRWeaponDataAsset>(SourceObject);
+	}
+
+	if (IsValid(WeaponData))
+	{
+		OutKey.WeaponSlot = WeaponData->SlotType;
+	}
+	else
+	{
+		const FGameplayTagContainer& DynamicTags = Spec.GetDynamicSpecSourceTags();
+		if (DynamicTags.HasTagExact(PRGameplayTags::State_CurrentWeaponSlot_Secondary))
+		{
+			// 보조 슬롯 차단 태그
+			OutKey.WeaponSlot = EPRWeaponSlotType::Primary;
+		}
+		else if (DynamicTags.HasTagExact(PRGameplayTags::State_CurrentWeaponSlot_Primary))
+		{
+			// 주 슬롯 차단 태그
+			OutKey.WeaponSlot = EPRWeaponSlotType::Secondary;
+		}
+	}
+
+	if (OutKey.WeaponSlot != EPRWeaponSlotType::Primary && OutKey.WeaponSlot != EPRWeaponSlotType::Secondary)
+	{
+		return false;
+	}
+
+	OutKey.FireMode = GetPreviewFireMode();
+	return OutKey.IsValid();
+}
+
+FPRProjectilePreviewParams UPRGA_FireProjectile::BuildResolvedPreviewParams() const
+{
+	// 어빌리티 템플릿 기준값
+	FPRProjectilePreviewParams Params = PreviewParams;
+
+	// 투사체 CDO 물리값
+	if (IsValid(ProjectileClass))
+	{
+		const APRProjectileBase* ProjectileCDO = ProjectileClass->GetDefaultObject<APRProjectileBase>();
+		if (IsValid(ProjectileCDO))
+		{
+			if (const UProjectileMovementComponent* PMC = ProjectileCDO->FindComponentByClass<UProjectileMovementComponent>())
+			{
+				Params.InitialSpeed = PMC->InitialSpeed;
+				Params.GravityScale = PMC->ProjectileGravityScale;
+			}
+			if (const USphereComponent* Sphere = ProjectileCDO->FindComponentByClass<USphereComponent>())
+			{
+				Params.CollisionRadius = Sphere->GetUnscaledSphereRadius();
+			}
+		}
+	}
+
+	return Params;
 }
 
 /*~ EffectSpec 오버라이드 ~*/

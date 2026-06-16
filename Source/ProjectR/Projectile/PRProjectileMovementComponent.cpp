@@ -108,9 +108,16 @@ void UPRProjectileMovementComponent::HandleImpact(const FHitResult& Hit, float T
 		
 		// 서버 권위 투사체인 경우 바운스 시점 위치/속도를 클라이언트에 동기화
 		APRProjectileBase* OwnerProjectile = Cast<APRProjectileBase>(GetOwner());
-		if (IsValid(OwnerProjectile) && OwnerProjectile->HasAuthority())
+		if (IsValid(OwnerProjectile))
 		{
-			OwnerProjectile->PushRepMovement(EPRRepMovementEvent::Bounce);
+			// 최종 바운스 이동 상태 기록
+			OwnerProjectile->NotifyProjectileBounce();
+
+			if (OwnerProjectile->HasProjectileAuthority())
+			{
+				// 서버 권위 바운스 이벤트 전파
+				OwnerProjectile->PushRepMovement(EPRRepMovementEvent::Bounce);
+			}
 		}
 	}
 	else

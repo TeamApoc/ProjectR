@@ -210,7 +210,7 @@ protected:
 	void BindAutoRegisterQuickSlotEvent();
 
 	// 저장 데이터와 선택적 기본 지급 아이템 적용
-	void ApplySaveDataInternal(const FPRCharacterSaveData& InSaveData, bool bMergeStartUpItems);
+	void ApplySaveDataInternal(const FPRCharacterSaveData& InSaveData);
 	
 	UFUNCTION()
 	void OnInventoryChanged(UPRInventoryComponent* InInventory, const FPRInventoryChangeEventData& EventData);
@@ -317,9 +317,9 @@ private:
 	
 	// PossessedBy 이후 적용할 저장 데이터 존재 여부
 	bool bPendingSaveDataApply = false;
-
-	// 예약 저장 데이터 적용 후 기본 지급 아이템 병합 여부
-	bool bPendingStartUpItemsMerge = false;
+	//
+	// // 예약 저장 데이터 적용 후 기본 지급 아이템 병합 여부
+	// bool bPendingStartUpItemsMerge = false;
 
 	// 클라이언트 로컬 세이브 재제출로 서버 최신 상태를 덮지 않기 위한 수락 여부
 	bool bCharacterPayloadAccepted = false;

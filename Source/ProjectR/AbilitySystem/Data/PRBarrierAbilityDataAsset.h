@@ -86,6 +86,10 @@ public:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "ProjectR|Barrier|Launch", meta = (ClampMin = "0.0"))
 	float LaunchSpeed = 1800.0f;
 
+	// 지면 스냅 사용 여부
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "ProjectR|Barrier|GroundSnap")
+	bool bUseGroundSnap = true;
+
 	// 플레이어 배리어 접촉 피해
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "ProjectR|Barrier|PlayerDamage", meta = (ClampMin = "0.0"))
 	float BarrierDamage = 0.0f;

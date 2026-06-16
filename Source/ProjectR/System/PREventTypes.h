@@ -26,10 +26,24 @@ USTRUCT(BlueprintType)
 struct PROJECTR_API FPRModActivationPayload : public FPREventPayload
 {
 	GENERATED_BODY()
-	
+
+	// Mod 활성 상태
 	UPROPERTY(BlueprintReadWrite)
 	bool bActivated = false;
-	
+
+	// Mod 어빌리티 취소 여부
+	UPROPERTY(BlueprintReadWrite)
+	bool bWasCancelled = false;
+
+	// 지속시간형 Mod 여부
+	UPROPERTY(BlueprintReadWrite)
+	bool bUsesModDuration = false;
+
+	// 지속시간형 Mod 표시 시간
+	UPROPERTY(BlueprintReadWrite)
+	float ModDurationSeconds = 0.0f;
+
+	// Mod 슬롯 타입
 	UPROPERTY(BlueprintReadWrite)
 	EPRWeaponSlotType SlotType = EPRWeaponSlotType::None;
 };

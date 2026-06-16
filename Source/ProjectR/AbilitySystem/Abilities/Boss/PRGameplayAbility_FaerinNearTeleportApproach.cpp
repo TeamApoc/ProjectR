@@ -192,6 +192,16 @@ void UPRGameplayAbility_FaerinNearTeleportApproach::BeginDisappear(ACharacter* B
 		DisappearDissolveStartValue,
 		DisappearDissolveEndValue);
 	SpawnBodyNiagara(TeleportInNiagaraSystem, TeleportInBodyNiagaraLifeSeconds);
+
+	// 근거리 텔레포트로 사라질 때 SFX를 모든 클라이언트에서 보스 위치에 재생한다.
+	if (IsValid(NearTeleportDisappearSoundCue))
+	{
+		if (APRFaerinCharacter* FaerinCharacter = Cast<APRFaerinCharacter>(BossCharacter))
+		{
+			FaerinCharacter->Multicast_PlayFaerinSoundAtLocation(NearTeleportDisappearSoundCue, BossCharacter->GetActorLocation());
+		}
+	}
+
 	BossCharacter->ForceNetUpdate();
 
 	if (DisappearPresentationSeconds <= 0.0f)
@@ -289,6 +299,11 @@ void UPRGameplayAbility_FaerinNearTeleportApproach::ReappearNearSelf()
 			BodyNiagaraAttachSocketName,
 			TeleportOutBodyNiagaraLifeSeconds,
 			0.0f);
+		// 근거리 텔레포트로 재등장할 때 SFX를 모든 클라이언트에서 재등장 위치에 재생한다.
+		if (IsValid(NearTeleportReappearSoundCue))
+		{
+			FaerinCharacter->Multicast_PlayFaerinSoundAtLocation(NearTeleportReappearSoundCue, CachedReappearLocation);
+		}
 		PlayNearTeleportDissolveVisual(
 			ReappearDissolveNiagaraSystem,
 			ReappearDissolveDuration,

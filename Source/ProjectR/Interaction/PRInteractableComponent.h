@@ -61,7 +61,7 @@ public:
 	virtual void OnInteract(AActor* Interactor, int32 ActionIndex);
 
 	// 조건을 만족하는 최고 우선순위 Action 선택 (실행은 안 함). 없으면 nullptr
-	UPRInteractionAction* SelectBestAction(AActor* Interactor) const;
+	virtual UPRInteractionAction* SelectBestAction(AActor* Interactor) const;
 
 	// 실행 가능한 행동이 하나라도 있는지 여부 반환
 	UFUNCTION(BlueprintCallable, Category = "Interaction")

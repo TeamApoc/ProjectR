@@ -54,4 +54,12 @@ public:
 	// Mod 스택 개수 텍스트 원본 값
 	UPROPERTY(BlueprintReadOnly, Category = "ProjectR|HUD|Weapon")
 	float ModStackCount = 0.0f;
+
+	// 지속시간형 Mod 표시 여부
+	UPROPERTY(BlueprintReadOnly, Category = "ProjectR|HUD|Weapon")
+	bool bUsesModDuration = false;
+
+	// 지속시간형 Mod의 남은 시간
+	UPROPERTY(BlueprintReadOnly, Category = "ProjectR|HUD|Weapon")
+	float ModRemainingDurationSeconds = 0.0f;
 };

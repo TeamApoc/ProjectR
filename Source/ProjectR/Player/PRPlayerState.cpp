@@ -58,6 +58,7 @@ void APRPlayerState::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLi
 	DOREPLIFETIME(APRPlayerState, CharacterLevel);
 	DOREPLIFETIME(APRPlayerState, Experience);
 	DOREPLIFETIME(APRPlayerState, StatUpgradeInfo);
+	DOREPLIFETIME(APRPlayerState, PRPlayerIndex);
 	DOREPLIFETIME(APRPlayerState, DownTimerInfo);
 }
 
@@ -117,6 +118,9 @@ void APRPlayerState::CopyProperties(APlayerState* PlayerState)
 			// 이동 전 수락된 세션 payload 상태 보존
 			NewPS->MarkCharacterPayloadAccepted();
 		}
+
+		// 맵 이동 후 PlayerStart 슬롯 보존
+		NewPS->SetPRPlayerIndex(PRPlayerIndex);
 	}
 }
 
@@ -165,12 +169,26 @@ void APRPlayerState::SetCachedAmmoRatios(EPRWeaponSlotType SlotType, float Magaz
 		CachedSecondaryReserveAmmoRatio = ClampedReserveRatio;
 	}
 }
+
+void APRPlayerState::SetPRPlayerIndex(int32 NewPlayerIndex)
+{
+	if (!HasAuthority())
+	{
+		return;
+	}
+
+	PRPlayerIndex = NewPlayerIndex;
+	ForceNetUpdate();
+}
+
 void APRPlayerState::InitializePrimaryInfoFromSaveData(const FPRCharacterSaveData& InSaveData)
 {
 	if (!HasAuthority())
 	{
 		return;
 	}
+
+	const FString OldDisplayName = DisplayName;
 	CurrentSaveData = InSaveData;
 	DisplayName    = InSaveData.DisplayName;
 	CharacterLevel = InSaveData.Level;
@@ -181,6 +199,12 @@ void APRPlayerState::InitializePrimaryInfoFromSaveData(const FPRCharacterSaveDat
 		GrowthComponent->ApplyGrowthSaveData(InSaveData.Experience, InSaveData.Level, InSaveData.Stats);
 	}
 	bPendingSaveDataApply = true;
+
+	if (DisplayName != OldDisplayName)
+	{
+		// 서버 로컬 UI 표시명 갱신
+		OnDisplayNameChanged.Broadcast(DisplayName);
+	}
 
 	ForceNetUpdate();
 }
@@ -257,6 +281,7 @@ void APRPlayerState::ApplySaveDataInternal(const FPRCharacterSaveData& InSaveDat
 		CurrencyComponent->ApplySaveData(InSaveData.Currency);
 	}
 	CurrentSaveData = InSaveData;
+	const FString OldDisplayName = DisplayName;
 	DisplayName = InSaveData.DisplayName;
 	CharacterLevel = InSaveData.Level;
 	Experience = InSaveData.Experience;
@@ -270,6 +295,12 @@ void APRPlayerState::ApplySaveDataInternal(const FPRCharacterSaveData& InSaveDat
 	GiveStartUpItems();
 
 	bPendingSaveDataApply = false;
+
+	if (DisplayName != OldDisplayName)
+	{
+		// 서버 로컬 UI 표시명 갱신
+		OnDisplayNameChanged.Broadcast(DisplayName);
+	}
 
 	ForceNetUpdate();
 }
@@ -496,6 +527,12 @@ float APRPlayerState::GetDownRemainingPercent(float ServerWorldTimeSeconds) cons
 
 void APRPlayerState::OnRep_DownTimerInfo()
 {
+}
+
+void APRPlayerState::OnRep_DisplayName()
+{
+	// 클라이언트 UI 표시명 갱신
+	OnDisplayNameChanged.Broadcast(DisplayName);
 }
 
 void APRPlayerState::ResetState()

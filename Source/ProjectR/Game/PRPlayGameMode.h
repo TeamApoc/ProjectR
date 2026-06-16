@@ -67,6 +67,9 @@ protected:
 	// 페이로드 검증. 실패 시 OutReason에 사유 기록
 	bool ValidateCharacterPayload(const FPRCharacterSaveData& Payload, FString& OutReason) const;
 
+	// 플레이어 고정 스폰 인덱스 할당
+	void AssignPRPlayerIndex(APRPlayerState* PlayerState) const;
+
 	// 파티 전원이 다운 또는 사망 상태인지 확인한다.
 	void EvaluatePartyWipe();
 

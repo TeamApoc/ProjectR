@@ -22,6 +22,22 @@ void APRGameStateBase::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& Out
 	DOREPLIFETIME(APRGameStateBase, WorldSaveVersion);
 }
 
+void APRGameStateBase::AddPlayerState(APlayerState* PlayerState)
+{
+	Super::AddPlayerState(PlayerState);
+
+	// PlayerArray 추가 이후 참가자 수 이벤트 갱신
+	RefreshPlayerCount();
+}
+
+void APRGameStateBase::RemovePlayerState(APlayerState* PlayerState)
+{
+	Super::RemovePlayerState(PlayerState);
+
+	// PlayerArray 제거 이후 참가자 수 이벤트 갱신
+	RefreshPlayerCount();
+}
+
 bool APRGameStateBase::IsWaypointUnlocked(const FPRWaypointKey& WaypointKey) const
 {
 	if (!WaypointKey.IsValid())
@@ -75,6 +91,35 @@ TArray<APRPlayerCharacter*> APRGameStateBase::GetPlayerCharacters() const
 	}
 
 	return OutCharacters;
+}
+
+int32 APRGameStateBase::GetPlayerCount() const
+{
+	int32 NewPlayerCount = 0;
+	for (APlayerState* PlayerState : PlayerArray)
+	{
+		if (!IsValid(PlayerState))
+		{
+			continue;
+		}
+
+		++NewPlayerCount;
+	}
+
+	return NewPlayerCount;
+}
+
+void APRGameStateBase::RefreshPlayerCount()
+{
+	const int32 NewPlayerCount = GetPlayerCount();
+	if (NewPlayerCount == LastBroadcastPlayerCount)
+	{
+		return;
+	}
+
+	// PlayerArray 변경 이벤트 전파
+	LastBroadcastPlayerCount = NewPlayerCount;
+	OnPlayerCountChanged.Broadcast();
 }
 
 void APRGameStateBase::InitializeFromWorldSave(const FPRWorldSaveData& WorldSave)

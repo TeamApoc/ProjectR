@@ -5,7 +5,10 @@
 
 #include "CoreMinimal.h"
 #include "PRGA_Mod.h"
+#include "ProjectR/ItemSystem/Types/PRWeaponTypes.h"
 #include "PRGA_Mod_GrantAbility.generated.h"
+
+class UPRWeaponManagerComponent;
 
 /**
  * 
@@ -29,6 +32,16 @@ protected:
 
 	// 부여 어빌리티와 비용 감시 정리
 	void CleanupGrantedAbilityRuntime(const FGameplayAbilityActorInfo* ActorInfo);
+
+	// 무기 변경 이벤트 바인딩
+	void BindWeaponEquipmentChanged();
+
+	// 무기 변경 이벤트 해제
+	void UnbindWeaponEquipmentChanged();
+
+	// 무기 변경 이벤트 처리
+	UFUNCTION()
+	void HandleWeaponEquipmentChanged(UPRWeaponManagerComponent* WeaponManagerComponent, EPRWeaponSlotType ChangedSlot);
 	
 	UFUNCTION()
 	void OnInputPressed(float TimeWaited);
@@ -41,4 +54,6 @@ private:
 	FGameplayAbilitySpecHandle GrantedSpecHandle;
 	FGameplayAttribute CostAttribute;
 	FDelegateHandle CostExhaustedHandle;
+	EPRWeaponSlotType SourceWeaponSlot = EPRWeaponSlotType::None;
+	TWeakObjectPtr<UPRWeaponManagerComponent> BoundWeaponManager;
 };

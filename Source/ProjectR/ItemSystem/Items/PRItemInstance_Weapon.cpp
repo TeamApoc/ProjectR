@@ -59,6 +59,31 @@ namespace
 
 		return BlockTags;
 	}
+
+	// 같은 슬롯 사격 모드 차단 태그 구성
+	FGameplayTagContainer BuildCurrentSlotFireModeBlockTags(const UPRWeaponDataAsset* WeaponData, EPRWeaponFireModeState BlockedFireModeState)
+	{
+		FGameplayTagContainer BlockTags;
+		if (!IsValid(WeaponData))
+		{
+			return BlockTags;
+		}
+
+		if (WeaponData->SlotType == EPRWeaponSlotType::Primary)
+		{
+			BlockTags.AddTag(BlockedFireModeState == EPRWeaponFireModeState::ModFire
+				? PRGameplayTags::State_CurrentWeaponSlot_Primary_Mod
+				: PRGameplayTags::State_CurrentWeaponSlot_Primary_Base);
+		}
+		else if (WeaponData->SlotType == EPRWeaponSlotType::Secondary)
+		{
+			BlockTags.AddTag(BlockedFireModeState == EPRWeaponFireModeState::ModFire
+				? PRGameplayTags::State_CurrentWeaponSlot_Secondary_Mod
+				: PRGameplayTags::State_CurrentWeaponSlot_Secondary_Base);
+		}
+
+		return BlockTags;
+	}
 }
 
 void UPRItemInstance_Weapon::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const
@@ -235,7 +260,8 @@ void UPRItemInstance_Weapon::GrantEquippedAbilitySets(AActor* OwnerActor)
 	if (UPRWeaponDataAsset* WeaponData = GetWeaponData())
 	{
 		const FGameplayTagContainer SlotBlockTags = BuildOppositeSlotBlockTags(WeaponData);
-		WeaponData->GiveToAbilitySystem(ASC, WeaponAbilityHandles, this, &SlotBlockTags);
+		const FGameplayTagContainer BaseFireBlockTags = BuildCurrentSlotFireModeBlockTags(WeaponData, EPRWeaponFireModeState::ModFire);
+		WeaponData->GiveToAbilitySystem(ASC, WeaponAbilityHandles, this, &SlotBlockTags, &BaseFireBlockTags);
 	}
 
 	if (IsValid(ModData))

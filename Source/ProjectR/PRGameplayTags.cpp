@@ -125,7 +125,11 @@ namespace PRGameplayTags
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(State_WeaponZooming, "State.WeaponZooming", "움직임 비활성화 상태");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(State_SwappingWeapon, "State.SwappingWeapon", "무기 교체 Draw 몽타주 진행 상태");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(State_CurrentWeaponSlot_Primary, "State.CurrentWeaponSlot.Primary", "현재 주무기 슬롯 상태");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(State_CurrentWeaponSlot_Primary_Base, "State.CurrentWeaponSlot.Primary.Base", "현재 주무기 기본 사격 상태");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(State_CurrentWeaponSlot_Primary_Mod, "State.CurrentWeaponSlot.Primary.Mod", "현재 주무기 Mod 사격 상태");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(State_CurrentWeaponSlot_Secondary, "State.CurrentWeaponSlot.Secondary", "현재 보조무기 슬롯 상태");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(State_CurrentWeaponSlot_Secondary_Base, "State.CurrentWeaponSlot.Secondary.Base", "현재 보조무기 기본 사격 상태");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(State_CurrentWeaponSlot_Secondary_Mod, "State.CurrentWeaponSlot.Secondary.Mod", "현재 보조무기 Mod 사격 상태");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(State_Mod_Primary_GaugeLocked, "State.Mod.Primary.GaugeLocked", "주무기 Mod 게이지 축적 차단 상태");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(State_Mod_Secondary_GaugeLocked, "State.Mod.Secondary.GaugeLocked", "보조무기 Mod 게이지 축적 차단 상태");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(State_Mod_Fire_Enabled, "State.Mod.Fire.Enabled", "발사형 모드 활성 상태");

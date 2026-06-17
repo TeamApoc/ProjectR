@@ -961,6 +961,9 @@ void APREnemyBaseCharacter::InitializeEnemyAbilitySystem()
 		AbilitySystemComponent->GiveAbilitySet(AbilitySet, GrantedAbilitySetHandles);
 	}
 
+	// 적 AvatarActor 준비 이후 어빌리티 훅 호출
+	AbilitySystemComponent->NotifyAvatarSet();
+
 	InitializeEnemyWorldHealthBar();
 }
 

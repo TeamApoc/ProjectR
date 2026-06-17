@@ -82,6 +82,10 @@ bool UPRGameplayAbility::CanActivateAbility(const FGameplayAbilitySpecHandle Han
 	return bCanActivate;
 }
 
+void UPRGameplayAbility::OnAvatarSet(const FGameplayAbilitySpec& Spec, const FGameplayAbilityActorInfo* ActorInfo) const
+{
+}
+
 bool UPRGameplayAbility::HasDynamicActivationBlockedTag(const UAbilitySystemComponent* InOwnerASC,
 	const FGameplayAbilitySpec* InAbilitySpec) const
 {

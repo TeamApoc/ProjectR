@@ -34,9 +34,15 @@ void UPRGA_Mod_FireProjectile::ActivateAbility(const FGameplayAbilitySpecHandle 
 void UPRGA_Mod_FireProjectile::ApplyCost(const FGameplayAbilitySpecHandle Handle,
 	const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilityActivationInfo ActivationInfo) const
 {
-	if (UPRGA_Mod* SourceMod = Cast<UPRGA_Mod>(GetCurrentSourceObject()))
+	if (UPRGA_Mod_FireProjectile* Inst = GetAbilityInstance<UPRGA_Mod_FireProjectile>(Handle, ActorInfo))
 	{
-		SourceMod->ApplyModCost(Handle,ActorInfo,ActivationInfo);
+		if (UPRGA_Mod* SourceMod = Cast<UPRGA_Mod>(Inst->GetCurrentSourceObject()))
+		{
+			SourceMod->ApplyModCost(
+				SourceMod->GetCurrentAbilitySpecHandle(),
+				SourceMod->GetCurrentActorInfo(),
+				SourceMod->GetCurrentActivationInfo());
+		}
 	}
 	
 	if (CheckCost(Handle,ActorInfo))

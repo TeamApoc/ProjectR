@@ -207,6 +207,9 @@ public:
 	void ApplySaveData(const FPRCharacterSaveData& InSaveData);
 	FPRCharacterSaveData MakeSaveData() const;
 
+	// 현재 런타임 상태를 맵 이동 복원용 저장 데이터로 보관
+	void SnapshotCurrentSaveData();
+
 	// 성장 Attribute 기준의 캐시 값을 기존 저장/표시 필드에 반영한다
 	void SyncGrowthCache(int64 NewExperience, int32 NewLevel, const FPRCharacterStatUpgradeInfo& NewStats);
 	

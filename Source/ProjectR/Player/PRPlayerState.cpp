@@ -110,7 +110,8 @@ void APRPlayerState::CopyProperties(APlayerState* PlayerState)
 	
 	if (APRPlayerState* NewPS = Cast<APRPlayerState>(PlayerState))
 	{
-		FPRCharacterSaveData SaveData = MakeSaveData();
+		SnapshotCurrentSaveData();
+		const FPRCharacterSaveData SaveData = CurrentSaveData;
 		// SeamlessTravel 이후 새 Pawn 준비 시 전체 런타임 상태 복원 예약
 		NewPS->QueueSaveDataApply(SaveData, false);
 		if (bCharacterPayloadAccepted)
@@ -344,6 +345,17 @@ FPRCharacterSaveData APRPlayerState::MakeSaveData() const
 			Registry->GetPersistentBaseAttributes(EPRCharacterRole::Player));
 	}
 	return SaveData;
+}
+
+void APRPlayerState::SnapshotCurrentSaveData()
+{
+	if (!HasAuthority())
+	{
+		return;
+	}
+
+	// SeamlessTravel 전 복원 데이터 최신화
+	CurrentSaveData = MakeSaveData();
 }
 
 void APRPlayerState::SyncGrowthCache(int64 NewExperience, int32 NewLevel, const FPRCharacterStatUpgradeInfo& NewStats)

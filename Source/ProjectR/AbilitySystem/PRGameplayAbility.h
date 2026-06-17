@@ -36,6 +36,9 @@ public:
 	                                 const FGameplayTagContainer* TargetTags,
 	                                 FGameplayTagContainer* OptionalRelevantTags) const override;
 
+	/*~ UPRGameplayAbility Interface ~*/
+	// ASC ActorInfo의 AvatarActor 설정 이후 호출되는 훅
+	virtual void OnAvatarSet(const FGameplayAbilitySpec& Spec, const FGameplayAbilityActorInfo* ActorInfo) const;
 
 	// CDO가 아닌 어빌리티의 실제 인스턴스 반환
 	template<typename T>

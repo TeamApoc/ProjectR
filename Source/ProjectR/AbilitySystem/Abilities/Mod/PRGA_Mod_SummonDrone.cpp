@@ -2,6 +2,7 @@
 // Author: 이건주 (Mod Summon Drone 구현)
 #include "PRGA_Mod_SummonDrone.h"
 
+#include "AbilitySystemComponent.h"
 #include "Engine/World.h"
 #include "GameFramework/Pawn.h"
 #include "ProjectR/Drone/PRSupportDroneActor.h"
@@ -43,6 +44,10 @@ void UPRGA_Mod_SummonDrone::OnDurationStarted_Implementation()
 {
 	Super::OnDurationStarted_Implementation();
 
+	// 지속시간 비용 감시
+	ActiveDurationCostHandle = GetLastAppliedModCostHandle();
+	BindDurationCostRemovalEvent();
+
 	if (!HasAuthority(&CurrentActivationInfo))
 	{
 		return;
@@ -50,6 +55,7 @@ void UPRGA_Mod_SummonDrone::OnDurationStarted_Implementation()
 
 	if (!IsValid(DroneClass) || !IsValid(SpawnSupportDrone(GetCurrentActorInfo())))
 	{
+		CleanupDroneRuntime();
 		EndAbility(CurrentSpecHandle, CurrentActorInfo, CurrentActivationInfo, true, true);
 	}
 }
@@ -60,6 +66,7 @@ void UPRGA_Mod_SummonDrone::CleanupRuntimeOnAbilityRemoved(const FGameplayAbilit
 {
 	// 활성 드론 정리
 	DestroyActiveDrone();
+	CleanupDroneRuntime();
 	Super::CleanupRuntimeOnAbilityRemoved(ActorInfo, Spec);
 }
 
@@ -113,11 +120,10 @@ APRSupportDroneActor* UPRGA_Mod_SummonDrone::SpawnSupportDrone(const FGameplayAb
 	}
 
 	SpawnedDrone->InitializeDrone(PlayerPawn, DroneData);
-	if (ModDuration > 0.0f)
-	{
-		// 모드 지속시간 기준 수명
-		SpawnedDrone->SetLifeSpan(ModDuration);
-	}
+	// DataAsset 수명 타이머 제거
+	SpawnedDrone->SetLifeSpan(0.0f);
+	SpawnedDrone->StartDissolve(SpawnDissolveDuration, EPRDroneDissolveMode::Appear);
+
 	ActiveDrone = SpawnedDrone;
 	return SpawnedDrone;
 }
@@ -130,6 +136,64 @@ void UPRGA_Mod_SummonDrone::DestroyActiveDrone()
 		return;
 	}
 
-	ActiveDrone->Destroy();
+	// 퇴장 Dissolve 요청
+	ActiveDrone->StartDissolve(DestroyDissolveDuration, EPRDroneDissolveMode::Disappear);
 	ActiveDrone = nullptr;
+}
+
+void UPRGA_Mod_SummonDrone::CleanupDroneRuntime()
+{
+	UnbindDurationCostRemovalEvent();
+	ActiveDurationCostHandle.Invalidate();
+	ActiveDrone = nullptr;
+}
+
+/*~ 이벤트 바인딩 ~*/
+
+void UPRGA_Mod_SummonDrone::BindDurationCostRemovalEvent()
+{
+	UAbilitySystemComponent* ASC = GetAbilitySystemComponentFromActorInfo();
+	if (!IsValid(ASC) || !ActiveDurationCostHandle.IsValid() || DurationCostRemovedDelegateHandle.IsValid())
+	{
+		return;
+	}
+
+	FOnActiveGameplayEffectRemoved_Info* RemovedDelegate = ASC->OnGameplayEffectRemoved_InfoDelegate(ActiveDurationCostHandle);
+	if (RemovedDelegate != nullptr)
+	{
+		// 비용 종료 감시
+		DurationCostRemovedDelegateHandle = RemovedDelegate->AddUObject(this, &ThisClass::HandleDurationCostRemoved);
+	}
+}
+
+void UPRGA_Mod_SummonDrone::UnbindDurationCostRemovalEvent()
+{
+	UAbilitySystemComponent* ASC = GetAbilitySystemComponentFromActorInfo();
+	if (!IsValid(ASC) || !ActiveDurationCostHandle.IsValid() || !DurationCostRemovedDelegateHandle.IsValid())
+	{
+		DurationCostRemovedDelegateHandle.Reset();
+		return;
+	}
+
+	FOnActiveGameplayEffectRemoved_Info* RemovedDelegate = ASC->OnGameplayEffectRemoved_InfoDelegate(ActiveDurationCostHandle);
+	if (RemovedDelegate != nullptr)
+	{
+		RemovedDelegate->Remove(DurationCostRemovedDelegateHandle);
+	}
+
+	DurationCostRemovedDelegateHandle.Reset();
+}
+
+/*~ 이벤트 처리 ~*/
+
+void UPRGA_Mod_SummonDrone::HandleDurationCostRemoved(const FGameplayEffectRemovalInfo& RemovalInfo)
+{
+	(void)RemovalInfo;
+
+	// 비용 종료
+	DurationCostRemovedDelegateHandle.Reset();
+	ActiveDurationCostHandle.Invalidate();
+
+	DestroyActiveDrone();
+	CleanupDroneRuntime();
 }

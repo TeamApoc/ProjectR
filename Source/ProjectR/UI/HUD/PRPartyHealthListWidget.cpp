@@ -3,11 +3,11 @@
 #include "ProjectR/UI/HUD/PRPartyHealthListWidget.h"
 
 #include "AbilitySystemComponent.h"
-#include "GameFramework/GameStateBase.h"
+#include "Components/PanelWidget.h"
 #include "GameFramework/PlayerController.h"
+#include "ProjectR/Game/PRGameStateBase.h"
 #include "ProjectR/Player/PRPlayerState.h"
 #include "ProjectR/UI/HUD/PRPartyMemberHealthWidget.h"
-#include "TimerManager.h"
 
 UPRPartyHealthListWidget::UPRPartyHealthListWidget(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
@@ -23,25 +23,14 @@ void UPRPartyHealthListWidget::NativeConstruct()
 {
 	Super::NativeConstruct();
 
+	CachePartyMemberSlots();
+	BindPlayerCountChanged();
 	RefreshPartyMembers();
-
-	if (UWorld* World = GetWorld())
-	{
-		World->GetTimerManager().SetTimer(
-			PartyRefreshTimerHandle,
-			this,
-			&UPRPartyHealthListWidget::RefreshPartyMembers,
-			PartyRefreshInterval,
-			true);
-	}
 }
 
 void UPRPartyHealthListWidget::NativeDestruct()
 {
-	if (UWorld* World = GetWorld())
-	{
-		World->GetTimerManager().ClearTimer(PartyRefreshTimerHandle);
-	}
+	UnbindPlayerCountChanged();
 
 	ApplyPartyMembers(TArray<APRPlayerState*>());
 
@@ -53,7 +42,7 @@ void UPRPartyHealthListWidget::NativeDestruct()
 void UPRPartyHealthListWidget::RefreshPartyMembers()
 {
 	UWorld* World = GetWorld();
-	AGameStateBase* GameState = IsValid(World) ? World->GetGameState() : nullptr;
+	APRGameStateBase* GameState = IsValid(World) ? World->GetGameState<APRGameStateBase>() : nullptr;
 	APRPlayerState* OwningPlayerState = GetOwningPRPlayerState();
 	if (!IsValid(GameState) || !IsValid(OwningPlayerState))
 	{
@@ -75,18 +64,87 @@ void UPRPartyHealthListWidget::RefreshPartyMembers()
 
 	PartyMembers.Sort([](const APRPlayerState& Left, const APRPlayerState& Right)
 	{
+		const int32 LeftPlayerIndex = Left.GetPRPlayerIndex();
+		const int32 RightPlayerIndex = Right.GetPRPlayerIndex();
+		if (LeftPlayerIndex != INDEX_NONE && RightPlayerIndex != INDEX_NONE)
+		{
+			return LeftPlayerIndex < RightPlayerIndex;
+		}
+
 		return Left.GetPlayerId() < Right.GetPlayerId();
 	});
 
-	if (PartyMembers.Num() > 2)
+	if (PartyMembers.Num() > PartyMemberSlots.Num())
 	{
-		PartyMembers.SetNum(2);
+		PartyMembers.SetNum(PartyMemberSlots.Num());
 	}
 
 	ApplyPartyMembers(PartyMembers);
 }
 
 /*~ Party Members ~*/
+
+void UPRPartyHealthListWidget::CachePartyMemberSlots()
+{
+	PartyMemberSlots.Reset();
+
+	if (!IsValid(PartyMemberListPanel))
+	{
+		return;
+	}
+
+	const int32 ChildCount = PartyMemberListPanel->GetChildrenCount();
+	PartyMemberSlots.Reserve(ChildCount);
+	for (int32 ChildIndex = 0; ChildIndex < ChildCount; ++ChildIndex)
+	{
+		UPRPartyMemberHealthWidget* PartyMemberSlot = Cast<UPRPartyMemberHealthWidget>(PartyMemberListPanel->GetChildAt(ChildIndex));
+		if (!IsValid(PartyMemberSlot))
+		{
+			continue;
+		}
+
+		PartyMemberSlots.Add(PartyMemberSlot);
+	}
+}
+
+void UPRPartyHealthListWidget::BindPlayerCountChanged()
+{
+	if (PlayerCountChangedDelegateHandle.IsValid())
+	{
+		return;
+	}
+
+	UWorld* World = GetWorld();
+	APRGameStateBase* GameState = IsValid(World) ? World->GetGameState<APRGameStateBase>() : nullptr;
+	if (!IsValid(GameState))
+	{
+		return;
+	}
+
+	PlayerCountChangedDelegateHandle = GameState->OnPlayerCountChanged.AddUObject(this, &ThisClass::HandlePlayerCountChanged);
+}
+
+void UPRPartyHealthListWidget::UnbindPlayerCountChanged()
+{
+	if (!PlayerCountChangedDelegateHandle.IsValid())
+	{
+		return;
+	}
+
+	UWorld* World = GetWorld();
+	APRGameStateBase* GameState = IsValid(World) ? World->GetGameState<APRGameStateBase>() : nullptr;
+	if (IsValid(GameState))
+	{
+		GameState->OnPlayerCountChanged.Remove(PlayerCountChangedDelegateHandle);
+	}
+
+	PlayerCountChangedDelegateHandle.Reset();
+}
+
+void UPRPartyHealthListWidget::HandlePlayerCountChanged()
+{
+	RefreshPartyMembers();
+}
 
 APRPlayerState* UPRPartyHealthListWidget::GetOwningPRPlayerState() const
 {
@@ -96,10 +154,9 @@ APRPlayerState* UPRPartyHealthListWidget::GetOwningPRPlayerState() const
 
 void UPRPartyHealthListWidget::ApplyPartyMembers(const TArray<APRPlayerState*>& PartyMembers)
 {
-	UPRPartyMemberHealthWidget* Slots[] = { PartyMemberSlot0.Get(), PartyMemberSlot1.Get() };
-	for (int32 Index = 0; Index < UE_ARRAY_COUNT(Slots); ++Index)
+	for (int32 Index = 0; Index < PartyMemberSlots.Num(); ++Index)
 	{
-		UPRPartyMemberHealthWidget* PartySlot = Slots[Index];
+		UPRPartyMemberHealthWidget* PartySlot = PartyMemberSlots[Index];
 		if (!IsValid(PartySlot))
 		{
 			continue;

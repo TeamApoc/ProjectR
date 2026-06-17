@@ -4,6 +4,8 @@
 #include "PRWeaponHUDWidget.h"
 
 #include "AbilitySystemComponent.h"
+#include "GameFramework/GameStateBase.h"
+#include "ProjectR/AbilitySystem/Abilities/Mod/PRGA_Mod_HasDuration.h"
 #include "ProjectR/AbilitySystem/AttributeSets/PRAttributeSet_Weapon.h"
 #include "ProjectR/Character/PRPlayerCharacter.h"
 #include "ProjectR/Player/PRPlayerState.h"
@@ -12,6 +14,7 @@
 #include "ProjectR/ItemSystem/Components/PRWeaponManagerComponent.h"
 #include "ProjectR/ItemSystem/Data/PRWeaponDataAsset.h"
 #include "ProjectR/ItemSystem/Data/PRWeaponModDataAsset.h"
+#include "ProjectR/ItemSystem/Items/PRItemInstance_Weapon.h"
 
 void UPRWeaponHUDWidget::InitializeWeaponHUD()
 {
@@ -127,6 +130,7 @@ FPRWeaponStatusViewData UPRWeaponHUDWidget::BuildWeaponStatusViewData(EPRWeaponS
 	}
 
 	const UPRWeaponDataAsset* WeaponData = WeaponManager->GetWeaponDataBySlotType(SlotType);
+	const UPRItemInstance_Weapon* WeaponInstance = WeaponManager->GetWeaponInstanceBySlotType(SlotType);
 	const FPRWeaponVisualInfo& VisualInfo = WeaponManager->GetVisualInfoBySlotType(SlotType);
 	const UPRWeaponModDataAsset* ModData = VisualInfo.ModData;
 	const EPRAmmoType AmmoType = IsValid(WeaponData)
@@ -153,6 +157,10 @@ FPRWeaponStatusViewData UPRWeaponHUDWidget::BuildWeaponStatusViewData(EPRWeaponS
 		? UPRUserInterfaceStatics::ConvertMinMaxToPercent(ModGauge, MaxModGauge)
 		: 0.0f;
 	ViewData.ModStackCount = ModStack;
+	ViewData.bUsesModDuration = DoesModUseDuration(ModData);
+	ViewData.ModRemainingDurationSeconds = (ViewData.bUsesModDuration && IsValid(WeaponInstance))
+		? WeaponInstance->GetRemainingModDurationSeconds(ResolveServerWorldTimeSeconds())
+		: 0.0f;
 
 	return ViewData;
 }
@@ -322,6 +330,41 @@ void UPRWeaponHUDWidget::ApplyWeaponSlotPresentation(EPRWeaponSlotType SlotType,
 	CanvasSlot->SetZOrder(LayoutPresentation.ZOrder);
 	StatusWidget->SetRenderScale(RenderPresentation.RenderScale);
 	StatusWidget->SetRenderOpacity(RenderPresentation.RenderOpacity);
+}
+
+bool UPRWeaponHUDWidget::DoesModUseDuration(const UPRWeaponModDataAsset* ModData) const
+{
+	if (!IsValid(ModData))
+	{
+		return false;
+	}
+
+	for (const FPRAbilityEntry& Entry : ModData->EquippedAbilities)
+	{
+		if (!Entry.IsValid())
+		{
+			continue;
+		}
+
+		if (Entry.AbilityClass->IsChildOf(UPRGA_Mod_HasDuration::StaticClass()))
+		{
+			return true;
+		}
+	}
+
+	return false;
+}
+
+float UPRWeaponHUDWidget::ResolveServerWorldTimeSeconds() const
+{
+	const UWorld* World = GetWorld();
+	if (!IsValid(World))
+	{
+		return 0.0f;
+	}
+
+	const AGameStateBase* GameState = World->GetGameState();
+	return IsValid(GameState) ? GameState->GetServerWorldTimeSeconds() : World->GetTimeSeconds();
 }
 
 void UPRWeaponHUDWidget::HandlePrimaryWeaponAttributeChanged(const FOnAttributeChangeData& ChangeData)

@@ -55,7 +55,10 @@ protected:
 	bool HasActiveBarrier() const;
 
 	// 발사 입력 가능 여부 확인
-	bool HasLaunchActivationWindow() const;
+	bool HasLaunchActivationWindow(const FGameplayAbilityActorInfo* ActorInfo) const;
+
+	// 복제 지속 상태 확인
+	bool HasReplicatedDurationCostState(const FGameplayAbilityActorInfo* ActorInfo) const;
 
 	// 서버 배리어 생성
 	APRGroundBoxProjectileBase* SpawnBarrier(const FGameplayAbilityActorInfo* ActorInfo);
@@ -64,7 +67,7 @@ protected:
 	APRBarrierAnchorActor* SpawnBarrierAnchor(APawn* PlayerPawn);
 
 	// 활성 배리어 발사
-	bool LaunchActiveBarrier(const FGameplayAbilityActorInfo* ActorInfo);
+	bool LaunchActiveBarrier();
 
 	// 배리어 제거 요청
 	void RequestActiveBarrierEnd();
@@ -86,9 +89,6 @@ protected:
 
 	// 생존 태그 이벤트 해제
 	void UnbindSurvivalTagEvents();
-
-	// 발사 방향 계산
-	FVector ResolveLaunchDirection(const FGameplayAbilityActorInfo* ActorInfo) const;
 
 	// 비용 GE 제거 처리
 	void HandleDurationCostRemoved(const FGameplayEffectRemovalInfo& RemovalInfo);

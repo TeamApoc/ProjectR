@@ -318,6 +318,11 @@ protected:
 	// 파괴 오디오
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "ProjectR|Projectile|Sound")
 	USoundBase* ExplodeSound;
+
+	// 투사체가 날아가는 동안 재생할 비행 사운드 큐다. 루트에 attach되어 투사체를 따라 재생된다. 비어 있으면 재생하지 않는다.
+	// (루프형 큐를 쓰면 투사체가 파괴될 때까지 따라 재생되고, 파괴 시 함께 정리된다.)
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "ProjectR|Projectile|Sound")
+	TObjectPtr<USoundBase> FlightSoundCue;
 	
 private:
 	// 투사체 식별자. Auth 액터에 한해 소유 클라이언트로만 리플리케이트

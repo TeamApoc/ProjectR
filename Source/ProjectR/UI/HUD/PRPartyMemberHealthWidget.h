@@ -56,6 +56,15 @@ protected:
 	void BP_OnSurvivalStateChanged(EPRPartyMemberSurvivalState InState);
 
 private:
+	// PlayerState 표시명 변경 이벤트 구독
+	void BindDisplayNameChanged(APRPlayerState* InPlayerState);
+
+	// PlayerState 표시명 변경 이벤트 구독 해제
+	void UnbindDisplayNameChanged();
+
+	// PlayerState 표시명 변경 이벤트 수신 처리
+	void HandleDisplayNameChanged(const FString& NewDisplayName);
+
 	void RefreshDisplayName();
 	void RefreshSurvivalState();
 	void ApplySurvivalStateIcon();
@@ -90,4 +99,7 @@ private:
 	EPRPartyMemberSurvivalState SurvivalState = EPRPartyMemberSurvivalState::Alive;
 
 	TWeakObjectPtr<APRPlayerState> BoundPlayerState;
+
+	// 표시명 변경 이벤트 핸들
+	FDelegateHandle DisplayNameChangedDelegateHandle;
 };

@@ -132,9 +132,15 @@ void UBTService_PRUpdatePenitentCombatBlackboard::TickNode(UBehaviorTreeComponen
 		? Cast<AActor>(BlackboardComponent->GetValueAsObject(CurrentTargetKey))
 		: nullptr;
 	const bool bHasTarget = IsValid(CurrentTarget);
-	const float DistanceToTarget = HasPenitentCombatBlackboardKey(BlackboardComponent, DistanceToTargetKey)
-		? BlackboardComponent->GetValueAsFloat(DistanceToTargetKey)
+	const float DistanceToTarget = bHasTarget
+		? FVector::Dist(PenitentCharacter->GetActorLocation(), CurrentTarget->GetActorLocation())
 		: 0.0f;
+
+	if (HasPenitentCombatBlackboardKey(BlackboardComponent, DistanceToTargetKey))
+	{
+		// Penitent 거리 판정 원본값 동기화
+		BlackboardComponent->SetValueAsFloat(DistanceToTargetKey, DistanceToTarget);
+	}
 
 	const FPRPenitentCombatRangeData& RangeData = CombatDataAsset->CombatRangeData;
 	const EPRPenitentDistanceBand DistanceBand = bHasTarget && RangeData.IsValidRangeOrder()

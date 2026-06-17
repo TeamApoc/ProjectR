@@ -8,6 +8,7 @@
 #include "Components/SceneComponent.h"
 #include "Engine/World.h"
 #include "GameFramework/Character.h"
+#include "Kismet/GameplayStatics.h"
 #include "Materials/MaterialInstanceDynamic.h"
 #include "Materials/MaterialInterface.h"
 #include "MotionWarpingComponent.h"
@@ -151,6 +152,15 @@ void APRFaerinCharacter::Multicast_SpawnNearTeleportBodyNiagara_Implementation(
 	const float LifeSeconds)
 {
 	SpawnNearTeleportBodyNiagaraLocal(NiagaraSystem, AttachSocketName, LifeSeconds);
+}
+
+void APRFaerinCharacter::Multicast_PlayFaerinSoundAtLocation_Implementation(USoundBase* Sound, FVector_NetQuantize Location)
+{
+	// 모든 클라이언트에서 지정 위치에 SFX를 재생한다. (데디케이티드 서버에선 무시)
+	if (IsValid(Sound))
+	{
+		UGameplayStatics::SpawnSoundAtLocation(this, Sound, Location);
+	}
 }
 
 void APRFaerinCharacter::Multicast_PlayNearTeleportDissolveVisual_Implementation(

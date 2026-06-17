@@ -4,7 +4,22 @@
 
 #include "ProjectR/AbilitySystem/Abilities/Boss/PRBossAbilityTagUtils.h"
 #include "ProjectR/AI/Boss/PRBossPortalActor.h"
+#include "ProjectR/AI/Boss/Faerin/PRFaerinRainProjectileManager.h"
 #include "ProjectR/PRGameplayTags.h"
+
+#include "Engine/World.h"
+#include "GameFramework/Pawn.h"
+#include "HAL/IConsoleManager.h"
+
+namespace
+{
+	// 경량 rain 투사체 경로 전역 토글. 데이터 플래그와 별개로 런타임에 강제 켜고 끌 수 있다. (롤백용)
+	TAutoConsoleVariable<int32> CVarFaerinRainPortalUseLightweight(
+		TEXT("pr.Faerin.RainPortal.UseLightweight"),
+		0,
+		TEXT("1이면 Faerin Rain Portal이 경량 ISM 매니저 투사체 경로를 사용한다. 0이면 기존 액터 투사체 경로."),
+		ECVF_Default);
+}
 
 UPRGameplayAbility_FaerinRainPortalSequence::UPRGameplayAbility_FaerinRainPortalSequence()
 {
@@ -43,6 +58,10 @@ void UPRGameplayAbility_FaerinRainPortalSequence::StartSpawnedPortals()
 		return;
 	}
 
+	// 경량 경로가 켜져 있으면 매니저를 1개 스폰하고, 각 포털을 경량 경로로 전환한다.
+	const bool bLightweight = ResolveUseLightweightRainProjectile();
+	APRFaerinRainProjectileManager* RainManager = bLightweight ? SpawnRainProjectileManager() : nullptr;
+
 	const int32 ResolvedGroupSize = FMath::Max(PortalStartGroupSize, 1);
 	int32 PortalIndex = 0;
 	for (APRBossPortalActor* SpawnedPortal : SpawnedPortalRefs)
@@ -50,6 +69,11 @@ void UPRGameplayAbility_FaerinRainPortalSequence::StartSpawnedPortals()
 		if (!IsValid(SpawnedPortal))
 		{
 			continue;
+		}
+
+		if (bLightweight && IsValid(RainManager))
+		{
+			SpawnedPortal->SetLightweightRainProjectile(true, RainManager, LightweightProjectileLifetime);
 		}
 
 		const int32 GroupIndex = PortalIndex / ResolvedGroupSize;
@@ -94,4 +118,41 @@ FVector UPRGameplayAbility_FaerinRainPortalSequence::BuildRainPortalOffset(
 	const float Radius = FMath::Sqrt(NormalizedIndex) * OuterRadius;
 	const float Angle = static_cast<float>(PortalIndex) * GoldenAngleRadians;
 	return FVector(FMath::Cos(Angle) * Radius, FMath::Sin(Angle) * Radius, SpawnHeight);
+}
+
+bool UPRGameplayAbility_FaerinRainPortalSequence::ResolveUseLightweightRainProjectile() const
+{
+	if (bUseLightweightRainProjectile)
+	{
+		return true;
+	}
+
+	return CVarFaerinRainPortalUseLightweight.GetValueOnGameThread() != 0;
+}
+
+APRFaerinRainProjectileManager* UPRGameplayAbility_FaerinRainPortalSequence::SpawnRainProjectileManager()
+{
+	if (!IsValid(RainProjectileManagerClass))
+	{
+		UE_LOG(LogTemp, Warning,
+			TEXT("FaerinRainPortal: 경량 경로가 켜졌지만 RainProjectileManagerClass가 비어 있어 기존 액터 투사체 경로로 동작한다."));
+		return nullptr;
+	}
+
+	AActor* AvatarActor = GetAvatarActorFromActorInfo();
+	UWorld* World = IsValid(AvatarActor) ? AvatarActor->GetWorld() : nullptr;
+	if (!IsValid(World) || !AvatarActor->HasAuthority())
+	{
+		return nullptr;
+	}
+
+	FActorSpawnParameters SpawnParameters;
+	SpawnParameters.Owner = AvatarActor;
+	SpawnParameters.Instigator = Cast<APawn>(AvatarActor);
+	SpawnParameters.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
+
+	return World->SpawnActor<APRFaerinRainProjectileManager>(
+		RainProjectileManagerClass,
+		AvatarActor->GetActorTransform(),
+		SpawnParameters);
 }

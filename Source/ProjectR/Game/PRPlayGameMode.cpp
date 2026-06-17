@@ -68,6 +68,12 @@ void APRPlayGameMode::PostLogin(APlayerController* NewPlayer)
 {
 	Super::PostLogin(NewPlayer);
 
+	if (APRPlayerState* NewPlayerState = IsValid(NewPlayer) ? NewPlayer->GetPlayerState<APRPlayerState>() : nullptr)
+	{
+		// 최초 스폰 전 PlayerStart 슬롯 할당
+		AssignPRPlayerIndex(NewPlayerState);
+	}
+
 	APRPlayerController* PRPlayerController = Cast<APRPlayerController>(NewPlayer);
 	if (IsValid(PRPlayerController)
 		&& PRPlayerController->IsLocalController()
@@ -177,6 +183,7 @@ bool APRPlayGameMode::AcceptGuestCharacter(APRPlayerController* From, const FPRC
 	if (PS->HasAcceptedCharacterPayload())
 	{
 		// ReceivedPlayer 재호출로 전달된 클라이언트 로컬 세이브 재적용 방지
+		AssignPRPlayerIndex(PS);
 		return true;
 	}
 
@@ -187,6 +194,7 @@ bool APRPlayGameMode::AcceptGuestCharacter(APRPlayerController* From, const FPRC
 	}
 
 	// PlayerState에 주입. 이후 복제로 모든 클라에 전파
+	AssignPRPlayerIndex(PS);
 	PS->MarkCharacterPayloadAccepted();
 	PS->QueueSaveDataApply(Payload, true);
 	if (IsValid(PS->GetPawn()))
@@ -196,6 +204,49 @@ bool APRPlayGameMode::AcceptGuestCharacter(APRPlayerController* From, const FPRC
 	}
 
 	return true;
+}
+
+void APRPlayGameMode::AssignPRPlayerIndex(APRPlayerState* PlayerState) const
+{
+	if (!HasAuthority() || !IsValid(PlayerState))
+	{
+		return;
+	}
+
+	if (PlayerState->GetPRPlayerIndex() != INDEX_NONE)
+	{
+		return;
+	}
+
+	const AGameStateBase* CurrentGameState = GameState;
+	if (!IsValid(CurrentGameState))
+	{
+		return;
+	}
+
+	TSet<int32> UsedPlayerIndices;
+	for (APlayerState* ExistingPlayerState : CurrentGameState->PlayerArray)
+	{
+		const APRPlayerState* ExistingPRPlayerState = Cast<APRPlayerState>(ExistingPlayerState);
+		if (!IsValid(ExistingPRPlayerState) || ExistingPRPlayerState == PlayerState)
+		{
+			continue;
+		}
+
+		const int32 ExistingPlayerIndex = ExistingPRPlayerState->GetPRPlayerIndex();
+		if (ExistingPlayerIndex != INDEX_NONE)
+		{
+			UsedPlayerIndices.Add(ExistingPlayerIndex);
+		}
+	}
+
+	int32 NewPlayerIndex = 0;
+	while (UsedPlayerIndices.Contains(NewPlayerIndex))
+	{
+		++NewPlayerIndex;
+	}
+
+	PlayerState->SetPRPlayerIndex(NewPlayerIndex);
 }
 
 void APRPlayGameMode::GrantRewardTo(APRPlayerController* Target, const FPRRewardGrant& Grant)

@@ -4,7 +4,6 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "Misc/Optional.h"
 #include "PRGA_Fire.h"
 #include "ProjectR/Projectile/PRFirePreviewTypes.h"
 #include "ProjectR/Projectile/PRProjectileTypes.h"
@@ -15,7 +14,7 @@ class UGameplayEffect;
 
 /**
  * 투사체 발사 어빌리티.
- * OnGiveAbility 시점에 ProjectileClass CDO의 발사 기본값을 추출해 플레이어의 예측 경로 표시 컴포넌트에 PreviewParams 주입.
+ * AvatarActor 설정 이후 ProjectileClass CDO의 발사 기본값을 추출해 플레이어의 예측 경로 표시 컴포넌트에 PreviewParams 주입.
  */
 UCLASS()
 class PROJECTR_API UPRGA_FireProjectile : public UPRGA_Fire
@@ -24,10 +23,12 @@ class PROJECTR_API UPRGA_FireProjectile : public UPRGA_Fire
 
 public:
 	/*~ UGameplayAbility Interface ~*/
-	virtual void OnGiveAbility(const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilitySpec& Spec) override;
 	virtual void OnRemoveAbility(const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilitySpec& Spec) override;
 
 protected:
+	/*~ UPRGameplayAbility Interface ~*/
+	virtual void OnAvatarSet(const FGameplayAbilitySpec& Spec, const FGameplayAbilityActorInfo* ActorInfo) const override;
+
 	/*~ UPRGA_Fire Interface ~*/
 	virtual FGameplayEffectSpecHandle MakeWeaponEffectSpec(const FHitResult* HitResult = nullptr) const override;
 	virtual void OnProjectileSpawnSuccess(APRProjectileBase* SpawnedProjectile) override;
@@ -60,8 +61,4 @@ protected:
 	// 투사체에 부여할 GE 오버라이드. 비워두면 Registry의 DamageGE_FromWeapon 사용
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "ProjectR|Fire|Projectile")
 	TSubclassOf<UGameplayEffect> ProjectileEffectOverride;
-
-private:
-	// 마지막 등록 프리뷰 키
-	TOptional<FPRFirePreviewKey> RegisteredPreviewKey;
 };

@@ -13,19 +13,19 @@
 
 DEFINE_LOG_CATEGORY_STATIC(LogPRPathPreviewAbility, Log, All);
 
-void UPRGA_FireProjectile::OnGiveAbility(const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilitySpec& Spec)
+void UPRGA_FireProjectile::OnAvatarSet(const FGameplayAbilitySpec& Spec, const FGameplayAbilityActorInfo* ActorInfo) const
 {
-	Super::OnGiveAbility(ActorInfo, Spec);
+	Super::OnAvatarSet(Spec, ActorInfo);
 
 	if (ActorInfo == nullptr)
 	{
-		UE_LOG(LogPRPathPreviewAbility, Warning, TEXT("OnGiveAbility 중단. ActorInfo 없음, Ability=%s"),
+		UE_LOG(LogPRPathPreviewAbility, Warning, TEXT("OnAvatarSet 중단. ActorInfo 없음, Ability=%s"),
 			*GetNameSafe(this));
 		return;
 	}
 
 	UE_LOG(LogPRPathPreviewAbility, Log,
-		TEXT("OnGiveAbility 진입. Ability=%s, bShouldPreviewPath=%d, bLocallyControlledPlayer=%d, Avatar=%s"),
+		TEXT("OnAvatarSet 진입. Ability=%s, bShouldPreviewPath=%d, bLocallyControlledPlayer=%d, Avatar=%s"),
 		*GetNameSafe(this),
 		bShouldPreviewPath,
 		ActorInfo->IsLocallyControlledPlayer(),
@@ -36,7 +36,7 @@ void UPRGA_FireProjectile::OnGiveAbility(const FGameplayAbilityActorInfo* ActorI
 	{
 		if (!IsValid(ProjectileClass))
 		{
-			UE_LOG(LogPRPathPreviewAbility, Warning, TEXT("OnGiveAbility 중단. ProjectileClass 없음, Ability=%s"),
+			UE_LOG(LogPRPathPreviewAbility, Warning, TEXT("OnAvatarSet 중단. ProjectileClass 없음, Ability=%s"),
 				*GetNameSafe(this));
 			return;
 		}
@@ -44,7 +44,7 @@ void UPRGA_FireProjectile::OnGiveAbility(const FGameplayAbilityActorInfo* ActorI
 		APRPlayerCharacter* PlayerChar = Cast<APRPlayerCharacter>(ActorInfo->AvatarActor.Get());
 		if (!IsValid(PlayerChar))
 		{
-			UE_LOG(LogPRPathPreviewAbility, Warning, TEXT("OnGiveAbility 중단. PlayerChar 없음, Avatar=%s"),
+			UE_LOG(LogPRPathPreviewAbility, Warning, TEXT("OnAvatarSet 중단. PlayerChar 없음, Avatar=%s"),
 				*GetNameSafe(ActorInfo->AvatarActor.Get()));
 			return;
 		}
@@ -52,7 +52,7 @@ void UPRGA_FireProjectile::OnGiveAbility(const FGameplayAbilityActorInfo* ActorI
 		UPRFirePreviewComponent* Preview = PlayerChar->FindComponentByClass<UPRFirePreviewComponent>();
 		if (!IsValid(Preview))
 		{
-			UE_LOG(LogPRPathPreviewAbility, Warning, TEXT("OnGiveAbility 중단. PreviewComponent 없음, Player=%s"),
+			UE_LOG(LogPRPathPreviewAbility, Warning, TEXT("OnAvatarSet 중단. PreviewComponent 없음, Player=%s"),
 				*GetNameSafe(PlayerChar));
 			return;
 		}
@@ -61,7 +61,7 @@ void UPRGA_FireProjectile::OnGiveAbility(const FGameplayAbilityActorInfo* ActorI
 		if (!TryBuildPreviewKey(Spec, PreviewKey))
 		{
 			UE_LOG(LogPRPathPreviewAbility, Warning,
-				TEXT("OnGiveAbility 중단. PreviewKey 생성 실패, Ability=%s, SourceObject=%s"),
+				TEXT("OnAvatarSet 중단. PreviewKey 생성 실패, Ability=%s, SourceObject=%s"),
 				*GetNameSafe(this),
 				*GetNameSafe(Spec.SourceObject.Get()));
 			return;
@@ -73,7 +73,6 @@ void UPRGA_FireProjectile::OnGiveAbility(const FGameplayAbilityActorInfo* ActorI
 		PreviewEntry.SourceObject = Spec.SourceObject.Get();
 		PreviewEntry.ProjectileClass = ProjectileClass;
 		Preview->RegisterProjectilePreviewParams(PreviewKey, PreviewEntry);
-		RegisteredPreviewKey = PreviewKey;
 
 		UE_LOG(LogPRPathPreviewAbility, Log,
 			TEXT("Preview 등록 요청 완료. Ability=%s, Player=%s, Preview=%s, Slot=%s, Mode=%s, ProjectileClass=%s, InitialSpeed=%.2f, GravityScale=%.2f, CollisionRadius=%.2f"),
@@ -139,20 +138,14 @@ void UPRGA_FireProjectile::OnRemoveAbility(const FGameplayAbilityActorInfo* Acto
 		FPRFirePreviewKey PreviewKey;
 		if (!TryBuildPreviewKey(Spec, PreviewKey))
 		{
-			if (!RegisteredPreviewKey.IsSet())
-			{
-				UE_LOG(LogPRPathPreviewAbility, Warning,
-					TEXT("OnRemoveAbility 중단. PreviewKey 생성 실패, Ability=%s, SourceObject=%s"),
-					*GetNameSafe(this),
-					*GetNameSafe(Spec.SourceObject.Get()));
-				return;
-			}
-
-			PreviewKey = RegisteredPreviewKey.GetValue();
+			UE_LOG(LogPRPathPreviewAbility, Warning,
+				TEXT("OnRemoveAbility 중단. PreviewKey 생성 실패, Ability=%s, SourceObject=%s"),
+				*GetNameSafe(this),
+				*GetNameSafe(Spec.SourceObject.Get()));
+			return;
 		}
 
 		Preview->UnregisterProjectilePreviewParams(PreviewKey, Spec.Handle);
-		RegisteredPreviewKey.Reset();
 
 		UE_LOG(LogPRPathPreviewAbility, Log, TEXT("Preview 해제 요청 완료. Ability=%s, Player=%s, Preview=%s"),
 			*GetNameSafe(this),

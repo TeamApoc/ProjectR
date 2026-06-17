@@ -12,6 +12,48 @@
 #include "Data/PRAbilitySet.h"
 #include "Data/PRAbilitySystemRegistry.h"
 
+namespace
+{
+	// Avatar 준비 훅 단일 Spec 호출
+	void NotifyAvatarSetForAbilitySpec(FGameplayAbilitySpec& Spec, const FGameplayAbilityActorInfo* ActorInfo)
+	{
+		if (!IsValid(Spec.Ability) || ActorInfo == nullptr || !ActorInfo->AvatarActor.IsValid())
+		{
+			return;
+		}
+
+		const EGameplayAbilityInstancingPolicy::Type InstancingPolicy = Spec.Ability->GetInstancingPolicy();
+		if (InstancingPolicy == EGameplayAbilityInstancingPolicy::Type::InstancedPerActor)
+		{
+			if (const UPRGameplayAbility* Inst = Cast<UPRGameplayAbility>(Spec.GetPrimaryInstance()))
+			{
+				// PerActor 인스턴스 훅
+				Inst->OnAvatarSet(Spec, ActorInfo);
+			}
+			return;
+		}
+
+		if (InstancingPolicy == EGameplayAbilityInstancingPolicy::Type::NonInstanced)
+		{
+			if (const UPRGameplayAbility* CDO = Cast<UPRGameplayAbility>(Spec.Ability))
+			{
+				// NonInstanced CDO 훅
+				CDO->OnAvatarSet(Spec, ActorInfo);
+			}
+			return;
+		}
+
+		for (UGameplayAbility* AbilityInstance : Spec.GetAbilityInstances())
+		{
+			if (const UPRGameplayAbility* Inst = Cast<UPRGameplayAbility>(AbilityInstance))
+			{
+				// PerExecution 인스턴스 훅
+				Inst->OnAvatarSet(Spec, ActorInfo);
+			}
+		}
+	}
+}
+
 // =====  UActorComponent Interface =====
 
 void UPRAbilitySystemComponent::GetLifetimeReplicatedProps(TArray<class FLifetimeProperty>& OutLifetimeProps) const
@@ -37,6 +79,12 @@ void UPRAbilitySystemComponent::OnGiveAbility(FGameplayAbilitySpec& AbilitySpec)
 {
 	Super::OnGiveAbility(AbilitySpec);
 
+	if (const FGameplayAbilityActorInfo* ActorInfo = AbilityActorInfo.Get())
+	{
+		// AvatarActor 보유 상태에서 후부여된 어빌리티 훅
+		NotifyAvatarSetForAbilitySpec(AbilitySpec, ActorInfo);
+	}
+
 	// ActivationPolicy == OnGiven 이면 부여 즉시 활성화
 	const UPRGameplayAbility* CDO = Cast<UPRGameplayAbility>(AbilitySpec.Ability);
 	if (IsValid(CDO) && CDO->GetActivationPolicy() == EPRAbilityActivationPolicy::OnGiven)
@@ -49,6 +97,21 @@ void UPRAbilitySystemComponent::OnGiveAbility(FGameplayAbilitySpec& AbilitySpec)
 	if (IsValid(AbilitySpec.Ability))
 	{
 		// GAS는 FAbilityEndedData 콜백을 ASC OnAbilityEnded 델리게이트로 제공
+	}
+}
+
+void UPRAbilitySystemComponent::NotifyAvatarSet()
+{
+	const FGameplayAbilityActorInfo* ActorInfo = AbilityActorInfo.Get();
+	if (ActorInfo == nullptr || !ActorInfo->AvatarActor.IsValid())
+	{
+		return;
+	}
+
+	// AvatarActor 준비 이후 전체 어빌리티 훅 호출
+	for (FGameplayAbilitySpec& Spec : ActivatableAbilities.Items)
+	{
+		NotifyAvatarSetForAbilitySpec(Spec, ActorInfo);
 	}
 }
 

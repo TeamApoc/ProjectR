@@ -13,6 +13,7 @@
 #include "Engine/OverlapResult.h"
 #include "NiagaraComponent.h"
 #include "GameplayEffect.h"
+#include "Kismet/GameplayStatics.h"
 #include "NiagaraFunctionLibrary.h"
 #include "TimerManager.h"
 #include "ProjectR/AbilitySystem/Data/PRAbilitySystemRegistry.h"
@@ -1248,6 +1249,17 @@ void UPRFaerinGodFallComponent::ClearRigTimers()
 void UPRFaerinGodFallComponent::StartGodFallBodyNiagaraCuesLocal()
 {
 	CleanupGodFallBodyNiagaraLocal();
+
+	// 상승 SFX: 검을 들고 위로 상승하는 시전 시작 시 보스 메시에 attach해 재생한다. (BodyNiagaraCues 유무와 독립)
+	if (IsValid(GodFallData) && IsValid(GodFallData->GodFallRiseSoundCue))
+	{
+		APRBossBaseCharacter* RiseSoundBoss = GetOwnerBoss();
+		USkeletalMeshComponent* RiseSoundMesh = IsValid(RiseSoundBoss) ? RiseSoundBoss->GetMesh() : nullptr;
+		if (IsValid(RiseSoundMesh))
+		{
+			UGameplayStatics::SpawnSoundAttached(GodFallData->GodFallRiseSoundCue, RiseSoundMesh);
+		}
+	}
 
 	if (!IsValid(GodFallData) || GodFallData->BodyNiagaraCues.IsEmpty())
 	{

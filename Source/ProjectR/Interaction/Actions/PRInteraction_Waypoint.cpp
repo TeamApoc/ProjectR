@@ -358,6 +358,11 @@ void UPRInteraction_Waypoint::ApplyWaypointGameplayEffectToAllPlayers() const
 		if (SpecHandle.IsValid())
 		{
 			ASC->ApplyGameplayEffectSpecToSelf(*SpecHandle.Data.Get());
+			if (APRPlayerState* PRPlayerState = Cast<APRPlayerState>(PlayerState))
+			{
+				// Waypoint GE 적용 이후 SeamlessTravel 복원 데이터 갱신
+				PRPlayerState->SnapshotCurrentSaveData();
+			}
 		}
 	}
 }

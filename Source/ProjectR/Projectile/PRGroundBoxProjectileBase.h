@@ -54,6 +54,10 @@ struct PROJECTR_API FPRGroundBoxLaunchParams
 	// 런치 속도
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "ProjectR|GroundBox", meta = (ClampMin = "0.0"))
 	float LaunchSpeed = 0.0f;
+	
+	// 런치 속도
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "ProjectR|GroundBox")
+	bool bUseGroundSnap = true;
 };
 
 // 지면 박스형 서버 권위 피해 액터
@@ -311,6 +315,10 @@ private:
 	// 투사체 이동 복제 상태
 	UPROPERTY(ReplicatedUsing = OnRep_ProjectileRepMovement)
 	FPRProjectileRepMovement ProjectileRepMovement;
+
+	// 지면 스냅 사용 여부
+	UPROPERTY(Replicated)
+	bool bUseGroundSnap = true;
 
 	// 대상 피해 스펙
 	FGameplayEffectSpecHandle DamageEffectSpecHandle;

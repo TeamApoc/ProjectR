@@ -12,7 +12,9 @@
 #include "PRBossPortalActor.generated.h"
 
 class APRProjectileBase;
+class APRFaerinRainProjectileManager;
 class UGameplayEffect;
+class USoundBase;
 class USphereComponent;
 
 // 포털 하나의 내부 생명주기 상태다.
@@ -99,6 +101,10 @@ public:
 	// 서버에서 포털 투사체를 1회 발사한다.
 	UFUNCTION(BlueprintCallable, Category = "ProjectR|AI|Boss|Portal")
 	void FirePortalProjectile();
+
+	// 이 포털을 경량 rain 투사체(ISM 매니저) 경로로 전환한다. bEnable=false면 기존 액터 투사체 경로를 사용한다.
+	// Rain Portal 시퀀스에서 토글이 켜졌을 때만 호출되며, 그 외에는 호출되지 않아 기존 동작이 유지된다.
+	void SetLightweightRainProjectile(bool bEnable, APRFaerinRainProjectileManager* InManager, float InLifetime);
 
 	// 포털 발사 타이머를 정리한다.
 	UFUNCTION(BlueprintCallable, Category = "ProjectR|AI|Boss|Portal")
@@ -281,6 +287,18 @@ protected:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Portal|Fire")
 	bool bCanFireWhilePaused = false;
 
+	// 포털이 생성(텔레그래프 시작)될 때 포털 위치에 재생할 사운드 큐다. 모든 클라이언트에서 재생된다.
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Portal|SFX")
+	TObjectPtr<USoundBase> PortalSpawnSoundCue;
+
+	// 포털이 만료되어 사라질 때 포털 위치에 재생할 사운드 큐다.
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Portal|SFX")
+	TObjectPtr<USoundBase> PortalExpireSoundCue;
+
+	// 포털이 플레이어 피해로 파괴될 때 피격 위치에 재생할 사운드 큐다.
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Portal|SFX")
+	TObjectPtr<USoundBase> PortalDestroyedSoundCue;
+
 	// 포털이 발사할 투사체 클래스다.
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Portal|Projectile")
 	TSubclassOf<APRProjectileBase> ProjectileClass;
@@ -403,4 +421,13 @@ private:
 	int32 CurrentProjectileFireCount = 0;
 	uint32 NextPortalProjectileId = 1;
 	bool bPortalHealthDepleted = false;
+
+	// 경량 rain 투사체 경로 사용 여부다. 기본 false(기존 액터 투사체 경로). Rain Portal에서만 켜진다.
+	bool bUseLightweightRainProjectile = false;
+
+	// 경량 경로에서 투사체를 등록할 매니저다.
+	TWeakObjectPtr<APRFaerinRainProjectileManager> RainProjectileManager;
+
+	// 경량 rain 투사체의 수명(초)이다.
+	float LightweightProjectileLifetime = 3.0f;
 };

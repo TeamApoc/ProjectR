@@ -48,12 +48,15 @@ void UPRPartyMemberHealthWidget::SetPlayerState(APRPlayerState* InPlayerState)
 
 	if (BoundPlayerState.Get() == InPlayerState)
 	{
+		BindDisplayNameChanged(InPlayerState);
 		RefreshDisplayName();
 		RefreshSurvivalState();
 		return;
 	}
 
+	UnbindDisplayNameChanged();
 	BoundPlayerState = InPlayerState;
+	BindDisplayNameChanged(InPlayerState);
 
 	if (IsValid(HealthBar))
 	{
@@ -69,6 +72,7 @@ void UPRPartyMemberHealthWidget::SetPlayerState(APRPlayerState* InPlayerState)
 
 void UPRPartyMemberHealthWidget::ClearPlayerState()
 {
+	UnbindDisplayNameChanged();
 	BoundPlayerState.Reset();
 
 	if (IsValid(HealthBar))
@@ -85,6 +89,37 @@ void UPRPartyMemberHealthWidget::ClearPlayerState()
 }
 
 /*~ Display ~*/
+
+void UPRPartyMemberHealthWidget::BindDisplayNameChanged(APRPlayerState* InPlayerState)
+{
+	if (!IsValid(InPlayerState) || DisplayNameChangedDelegateHandle.IsValid())
+	{
+		return;
+	}
+
+	DisplayNameChangedDelegateHandle = InPlayerState->OnDisplayNameChanged.AddUObject(this, &ThisClass::HandleDisplayNameChanged);
+}
+
+void UPRPartyMemberHealthWidget::UnbindDisplayNameChanged()
+{
+	if (!DisplayNameChangedDelegateHandle.IsValid())
+	{
+		return;
+	}
+
+	APRPlayerState* PlayerState = BoundPlayerState.Get();
+	if (IsValid(PlayerState))
+	{
+		PlayerState->OnDisplayNameChanged.Remove(DisplayNameChangedDelegateHandle);
+	}
+
+	DisplayNameChangedDelegateHandle.Reset();
+}
+
+void UPRPartyMemberHealthWidget::HandleDisplayNameChanged(const FString&)
+{
+	RefreshDisplayName();
+}
 
 void UPRPartyMemberHealthWidget::RefreshDisplayName()
 {

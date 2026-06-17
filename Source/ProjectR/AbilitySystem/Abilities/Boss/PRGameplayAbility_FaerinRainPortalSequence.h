@@ -7,6 +7,7 @@
 #include "PRGameplayAbility_FaerinRainPortalSequence.generated.h"
 
 class APRBossPatternActor;
+class APRFaerinRainProjectileManager;
 
 // Faerin 3페이즈 이후 고공에서 아래로 투사체를 쏟는 Rain Portal 시퀀스다.
 UCLASS()
@@ -34,6 +35,12 @@ protected:
 
 	// 지정된 인덱스의 Rain Portal 위치 오프셋을 계산한다.
 	FVector BuildRainPortalOffset(int32 PortalIndex, int32 ResolvedPortalCount) const;
+
+	// 데이터 플래그 또는 CVar(pr.Faerin.RainPortal.UseLightweight)로 경량 투사체 사용 여부를 해석한다.
+	bool ResolveUseLightweightRainProjectile() const;
+
+	// 경량 rain 투사체 매니저를 1개 스폰한다. (서버 권위)
+	APRFaerinRainProjectileManager* SpawnRainProjectileManager();
 
 protected:
 	// Rain Portal로 생성할 포털 Actor 또는 BP class다.
@@ -67,4 +74,17 @@ protected:
 	// telegraph 시작 묶음 사이의 지연 시간이다.
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Faerin|RainPortal", meta = (ClampMin = "0.0"))
 	float PortalStartGroupInterval = 0.25f;
+
+	// 경량 rain 투사체(ISM 매니저) 경로 사용 여부다. 기본 false면 기존 액터 투사체 경로를 그대로 사용한다.
+	// CVar pr.Faerin.RainPortal.UseLightweight 1로도 강제 활성화할 수 있다. (런타임 롤백용)
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Faerin|RainPortal|Lightweight")
+	bool bUseLightweightRainProjectile = false;
+
+	// 경량 경로에서 스폰할 매니저 클래스다. (메시/머터리얼 등은 이 BP에서 지정)
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Faerin|RainPortal|Lightweight")
+	TSubclassOf<APRFaerinRainProjectileManager> RainProjectileManagerClass;
+
+	// 경량 rain 투사체 수명(초)이다.
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Faerin|RainPortal|Lightweight", meta = (ClampMin = "0.1"))
+	float LightweightProjectileLifetime = 3.0f;
 };

@@ -14,6 +14,7 @@ class ACharacter;
 class APREnemyBaseCharacter;
 class UEnvQuery;
 class UNiagaraSystem;
+class USoundBase;
 class UTexture;
 
 // Faerin 3페이즈 이전 접근 루프에서 사용하는 근거리 텔레포트 접근 Ability다.
@@ -115,6 +116,14 @@ protected:
 	// 재등장 순간 보스 몸에 붙일 역방향 디졸브 Niagara다.
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Faerin|NearTeleport|VFX")
 	TObjectPtr<UNiagaraSystem> ReappearDissolveNiagaraSystem;
+
+	// 1,2페이즈 근거리 텔레포트로 사라질 때 보스 위치에 재생할 사운드 큐다. 비어 있으면 재생하지 않는다.
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Faerin|NearTeleport|SFX")
+	TObjectPtr<USoundBase> NearTeleportDisappearSoundCue;
+
+	// 1,2페이즈 근거리 텔레포트로 재등장할 때 재등장 위치에 재생할 사운드 큐다. 비어 있으면 재생하지 않는다.
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Faerin|NearTeleport|SFX")
+	TObjectPtr<USoundBase> NearTeleportReappearSoundCue;
 
 
 	// 사라짐 디졸브 Niagara/Material 파라미터 보간 시간이다. 0 이하면 즉시 종료값으로 적용한다.

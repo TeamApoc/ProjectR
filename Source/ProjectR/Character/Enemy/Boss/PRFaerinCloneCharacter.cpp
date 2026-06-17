@@ -561,12 +561,13 @@ void APRFaerinCloneCharacter::InitializeCloneAbilitySystem()
 	}
 
 	AbilitySystemComponent->InitAbilityActorInfo(this, this);
+	const float BaseCloneMaxHealth = FMath::Max(RuntimeConfig.CloneMaxHealth, 1.0f);
 	AbilitySystemComponent->SetNumericAttributeBase(
 		UPRAttributeSet_Common::GetMaxHealthAttribute(),
-		FMath::Max(RuntimeConfig.CloneMaxHealth, 1.0f));
+		BaseCloneMaxHealth);
 	AbilitySystemComponent->SetNumericAttributeBase(
 		UPRAttributeSet_Common::GetHealthAttribute(),
-		FMath::Max(RuntimeConfig.CloneMaxHealth, 1.0f));
+		BaseCloneMaxHealth);
 	AbilitySystemComponent->SetNumericAttributeBase(
 		UPRAttributeSet_Common::GetMovementSpeedMultiplierAttribute(),
 		FMath::Max(RuntimeConfig.CloneMovementSpeedMultiplier, 0.0f));
@@ -582,6 +583,11 @@ void APRFaerinCloneCharacter::InitializeCloneAbilitySystem()
 	AbilitySystemComponent->SetNumericAttributeBase(
 		UPRAttributeSet_Enemy::GetAttackPowerAttribute(),
 		FMath::Max(RuntimeConfig.CloneAttackPower, 0.0f));
+
+	// 런타임 설정 기반 분신 체력 스케일 기준값
+	BaseMaxHealth = BaseCloneMaxHealth;
+	BindPlayerCountChanged();
+	ApplyHealthScale();
 
 	InitializeEnemyWorldHealthBar();
 }

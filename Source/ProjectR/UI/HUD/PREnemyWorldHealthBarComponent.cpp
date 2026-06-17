@@ -48,11 +48,32 @@ void UPREnemyWorldHealthBarComponent::InitializeFromAbilitySystem(UAbilitySystem
 
 void UPREnemyWorldHealthBarComponent::ShowForDuration()
 {
+	if (bSuppressedVisibility)
+	{
+		HideHealthBar();
+		return;
+	}
+	
 	if (CurrentHealth <= 0.0f)
 	{
 		HideHealthBar();
 		return;
 	}
+	
+	// 체력 초기화 과정인 경우
+	if (LastMaxHealth + 0.001f < CurrentMaxHealth)
+	{
+		LastMaxHealth = CurrentMaxHealth;
+		HideHealthBar();
+		return;
+	}
+	if (LastCurrentHealth + 0.001f < CurrentHealth)
+	{
+		LastCurrentHealth = CurrentHealth;
+		HideHealthBar();
+		return;
+	}
+	
 
 	UpdateHealthBarVisibility(true);
 
@@ -149,7 +170,8 @@ void UPREnemyWorldHealthBarComponent::UnbindFromAbilitySystem()
 void UPREnemyWorldHealthBarComponent::HandleHealthChanged(const FOnAttributeChangeData& ChangeData)
 {
 	CurrentHealth = ChangeData.NewValue;
-
+	LastCurrentHealth = CurrentHealth;
+	
 	if (CurrentHealth <= 0.0f)
 	{
 		HideHealthBar();
@@ -170,6 +192,7 @@ void UPREnemyWorldHealthBarComponent::HandleHealthChanged(const FOnAttributeChan
 void UPREnemyWorldHealthBarComponent::HandleMaxHealthChanged(const FOnAttributeChangeData& ChangeData)
 {
 	CurrentMaxHealth = ChangeData.NewValue;
+	LastMaxHealth = CurrentMaxHealth;
 }
 
 void UPREnemyWorldHealthBarComponent::HandleHideTimer()

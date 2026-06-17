@@ -8,6 +8,7 @@
 
 class APRPlayerState;
 class UPRPartyMemberHealthWidget;
+class UPanelWidget;
 
 // 파티원 체력 목록을 표시하는 부모 위젯
 UCLASS(Abstract, BlueprintType)
@@ -18,7 +19,7 @@ class PROJECTR_API UPRPartyHealthListWidget : public UPRWidgetBase
 public:
 	UPRPartyHealthListWidget(const FObjectInitializer& ObjectInitializer);
 
-	// 현재 GameState PlayerArray를 읽어 파티원 체력 슬롯을 갱신한다.
+	// 현재 GameState PlayerArray 기반 파티원 체력 슬롯 갱신
 	UFUNCTION(BlueprintCallable, Category = "ProjectR|HUD|Party")
 	void RefreshPartyMembers();
 
@@ -28,21 +29,30 @@ protected:
 	virtual void NativeDestruct() override;
 
 private:
+	// 파티원 체력 슬롯 패널 자식 캐싱
+	void CachePartyMemberSlots();
+
+	// GameState 플레이어 수 변경 이벤트 구독
+	void BindPlayerCountChanged();
+
+	// GameState 플레이어 수 변경 이벤트 구독 해제
+	void UnbindPlayerCountChanged();
+
+	// GameState 플레이어 수 변경 이벤트 수신 처리
+	void HandlePlayerCountChanged();
+
 	APRPlayerState* GetOwningPRPlayerState() const;
 	void ApplyPartyMembers(const TArray<APRPlayerState*>& PartyMembers);
 
 private:
-	// 첫 번째 파티원 체력 슬롯
+	// 파티원 체력 슬롯들을 배치하는 패널
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional, AllowPrivateAccess = "true"), Category = "HUD")
-	TObjectPtr<UPRPartyMemberHealthWidget> PartyMemberSlot0;
+	TObjectPtr<UPanelWidget> PartyMemberListPanel;
 
-	// 두 번째 파티원 체력 슬롯
-	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional, AllowPrivateAccess = "true"), Category = "HUD")
-	TObjectPtr<UPRPartyMemberHealthWidget> PartyMemberSlot1;
+	// 패널 자식에서 수집한 파티원 체력 슬롯 목록
+	UPROPERTY(Transient)
+	TArray<TObjectPtr<UPRPartyMemberHealthWidget>> PartyMemberSlots;
 
-	// 파티원 목록을 다시 확인할 로컬 타이머 간격
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, meta = (AllowPrivateAccess = "true", ClampMin = "0.1"), Category = "HUD")
-	float PartyRefreshInterval = 0.5f;
-
-	FTimerHandle PartyRefreshTimerHandle;
+	// GameState 플레이어 수 변경 이벤트 핸들
+	FDelegateHandle PlayerCountChangedDelegateHandle;
 };

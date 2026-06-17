@@ -8,6 +8,8 @@
 #include "Engine/OverlapResult.h"
 #include "Engine/World.h"
 #include "GameFramework/Pawn.h"
+#include "Materials/MaterialInstanceDynamic.h"
+#include "Materials/MaterialInterface.h"
 #include "Net/UnrealNetwork.h"
 #include "ProjectR/AbilitySystem/Data/PRAbilitySystemRegistry.h"
 #include "ProjectR/Combat/PRCombatGameplayTags.h"
@@ -20,6 +22,13 @@
 #include "ProjectR/System/PREventManagerSubsystem.h"
 #include "ProjectR/System/PREventTypes.h"
 #include "StructUtils/InstancedStruct.h"
+#include "TimerManager.h"
+
+namespace
+{
+	const FName PRDroneDissolveRateParameterName(TEXT("DissolveRate"));
+	constexpr float PRDroneDissolveTickInterval = 0.016f;
+}
 
 APRSupportDroneActor::APRSupportDroneActor()
 {
@@ -100,6 +109,12 @@ void APRSupportDroneActor::EndPlay(const EEndPlayReason::Type EndPlayReason)
 		UnbindAttackTargetEvent();
 	}
 
+	if (UWorld* World = GetWorld())
+	{
+		World->GetTimerManager().ClearTimer(DissolveTickTimerHandle);
+	}
+	DissolveDynamicMaterials.Reset();
+
 	Super::EndPlay(EndPlayReason);
 }
 
@@ -157,6 +172,155 @@ void APRSupportDroneActor::SetAssistTarget(AActor* InTarget)
 		? GetWorld()->GetTimeSeconds() + DroneData->AssistTargetHoldDuration
 		: 0.0f;
 	CurrentTarget = InTarget;
+}
+
+/*~ 디졸브 ~*/
+
+void APRSupportDroneActor::StartDissolve(float Duration, EPRDroneDissolveMode DissolveMode)
+{
+	if (!HasAuthority())
+	{
+		return;
+	}
+
+	if (DissolveMode == EPRDroneDissolveMode::Disappear)
+	{
+		// 퇴장 중 전투 중단
+		StopServerTimers();
+		UnbindAttackTargetEvent();
+	}
+
+	Multicast_StartDissolve(Duration, DissolveMode);
+	ForceNetUpdate();
+}
+
+void APRSupportDroneActor::Multicast_StartDissolve_Implementation(float Duration, EPRDroneDissolveMode DissolveMode)
+{
+	UWorld* World = GetWorld();
+	if (IsValid(World))
+	{
+		World->GetTimerManager().ClearTimer(DissolveTickTimerHandle);
+	}
+
+	ActiveDissolveMode = DissolveMode;
+	DissolveDuration = FMath::Max(Duration, 0.0f);
+	DissolveElapsedTime = 0.0f;
+
+	if (DissolveMode == EPRDroneDissolveMode::Appear)
+	{
+		// 등장 표시
+		SetActorHiddenInGame(false);
+		DissolveStartValue = 1.0f;
+		DissolveEndValue = 0.0f;
+	}
+	else
+	{
+		// 사라짐 표시
+		DissolveStartValue = 0.0f;
+		DissolveEndValue = 1.0f;
+	}
+
+	PrepareDissolveMaterialsLocal();
+	ApplyDissolveValueLocal(DissolveStartValue);
+
+	if (DissolveDuration <= UE_SMALL_NUMBER)
+	{
+		// 즉시 완료
+		CompleteDissolveLocal();
+		return;
+	}
+
+	if (IsValid(World))
+	{
+		World->GetTimerManager().SetTimer(
+			DissolveTickTimerHandle,
+			this,
+			&APRSupportDroneActor::TickDissolveLocal,
+			PRDroneDissolveTickInterval,
+			true);
+	}
+	else
+	{
+		CompleteDissolveLocal();
+	}
+}
+
+void APRSupportDroneActor::PrepareDissolveMaterialsLocal()
+{
+	DissolveDynamicMaterials.Reset();
+
+	if (!IsValid(DroneMeshComponent))
+	{
+		return;
+	}
+
+	const int32 MaterialCount = DroneMeshComponent->GetNumMaterials();
+	for (int32 MaterialIndex = 0; MaterialIndex < MaterialCount; ++MaterialIndex)
+	{
+		UMaterialInterface* CurrentMaterial = DroneMeshComponent->GetMaterial(MaterialIndex);
+		if (!IsValid(CurrentMaterial))
+		{
+			continue;
+		}
+
+		UMaterialInstanceDynamic* DynamicMaterial = Cast<UMaterialInstanceDynamic>(CurrentMaterial);
+		if (!IsValid(DynamicMaterial))
+		{
+			DynamicMaterial = DroneMeshComponent->CreateDynamicMaterialInstance(MaterialIndex, CurrentMaterial);
+		}
+
+		if (IsValid(DynamicMaterial))
+		{
+			DissolveDynamicMaterials.Add(DynamicMaterial);
+		}
+	}
+}
+
+void APRSupportDroneActor::TickDissolveLocal()
+{
+	DissolveElapsedTime += PRDroneDissolveTickInterval;
+
+	const float Duration = FMath::Max(DissolveDuration, UE_SMALL_NUMBER);
+	const float Alpha = FMath::Clamp(DissolveElapsedTime / Duration, 0.0f, 1.0f);
+	const float DissolveValue = FMath::Lerp(DissolveStartValue, DissolveEndValue, Alpha);
+
+	ApplyDissolveValueLocal(DissolveValue);
+
+	if (Alpha >= 1.0f)
+	{
+		CompleteDissolveLocal();
+	}
+}
+
+void APRSupportDroneActor::CompleteDissolveLocal()
+{
+	if (UWorld* World = GetWorld())
+	{
+		World->GetTimerManager().ClearTimer(DissolveTickTimerHandle);
+	}
+
+	ApplyDissolveValueLocal(DissolveEndValue);
+
+	if (ActiveDissolveMode == EPRDroneDissolveMode::Disappear)
+	{
+		// 사라짐 완료
+		SetActorHiddenInGame(true);
+		if (HasAuthority())
+		{
+			Destroy();
+		}
+	}
+}
+
+void APRSupportDroneActor::ApplyDissolveValueLocal(float DissolveValue)
+{
+	for (UMaterialInstanceDynamic* DynamicMaterial : DissolveDynamicMaterials)
+	{
+		if (IsValid(DynamicMaterial))
+		{
+			DynamicMaterial->SetScalarParameterValue(PRDroneDissolveRateParameterName, DissolveValue);
+		}
+	}
 }
 
 /*~ 타이머 ~*/

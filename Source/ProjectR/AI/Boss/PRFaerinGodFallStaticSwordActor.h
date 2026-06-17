@@ -9,6 +9,7 @@
 
 class UPRFaerinGodFallDataAsset;
 class UNiagaraSystem;
+class USoundBase;
 class UStaticMeshComponent;
 
 // God Fall Rig의 bone 위치에서 전환된 StaticMesh 검의 현재 상태다.
@@ -145,6 +146,10 @@ protected:
 	UFUNCTION(NetMulticast, Reliable)
 	void MulticastGodFallSwordCancelled();
 
+	// 모든 클라이언트에서 검 강타 사운드를 충돌 위치에 재생한다. (충돌 N초 전 예약 재생)
+	UFUNCTION(NetMulticast, Unreliable)
+	void MulticastPlayGodFallSwordStrikeSound(FVector_NetQuantize StrikeLocation, USoundBase* StrikeSound);
+
 	// StaticSword 상태가 바뀔 때 BP visual에 전달한다.
 	UFUNCTION(BlueprintImplementableEvent, Category = "ProjectR|AI|Boss|Faerin|GodFall")
 	void BP_OnGodFallSwordStateChanged(EPRFaerinGodFallStaticSwordState NewState);
@@ -219,6 +224,8 @@ private:
 	FRotator ResolveEntryOrbitRotationDelta() const;
 	float ResolveImpactSlantAlpha() const;
 	void ScheduleImpactWarning();
+	// 강타 사운드를 충돌 SwordStrikeSoundLeadSeconds 초 전에 재생하도록 예약한다.
+	void ScheduleStrikeSound();
 	void ScheduleImpactWarningLocal(const FVector& ImpactLocation,
 		float DelaySeconds,
 		const FRotator& ImpactRotation,
@@ -314,6 +321,7 @@ private:
 	FTimerHandle ImpactHoldTimerHandle;
 	FTimerHandle ImpactWarningTimerHandle;
 	FTimerHandle EntryReturnChargeDelayTimerHandle;
+	FTimerHandle StrikeSoundTimerHandle;
 
 	FVector SegmentStartLocation = FVector::ZeroVector;
 	FVector SegmentTargetLocation = FVector::ZeroVector;

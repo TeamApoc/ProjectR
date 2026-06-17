@@ -94,6 +94,9 @@ void APRGroundBoxProjectileBase::GetLifetimeReplicatedProps(TArray<FLifetimeProp
 	constexpr bool bUsePushModel = true;
 	FDoRepLifetimeParams RepMovementParams{COND_None, REPNOTIFY_Always, bUsePushModel};
 	DOREPLIFETIME_WITH_PARAMS_FAST(APRGroundBoxProjectileBase, ProjectileRepMovement, RepMovementParams);
+
+	FDoRepLifetimeParams GroundSnapParams{COND_None, REPNOTIFY_OnChanged, bUsePushModel};
+	DOREPLIFETIME_WITH_PARAMS_FAST(APRGroundBoxProjectileBase, bUseGroundSnap, GroundSnapParams);
 }
 
 void APRGroundBoxProjectileBase::BeginPlay()
@@ -143,7 +146,10 @@ void APRGroundBoxProjectileBase::Tick(float DeltaSeconds)
 	}
 
 	// 런치 중 지면 보간 부착
-	SnapToGround(DeltaSeconds, false);
+	if (bUseGroundSnap)
+	{
+		SnapToGround(DeltaSeconds, false);
+	}
 }
 
 void APRGroundBoxProjectileBase::EndPlay(const EEndPlayReason::Type EndPlayReason)
@@ -239,6 +245,8 @@ void APRGroundBoxProjectileBase::InitGroundBoxProjectile(const FPRGroundBoxLaunc
 	// 스폰 입력값이 있으면 BP 기본 체력보다 우선 적용
 	MaxHealth = FMath::Max(InitialHealth, 0.0f);
 	CurrentHealth = MaxHealth;
+	
+	bUseGroundSnap = Params.bUseGroundSnap;
 
 	ResetTargetCooldowns();
 	bDamageEnabled = true;
@@ -738,7 +746,10 @@ void APRGroundBoxProjectileBase::ApplyLaunchMovement(const FVector& LaunchDirect
 	}
 
 	// 지면 높이 보정
-	SnapToGround(0.0f, true);
+	if (bUseGroundSnap)
+	{
+		SnapToGround(0.0f, true);
+	}
 
 	OnGroundBoxLaunched.Broadcast(this);
 }

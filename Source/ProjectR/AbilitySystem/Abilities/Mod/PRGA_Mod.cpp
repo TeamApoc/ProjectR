@@ -5,6 +5,7 @@
 #include "AbilitySystemComponent.h"
 #include "AbilitySystemBlueprintLibrary.h"
 #include "DrawDebugHelpers.h"
+#include "GameFramework/GameStateBase.h"
 #include "ProjectR/AbilitySystem/AttributeSets/PRAttributeSet_Weapon.h"
 #include "ProjectR/AbilitySystem/Data/PRAbilitySystemRegistry.h"
 #include "ProjectR/AbilitySystem/Effects/PRGE_ModCost_GaugeDuration.h"
@@ -52,6 +53,8 @@ void UPRGA_Mod::ActivateAbility(const FGameplayAbilitySpecHandle Handle, const F
 		{
 			FPRModActivationPayload Payload;
 			Payload.bActivated = true;
+			Payload.bUsesModDuration = ModCostPolicy == EPRModCostPolicy::GaugeDuration;
+			Payload.ModDurationSeconds = Payload.bUsesModDuration ? ModDuration : 0.0f;
 			if (UPRWeaponDataAsset* WeaponData = GetCurrentWeaponData())
 			{
 				Payload.SlotType = WeaponData->SlotType;	
@@ -74,6 +77,8 @@ void UPRGA_Mod::EndAbility(const FGameplayAbilitySpecHandle Handle, const FGamep
 		{
 			FPRModActivationPayload Payload;
 			Payload.bActivated = false;
+			Payload.bWasCancelled = bWasCancelled;
+			Payload.bUsesModDuration = ModCostPolicy == EPRModCostPolicy::GaugeDuration;
 			if (UPRWeaponDataAsset* WeaponData = GetCurrentWeaponData())
 			{
 				Payload.SlotType = WeaponData->SlotType;	
@@ -438,7 +443,9 @@ FActiveGameplayEffectHandle UPRGA_Mod::ApplyModGaugeDurationCost(const FGameplay
 
 	if (UWorld* World = GetWorld())
 	{
-		WeaponInstance->ModEffectEndServerWorldTimeSeconds = World->GetTimeSeconds() + ModDuration;
+		const AGameStateBase* GameState = World->GetGameState();
+		const float ServerWorldTimeSeconds = IsValid(GameState) ? GameState->GetServerWorldTimeSeconds() : World->GetTimeSeconds();
+		WeaponInstance->ModEffectEndServerWorldTimeSeconds = ServerWorldTimeSeconds + ModDuration;
 	}
 
 	return CostHandle;

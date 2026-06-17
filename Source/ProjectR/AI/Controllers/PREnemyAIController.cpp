@@ -139,13 +139,17 @@ void APREnemyAIController::OnPossess(APawn* InPawn)
 	CachedThreatComponent = EnemyInterface->GetEnemyThreatComponent();
 	if (IsValid(CachedThreatComponent))
 	{
-		const UPREnemyCombatDataAsset* EnemyCombatDataAsset = Cast<UPREnemyCombatDataAsset>(EnemyInterface->GetCombatDataAsset());
-		if (IsValid(EnemyCombatDataAsset))
+		// CombatDataAsset이 UPREnemyCombatDataAsset이면 그 TargetingConfig를 기본값으로 사용한다.
+		// 보스처럼 UPRBossCombatDataAsset(UPREnemyCombatDataAsset 미상속)을 쓰는 경우엔 struct 기본값에서 시작하되,
+		// 캐릭터별 CustomizeEnemyTargetingConfig는 데이터 에셋 타입과 무관하게 항상 적용한다.
+		// (이전에는 캐스팅 실패 시 블록 전체가 스킵되어 보스의 TargetingConfig override가 적용되지 않았다.)
+		FPREnemyTargetingConfig TargetingConfig;
+		if (const UPREnemyCombatDataAsset* EnemyCombatDataAsset = Cast<UPREnemyCombatDataAsset>(EnemyInterface->GetCombatDataAsset()))
 		{
-			FPREnemyTargetingConfig TargetingConfig = EnemyCombatDataAsset->TargetingConfig;
-			EnemyInterface->CustomizeEnemyTargetingConfig(TargetingConfig);
-			CachedThreatComponent->SetTargetingConfig(TargetingConfig);
+			TargetingConfig = EnemyCombatDataAsset->TargetingConfig;
 		}
+		EnemyInterface->CustomizeEnemyTargetingConfig(TargetingConfig);
+		CachedThreatComponent->SetTargetingConfig(TargetingConfig);
 
 		CachedThreatComponent->OnTargetChanged.AddDynamic(this, &APREnemyAIController::HandleThreatTargetChanged);
 	}

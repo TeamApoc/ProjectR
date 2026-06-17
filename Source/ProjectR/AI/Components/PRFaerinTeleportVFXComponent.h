@@ -11,8 +11,10 @@ class APREnemyBaseCharacter;
 class UAnimMontage;
 class UGameplayEffect;
 class UMaterialInstanceDynamic;
+class UAudioComponent;
 class UNiagaraComponent;
 class UNiagaraSystem;
+class USoundBase;
 class UTexture;
 
 DECLARE_MULTICAST_DELEGATE_OneParam(FPRFaerinTeleportVFXFinishedSignature, bool);
@@ -211,6 +213,14 @@ protected:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Faerin|TeleportVFX")
 	TObjectPtr<UNiagaraSystem> TeleportVFXNiagaraSystem;
 
+	// 두 텔레포트 VFX 프로젝타일에 attach해 이동 동안 재생할 사운드 큐다. (각 프로젝타일에서 재생, 비어 있으면 미재생)
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Faerin|TeleportVFX|SFX")
+	TObjectPtr<USoundBase> TeleportVFXProjectileSoundCue;
+
+	// 두 텔레포트 VFX 프로젝타일이 집결(합쳐질) 때 집결 위치에 재생할 사운드 큐다. 비어 있으면 재생하지 않는다.
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Faerin|TeleportVFX|SFX")
+	TObjectPtr<USoundBase> TeleportVFXMergeSoundCue;
+
 	// Teleport In 등장 시 본체 위치에 재생할 Niagara다.
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Faerin|TeleportVFX")
 	TObjectPtr<UNiagaraSystem> BodyRevealNiagaraSystem;
@@ -347,6 +357,14 @@ private:
 
 	UPROPERTY(Transient)
 	TObjectPtr<UNiagaraComponent> RightTeleportVFXComponent;
+
+	// 두 VFX 프로젝타일에 attach한 비행 사운드 오디오 컴포넌트다. VFX 정리 시 함께 정지·파괴한다.
+	// (오디오 owner는 보스라서 attach 컴포넌트 파괴만으로는 자동 정지되지 않으므로 직접 보관·정리한다.)
+	UPROPERTY(Transient)
+	TObjectPtr<UAudioComponent> LeftTeleportVFXAudioComponent;
+
+	UPROPERTY(Transient)
+	TObjectPtr<UAudioComponent> RightTeleportVFXAudioComponent;
 
 	UPROPERTY(Transient)
 	TArray<TObjectPtr<UNiagaraComponent>> LocalTransientNiagaraComponents;

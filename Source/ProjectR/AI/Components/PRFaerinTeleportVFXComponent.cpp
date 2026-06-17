@@ -6,6 +6,7 @@
 #include "AbilitySystemComponent.h"
 #include "Animation/AnimInstance.h"
 #include "Animation/AnimMontage.h"
+#include "Components/AudioComponent.h"
 #include "Components/MeshComponent.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "DrawDebugHelpers.h"
@@ -13,6 +14,7 @@
 #include "Engine/Texture.h"
 #include "Engine/World.h"
 #include "GameplayEffect.h"
+#include "Kismet/GameplayStatics.h"
 #include "Materials/MaterialInstanceDynamic.h"
 #include "Materials/MaterialInterface.h"
 #include "NavigationSystem.h"
@@ -753,6 +755,35 @@ void UPRFaerinTeleportVFXComponent::BeginHiddenPresentationLocal(
 	CleanupTeleportVFXLocal();
 	LeftTeleportVFXComponent = SpawnTeleportVFXLocal(LeftStartLocation);
 	RightTeleportVFXComponent = SpawnTeleportVFXLocal(RightStartLocation);
+
+	// 두 텔레포트 VFX 프로젝타일에 비행 사운드를 attach해 이동 동안 따라 재생한다. (각 머신 로컬 재생)
+	// bStopWhenAttachedToDestroyed=true: VFX가 정리/소멸되면 사운드도 함께 정지·정리된다. (루프 큐 잔류 방지)
+	if (IsValid(TeleportVFXProjectileSoundCue))
+	{
+		if (IsValid(LeftTeleportVFXComponent))
+		{
+			LeftTeleportVFXAudioComponent = UGameplayStatics::SpawnSoundAttached(
+				TeleportVFXProjectileSoundCue,
+				LeftTeleportVFXComponent,
+				NAME_None,
+				FVector(ForceInit),
+				FRotator::ZeroRotator,
+				EAttachLocation::KeepRelativeOffset,
+				/*bStopWhenAttachedToDestroyed=*/true);
+		}
+		if (IsValid(RightTeleportVFXComponent))
+		{
+			RightTeleportVFXAudioComponent = UGameplayStatics::SpawnSoundAttached(
+				TeleportVFXProjectileSoundCue,
+				RightTeleportVFXComponent,
+				NAME_None,
+				FVector(ForceInit),
+				FRotator::ZeroRotator,
+				EAttachLocation::KeepRelativeOffset,
+				/*bStopWhenAttachedToDestroyed=*/true);
+		}
+	}
+
 	SetTeleportVFXPairLocation(LeftStartLocation, RightStartLocation);
 
 	SetComponentTickEnabled(true);
@@ -763,6 +794,12 @@ void UPRFaerinTeleportVFXComponent::FinishTeleportPresentationLocal(
 	FRotator FinalRotation,
 	const bool bPlayTeleportInStage)
 {
+	// 두 VFX가 집결(합쳐짐)하는 순간 집결 위치에 SFX를 재생한다. (모든 클라이언트. 아래 CleanupTeleportVFXLocal로 VFX/사운드가 정리되기 직전)
+	if (IsValid(TeleportVFXMergeSoundCue))
+	{
+		UGameplayStatics::SpawnSoundAtLocation(this, TeleportVFXMergeSoundCue, FinalLocation);
+	}
+
 	AActor* OwnerActor = GetOwner();
 	if (IsValid(OwnerActor))
 	{
@@ -899,6 +936,20 @@ void UPRFaerinTeleportVFXComponent::SetTeleportVFXPairLocation(
 
 void UPRFaerinTeleportVFXComponent::CleanupTeleportVFXLocal()
 {
+	// attach한 비행 사운드를 먼저 정지·파괴한다. (오디오 owner가 보스라서 VFX 컴포넌트 파괴만으로는 자동 정지되지 않음)
+	if (IsValid(LeftTeleportVFXAudioComponent))
+	{
+		LeftTeleportVFXAudioComponent->Stop();
+		LeftTeleportVFXAudioComponent->DestroyComponent();
+	}
+	if (IsValid(RightTeleportVFXAudioComponent))
+	{
+		RightTeleportVFXAudioComponent->Stop();
+		RightTeleportVFXAudioComponent->DestroyComponent();
+	}
+	LeftTeleportVFXAudioComponent = nullptr;
+	RightTeleportVFXAudioComponent = nullptr;
+
 	if (IsValid(LeftTeleportVFXComponent))
 	{
 		LeftTeleportVFXComponent->Deactivate();

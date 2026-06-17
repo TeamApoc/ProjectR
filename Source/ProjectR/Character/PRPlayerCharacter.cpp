@@ -274,6 +274,12 @@ void APRPlayerCharacter::PossessedBy(AController* NewController)
 			}
 		}
 
+		if (UPRAbilitySystemComponent* ASC = PS->GetPRAbilitySystemComponent())
+		{
+			// 서버 AvatarActor 준비 이후 어빌리티 훅 호출
+			ASC->NotifyAvatarSet();
+		}
+
 		PS->OnMouseSensitivityChanged.AddDynamic(this, &ThisClass::HandleMouseSensitivityChanged);
 		CachedCameraSensitivity = PS->GetCameraSensitivity();
 	}
@@ -297,6 +303,9 @@ void APRPlayerCharacter::OnRep_PlayerState()
 		{
 			BindTagChangeEvent();
 			BindMovementSpeedAttributeChange();
+
+			// 로컬 AvatarActor 준비 이후 어빌리티 훅 호출
+			ASC->NotifyAvatarSet();
 		}
 	}
 	

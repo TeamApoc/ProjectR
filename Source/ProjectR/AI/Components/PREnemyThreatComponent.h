@@ -121,6 +121,10 @@ protected:
 	bool ShouldReportCombatEngagedCandidate(const FPREnemyTargetCandidate& Candidate) const;
 
 	bool IsValidThreatTarget(const AActor* Target) const;
+	// 후보 풀에 유지할 수 있는 '살아있는 플레이어 객체'인지만 검사한다. (다운/사망 등 일시 상태는 제외하지 않는다)
+	bool IsTrackablePlayerCandidate(const AActor* Target) const;
+	// 진단용: 현재 타겟이 무효 처리되어 비워질 때, IsValidThreatTarget의 어떤 조건이 false였는지 로그로 남긴다.
+	void LogThreatTargetInvalidReason(const AActor* Target, const TCHAR* Context) const;
 	void ReevaluateTarget(bool bResetScoreWindow = true);
 	void SetCurrentTarget(AActor* NewTarget, float CandidateScore = 0.0f);
 	void CleanupInvalidEntries();

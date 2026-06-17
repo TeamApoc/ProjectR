@@ -29,6 +29,9 @@ class UPRPlayerGrowthComponent;
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnMouseSensitivityChanged, float, NewSensitivity);
 
+// 표시명 변경 이벤트
+DECLARE_MULTICAST_DELEGATE_OneParam(FPRDisplayNameChangedSignature, const FString&);
+
 // 다운 대기 시간 HUD 공유 상태
 USTRUCT(BlueprintType)
 struct FPRPlayerDownTimerInfo
@@ -126,6 +129,12 @@ public:
 	// 캐릭터 업그레이드 정보 조회
 	FPRCharacterStatUpgradeInfo GetStatUpgradeInfo() const { return StatUpgradeInfo; }
 
+	// 플레이어 고정 인덱스 조회
+	int32 GetPRPlayerIndex() const { return PRPlayerIndex; }
+
+	// 플레이어 고정 인덱스 설정
+	void SetPRPlayerIndex(int32 NewPlayerIndex);
+
 	// 현재 플레이어가 전멸 판정에 포함되는 전투 참여자인지 확인한다.
 	bool IsCombatParticipant() const;
 
@@ -198,6 +207,9 @@ public:
 	void ApplySaveData(const FPRCharacterSaveData& InSaveData);
 	FPRCharacterSaveData MakeSaveData() const;
 
+	// 현재 런타임 상태를 맵 이동 복원용 저장 데이터로 보관
+	void SnapshotCurrentSaveData();
+
 	// 성장 Attribute 기준의 캐시 값을 기존 저장/표시 필드에 반영한다
 	void SyncGrowthCache(int64 NewExperience, int32 NewLevel, const FPRCharacterStatUpgradeInfo& NewStats);
 	
@@ -215,11 +227,18 @@ protected:
 	UFUNCTION()
 	void OnInventoryChanged(UPRInventoryComponent* InInventory, const FPRInventoryChangeEventData& EventData);
 
+	// 표시명 복제 콜백
+	UFUNCTION()
+	void OnRep_DisplayName();
+
 	UFUNCTION()
 	void OnRep_DownTimerInfo();
 	
 public:
 	FOnMouseSensitivityChanged OnMouseSensitivityChanged;
+
+	// 표시명 변경 이벤트
+	FPRDisplayNameChangedSignature OnDisplayNameChanged;
 	
 	
 protected:
@@ -229,7 +248,7 @@ protected:
 	
 	// ===== Information =====
 	// 표시명. 모든 클라에게 복제 (타 플레이어 HUD 표시)
-	UPROPERTY(Replicated)
+	UPROPERTY(ReplicatedUsing = OnRep_DisplayName)
 	FString DisplayName;
 
 	// 캐릭터 레벨. 타 클라에도 표시될 수 있으므로 전체 복제
@@ -243,6 +262,10 @@ protected:
 	// 스탯 업그레이드 정보
 	UPROPERTY(Replicated)
 	FPRCharacterStatUpgradeInfo StatUpgradeInfo;
+
+	// 맵 이동과 리스폰에서 PlayerStart 선택에 사용하는 고정 플레이어 인덱스
+	UPROPERTY(Replicated)
+	int32 PRPlayerIndex = INDEX_NONE;
 
 	// 다운 대기 시간 HUD 공유 상태
 	UPROPERTY(ReplicatedUsing = OnRep_DownTimerInfo, BlueprintReadOnly, Category = "ProjectR|Survival")

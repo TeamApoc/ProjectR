@@ -32,6 +32,8 @@ public:
 	// HP 바를 즉시 숨긴다.
 	void HideHealthBar();
 
+	void SuppressVisibility(bool bSuppressed) {bSuppressedVisibility = bSuppressed;}
+
 private:
 	void BindToAbilitySystem(UAbilitySystemComponent* InAbilitySystemComponent);
 	void UnbindFromAbilitySystem();
@@ -61,4 +63,8 @@ private:
 
 	float CurrentHealth = 0.0f;
 	float CurrentMaxHealth = 0.0f;
+	float LastCurrentHealth = 0.0f;
+	float LastMaxHealth = 0.0f;
+	
+	bool bSuppressedVisibility = false;
 };

@@ -12,8 +12,17 @@
 class APRProjectileBase;
 class UPRSupportDroneDataAsset;
 class UAbilitySystemComponent;
+class UMaterialInstanceDynamic;
 class USceneComponent;
 class UStaticMeshComponent;
+
+// 드론 Dissolve 방향
+UENUM(BlueprintType)
+enum class EPRDroneDissolveMode : uint8
+{
+	Disappear,
+	Appear,
+};
 
 // 플레이어를 따라다니며 적에게 미사일을 발사하는 보조 드론이다
 UCLASS()
@@ -43,6 +52,10 @@ public:
 	// 외부 시스템이 플레이어 집중 공격 대상을 갱신한다
 	UFUNCTION(BlueprintCallable, BlueprintAuthorityOnly, Category = "ProjectR|Drone")
 	void SetAssistTarget(AActor* InTarget);
+
+	// 서버 드론 Dissolve 연출 시작
+	UFUNCTION(BlueprintCallable, BlueprintAuthorityOnly, Category = "ProjectR|Drone|Dissolve")
+	void StartDissolve(float Duration, EPRDroneDissolveMode DissolveMode);
 
 	// 현재 공격 대상 반환
 	UFUNCTION(BlueprintPure, Category = "ProjectR|Drone")
@@ -92,6 +105,22 @@ protected:
 	// 이벤트 구독을 정리한다
 	void UnbindAttackTargetEvent();
 
+	// 로컬 드론 Dissolve 연출 시작
+	UFUNCTION(NetMulticast, Reliable)
+	void Multicast_StartDissolve(float Duration, EPRDroneDissolveMode DissolveMode);
+
+	// 로컬 Dissolve 머티리얼 준비
+	void PrepareDissolveMaterialsLocal();
+
+	// 로컬 Dissolve 값 갱신
+	void TickDissolveLocal();
+
+	// 로컬 Dissolve 연출 완료
+	void CompleteDissolveLocal();
+
+	// 로컬 Dissolve 값 머티리얼 적용
+	void ApplyDissolveValueLocal(float DissolveValue);
+
 protected:
 	// 루트 컴포넌트다
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "ProjectR|Drone")
@@ -122,7 +151,17 @@ private:
 	float AssistTargetExpireWorldTimeSeconds = 0.0f;
 	uint32 NextMissileProjectileId = 1;
 
+	UPROPERTY(Transient)
+	TArray<TObjectPtr<UMaterialInstanceDynamic>> DissolveDynamicMaterials;
+
 	FTimerHandle TargetRefreshTimerHandle;
 	FTimerHandle AttackTimerHandle;
+	FTimerHandle DissolveTickTimerHandle;
 	FDelegateHandle AttackTargetEventHandle;
+
+	float DissolveDuration = 0.0f;
+	float DissolveElapsedTime = 0.0f;
+	float DissolveStartValue = 0.0f;
+	float DissolveEndValue = 1.0f;
+	EPRDroneDissolveMode ActiveDissolveMode = EPRDroneDissolveMode::Disappear;
 };

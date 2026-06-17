@@ -31,7 +31,9 @@
 #include "ProjectR/AbilitySystem/Data/PRAbilitySystemRegistry.h"
 #include "ProjectR/Combat/PRCombatStatics.h"
 #include "Engine/DataTable.h"
+#include "ProjectR/Game/PRGameStateBase.h"
 #include "ProjectR/PRGameplayTags.h"
+#include "ProjectR/ProjectR.h"
 #include "ProjectR/System/PRAssetManager.h"
 #include "ProjectR/System/PREventManagerSubsystem.h"
 #include "ProjectR/System/PREventTypes.h"
@@ -166,6 +168,8 @@ void APREnemyBaseCharacter::BeginPlay()
 
 void APREnemyBaseCharacter::EndPlay(const EEndPlayReason::Type EndPlayReason)
 {
+	UnbindPlayerCountChanged();
+
 	if (bUseTickOptimization)
 	{
 		if (UWorld* World = GetWorld())
@@ -932,6 +936,7 @@ void APREnemyBaseCharacter::InitializeEnemyAbilitySystem()
 	{
 		// CharacterID와 Role을 기준으로 DataTable 초기 스탯을 주입한다.
 		AbilitySystemComponent->InitializeAttributesFromRegistry(Registry, GetCharacterRole(), CharacterID);
+		BaseMaxHealth = AbilitySystemComponent->GetNumericAttribute(UPRAttributeSet_Common::GetMaxHealthAttribute());
 
 		// 부위 매핑 조회를 위해 동일 Row를 캐릭터에도 캐싱한다.
 		if (UDataTable* StatTable = Registry->GetStatTableSynchronous(GetCharacterRole()))
@@ -945,6 +950,9 @@ void APREnemyBaseCharacter::InitializeEnemyAbilitySystem()
 		}
 	}
 
+	BindPlayerCountChanged();
+	ApplyHealthScale();
+
 	// 재 Possess나 재초기화 상황에서 이전 AbilitySet이 중복 부여되지 않도록 먼저 회수한다.
 	AbilitySystemComponent->ClearAbilitySetByHandles(GrantedAbilitySetHandles);
 
@@ -954,6 +962,74 @@ void APREnemyBaseCharacter::InitializeEnemyAbilitySystem()
 	}
 
 	InitializeEnemyWorldHealthBar();
+}
+
+void APREnemyBaseCharacter::ApplyHealthScale()
+{
+	if (!HasAuthority() || !IsValid(AbilitySystemComponent) || BaseMaxHealth <= 0.0f)
+	{
+		return;
+	}
+
+	UWorld* World = GetWorld();
+	const APRGameStateBase* PRGameState = IsValid(World) ? World->GetGameState<APRGameStateBase>() : nullptr;
+	if (!IsValid(PRGameState))
+	{
+		return;
+	}
+
+	const float OldMaxHealth = AbilitySystemComponent->GetNumericAttribute(UPRAttributeSet_Common::GetMaxHealthAttribute());
+	const float OldHealth = AbilitySystemComponent->GetNumericAttribute(UPRAttributeSet_Common::GetHealthAttribute());
+	const float OldHealthRatio = OldMaxHealth > UE_SMALL_NUMBER
+		? FMath::Clamp(OldHealth / OldMaxHealth, 0.0f, 1.0f)
+		: 1.0f;
+
+	const float HealthScale = PREnemyHealthScaling::CalculateHealthScale(PRGameState->GetPlayerCount());
+	const float NewMaxHealth = FMath::Max(BaseMaxHealth * HealthScale, 0.0f);
+	const float NewHealth = FMath::Clamp(NewMaxHealth * OldHealthRatio, 0.0f, NewMaxHealth);
+
+	// MaxHealth 선적용 후 Health 보정
+	AbilitySystemComponent->SetNumericAttributeBase(UPRAttributeSet_Common::GetMaxHealthAttribute(), NewMaxHealth);
+	AbilitySystemComponent->SetNumericAttributeBase(UPRAttributeSet_Common::GetHealthAttribute(), NewHealth);
+}
+
+void APREnemyBaseCharacter::BindPlayerCountChanged()
+{
+	if (!HasAuthority() || PlayerCountChangedDelegateHandle.IsValid())
+	{
+		return;
+	}
+
+	UWorld* World = GetWorld();
+	APRGameStateBase* PRGameState = IsValid(World) ? World->GetGameState<APRGameStateBase>() : nullptr;
+	if (!IsValid(PRGameState))
+	{
+		return;
+	}
+
+	PlayerCountChangedDelegateHandle = PRGameState->OnPlayerCountChanged.AddUObject(this, &ThisClass::HandlePlayerCountChanged);
+}
+
+void APREnemyBaseCharacter::UnbindPlayerCountChanged()
+{
+	if (!PlayerCountChangedDelegateHandle.IsValid())
+	{
+		return;
+	}
+
+	UWorld* World = GetWorld();
+	APRGameStateBase* PRGameState = IsValid(World) ? World->GetGameState<APRGameStateBase>() : nullptr;
+	if (IsValid(PRGameState))
+	{
+		PRGameState->OnPlayerCountChanged.Remove(PlayerCountChangedDelegateHandle);
+	}
+
+	PlayerCountChangedDelegateHandle.Reset();
+}
+
+void APREnemyBaseCharacter::HandlePlayerCountChanged()
+{
+	ApplyHealthScale();
 }
 
 void APREnemyBaseCharacter::InitializeEnemyWorldHealthBar()

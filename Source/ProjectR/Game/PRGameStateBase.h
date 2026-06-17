@@ -11,6 +11,10 @@
 #include "PRGameStateBase.generated.h"
 
 class APRPlayerCharacter;
+class APlayerState;
+
+// 현재 PlayerArray 기준 플레이어 수 변경 이벤트
+DECLARE_MULTICAST_DELEGATE(FPRPlayerCountChangedSignature);
 
 // Waypoint 활성화 시 발행
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnWaypointActivatedSignature, FPRWaypointKey, WaypointKey);
@@ -30,6 +34,10 @@ class PROJECTR_API APRGameStateBase : public AGameStateBase
 public:
 	/*~ AActor Interface ~*/
 	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
+
+	/*~ AGameStateBase Interface ~*/
+	virtual void AddPlayerState(APlayerState* PlayerState) override;
+	virtual void RemovePlayerState(APlayerState* PlayerState) override;
 
 public:
 	// 마지막 방문 Waypoint 조회
@@ -55,6 +63,9 @@ public:
 
 	// 현재 세션에 등록된 PlayerState의 Pawn을 PRPlayerCharacter로 캐스팅해 수집. 캐스팅 실패나 미possess 상태는 제외
 	TArray<APRPlayerCharacter*> GetPlayerCharacters() const;
+
+	// 현재 PlayerArray 기준 플레이어 수 조회
+	int32 GetPlayerCount() const;
 
 	// 서버 전용. 월드 세이브 스냅샷을 GameState에 주입. 호스트 맵 로드 직후 GameMode가 호출
 	void InitializeFromWorldSave(const FPRWorldSaveData& WorldSave);
@@ -84,6 +95,9 @@ public:
 	void ServerSubmitWorldMarker(const FPRWorldMarkerRequest& Request);
 
 protected:
+	// 현재 GameState PlayerArray 기준 플레이어 수 변경 이벤트 갱신
+	void RefreshPlayerCount();
+
 	// LastVisitedWaypoint 복제 콜백. 클라이언트에서 Travel UI 갱신 트리거
 	UFUNCTION()
 	void OnRep_LastVisitedWaypoint(FPRWaypointKey OldLastVisitedWaypoint);
@@ -110,6 +124,9 @@ public:
 	// 보스 처치 이벤트
 	UPROPERTY(BlueprintAssignable)
 	FOnBossDefeatedSignature OnBossDefeated;
+
+	// 현재 PlayerArray 기준 플레이어 수 변경 이벤트
+	FPRPlayerCountChangedSignature OnPlayerCountChanged;
 
 protected:
 	// 플레이어별 최대 활성 핑 개수
@@ -148,4 +165,7 @@ protected:
 
 	// 마커 만료 타이머
 	TMap<FGuid, FTimerHandle> WorldMarkerExpireTimers;
+
+	// 마지막으로 이벤트 발행한 플레이어 수
+	int32 LastBroadcastPlayerCount = 0;
 };

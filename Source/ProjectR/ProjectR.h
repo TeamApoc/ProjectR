@@ -18,6 +18,38 @@ namespace PRRowNames
 	}
 }
 
+namespace PREnemyHealthScaling
+{
+	// 추가 플레이어 1명당 BaseHP에 곱해지는 체력 증가 상수
+	inline constexpr float EnemyHealthScaleConstant = 1.1f;
+
+	// 플레이어 수 기반 적 체력 배율 계산
+	inline float CalculateHealthScale(int32 PlayerCount)
+	{
+		const int32 AdditionalPlayerCount = PlayerCount > 1 ? PlayerCount - 1 : 0;
+		return 1.0f + EnemyHealthScaleConstant * static_cast<float>(AdditionalPlayerCount);
+	}
+}
+
+namespace PRAmmoPickupScaling
+{
+	// 추가 플레이어 1명당 기본 탄약 획득량에 곱해지는 증가 상수
+	inline constexpr float AmmoPickupScaleConstant = 0.25f;
+
+	// 플레이어 수 기반 탄약 획득량 계산
+	inline int32 CalculateAmmoQuantity(int32 BaseQuantity, int32 PlayerCount)
+	{
+		if (BaseQuantity <= 0)
+		{
+			return 0;
+		}
+
+		const int32 AdditionalPlayerCount = PlayerCount > 1 ? PlayerCount - 1 : 0;
+		const float QuantityScale = 1.0f + AmmoPickupScaleConstant * static_cast<float>(AdditionalPlayerCount);
+		return FMath::Max(FMath::RoundToInt(static_cast<float>(BaseQuantity) * QuantityScale), BaseQuantity);
+	}
+}
+
 namespace PRCollisionChannels
 {
 	constexpr ECollisionChannel ECC_Combat = ECC_GameTraceChannel1;

@@ -170,7 +170,7 @@ protected:
 
 	// 호스트 시작 시 허용할 최대 인원
 	UPROPERTY(EditDefaultsOnly, Category = "ProjectR|Session", meta = (ClampMin = "1"))
-	int32 HostMaxPlayers = 4;
+	int32 HostMaxPlayers = 3;
 
 	// 현재 플레이어가 들고 다니는 캐릭터 스펙. Join 시 이 데이터가 호스트로 전송됨
 	UPROPERTY(VisibleInstanceOnly, Category = "ProjectR|Save")

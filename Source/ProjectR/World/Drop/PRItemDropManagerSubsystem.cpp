@@ -16,7 +16,6 @@
 #include "ProjectR/Player/Components/PRPlayerGrowthComponent.h"
 #include "ProjectR/Player/PRPlayerController.h"
 #include "ProjectR/Player/PRPlayerState.h"
-#include "ProjectR/Game/PRGameStateBase.h"
 #include "ProjectR/ProjectR.h"
 #include "ProjectR/System/PRAssetManager.h"
 #include "ProjectR/System/PRDeveloperSettings.h"
@@ -38,13 +37,6 @@ namespace
 		}
 
 		return AmmoData;
-	}
-
-	// 현재 PlayerArray 기준 플레이어 수 조회
-	int32 ResolvePlayerCount(UWorld* World)
-	{
-		const APRGameStateBase* PRGameState = IsValid(World) ? World->GetGameState<APRGameStateBase>() : nullptr;
-		return IsValid(PRGameState) ? PRGameState->GetPlayerCount() : 1;
 	}
 }
 
@@ -216,11 +208,6 @@ bool UPRItemDropManagerSubsystem::ResolveReward(const FPRDropRewardEntry& Entry,
 		OutReward.ItemAssetId = Entry.ItemAssetId;
 		OutReward.ItemData = ItemData;
 		OutReward.Quantity = FMath::RandRange(Entry.MinQuantity, Entry.MaxQuantity);
-		if (Entry.RewardType == EPRRewardType::Ammo)
-		{
-			// 드롭 생성 시점 플레이어 수 기준 탄약 픽업 수량 확정
-			OutReward.Quantity = PRAmmoPickupScaling::CalculateAmmoQuantity(OutReward.Quantity, ResolvePlayerCount(GetWorld()));
-		}
 		return OutReward.Quantity > 0;
 	}
 

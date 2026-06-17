@@ -3,11 +3,13 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "ActiveGameplayEffectHandle.h"
 #include "ProjectR/AbilitySystem/Abilities/Mod/PRGA_Mod_HasDuration.h"
 #include "PRGA_Mod_SummonDrone.generated.h"
 
 class APRSupportDroneActor;
 class UPRSupportDroneDataAsset;
+struct FGameplayEffectRemovalInfo;
 
 // 보조 드론을 소환하는 모드 어빌리티다
 UCLASS()
@@ -42,6 +44,18 @@ protected:
 	// 기존 드론을 제거한다
 	void DestroyActiveDrone();
 
+	// 드론 런타임 바인딩 정리
+	void CleanupDroneRuntime();
+
+	// 비용 GE 제거 이벤트 등록
+	void BindDurationCostRemovalEvent();
+
+	// 비용 GE 제거 이벤트 해제
+	void UnbindDurationCostRemovalEvent();
+
+	// 비용 GE 제거 처리
+	void HandleDurationCostRemoved(const FGameplayEffectRemovalInfo& RemovalInfo);
+
 protected:
 	// 소환할 드론 클래스다
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "ProjectR|Mod|Drone")
@@ -59,8 +73,22 @@ protected:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "ProjectR|Mod|Drone")
 	bool bReplaceExistingDrone = true;
 
+	// 드론 등장 Dissolve 시간
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "ProjectR|Mod|Drone|Dissolve", meta = (ClampMin = "0.0"))
+	float SpawnDissolveDuration = 0.35f;
+
+	// 드론 퇴장 Dissolve 시간
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "ProjectR|Mod|Drone|Dissolve", meta = (ClampMin = "0.0"))
+	float DestroyDissolveDuration = 0.35f;
+
 private:
 	// 현재 서버에서 유지 중인 드론
 	UPROPERTY(Transient)
 	TObjectPtr<APRSupportDroneActor> ActiveDrone;
+
+	// 활성 지속시간 비용 GE 핸들
+	FActiveGameplayEffectHandle ActiveDurationCostHandle;
+
+	// 비용 GE 제거 이벤트 바인딩 핸들
+	FDelegateHandle DurationCostRemovedDelegateHandle;
 };

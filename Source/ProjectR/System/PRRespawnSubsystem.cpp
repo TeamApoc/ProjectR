@@ -297,13 +297,6 @@ int32 UPRRespawnSubsystem::ResolvePlayerIndex(const AController* Controller) con
 		return INDEX_NONE;
 	}
 
-	const APRPlayerState* PRPlayerState = Cast<APRPlayerState>(Controller->PlayerState);
-	if (IsValid(PRPlayerState) && PRPlayerState->GetPRPlayerIndex() != INDEX_NONE)
-	{
-		// PlayerState 고정 스폰 인덱스 우선
-		return PRPlayerState->GetPRPlayerIndex();
-	}
-
 	UWorld* World = GetWorld();
 	const AGameStateBase* GameState = IsValid(World) ? World->GetGameState() : nullptr;
 	if (!IsValid(GameState))

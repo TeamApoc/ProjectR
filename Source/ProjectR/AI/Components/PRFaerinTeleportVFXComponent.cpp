@@ -6,7 +6,6 @@
 #include "AbilitySystemComponent.h"
 #include "Animation/AnimInstance.h"
 #include "Animation/AnimMontage.h"
-#include "Components/AudioComponent.h"
 #include "Components/MeshComponent.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "DrawDebugHelpers.h"
@@ -762,7 +761,7 @@ void UPRFaerinTeleportVFXComponent::BeginHiddenPresentationLocal(
 	{
 		if (IsValid(LeftTeleportVFXComponent))
 		{
-			LeftTeleportVFXAudioComponent = UGameplayStatics::SpawnSoundAttached(
+			UGameplayStatics::SpawnSoundAttached(
 				TeleportVFXProjectileSoundCue,
 				LeftTeleportVFXComponent,
 				NAME_None,
@@ -773,7 +772,7 @@ void UPRFaerinTeleportVFXComponent::BeginHiddenPresentationLocal(
 		}
 		if (IsValid(RightTeleportVFXComponent))
 		{
-			RightTeleportVFXAudioComponent = UGameplayStatics::SpawnSoundAttached(
+			UGameplayStatics::SpawnSoundAttached(
 				TeleportVFXProjectileSoundCue,
 				RightTeleportVFXComponent,
 				NAME_None,
@@ -794,12 +793,6 @@ void UPRFaerinTeleportVFXComponent::FinishTeleportPresentationLocal(
 	FRotator FinalRotation,
 	const bool bPlayTeleportInStage)
 {
-	// 두 VFX가 집결(합쳐짐)하는 순간 집결 위치에 SFX를 재생한다. (모든 클라이언트. 아래 CleanupTeleportVFXLocal로 VFX/사운드가 정리되기 직전)
-	if (IsValid(TeleportVFXMergeSoundCue))
-	{
-		UGameplayStatics::SpawnSoundAtLocation(this, TeleportVFXMergeSoundCue, FinalLocation);
-	}
-
 	AActor* OwnerActor = GetOwner();
 	if (IsValid(OwnerActor))
 	{
@@ -936,20 +929,6 @@ void UPRFaerinTeleportVFXComponent::SetTeleportVFXPairLocation(
 
 void UPRFaerinTeleportVFXComponent::CleanupTeleportVFXLocal()
 {
-	// attach한 비행 사운드를 먼저 정지·파괴한다. (오디오 owner가 보스라서 VFX 컴포넌트 파괴만으로는 자동 정지되지 않음)
-	if (IsValid(LeftTeleportVFXAudioComponent))
-	{
-		LeftTeleportVFXAudioComponent->Stop();
-		LeftTeleportVFXAudioComponent->DestroyComponent();
-	}
-	if (IsValid(RightTeleportVFXAudioComponent))
-	{
-		RightTeleportVFXAudioComponent->Stop();
-		RightTeleportVFXAudioComponent->DestroyComponent();
-	}
-	LeftTeleportVFXAudioComponent = nullptr;
-	RightTeleportVFXAudioComponent = nullptr;
-
 	if (IsValid(LeftTeleportVFXComponent))
 	{
 		LeftTeleportVFXComponent->Deactivate();

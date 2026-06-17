@@ -29,15 +29,6 @@ APlayerStart* APRSpawnPoint::GetLinkedPlayerStart(int32 PlayerIndex) const
 		return LinkedPlayerStarts[PlayerIndex].Get();
 	}
 
-	if (PlayerIndex >= 0 && !LinkedPlayerStarts.IsEmpty())
-	{
-		const int32 FallbackIndex = PlayerIndex % LinkedPlayerStarts.Num();
-		if (LinkedPlayerStarts.IsValidIndex(FallbackIndex) && IsValid(LinkedPlayerStarts[FallbackIndex].Get()))
-		{
-			return LinkedPlayerStarts[FallbackIndex].Get();
-		}
-	}
-
 	for (const TObjectPtr<APlayerStart>& LinkedPlayerStart : LinkedPlayerStarts)
 	{
 		if (IsValid(LinkedPlayerStart.Get()))

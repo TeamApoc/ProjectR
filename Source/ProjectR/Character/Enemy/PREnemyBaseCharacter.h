@@ -143,18 +143,6 @@ protected:
 	// 서버에서 ASC ActorInfo, 초기 스탯, AbilitySet을 준비한다.
 	void InitializeEnemyAbilitySystem();
 
-	// 현재 플레이어 수 기준 최대 체력과 현재 체력 갱신
-	void ApplyHealthScale();
-
-	// GameState 플레이어 수 변경 이벤트 구독
-	void BindPlayerCountChanged();
-
-	// GameState 플레이어 수 변경 이벤트 구독 해제
-	void UnbindPlayerCountChanged();
-
-	// GameState 플레이어 수 변경 이벤트 수신 처리
-	void HandlePlayerCountChanged();
-
 	// AIController가 Blackboard에 쓰기 전에 복귀 기준 위치를 확정한다.
 	void InitializeHomeLocation();
 
@@ -288,12 +276,6 @@ protected:
 
 	// HomeLocation을 0,0,0 기본값으로 다시 덮어쓰지 않기 위한 초기화 여부다.
 	bool bHasInitializedHomeLocation = false;
-
-	// DataTable에서 읽은 스케일 적용 전 최대 체력
-	float BaseMaxHealth = 0.0f;
-
-	// 플레이어 수 변경 이벤트 구독 핸들
-	FDelegateHandle PlayerCountChangedDelegateHandle;
 
 	// 서버에서 부여한 Ability/GE를 수동 초기화할 때 추적하기 위한 핸들 묶음이다.
 	UPROPERTY()

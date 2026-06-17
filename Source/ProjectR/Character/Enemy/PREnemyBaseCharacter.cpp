@@ -988,9 +988,19 @@ void APREnemyBaseCharacter::ApplyHealthScale()
 	const float NewMaxHealth = FMath::Max(BaseMaxHealth * HealthScale, 0.0f);
 	const float NewHealth = FMath::Clamp(NewMaxHealth * OldHealthRatio, 0.0f, NewMaxHealth);
 
+	if (EnemyWorldHealthBarComponent)
+	{
+		EnemyWorldHealthBarComponent->SuppressVisibility(true);
+	}
+	
 	// MaxHealth 선적용 후 Health 보정
 	AbilitySystemComponent->SetNumericAttributeBase(UPRAttributeSet_Common::GetMaxHealthAttribute(), NewMaxHealth);
 	AbilitySystemComponent->SetNumericAttributeBase(UPRAttributeSet_Common::GetHealthAttribute(), NewHealth);
+	
+	if (EnemyWorldHealthBarComponent)
+	{
+		EnemyWorldHealthBarComponent->SuppressVisibility(false);
+	}
 }
 
 void APREnemyBaseCharacter::BindPlayerCountChanged()

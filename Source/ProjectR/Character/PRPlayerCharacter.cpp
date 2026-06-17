@@ -27,6 +27,7 @@
 #include "ProjectR/System/PRAssetManager.h"
 #include "ProjectR/PRGameplayTags.h"
 #include "ProjectR/AbilitySystem/AttributeSets/PRAttributeSet_Common.h"
+#include "ProjectR/AbilitySystem/AttributeSets/PRAttributeSet_Player.h"
 #include "ProjectR/Interaction/PRInteractableComponent.h"
 #include "ProjectR/ItemSystem/Components/PREquipmentManagerComponent.h"
 #include "ProjectR/Player/PRCameraModifier.h"
@@ -43,6 +44,22 @@
 #include "TimerManager.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogPRPathPreviewCharacter, Log, All);
+
+namespace
+{
+	// 리스폰 완료 시 생존 자원 명시 초기화
+	void RestoreFullHealthForRespawn(UPRAbilitySystemComponent* ASC)
+	{
+		if (!IsValid(ASC))
+		{
+			return;
+		}
+
+		const float MaxHealth = ASC->GetNumericAttribute(UPRAttributeSet_Common::GetMaxHealthAttribute());
+		ASC->SetNumericAttributeBase(UPRAttributeSet_Common::GetHealthAttribute(), FMath::Max(MaxHealth, 0.0f));
+		ASC->SetNumericAttributeBase(UPRAttributeSet_Player::GetRecoverableHealthAttribute(), 0.0f);
+	}
+}
 
 // Sets default values
 APRPlayerCharacter::APRPlayerCharacter()
@@ -271,6 +288,9 @@ void APRPlayerCharacter::PossessedBy(AController* NewController)
 						ASC->ApplyGameplayEffectSpecToSelf(*SpecHandle.Data.Get());
 					}
 				}
+
+				// 리스폰 후 장비와 성장 보너스가 반영된 최대 체력 기준 완전 회복
+				RestoreFullHealthForRespawn(ASC);
 			}
 		}
 

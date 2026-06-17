@@ -8,6 +8,16 @@
 #include "ProjectR/Game/PRGameStateBase.h"
 #include "ProjectR/Player/PRPlayerState.h"
 #include "ProjectR/UI/HUD/PRPartyMemberHealthWidget.h"
+#include "TimerManager.h"
+
+namespace
+{
+	// 파티원 목록 초기화 최대 재시도 횟수
+	constexpr int32 PartyHealthRefreshRetryCount = 3;
+
+	// 파티원 목록 초기화 재시도 간격
+	constexpr float PartyHealthRefreshRetryInterval = 0.1f;
+}
 
 UPRPartyHealthListWidget::UPRPartyHealthListWidget(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
@@ -41,14 +51,23 @@ void UPRPartyHealthListWidget::NativeDestruct()
 
 void UPRPartyHealthListWidget::RefreshPartyMembers()
 {
+	RefreshPartyMembersInternal(PartyHealthRefreshRetryCount);
+}
+
+void UPRPartyHealthListWidget::RefreshPartyMembersInternal(int32 RemainingRetryCount)
+{
 	UWorld* World = GetWorld();
 	APRGameStateBase* GameState = IsValid(World) ? World->GetGameState<APRGameStateBase>() : nullptr;
 	APRPlayerState* OwningPlayerState = GetOwningPRPlayerState();
 	if (!IsValid(GameState) || !IsValid(OwningPlayerState))
 	{
+		BindPlayerCountChanged();
 		ApplyPartyMembers(TArray<APRPlayerState*>());
+		ScheduleRefreshRetry(RemainingRetryCount);
 		return;
 	}
+
+	BindPlayerCountChanged();
 
 	TArray<APRPlayerState*> PartyMembers;
 	for (APlayerState* PlayerState : GameState->PlayerArray)
@@ -80,6 +99,12 @@ void UPRPartyHealthListWidget::RefreshPartyMembers()
 	}
 
 	ApplyPartyMembers(PartyMembers);
+
+	if (GameState->PlayerArray.Num() > 1 && PartyMembers.Num() == 0)
+	{
+		// PlayerArray 복제 이후 개별 PlayerState 준비 지연 대응
+		ScheduleRefreshRetry(RemainingRetryCount);
+	}
 }
 
 /*~ Party Members ~*/
@@ -144,6 +169,35 @@ void UPRPartyHealthListWidget::UnbindPlayerCountChanged()
 void UPRPartyHealthListWidget::HandlePlayerCountChanged()
 {
 	RefreshPartyMembers();
+}
+
+void UPRPartyHealthListWidget::ScheduleRefreshRetry(int32 RemainingRetryCount)
+{
+	if (RemainingRetryCount <= 0)
+	{
+		return;
+	}
+
+	UWorld* World = GetWorld();
+	if (!IsValid(World))
+	{
+		return;
+	}
+
+	FTimerHandle RetryTimerHandle;
+	TWeakObjectPtr<UPRPartyHealthListWidget> WeakThis(this);
+	World->GetTimerManager().SetTimer(
+		RetryTimerHandle,
+		FTimerDelegate::CreateLambda([WeakThis, RemainingRetryCount]()
+		{
+			if (UPRPartyHealthListWidget* Widget = WeakThis.Get())
+			{
+				// 다음 재시도 잔여 횟수 차감
+				Widget->RefreshPartyMembersInternal(RemainingRetryCount - 1);
+			}
+		}),
+		PartyHealthRefreshRetryInterval,
+		false);
 }
 
 APRPlayerState* UPRPartyHealthListWidget::GetOwningPRPlayerState() const

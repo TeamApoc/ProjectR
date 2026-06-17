@@ -2,13 +2,54 @@
 // Author: 배유찬 (장비 슬롯 제어 및 장착 장비 기반 캐릭터 외형 변경 구현)
 // Author: 이건주 (인벤토리 연동 장비 동기화 구현)
 #include "PREquipmentManagerComponent.h"
+#include "AbilitySystemComponent.h"
 #include "Engine/ActorChannel.h"
 #include "Net/UnrealNetwork.h"
+#include "ProjectR/AbilitySystem/AttributeSets/PRAttributeSet_Common.h"
 #include "ProjectR/Character/PRCharacterBase.h"
 #include "ProjectR/ItemSystem/Components/PRInventoryComponent.h"
 #include "ProjectR/ItemSystem/Data/PREquipmentDataAsset.h"
 #include "ProjectR/ItemSystem/Items/PRItemInstance_Equipment.h"
 #include "ProjectR/Utils/PRGameplayStatics.h"
+
+namespace
+{
+	// 장비 장착 전 최대 체력 대비 현재 체력 비율 보관
+	bool CaptureHealthRatioForEquipmentChange(AActor* OwnerActor, float& OutHealthRatio)
+	{
+		OutHealthRatio = 1.0f;
+
+		UAbilitySystemComponent* ASC = UPRGameplayStatics::GetAbilitySystemComponent(OwnerActor);
+		if (!IsValid(ASC))
+		{
+			return false;
+		}
+
+		const float PreviousMaxHealth = ASC->GetNumericAttribute(UPRAttributeSet_Common::GetMaxHealthAttribute());
+		if (PreviousMaxHealth <= UE_SMALL_NUMBER)
+		{
+			return false;
+		}
+
+		const float PreviousHealth = ASC->GetNumericAttribute(UPRAttributeSet_Common::GetHealthAttribute());
+		OutHealthRatio = FMath::Clamp(PreviousHealth / PreviousMaxHealth, 0.0f, 1.0f);
+		return true;
+	}
+
+	// 장비 장착 후 변경된 최대 체력 기준 현재 체력 비율 복원
+	void RestoreHealthRatioForEquipmentChange(AActor* OwnerActor, float HealthRatio)
+	{
+		UAbilitySystemComponent* ASC = UPRGameplayStatics::GetAbilitySystemComponent(OwnerActor);
+		if (!IsValid(ASC))
+		{
+			return;
+		}
+
+		const float NewMaxHealth = FMath::Max(ASC->GetNumericAttribute(UPRAttributeSet_Common::GetMaxHealthAttribute()), 0.0f);
+		const float NewHealth = FMath::Clamp(NewMaxHealth * HealthRatio, 0.0f, NewMaxHealth);
+		ASC->SetNumericAttributeBase(UPRAttributeSet_Common::GetHealthAttribute(), NewHealth);
+	}
+}
 
 void FPREquipmentList::EquipItem(EPREquipmentSlotType SlotType, UPRItemInstance_Equipment* Item)
 {
@@ -127,11 +168,20 @@ bool UPREquipmentManagerComponent::EquipItem(UPRItemInstance_Equipment* Equipmen
 		return false;
 	}
 
+	float PreviousHealthRatio = 1.0f;
+	const bool bShouldRestoreHealthRatio = CaptureHealthRatioForEquipmentChange(GetOwner(), PreviousHealthRatio);
+
 	// 기존 장착 해제
 	UnequipSlot(SlotType);
 
 	EquippedList.EquipItem(SlotType, EquipmentItem);
 	EquipmentItem->OnEquipped(GetOwner());
+
+	if (bShouldRestoreHealthRatio)
+	{
+		// 장비 교체 전 체력 비율 유지
+		RestoreHealthRatioForEquipmentChange(GetOwner(), PreviousHealthRatio);
+	}
 
 	// 시각 정보 업데이트
 	FPRReplicatedEquipmentInfo NewEquipmentInfo;

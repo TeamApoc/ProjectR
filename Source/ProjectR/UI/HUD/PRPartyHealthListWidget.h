@@ -41,6 +41,12 @@ private:
 	// GameState 플레이어 수 변경 이벤트 수신 처리
 	void HandlePlayerCountChanged();
 
+	// 파티원 목록 갱신 처리
+	void RefreshPartyMembersInternal(int32 RemainingRetryCount);
+
+	// 초기 복제 지연 대응용 갱신 재시도 예약
+	void ScheduleRefreshRetry(int32 RemainingRetryCount);
+
 	APRPlayerState* GetOwningPRPlayerState() const;
 	void ApplyPartyMembers(const TArray<APRPlayerState*>& PartyMembers);
 

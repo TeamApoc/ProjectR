@@ -1,4 +1,5 @@
 // Copyright ProjectR. All Rights Reserved.
+// Author: 손승우 (페어린 협상 전투 선택 대화 상호작용 액션 구현)
 #pragma once
 
 #include "CoreMinimal.h"

@@ -1,4 +1,5 @@
 // Copyright ProjectR. All Rights Reserved.
+// Author: 손승우 (페어린 인카운터 하단 자막 위젯 구현)
 #pragma once
 
 #include "CoreMinimal.h"

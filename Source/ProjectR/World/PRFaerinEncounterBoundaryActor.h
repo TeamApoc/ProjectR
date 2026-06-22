@@ -1,4 +1,5 @@
 // Copyright ProjectR. All Rights Reserved.
+// Author: 손승우 (페어린 인카운터 아레나 경계 플레이어 감지 액터 구현)
 #pragma once
 
 #include "CoreMinimal.h"
@@ -11,6 +12,7 @@ class UBoxComponent;
 class UPrimitiveComponent;
 class USceneComponent;
 
+// 인카운터 단계별로 아레나 경계가 플레이어를 감지/추적하는 방식이다.
 UENUM(BlueprintType)
 enum class EFaerinBoundaryMode : uint8
 {

@@ -1,4 +1,5 @@
 // Copyright ProjectR. All Rights Reserved.
+// Author: 손승우 (페어린 인카운터 협상 선택지 UI 위젯 구현)
 
 #include "PRFaerinEncounterChoiceWidget.h"
 

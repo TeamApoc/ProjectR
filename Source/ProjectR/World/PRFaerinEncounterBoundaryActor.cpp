@@ -1,4 +1,5 @@
 // Copyright ProjectR. All Rights Reserved.
+// Author: 손승우 (페어린 인카운터 아레나 경계 플레이어 감지 액터 구현)
 
 #include "PRFaerinEncounterBoundaryActor.h"
 

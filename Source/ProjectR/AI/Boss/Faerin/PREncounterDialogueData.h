@@ -1,4 +1,5 @@
 // Copyright ProjectR. All Rights Reserved.
+// Author: 손승우 (페어린 인카운터 대사/원작 대화 그래프 데이터 구조 구현)
 #pragma once
 
 #include "CoreMinimal.h"
@@ -7,6 +8,7 @@
 
 class USoundBase;
 
+// EventTree 노드를 런타임 표시/제어 역할 기준으로 축약한 대화 노드 타입이다.
 UENUM(BlueprintType)
 enum class EPRFaerinDialogueNodeType : uint8
 {
@@ -21,6 +23,7 @@ enum class EPRFaerinDialogueNodeType : uint8
 	Unsupported
 };
 
+// 선택지 선택 또는 노드 실행 시 대화 흐름이 수행할 의미 단위 액션이다.
 UENUM(BlueprintType)
 enum class EPRFaerinDialogueOptionAction : uint8
 {

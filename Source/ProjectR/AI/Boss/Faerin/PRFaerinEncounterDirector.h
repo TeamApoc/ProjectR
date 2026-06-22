@@ -1,4 +1,5 @@
 // Copyright ProjectR. All Rights Reserved.
+// Author: 손승우 (페어린 인카운터 컷신/협상/선택 분기 복제 상태머신 디렉터 구현)
 #pragma once
 
 #include "CoreMinimal.h"
@@ -19,6 +20,7 @@ class ULevelSequence;
 class ULevelSequencePlayer;
 class USceneComponent;
 
+// Faerin 인카운터 전체 진행 단계다. (서버 권위로 복제되어 모든 클라가 동일 단계를 따른다)
 UENUM(BlueprintType)
 enum class EFaerinEncounterState : uint8
 {
@@ -34,6 +36,7 @@ enum class EFaerinEncounterState : uint8
 	Defeated
 };
 
+// 인카운터에서 재생하는 LevelSequence 종류다. (최초 조우 Intro / 전투 시작 FightStart)
 UENUM(BlueprintType)
 enum class EFaerinEncounterSequence : uint8
 {
@@ -41,7 +44,6 @@ enum class EFaerinEncounterSequence : uint8
 	FightStart
 };
 
-// Faerin 컷신 진입부터 실제 전투 보스 스폰까지의 인카운터 상태를 서버 권위로 관리한다.
 // 협상 대기 상태에서 계속 보여야 하는 연출 Actor와 idle 애니메이션을 묶는다.
 USTRUCT(BlueprintType)
 struct PROJECTR_API FPRFaerinPresentationIdleBinding
@@ -146,6 +148,8 @@ struct PROJECTR_API FPRFaerinSequenceVoiceCue
 	bool bAttachToVoiceActor = true;
 };
 
+// Faerin 인카운터(컷신→협상→선택→전투→전멸 리셋)를 서버 권위 복제 상태머신으로 관리하는 디렉터다.
+// 컷신/자막/카메라/시퀀스 음성 연출과 실제 전투 보스 스폰·정리를 단일 상태 흐름으로 묶는다.
 UCLASS(Blueprintable)
 class PROJECTR_API APRFaerinEncounterDirector : public AActor
 {

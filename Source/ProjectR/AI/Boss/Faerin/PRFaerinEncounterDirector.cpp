@@ -1,4 +1,5 @@
 // Copyright ProjectR. All Rights Reserved.
+// Author: 손승우 (페어린 인카운터 컷신/협상/선택 분기 복제 상태머신 디렉터 구현)
 
 #include "PRFaerinEncounterDirector.h"
 

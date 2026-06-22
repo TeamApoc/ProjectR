@@ -1,4 +1,5 @@
 // Copyright ProjectR. All Rights Reserved.
+// Author: 손승우 (페어린 인카운터 대사/원작 대화 그래프 데이터 구조 구현)
 
 #include "PREncounterDialogueData.h"
 

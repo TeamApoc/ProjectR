@@ -1,4 +1,5 @@
 // Copyright ProjectR. All Rights Reserved.
+// Author: 손승우 (페어린 Phase2 분신 소환 패턴 어빌리티 구현)
 
 #include "PRGameplayAbility_FaerinCloneSequence.h"
 

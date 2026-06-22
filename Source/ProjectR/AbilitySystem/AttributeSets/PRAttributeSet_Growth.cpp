@@ -1,5 +1,5 @@
 // Copyright ProjectR. All Rights Reserved.
-// Author: 김동석 (Attribute Set 성장 구현)
+// Author: 김동석 (플레이어 성장 속성 세트 구현)
 #include "PRAttributeSet_Growth.h"
 
 #include "Net/UnrealNetwork.h"

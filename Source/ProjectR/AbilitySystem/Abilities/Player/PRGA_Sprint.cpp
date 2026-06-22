@@ -1,5 +1,5 @@
 // Copyright (c) 2026 TeamApoc. All Rights Reserved.
-// Author: 김동석 (플레이어 돌진 어빌리티 구현)
+// Author: 김동석 (플레이어 질주 어빌리티 구현)
 #include "ProjectR/AbilitySystem/Abilities/Player/PRGA_Sprint.h"
 
 #include "AbilitySystemComponent.h"

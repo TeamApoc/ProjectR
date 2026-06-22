@@ -1,4 +1,5 @@
 // Copyright ProjectR. All Rights Reserved.
+// Author: 김동석 (무기 강화 스탯 계산 유틸리티 구현)
 
 #include "PRWeaponStatStatics.h"
 

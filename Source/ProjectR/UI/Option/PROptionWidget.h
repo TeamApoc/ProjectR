@@ -1,5 +1,5 @@
 // Copyright ProjectR. All Rights Reserved.
-// 김동석 (bgm옵션 기능 추가)
+// Author: 김동석 (BGM 옵션 조절 기능 구현)
 
 #pragma once
 

@@ -1,4 +1,5 @@
 // Copyright ProjectR. All Rights Reserved.
+// Author: 김동석 (플레이어 체력 피해 사운드 데이터 에셋 구현)
 #pragma once
 
 #include "CoreMinimal.h"

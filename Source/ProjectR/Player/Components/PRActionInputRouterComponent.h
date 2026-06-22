@@ -1,4 +1,5 @@
 // Copyright ProjectR. All Rights Reserved.
+// Author: 김동석 (액션 입력 라우팅 컴포넌트 구현)
 
 #pragma once
 

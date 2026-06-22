@@ -1,5 +1,5 @@
 // Copyright ProjectR. All Rights Reserved.
-// Author: 김동석 (Main Title UI base implementation)
+// Author: 김동석 (메인 타이틀 UI 기본 흐름 구현)
 #pragma once
 
 #include "CoreMinimal.h"

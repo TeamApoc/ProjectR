@@ -1,4 +1,5 @@
 // Copyright ProjectR. All Rights Reserved.
+// Author: 김동석 (상점 UI 열기 상호작용 액션 구현)
 
 #pragma once
 

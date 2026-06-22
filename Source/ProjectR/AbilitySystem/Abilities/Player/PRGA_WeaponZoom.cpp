@@ -1,5 +1,5 @@
 // Copyright (c) 2026 TeamApoc. All Rights Reserved.
-// Author: 김동석 (플레이어 Weapon Zoom 어빌리티 구현)
+// Author: 김동석 (플레이어 무기 줌 어빌리티 구현)
 #include "ProjectR/AbilitySystem/Abilities/Player/PRGA_WeaponZoom.h"
 
 #include "Camera/PlayerCameraManager.h"

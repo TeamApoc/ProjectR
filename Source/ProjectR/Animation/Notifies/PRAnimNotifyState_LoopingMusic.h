@@ -1,4 +1,5 @@
 // Copyright ProjectR. All Rights Reserved.
+// Author: 김동석 (애니메이션 구간 반복 음악 Notify State 구현)
 
 #pragma once
 

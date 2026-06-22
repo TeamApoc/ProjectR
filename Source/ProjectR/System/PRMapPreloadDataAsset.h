@@ -1,5 +1,5 @@
 // Copyright ProjectR. All Rights Reserved.
-// Author: 김동석 (Map Preload 데이터 에셋 구현)
+// Author: 김동석 (맵 진입 전 프리로드 데이터 에셋 정의)
 #pragma once
 
 #include "CoreMinimal.h"

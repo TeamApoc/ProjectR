@@ -1,4 +1,5 @@
 // Copyright ProjectR. All Rights Reserved.
+// Author: 김동석 (액션 입력 캔슬 가능 구간 Notify State 구현)
 
 #include "PRAnimNotifyState_ActionInputCancelWindow.h"
 

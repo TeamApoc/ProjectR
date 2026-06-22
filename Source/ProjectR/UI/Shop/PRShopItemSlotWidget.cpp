@@ -1,4 +1,5 @@
 // Copyright ProjectR. All Rights Reserved.
+// Author: 김동석 (상점 아이템 슬롯 선택 및 표시 연동)
 // Author: 배유찬 (상점 Item 슬롯 UI 위젯 구현)
 #include "PRShopItemSlotWidget.h"
 

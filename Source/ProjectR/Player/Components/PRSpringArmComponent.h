@@ -1,5 +1,5 @@
 // Copyright (c) 2026 TeamApoc. All Rights Reserved.
-// Author: 김동석 (Spring Arm 컴포넌트 구현)
+// Author: 김동석 (카메라 붐 길이와 오프셋 보간 컴포넌트 구현)
 #pragma once
 
 #include "CoreMinimal.h"

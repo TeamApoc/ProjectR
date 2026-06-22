@@ -1,5 +1,5 @@
 // Copyright (c) 2026 TeamApoc. All Rights Reserved.
-// Author: 김동석 (Camera Modifier Recoil 구현)
+// Author: 김동석 (무기 반동 카메라 회전 모디파이어 구현)
 #pragma once
 
 #include "CoreMinimal.h"

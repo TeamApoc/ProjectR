@@ -1,5 +1,5 @@
 // Copyright ProjectR. All Rights Reserved.
-// Author: 김동석 (Open Weapon 강화/업그레이드 UI 상호작용 액션 실행 로직 구현)
+// Author: 김동석 (무기 강화 UI 열기 상호작용 액션 구현)
 #pragma once
 
 #include "CoreMinimal.h"

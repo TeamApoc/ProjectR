@@ -1,5 +1,5 @@
 // Copyright ProjectR. All Rights Reserved.
-// Author: 김동석 (Runtime Preload 데이터 에셋 구현)
+// Author: 김동석 (런타임 공통 프리로드 데이터 에셋 정의)
 #pragma once
 
 #include "CoreMinimal.h"

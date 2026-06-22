@@ -1,5 +1,5 @@
 // Copyright ProjectR. All Rights Reserved.
-// Author: 손승우 (페어린 보스전 접근 돌진 시퀀스 어빌리티 구현)
+// Author: 손승우 (파에린 보스전 접근 돌진 시퀀스 어빌리티 구현)
 #include "PRGameplayAbility_FaerinApproachSprint.h"
 
 #include "AIController.h"

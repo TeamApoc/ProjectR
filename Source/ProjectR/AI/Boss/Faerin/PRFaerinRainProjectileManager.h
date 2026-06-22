@@ -1,5 +1,5 @@
 // Copyright ProjectR. All Rights Reserved.
-// Author: 손승우 (페어린 Rain Portal 경량 투사체(Niagara 배열 렌더 매니저) 구현)
+// Author: 손승우 (파에린 Rain Portal 경량 투사체(Niagara 배열 렌더 매니저) 구현)
 #pragma once
 
 #include "CoreMinimal.h"
@@ -49,7 +49,7 @@ struct FPRRainSpawnCommand
 	float Lifetime = 0.0f;
 };
 
-// 페어린 Rain Portal 전용 경량 투사체 매니저다.
+// 파에린 Rain Portal 전용 경량 투사체 매니저다.
 // 다수의 rain 투사체를 단일 Niagara 시스템으로 렌더하고, 위치 배열을 매 틱 Niagara에 push한다.
 // 기존 APRProjectileBase 경로(풀 액터 + PMC + per-actor 복제)를 대체하는 선택적 경량 경로이며,
 // Rain Portal에서 토글이 켜졌을 때만 사용된다.

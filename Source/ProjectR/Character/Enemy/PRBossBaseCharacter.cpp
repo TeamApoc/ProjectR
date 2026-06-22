@@ -1,7 +1,7 @@
 // Copyright ProjectR. All Rights Reserved.
 // Author: 김동석 (보스 전용 UI 체력 바 및 페이즈 BGM 연동 구현)
 // Author: 배유찬 (보스 조우 및 월드 리셋, 약점 부위 히트 판정 구조 구축)
-// Author: 손승우 (보스 AI 비헤이비어 제어 및 페어린 보스 패턴 연동 구현)
+// Author: 손승우 (보스 AI 비헤이비어 제어 및 파에린 보스 패턴 연동 구현)
 #include "PRBossBaseCharacter.h"
 
 #include "ProjectR/AbilitySystem/PRAbilitySystemComponent.h"

@@ -1,5 +1,5 @@
 // Copyright ProjectR. All Rights Reserved.
-// Author: 손승우 (페어린 분신 캐릭터 — 추적/SpokeCombo/본체 복귀 상태머신 구현)
+// Author: 손승우 (파에린 분신 캐릭터 — 추적/SpokeCombo/본체 복귀 상태머신 구현)
 
 #include "PRFaerinCloneCharacter.h"
 

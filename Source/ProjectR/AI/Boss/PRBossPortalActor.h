@@ -1,6 +1,6 @@
 // Copyright ProjectR. All Rights Reserved.
 // Author: 배유찬 (사격 피격 데칼 및 FX 연동)
-// Author: 손승우 (페어린 보스 전투 루프 내 포털 소환 및 투사체 발사 제어 구현)
+// Author: 손승우 (파에린 보스 전투 루프 내 포털 소환 및 투사체 발사 제어 구현)
 // Author: 이건주 (포털 액터 파괴 인터페이스 및 대미지 연출 연동 구현)
 #pragma once
 

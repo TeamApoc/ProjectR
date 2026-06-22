@@ -1,5 +1,5 @@
 // Copyright ProjectR. All Rights Reserved.
-// Author: 손승우 (페어린 분신 캐릭터 — 추적/SpokeCombo/본체 복귀 상태머신 구현)
+// Author: 손승우 (파에린 분신 캐릭터 — 추적/SpokeCombo/본체 복귀 상태머신 구현)
 
 #pragma once
 
@@ -317,7 +317,7 @@ struct FPRFaerinCloneRuntimeConfig
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Return")
 	FVector MergeLocationOffset = FVector::ZeroVector;
 
-	// 복귀 성공 시 페어린 회복량이다.
+	// 복귀 성공 시 파에린 회복량이다.
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Return|Heal", meta = (ClampMin = "0.0"))
 	float MergeHealAmount = 250.0f;
 
@@ -325,7 +325,7 @@ struct FPRFaerinCloneRuntimeConfig
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Return|Heal", meta = (ClampMin = "0.0", ClampMax = "1.0"))
 	float MergeHealMaxHealthRatio = 1.0f;
 
-	// 복귀 성공 시 페어린 몸에 재생할 회복 Niagara다.
+	// 복귀 성공 시 파에린 몸에 재생할 회복 Niagara다.
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Return|Heal")
 	TObjectPtr<UNiagaraSystem> MergeHealNiagaraSystem;
 

@@ -1,7 +1,7 @@
 // Copyright ProjectR. All Rights Reserved.
-// Author: 김동석 (페어린 보스 전용 체력 UI 연동)
-// Author: 배유찬 (페어린 보스 조우 상호작용 연동)
-// Author: 손승우 (페어린 보스 고유 공격 패턴(GodFall/소환/검격) 및 VFX 연출 구현)
+// Author: 김동석 (파에린 보스 전용 체력 UI 연동)
+// Author: 배유찬 (파에린 보스 조우 상호작용 연동)
+// Author: 손승우 (파에린 보스 고유 공격 패턴(GodFall/소환/검격) 및 VFX 연출 구현)
 #pragma once
 
 #include "CoreMinimal.h"
@@ -135,7 +135,7 @@ public:
 	UFUNCTION(NetMulticast, Reliable)
 	void Multicast_SetNearTeleportHidden(bool bShouldHide);
 
-	// 분신이 본체에 복귀했을 때 서버에서 페어린 체력을 회복하고 회복 VFX를 전파한다.
+	// 분신이 본체에 복귀했을 때 서버에서 파에린 체력을 회복하고 회복 VFX를 전파한다.
 	void ApplyFaerinCloneMergeHeal(
 		float HealAmount,
 		float HealMaxHealthRatio,

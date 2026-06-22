@@ -1,5 +1,5 @@
 // Copyright ProjectR. All Rights Reserved.
-// Author: 손승우 (페어린 Rain Portal 경량 투사체(Niagara 배열 렌더 매니저) 구현)
+// Author: 손승우 (파에린 Rain Portal 경량 투사체(Niagara 배열 렌더 매니저) 구현)
 #include "PRFaerinRainProjectileManager.h"
 
 #include "AbilitySystemComponent.h"

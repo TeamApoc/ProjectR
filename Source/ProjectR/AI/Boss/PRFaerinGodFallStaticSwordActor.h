@@ -1,5 +1,5 @@
 // Copyright ProjectR. All Rights Reserved.
-// Author: 손승우 (페어린 보스 God Fall Static 검격 Actor 구현)
+// Author: 손승우 (파에린 보스 God Fall Static 검격 Actor 구현)
 #pragma once
 
 #include "CoreMinimal.h"
@@ -72,7 +72,7 @@ public:
 	// God Fall entry 하강에 맞춰 아래로 한 번 돌진한 뒤 자기 위치로 복귀한다.
 	bool StartEntryDive(float DiveDistance, float DiveSeconds, float ReturnSeconds, float ChargeSecondsAfterReturn);
 
-	// StaticSword 전환 후 페어린 주변 원형 대형 회전을 시작한다. 실제 낙하는 StartEntryOrbitImpactDrop에서 시작한다.
+	// StaticSword 전환 후 파에린 주변 원형 대형 회전을 시작한다. 실제 낙하는 StartEntryOrbitImpactDrop에서 시작한다.
 	bool StartEntryOrbit(const FVector& OrbitCenterLocation,
 		float StartDelaySeconds,
 		float GatherDurationSeconds,

@@ -1,5 +1,5 @@
 // Copyright ProjectR. All Rights Reserved.
-// Author: 손승우 (페어린 보스 God Fall 데이터 에셋 구현)
+// Author: 손승우 (파에린 보스 God Fall 데이터 에셋 구현)
 #pragma once
 
 #include "CoreMinimal.h"
@@ -181,7 +181,7 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Faerin|GodFall|Body|Presentation", meta = (ClampMin = "0.0"))
 	float EntrySwordDiveReturnSeconds = 0.35f;
 
-	// StaticSword 전환 후 첫 하강 전에 페어린 주변 원형 대형 회전을 사용할지 결정한다.
+	// StaticSword 전환 후 첫 하강 전에 파에린 주변 원형 대형 회전을 사용할지 결정한다.
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Faerin|GodFall|EntryOrbit", meta = (InlineEditConditionToggle))
 	bool bUseEntryOrbitBeforeImpact = true;
 
@@ -189,7 +189,7 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Faerin|GodFall|EntryOrbit|Timeline", meta = (ClampMin = "0.0", EditCondition = "bUseEntryOrbitBeforeImpact"))
 	float EntryOrbitStartDelayAfterStaticSwitch = 0.15f;
 
-	// 현재 위치에서 페어린 주변 원형 대형 슬롯까지 부드럽게 이동하는 시간이다.
+	// 현재 위치에서 파에린 주변 원형 대형 슬롯까지 부드럽게 이동하는 시간이다.
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Faerin|GodFall|EntryOrbit|Timeline", meta = (ClampMin = "0.0", EditCondition = "bUseEntryOrbitBeforeImpact"))
 	float EntryOrbitGatherDuration = 0.45f;
 
@@ -209,7 +209,7 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Faerin|GodFall|EntryOrbit|Timeline", meta = (ClampMin = "0.0", EditCondition = "bUseEntryOrbitBeforeImpact"))
 	float EntryOrbitPostSpinHoldSeconds = 0.05f;
 
-	// 원형 대형 시작 반지름이다. 페어린 위치를 중심으로 각 검이 이 반경 위에서 회전한다.
+	// 원형 대형 시작 반지름이다. 파에린 위치를 중심으로 각 검이 이 반경 위에서 회전한다.
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Faerin|GodFall|EntryOrbit|Shape", meta = (ClampMin = "0.0", EditCondition = "bUseEntryOrbitBeforeImpact"))
 	float EntryOrbitRadius = 650.0f;
 
@@ -217,7 +217,7 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Faerin|GodFall|EntryOrbit|Shape", meta = (ClampMin = "0.0", EditCondition = "bUseEntryOrbitBeforeImpact"))
 	float EntryOrbitImpactMinRadius = 220.0f;
 
-	// 원형 대형 중심의 높이 보정이다. 0이면 현재 페어린 위치 높이를 중심으로 회전한다.
+	// 원형 대형 중심의 높이 보정이다. 0이면 현재 파에린 위치 높이를 중심으로 회전한다.
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Faerin|GodFall|EntryOrbit|Shape", meta = (EditCondition = "bUseEntryOrbitBeforeImpact"))
 	float EntryOrbitHeightOffset = 0.0f;
 
@@ -373,7 +373,7 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Faerin|GodFall|EntryOrbit|Damage", meta = (ClampMin = "0.0", EditCondition = "bApplyEntryOrbitImpactGlobalDamage"))
 	float EntryOrbitImpactGlobalPoiseDamage = 0.0f;
 
-	// 0 이하이면 현재 GodFall target 전체에게 적용한다. 0 초과이면 페어린 시전 위치 기준 반경 안의 대상만 맞춘다.
+	// 0 이하이면 현재 GodFall target 전체에게 적용한다. 0 초과이면 파에린 시전 위치 기준 반경 안의 대상만 맞춘다.
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ProjectR|AI|Boss|Faerin|GodFall|EntryOrbit|Damage", meta = (ClampMin = "0.0", EditCondition = "bApplyEntryOrbitImpactGlobalDamage"))
 	float EntryOrbitImpactGlobalDamageRadius = 0.0f;
 

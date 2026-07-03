@@ -9,7 +9,7 @@
 #include "Components/Widget.h"
 #include "ProjectR/UI/Growth/PRTraitWindowWidget.h"
 #include "ProjectR/UI/Inventory/PRBagWidget.h"
-#include "ProjectR/UI/Inventory/PRInventoryWidget.h"
+#include "ProjectR/UI/Inventory/PREquipmentWidget.h"
 #include "PRPlayerMenuTabListWidget.h"
 
 UPRPlayerMenu::UPRPlayerMenu()
@@ -108,7 +108,7 @@ void UPRPlayerMenu::SetMenuSources(UPRInventoryComponent* InInventoryComponent, 
 	for (int32 ChildIndex = 0; ChildIndex < WidgetSwitcher->GetChildrenCount(); ++ChildIndex)
 	{
 		UWidget* ChildWidget = WidgetSwitcher->GetChildAt(ChildIndex);
-		if (UPRInventoryWidget* InventoryTabWidget = Cast<UPRInventoryWidget>(ChildWidget))
+		if (UPREquipmentWidget* InventoryTabWidget = Cast<UPREquipmentWidget>(ChildWidget))
 		{
 			// 인벤토리 소스 전달
 			InventoryTabWidget->SetInventorySources(InInventoryComponent, InWeaponManagerComponent, InQuickSlotComponent, InEquipmentManagerComponent);

@@ -20,7 +20,7 @@
 #include "ProjectR/ItemSystem/Data/PRItemDataAsset.h"
 #include "ProjectR/UI/HUD/PRHUDWidget.h"
 #include "ProjectR/UI/InGameMenu/PRInGameMenuWidget.h"
-#include "ProjectR/UI/Inventory/PRInventoryWidget.h"
+#include "ProjectR/UI/Inventory/PREquipmentWidget.h"
 #include "ProjectR/UI/Inventory/PRItemTooltipWidget.h"
 #include "ProjectR/UI/Inventory/PRItemTooltipViewDataBuilder.h"
 #include "ProjectR/UI/Faerin/PRFaerinEncounterChoiceWidget.h"
@@ -1177,7 +1177,7 @@ UPRItemDataAsset* UPRUIControllerComponent::ResolvePickupRewardItemData(const FP
 	return UPRAssetManager::Get().GetItemDataByPrimaryAssetId(Payload.ItemAssetId);
 }
 
-UPRInventoryWidget* UPRUIControllerComponent::GetOrCreateInventoryWidget()
+UPREquipmentWidget* UPRUIControllerComponent::GetOrCreateInventoryWidget()
 {
 	if (IsValid(InventoryWidget))
 	{
@@ -1190,7 +1190,7 @@ UPRInventoryWidget* UPRUIControllerComponent::GetOrCreateInventoryWidget()
 		return nullptr;
 	}
 
-	InventoryWidget = CreateWidget<UPRInventoryWidget>(PlayerController, InventoryWidgetClass);
+	InventoryWidget = CreateWidget<UPREquipmentWidget>(PlayerController, InventoryWidgetClass);
 	return InventoryWidget;
 }
 

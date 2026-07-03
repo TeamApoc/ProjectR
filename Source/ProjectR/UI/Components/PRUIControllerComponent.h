@@ -25,7 +25,7 @@ class UPREquipmentManagerComponent;
 class UPRHUDWidget;
 class UPRInGameMenuWidget;
 class UPRInventoryComponent;
-class UPRInventoryWidget;
+class UPREquipmentWidget;
 class UPRItemDataAsset;
 class UPRItemTooltipWidget;
 class UPRFaerinEncounterChoiceWidget;
@@ -188,7 +188,7 @@ public:
 
 	// 현재 캐시된 인벤토리 위젯을 반환한다
 	UFUNCTION(BlueprintPure, Category = "ProjectR|UI")
-	UPRInventoryWidget* GetInventoryWidget() const { return InventoryWidget; }
+	UPREquipmentWidget* GetInventoryWidget() const { return InventoryWidget; }
 
 	// 현재 HUD 위젯을 반환한다
 	UFUNCTION(BlueprintPure, Category = "ProjectR|UI")
@@ -267,7 +267,7 @@ private:
 	UPRUIManagerSubsystem* GetUIManager() const;
 
 	// 인벤토리 위젯 인스턴스를 생성하거나 캐시된 인스턴스를 반환한다
-	UPRInventoryWidget* GetOrCreateInventoryWidget();
+	UPREquipmentWidget* GetOrCreateInventoryWidget();
 
 	// 강화 위젯 인스턴스를 생성하거나 캐시된 인스턴스를 반환한다
 	UPRWeaponUpgradeWidget* GetOrCreateWeaponUpgradeWidget();
@@ -341,7 +341,7 @@ private:
 protected:
 	// 인벤토리 위젯 클래스
 	UPROPERTY(EditDefaultsOnly, Category = "ProjectR|Inventory")
-	TSubclassOf<UPRInventoryWidget> InventoryWidgetClass;
+	TSubclassOf<UPREquipmentWidget> InventoryWidgetClass;
 
 	// 강화 위젯 클래스
 	UPROPERTY(EditDefaultsOnly, Category = "ProjectR|WeaponUpgrade")
@@ -434,7 +434,7 @@ protected:
 private:
 	// 생성 후 재사용할 인벤토리 위젯
 	UPROPERTY(Transient)
-	TObjectPtr<UPRInventoryWidget> InventoryWidget;
+	TObjectPtr<UPREquipmentWidget> InventoryWidget;
 
 	// 현재 활성 HUD 위젯 인스턴스
 	UPROPERTY(Transient)

@@ -2,7 +2,7 @@
 // Author: 김동석 (보유 골드 실시간 수량 갱신 구현)
 // Author: 배유찬 (플레이어 스탯 상세 정보 및 장비 장착 외형 동기화 구현)
 // Author: 이건주 (캐릭터 3D 프리뷰 회전 제어 및 무기 상태 연동 구현)
-#include "PRInventoryWidget.h"
+#include "PREquipmentWidget.h"
 
 #include "GameFramework/PlayerController.h"
 #include "Components/TextBlock.h"
@@ -34,14 +34,14 @@
 #include "ProjectR/UI/Preview/PRCharacterPreviewWidget.h"
 #include "ProjectR/UI/PRUIManagerSubsystem.h"
 
-UPRInventoryWidget::UPRInventoryWidget()
+UPREquipmentWidget::UPREquipmentWidget()
 {
 	Layer = EPRUILayer::Menu;
 	InputMode = EPBUIInputMode::UIOnly;
 	bShowMouseCursor = true;
 }
 
-void UPRInventoryWidget::SetInventorySources(UPRInventoryComponent* InInventoryComponent, UPRWeaponManagerComponent* InWeaponManagerComponent, UPRQuickSlotComponent* InQuickSlotComponent, UPREquipmentManagerComponent* InEquipmentManagerComponent)
+void UPREquipmentWidget::SetInventorySources(UPRInventoryComponent* InInventoryComponent, UPRWeaponManagerComponent* InWeaponManagerComponent, UPRQuickSlotComponent* InQuickSlotComponent, UPREquipmentManagerComponent* InEquipmentManagerComponent)
 {
 	UnbindInventorySourceEvents();
 
@@ -58,7 +58,7 @@ void UPRInventoryWidget::SetInventorySources(UPRInventoryComponent* InInventoryC
 
 /*~ UUserWidget Interface ~*/
 
-void UPRInventoryWidget::NativeConstruct()
+void UPREquipmentWidget::NativeConstruct()
 {
 	Super::NativeConstruct();
 
@@ -76,7 +76,7 @@ void UPRInventoryWidget::NativeConstruct()
 	RefreshPlayerStatsPanelWidget();
 }
 
-void UPRInventoryWidget::NativeDestruct()
+void UPREquipmentWidget::NativeDestruct()
 {
 	// 아이템 리스트 숨기기
 	CloseItemList();
@@ -88,7 +88,7 @@ void UPRInventoryWidget::NativeDestruct()
 	Super::NativeDestruct();
 }
 
-void UPRInventoryWidget::CacheChildWidgetLists()
+void UPREquipmentWidget::CacheChildWidgetLists()
 {
 	// UMG 슬롯 이름은 Blueprint 배치와 맞추기 위한 고정 지점
 	// 실제 갱신과 이벤트 연결은 배열을 통해 같은 코드 경로로 처리
@@ -125,7 +125,7 @@ void UPRInventoryWidget::CacheChildWidgetLists()
 	EquipmentSlotTypes.Add(EPREquipmentSlotType::Ring2);
 }
 
-void UPRInventoryWidget::BindChildWidgetEvents()
+void UPREquipmentWidget::BindChildWidgetEvents()
 {
 	// 이벤트 바인드 전 하위 위젯 이벤트 초기화
 	UnbindChildWidgetEvents();
@@ -133,15 +133,15 @@ void UPRInventoryWidget::BindChildWidgetEvents()
 	// 주무기 슬롯 위젯 마우스 클릭 이벤트 바인드
 	if (IsValid(PrimaryWeaponSlotWidget))
 	{
-		PrimaryWeaponSlotWidget->OnLeftClicked.AddDynamic(this, &UPRInventoryWidget::HandlePrimaryWeaponSlotLeftClicked);
-		PrimaryWeaponSlotWidget->OnRightClicked.AddDynamic(this, &UPRInventoryWidget::HandlePrimaryWeaponSlotRightClicked);
+		PrimaryWeaponSlotWidget->OnLeftClicked.AddDynamic(this, &UPREquipmentWidget::HandlePrimaryWeaponSlotLeftClicked);
+		PrimaryWeaponSlotWidget->OnRightClicked.AddDynamic(this, &UPREquipmentWidget::HandlePrimaryWeaponSlotRightClicked);
 	}
 
 	// 보조무기 슬롯 위젯 마우스 클릭 이벤트 바인드
 	if (IsValid(SecondaryWeaponSlotWidget))
 	{
-		SecondaryWeaponSlotWidget->OnLeftClicked.AddDynamic(this, &UPRInventoryWidget::HandleSecondaryWeaponSlotLeftClicked);
-		SecondaryWeaponSlotWidget->OnRightClicked.AddDynamic(this, &UPRInventoryWidget::HandleSecondaryWeaponSlotRightClicked);
+		SecondaryWeaponSlotWidget->OnLeftClicked.AddDynamic(this, &UPREquipmentWidget::HandleSecondaryWeaponSlotLeftClicked);
+		SecondaryWeaponSlotWidget->OnRightClicked.AddDynamic(this, &UPREquipmentWidget::HandleSecondaryWeaponSlotRightClicked);
 	}
 
 	// 퀵슬롯은 슬롯 번호만 다르고 열리는 목록과 선택 처리는 동일한 구조
@@ -149,7 +149,7 @@ void UPRInventoryWidget::BindChildWidgetEvents()
 	{
 		if (IsValid(QuickSlotWidget))
 		{
-			QuickSlotWidget->OnLeftClicked.AddDynamic(this, &UPRInventoryWidget::HandleQuickSlotLeftClicked);
+			QuickSlotWidget->OnLeftClicked.AddDynamic(this, &UPREquipmentWidget::HandleQuickSlotLeftClicked);
 		}
 	}
 
@@ -158,36 +158,36 @@ void UPRInventoryWidget::BindChildWidgetEvents()
 	{
 		if (IsValid(EquipmentSlotWidget))
 		{
-			EquipmentSlotWidget->OnLeftClicked.AddDynamic(this, &UPRInventoryWidget::HandleEquipmentSlotLeftClicked);
+			EquipmentSlotWidget->OnLeftClicked.AddDynamic(this, &UPREquipmentWidget::HandleEquipmentSlotLeftClicked);
 		}
 	}
 
 	if (IsValid(MaterialSlotWidget))
 	{
-		MaterialSlotWidget->OnLeftClicked.AddDynamic(this, &UPRInventoryWidget::HandleMaterialSlotLeftClicked);
+		MaterialSlotWidget->OnLeftClicked.AddDynamic(this, &UPREquipmentWidget::HandleMaterialSlotLeftClicked);
 	}
 
 	// 아이템 리스트 위젯 이벤트 바인드
 	if (IsValid(ItemListWidget))
 	{
-		ItemListWidget->OnItemSelected.AddDynamic(this, &UPRInventoryWidget::HandleItemListSelection);
+		ItemListWidget->OnItemSelected.AddDynamic(this, &UPREquipmentWidget::HandleItemListSelection);
 	}
 }
 
-void UPRInventoryWidget::UnbindChildWidgetEvents()
+void UPREquipmentWidget::UnbindChildWidgetEvents()
 {
 	// 주무기 슬롯 이벤트 언바인드
 	if (IsValid(PrimaryWeaponSlotWidget))
 	{
-		PrimaryWeaponSlotWidget->OnLeftClicked.RemoveDynamic(this, &UPRInventoryWidget::HandlePrimaryWeaponSlotLeftClicked);
-		PrimaryWeaponSlotWidget->OnRightClicked.RemoveDynamic(this, &UPRInventoryWidget::HandlePrimaryWeaponSlotRightClicked);
+		PrimaryWeaponSlotWidget->OnLeftClicked.RemoveDynamic(this, &UPREquipmentWidget::HandlePrimaryWeaponSlotLeftClicked);
+		PrimaryWeaponSlotWidget->OnRightClicked.RemoveDynamic(this, &UPREquipmentWidget::HandlePrimaryWeaponSlotRightClicked);
 	}
 
 	// 보조무기 슬롯 이벤트 언바인드
 	if (IsValid(SecondaryWeaponSlotWidget))
 	{
-		SecondaryWeaponSlotWidget->OnLeftClicked.RemoveDynamic(this, &UPRInventoryWidget::HandleSecondaryWeaponSlotLeftClicked);
-		SecondaryWeaponSlotWidget->OnRightClicked.RemoveDynamic(this, &UPRInventoryWidget::HandleSecondaryWeaponSlotRightClicked);
+		SecondaryWeaponSlotWidget->OnLeftClicked.RemoveDynamic(this, &UPREquipmentWidget::HandleSecondaryWeaponSlotLeftClicked);
+		SecondaryWeaponSlotWidget->OnRightClicked.RemoveDynamic(this, &UPREquipmentWidget::HandleSecondaryWeaponSlotRightClicked);
 	}
 
 	// 배열 캐시 기준으로 연결한 슬롯 이벤트 정리
@@ -195,7 +195,7 @@ void UPRInventoryWidget::UnbindChildWidgetEvents()
 	{
 		if (IsValid(QuickSlotWidget))
 		{
-			QuickSlotWidget->OnLeftClicked.RemoveDynamic(this, &UPRInventoryWidget::HandleQuickSlotLeftClicked);
+			QuickSlotWidget->OnLeftClicked.RemoveDynamic(this, &UPREquipmentWidget::HandleQuickSlotLeftClicked);
 		}
 	}
 
@@ -203,23 +203,23 @@ void UPRInventoryWidget::UnbindChildWidgetEvents()
 	{
 		if (IsValid(EquipmentSlotWidget))
 		{
-			EquipmentSlotWidget->OnLeftClicked.RemoveDynamic(this, &UPRInventoryWidget::HandleEquipmentSlotLeftClicked);
+			EquipmentSlotWidget->OnLeftClicked.RemoveDynamic(this, &UPREquipmentWidget::HandleEquipmentSlotLeftClicked);
 		}
 	}
 
 	if (IsValid(MaterialSlotWidget))
 	{
-		MaterialSlotWidget->OnLeftClicked.RemoveDynamic(this, &UPRInventoryWidget::HandleMaterialSlotLeftClicked);
+		MaterialSlotWidget->OnLeftClicked.RemoveDynamic(this, &UPREquipmentWidget::HandleMaterialSlotLeftClicked);
 	}
 
 	// 아이템 리스트 이벤트 언바인드
 	if (IsValid(ItemListWidget))
 	{
-		ItemListWidget->OnItemSelected.RemoveDynamic(this, &UPRInventoryWidget::HandleItemListSelection);
+		ItemListWidget->OnItemSelected.RemoveDynamic(this, &UPREquipmentWidget::HandleItemListSelection);
 	}
 }
 
-void UPRInventoryWidget::BindInventorySourceEvents()
+void UPREquipmentWidget::BindInventorySourceEvents()
 {
 	APlayerController* OwningPlayerController = GetOwningPlayer();
 	if (!IsValid(OwningPlayerController) || !OwningPlayerController->IsLocalController())
@@ -229,71 +229,71 @@ void UPRInventoryWidget::BindInventorySourceEvents()
 	
 	if (IsValid(InventoryComponent))
 	{
-		InventoryComponent->GetOnInventoryChanged().RemoveDynamic(this, &UPRInventoryWidget::HandleInventoryChanged);
-		InventoryComponent->GetOnInventoryChanged().AddDynamic(this, &UPRInventoryWidget::HandleInventoryChanged);
+		InventoryComponent->GetOnInventoryChanged().RemoveDynamic(this, &UPREquipmentWidget::HandleInventoryChanged);
+		InventoryComponent->GetOnInventoryChanged().AddDynamic(this, &UPREquipmentWidget::HandleInventoryChanged);
 	}
 
 	if (IsValid(WeaponManagerComponent))
 	{
-		WeaponManagerComponent->GetOnWeaponEquipmentChanged().RemoveDynamic(this, &UPRInventoryWidget::HandleWeaponEquipmentChanged);
-		WeaponManagerComponent->GetOnWeaponEquipmentChanged().AddDynamic(this, &UPRInventoryWidget::HandleWeaponEquipmentChanged);
+		WeaponManagerComponent->GetOnWeaponEquipmentChanged().RemoveDynamic(this, &UPREquipmentWidget::HandleWeaponEquipmentChanged);
+		WeaponManagerComponent->GetOnWeaponEquipmentChanged().AddDynamic(this, &UPREquipmentWidget::HandleWeaponEquipmentChanged);
 	}
 
 	if (IsValid(QuickSlotComponent))
 	{
-		QuickSlotComponent->GetOnQuickSlotChanged().RemoveDynamic(this, &UPRInventoryWidget::HandleQuickSlotChanged);
-		QuickSlotComponent->GetOnQuickSlotChanged().AddDynamic(this, &UPRInventoryWidget::HandleQuickSlotChanged);
+		QuickSlotComponent->GetOnQuickSlotChanged().RemoveDynamic(this, &UPREquipmentWidget::HandleQuickSlotChanged);
+		QuickSlotComponent->GetOnQuickSlotChanged().AddDynamic(this, &UPREquipmentWidget::HandleQuickSlotChanged);
 	}
 
 	if (IsValid(EquipmentManagerComponent))
 	{
-		EquipmentManagerComponent->OnEquipmentChanged.RemoveDynamic(this, &UPRInventoryWidget::HandleEquipmentChanged);
-		EquipmentManagerComponent->OnEquipmentChanged.AddDynamic(this, &UPRInventoryWidget::HandleEquipmentChanged);
-		EquipmentManagerComponent->OnEquipmentVisualInfosChanged.RemoveDynamic(this, &UPRInventoryWidget::HandleEquipmentVisualInfosChanged);
-		EquipmentManagerComponent->OnEquipmentVisualInfosChanged.AddDynamic(this, &UPRInventoryWidget::HandleEquipmentVisualInfosChanged);
+		EquipmentManagerComponent->OnEquipmentChanged.RemoveDynamic(this, &UPREquipmentWidget::HandleEquipmentChanged);
+		EquipmentManagerComponent->OnEquipmentChanged.AddDynamic(this, &UPREquipmentWidget::HandleEquipmentChanged);
+		EquipmentManagerComponent->OnEquipmentVisualInfosChanged.RemoveDynamic(this, &UPREquipmentWidget::HandleEquipmentVisualInfosChanged);
+		EquipmentManagerComponent->OnEquipmentVisualInfosChanged.AddDynamic(this, &UPREquipmentWidget::HandleEquipmentVisualInfosChanged);
 	}
 
 	CurrencyComponent = ResolveCurrencyComponent();
 	if (IsValid(CurrencyComponent))
 	{
-		CurrencyComponent->OnScrapChanged.RemoveDynamic(this, &UPRInventoryWidget::HandleScrapChanged);
-		CurrencyComponent->OnScrapChanged.AddDynamic(this, &UPRInventoryWidget::HandleScrapChanged);
+		CurrencyComponent->OnScrapChanged.RemoveDynamic(this, &UPREquipmentWidget::HandleScrapChanged);
+		CurrencyComponent->OnScrapChanged.AddDynamic(this, &UPREquipmentWidget::HandleScrapChanged);
 	}
 }
 
-void UPRInventoryWidget::UnbindInventorySourceEvents()
+void UPREquipmentWidget::UnbindInventorySourceEvents()
 {
 	if (IsValid(InventoryComponent))
 	{
-		InventoryComponent->GetOnInventoryChanged().RemoveDynamic(this, &UPRInventoryWidget::HandleInventoryChanged);
+		InventoryComponent->GetOnInventoryChanged().RemoveDynamic(this, &UPREquipmentWidget::HandleInventoryChanged);
 	}
 
 	if (IsValid(WeaponManagerComponent))
 	{
-		WeaponManagerComponent->GetOnWeaponEquipmentChanged().RemoveDynamic(this, &UPRInventoryWidget::HandleWeaponEquipmentChanged);
+		WeaponManagerComponent->GetOnWeaponEquipmentChanged().RemoveDynamic(this, &UPREquipmentWidget::HandleWeaponEquipmentChanged);
 	}
 
 	if (IsValid(QuickSlotComponent))
 	{
-		QuickSlotComponent->GetOnQuickSlotChanged().RemoveDynamic(this, &UPRInventoryWidget::HandleQuickSlotChanged);
+		QuickSlotComponent->GetOnQuickSlotChanged().RemoveDynamic(this, &UPREquipmentWidget::HandleQuickSlotChanged);
 	}
 
 	if (IsValid(EquipmentManagerComponent))
 	{
-		EquipmentManagerComponent->OnEquipmentChanged.RemoveDynamic(this, &UPRInventoryWidget::HandleEquipmentChanged);
-		EquipmentManagerComponent->OnEquipmentVisualInfosChanged.RemoveDynamic(this, &UPRInventoryWidget::HandleEquipmentVisualInfosChanged);
+		EquipmentManagerComponent->OnEquipmentChanged.RemoveDynamic(this, &UPREquipmentWidget::HandleEquipmentChanged);
+		EquipmentManagerComponent->OnEquipmentVisualInfosChanged.RemoveDynamic(this, &UPREquipmentWidget::HandleEquipmentVisualInfosChanged);
 	}
 
 	if (IsValid(CurrencyComponent))
 	{
-		CurrencyComponent->OnScrapChanged.RemoveDynamic(this, &UPRInventoryWidget::HandleScrapChanged);
+		CurrencyComponent->OnScrapChanged.RemoveDynamic(this, &UPREquipmentWidget::HandleScrapChanged);
 	}
 
 	CurrencyComponent = nullptr;
 }
 
 //
-void UPRInventoryWidget::HandlePrimaryWeaponSlotLeftClicked(const FPRInventoryItemSlotViewData& ViewData)
+void UPREquipmentWidget::HandlePrimaryWeaponSlotLeftClicked(const FPRInventoryItemSlotViewData& ViewData)
 {
 	if (IsItemListOpenAs(EPRItemType::PrimaryWeapon) && PendingWeaponListSlot == EPRWeaponSlotType::Primary)
 	{
@@ -305,7 +305,7 @@ void UPRInventoryWidget::HandlePrimaryWeaponSlotLeftClicked(const FPRInventoryIt
 	OpenWeaponList(EPRWeaponSlotType::Primary);
 }
 
-void UPRInventoryWidget::HandlePrimaryWeaponSlotRightClicked(const FPRInventoryItemSlotViewData& ViewData)
+void UPREquipmentWidget::HandlePrimaryWeaponSlotRightClicked(const FPRInventoryItemSlotViewData& ViewData)
 {
 	if (IsItemListOpenAs(EPRItemType::Mod) && LastFocusedItem == ViewData.ItemInstance)
 	{
@@ -316,7 +316,7 @@ void UPRInventoryWidget::HandlePrimaryWeaponSlotRightClicked(const FPRInventoryI
 	OpenModList( ViewData.ItemInstance);
 }
 
-void UPRInventoryWidget::HandleSecondaryWeaponSlotLeftClicked(const FPRInventoryItemSlotViewData& ViewData)
+void UPREquipmentWidget::HandleSecondaryWeaponSlotLeftClicked(const FPRInventoryItemSlotViewData& ViewData)
 {
 	if (IsItemListOpenAs(EPRItemType::SecondaryWeapon) && PendingWeaponListSlot == EPRWeaponSlotType::Secondary)
 	{
@@ -328,7 +328,7 @@ void UPRInventoryWidget::HandleSecondaryWeaponSlotLeftClicked(const FPRInventory
 	OpenWeaponList(EPRWeaponSlotType::Secondary);
 }
 
-void UPRInventoryWidget::HandleSecondaryWeaponSlotRightClicked(const FPRInventoryItemSlotViewData& ViewData)
+void UPREquipmentWidget::HandleSecondaryWeaponSlotRightClicked(const FPRInventoryItemSlotViewData& ViewData)
 {
 	// 보조무기 슬롯 위젯 우클릭 시 장착 가능한 모드 리스트 열기
 	UPRItemInstance_Weapon* WeaponItem = IsValid(WeaponManagerComponent)
@@ -344,7 +344,7 @@ void UPRInventoryWidget::HandleSecondaryWeaponSlotRightClicked(const FPRInventor
 	OpenModList(WeaponItem);
 }
 
-void UPRInventoryWidget::HandleQuickSlotLeftClicked(const FPRInventoryItemSlotViewData& ViewData)
+void UPREquipmentWidget::HandleQuickSlotLeftClicked(const FPRInventoryItemSlotViewData& ViewData)
 {
 	// QuickSlotWidgets 배열 갱신에서 넣은 슬롯 번호
 	const int32 SlotIndex = ViewData.ContextIndex;
@@ -362,7 +362,7 @@ void UPRInventoryWidget::HandleQuickSlotLeftClicked(const FPRInventoryItemSlotVi
 	OpenConsumableListForQuickSlot(SlotIndex);
 }
 
-void UPRInventoryWidget::HandleEquipmentSlotLeftClicked(const FPRInventoryItemSlotViewData& ViewData)
+void UPREquipmentWidget::HandleEquipmentSlotLeftClicked(const FPRInventoryItemSlotViewData& ViewData)
 {
 	// 장비 슬롯은 enum 값을 숫자 컨텍스트로 보관
 	const EPREquipmentSlotType SlotType = static_cast<EPREquipmentSlotType>(ViewData.ContextIndex);
@@ -380,7 +380,7 @@ void UPRInventoryWidget::HandleEquipmentSlotLeftClicked(const FPRInventoryItemSl
 	OpenEquipmentListForSlot(SlotType);
 }
 
-void UPRInventoryWidget::HandleMaterialSlotLeftClicked(const FPRInventoryItemSlotViewData& ViewData)
+void UPREquipmentWidget::HandleMaterialSlotLeftClicked(const FPRInventoryItemSlotViewData& ViewData)
 {
 	if (IsItemListOpenAs(EPRItemType::Material))
 	{
@@ -391,7 +391,7 @@ void UPRInventoryWidget::HandleMaterialSlotLeftClicked(const FPRInventoryItemSlo
 	OpenMaterialList();
 }
 
-void UPRInventoryWidget::HandleItemListSelection(const FPRInventoryItemSlotViewData& ViewData)
+void UPREquipmentWidget::HandleItemListSelection(const FPRInventoryItemSlotViewData& ViewData)
 {
 	if (!IsValid(ItemListWidget))
 	{
@@ -426,7 +426,7 @@ void UPRInventoryWidget::HandleItemListSelection(const FPRInventoryItemSlotViewD
 	CloseItemList();
 }
 
-void UPRInventoryWidget::HandleInventoryChanged(UPRInventoryComponent* ChangedInventoryComponent,
+void UPREquipmentWidget::HandleInventoryChanged(UPRInventoryComponent* ChangedInventoryComponent,
 	const FPRInventoryChangeEventData& EventData)
 {
 	if (ChangedInventoryComponent != InventoryComponent)
@@ -438,7 +438,7 @@ void UPRInventoryWidget::HandleInventoryChanged(UPRInventoryComponent* ChangedIn
 	RefreshCharacterPreviewWidget();
 }
 
-void UPRInventoryWidget::HandleWeaponEquipmentChanged(UPRWeaponManagerComponent* ChangedWeaponManagerComponent, EPRWeaponSlotType ChangedSlot)
+void UPREquipmentWidget::HandleWeaponEquipmentChanged(UPRWeaponManagerComponent* ChangedWeaponManagerComponent, EPRWeaponSlotType ChangedSlot)
 {
 	static_cast<void>(ChangedSlot);
 
@@ -451,7 +451,7 @@ void UPRInventoryWidget::HandleWeaponEquipmentChanged(UPRWeaponManagerComponent*
 	RefreshCharacterPreviewWidget();
 }
 
-void UPRInventoryWidget::HandleQuickSlotChanged(UPRQuickSlotComponent* ChangedQuickSlotComponent, int32 ChangedSlotIndex)
+void UPREquipmentWidget::HandleQuickSlotChanged(UPRQuickSlotComponent* ChangedQuickSlotComponent, int32 ChangedSlotIndex)
 {
 	if (ChangedQuickSlotComponent != QuickSlotComponent)
 	{
@@ -461,14 +461,14 @@ void UPRInventoryWidget::HandleQuickSlotChanged(UPRQuickSlotComponent* ChangedQu
 	RefreshQuickSlotWidgets();
 }
 
-void UPRInventoryWidget::HandleEquipmentChanged(EPREquipmentSlotType ChangedSlot, UPRItemInstance_Equipment* EquipmentItem)
+void UPREquipmentWidget::HandleEquipmentChanged(EPREquipmentSlotType ChangedSlot, UPRItemInstance_Equipment* EquipmentItem)
 {
 	// 장비 변경은 슬롯 표시, 열린 장비 목록의 장착 표시, 캐릭터 프리뷰가 함께 변하는 외부 상태
 	RefreshInventoryView();
 	RefreshCharacterPreviewWidget();
 }
 
-void UPRInventoryWidget::HandleEquipmentVisualInfosChanged(UPREquipmentManagerComponent* ChangedEquipmentManagerComponent)
+void UPREquipmentWidget::HandleEquipmentVisualInfosChanged(UPREquipmentManagerComponent* ChangedEquipmentManagerComponent)
 {
 	if (ChangedEquipmentManagerComponent != EquipmentManagerComponent)
 	{
@@ -486,12 +486,12 @@ void UPRInventoryWidget::HandleEquipmentVisualInfosChanged(UPREquipmentManagerCo
 	World->GetTimerManager().SetTimerForNextTick(FTimerDelegate::CreateUObject(this, &ThisClass::RefreshCharacterPreviewWidget));
 }
 
-void UPRInventoryWidget::HandleScrapChanged(int32 NewScrap)
+void UPREquipmentWidget::HandleScrapChanged(int32 NewScrap)
 {
 	RefreshCurrencyText();
 }
 
-void UPRInventoryWidget::OpenWeaponList(EPRWeaponSlotType TargetSlot)
+void UPREquipmentWidget::OpenWeaponList(EPRWeaponSlotType TargetSlot)
 {
 	// 유효성 확인. 아이템 리스트 위젯, 인벤토리 컴포넌트, 무기매니저 컴포넌트
 	if (!IsValid(ItemListWidget) || !IsValid(InventoryComponent) || !IsValid(WeaponManagerComponent))
@@ -544,7 +544,7 @@ void UPRInventoryWidget::OpenWeaponList(EPRWeaponSlotType TargetSlot)
 	PushItemList(ItemListType, ListItems);
 }
 
-void UPRInventoryWidget::OpenModList(UPRItemInstance* TargetItem)
+void UPREquipmentWidget::OpenModList(UPRItemInstance* TargetItem)
 {
 	UPRItemInstance_Weapon* TargetWeaponItem = Cast<UPRItemInstance_Weapon>(TargetItem);
 	
@@ -581,7 +581,7 @@ void UPRInventoryWidget::OpenModList(UPRItemInstance* TargetItem)
 	PushItemList(EPRItemType::Mod, ListItems);
 }
 
-void UPRInventoryWidget::OpenConsumableListForQuickSlot(int32 SlotIndex)
+void UPREquipmentWidget::OpenConsumableListForQuickSlot(int32 SlotIndex)
 {
 	if (!IsValid(ItemListWidget) || !IsValid(InventoryComponent) || !IsValid(QuickSlotComponent))
 	{
@@ -608,7 +608,7 @@ void UPRInventoryWidget::OpenConsumableListForQuickSlot(int32 SlotIndex)
 	PushItemList(EPRItemType::Consumable, ListItems);
 }
 
-void UPRInventoryWidget::OpenEquipmentListForSlot(EPREquipmentSlotType SlotType)
+void UPREquipmentWidget::OpenEquipmentListForSlot(EPREquipmentSlotType SlotType)
 {
 	if (!IsValid(ItemListWidget) || !IsValid(InventoryComponent) || !IsValid(EquipmentManagerComponent))
 	{
@@ -653,7 +653,7 @@ void UPRInventoryWidget::OpenEquipmentListForSlot(EPREquipmentSlotType SlotType)
 	PushItemList(EPRItemType::Equipment, ListItems);
 }
 
-void UPRInventoryWidget::OpenMaterialList()
+void UPREquipmentWidget::OpenMaterialList()
 {
 	if (!IsValid(ItemListWidget) || !IsValid(InventoryComponent))
 	{
@@ -679,12 +679,12 @@ void UPRInventoryWidget::OpenMaterialList()
 	PushItemList(EPRItemType::Material, ListItems);
 }
 
-bool UPRInventoryWidget::IsItemListOpenAs(EPRItemType ListType) const
+bool UPREquipmentWidget::IsItemListOpenAs(EPRItemType ListType) const
 {
 	return IsValid(ItemListWidget) && ItemListWidget->IsVisible() && ItemListWidget->GetListType() == ListType;
 }
 
-void UPRInventoryWidget::CloseItemList()
+void UPREquipmentWidget::CloseItemList()
 {
 	if (IsValid(ItemListWidget))
 	{
@@ -703,7 +703,7 @@ void UPRInventoryWidget::CloseItemList()
 	LastFocusedIndex = INDEX_NONE;
 }
 
-void UPRInventoryWidget::PushItemList(EPRItemType ListType, const TArray<FPRInventoryItemSlotViewData>& ListItems)
+void UPREquipmentWidget::PushItemList(EPRItemType ListType, const TArray<FPRInventoryItemSlotViewData>& ListItems)
 {
 	if (!IsValid(ItemListWidget))
 	{
@@ -719,7 +719,7 @@ void UPRInventoryWidget::PushItemList(EPRItemType ListType, const TArray<FPRInve
 	}
 }
 
-void UPRInventoryWidget::RefreshEquippedSlotWidgets()
+void UPREquipmentWidget::RefreshEquippedSlotWidgets()
 {
 	// 주무기 슬롯 위젯이 유효하면
 	if (IsValid(PrimaryWeaponSlotWidget))
@@ -736,7 +736,7 @@ void UPRInventoryWidget::RefreshEquippedSlotWidgets()
 	}
 }
 
-void UPRInventoryWidget::RefreshQuickSlotWidgets()
+void UPREquipmentWidget::RefreshQuickSlotWidgets()
 {
 	for (int32 SlotIndex = 0; SlotIndex < QuickSlotWidgets.Num(); ++SlotIndex)
 	{
@@ -748,7 +748,7 @@ void UPRInventoryWidget::RefreshQuickSlotWidgets()
 	}
 }
 
-void UPRInventoryWidget::RefreshEquipmentSlotWidgets()
+void UPREquipmentWidget::RefreshEquipmentSlotWidgets()
 {
 	for (int32 SlotIndex = 0; SlotIndex < EquipmentSlotWidgets.Num(); ++SlotIndex)
 	{
@@ -765,7 +765,7 @@ void UPRInventoryWidget::RefreshEquipmentSlotWidgets()
 	}
 }
 
-void UPRInventoryWidget::RefreshMaterialSlotWidget()
+void UPREquipmentWidget::RefreshMaterialSlotWidget()
 {
 	if (IsValid(MaterialSlotWidget))
 	{
@@ -773,7 +773,7 @@ void UPRInventoryWidget::RefreshMaterialSlotWidget()
 	}
 }
 
-void UPRInventoryWidget::RefreshCurrencyText()
+void UPREquipmentWidget::RefreshCurrencyText()
 {
 	if (!IsValid(ScrapDisplayWidget) && !IsValid(ScrapAmountText))
 	{
@@ -796,7 +796,7 @@ void UPRInventoryWidget::RefreshCurrencyText()
 	}
 }
 
-void UPRInventoryWidget::RefreshInventoryView()
+void UPREquipmentWidget::RefreshInventoryView()
 {
 	// 장착 슬롯은 리스트 표시 여부와 관계없이 항상 최신 상태로 맞춘다
 	RefreshEquippedSlotWidgets();
@@ -838,7 +838,7 @@ void UPRInventoryWidget::RefreshInventoryView()
 	}
 }
 
-void UPRInventoryWidget::RefreshCharacterPreviewWidget()
+void UPREquipmentWidget::RefreshCharacterPreviewWidget()
 {
 	if (!IsValid(CharacterPreviewWidget))
 	{
@@ -849,7 +849,7 @@ void UPRInventoryWidget::RefreshCharacterPreviewWidget()
 	CharacterPreviewWidget->SetPreviewSources(SourceCharacter, WeaponManagerComponent);
 }
 
-void UPRInventoryWidget::RefreshPlayerStatsPanelWidget()
+void UPREquipmentWidget::RefreshPlayerStatsPanelWidget()
 {
 	if (!IsValid(PlayerStatsPanelWidget))
 	{
@@ -860,7 +860,7 @@ void UPRInventoryWidget::RefreshPlayerStatsPanelWidget()
 	PlayerStatsPanelWidget->SetPlayerStateSource(PlayerState);
 }
 
-APRPlayerCharacter* UPRInventoryWidget::GetPreviewSourceCharacter() const
+APRPlayerCharacter* UPREquipmentWidget::GetPreviewSourceCharacter() const
 {
 	APlayerController* OwningPlayerController = GetOwningPlayer();
 	if (!IsValid(OwningPlayerController) || !OwningPlayerController->IsLocalController())
@@ -871,7 +871,7 @@ APRPlayerCharacter* UPRInventoryWidget::GetPreviewSourceCharacter() const
 	return Cast<APRPlayerCharacter>(OwningPlayerController->GetPawn());
 }
 
-FPRInventoryItemSlotViewData UPRInventoryWidget::BuildWeaponSlotViewData(EPRWeaponSlotType SlotType) const
+FPRInventoryItemSlotViewData UPREquipmentWidget::BuildWeaponSlotViewData(EPRWeaponSlotType SlotType) const
 {
 	if (IsValid(WeaponManagerComponent))
 	{
@@ -884,32 +884,32 @@ FPRInventoryItemSlotViewData UPRInventoryWidget::BuildWeaponSlotViewData(EPRWeap
 	return UPRInventoryItemSlotViewDataBuilder::BuildEmptyWeaponSlotViewData(SlotType);
 }
 
-FPRInventoryItemSlotViewData UPRInventoryWidget::BuildWeaponItemViewData(UPRItemInstance_Weapon* WeaponItem, bool bEquipped) const
+FPRInventoryItemSlotViewData UPREquipmentWidget::BuildWeaponItemViewData(UPRItemInstance_Weapon* WeaponItem, bool bEquipped) const
 {
 	return UPRInventoryItemSlotViewDataBuilder::BuildWeaponItemViewData(WeaponItem, bEquipped);
 }
 
-FPRInventoryItemSlotViewData UPRInventoryWidget::BuildModItemViewData(UPRItemInstance_Mod* ModItem, bool bEquipped) const
+FPRInventoryItemSlotViewData UPREquipmentWidget::BuildModItemViewData(UPRItemInstance_Mod* ModItem, bool bEquipped) const
 {
 	return UPRInventoryItemSlotViewDataBuilder::BuildModItemViewData(ModItem, bEquipped);
 }
 
-FPRInventoryItemSlotViewData UPRInventoryWidget::BuildConsumableItemViewData(UPRItemInstance_Consumable* ConsumableItem) const
+FPRInventoryItemSlotViewData UPREquipmentWidget::BuildConsumableItemViewData(UPRItemInstance_Consumable* ConsumableItem) const
 {
 	return UPRInventoryItemSlotViewDataBuilder::BuildConsumableItemViewData(ConsumableItem);
 }
 
-FPRInventoryItemSlotViewData UPRInventoryWidget::BuildMaterialSlotViewData() const
+FPRInventoryItemSlotViewData UPREquipmentWidget::BuildMaterialSlotViewData() const
 {
 	return UPRInventoryItemSlotViewDataBuilder::BuildMaterialSlotViewData();
 }
 
-FPRInventoryItemSlotViewData UPRInventoryWidget::BuildMaterialItemViewData(UPRItemInstance_Material* MaterialItem) const
+FPRInventoryItemSlotViewData UPREquipmentWidget::BuildMaterialItemViewData(UPRItemInstance_Material* MaterialItem) const
 {
 	return UPRInventoryItemSlotViewDataBuilder::BuildMaterialItemViewData(MaterialItem);
 }
 
-FPRInventoryItemSlotViewData UPRInventoryWidget::BuildQuickSlotViewData(int32 SlotIndex) const
+FPRInventoryItemSlotViewData UPREquipmentWidget::BuildQuickSlotViewData(int32 SlotIndex) const
 {
 	if (!IsValid(QuickSlotComponent))
 	{
@@ -920,7 +920,7 @@ FPRInventoryItemSlotViewData UPRInventoryWidget::BuildQuickSlotViewData(int32 Sl
 	return UPRInventoryItemSlotViewDataBuilder::BuildQuickSlotViewData(QuickSlotViewData);
 }
 
-FPRInventoryItemSlotViewData UPRInventoryWidget::BuildEquipmentSlotViewData(EPREquipmentSlotType SlotType) const
+FPRInventoryItemSlotViewData UPREquipmentWidget::BuildEquipmentSlotViewData(EPREquipmentSlotType SlotType) const
 {
 	if (IsValid(EquipmentManagerComponent))
 	{
@@ -935,27 +935,27 @@ FPRInventoryItemSlotViewData UPRInventoryWidget::BuildEquipmentSlotViewData(EPRE
 	return UPRInventoryItemSlotViewDataBuilder::BuildEmptyEquipmentSlotViewData(SlotType);
 }
 
-FPRInventoryItemSlotViewData UPRInventoryWidget::BuildEquipmentItemViewData(UPRItemInstance_Equipment* EquipmentItem, bool bEquipped) const
+FPRInventoryItemSlotViewData UPREquipmentWidget::BuildEquipmentItemViewData(UPRItemInstance_Equipment* EquipmentItem, bool bEquipped) const
 {
 	return UPRInventoryItemSlotViewDataBuilder::BuildEquipmentItemViewData(EquipmentItem, bEquipped);
 }
 
-FPRInventoryItemSlotViewData UPRInventoryWidget::BuildDeactivateActionViewData(EPRItemType ListType, UPRItemInstance* TargetItem) const
+FPRInventoryItemSlotViewData UPREquipmentWidget::BuildDeactivateActionViewData(EPRItemType ListType, UPRItemInstance* TargetItem) const
 {
 	return UPRInventoryItemSlotViewDataBuilder::BuildDeactivateActionViewData(ListType, TargetItem);
 }
 
-FText UPRInventoryWidget::GetEquipmentSlotDisplayName(EPREquipmentSlotType SlotType) const
+FText UPREquipmentWidget::GetEquipmentSlotDisplayName(EPREquipmentSlotType SlotType) const
 {
 	return UPRInventoryItemSlotViewDataBuilder::GetEquipmentSlotDisplayName(SlotType);
 }
 
-bool UPRInventoryWidget::IsModCompatibleWithWeapon(const UPRItemInstance_Mod* ModItem, const UPRItemInstance_Weapon* WeaponItem) const
+bool UPREquipmentWidget::IsModCompatibleWithWeapon(const UPRItemInstance_Mod* ModItem, const UPRItemInstance_Weapon* WeaponItem) const
 {
 	return UPRInventoryItemSlotViewDataBuilder::IsModCompatibleWithWeapon(ModItem, WeaponItem);
 }
 
-UPRCurrencyComponent* UPRInventoryWidget::ResolveCurrencyComponent() const
+UPRCurrencyComponent* UPREquipmentWidget::ResolveCurrencyComponent() const
 {
 	if (!IsValid(InventoryComponent))
 	{
@@ -971,7 +971,7 @@ UPRCurrencyComponent* UPRInventoryWidget::ResolveCurrencyComponent() const
 	return PlayerState->GetCurrencyComponent();
 }
 
-UPRUIManagerSubsystem* UPRInventoryWidget::ResolveUIManager() const
+UPRUIManagerSubsystem* UPREquipmentWidget::ResolveUIManager() const
 {
 	ULocalPlayer* LocalPlayer = GetOwningLocalPlayer();
 	if (!IsValid(LocalPlayer))

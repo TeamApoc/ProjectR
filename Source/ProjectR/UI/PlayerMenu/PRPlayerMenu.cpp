@@ -29,25 +29,10 @@ void UPRPlayerMenu::NativePreConstruct()
 		return;
 	}
 
-	TArray<FName> PreviewTabNames;
-	if (IsValid(WidgetSwitcher))
-	{
-		for (int32 ChildIndex = 0; ChildIndex < WidgetSwitcher->GetChildrenCount(); ++ChildIndex)
-		{
-			UWidget* ChildWidget = WidgetSwitcher->GetChildAt(ChildIndex);
-			if (!IsValid(ChildWidget))
-			{
-				continue;
-			}
-
-			// 디자인 탭 이름
-			PreviewTabNames.Add(ChildWidget->GetFName());
-		}
-	}
-
 	if (UPRPlayerMenuTabListWidget* PlayerMenuTabList = Cast<UPRPlayerMenuTabListWidget>(TabList))
 	{
-		PlayerMenuTabList->RebuildDesignPreviewTabs(PreviewTabNames, TabButtonClass);
+		// 디자인 탭 갱신
+		PlayerMenuTabList->RefreshTabs(WidgetSwitcher, TabButtonClass, INDEX_NONE);
 	}
 }
 
@@ -72,7 +57,7 @@ bool UPRPlayerMenu::RefreshRuntimeTabs(EPRPlayerMenuTabType DesiredTabType)
 
 	if (UPRPlayerMenuTabListWidget* PlayerMenuTabList = Cast<UPRPlayerMenuTabListWidget>(TabList))
 	{
-		return PlayerMenuTabList->RegisterRuntimeTabs(WidgetSwitcher, TabButtonClass, DesiredTabIndex);
+		return PlayerMenuTabList->RefreshTabs(WidgetSwitcher, TabButtonClass, DesiredTabIndex);
 	}
 
 	return false;

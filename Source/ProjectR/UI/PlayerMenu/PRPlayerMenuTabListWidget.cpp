@@ -10,49 +10,52 @@
 #include "Components/Widget.h"
 #include "ProjectR/UI/TextButton/PRTextButton.h"
 
-void UPRPlayerMenuTabListWidget::RebuildDesignPreviewTabs(const TArray<FName>& TabNameIDs, TSubclassOf<UCommonButtonBase> ButtonWidgetType)
+bool UPRPlayerMenuTabListWidget::RefreshTabs(UCommonActivatableWidgetSwitcher* InWidgetSwitcher, TSubclassOf<UCommonButtonBase> ButtonWidgetType, int32 DesiredTabIndex)
 {
-	if (!IsDesignTime() || !IsValid(TabButtonContainer))
+	if (!IsValid(TabButtonContainer))
 	{
-		return;
+		return false;
 	}
 
-	TabButtonContainer->ClearChildren();
-	if (!IsValid(ButtonWidgetType.Get()) || !IsValid(WidgetTree))
+	if (IsDesignTime())
 	{
-		return;
-	}
-
-	for (const FName TabNameID : TabNameIDs)
-	{
-		UCommonButtonBase* PreviewTabButton = WidgetTree->ConstructWidget<UCommonButtonBase>(ButtonWidgetType);
-		if (!IsValid(PreviewTabButton))
+		// 디자인 탭 정리
+		TabButtonContainer->ClearChildren();
+		if (!IsValid(InWidgetSwitcher) || !IsValid(ButtonWidgetType.Get()) || !IsValid(WidgetTree))
 		{
-			continue;
+			return false;
 		}
 
-		UPRTextButton* PreviewTextButton = Cast<UPRTextButton>(PreviewTabButton);
-		if (!IsValid(PreviewTextButton))
+		for (int32 ChildIndex = 0; ChildIndex < InWidgetSwitcher->GetChildrenCount(); ++ChildIndex)
 		{
-			TabButtonContainer->AddChild(PreviewTabButton);
-			continue;
+			UWidget* ChildWidget = InWidgetSwitcher->GetChildAt(ChildIndex);
+			if (!IsValid(ChildWidget))
+			{
+				continue;
+			}
+
+			UCommonButtonBase* PreviewTabButton = WidgetTree->ConstructWidget<UCommonButtonBase>(ButtonWidgetType);
+			if (!IsValid(PreviewTabButton))
+			{
+				continue;
+			}
+
+			// 디자인 탭 표시
+			AddTabButtonToContainer(ChildWidget->GetFName(), PreviewTabButton);
 		}
 
-		// 디자인 탭 텍스트
-		PreviewTextButton->SetText(FText::FromName(TabNameID));
-		TabButtonContainer->AddChild(PreviewTextButton);
+		return true;
 	}
-}
 
-bool UPRPlayerMenuTabListWidget::RegisterRuntimeTabs(UCommonActivatableWidgetSwitcher* InWidgetSwitcher, TSubclassOf<UCommonButtonBase> ButtonWidgetType, int32 DesiredTabIndex)
-{
-	if (!IsValid(InWidgetSwitcher) || !IsValid(TabButtonContainer) || !IsValid(ButtonWidgetType.Get()))
+	if (!IsValid(InWidgetSwitcher) || !IsValid(ButtonWidgetType.Get()))
 	{
 		return false;
 	}
 
 	// 기존 탭 정리
 	RemoveAllTabs();
+	// 탭 컨테이너 정리
+	TabButtonContainer->ClearChildren();
 
 	// 스위처 연결
 	SetLinkedSwitcher(InWidgetSwitcher);
@@ -99,25 +102,7 @@ void UPRPlayerMenuTabListWidget::HandleTabCreation_Implementation(FName TabNameI
 {
 	Super::HandleTabCreation_Implementation(TabNameID, TabButton);
 
-	if (!IsValid(TabButtonContainer))
-	{
-		return;
-	}
-
-	if (!IsValid(TabButton))
-	{
-		return;
-	}
-
-	UPRTextButton* TabTextButton = Cast<UPRTextButton>(TabButton);
-	if (!IsValid(TabTextButton))
-	{
-		return;
-	}
-
-
-	TabTextButton->SetText(FText::FromName(TabNameID));
-	TabButtonContainer->AddChild(TabTextButton);
+	AddTabButtonToContainer(TabNameID, TabButton);
 }
 
 void UPRPlayerMenuTabListWidget::HandleTabRemoval_Implementation(FName TabNameID, UCommonButtonBase* TabButton)
@@ -130,4 +115,20 @@ void UPRPlayerMenuTabListWidget::HandleTabRemoval_Implementation(FName TabNameID
 	}
 
 	TabButtonContainer->RemoveChild(TabButton);
+}
+
+void UPRPlayerMenuTabListWidget::AddTabButtonToContainer(FName TabNameID, UCommonButtonBase* TabButton)
+{
+	if (!IsValid(TabButtonContainer) || !IsValid(TabButton))
+	{
+		return;
+	}
+
+	if (UPRTextButton* TabTextButton = Cast<UPRTextButton>(TabButton))
+	{
+		// 탭 텍스트
+		TabTextButton->SetText(FText::FromName(TabNameID));
+	}
+
+	TabButtonContainer->AddChild(TabButton);
 }

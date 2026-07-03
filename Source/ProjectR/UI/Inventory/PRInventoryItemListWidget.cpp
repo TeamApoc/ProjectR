@@ -77,9 +77,14 @@ void UPRInventoryItemListWidget::NativePreConstruct()
 {
 	Super::NativePreConstruct();
 
-	// RowCount와 ColumnCount에 맞춰 동적 슬롯을 다시 생성한다
+	if (!IsDesignTime())
+	{
+		return;
+	}
+
+	// 디자인 슬롯 재생성
 	RebuildNativeItemSlots();
-	// 생성한 슬롯에 현재 리스트 항목을 반영한다
+	// 디자인 표시 갱신
 	RebuildNativeItemList();
 }
 
@@ -87,9 +92,14 @@ void UPRInventoryItemListWidget::NativeOnInitialized()
 {
 	Super::NativeOnInitialized();
 
-	// RowCount와 ColumnCount에 맞춰 동적 슬롯을 다시 생성한다
+	if (IsDesignTime())
+	{
+		return;
+	}
+
+	// 런타임 슬롯 재생성
 	RebuildNativeItemSlots();
-	// 생성한 슬롯에 현재 리스트 항목을 반영한다
+	// 런타임 표시 갱신
 	RebuildNativeItemList();
 }
 
@@ -112,7 +122,7 @@ void UPRInventoryItemListWidget::RebuildNativeItemSlots()
 	{
 		UPRItemSlotWidget* ItemSlotWidget = nullptr;
 		APlayerController* OwningPlayer = GetOwningPlayer();
-		if (IsValid(OwningPlayer))
+		if (!IsDesignTime() && IsValid(OwningPlayer))
 		{
 			ItemSlotWidget = CreateWidget<UPRItemSlotWidget>(OwningPlayer, ItemSlotWidgetClass);
 		}
@@ -126,7 +136,7 @@ void UPRInventoryItemListWidget::RebuildNativeItemSlots()
 			continue;
 		}
 
-		// 슬롯 목록에 유효한 슬롯을 추가하고 클릭 이벤트를 바인딩한다
+		// 슬롯 목록 보관
 		AddGeneratedItemSlot(ItemSlotWidget);
 		// 슬롯을 패널 종류에 맞게 추가한다
 		AddItemSlotToPanel(ItemSlotWidget, SlotIndex);
@@ -209,13 +219,18 @@ void UPRInventoryItemListWidget::AddGeneratedItemSlot(UPRItemSlotWidget* ItemSlo
 		return;
 	}
 
-	// 기존 할당 이벤트 삭제 후 새로 바인드
+	ItemSlotWidgets.Add(ItemSlotWidget);
+
+	if (IsDesignTime())
+	{
+		return;
+	}
+
+	// 런타임 이벤트 재바인드
 	ItemSlotWidget->OnLeftClicked.RemoveDynamic(this, &UPRInventoryItemListWidget::HandleItemSlotLeftClicked);
 	ItemSlotWidget->OnRightClicked.RemoveDynamic(this, &UPRInventoryItemListWidget::HandleItemSlotRightClicked);
 	ItemSlotWidget->OnLeftClicked.AddDynamic(this, &UPRInventoryItemListWidget::HandleItemSlotLeftClicked);
 	ItemSlotWidget->OnRightClicked.AddDynamic(this, &UPRInventoryItemListWidget::HandleItemSlotRightClicked);
-
-	ItemSlotWidgets.Add(ItemSlotWidget);
 }
 
 void UPRInventoryItemListWidget::HandleItemSlotLeftClicked(const FPRInventoryItemSlotViewData& ViewData)

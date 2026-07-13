@@ -42,10 +42,10 @@ public:
 
 protected:
 	/*~ UUserWidget Interface ~*/
-	// 디자이너와 런타임에서 슬롯 수 변경을 반영한다
+	// 디자이너 슬롯 수 변경 반영
 	virtual void NativePreConstruct() override;
 
-	// 초기화 시 동적 슬롯을 생성하고 클릭 이벤트를 바인딩한다
+	// 런타임 동적 슬롯 생성 및 이벤트 바인딩
 	virtual void NativeOnInitialized() override;
 
 private:
@@ -61,7 +61,7 @@ private:
 	// 슬롯을 패널 종류에 맞게 추가한다
 	void AddItemSlotToPanel(UPRItemSlotWidget* ItemSlotWidget, int32 SlotIndex);
 
-	// 슬롯 목록에 유효한 슬롯을 추가하고 클릭 이벤트를 바인딩한다
+	// 슬롯 목록에 유효한 슬롯을 추가한다
 	void AddGeneratedItemSlot(UPRItemSlotWidget* ItemSlotWidget);
 
 	// 리스트 슬롯 좌클릭을 선택 이벤트로 전달한다

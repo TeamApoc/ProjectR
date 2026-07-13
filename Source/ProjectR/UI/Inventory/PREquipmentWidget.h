@@ -10,7 +10,7 @@
 #include "ProjectR/ItemSystem/Types/PREquipmentTypes.h"
 #include "ProjectR/ItemSystem/Types/PRWeaponTypes.h"
 #include "ProjectR/UI/PRWidgetBase.h"
-#include "PRInventoryWidget.generated.h"
+#include "PREquipmentWidget.generated.h"
 
 class UPREquipmentManagerComponent;
 class UPRItemInstance_Mod;
@@ -35,12 +35,12 @@ class APRPlayerCharacter;
 
 // 인벤토리 화면의 무기 슬롯과 아이템 선택 목록을 연결하는 최상위 위젯이다
 UCLASS(Abstract, BlueprintType)
-class PROJECTR_API UPRInventoryWidget : public UPRWidgetBase
+class PROJECTR_API UPREquipmentWidget : public UPRWidgetBase
 {
 	GENERATED_BODY()
 
 public:
-	UPRInventoryWidget();
+	UPREquipmentWidget();
 
 	// 인벤토리 위젯에 표시할 Item 소스와 장착 상태 컴포넌트를 설정한다
 	UFUNCTION(BlueprintCallable, Category = "ProjectR|Inventory")
